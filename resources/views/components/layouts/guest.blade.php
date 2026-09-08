@@ -15,6 +15,7 @@
 <body class="min-h-screen bg-surface font-sans text-text-primary antialiased">
     {{ $slot }}
     <x-ui.confirm-dialog />
+    <x-ui.page-loader />
     @php
       $flashToasts = [];
 

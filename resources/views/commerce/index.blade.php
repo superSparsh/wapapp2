@@ -6,6 +6,8 @@
         <x-commerce.note />
       </div>
 
+      <x-commerce.sub-nav />
+
       {{-- Catalog selector --}}
       @if (count($catalogs) > 0)
         <div class="flex flex-wrap items-center gap-3">

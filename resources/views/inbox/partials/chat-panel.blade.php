@@ -22,6 +22,7 @@
     data-template-url="{{ route('inbox.api.send-template', $conversation) }}"
     data-location-url="{{ route('inbox.api.send-location', $conversation) }}"
     data-sticker-url="{{ route('inbox.api.send-sticker', $conversation) }}"
+    data-payment-url="{{ route('inbox.api.request-payment', $conversation) }}"
     data-templates-url="{{ route('inbox.api.templates') }}"
     data-window-url="{{ route('inbox.api.window', $conversation) }}"
     data-window-hours="{{ config('whatsapp.service_window_hours', 24) }}"

@@ -95,6 +95,52 @@ class InboxController extends Controller
         return $adapter->sendSticker($request, $conversation);
     }
 
+    public function requestPayment(
+        Request $request,
+        Conversation $conversation,
+        InboxService $inboxService,
+        \App\Domains\Commerce\Services\CommercePaymentService $paymentService,
+    ): JsonResponse {
+        $inboxService->authorizeConversation($conversation);
+
+        $validated = $request->validate([
+            'amount' => ['required', 'numeric', 'min:1'],
+            'description' => ['required', 'string', 'max:255'],
+        ]);
+
+        try {
+            $payment = $paymentService->createPaymentLink([
+                'customer_name' => (string) ($conversation->contact_name ?: 'Customer'),
+                'customer_phone' => (string) $conversation->contact_phone,
+                'amount' => $validated['amount'],
+                'currency' => 'INR',
+                'description' => $validated['description'],
+            ]);
+
+            \App\Domains\Commerce\Jobs\SendPaymentLinkJob::dispatch($payment, (string) tenant('id'));
+
+            return response()->json([
+                'ok' => true,
+                'payment_link' => $payment->payment_link,
+                'message' => [
+                    'uuid' => $payment->uuid,
+                    'direction' => 'outbound',
+                    'body' => sprintf(
+                        'Payment request of ₹%s sent%s.',
+                        number_format((float) $validated['amount'], 2),
+                        $payment->payment_link ? ' — '.$payment->payment_link : ''
+                    ),
+                    'message_type' => 'system',
+                    'created_at' => now()->toIso8601String(),
+                ],
+            ]);
+        } catch (\RuntimeException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+            ], 422);
+        }
+    }
+
     public function templates(Request $request, InboxService $inboxService, TemplateRegistryService $registry): JsonResponse
     {
         $inboxService->requireDefaultLine();

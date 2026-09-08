@@ -1,5 +1,5 @@
-<x-layouts.app title="Payment Status - WapApp" active="commerce.settings">
-  <div class="flex min-h-[60vh] flex-col items-center justify-center gap-6 p-8">
+<x-layouts.guest title="Payment Status - WapApp">
+  <div class="flex min-h-screen flex-col items-center justify-center gap-6 p-8">
     @if ($status === 'paid')
       <div class="flex size-20 items-center justify-center rounded-full bg-green-100">
         <svg class="size-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -22,8 +22,10 @@
       </div>
     @endif
 
-    <a href="{{ route('commerce.settings') }}" class="fd-btn rounded bg-green-500 px-6 py-3 font-semibold text-white hover:opacity-90">
-      Back to Dashboard
-    </a>
+    @if (! empty($authenticated))
+      <a href="{{ route('commerce.settings') }}" class="fd-btn rounded bg-green-500 px-6 py-3 font-semibold text-white hover:opacity-90">
+        Back to Dashboard
+      </a>
+    @endif
   </div>
-</x-layouts.app>
+</x-layouts.guest>

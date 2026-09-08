@@ -58,14 +58,17 @@
     @endforeach
 
     @if (! empty($canAccessAdminView))
-      <a
-        href="{{ route('admin.dashboard') }}"
-        class="fd-nav-item flex items-center gap-3 rounded-md p-3 text-blue-200 transition-colors hover:bg-surface"
-        role="menuitem"
-      >
-        <x-icons.sidebar-icon name="box" :active="false" class="size-5 shrink-0" />
-        <span class="min-w-0 flex-1">Admin View</span>
-      </a>
+      <form method="POST" action="{{ route('admin.enter-from-app') }}" class="contents">
+        @csrf
+        <button
+          type="submit"
+          class="fd-nav-item flex w-full items-center gap-3 rounded-md p-3 text-left text-blue-200 transition-colors hover:bg-surface"
+          role="menuitem"
+        >
+          <x-icons.sidebar-icon name="box" :active="false" class="size-5 shrink-0" />
+          <span class="min-w-0 flex-1">Admin View</span>
+        </button>
+      </form>
     @endif
   </nav>
 

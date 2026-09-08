@@ -68,6 +68,12 @@ Route::middleware('tenancy.session')->group(function () {
     });
 });
 
+// Public commerce payment callback (Razorpay — no auth; tenant from query)
+Route::middleware('web')->group(function () {
+    Route::get('/commerce/payments/callback', [CommerceController::class, 'paymentCallback'])
+        ->name('commerce.payment.callback');
+});
+
 // Public form routes (Form Builder — no auth — tenant resolved from path)
 Route::middleware([\Stancl\Tenancy\Middleware\InitializeTenancyByPath::class])
     ->prefix('form/{tenant}')
@@ -265,10 +271,10 @@ Route::middleware(['tenancy.session', 'auth:web,team', '2fa', 'verified', 'team.
             Route::get('/product-detail', [CommerceController::class, 'productDetail'])->name('product-detail');
             Route::get('/orders', [CommerceController::class, 'orders'])->name('orders');
             Route::get('/orders/{uuid}', [CommerceController::class, 'orderDetail'])->name('orders.detail');
+            Route::patch('/orders/{uuid}/status', [CommerceController::class, 'updateOrderStatus'])->name('orders.status');
             Route::get('/settings', [CommerceController::class, 'settings'])->name('settings');
             Route::post('/settings', [CommerceController::class, 'saveConfig'])->name('settings.save');
             Route::post('/payments', [CommerceController::class, 'createPayment'])->name('payments.create');
-            Route::get('/payments/callback', [CommerceController::class, 'paymentCallback'])->name('payment.callback');
         });
 
         Route::prefix('integration')->name('integration.')->group(function () {
@@ -354,6 +360,7 @@ Route::middleware(['tenancy.session', 'auth:web,team', '2fa', 'verified', 'team.
             Route::post('/conversations/{conversation}/templates', [InboxController::class, 'sendTemplate'])->name('send-template');
             Route::post('/conversations/{conversation}/location', [InboxController::class, 'sendLocation'])->name('send-location');
             Route::post('/conversations/{conversation}/sticker', [InboxController::class, 'sendSticker'])->name('send-sticker');
+            Route::post('/conversations/{conversation}/payment', [InboxController::class, 'requestPayment'])->name('request-payment');
             Route::post('/conversations/{conversation}/read', [InboxController::class, 'markRead'])->name('read');
             Route::post('/conversations/{conversation}/assign', [InboxController::class, 'assign'])->name('assign');
             Route::post('/mark-all-read', [InboxController::class, 'markAllRead'])->name('mark-all-read');

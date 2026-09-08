@@ -4,7 +4,7 @@
   $tabs = [
     'products' => ['label' => 'Products', 'route' => 'commerce.index'],
     'collections' => ['label' => 'Collections', 'route' => 'commerce.catalog'],
-    'catalogues' => ['label' => 'Catalogues', 'route' => 'commerce.orders'],
+    'catalogues' => ['label' => 'Catalogues', 'route' => 'commerce.catalog'],
   ];
 @endphp
 

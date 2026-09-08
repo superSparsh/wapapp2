@@ -10,10 +10,13 @@ import { initListingFilters, applyServerFieldErrors } from './listing-filters.js
 import { initBuilderSectionMaximize, initDripCanvasMaximize, initInboxMaximize } from './builder-maximize.js';
 import { initChatbotListingToggle } from './chatbot-listing.js';
 import { initCampaignWizard } from './campaign-wizard.js';
+import { initPageLoader } from './page-loader.js';
 import { initDashboard } from './dashboard.js';
+import { initCommerceOrderModal } from './commerce.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     initToast();
+    initPageLoader();
     initThemeToggle();
     initTabToggle();
     initPasswordToggle();
@@ -26,6 +29,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initDashboard();
     initInboxModals();
     initInboxMessageMenu();
+    initCommerceOrderModal();
     initInboxChat();
     initInboxOutboundModals();
     initInboxTeamFeatures();
@@ -1172,15 +1176,12 @@ function initInboxOutboundModals() {
     }
 
     const paymentForm = document.querySelector('[data-inbox-payment-form]');
+    const paymentUrl = chat.dataset.paymentUrl;
 
-    if (paymentForm && sendUrl) {
+    if (paymentForm && paymentUrl) {
         paymentForm.addEventListener('submit', async (event) => {
             event.preventDefault();
             showFormError(paymentForm, '');
-
-            if (!assertWithinWindow()) {
-                return;
-            }
 
             const amount = paymentForm.querySelector('[name="amount"]')?.value;
             const description = paymentForm.querySelector('[name="description"]')?.value;
@@ -1192,10 +1193,28 @@ function initInboxOutboundModals() {
             }
 
             try {
-                const data = await postJsonMessage(sendUrl, {
-                    body: `Payment request: ${amount} - ${description}`,
+                const response = await fetch(paymentUrl, {
+                    method: 'POST',
+                    headers: {
+                        Accept: 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrf,
+                    },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ amount, description }),
                 });
-                appendMessage(data.message);
+
+                const data = await response.json().catch(() => ({}));
+
+                if (!response.ok) {
+                    throw new Error(data.message || 'Unable to send payment link.');
+                }
+
+                appendMessage({
+                    ...(data.message || {}),
+                    is_outbound: true,
+                    body: data.message?.body || `Payment link created: ${data.payment_link || ''}`,
+                });
                 paymentForm.reset();
                 closeModal(paymentForm);
             } catch (error) {

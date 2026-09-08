@@ -6,6 +6,8 @@
         <x-commerce.note />
       </div>
 
+      <x-commerce.sub-nav />
+
       {{-- Success / Error flash --}}
       @if (session('success'))
         <div class="rounded-lg bg-green-50 p-3 text-sm text-green-700">{{ session('success') }}</div>

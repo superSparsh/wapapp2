@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Commerce\Http\Controllers;
 
+use App\Domains\Commerce\Enums\OrderStatus;
 use App\Domains\Commerce\Http\Requests\CreatePaymentRequest;
 use App\Domains\Commerce\Http\Requests\SavePaymentConfigRequest;
 use App\Domains\Commerce\Jobs\SendPaymentLinkJob;
@@ -14,11 +15,13 @@ use App\Domains\Commerce\Services\CommerceOrderService;
 use App\Domains\Commerce\Services\CommercePaymentService;
 use App\Http\Controllers\Controller;
 use App\Models\Template;
+use App\Models\Tenant;
 use App\Models\WhatsappLine;
 use App\Support\PublicId;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class CommerceController extends Controller
@@ -103,7 +106,16 @@ class CommerceController extends Controller
      */
     public function orderDetail(string $uuid): JsonResponse
     {
-        $order = CommerceOrder::query()->where('uuid', $uuid)->firstOrFail();
+        $order = $this->orderService->findByUuid($uuid);
+        $line = WhatsappLine::query()->find($order->whatsapp_line_id)
+            ?? WhatsappLine::query()->where('is_default', true)->first();
+
+        if ($line && filled($order->catalog_id)) {
+            $productResult = $this->catalogService->getProducts($line, (string) $order->catalog_id);
+            if ($productResult['success'] ?? false) {
+                $order = $this->orderService->enrichOrderItems($order, $productResult['products'] ?? []);
+            }
+        }
 
         return response()->json([
             'id'             => $order->id,
@@ -114,9 +126,37 @@ class CommerceController extends Controller
             'total_price'    => $order->total_price,
             'currency'       => $order->currency,
             'order_status'   => $order->order_status->value,
+            'order_status_label' => $order->order_status->label(),
             'payment_status' => $order->payment_status->value,
+            'payment_status_label' => $order->payment_status->label(),
             'payment_link'   => $order->payment_link,
             'created_at'     => $order->created_at?->format('d/m/Y, g:i:s a'),
+            'statuses'       => collect(OrderStatus::cases())->map(fn (OrderStatus $status) => [
+                'value' => $status->value,
+                'label' => $status->label(),
+            ])->values(),
+        ]);
+    }
+
+    /**
+     * PATCH /commerce/orders/{uuid}/status — Update order status
+     */
+    public function updateOrderStatus(Request $request, string $uuid): JsonResponse
+    {
+        $validated = $request->validate([
+            'order_status' => ['required', 'string', Rule::enum(OrderStatus::class)],
+        ]);
+
+        $order = $this->orderService->findByUuid($uuid);
+        $order = $this->orderService->updateOrderStatus(
+            $order,
+            OrderStatus::from($validated['order_status']),
+        );
+
+        return response()->json([
+            'ok' => true,
+            'order_status' => $order->order_status->value,
+            'order_status_label' => $order->order_status->label(),
         ]);
     }
 
@@ -180,19 +220,45 @@ class CommerceController extends Controller
     }
 
     /**
-     * GET /commerce/payments/callback — Razorpay callback after customer pays
+     * GET /commerce/payments/callback — Razorpay callback after customer pays (public)
      */
     public function paymentCallback(Request $request): View
     {
-        $paymentLinkId    = $request->query('razorpay_payment_link_id');
-        $razorpayPaymentId = $request->query('razorpay_payment_id');
-        $status           = $request->query('razorpay_payment_link_status');
+        $tenantId = (string) $request->query('tenant', '');
+        $initialized = false;
 
-        if ($paymentLinkId && $status === 'paid' && $razorpayPaymentId) {
-            $this->paymentService->handleWebhookEvent('payment_link.paid', (string) $paymentLinkId, (string) $razorpayPaymentId);
+        if ($tenantId !== '' && ! tenancy()->initialized) {
+            /** @var Tenant|null $tenant */
+            $tenant = tenancy()->central(fn () => Tenant::query()->find($tenantId));
+
+            if ($tenant) {
+                tenancy()->initialize($tenant);
+                $initialized = true;
+            }
         }
 
-        return view('commerce.payment-callback', compact('status'));
+        try {
+            $paymentLinkId     = $request->query('razorpay_payment_link_id');
+            $razorpayPaymentId = $request->query('razorpay_payment_id');
+            $status            = $request->query('razorpay_payment_link_status');
+
+            if ($paymentLinkId && $status === 'paid' && $razorpayPaymentId && tenancy()->initialized) {
+                $this->paymentService->handleWebhookEvent(
+                    'payment_link.paid',
+                    (string) $paymentLinkId,
+                    (string) $razorpayPaymentId,
+                );
+            }
+
+            return view('commerce.payment-callback', [
+                'status' => $status,
+                'authenticated' => auth('web')->check() || auth('team')->check(),
+            ]);
+        } finally {
+            if ($initialized) {
+                tenancy()->end();
+            }
+        }
     }
 
     /**

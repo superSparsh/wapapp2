@@ -169,6 +169,24 @@ class AdminPanelTest extends TestCase
             ->get(route('dashboard'))
             ->assertOk()
             ->assertSee('Admin View')
-            ->assertSee(route('admin.dashboard'), false);
+            ->assertSee(route('admin.enter-from-app'), false);
+    }
+
+    public function test_admin_view_bridge_logs_into_admin_guard(): void
+    {
+        Admin::query()->where('email', $this->admin->email)->delete();
+        $linked = Admin::query()->create([
+            'name' => 'Linked Admin',
+            'email' => $this->testUser->email,
+            'password' => 'password',
+            'is_active' => true,
+        ]);
+
+        $this->actingAsTenantUser()
+            ->post(route('admin.enter-from-app'))
+            ->assertRedirect(route('admin.dashboard'));
+
+        $this->assertAuthenticatedAs($linked, 'admin');
+        $this->assertAuthenticatedAs($this->testUser, 'web');
     }
 }

@@ -3,10 +3,9 @@
 @php
 $items = [
     ['route' => 'commerce.index', 'label' => 'Products'],
-    ['route' => 'commerce.orders', 'label' => 'Catalogues'],
-    ['route' => 'commerce.catalog', 'label' => 'Orders', 'matches' => ['commerce.orders.detail']],
-    ['route' => 'commerce.products', 'label' => 'Payments', 'matches' => ['commerce.product-detail']],
-    ['route' => 'commerce.settings', 'label' => 'Settings'],
+    ['route' => 'commerce.catalog', 'label' => 'Catalogues'],
+    ['route' => 'commerce.orders', 'label' => 'Orders', 'matches' => ['commerce.orders.detail']],
+    ['route' => 'commerce.settings', 'label' => 'Payments', 'matches' => ['commerce.products', 'commerce.product-detail']],
 ];
 
 $isActive = function (array $item) use ($active): bool {

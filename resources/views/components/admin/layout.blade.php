@@ -51,5 +51,6 @@
       });
     </script>
     <x-ui.confirm-dialog />
+    <x-ui.page-loader />
 </body>
 </html>

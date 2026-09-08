@@ -6,6 +6,8 @@
         <x-commerce.note />
       </div>
 
+      <x-commerce.sub-nav />
+
       {{-- Filters row --}}
       <form method="GET" action="{{ route('commerce.orders') }}" class="flex flex-wrap items-center gap-3">
         <div class="flex w-full max-w-[380px] items-center gap-3 rounded-lg bg-elevated p-3">

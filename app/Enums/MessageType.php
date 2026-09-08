@@ -17,5 +17,6 @@ enum MessageType: string
     case Contact = 'contact';
     case Sticker = 'sticker';
     case Reaction = 'reaction';
+    case Order = 'order';
     case System = 'system';
 }

@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Domains\Commerce\Services;
 
 use App\Domains\Commerce\Enums\PaymentLinkStatus;
+use App\Domains\Commerce\Enums\PaymentStatus;
+use App\Domains\Commerce\Models\CommerceOrder;
 use App\Domains\Commerce\Models\CommercePayment;
 use App\Domains\Commerce\Models\PaymentConfig;
 use Illuminate\Http\Client\RequestException;
@@ -20,6 +22,10 @@ class CommercePaymentService
 {
     private const RAZORPAY_PAYMENT_LINKS_URL = 'https://api.razorpay.com/v1/payment_links';
     private const PAYMENT_LINK_EXPIRY_HOURS  = 24;
+
+    public function __construct(
+        private readonly CommerceOrderService $orders,
+    ) {}
 
     /**
      * Save (upsert) the tenant's Razorpay payment configuration.
@@ -55,7 +61,8 @@ class CommercePaymentService
     /**
      * Create a Razorpay payment link and persist a CommercePayment record.
      *
-     * @param array{customer_name: string, customer_phone: string, amount: float|string, currency?: string} $data
+     * @param  array{customer_name: string, customer_phone: string, amount: float|string, currency?: string, commerce_order_id?: int|null, description?: string|null}  $data
+     *
      * @throws RuntimeException when config is missing or Razorpay API fails
      */
     public function createPaymentLink(array $data): CommercePayment
@@ -71,6 +78,11 @@ class CommercePaymentService
         $phone    = $this->normalizePhone((string) $data['customer_phone']);
         $ref      = $this->generateOrderRef();
         $expireBy = now()->addHours(self::PAYMENT_LINK_EXPIRY_HOURS)->timestamp;
+        $orderId  = isset($data['commerce_order_id']) ? (int) $data['commerce_order_id'] : null;
+        $tenantId = (string) tenant('id');
+        $description = filled($data['description'] ?? null)
+            ? (string) $data['description']
+            : "Payment for Order #{$ref}";
 
         $payload = [
             'amount'                    => (int) round($amount * 100), // paisa
@@ -78,15 +90,19 @@ class CommercePaymentService
             'accept_partial'            => false,
             'expire_by'                 => $expireBy,
             'reference_id'              => $ref,
-            'description'               => "Payment for Order #{$ref}",
+            'description'               => $description,
             'customer'                  => [
                 'name'    => (string) $data['customer_name'],
                 'contact' => $phone,
             ],
             'notify'                    => ['sms' => true, 'email' => false],
             'reminder_enable'           => true,
-            'notes'                     => ['internal_ref' => $ref, 'tenant_id' => tenant('id')],
-            'callback_url'              => route('commerce.payment.callback'),
+            'notes'                     => array_filter([
+                'internal_ref' => $ref,
+                'tenant_id' => $tenantId,
+                'commerce_order_id' => $orderId,
+            ]),
+            'callback_url'              => route('commerce.payment.callback', ['tenant' => $tenantId]),
             'callback_method'           => 'get',
         ];
 
@@ -106,6 +122,7 @@ class CommercePaymentService
         }
 
         return CommercePayment::query()->create([
+            'commerce_order_id'        => $orderId,
             'internal_order_ref'       => $ref,
             'customer_name'            => $data['customer_name'],
             'customer_phone'           => $phone,
@@ -115,7 +132,10 @@ class CommercePaymentService
             'payment_link'             => $body['short_url'] ?? null,
             'status'                   => PaymentLinkStatus::Created,
             'expires_at'               => now()->addHours(self::PAYMENT_LINK_EXPIRY_HOURS),
-            'metadata'                 => ['razorpay' => $body],
+            'metadata'                 => [
+                'razorpay' => $body,
+                'description' => $description,
+            ],
         ]);
     }
 
@@ -129,6 +149,8 @@ class CommercePaymentService
             'razorpay_payment_id'   => $razorpayPaymentId,
             'paid_at'               => now(),
         ]);
+
+        $this->syncOrderPaymentStatus($payment->fresh());
 
         return $payment->fresh();
     }
@@ -166,6 +188,7 @@ class CommercePaymentService
         }
 
         $payment->update($updates);
+        $this->syncOrderPaymentStatus($payment->fresh());
     }
 
     /**
@@ -191,6 +214,27 @@ class CommercePaymentService
             'paid_count'    => (int) ($paid?->count ?? 0),
             'pending_count' => (int) ($pending?->count ?? 0),
         ];
+    }
+
+    private function syncOrderPaymentStatus(CommercePayment $payment): void
+    {
+        if (! $payment->commerce_order_id) {
+            return;
+        }
+
+        $order = CommerceOrder::query()->find($payment->commerce_order_id);
+
+        if (! $order) {
+            return;
+        }
+
+        if ($payment->status === PaymentLinkStatus::Paid) {
+            $this->orders->updatePaymentStatus($order, PaymentStatus::Paid, $payment->payment_link);
+        } elseif (in_array($payment->status, [PaymentLinkStatus::Expired, PaymentLinkStatus::Cancelled, PaymentLinkStatus::Failed], true)) {
+            $this->orders->updatePaymentStatus($order, PaymentStatus::Failed, $payment->payment_link);
+        } elseif ($payment->payment_link) {
+            $this->orders->updatePaymentStatus($order, PaymentStatus::Pending, $payment->payment_link);
+        }
     }
 
     // ─── Private helpers ──────────────────────────────────────────────────────

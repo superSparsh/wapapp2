@@ -9,6 +9,7 @@ use App\Domains\Commerce\Enums\PaymentStatus;
 use App\Models\TenantModel;
 use Database\Factories\CommerceOrderFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class CommerceOrder extends TenantModel
 {
@@ -46,6 +47,11 @@ class CommerceOrder extends TenantModel
             'payment_status' => PaymentStatus::class,
             'metadata'       => 'array',
         ];
+    }
+
+    public function payments(): HasMany
+    {
+        return $this->hasMany(CommercePayment::class, 'commerce_order_id');
     }
 
     public function isPaid(): bool

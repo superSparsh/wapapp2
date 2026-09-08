@@ -11,6 +11,7 @@ use App\Domains\Admin\Http\Controllers\CountryPricingController;
 use App\Domains\Admin\Http\Controllers\CustomerController;
 use App\Domains\Admin\Http\Controllers\DashboardController;
 use App\Domains\Admin\Http\Controllers\DataPurgeController;
+use App\Domains\Admin\Http\Controllers\EnterAdminViewController;
 use App\Domains\Admin\Http\Controllers\ImpersonationController;
 use App\Domains\Admin\Http\Controllers\MessagePerformanceController;
 use App\Domains\Admin\Http\Controllers\PlanController;
@@ -30,6 +31,10 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
 
     Route::post('/impersonation/stop', [ImpersonationController::class, 'stop'])
         ->name('impersonation.stop');
+
+    Route::post('/enter-from-app', EnterAdminViewController::class)
+        ->middleware(['tenancy.session', 'auth:web,team'])
+        ->name('enter-from-app');
 
     Route::middleware(['auth:admin', 'admin.active'])->group(function (): void {
         Route::post('/logout', [AdminLoginController::class, 'destroy'])->name('logout');

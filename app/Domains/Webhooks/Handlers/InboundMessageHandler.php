@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domains\Webhooks\Handlers;
 
 use App\Domains\Chatbot\Services\ChatbotFlowEngine;
+use App\Domains\Commerce\Services\CommerceOrderIngestService;
 use App\Domains\Inbox\Services\InboxConversationService;
 use App\Domains\Inbox\Services\InboxMessageService;
 use App\Domains\TriggerTemplate\Services\TriggerTemplateEngine;
@@ -16,6 +17,7 @@ use App\Enums\MessageType;
 use App\Models\InboundWebhookEvent;
 use App\Models\Message;
 use App\Models\WhatsappLine;
+use Illuminate\Support\Facades\Log;
 
 class InboundMessageHandler
 {
@@ -28,6 +30,7 @@ class InboundMessageHandler
         private readonly ChatbotFlowEngine $chatbotFlowEngine,
         private readonly NewLeadWebhookListener $newLeadWebhookListener,
         private readonly WhatsappFlowInboundService $whatsappFlowInboundService,
+        private readonly CommerceOrderIngestService $commerceOrderIngest,
     ) {}
 
     public function handle(InboundWebhookEvent $event): void
@@ -73,12 +76,25 @@ class InboundMessageHandler
                 return;
             }
 
+            $messageType = $this->mapMessageType((string) ($item['Type'] ?? 'TEXT'));
+
             $message = $this->messageService->recordInbound(
                 conversation: $conversation,
                 body: $body,
                 externalMessageId: $messageId,
-                messageType: $this->mapMessageType((string) ($item['Type'] ?? 'TEXT')),
+                messageType: $messageType,
             );
+
+            if ($messageType === MessageType::Order) {
+                try {
+                    $this->commerceOrderIngest->ingest($item, $line);
+                } catch (\Throwable $e) {
+                    Log::warning('Commerce order ingest failed', [
+                        'message_id' => $messageId,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
 
             $this->triggerTemplateEngine->process($conversation->refresh(), $message);
 
@@ -103,12 +119,12 @@ class InboundMessageHandler
                         body: $body,
                         contactName: isset($item['Name']) ? (string) $item['Name'] : null,
                         externalMessageId: $messageId,
-                        messageType: $this->mapMessageType((string) ($item['Type'] ?? 'TEXT'))->value,
+                        messageType: $messageType->value,
                         linePhone: $line->phone,
                         contactId: (int) $conversation->contact_id,
                     );
                 } catch (\Throwable $e) {
-                    \Illuminate\Support\Facades\Log::warning('Failed forwarding inbound message to inbox microservice', [
+                    Log::warning('Failed forwarding inbound message to inbox microservice', [
                         'error' => $e->getMessage(),
                     ]);
                 }
@@ -128,13 +144,24 @@ class InboundMessageHandler
      */
     private function extractBody(array $item): string
     {
+        $type = strtoupper((string) ($item['Type'] ?? 'MESSAGE'));
         $message = $item['Message'] ?? null;
+
+        if ($type === 'ORDER') {
+            $messageData = is_string($message) ? json_decode($message, true) : (is_array($message) ? $message : null);
+            $items = is_array($messageData) ? ($messageData['product_items'] ?? []) : [];
+            $count = is_array($items) ? count($items) : 0;
+            $total = is_array($items)
+                ? collect($items)->sum(fn ($row) => ((float) ($row['item_price'] ?? 0)) * ((float) ($row['quantity'] ?? 1)))
+                : 0;
+            $currency = is_array($items) && isset($items[0]['currency']) ? strtoupper((string) $items[0]['currency']) : 'INR';
+
+            return sprintf('[ORDER] %d item(s) · %s %s', $count, $currency, number_format((float) $total, 2));
+        }
 
         if (is_string($message) && trim($message) !== '') {
             return trim($message);
         }
-
-        $type = (string) ($item['Type'] ?? 'MESSAGE');
 
         return '['.$type.' message]';
     }
@@ -150,6 +177,7 @@ class InboundMessageHandler
             'LOCATION' => MessageType::Location,
             'CONTACT' => MessageType::Contact,
             'STICKER' => MessageType::Sticker,
+            'ORDER' => MessageType::Order,
             default => MessageType::Text,
         };
     }

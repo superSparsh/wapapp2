@@ -8,6 +8,7 @@ use App\Domains\Commerce\Enums\PaymentLinkStatus;
 use App\Models\TenantModel;
 use Database\Factories\CommercePaymentFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class CommercePayment extends TenantModel
 {
@@ -22,6 +23,7 @@ class CommercePayment extends TenantModel
     }
 
     protected $fillable = [
+        'commerce_order_id',
         'internal_order_ref',
         'customer_name',
         'customer_phone',
@@ -45,6 +47,11 @@ class CommercePayment extends TenantModel
             'expires_at' => 'datetime',
             'metadata' => 'array',
         ];
+    }
+
+    public function order(): BelongsTo
+    {
+        return $this->belongsTo(CommerceOrder::class, 'commerce_order_id');
     }
 
     public function isPaid(): bool

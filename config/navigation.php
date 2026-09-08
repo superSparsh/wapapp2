@@ -41,9 +41,9 @@ return [
         'route' => 'commerce.index',
         'icon' => 'star',
         'children' => [
-            ['label' => 'Catalogs', 'route' => 'commerce.index', 'matches' => ['commerce.products', 'commerce.orders']],
-            ['label' => 'Orders', 'route' => 'commerce.catalog', 'matches' => ['commerce.orders.detail']],
-            ['label' => 'Payments', 'route' => 'commerce.settings', 'matches' => ['commerce.product-detail']],
+            ['label' => 'Catalogs', 'route' => 'commerce.index', 'matches' => ['commerce.catalog']],
+            ['label' => 'Orders', 'route' => 'commerce.orders', 'matches' => ['commerce.orders.detail']],
+            ['label' => 'Payments', 'route' => 'commerce.settings', 'matches' => ['commerce.products', 'commerce.product-detail']],
         ],
     ],
     [

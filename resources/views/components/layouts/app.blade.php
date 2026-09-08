@@ -189,6 +189,7 @@
       });
     </script>
     <x-ui.confirm-dialog />
+    <x-ui.page-loader />
     @php
       $flashToasts = [];
 

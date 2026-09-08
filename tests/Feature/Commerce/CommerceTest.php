@@ -352,6 +352,7 @@ class CommerceTest extends TestCase
 
         $this->actingAsTenantUser()
             ->get(route('commerce.payment.callback', [
+                'tenant' => tenant('id'),
                 'razorpay_payment_link_id'     => 'plink_test999',
                 'razorpay_payment_id'           => 'pay_test_abc',
                 'razorpay_payment_link_status'  => 'paid',
@@ -363,6 +364,98 @@ class CommerceTest extends TestCase
         $this->assertSame(PaymentLinkStatus::Paid, $payment->status);
         $this->assertSame('pay_test_abc', $payment->razorpay_payment_id);
         $this->assertNotNull($payment->paid_at);
+    }
+
+    public function test_public_payment_callback_marks_linked_order_as_paid(): void
+    {
+        $order = CommerceOrder::factory()->create([
+            'payment_status' => PaymentStatus::Pending,
+        ]);
+
+        $payment = CommercePayment::factory()->sent()->create([
+            'commerce_order_id' => $order->id,
+            'razorpay_payment_link_id' => 'plink_order_paid',
+            'payment_link' => 'https://rzp.io/l/orderpaid',
+        ]);
+
+        $tenantId = (string) $this->testTenant->id;
+        tenancy()->end();
+
+        $this->get(route('commerce.payment.callback', [
+            'tenant' => $tenantId,
+            'razorpay_payment_link_id' => 'plink_order_paid',
+            'razorpay_payment_id' => 'pay_order_1',
+            'razorpay_payment_link_status' => 'paid',
+        ]))
+            ->assertOk();
+
+        tenancy()->initialize($this->testTenant);
+
+        $payment->refresh();
+        $order->refresh();
+
+        $this->assertSame(PaymentLinkStatus::Paid, $payment->status);
+        $this->assertSame(PaymentStatus::Paid, $order->payment_status);
+    }
+
+    public function test_order_status_can_be_updated(): void
+    {
+        $order = CommerceOrder::factory()->create(['order_status' => OrderStatus::New]);
+
+        $this->actingAsTenantUser()
+            ->patchJson(route('commerce.orders.status', $order->uuid), [
+                'order_status' => OrderStatus::Confirmed->value,
+            ])
+            ->assertOk()
+            ->assertJsonPath('order_status', 'confirmed');
+
+        $this->assertSame(OrderStatus::Confirmed, $order->refresh()->order_status);
+    }
+
+    public function test_order_ingest_creates_order_and_payment_link(): void
+    {
+        Queue::fake();
+        PaymentConfig::factory()->create([
+            'razorpay_key' => 'rzp_test_key',
+            'razorpay_secret' => 'test_secret',
+        ]);
+
+        Http::fake([
+            'api.razorpay.com/*' => Http::response([
+                'id' => 'plink_ingest',
+                'short_url' => 'https://rzp.io/l/ingest',
+                'amount' => 20000,
+                'status' => 'created',
+            ], 200),
+        ]);
+
+        $service = app(\App\Domains\Commerce\Services\CommerceOrderIngestService::class);
+        $order = $service->ingest([
+            'MessageId' => 'wamid.order-1',
+            'Name' => 'Buyer One',
+            'From' => '919876543210',
+            'Type' => 'ORDER',
+            'Message' => json_encode([
+                'catalog_id' => 'CAT1',
+                'product_items' => [
+                    [
+                        'product_retailer_id' => 'SKU1',
+                        'quantity' => 2,
+                        'item_price' => 100,
+                        'currency' => 'INR',
+                    ],
+                ],
+            ]),
+        ], $this->testLine);
+
+        $this->assertNotNull($order);
+        $this->assertSame(200.0, (float) $order->total_price);
+        $this->assertSame('https://rzp.io/l/ingest', $order->payment_link);
+        $this->assertDatabaseHas('commerce_payments', [
+            'commerce_order_id' => $order->id,
+            'razorpay_payment_link_id' => 'plink_ingest',
+        ]);
+        Queue::assertPushed(\App\Domains\Commerce\Jobs\SendPaymentLinkJob::class);
     }
 
     // ─── CommerceOrderService unit tests ─────────────────────────────────────
