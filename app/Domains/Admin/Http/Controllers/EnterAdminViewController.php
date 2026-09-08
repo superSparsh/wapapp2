@@ -13,8 +13,8 @@ use Illuminate\Support\Facades\Auth;
 class EnterAdminViewController extends Controller
 {
     /**
-     * Bridge from tenant app → platform admin (legacy "Admin View" link).
-     * Legacy used a GET link to Admin\HomeController when @can('admin_access').
+     * SSO bridge: tenant app → platform admin (legacy "Admin View").
+     * Always logs into the admin guard directly — never the admin login page.
      */
     public function __invoke(Request $request): RedirectResponse
     {
@@ -22,17 +22,16 @@ class EnterAdminViewController extends Controller
             return redirect()->route('admin.dashboard');
         }
 
-        $admin = AdminViewAccess::matchingAdmin();
+        $admin = AdminViewAccess::resolveAdminForSso();
 
         if ($admin === null) {
-            abort_unless(AdminViewAccess::emailIsAllowlisted(), 403);
-
             return redirect()
-                ->route('admin.login')
-                ->with('status', 'Sign in with your admin account to open Admin View.');
+                ->route('dashboard')
+                ->with('error', 'Admin View is not available for this account.');
         }
 
         Auth::guard('admin')->login($admin, true);
+        $request->session()->regenerate();
         $admin->forceFill(['last_login_at' => now()])->save();
 
         return redirect()->route('admin.dashboard');

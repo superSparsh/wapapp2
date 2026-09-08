@@ -5,12 +5,14 @@ declare(strict_types=1);
 return [
     /*
     |--------------------------------------------------------------------------
-    | Admin View allowlist (legacy parity)
+    | Admin View allowlist
     |--------------------------------------------------------------------------
     |
-    | Comma-separated emails that should always see "Admin View" in the tenant
-    | account menu, in addition to any active row in the central `admins` table
-    | with a matching email. Example: ADMIN_VIEW_EMAILS=sparsh@tittu.in,ops@tittu.in
+    | Admin View menu item is shown ONLY when the signed-in customer email is:
+    | - an active row in the central `admins` table, OR
+    | - listed here (ADMIN_VIEW_EMAILS in .env)
+    |
+    | Example: ADMIN_VIEW_EMAILS=sparsh@tittu.in,ops@tittu.in
     |
     */
     'view_emails' => array_values(array_filter(array_map(

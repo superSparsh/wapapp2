@@ -196,8 +196,25 @@ class AdminPanelTest extends TestCase
             ->get(route('admin.enter-from-app'))
             ->assertRedirect(route('admin.dashboard'));
 
-        $this->assertAuthenticatedAs($linked, 'admin');
+        $this->assertAuthenticatedAs($linked->fresh(), 'admin');
         $this->assertAuthenticatedAs($this->testUser, 'web');
+    }
+
+    public function test_admin_view_allowlist_provisions_admin_and_skips_login_page(): void
+    {
+        Admin::query()->where('email', $this->testUser->email)->delete();
+        config(['admin.view_emails' => [strtolower($this->testUser->email)]]);
+
+        $this->actingAsTenantUser()
+            ->get(route('admin.enter-from-app'))
+            ->assertRedirect(route('admin.dashboard'))
+            ->assertDontSee('admin/login', false);
+
+        $this->assertAuthenticated('admin');
+        $this->assertDatabaseHas('admins', [
+            'email' => strtolower($this->testUser->email),
+            'is_active' => true,
+        ], config('tenancy.database.central_connection'));
     }
 
     public function test_admin_view_hidden_without_admin_access(): void

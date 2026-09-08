@@ -6,58 +6,72 @@ namespace App\Domains\Admin\Support;
 
 use App\Models\Admin;
 use App\Support\CurrentAccount;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 final class AdminViewAccess
 {
     /**
-     * Legacy parity (@can('admin_access')):
-     * Show "Admin View" when the signed-in account can open the platform admin.
+     * Admin View ONLY for:
+     * 1) email present on an active row in central `admins` table, OR
+     * 2) email listed in ADMIN_VIEW_EMAILS (.env)
      *
-     * Sources of access:
-     * - active Admin row with the same email (central DB)
-     * - ADMIN_VIEW_EMAILS allowlist
-     * - already authenticated on the admin guard
+     * No other customer sees this option.
      */
     public static function canAccess(): bool
     {
-        if (Auth::guard('admin')->check()) {
+        $email = self::currentEmail();
+        if ($email === '') {
+            return false;
+        }
+
+        if (self::emailIsAllowlisted($email)) {
             return true;
         }
 
-        return self::matchingAdmin() !== null || self::emailIsAllowlisted();
+        return self::findActiveAdminByEmail() !== null;
     }
 
-    public static function matchingAdmin(): ?Admin
+    /**
+     * Resolve the Admin for SSO login. Allowlisted emails get an Admin row
+     * auto-provisioned so click → dashboard with zero login page.
+     */
+    public static function resolveAdminForSso(): ?Admin
     {
         $email = self::currentEmail();
         if ($email === '') {
             return null;
         }
 
-        $resolver = static function () use ($email): ?Admin {
-            return Admin::query()
-                ->whereRaw('LOWER(email) = ?', [$email])
-                ->where('is_active', true)
-                ->first();
-        };
+        $existing = self::findAdminByEmailIncludingTrashed($email);
 
-        try {
-            if (function_exists('tenancy') && tenancy()->initialized) {
-                return tenancy()->central($resolver);
-            }
+        if ($existing instanceof Admin) {
+            return self::ensureAdminReadyForSso($existing, $email);
+        }
 
-            return $resolver();
-        } catch (\Throwable $e) {
-            report($e);
-
+        if (! self::emailIsAllowlisted($email)) {
             return null;
         }
+
+        return self::onCentral(static function () use ($email): Admin {
+            return Admin::query()->create([
+                'name' => CurrentAccount::displayName() ?: 'Admin',
+                'email' => $email,
+                'password' => Hash::make(Str::password(32)),
+                'is_active' => true,
+            ]);
+        });
     }
 
-    public static function emailIsAllowlisted(): bool
+    /** @deprecated Use resolveAdminForSso() */
+    public static function matchingAdmin(): ?Admin
     {
-        $email = self::currentEmail();
+        return self::resolveAdminForSso();
+    }
+
+    public static function emailIsAllowlisted(?string $email = null): bool
+    {
+        $email = strtolower(trim((string) ($email ?? self::currentEmail())));
         if ($email === '') {
             return false;
         }
@@ -68,6 +82,73 @@ final class AdminViewAccess
         );
 
         return in_array($email, $allowlist, true);
+    }
+
+    private static function findActiveAdminByEmail(): ?Admin
+    {
+        $email = self::currentEmail();
+        if ($email === '') {
+            return null;
+        }
+
+        return self::onCentral(static function () use ($email): ?Admin {
+            return Admin::query()
+                ->whereRaw('LOWER(email) = ?', [$email])
+                ->where('is_active', true)
+                ->first();
+        });
+    }
+
+    private static function findAdminByEmailIncludingTrashed(string $email): ?Admin
+    {
+        return self::onCentral(static function () use ($email): ?Admin {
+            return Admin::query()
+                ->withTrashed()
+                ->whereRaw('LOWER(email) = ?', [$email])
+                ->first();
+        });
+    }
+
+    private static function ensureAdminReadyForSso(Admin $admin, string $email): ?Admin
+    {
+        return self::onCentral(static function () use ($admin, $email): ?Admin {
+            if ($admin->trashed()) {
+                if (! self::emailIsAllowlisted($email)) {
+                    return null;
+                }
+                $admin->restore();
+            }
+
+            if (! $admin->is_active) {
+                if (! self::emailIsAllowlisted($email)) {
+                    return null;
+                }
+                $admin->forceFill(['is_active' => true])->save();
+            }
+
+            return $admin->fresh();
+        });
+    }
+
+    /**
+     * @template T
+     *
+     * @param  callable(): T  $callback
+     * @return T
+     */
+    private static function onCentral(callable $callback): mixed
+    {
+        try {
+            if (function_exists('tenancy') && tenancy()->initialized) {
+                return tenancy()->central($callback);
+            }
+
+            return $callback();
+        } catch (\Throwable $e) {
+            report($e);
+
+            return null;
+        }
     }
 
     private static function currentEmail(): string
