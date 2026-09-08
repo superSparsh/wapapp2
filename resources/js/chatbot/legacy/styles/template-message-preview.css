@@ -1,0 +1,210 @@
+.chatbot-template-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  height: 100%;
+}
+
+.chatbot-template-preview__intro {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.chatbot-template-preview__title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.5;
+  color: var(--color-text-primary, #111827);
+}
+
+.chatbot-template-preview__subtitle {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--color-text-subtle, #6b7280);
+  opacity: 0.5;
+}
+
+.chatbot-template-preview__phone {
+  display: flex;
+  justify-content: center;
+}
+
+.chatbot-template-preview__phone-shell {
+  position: relative;
+  width: 100%;
+  max-width: 274px;
+  aspect-ratio: 274 / 551;
+}
+
+.chatbot-template-preview__phone-header-name {
+  position: absolute;
+  z-index: 20;
+  left: 15.5%;
+  top: 6.8%;
+  max-width: 58%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 1px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: #fff;
+  background-color: #075e54;
+  pointer-events: none;
+}
+
+.chatbot-template-preview__phone-bg {
+  position: absolute;
+  inset: 2.5% 5.9%;
+  width: calc(100% - 11.8%);
+  height: calc(100% - 5%);
+  border-radius: 26px;
+  object-fit: cover;
+}
+
+.chatbot-template-preview__phone-content {
+  position: absolute;
+  inset: 2.5% 5.9%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 26px;
+  padding: 12px 10px;
+}
+
+.chatbot-template-preview__bubble {
+  margin-top: 115px;
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  gap: 12px;
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: 12px 12px 12px 0;
+  background: var(--color-elevated, #fff);
+  padding: 8px;
+}
+
+.chatbot-template-preview__header-image {
+  width: 100%;
+  aspect-ratio: 2 / 1;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.chatbot-template-preview__header-video {
+  display: flex;
+  height: 120px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: #111827;
+  color: #fff;
+  font-size: 40px;
+}
+
+.chatbot-template-preview__header-text {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--color-text-body, #374151);
+  word-break: break-word;
+}
+
+.chatbot-template-preview__body {
+  white-space: pre-wrap;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--color-text-body, #374151);
+  word-break: break-word;
+}
+
+.chatbot-template-preview__placeholder {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--color-text-subtle, #6b7280);
+}
+
+.chatbot-template-preview__sections {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.chatbot-template-preview__section {
+  border-top: 1px solid var(--color-divider, #e5e7eb);
+  padding-top: 8px;
+}
+
+.chatbot-template-preview__section-title {
+  margin: 0 0 4px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.4;
+  color: var(--color-text-primary, #111827);
+}
+
+.chatbot-template-preview__section-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 0;
+}
+
+.chatbot-template-preview__section-row-title {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--color-text-body, #374151);
+}
+
+.chatbot-template-preview__section-row-description {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--color-text-subtle, #6b7280);
+}
+
+.chatbot-template-preview__footer {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--color-text-subtle, #6b7280);
+}
+
+.chatbot-template-preview__divider {
+  display: block;
+  width: 100%;
+}
+
+.chatbot-template-preview__buttons {
+  display: flex;
+  flex-direction: column;
+}
+
+.chatbot-template-preview__button {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--color-link-green, #22c55e);
+}
+
+.chatbot-template-preview__button-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.chatbot-template-preview__button-anticon {
+  font-size: 16px;
+}

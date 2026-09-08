@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>WapApp 2.0 — Enterprise Architecture Proposal</title>
+<style>
+  @page { margin: 2cm 2.2cm; size: A4; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif;
+    font-size: 10.5pt;
+    line-height: 1.55;
+    color: #1a1a2e;
+    max-width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+  .cover {
+    text-align: center;
+    padding: 80px 40px 60px;
+    page-break-after: always;
+    border-bottom: 4px solid #2563eb;
+  }
+  .cover h1 {
+    font-size: 32pt;
+    color: #1e3a8a;
+    margin: 0 0 8px;
+    letter-spacing: -0.5px;
+  }
+  .cover .subtitle {
+    font-size: 16pt;
+    color: #475569;
+    margin-bottom: 50px;
+  }
+  .cover .meta {
+    text-align: left;
+    display: inline-block;
+    font-size: 11pt;
+    color: #334155;
+    line-height: 2;
+    border: 1px solid #e2e8f0;
+    padding: 24px 40px;
+    border-radius: 8px;
+    background: #f8fafc;
+  }
+  .cover .meta strong { color: #1e3a8a; min-width: 140px; display: inline-block; }
+  h2 {
+    font-size: 14pt;
+    color: #1e3a8a;
+    border-bottom: 2px solid #2563eb;
+    padding-bottom: 6px;
+    margin-top: 28px;
+    margin-bottom: 14px;
+    page-break-after: avoid;
+  }
+  h3 {
+    font-size: 11.5pt;
+    color: #1e40af;
+    margin-top: 18px;
+    margin-bottom: 8px;
+    page-break-after: avoid;
+  }
+  p { margin: 8px 0; }
+  ul { margin: 8px 0; padding-left: 22px; }
+  li { margin: 4px 0; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0 18px;
+    font-size: 9.5pt;
+    page-break-inside: avoid;
+  }
+  th {
+    background: #1e3a8a;
+    color: white;
+    text-align: left;
+    padding: 8px 10px;
+    font-weight: 600;
+  }
+  td {
+    padding: 7px 10px;
+    border-bottom: 1px solid #e2e8f0;
+    vertical-align: top;
+  }
+  tr:nth-child(even) td { background: #f8fafc; }
+  .risk-critical { color: #dc2626; font-weight: 600; }
+  .risk-high { color: #ea580c; font-weight: 600; }
+  .risk-medium { color: #ca8a04; font-weight: 600; }
+  .risk-low { color: #16a34a; font-weight: 600; }
+  pre, .code-block {
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    padding: 12px 14px;
+    font-family: 'Courier New', Consolas, monospace;
+    font-size: 8.5pt;
+    line-height: 1.45;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    page-break-inside: avoid;
+  }
+  .diagram {
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    padding: 14px 16px;
+    font-family: 'Courier New', Consolas, monospace;
+    font-size: 8.5pt;
+    line-height: 1.4;
+    page-break-inside: avoid;
+  }
+  .flow-bad {
+    background: #fef2f2;
+    border-left: 4px solid #dc2626;
+    padding: 10px 14px;
+    margin: 10px 0;
+    font-size: 9.5pt;
+    page-break-inside: avoid;
+  }
+  .flow-good {
+    background: #f0fdf4;
+    border-left: 4px solid #16a34a;
+    padding: 10px 14px;
+    margin: 10px 0;
+    font-size: 9.5pt;
+    page-break-inside: avoid;
+  }
+  .section-break { page-break-before: always; }
+  .footer-note {
+    text-align: center;
+    color: #94a3b8;
+    font-size: 9pt;
+    margin-top: 40px;
+    padding-top: 20px;
+    border-top: 1px solid #e2e8f0;
+  }
+  .highlight-box {
+    background: #eff6ff;
+    border: 1px solid #93c5fd;
+    border-radius: 6px;
+    padding: 12px 16px;
+    margin: 12px 0;
+  }
+  .numbered-list { counter-reset: item; list-style: none; padding-left: 0; }
+  .numbered-list li { counter-increment: item; padding-left: 28px; position: relative; margin: 6px 0; }
+  .numbered-list li::before {
+    content: counter(item) ".";
+    position: absolute; left: 0;
+    font-weight: 700; color: #2563eb;
+  }
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <h1>WAPAPP 2.0</h1>
+  <div class="subtitle">Enterprise Architecture Proposal</div>
+  <div class="meta">
+    <strong>Document Type:</strong> Architecture Design &amp; Migration Plan<br>
+    <strong>Project:</strong> WapApp 2.0 (Legacy Tittu → New Platform)<br>
+    <strong>Prepared For:</strong> Management Review<br>
+    <strong>Date:</strong> 27 July 2026<br>
+    <strong>Status:</strong> Planning Phase — Backend development not yet started
+  </div>
+</div>
+
+<h2>1. Executive Summary</h2>
+<p>We are rebuilding <strong>Tittu</strong> (WhatsApp Business API SaaS platform) as <strong>WapApp 2.0</strong> — a modern, enterprise-grade platform.</p>
+<p>The legacy system currently serves <strong>30 active customers</strong> sending approximately <strong>1,00,000 messages per week</strong>. Its architecture has reached scalability and reliability limits and needs to be replaced.</p>
+<p>The new version is built on <strong>Laravel 13</strong> with a clean, domain-driven architecture. The UI is approximately <strong>85% complete</strong> (233 screens, Figma-driven). Backend development is greenfield, giving us the opportunity to design the system correctly from the ground up.</p>
+
+<h3>Key Goals</h3>
+<ul>
+  <li>Master DB + Tenant DB architecture for true data isolation</li>
+  <li>Enterprise-level performance capable of handling 10x current load</li>
+  <li>Zero data loss and zero downtime during normal operations</li>
+  <li>Proper error handling, monitoring, and alerting</li>
+  <li>Complete redesign of the webhook processing pipeline</li>
+  <li>Module-by-module migration from legacy without disrupting existing customers</li>
+</ul>
+
+<h2>2. Current State Assessment</h2>
+
+<h3>2.1 Legacy System (wapdev.tittu.in)</h3>
+<table>
+  <tr><th>Aspect</th><th>Current State</th><th>Risk</th></tr>
+  <tr><td>Architecture</td><td>Single MySQL DB, row-level tenancy</td><td class="risk-high">High</td></tr>
+  <tr><td>Framework</td><td>Laravel 8, forked from Acelle Mail</td><td class="risk-medium">Medium</td></tr>
+  <tr><td>Queue System</td><td>Database-driven queues</td><td class="risk-high">High</td></tr>
+  <tr><td>Webhook Processing</td><td>Staging table → cron → delete before process</td><td class="risk-critical">Critical</td></tr>
+  <tr><td>Code Quality</td><td>God classes (2,300+ lines), 99 controllers</td><td class="risk-high">High</td></tr>
+  <tr><td>Scheduling</td><td>10+ cron jobs running every minute</td><td class="risk-high">High</td></tr>
+  <tr><td>Monitoring</td><td>Shell scripts for production fixes</td><td class="risk-critical">Critical</td></tr>
+  <tr><td>AI Service</td><td>Separate Python FastAPI (good, to be retained)</td><td class="risk-low">Low</td></tr>
+</table>
+
+<h3>Critical Legacy Problems</h3>
+<ol class="numbered-list">
+  <li><strong>Webhook staging table</strong> — Messages inserted into a webhooks table, then deleted BEFORE processing. If processing fails, data is permanently lost.</li>
+  <li><strong>Database queue</strong> — Queue jobs stored in MySQL cause DB overload during campaign bursts.</li>
+  <li><strong>Cron-heavy processing</strong> — Automation, campaigns, webhooks, and integrations all poll via cron every minute.</li>
+  <li><strong>No tenant isolation</strong> — All 30 customers share one database; one customer's heavy campaign affects all others.</li>
+  <li><strong>Mixed concerns</strong> — Email marketing (Acelle) and WhatsApp logic coexist in the same codebase.</li>
+  <li><strong>No structured error handling</strong> — Errors are inconsistent, making debugging and customer support difficult.</li>
+</ol>
+
+<h3>2.2 New System (wapapp-2.0)</h3>
+<table>
+  <tr><th>Aspect</th><th>Current State</th></tr>
+  <tr><td>Framework</td><td>Laravel 13, PHP 8.3</td></tr>
+  <tr><td>Frontend</td><td>Blade + Tailwind CSS 4 (~233 views, 106 routes)</td></tr>
+  <tr><td>UI Progress</td><td>~85% complete (Figma-driven)</td></tr>
+  <tr><td>Backend Progress</td><td>~0% (greenfield — default Laravel skeleton only)</td></tr>
+  <tr><td>Database</td><td>SQLite (development only)</td></tr>
+  <tr><td>Auth</td><td>UI only — no backend wired</td></tr>
+  <tr><td>API / Integrations</td><td>Not started</td></tr>
+</table>
+<p><strong>Advantage:</strong> Complete UI prototype and a clean slate for backend architecture.</p>
+
+<h2 class="section-break">3. Production Requirements</h2>
+<table>
+  <tr><th>Requirement</th><th>Detail</th></tr>
+  <tr><td>Active customers at launch</td><td>30 (existing, must migrate)</td></tr>
+  <tr><td>Message volume</td><td>~1,00,000 messages/week (~14,300/day)</td></tr>
+  <tr><td>Peak load</td><td>Campaign bursts of 5,000–10,000 messages in 5 min</td></tr>
+  <tr><td>Growth target</td><td>Architecture must support 300+ customers (10x)</td></tr>
+  <tr><td>Uptime target</td><td>99.9% (~8.7 hours max downtime/year)</td></tr>
+  <tr><td>Delivery rate</td><td>&gt; 95%</td></tr>
+  <tr><td>Webhook response to Meta</td><td>&lt; 100ms (Meta requires 200 within 20 seconds)</td></tr>
+  <tr><td>Data loss tolerance</td><td>Zero — all events logged immutably</td></tr>
+</table>
+
+<h2>4. Proposed Architecture</h2>
+
+<h3>4.1 High-Level System Design</h3>
+<div class="diagram">┌─────────────────────────────────────────────────────┐
+│                    CLIENTS                         │
+│   Web App  │  Public API  │  External Webhooks     │
+└──────┬─────────────┬──────────────┬───────────────┘
+       │             │              │
+┌──────▼─────────────▼──────────────▼───────────────┐
+│         LOAD BALANCER / NGINX                        │
+│    Rate Limiter │ Auth │ Request Validation          │
+└──────┬──────────────────────────────────────────────┘
+       │
+┌──────▼──────────────────────────────────────────────┐
+│         APPLICATION LAYER (Laravel 13)               │
+│   Controllers → Domain Services → Event Bus          │
+│   RBAC │ Structured Error Handling                   │
+└──────┬──────────────────────────────────────────────┘
+       │
+┌──────▼──────────────────────────────────────────────┐
+│         ASYNC PROCESSING (Redis + Horizon)           │
+│   critical │ messages │ campaign │ automation         │
+└──────┬──────────────────────────────────────────────┘
+       │
+┌──────▼──────────────────────────────────────────────┐
+│         DATA LAYER                                   │
+│   Master DB │ Tenant DBs (×30) │ Redis │ S3          │
+└──────┬──────────────────────────────────────────────┘
+       │
+┌──────▼──────────────────────────────────────────────┐
+│         EXTERNAL SERVICES                            │
+│   Meta WhatsApp │ AI Service │ Razorpay │ Shopify    │
+└─────────────────────────────────────────────────────┘</div>
+
+<h3>4.2 Database Architecture — Master DB + Tenant DB</h3>
+<p><strong>Master Database (Platform Level)</strong></p>
+<table>
+  <tr><th>Table</th><th>Purpose</th></tr>
+  <tr><td>tenants</td><td>Tenant identity, plan, status, DB config</td></tr>
+  <tr><td>domains</td><td>Custom domain mapping per tenant</td></tr>
+  <tr><td>plans, subscriptions, invoices</td><td>Billing and subscription management</td></tr>
+  <tr><td>admins</td><td>Super admin users</td></tr>
+  <tr><td>global_settings</td><td>Platform-wide configuration</td></tr>
+  <tr><td>tenant_provisioning_logs</td><td>Audit trail for tenant creation</td></tr>
+  <tr><td>platform_webhook_events</td><td>Meta app-level webhook log (immutable)</td></tr>
+</table>
+
+<p><strong>Tenant Database (Per Customer — 30 separate databases)</strong></p>
+<table>
+  <tr><th>Table Group</th><th>Tables</th></tr>
+  <tr><td>Users &amp; Access</td><td>users, team_members, roles, permissions</td></tr>
+  <tr><td>Messaging</td><td>contacts, conversations, messages, inbox_assignments</td></tr>
+  <tr><td>Campaigns</td><td>templates, campaigns, campaign_runs, campaign_logs</td></tr>
+  <tr><td>Automation</td><td>automations, automation_runs, chatbot_flows</td></tr>
+  <tr><td>Audience</td><td>lists, segments, segment_rules</td></tr>
+  <tr><td>Webhooks</td><td>webhook_events, webhook_subscriptions, webhook_deliveries</td></tr>
+  <tr><td>Commerce</td><td>products, orders, payments</td></tr>
+  <tr><td>Integrations</td><td>integrations (Shopify, Calendly, Zoho tokens)</td></tr>
+  <tr><td>Billing</td><td>wallet_transactions</td></tr>
+</table>
+
+<div class="highlight-box">
+  <strong>Why database-per-tenant?</strong>
+  <ul style="margin-bottom:0">
+    <li>True data isolation — one customer's load cannot affect others</li>
+    <li>Independent backup and restore per customer</li>
+    <li>Compliance-ready (data residency per tenant in future)</li>
+    <li>Clean migration — migrate one customer at a time</li>
+  </ul>
+</div>
+
+<h3>4.3 Webhook Architecture — Complete Redesign (Most Critical Change)</h3>
+<div class="flow-bad">
+  <strong>LEGACY FLOW (Problematic):</strong><br>
+  Meta POST → Insert into webhooks table → Cron polls every minute → Delete row BEFORE processing → Process → If fails, data is LOST
+</div>
+<div class="flow-good">
+  <strong>NEW FLOW (Reliable):</strong><br>
+  Meta POST → Verify HMAC signature → Check idempotency (duplicate? skip) → Append to webhook_events (immutable) → Dispatch to Redis queue → Return 200 to Meta (&lt; 100ms) → Worker processes async → On failure: retry 3x → dead letter queue → alert team
+</div>
+
+<h3>4.4 Queue Architecture (Redis + Horizon)</h3>
+<table>
+  <tr><th>Queue</th><th>Purpose</th><th>Workers</th><th>Timeout</th><th>Retries</th></tr>
+  <tr><td>critical</td><td>Inbound webhooks, real-time</td><td>5</td><td>30s</td><td>5</td></tr>
+  <tr><td>messages</td><td>Outbound message sending</td><td>4</td><td>60s</td><td>3</td></tr>
+  <tr><td>status</td><td>Delivery/read status updates</td><td>3</td><td>30s</td><td>3</td></tr>
+  <tr><td>campaign</td><td>Campaign batch sending</td><td>3</td><td>120s</td><td>3</td></tr>
+  <tr><td>automation</td><td>Chatbot, drip triggers</td><td>2</td><td>60s</td><td>3</td></tr>
+  <tr><td>default</td><td>Notifications, emails</td><td>2</td><td>60s</td><td>3</td></tr>
+  <tr><td>low</td><td>Reports, exports, cleanup</td><td>1</td><td>300s</td><td>2</td></tr>
+  <tr><td>ai</td><td>AI chatbot requests</td><td>2</td><td>60s</td><td>3</td></tr>
+  <tr><td>provisioning</td><td>Tenant DB creation</td><td>1</td><td>300s</td><td>2</td></tr>
+</table>
+
+<h3>4.5 Code Structure (Domain-Driven Design)</h3>
+<pre>app/
+├── Domains/
+│   ├── Auth/           Login, Register, 2FA
+│   ├── Tenant/         Provisioning, DB switching
+│   ├── Messaging/      Inbox, conversations, send
+│   ├── Campaign/       Create, schedule, send, track
+│   ├── Automation/     Flows, drip, chatbot
+│   ├── Webhook/        Inbound + Outbound
+│   └── AI/             Chatbot RAG, key management
+├── Shared/
+│   ├── Contracts/      Interfaces
+│   ├── DTOs/           Data transfer objects
+│   └── Exceptions/     Domain-specific exceptions</pre>
+
+<h2 class="section-break">5. Error Handling &amp; Reliability</h2>
+
+<h3>5.1 Structured Error Response</h3>
+<pre>{
+  "success": false,
+  "error": {
+    "code": "CAMP_AUDIENCE_EMPTY",
+    "message": "Campaign cannot be sent without an audience.",
+    "details": { "campaign_id": "camp_123", "audience_count": 0 },
+    "request_id": "req_abc123",
+    "timestamp": "2026-07-27T10:30:00Z"
+  }
+}</pre>
+
+<h3>5.2 Error Code Categories</h3>
+<table>
+  <tr><th>Prefix</th><th>Domain</th><th>Examples</th></tr>
+  <tr><td>AUTH_</td><td>Authentication</td><td>Token expired, invalid credentials</td></tr>
+  <tr><td>TENANT_</td><td>Tenancy</td><td>Suspended, limit exceeded</td></tr>
+  <tr><td>MSG_</td><td>Messaging</td><td>Send failed, template not approved</td></tr>
+  <tr><td>CAMP_</td><td>Campaigns</td><td>Audience empty, already running</td></tr>
+  <tr><td>WALLET_</td><td>Billing</td><td>Insufficient balance</td></tr>
+  <tr><td>WEBHOOK_</td><td>Webhooks</td><td>Invalid signature, delivery failed</td></tr>
+  <tr><td>SYS_</td><td>System</td><td>Service unavailable, rate limited</td></tr>
+</table>
+
+<h3>5.3 Reliability Mechanisms</h3>
+<table>
+  <tr><th>Mechanism</th><th>Application</th></tr>
+  <tr><td>Idempotency</td><td>Duplicate webhooks, sends, debits = no-ops</td></tr>
+  <tr><td>Retry with backoff</td><td>3 retries: 10s → 60s → 300s, then dead letter</td></tr>
+  <tr><td>Circuit breaker</td><td>Meta API down → pause sending, queue, auto-resume</td></tr>
+  <tr><td>Append-only logs</td><td>Webhook events never deleted — replay possible</td></tr>
+  <tr><td>Dead letter queue</td><td>Failed jobs after retries → manual review + alert</td></tr>
+  <tr><td>Health checks</td><td>/up (basic) + /health/deep (DB, Redis, queue, Meta)</td></tr>
+</table>
+
+<h3>5.4 Alert Severity</h3>
+<table>
+  <tr><th>Level</th><th>Trigger</th><th>Response</th></tr>
+  <tr><td class="risk-critical">P1 Critical</td><td>Message sending down, webhook failing</td><td>&lt; 15 min</td></tr>
+  <tr><td class="risk-high">P2 High</td><td>Queue backlog &gt; 1,000, Meta circuit open</td><td>&lt; 1 hour</td></tr>
+  <tr><td class="risk-medium">P3 Medium</td><td>Failed job rate &gt; 5%, slow queries</td><td>&lt; 4 hours</td></tr>
+  <tr><td class="risk-low">P4 Low</td><td>Single tenant error, non-critical</td><td>Next day</td></tr>
+</table>
+
+<h2>6. Security</h2>
+<table>
+  <tr><th>Area</th><th>Implementation</th></tr>
+  <tr><td>Authentication</td><td>Laravel Sanctum (SPA sessions + API tokens)</td></tr>
+  <tr><td>Authorization</td><td>Spatie Permission (RBAC: owner, admin, agent)</td></tr>
+  <tr><td>Tenant isolation</td><td>Middleware enforces DB switch before any query</td></tr>
+  <tr><td>Two-factor auth</td><td>TOTP for admin/owner accounts</td></tr>
+  <tr><td>Webhook verification</td><td>HMAC-SHA256 on all inbound and outbound</td></tr>
+  <tr><td>Data encryption</td><td>Tenant DB credentials encrypted at rest</td></tr>
+  <tr><td>Audit logging</td><td>Per-tenant audit trail</td></tr>
+  <tr><td>Rate limiting</td><td>Per-tenant, per-IP, per-API-key</td></tr>
+</table>
+
+<h2>7. Performance &amp; Caching</h2>
+<table>
+  <tr><th>Component</th><th>Strategy</th></tr>
+  <tr><td>Queue driver</td><td>Redis (10x faster than legacy database queue)</td></tr>
+  <tr><td>Cache</td><td>Redis with tenant-scoped keys</td></tr>
+  <tr><td>Search</td><td>Meilisearch (replaces MySQL LIKE queries)</td></tr>
+  <tr><td>Media storage</td><td>S3 + CDN (replaces local storage)</td></tr>
+  <tr><td>Real-time inbox</td><td>Laravel Reverb WebSockets (replaces polling)</td></tr>
+  <tr><td>Campaign sending</td><td>Chunked batches of 50, parallel workers</td></tr>
+</table>
+
+<h2 class="section-break">8. Monitoring &amp; Observability</h2>
+<table>
+  <tr><th>Tool</th><th>Purpose</th><th>Environment</th></tr>
+  <tr><td>Laravel Horizon</td><td>Queue monitoring dashboard</td><td>Production</td></tr>
+  <tr><td>Sentry</td><td>Error tracking with full context</td><td>Production</td></tr>
+  <tr><td>Laravel Pulse</td><td>App metrics (requests, slow queries)</td><td>Production</td></tr>
+  <tr><td>Structured logs</td><td>tenant_id, request_id, user_id</td><td>All environments</td></tr>
+</table>
+
+<h2>9. Migration Strategy</h2>
+<p>Module-by-module migration. Legacy runs in parallel. Each customer cut over individually. No big-bang.</p>
+<table>
+  <tr><th>Phase</th><th>Module</th><th>Duration</th><th>Depends On</th></tr>
+  <tr><td>1</td><td>Foundation: Master DB, tenancy, auth, Redis, errors</td><td>Week 1–2</td><td>None</td></tr>
+  <tr><td>2</td><td>Core Messaging: webhooks, send, inbox</td><td>Week 3–4</td><td>Phase 1</td></tr>
+  <tr><td>3</td><td>Campaigns + Templates: create, send, Meta sync</td><td>Week 5–6</td><td>Phase 2</td></tr>
+  <tr><td>4</td><td>Automation: chatbot, drip, AI integration</td><td>Week 7–8</td><td>Phase 2</td></tr>
+  <tr><td>5</td><td>Commerce + Integrations: Shopify, Calendly, etc.</td><td>Week 9–10</td><td>Phase 1</td></tr>
+  <tr><td>6</td><td>Billing + Admin: subscriptions, wallet, panel</td><td>Week 11–12</td><td>Phase 1</td></tr>
+  <tr><td>7</td><td>Data Migration: legacy → tenant DBs, per-customer</td><td>Week 13+</td><td>All</td></tr>
+</table>
+
+<h2>10. Tech Stack</h2>
+<table>
+  <tr><th>Layer</th><th>Technology</th><th>Rationale</th></tr>
+  <tr><td>Backend</td><td>Laravel 13, PHP 8.3</td><td>Latest stable, already chosen</td></tr>
+  <tr><td>Frontend</td><td>Blade + Tailwind CSS 4</td><td>UI already built</td></tr>
+  <tr><td>Multi-tenancy</td><td>stancl/tenancy</td><td>Database-per-tenant, proven</td></tr>
+  <tr><td>Queue</td><td>Redis + Laravel Horizon</td><td>10x faster than DB queue</td></tr>
+  <tr><td>Database</td><td>MySQL 8</td><td>Master + per-tenant DBs</td></tr>
+  <tr><td>Search</td><td>Meilisearch</td><td>Fast contact/message search</td></tr>
+  <tr><td>Storage</td><td>AWS S3 + CloudFront</td><td>Scalable media and exports</td></tr>
+  <tr><td>Real-time</td><td>Laravel Reverb</td><td>WebSocket inbox updates</td></tr>
+  <tr><td>AI</td><td>Python FastAPI (separate)</td><td>RAG chatbot, retained from legacy</td></tr>
+  <tr><td>Monitoring</td><td>Sentry + Horizon + Pulse</td><td>Errors, queues, metrics</td></tr>
+  <tr><td>CI/CD</td><td>GitHub Actions</td><td>Automated test and deploy</td></tr>
+</table>
+
+<h2>11. Architecture Principles</h2>
+<ol class="numbered-list">
+  <li>Tenant isolation first — no query without tenant context</li>
+  <li>Events over cron — reactive processing, not polling</li>
+  <li>Append-only logs — webhook/event data never deleted</li>
+  <li>Idempotent everything — duplicates are no-ops, not errors</li>
+  <li>Thin controllers, fat services — testable business logic</li>
+  <li>Queue everything heavy — user response always &lt; 200ms</li>
+  <li>API-first — UI consumes internal API</li>
+  <li>Backward-compatible migrations — zero-downtime deploys</li>
+  <li>Feature flags — gradual rollout, instant rollback</li>
+  <li>No god classes — 300-line file limit, domain boundaries</li>
+</ol>
+
+<h2>12. SLA Targets</h2>
+<table>
+  <tr><th>Metric</th><th>Target</th></tr>
+  <tr><td>System uptime</td><td>99.9%</td></tr>
+  <tr><td>Webhook response to Meta</td><td>&lt; 100ms (p99)</td></tr>
+  <tr><td>Message send latency</td><td>&lt; 2 seconds (p95)</td></tr>
+  <tr><td>Campaign throughput</td><td>50 messages/sec per number</td></tr>
+  <tr><td>Message delivery rate</td><td>&gt; 95%</td></tr>
+  <tr><td>Job failure rate</td><td>&lt; 0.1%</td></tr>
+  <tr><td>Data loss</td><td>0%</td></tr>
+</table>
+
+<h2 class="section-break">13. Risk Assessment</h2>
+<table>
+  <tr><th>Risk</th><th>Impact</th><th>Mitigation</th></tr>
+  <tr><td>Migration data loss</td><td class="risk-critical">Critical</td><td>Append-only logs, per-tenant rollback</td></tr>
+  <tr><td>Campaign burst overload</td><td class="risk-high">High</td><td>Separate queue, chunked send, circuit breaker</td></tr>
+  <tr><td>Meta API downtime</td><td class="risk-high">High</td><td>Circuit breaker, queue, auto-resume</td></tr>
+  <tr><td>Single tenant DB failure</td><td class="risk-medium">Medium</td><td>One customer affected, independent backups</td></tr>
+  <tr><td>Legacy parallel run complexity</td><td class="risk-medium">Medium</td><td>Module-by-module, not big-bang</td></tr>
+</table>
+
+<h2>14. Current Status &amp; Next Steps</h2>
+<table>
+  <tr><th>Area</th><th>Progress</th></tr>
+  <tr><td>UI (screens, nav)</td><td>~85% complete</td></tr>
+  <tr><td>Architecture design</td><td>Complete (this document)</td></tr>
+  <tr><td>Backend development</td><td>Not started</td></tr>
+  <tr><td>Legacy analysis</td><td>Complete</td></tr>
+</table>
+
+<h3>Recommended Next Steps</h3>
+<table>
+  <tr><th>#</th><th>Action</th><th>Priority</th></tr>
+  <tr><td>1</td><td>Review and approve this architecture proposal</td><td>Immediate</td></tr>
+  <tr><td>2</td><td>Detailed DB schema design (Master + Tenant)</td><td>Week 1</td></tr>
+  <tr><td>3</td><td>Confirm module priority for implementation</td><td>Week 1</td></tr>
+  <tr><td>4</td><td>Infrastructure setup (Redis, MySQL, S3, staging)</td><td>Week 1</td></tr>
+  <tr><td>5</td><td>Phase 1: Foundation (tenancy, auth, queues)</td><td>Week 1–2</td></tr>
+  <tr><td>6</td><td>Phase 2: Core messaging (webhooks, send, inbox)</td><td>Week 3–4</td></tr>
+</table>
+
+<h3>Open Questions for Management</h3>
+<ol>
+  <li>Go-live target date — when should the first customer be migrated?</li>
+  <li>Module priority — confirm inbox/messaging first, then campaigns?</li>
+  <li>Infrastructure — AWS, DigitalOcean, or existing hosting?</li>
+  <li>Legacy parallel run — how long should both systems run?</li>
+  <li>Team size — how many developers on backend implementation?</li>
+</ol>
+
+<h2>15. Legacy vs New — Comparison</h2>
+<table>
+  <tr><th>Aspect</th><th>Legacy (Tittu)</th><th>New (WapApp 2.0)</th></tr>
+  <tr><td>Framework</td><td>Laravel 8 (Acelle fork)</td><td>Laravel 13 (greenfield)</td></tr>
+  <tr><td>Tenancy</td><td>Single DB, customer_id column</td><td>Master DB + Tenant DB per customer</td></tr>
+  <tr><td>Queue</td><td>Database driver</td><td>Redis + Horizon</td></tr>
+  <tr><td>Webhooks</td><td>Staging table → cron → delete</td><td>Verify → log → queue (append-only)</td></tr>
+  <tr><td>Campaigns</td><td>Cron every minute</td><td>Chunked jobs, dedicated queue</td></tr>
+  <tr><td>Automation</td><td>Cron 3x per minute</td><td>Event-driven</td></tr>
+  <tr><td>Error handling</td><td>Inconsistent</td><td>Structured JSON, error codes</td></tr>
+  <tr><td>Monitoring</td><td>Shell scripts</td><td>Horizon + Sentry + Pulse</td></tr>
+  <tr><td>Real-time inbox</td><td>Polling / FCM only</td><td>WebSockets (Reverb)</td></tr>
+  <tr><td>Deployment</td><td>Manual</td><td>CI/CD (GitHub Actions)</td></tr>
+  <tr><td>Testing</td><td>Minimal</td><td>70%+ coverage target</td></tr>
+</table>
+
+<div class="footer-note">— End of Document —<br>WapApp 2.0 Enterprise Architecture Proposal · 27 July 2026</div>
+
+</body>
+</html>

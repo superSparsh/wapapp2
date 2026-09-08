@@ -1,0 +1,63 @@
+{
+    "version": "6.3",
+    "routing_model": {
+        "s1": [
+            "s2"
+        ],
+        "s2": []
+    },
+    "screens": [
+        {
+            "id": "s1",
+            "title": "First",
+            "layout": {
+                "type": "SingleColumnLayout",
+                "children": [
+                    {
+                        "type": "Form",
+                        "name": "flow_path",
+                        "children": [
+                            {
+                                "type": "Footer",
+                                "label": "Continue",
+                                "on-click-action": {
+                                    "name": "navigate",
+                                    "next": {
+                                        "type": "screen",
+                                        "name": "s2"
+                                    },
+                                    "payload": []
+                                }
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        {
+            "id": "s2",
+            "title": "Second",
+            "layout": {
+                "type": "SingleColumnLayout",
+                "children": [
+                    {
+                        "type": "Form",
+                        "name": "flow_path",
+                        "children": [
+                            {
+                                "type": "Footer",
+                                "label": "Submit",
+                                "on-click-action": {
+                                    "name": "complete",
+                                    "payload": []
+                                }
+                            }
+                        ]
+                    }
+                ]
+            },
+            "terminal": true,
+            "success": true
+        }
+    ]
+}

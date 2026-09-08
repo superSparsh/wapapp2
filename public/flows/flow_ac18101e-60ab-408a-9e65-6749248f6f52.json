@@ -1,0 +1,42 @@
+{
+    "version": "6.3",
+    "routing_model": {
+        "s1": []
+    },
+    "screens": [
+        {
+            "id": "s1",
+            "title": "First",
+            "layout": {
+                "type": "SingleColumnLayout",
+                "children": [
+                    {
+                        "type": "Form",
+                        "name": "flow_path",
+                        "children": [
+                            {
+                                "type": "TextInput",
+                                "input-type": "text",
+                                "label": "Name",
+                                "name": "f1",
+                                "required": false
+                            },
+                            {
+                                "type": "Footer",
+                                "label": "Submit",
+                                "on-click-action": {
+                                    "name": "complete",
+                                    "payload": {
+                                        "f1": "${screen.s1.form.f1}"
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                ]
+            },
+            "terminal": true,
+            "success": true
+        }
+    ]
+}

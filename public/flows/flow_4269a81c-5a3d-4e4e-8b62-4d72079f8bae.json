@@ -1,0 +1,119 @@
+{
+    "version": "6.3",
+    "routing_model": {
+        "screen_1": [
+            "screen_2"
+        ],
+        "screen_2": []
+    },
+    "screens": [
+        {
+            "id": "screen_1",
+            "title": "Screen 1",
+            "layout": {
+                "type": "SingleColumnLayout",
+                "children": [
+                    {
+                        "type": "Form",
+                        "name": "flow_path",
+                        "children": [
+                            {
+                                "type": "TextInput",
+                                "input-type": "text",
+                                "label": "Field 1",
+                                "name": "field_1_1",
+                                "required": true
+                            },
+                            {
+                                "type": "TextInput",
+                                "input-type": "text",
+                                "label": "Field 2",
+                                "name": "field_1_2",
+                                "required": false
+                            },
+                            {
+                                "type": "TextInput",
+                                "input-type": "text",
+                                "label": "Field 3",
+                                "name": "field_1_3",
+                                "required": false
+                            },
+                            {
+                                "type": "Footer",
+                                "label": "Continue",
+                                "on-click-action": {
+                                    "name": "navigate",
+                                    "next": {
+                                        "type": "screen",
+                                        "name": "screen_2"
+                                    },
+                                    "payload": {
+                                        "field_1_1": "${screen.screen_1.form.field_1_1}",
+                                        "field_1_2": "${screen.screen_1.form.field_1_2}",
+                                        "field_1_3": "${screen.screen_1.form.field_1_3}",
+                                        "field_2_1": "${screen.screen_2.form.field_2_1}",
+                                        "field_2_2": "${screen.screen_2.form.field_2_2}",
+                                        "field_2_3": "${screen.screen_2.form.field_2_3}"
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        {
+            "id": "screen_2",
+            "title": "Screen 2",
+            "layout": {
+                "type": "SingleColumnLayout",
+                "children": [
+                    {
+                        "type": "Form",
+                        "name": "flow_path",
+                        "children": [
+                            {
+                                "type": "TextInput",
+                                "input-type": "text",
+                                "label": "Field 1",
+                                "name": "field_2_1",
+                                "required": true
+                            },
+                            {
+                                "type": "TextInput",
+                                "input-type": "text",
+                                "label": "Field 2",
+                                "name": "field_2_2",
+                                "required": false
+                            },
+                            {
+                                "type": "TextInput",
+                                "input-type": "text",
+                                "label": "Field 3",
+                                "name": "field_2_3",
+                                "required": false
+                            },
+                            {
+                                "type": "Footer",
+                                "label": "Submit",
+                                "on-click-action": {
+                                    "name": "complete",
+                                    "payload": {
+                                        "field_1_1": "${screen.screen_1.form.field_1_1}",
+                                        "field_1_2": "${screen.screen_1.form.field_1_2}",
+                                        "field_1_3": "${screen.screen_1.form.field_1_3}",
+                                        "field_2_1": "${screen.screen_2.form.field_2_1}",
+                                        "field_2_2": "${screen.screen_2.form.field_2_2}",
+                                        "field_2_3": "${screen.screen_2.form.field_2_3}"
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                ]
+            },
+            "terminal": true,
+            "success": true
+        }
+    ]
+}
