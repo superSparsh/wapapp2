@@ -28,11 +28,34 @@ class ActivityLogService
         'billing.subscription.paid' => 'Subscription — payment completed',
         'billing.wallet.recharge' => 'Wallet — Razorpay recharge completed',
         'integration.profile.updated' => 'WABA profile — updated',
+        'integration.sync.completed' => 'WhatsApp business data — synced',
+        'integration.phone.added' => 'WhatsApp number — added',
+        'phone_line.password_set' => 'Number access password — saved',
+        'phone_line.default_changed' => 'Default WhatsApp number — changed',
+        'phone_line.context_entered' => 'Number-specific access — entered',
+        'phone_line.public_login' => 'Number access — signed in',
         'data.export.requested' => 'Data export — requested',
         'data.deletion.scheduled' => 'Data deletion — scheduled',
         'data.deletion.cancelled' => 'Data deletion — cancelled',
         'data.deletion.completed' => 'Data deletion — completed',
     ];
+
+    public static function labelFor(string $action, ?string $description = null): string
+    {
+        if (isset(self::ACTIONS[$action])) {
+            return self::ACTIONS[$action];
+        }
+
+        if (filled($description) && $description !== $action) {
+            return $description;
+        }
+
+        return Str::of($action)
+            ->replace(['.', '_'], ' ')
+            ->squish()
+            ->title()
+            ->toString();
+    }
 
     public function log(string $action, array $context = []): ?ActivityLog
     {
@@ -64,7 +87,7 @@ class ActivityLogService
             'actor_id' => $user?->getKey(),
             'actor_email' => $user?->email ?? ($context['actor_email'] ?? null),
             'action' => $action,
-            'description' => $context['description'] ?? (self::ACTIONS[$action] ?? $action),
+            'description' => $context['description'] ?? self::labelFor($action),
             'subject_type' => $context['subject_type'] ?? null,
             'subject_id' => $context['subject_id'] ?? null,
             'ip_address' => $context['ip_address'] ?? null,

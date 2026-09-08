@@ -32,7 +32,7 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
     Route::post('/impersonation/stop', [ImpersonationController::class, 'stop'])
         ->name('impersonation.stop');
 
-    Route::post('/enter-from-app', EnterAdminViewController::class)
+    Route::match(['get', 'post'], '/enter-from-app', EnterAdminViewController::class)
         ->middleware(['tenancy.session', 'auth:web,team'])
         ->name('enter-from-app');
 

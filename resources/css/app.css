@@ -1160,6 +1160,11 @@ body.builder-fullscreen > .flex > div > .min-h-0 > main > .flex > .flex-col:firs
     backdrop-filter: blur(2px);
 }
 
+html.fd-page-loading,
+html.fd-page-loading body {
+    cursor: progress;
+}
+
 .fd-page-loader__bar {
     position: fixed;
     top: 0;

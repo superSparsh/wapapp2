@@ -172,6 +172,16 @@ class AdminPanelTest extends TestCase
             ->assertSee(route('admin.enter-from-app'), false);
     }
 
+    public function test_tenant_user_menu_shows_admin_view_for_allowlisted_email(): void
+    {
+        config(['admin.view_emails' => [strtolower($this->testUser->email)]]);
+
+        $this->actingAsTenantUser()
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('Admin View');
+    }
+
     public function test_admin_view_bridge_logs_into_admin_guard(): void
     {
         Admin::query()->where('email', $this->admin->email)->delete();
@@ -183,10 +193,21 @@ class AdminPanelTest extends TestCase
         ]);
 
         $this->actingAsTenantUser()
-            ->post(route('admin.enter-from-app'))
+            ->get(route('admin.enter-from-app'))
             ->assertRedirect(route('admin.dashboard'));
 
         $this->assertAuthenticatedAs($linked, 'admin');
         $this->assertAuthenticatedAs($this->testUser, 'web');
+    }
+
+    public function test_admin_view_hidden_without_admin_access(): void
+    {
+        Admin::query()->where('email', $this->testUser->email)->delete();
+        config(['admin.view_emails' => []]);
+
+        $this->actingAsTenantUser()
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertDontSee('>Admin View<', false);
     }
 }

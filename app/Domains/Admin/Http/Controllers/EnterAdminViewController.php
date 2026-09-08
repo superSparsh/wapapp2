@@ -13,13 +13,24 @@ use Illuminate\Support\Facades\Auth;
 class EnterAdminViewController extends Controller
 {
     /**
-     * Bridge from tenant app → platform admin (legacy "Admin View").
-     * Logs into the admin guard for the Admin row matching the current user email.
+     * Bridge from tenant app → platform admin (legacy "Admin View" link).
+     * Legacy used a GET link to Admin\HomeController when @can('admin_access').
      */
     public function __invoke(Request $request): RedirectResponse
     {
+        if (Auth::guard('admin')->check()) {
+            return redirect()->route('admin.dashboard');
+        }
+
         $admin = AdminViewAccess::matchingAdmin();
-        abort_if($admin === null, 403);
+
+        if ($admin === null) {
+            abort_unless(AdminViewAccess::emailIsAllowlisted(), 403);
+
+            return redirect()
+                ->route('admin.login')
+                ->with('status', 'Sign in with your admin account to open Admin View.');
+        }
 
         Auth::guard('admin')->login($admin, true);
         $admin->forceFill(['last_login_at' => now()])->save();

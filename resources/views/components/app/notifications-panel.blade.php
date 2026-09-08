@@ -23,7 +23,7 @@
   <div class="max-h-[360px] overflow-y-auto" data-notifications-list>
     @forelse ($notifications ?? [] as $notification)
       <div class="border-b border-divider px-4 py-3 last:border-b-0">
-        <p class="text-sm font-medium text-text-primary">{{ $notification->description }}</p>
+        <p class="text-sm font-medium text-text-primary">{{ \App\Domains\Account\Services\ActivityLogService::labelFor((string) $notification->action, $notification->description) }}</p>
         <p class="mt-1 text-xs text-text-muted">{{ $notification->created_at?->diffForHumans() }}</p>
       </div>
     @empty

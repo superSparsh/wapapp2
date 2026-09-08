@@ -36,9 +36,9 @@
                 <td class="p-2">{{ $log->actor_email ?? 'System' }}</td>
                 <td class="p-2">
                   <span class="rounded bg-green-50 px-2 py-1 text-[10px] font-medium text-primary-2">{{ $log->scope }}</span>
-                  <span class="mt-1 block text-text-subtle">{{ $actions[$log->action] ?? $log->action }}</span>
+                  <span class="mt-1 block text-text-subtle">{{ \App\Domains\Account\Services\ActivityLogService::labelFor((string) $log->action) }}</span>
                 </td>
-                <td class="p-2 text-text-body">{{ $log->description }}</td>
+                <td class="p-2 text-text-body">{{ \App\Domains\Account\Services\ActivityLogService::labelFor((string) $log->action, $log->description) }}</td>
                 <td class="p-2 text-text-muted">{{ $log->ip_address ?? '—' }}</td>
               </tr>
             @empty

@@ -13,6 +13,8 @@
         'data' => 'circle-square',
         'task-square' => 'box',
     ];
+
+    $showAdminView = ! empty($canAccessAdminView);
 @endphp
 
 <div
@@ -38,6 +40,18 @@
   <img src="{{ asset('images/icons/header/panel-divider.svg') }}" alt="" class="my-3 block w-full" width="288" height="1">
 
   <nav class="flex flex-col gap-3">
+    @if ($showAdminView)
+      {{-- Legacy: Profile menu → Admin View (Admin\HomeController) --}}
+      <a
+        href="{{ route('admin.enter-from-app') }}"
+        class="fd-nav-item flex items-center gap-3 rounded-md border border-green-500/30 bg-green-50 p-3 text-primary-2 transition-colors hover:bg-green-100"
+        role="menuitem"
+      >
+        <x-icons.sidebar-icon name="box" :active="true" class="size-5 shrink-0" />
+        <span class="min-w-0 flex-1 font-semibold">Admin View</span>
+      </a>
+    @endif
+
     @foreach ($teamItems as $item)
       @php
         $isActive = request()->routeIs($item['route']) || request()->routeIs($item['route'] . '.*');
@@ -56,20 +70,6 @@
         <span class="min-w-0 flex-1">{{ $item['label'] }}</span>
       </a>
     @endforeach
-
-    @if (! empty($canAccessAdminView))
-      <form method="POST" action="{{ route('admin.enter-from-app') }}" class="contents">
-        @csrf
-        <button
-          type="submit"
-          class="fd-nav-item flex w-full items-center gap-3 rounded-md p-3 text-left text-blue-200 transition-colors hover:bg-surface"
-          role="menuitem"
-        >
-          <x-icons.sidebar-icon name="box" :active="false" class="size-5 shrink-0" />
-          <span class="min-w-0 flex-1">Admin View</span>
-        </button>
-      </form>
-    @endif
   </nav>
 
   <form action="{{ route('logout') }}" method="POST">

@@ -46,11 +46,28 @@ function shouldIgnoreLink(anchor) {
         if (url.origin !== window.location.origin) {
             return true;
         }
+
+        // Same-URL hash-only / query-only soft navigations still load; allow loader.
+        // Skip only when href resolves to the exact current path+search and is just a hash jump already handled above.
     } catch {
         return true;
     }
 
     return false;
+}
+
+/**
+ * Show immediately so full-page navigations paint the loader before unload.
+ * If another handler preventDefaults (AJAX/modals), hide on the next microtask.
+ */
+function showUnlessCancelled(event, label) {
+    showPageLoader(label);
+
+    queueMicrotask(() => {
+        if (event.defaultPrevented) {
+            hidePageLoader();
+        }
+    });
 }
 
 export function initPageLoader() {
@@ -66,11 +83,7 @@ export function initPageLoader() {
             return;
         }
 
-        // Defer so SPA/modal handlers can preventDefault first.
-        queueMicrotask(() => {
-            if (event.defaultPrevented) return;
-            showPageLoader();
-        });
+        showUnlessCancelled(event, 'Loading…');
     }, true);
 
     document.addEventListener('submit', (event) => {
@@ -78,11 +91,7 @@ export function initPageLoader() {
         if (!(form instanceof HTMLFormElement)) return;
         if (form.dataset.noLoader !== undefined || form.closest('[data-no-loader]')) return;
 
-        // Defer so AJAX forms can preventDefault before we show the loader.
-        queueMicrotask(() => {
-            if (event.defaultPrevented) return;
-            showPageLoader(form.dataset.loaderLabel || 'Saving…');
-        });
+        showUnlessCancelled(event, form.dataset.loaderLabel || 'Saving…');
     }, true);
 
     window.addEventListener('pageshow', () => hidePageLoader());
