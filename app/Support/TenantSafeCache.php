@@ -36,6 +36,24 @@ final class TenantSafeCache
         }
     }
 
+    public static function get(string $key, mixed $default = null): mixed
+    {
+        try {
+            return Cache::store('file')->get($key, $default);
+        } catch (\BadMethodCallException) {
+            return self::fileRepository()->get($key, $default);
+        }
+    }
+
+    public static function put(string $key, mixed $value, int|\DateInterval|\DateTimeInterface $ttl): bool
+    {
+        try {
+            return Cache::store('file')->put($key, $value, $ttl);
+        } catch (\BadMethodCallException) {
+            return self::fileRepository()->put($key, $value, $ttl);
+        }
+    }
+
     public static function forget(string $key): void
     {
         try {

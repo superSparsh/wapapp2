@@ -46,17 +46,55 @@ class AdminPanelTest extends TestCase
             ->assertRedirect(route('admin.login'));
     }
 
-    public function test_admin_can_login_and_see_dashboard(): void
+    public function test_admin_header_shows_customer_view_and_my_profile_not_direct_logout(): void
     {
-        $this->post(route('admin.login.store'), [
-            'email' => 'admin@wapapp.test',
-            'password' => 'password',
-        ])->assertRedirect(route('admin.dashboard'));
-
         $this->actingAs($this->admin, 'admin')
             ->get(route('admin.dashboard'))
             ->assertOk()
-            ->assertSee('Platform overview');
+            ->assertSee('Customer View')
+            ->assertSee('My Profile')
+            ->assertSee(route('admin.customer-view'), false)
+            ->assertSee(route('admin.account.profile'), false)
+            ->assertDontSee('>Logout</button>', false);
+    }
+
+    public function test_admin_can_view_and_update_own_profile(): void
+    {
+        $this->actingAs($this->admin, 'admin')
+            ->get(route('admin.account.profile'))
+            ->assertOk()
+            ->assertSee('My Profile');
+
+        $this->actingAs($this->admin, 'admin')
+            ->put(route('admin.account.update'), [
+                'name' => 'Updated Admin',
+                'email' => 'admin@wapapp.test',
+                'password' => '',
+                'password_confirmation' => '',
+            ])
+            ->assertRedirect(route('admin.account.profile'));
+
+        $this->assertSame('Updated Admin', $this->admin->fresh()->name);
+    }
+
+    public function test_customer_view_without_linked_account_redirects_to_customers(): void
+    {
+        $this->actingAs($this->admin, 'admin')
+            ->get(route('admin.customer-view'))
+            ->assertRedirect(route('admin.customers.index'));
+    }
+
+    public function test_admin_nav_matches_legacy_top_level_groups(): void
+    {
+        $this->actingAs($this->admin, 'admin')
+            ->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertSee('Customer')
+            ->assertSee('Plan')
+            ->assertSee('Announcement')
+            ->assertSee('Submissions')
+            ->assertSee('Plugins')
+            ->assertDontSee('Plans & Pricing');
     }
 
     public function test_admin_can_list_and_view_customers(): void

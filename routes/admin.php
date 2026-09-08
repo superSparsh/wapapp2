@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Domains\Admin\Http\Controllers\AccountController;
 use App\Domains\Admin\Http\Controllers\AdminRoleController;
 use App\Domains\Admin\Http\Controllers\AdminUserController;
 use App\Domains\Admin\Http\Controllers\AnnouncementController;
@@ -12,6 +13,7 @@ use App\Domains\Admin\Http\Controllers\CountryPricingController;
 use App\Domains\Admin\Http\Controllers\CurrencyController;
 use App\Domains\Admin\Http\Controllers\CustomerController;
 use App\Domains\Admin\Http\Controllers\CustomerSubmissionController;
+use App\Domains\Admin\Http\Controllers\CustomerViewController;
 use App\Domains\Admin\Http\Controllers\DashboardController;
 use App\Domains\Admin\Http\Controllers\DataPurgeController;
 use App\Domains\Admin\Http\Controllers\EnterAdminViewController;
@@ -54,6 +56,10 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
     Route::middleware(['auth:admin', 'admin.active'])->group(function (): void {
         Route::post('/logout', [AdminLoginController::class, 'destroy'])->name('logout');
         Route::get('/', DashboardController::class)->name('dashboard');
+
+        Route::get('/account/profile', [AccountController::class, 'profile'])->name('account.profile');
+        Route::put('/account/profile', [AccountController::class, 'update'])->name('account.update');
+        Route::get('/customer-view', CustomerViewController::class)->name('customer-view');
 
         Route::get('/customers', [CustomerController::class, 'index'])->name('customers.index');
         Route::get('/customers/{tenant}', [CustomerController::class, 'show'])->name('customers.show');

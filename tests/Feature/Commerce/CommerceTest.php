@@ -507,6 +507,28 @@ class CommerceTest extends TestCase
         $this->assertFalse($result['success']);
     }
 
+    public function test_catalog_service_requires_business_id(): void
+    {
+        config([
+            'whatsapp.alibaba.access_key_id' => 'test_key',
+            'whatsapp.alibaba.access_key_secret' => 'test_secret',
+        ]);
+
+        $this->testLine->update([
+            'alibaba_cust_space_id' => 'SP123456',
+            'waba_id' => null,
+            'metadata' => null,
+        ]);
+
+        $service = app(CatalogService::class);
+        $service->flushCatalogCache($this->testLine);
+
+        $result = $service->getCatalogs($this->testLine->fresh());
+
+        $this->assertFalse($result['success']);
+        $this->assertStringContainsString('Business ID', $result['message']);
+    }
+
     public function test_catalog_service_fetches_and_formats_catalogs(): void
     {
         config([
@@ -514,12 +536,21 @@ class CommerceTest extends TestCase
             'whatsapp.alibaba.access_key_secret'  => 'test_secret',
         ]);
 
-        $this->testLine->update(['alibaba_cust_space_id' => 'SP123456']);
+        $this->testLine->update([
+            'alibaba_cust_space_id' => 'SP123456',
+            'waba_id' => 'WABA001',
+            'metadata' => ['business_id' => '1050489708630001'],
+        ]);
+
+        $service = app(CatalogService::class);
+        $service->flushCatalogCache($this->testLine);
 
         Http::fake([
             'cams.ap-southeast-1.aliyuncs.com/*' => Http::response([
-                'model' => [
-                    'data' => [
+                'Code' => 'OK',
+                'Success' => true,
+                'Model' => [
+                    'Data' => [
                         [
                             'id'            => 'CAT001',
                             'name'          => 'Our Services',
@@ -533,14 +564,96 @@ class CommerceTest extends TestCase
             ], 200),
         ]);
 
-        $service = app(CatalogService::class);
-        $result  = $service->getCatalogs($this->testLine);
+        $result  = $service->getCatalogs($this->testLine->fresh());
 
         $this->assertTrue($result['success']);
         $this->assertCount(1, $result['catalogs']);
         $this->assertSame('CAT001', $result['catalogs'][0]['id']);
         $this->assertSame('Our Services', $result['catalogs'][0]['name']);
         $this->assertSame(5, $result['catalogs'][0]['product_count']);
+
+        Http::assertSent(function (Request $request): bool {
+            $data = collect($request->data());
+
+            return (str_contains($request->url(), 'Action=ListProductCatalog')
+                    || $data->contains('ListProductCatalog')
+                    || ($request['Action'] ?? null) === 'ListProductCatalog')
+                && (str_contains($request->url(), 'BusinessId=1050489708630001')
+                    || $data->contains('1050489708630001')
+                    || ($request['BusinessId'] ?? null) === '1050489708630001')
+                && (str_contains($request->url(), 'CustSpaceId=SP123456')
+                    || $data->contains('SP123456')
+                    || ($request['CustSpaceId'] ?? null) === 'SP123456');
+        });
+    }
+
+    public function test_catalog_service_resolves_business_id_via_query_waba_business_info(): void
+    {
+        config([
+            'whatsapp.alibaba.access_key_id' => 'test_key',
+            'whatsapp.alibaba.access_key_secret' => 'test_secret',
+        ]);
+
+        $this->testLine->update([
+            'alibaba_cust_space_id' => 'SP123456',
+            'waba_id' => 'WABA001',
+            'metadata' => null,
+        ]);
+
+        $service = app(CatalogService::class);
+        $service->flushCatalogCache($this->testLine);
+
+        Http::fake(function (Request $request) {
+            $query = [];
+            parse_str((string) parse_url($request->url(), PHP_URL_QUERY), $query);
+            $action = $request['Action']
+                ?? $query['Action']
+                ?? collect($request->data())->get('Action')
+                ?? '';
+
+            if ($action === 'QueryWabaBusinessInfo' || str_contains($request->url(), 'Action=QueryWabaBusinessInfo')) {
+                return Http::response([
+                    'Code' => 'OK',
+                    'Data' => [
+                        'businessId' => '999888777666',
+                        'businessName' => 'Resolved Co',
+                    ],
+                ], 200);
+            }
+
+            return Http::response([
+                'Code' => 'OK',
+                'Model' => [
+                    'Data' => [
+                        [
+                            'id' => 'CAT002',
+                            'name' => 'Resolved Catalog',
+                            'product_count' => 1,
+                            'vertical' => 'commerce',
+                            'default_image_url' => '',
+                            'business' => ['id' => '999888777666', 'name' => 'Resolved Co'],
+                        ],
+                    ],
+                ],
+            ], 200);
+        });
+
+        $result = $service->getCatalogs($this->testLine->fresh());
+
+        $this->assertTrue($result['success']);
+        $this->assertSame('CAT002', $result['catalogs'][0]['id']);
+        $this->assertSame('999888777666', $this->testLine->fresh()->metadata['business_id']);
+
+        Http::assertSent(function (Request $request): bool {
+            return str_contains($request->url(), 'Action=QueryWabaBusinessInfo')
+                || ($request['Action'] ?? null) === 'QueryWabaBusinessInfo'
+                || collect($request->data())->contains('QueryWabaBusinessInfo');
+        });
+        Http::assertSent(function (Request $request): bool {
+            return str_contains($request->url(), 'BusinessId=999888777666')
+                || ($request['BusinessId'] ?? null) === '999888777666'
+                || collect($request->data())->contains('999888777666');
+        });
     }
 
     public function test_catalog_service_fetches_and_formats_products(): void
@@ -555,8 +668,12 @@ class CommerceTest extends TestCase
             'waba_id'               => 'WABA001',
         ]);
 
+        $service = app(CatalogService::class);
+        $service->flushProductCache($this->testLine, 'CAT001');
+
         Http::fake([
             'cams.ap-southeast-1.aliyuncs.com/*' => Http::response([
+                'Code' => 'OK',
                 'model' => [
                     'data' => [
                         [
@@ -576,14 +693,29 @@ class CommerceTest extends TestCase
             ], 200),
         ]);
 
-        $service = app(CatalogService::class);
-        $result  = $service->getProducts($this->testLine, 'CAT001');
+        $result  = $service->getProducts($this->testLine->fresh(), 'CAT001');
 
         $this->assertTrue($result['success']);
         $this->assertCount(1, $result['products']);
         $this->assertSame('Widget Pro', $result['products'][0]['name']);
         $this->assertSame('₹ 999', $result['products'][0]['price']);
         $this->assertSame('RET001', $result['products'][0]['retailer_id']);
+
+        Http::assertSent(function (Request $request): bool {
+            $data = collect($request->data());
+            $action = $request['Action'] ?? $data->get('Action');
+            $isListProduct = $action === 'ListProduct'
+                || (str_contains($request->url(), 'Action=ListProduct')
+                    && ! str_contains($request->url(), 'Action=ListProductCatalog'));
+
+            return $isListProduct
+                && (str_contains($request->url(), 'CatalogId=CAT001')
+                    || ($request['CatalogId'] ?? null) === 'CAT001'
+                    || $data->contains('CAT001'))
+                && (str_contains($request->url(), 'WabaId=WABA001')
+                    || ($request['WabaId'] ?? null) === 'WABA001'
+                    || $data->contains('WABA001'));
+        });
     }
 
     // ─── Payment model helpers ────────────────────────────────────────────────

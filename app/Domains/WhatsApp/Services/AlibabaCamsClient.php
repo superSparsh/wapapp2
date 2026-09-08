@@ -116,9 +116,9 @@ class AlibabaCamsClient
     }
 
     /**
-     * List Facebook product catalogs linked to the WABA.
+     * List Facebook product catalogs linked to the business (ListProductCatalog).
      *
-     * @param  array<string, string|null>  $params  Must include CustSpaceId
+     * @param  array<string, string|null>  $params  Must include BusinessId; CustSpaceId recommended
      */
     public function listProductCatalogs(array $params = []): Response
     {
@@ -128,9 +128,9 @@ class AlibabaCamsClient
     }
 
     /**
-     * List products for a specific catalog.
+     * List products for a specific catalog (ListProduct).
      *
-     * @param  array<string, string|null>  $params  Must include CustSpaceId, CatalogId
+     * @param  array<string, string|null>  $params  Must include CatalogId, CustSpaceId; WabaId recommended
      */
     public function listProducts(array $params = []): Response
     {
