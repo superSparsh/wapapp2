@@ -118,6 +118,29 @@ class WalletService
         });
     }
 
+    /**
+     * Credit the current tenant wallet without a payment gateway order.
+     */
+    public function adminCredit(float $amount, string $description = 'Admin wallet credit'): WalletTransaction
+    {
+        abort_unless($amount > 0, 422, 'Credit amount must be greater than zero.');
+
+        return DB::transaction(function () use ($amount, $description): WalletTransaction {
+            $wallet = $this->account();
+            $newBalance = (float) $wallet->balance + $amount;
+            $wallet->update(['balance' => $newBalance]);
+
+            return WalletTransaction::query()->create([
+                'type' => WalletTransactionType::Credit,
+                'amount' => $amount,
+                'currency' => $wallet->currency ?? 'INR',
+                'balance_after' => $newBalance,
+                'description' => $description,
+                'created_at' => now(),
+            ]);
+        });
+    }
+
     public function completeRecharge(RazorpayOrder $order, string $paymentId): WalletTransaction
     {
         return DB::transaction(function () use ($order, $paymentId): WalletTransaction {

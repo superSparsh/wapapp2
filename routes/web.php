@@ -1,5 +1,6 @@
 <?php
 
+use App\Domains\Admin\Http\Controllers\CustomerReadinessController;
 use App\Domains\AiBot\Http\Controllers\AiBotController;
 use App\Domains\AiBot\Http\Controllers\AiBusinessInfoController;
 use App\Domains\AiBot\Http\Controllers\AiProviderKeyController;
@@ -72,6 +73,13 @@ Route::middleware('tenancy.session')->group(function () {
 Route::middleware('web')->group(function () {
     Route::get('/commerce/payments/callback', [CommerceController::class, 'paymentCallback'])
         ->name('commerce.payment.callback');
+});
+
+// Public customer readiness form (no auth, no tenancy — stored centrally)
+Route::middleware('web')->prefix('customer-readiness')->name('customer-readiness.')->group(function () {
+    Route::get('/', [CustomerReadinessController::class, 'create'])->name('create');
+    Route::post('/', [CustomerReadinessController::class, 'store'])->name('store');
+    Route::get('/thanks', [CustomerReadinessController::class, 'thanks'])->name('thanks');
 });
 
 // Public form routes (Form Builder — no auth — tenant resolved from path)

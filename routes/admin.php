@@ -2,25 +2,40 @@
 
 declare(strict_types=1);
 
+use App\Domains\Admin\Http\Controllers\AdminRoleController;
 use App\Domains\Admin\Http\Controllers\AdminUserController;
 use App\Domains\Admin\Http\Controllers\AnnouncementController;
 use App\Domains\Admin\Http\Controllers\Auth\AdminLoginController;
 use App\Domains\Admin\Http\Controllers\BillingAuditController;
 use App\Domains\Admin\Http\Controllers\CloudBillController;
 use App\Domains\Admin\Http\Controllers\CountryPricingController;
+use App\Domains\Admin\Http\Controllers\CurrencyController;
 use App\Domains\Admin\Http\Controllers\CustomerController;
+use App\Domains\Admin\Http\Controllers\CustomerSubmissionController;
 use App\Domains\Admin\Http\Controllers\DashboardController;
 use App\Domains\Admin\Http\Controllers\DataPurgeController;
 use App\Domains\Admin\Http\Controllers\EnterAdminViewController;
+use App\Domains\Admin\Http\Controllers\FormTemplateController;
 use App\Domains\Admin\Http\Controllers\ImpersonationController;
+use App\Domains\Admin\Http\Controllers\InvoiceTemplateController;
+use App\Domains\Admin\Http\Controllers\LanguageController;
 use App\Domains\Admin\Http\Controllers\MessagePerformanceController;
+use App\Domains\Admin\Http\Controllers\OAuthSettingsController;
+use App\Domains\Admin\Http\Controllers\PageLayoutController;
+use App\Domains\Admin\Http\Controllers\PaymentGatewayController;
 use App\Domains\Admin\Http\Controllers\PlanController;
+use App\Domains\Admin\Http\Controllers\PlatformTemplateController;
+use App\Domains\Admin\Http\Controllers\PluginController;
 use App\Domains\Admin\Http\Controllers\QueueController;
 use App\Domains\Admin\Http\Controllers\RazorpaySubscriptionAdminController;
+use App\Domains\Admin\Http\Controllers\RechargeSubscriptionRequestController;
+use App\Domains\Admin\Http\Controllers\RenewSubscriptionRequestController;
 use App\Domains\Admin\Http\Controllers\RetentionController;
 use App\Domains\Admin\Http\Controllers\SettingsController;
+use App\Domains\Admin\Http\Controllers\TaxSettingsController;
 use App\Domains\Admin\Http\Controllers\WalletRechargeController;
 use App\Domains\Admin\Http\Controllers\WhatsappHealthController;
+use App\Domains\Admin\Http\Controllers\ZohoRechargeHistoryController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('admin')->name('admin.')->group(function (): void {
@@ -56,6 +71,20 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
 
         Route::get('/wallet-recharges', [WalletRechargeController::class, 'index'])->name('wallet-recharges.index');
 
+        Route::get('/renew-requests', [RenewSubscriptionRequestController::class, 'index'])->name('renew-requests.index');
+        Route::post('/renew-requests/{renewRequest}/approve', [RenewSubscriptionRequestController::class, 'approve'])->name('renew-requests.approve');
+
+        Route::get('/recharge-requests', [RechargeSubscriptionRequestController::class, 'index'])->name('recharge-requests.index');
+        Route::post('/recharge-requests/{rechargeRequest}/approve', [RechargeSubscriptionRequestController::class, 'approve'])->name('recharge-requests.approve');
+
+        Route::get('/submissions', [CustomerSubmissionController::class, 'index'])->name('submissions.index');
+        Route::get('/submissions/readiness/{submission}', [CustomerSubmissionController::class, 'showReadiness'])->name('submissions.readiness.show');
+        Route::get('/submissions/onboarding/{submission}', [CustomerSubmissionController::class, 'showOnboarding'])->name('submissions.onboarding.show');
+        Route::post('/submissions/onboarding/{submission}/resend', [CustomerSubmissionController::class, 'resend'])->name('submissions.onboarding.resend');
+
+        Route::get('/zoho-credits', [ZohoRechargeHistoryController::class, 'index'])->name('zoho-credits.index');
+        Route::get('/zoho-credits/{creditRequest}', [ZohoRechargeHistoryController::class, 'show'])->name('zoho-credits.show');
+
         Route::get('/billing-audit', [BillingAuditController::class, 'index'])->name('billing-audit.index');
         Route::get('/billing-audit/export', [BillingAuditController::class, 'export'])->name('billing-audit.export');
 
@@ -82,6 +111,23 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::get('/pricing/{pricing}/edit', [CountryPricingController::class, 'edit'])->name('pricing.edit');
         Route::put('/pricing/{pricing}', [CountryPricingController::class, 'update'])->name('pricing.update');
         Route::post('/pricing/{pricing}/toggle', [CountryPricingController::class, 'toggle'])->name('pricing.toggle');
+
+        Route::get('/currencies', [CurrencyController::class, 'index'])->name('currencies.index');
+        Route::get('/currencies/create', [CurrencyController::class, 'create'])->name('currencies.create');
+        Route::post('/currencies', [CurrencyController::class, 'store'])->name('currencies.store');
+        Route::get('/currencies/{currency}/edit', [CurrencyController::class, 'edit'])->name('currencies.edit');
+        Route::put('/currencies/{currency}', [CurrencyController::class, 'update'])->name('currencies.update');
+        Route::post('/currencies/{currency}/toggle', [CurrencyController::class, 'toggle'])->name('currencies.toggle');
+
+        Route::get('/tax', [TaxSettingsController::class, 'edit'])->name('tax.edit');
+        Route::put('/tax', [TaxSettingsController::class, 'update'])->name('tax.update');
+
+        Route::get('/invoice-template', [InvoiceTemplateController::class, 'edit'])->name('invoice-template.edit');
+        Route::put('/invoice-template', [InvoiceTemplateController::class, 'update'])->name('invoice-template.update');
+        Route::get('/invoice-template/preview', [InvoiceTemplateController::class, 'preview'])->name('invoice-template.preview');
+
+        Route::get('/payment-gateways', [PaymentGatewayController::class, 'edit'])->name('payment-gateways.edit');
+        Route::put('/payment-gateways', [PaymentGatewayController::class, 'update'])->name('payment-gateways.update');
 
         Route::get('/razorpay', [RazorpaySubscriptionAdminController::class, 'index'])->name('razorpay.index');
 
@@ -115,5 +161,49 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::get('/admins/{admin}/edit', [AdminUserController::class, 'edit'])->name('admins.edit');
         Route::put('/admins/{admin}', [AdminUserController::class, 'update'])->name('admins.update');
         Route::post('/admins/{admin}/toggle-status', [AdminUserController::class, 'toggleStatus'])->name('admins.toggle-status');
+
+        Route::get('/admin-roles', [AdminRoleController::class, 'index'])->name('admin-roles.index');
+        Route::get('/admin-roles/create', [AdminRoleController::class, 'create'])->name('admin-roles.create');
+        Route::post('/admin-roles', [AdminRoleController::class, 'store'])->name('admin-roles.store');
+        Route::get('/admin-roles/{role}/edit', [AdminRoleController::class, 'edit'])->name('admin-roles.edit');
+        Route::put('/admin-roles/{role}', [AdminRoleController::class, 'update'])->name('admin-roles.update');
+        Route::delete('/admin-roles/{role}', [AdminRoleController::class, 'destroy'])->name('admin-roles.destroy');
+
+        Route::get('/oauth', [OAuthSettingsController::class, 'edit'])->name('oauth.edit');
+        Route::put('/oauth', [OAuthSettingsController::class, 'update'])->name('oauth.update');
+
+        Route::get('/platform-templates', [PlatformTemplateController::class, 'index'])->name('platform-templates.index');
+        Route::get('/platform-templates/create', [PlatformTemplateController::class, 'create'])->name('platform-templates.create');
+        Route::post('/platform-templates', [PlatformTemplateController::class, 'store'])->name('platform-templates.store');
+        Route::get('/platform-templates/{template}/edit', [PlatformTemplateController::class, 'edit'])->name('platform-templates.edit');
+        Route::put('/platform-templates/{template}', [PlatformTemplateController::class, 'update'])->name('platform-templates.update');
+        Route::delete('/platform-templates/{template}', [PlatformTemplateController::class, 'destroy'])->name('platform-templates.destroy');
+
+        Route::get('/form-templates', [FormTemplateController::class, 'index'])->name('form-templates.index');
+        Route::get('/form-templates/create', [FormTemplateController::class, 'create'])->name('form-templates.create');
+        Route::post('/form-templates', [FormTemplateController::class, 'store'])->name('form-templates.store');
+        Route::get('/form-templates/{formTemplate}/edit', [FormTemplateController::class, 'edit'])->name('form-templates.edit');
+        Route::put('/form-templates/{formTemplate}', [FormTemplateController::class, 'update'])->name('form-templates.update');
+        Route::delete('/form-templates/{formTemplate}', [FormTemplateController::class, 'destroy'])->name('form-templates.destroy');
+
+        Route::get('/page-layouts', [PageLayoutController::class, 'index'])->name('page-layouts.index');
+        Route::get('/page-layouts/create', [PageLayoutController::class, 'create'])->name('page-layouts.create');
+        Route::post('/page-layouts', [PageLayoutController::class, 'store'])->name('page-layouts.store');
+        Route::get('/page-layouts/{pageLayout}/edit', [PageLayoutController::class, 'edit'])->name('page-layouts.edit');
+        Route::put('/page-layouts/{pageLayout}', [PageLayoutController::class, 'update'])->name('page-layouts.update');
+        Route::delete('/page-layouts/{pageLayout}', [PageLayoutController::class, 'destroy'])->name('page-layouts.destroy');
+
+        Route::get('/languages', [LanguageController::class, 'index'])->name('languages.index');
+        Route::get('/languages/create', [LanguageController::class, 'create'])->name('languages.create');
+        Route::post('/languages', [LanguageController::class, 'store'])->name('languages.store');
+        Route::get('/languages/{language}/edit', [LanguageController::class, 'edit'])->name('languages.edit');
+        Route::put('/languages/{language}', [LanguageController::class, 'update'])->name('languages.update');
+        Route::post('/languages/{language}/toggle', [LanguageController::class, 'toggle'])->name('languages.toggle');
+        Route::delete('/languages/{language}', [LanguageController::class, 'destroy'])->name('languages.destroy');
+
+        Route::get('/plugins', [PluginController::class, 'index'])->name('plugins.index');
+        Route::post('/plugins', [PluginController::class, 'store'])->name('plugins.store');
+        Route::post('/plugins/{plugin}/toggle', [PluginController::class, 'toggle'])->name('plugins.toggle');
+        Route::delete('/plugins/{plugin}', [PluginController::class, 'destroy'])->name('plugins.destroy');
     });
 });

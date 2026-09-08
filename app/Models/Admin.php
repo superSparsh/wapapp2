@@ -9,6 +9,7 @@ use App\Models\Concerns\HasPublicUuid;
 use App\Models\Concerns\HasTwoFactorAuthentication;
 use App\Models\Concerns\UsesCentralConnection;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Admin extends Authenticatable implements TwoFactorAuthenticatable
@@ -19,6 +20,7 @@ class Admin extends Authenticatable implements TwoFactorAuthenticatable
     use UsesCentralConnection;
 
     protected $fillable = [
+        'admin_role_id',
         'name',
         'email',
         'password',
@@ -44,5 +46,10 @@ class Admin extends Authenticatable implements TwoFactorAuthenticatable
             'last_login_at' => 'datetime',
             'two_factor_confirmed_at' => 'datetime',
         ];
+    }
+
+    public function adminRole(): BelongsTo
+    {
+        return $this->belongsTo(AdminRole::class);
     }
 }

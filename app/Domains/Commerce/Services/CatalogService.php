@@ -6,7 +6,7 @@ namespace App\Domains\Commerce\Services;
 
 use App\Domains\WhatsApp\Services\AlibabaCamsClient;
 use App\Models\WhatsappLine;
-use Illuminate\Support\Facades\Cache;
+use App\Support\TenantSafeCache;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -43,7 +43,7 @@ class CatalogService
 
         $cacheKey = "commerce.catalogs.{$line->id}";
 
-        $catalogs = Cache::remember($cacheKey, self::CATALOG_CACHE_TTL, function () use ($line): ?array {
+        $catalogs = TenantSafeCache::remember($cacheKey, self::CATALOG_CACHE_TTL, function () use ($line): ?array {
             return $this->fetchCatalogs($line);
         });
 
@@ -71,7 +71,7 @@ class CatalogService
 
         $cacheKey = "commerce.products.{$line->id}.{$catalogId}";
 
-        $products = Cache::remember($cacheKey, self::PRODUCT_CACHE_TTL, function () use ($line, $catalogId): ?array {
+        $products = TenantSafeCache::remember($cacheKey, self::PRODUCT_CACHE_TTL, function () use ($line, $catalogId): ?array {
             return $this->fetchProducts($line, $catalogId);
         });
 
@@ -87,7 +87,7 @@ class CatalogService
      */
     public function flushCatalogCache(WhatsappLine $line): void
     {
-        Cache::forget("commerce.catalogs.{$line->id}");
+        TenantSafeCache::forget("commerce.catalogs.{$line->id}");
     }
 
     /**
@@ -95,7 +95,7 @@ class CatalogService
      */
     public function flushProductCache(WhatsappLine $line, string $catalogId): void
     {
-        Cache::forget("commerce.products.{$line->id}.{$catalogId}");
+        TenantSafeCache::forget("commerce.products.{$line->id}.{$catalogId}");
     }
 
     // ─── Private helpers ──────────────────────────────────────────────────────

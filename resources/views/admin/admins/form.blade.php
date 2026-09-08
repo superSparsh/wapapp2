@@ -34,6 +34,15 @@
         <span class="font-semibold">Confirm password</span>
         <input type="password" name="password_confirmation" @required(! $isEdit) class="rounded-lg border border-border px-3 py-2">
       </label>
+      <label class="flex flex-col gap-1.5 text-sm">
+        <span class="font-semibold">Role</span>
+        <select name="admin_role" class="rounded-lg border border-border px-3 py-2">
+          <option value="">No role</option>
+          @foreach ($roles as $role)
+            <option value="{{ $role->uuid }}" @selected(old('admin_role', $isEdit ? ($admin->adminRole?->uuid ?? '') : '') === $role->uuid)>{{ $role->name }}</option>
+          @endforeach
+        </select>
+      </label>
       <label class="flex items-center gap-2 text-sm">
         <input type="checkbox" name="is_active" value="1" @checked(old('is_active', $admin->is_active ?? true))>
         Active

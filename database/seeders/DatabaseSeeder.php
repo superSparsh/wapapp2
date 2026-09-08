@@ -7,6 +7,7 @@ use App\Domains\Tenancy\Services\TenantProvisioner;
 use App\Enums\BillingCycle;
 use App\Enums\TenantStatus;
 use App\Models\Admin;
+use App\Models\AdminRole;
 use App\Models\Plan;
 use App\Models\Tenant;
 use Database\Seeders\TenantDatabaseSeeder;
@@ -37,10 +38,13 @@ class DatabaseSeeder extends Seeder
             ],
         ]);
 
+        $this->call(PlatformDefaultsSeeder::class);
+
         Admin::query()->create([
             'name' => 'Super Admin',
             'email' => 'admin@wapapp.test',
             'password' => 'password',
+            'admin_role_id' => AdminRole::query()->where('slug', 'super-admin')->value('id'),
         ]);
 
         $this->call(HelpCenterSeeder::class);

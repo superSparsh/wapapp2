@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Templates\Support;
 
-use Illuminate\Support\Facades\Cache;
+use App\Support\TenantSafeCache;
 
 final class TemplateCatalogCache
 {
@@ -29,7 +29,7 @@ final class TemplateCatalogCache
             return self::$memo[$key] = $resolver();
         }
 
-        return self::$memo[$key] = Cache::remember($key, $ttl, $resolver);
+        return self::$memo[$key] = TenantSafeCache::remember($key, $ttl, $resolver);
     }
 
     public static function flush(): void

@@ -17,6 +17,20 @@ class PlatformSettingsService
         'mailer.from_name',
         'payment.razorpay_enabled',
         'payment.primary_gateway',
+        'tax.enabled',
+        'tax.default_rate',
+        'tax.countries',
+        'invoice.custom_template',
+        'oauth.google_enabled',
+        'oauth.google_client_id',
+        'oauth.google_client_secret',
+        'oauth.facebook_enabled',
+        'oauth.facebook_client_id',
+        'oauth.facebook_client_secret',
+        'payment.razorpay_key',
+        'payment.razorpay_secret',
+        'payment.razorpay_webhook_secret',
+        'payment.offline_instructions',
     ];
 
     /**

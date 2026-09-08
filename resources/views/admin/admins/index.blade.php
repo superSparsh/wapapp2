@@ -8,11 +8,12 @@
   </div>
 
   <div class="p-4 pt-0">
-    <x-ui.data-table :headers="['Name', 'Email', 'Status', 'Last login', 'Actions']" :paginator="$admins">
+    <x-ui.data-table :headers="['Name', 'Email', 'Role', 'Status', 'Last login', 'Actions']" :paginator="$admins">
       @forelse ($admins as $admin)
         <tr>
           <td class="p-3 font-semibold">{{ $admin->name }}</td>
           <td class="p-3 text-sm">{{ $admin->email }}</td>
+          <td class="p-3 text-sm">{{ $admin->adminRole?->name ?: '—' }}</td>
           <td class="p-3 text-sm">{{ $admin->is_active ? 'Active' : 'Disabled' }}</td>
           <td class="p-3 text-sm text-text-subtle">{{ optional($admin->last_login_at)->diffForHumans() ?: '—' }}</td>
           <td class="p-3">
@@ -26,7 +27,7 @@
           </td>
         </tr>
       @empty
-        <tr><td colspan="5" class="p-6 text-center text-sm text-text-subtle">No admins.</td></tr>
+        <tr><td colspan="6" class="p-6 text-center text-sm text-text-subtle">No admins.</td></tr>
       @endforelse
     </x-ui.data-table>
   </div>
