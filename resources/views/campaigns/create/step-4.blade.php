@@ -32,7 +32,7 @@
     data-campaign-variables-grid
     data-validate-form
     data-preview-url="{{ url('/campaigns/create/template-preview') }}"
-    data-template-id="{{ $template?->id }}"
+    data-template-id="{{ $template?->uuid }}"
     data-variables-save-url="{{ route('campaigns.create.variables.save') }}"
     data-variables-import-url="{{ route('campaigns.create.variables.import') }}"
     class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_458px]"

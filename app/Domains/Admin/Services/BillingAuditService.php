@@ -50,7 +50,7 @@ class BillingAuditService
                 'created_at' => optional($tx->created_at)?->toDateTimeString(),
                 'source' => 'wallet_credit',
             ])->all();
-        }, $filters['tenant_id'] ?: null);
+        }, $filters['tenant'] ?: null);
 
         return $this->paginate($rows->sortByDesc('created_at')->values(), $filters, $page, $perPage);
     }
@@ -66,7 +66,7 @@ class BillingAuditService
 
         $rows = collect();
         if (in_array($type, ['all', 'wallet'], true)) {
-            $rows = $rows->merge($this->walletRecharges(['tenant_id' => $filters['tenant_id'], 'q' => $filters['q'], 'type' => ''], 1, 5000)['items']->items());
+            $rows = $rows->merge($this->walletRecharges(['tenant' => $filters['tenant'], 'q' => $filters['q'], 'type' => ''], 1, 5000)['items']->items());
         }
 
         if (in_array($type, ['all', 'razorpay'], true)) {
@@ -89,7 +89,7 @@ class BillingAuditService
                     'created_at' => optional($order->paid_at ?? $order->created_at)?->toDateTimeString(),
                     'source' => 'razorpay_order',
                 ])->all();
-            }, $filters['tenant_id'] ?: null));
+            }, $filters['tenant'] ?: null));
         }
 
         if (in_array($type, ['all', 'subscriptions'], true)) {
@@ -109,7 +109,7 @@ class BillingAuditService
                     'created_at' => optional($sub->starts_at ?? $sub->created_at)?->toDateTimeString(),
                     'source' => 'subscription',
                 ])->all();
-            }, $filters['tenant_id'] ?: null));
+            }, $filters['tenant'] ?: null));
         }
 
         return $this->paginate($rows->sortByDesc('created_at')->values(), $filters, $page, $perPage);
@@ -146,20 +146,20 @@ class BillingAuditService
     }
 
     /**
-     * @return array{q: string, tenant_id: string, type: string}
+     * @return array{q: string, tenant: string, type: string}
      */
     private function normalize(array $filters): array
     {
         return [
             'q' => trim((string) ($filters['q'] ?? '')),
-            'tenant_id' => trim((string) ($filters['tenant_id'] ?? '')),
+            'tenant' => trim((string) ($filters['tenant'] ?? $filters['tenant_id'] ?? '')),
             'type' => trim((string) ($filters['type'] ?? '')),
         ];
     }
 
     /**
      * @param  Collection<int, array<string, mixed>>  $rows
-     * @param  array{q: string, tenant_id: string, type: string}  $filters
+     * @param  array{q: string, tenant: string, type: string}  $filters
      * @return array{items: LengthAwarePaginator<int, array<string, mixed>>, filters: array<string, string>}
      */
     private function paginate(Collection $rows, array $filters, int $page, int $perPage): array

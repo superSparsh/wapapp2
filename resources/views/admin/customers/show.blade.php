@@ -48,10 +48,10 @@
         <h2 class="text-lg font-bold text-text-primary">Assign plan</h2>
         <form method="POST" action="{{ route('admin.customers.assign-plan', $tenant) }}" class="mt-4 flex flex-col gap-3">
           @csrf
-          <select name="plan_id" class="rounded-lg border border-border px-3 py-2 text-sm">
+          <select name="plan" class="rounded-lg border border-border px-3 py-2 text-sm">
             <option value="">No plan</option>
             @foreach ($plans as $plan)
-              <option value="{{ $plan->id }}" @selected((int) $tenant->plan_id === (int) $plan->id)>
+              <option value="{{ $plan->uuid }}" @selected($tenant->plan?->uuid === $plan->uuid)>
                 {{ $plan->name }} ({{ $plan->currency }} {{ $plan->price }})
               </option>
             @endforeach

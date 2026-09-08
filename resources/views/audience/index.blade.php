@@ -34,7 +34,7 @@
           <tr class="bg-elevated">
             <td class="fd-table-cell w-[54px] p-2">{{ $lists->firstItem() + $i }}</td>
             <td class="w-[320px] p-2">
-              <a href="{{ route('audience.overview', ['list' => $list->id]) }}" class="fd-table-name hover:underline">{{ $list->name }}</a>
+              <a href="{{ route('audience.overview', ['list' => $list->uuid]) }}" class="fd-table-name hover:underline">{{ $list->name }}</a>
               <p class="fd-table-cell">Created at: {{ $list->created_at?->format('Y-m-d h:i A') }}</p>
             </td>
             <td class="p-2">
@@ -47,13 +47,13 @@
             </td>
             <td class="w-[240px] p-2">
               <div class="flex items-center justify-center gap-6">
-                <a href="{{ route('audience.overview', ['list' => $list->id]) }}" class="flex size-5 items-center justify-center" aria-label="Chart">
+                <a href="{{ route('audience.overview', ['list' => $list->uuid]) }}" class="flex size-5 items-center justify-center" aria-label="Chart">
                   <img src="{{ asset('images/audience/chart.svg') }}" alt="" class="size-5" width="20" height="20">
                 </a>
                 <button type="button" data-open-modal="import-subscribers" class="flex size-5 items-center justify-center" aria-label="Import subscribers">
                   <img src="{{ asset('images/icons/user-add.svg') }}" alt="" class="size-5" width="20" height="20">
                 </button>
-                <a href="{{ route('audience.settings', ['list' => $list->id]) }}" class="flex size-5 items-center justify-center" aria-label="Edit">
+                <a href="{{ route('audience.settings', ['list' => $list->uuid]) }}" class="flex size-5 items-center justify-center" aria-label="Edit">
                   <img src="{{ asset('images/templates/edit.svg') }}" alt="" class="size-5" width="20" height="20">
                 </a>
                 <form method="POST" action="{{ route('audience.lists.destroy', $list) }}" class="inline" onsubmit="return confirm('Delete this list?')">

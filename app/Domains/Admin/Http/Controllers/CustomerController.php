@@ -11,10 +11,10 @@ use App\Http\Controllers\Controller;
 use App\Models\Admin;
 use App\Models\Plan;
 use App\Models\Tenant;
+use App\Support\PublicId;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use RuntimeException;
 
@@ -56,10 +56,14 @@ class CustomerController extends Controller
             'company_name' => ['nullable', 'string', 'max:191'],
             'email' => ['nullable', 'email', 'max:191'],
             'phone' => ['nullable', 'string', 'max:32'],
-            'plan_id' => ['nullable', 'integer', Rule::exists(Plan::class, 'id')],
+            'plan' => PublicId::uuidExistsRules(Plan::class),
             'status' => ['required', 'in:active,suspended,pending'],
             'timezone' => ['nullable', 'string', 'max:64'],
         ]);
+
+        $plan = PublicId::find(Plan::class, $validated['plan'] ?? null);
+        unset($validated['plan']);
+        $validated['plan_id'] = $plan?->id;
 
         $this->customers->update($tenant, $validated);
 
@@ -82,10 +86,11 @@ class CustomerController extends Controller
     public function assignPlan(Request $request, Tenant $tenant): RedirectResponse
     {
         $validated = $request->validate([
-            'plan_id' => ['nullable', 'integer', Rule::exists(Plan::class, 'id')],
+            'plan' => PublicId::uuidExistsRules(Plan::class),
         ]);
 
-        $this->customers->assignPlan($tenant, isset($validated['plan_id']) ? (int) $validated['plan_id'] : null);
+        $plan = PublicId::find(Plan::class, $validated['plan'] ?? null);
+        $this->customers->assignPlan($tenant, $plan?->id);
 
         return back()->with('status', 'Plan assigned.');
     }

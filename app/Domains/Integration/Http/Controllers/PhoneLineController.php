@@ -11,6 +11,7 @@ use App\Domains\Integration\Services\LineProfileService;
 use App\Domains\Integration\Services\PhoneLineService;
 use App\Http\Controllers\Controller;
 use App\Models\WhatsappLine;
+use App\Support\PublicId;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -112,7 +113,7 @@ class PhoneLineController extends Controller
                 ->with('error', 'Password cannot be changed while in number-specific access mode.');
         }
 
-        $line = $this->phoneLineService->findLine((int) $request->input('line_id'));
+        $line = PublicId::find(WhatsappLine::class, $request->input('line'));
 
         if (! $line instanceof WhatsappLine) {
             return redirect()->route('profile.phone-lines.index')
@@ -135,7 +136,7 @@ class PhoneLineController extends Controller
      */
     public function loginAs(LoginAsLineRequest $request): RedirectResponse
     {
-        $line = $this->phoneLineService->findLine((int) $request->input('line_id'));
+        $line = PublicId::find(WhatsappLine::class, $request->input('line'));
 
         if (! $line instanceof WhatsappLine) {
             return redirect()->route('profile.phone-lines.index')
@@ -179,7 +180,7 @@ class PhoneLineController extends Controller
                 ->with('error', 'Default number cannot be changed while in number-specific access mode.');
         }
 
-        $line = $this->phoneLineService->findLine((int) $request->input('line_id'));
+        $line = PublicId::find(WhatsappLine::class, $request->input('line'));
 
         if (! $line instanceof WhatsappLine) {
             return redirect()->route('profile.phone-lines.index')

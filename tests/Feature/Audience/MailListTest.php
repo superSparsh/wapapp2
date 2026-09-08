@@ -379,7 +379,7 @@ class MailListTest extends TestCase
         ]);
 
         $this->actingAsTenantUser()
-            ->get(route('audience.list-fields', ['list' => $list->id]))
+            ->get(route('audience.list-fields', ['list' => $list->uuid]))
             ->assertOk()
             ->assertSee('Manage list fields')
             ->assertSee('City');

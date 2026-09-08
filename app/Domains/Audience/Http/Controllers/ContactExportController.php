@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Domains\Audience\Http\Controllers;
 
 use App\Domains\Audience\Services\ContactService;
+use App\Models\MailList;
+use App\Support\PublicId;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -20,7 +22,10 @@ class ContactExportController extends Controller
      */
     public function export(Request $request): StreamedResponse
     {
-        $mailListId = $request->has('mail_list_id') ? $request->integer('mail_list_id') : null;
+        $mailList = $request->filled('mail_list_id')
+            ? PublicId::find(MailList::class, (string) $request->input('mail_list_id'))
+            : null;
+        $mailListId = $mailList?->id;
         $filename = 'contacts-' . date('Y-m-d-His') . '.csv';
 
         return response()->streamDownload(function () use ($mailListId): void {

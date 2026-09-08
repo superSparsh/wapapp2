@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Domains\Team\Http\Requests;
 
+use App\Models\WhatsappLine;
 use App\Support\PhoneNormalizer;
+use App\Support\PublicId;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rules\Password;
 
@@ -23,7 +25,7 @@ class UpdateTeamMemberRequest extends FormRequest
             'phone' => ['required', 'string', 'max:20'],
             'password' => ['nullable', 'confirmed', Password::defaults()],
             'whatsapp_line_ids' => ['nullable', 'array'],
-            'whatsapp_line_ids.*' => ['integer', 'exists:whatsapp_lines,id'],
+            'whatsapp_line_ids.*' => PublicId::uuidExistsRules(WhatsappLine::class, nullable: false),
         ];
     }
 

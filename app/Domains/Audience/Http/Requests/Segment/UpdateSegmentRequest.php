@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Domains\Audience\Http\Requests\Segment;
 
+use App\Models\MailList;
+use App\Support\PublicId;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateSegmentRequest extends FormRequest
@@ -17,7 +19,7 @@ class UpdateSegmentRequest extends FormRequest
     {
         return [
             'name' => ['sometimes', 'required', 'string', 'max:255'],
-            'mail_list_id' => ['nullable', 'integer', 'exists:mail_lists,id'],
+            'mail_list_id' => PublicId::uuidExistsRules(MailList::class),
             'conditions' => ['nullable', 'array'],
             'conditions.*.field' => ['required_with:conditions', 'string', 'max:100'],
             'conditions.*.type' => ['required_with:conditions', 'string', 'in:equals,not_equals,contains,starts_with,ends_with,greater_than,less_than,is_empty,is_not_empty'],

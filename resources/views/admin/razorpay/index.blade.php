@@ -5,10 +5,10 @@
   </div>
 
   <form method="GET" class="mx-4 mb-4 flex flex-wrap gap-3 rounded-[20px] border border-border bg-elevated p-4">
-    <select name="tenant_id" class="rounded-lg border border-border px-3 py-2 text-sm">
+    <select name="tenant" class="rounded-lg border border-border px-3 py-2 text-sm">
       <option value="">All customers</option>
       @foreach ($tenants as $tenant)
-        <option value="{{ $tenant->id }}" @selected(($filters['tenant_id'] ?? '') === $tenant->id)>{{ $tenant->company_name ?: $tenant->name }}</option>
+        <option value="{{ $tenant->id }}" @selected(($filters['tenant'] ?? '') === $tenant->id)>{{ $tenant->company_name ?: $tenant->name }}</option>
       @endforeach
     </select>
     <button class="rounded-lg bg-green-500 px-4 py-2 text-sm font-semibold text-white">Filter</button>

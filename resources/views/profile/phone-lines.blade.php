@@ -169,7 +169,7 @@
               @if (! $isLocked && $isConnected)
                 <form method="POST" action="{{ route('profile.phone-lines.set-default') }}">
                   @csrf
-                  <input type="hidden" name="line_id" value="{{ $line->id }}">
+                  <input type="hidden" name="line" value="{{ $line->uuid }}">
                   <button type="submit" class="fd-btn inline-flex items-center gap-1.5 rounded border border-border px-3 py-2 text-xs font-semibold text-text-primary hover:bg-surface">
                     <svg xmlns="http://www.w3.org/2000/svg" class="size-3.5 text-amber-500" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
                     Set as Default
@@ -196,7 +196,7 @@
               @if (! $isLocked)
                 <form method="POST" action="{{ route('profile.phone-lines.password') }}" class="flex flex-col gap-2">
                   @csrf
-                  <input type="hidden" name="line_id" value="{{ $line->id }}">
+                  <input type="hidden" name="line" value="{{ $line->uuid }}">
                   <input
                     type="password"
                     name="password"
@@ -227,7 +227,7 @@
                     <p class="text-xs text-text-muted">Enter your number password to lock the session to this line's Inbox.</p>
                     <form method="POST" action="{{ route('profile.phone-lines.login-as') }}" class="flex flex-col gap-2">
                       @csrf
-                      <input type="hidden" name="line_id" value="{{ $line->id }}">
+                      <input type="hidden" name="line" value="{{ $line->uuid }}">
                       <input
                         type="password"
                         name="password"

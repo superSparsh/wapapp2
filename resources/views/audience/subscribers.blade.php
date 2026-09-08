@@ -117,7 +117,7 @@
             <td class="w-[80px] p-2 text-center">
               <form method="POST" action="{{ route('audience.subscribers.' . ($contact->status?->value === 'subscribed' ? 'unsubscribe' : 'subscribe')) }}">
                 @csrf
-                <input type="hidden" name="ids[]" value="{{ $contact->id }}">
+                <input type="hidden" name="ids[]" value="{{ $contact->uuid }}">
                 <button type="submit">
                   <x-ui.toggle-switch :active="$contact->status?->value === 'subscribed'" />
                 </button>
@@ -127,7 +127,7 @@
               <x-ui.table-actions
                 :actions="['edit', 'trash']"
                 :links="[
-                  'edit' => route('audience.subscribers.detail', ['id' => $contact->id]),
+                  'edit' => route('audience.subscribers.detail', ['id' => $contact->uuid]),
                   'trash' => route('audience.subscribers.destroy', $contact),
                 ]"
               />
@@ -166,7 +166,7 @@
             <select id="subscriber_mail_list" name="mail_list_id" class="w-full appearance-none rounded-[12px] border border-border bg-elevated px-[14px] py-[14px] text-sm font-medium leading-[1.4] text-text-muted focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500">
               <option value="">All / no list</option>
               @foreach ($mailLists ?? [] as $listOption)
-                <option value="{{ $listOption->id }}">{{ $listOption->name }}</option>
+                <option value="{{ $listOption->uuid }}">{{ $listOption->name }}</option>
               @endforeach
             </select>
           </div>

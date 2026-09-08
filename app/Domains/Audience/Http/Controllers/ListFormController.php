@@ -6,6 +6,7 @@ namespace App\Domains\Audience\Http\Controllers;
 
 use App\Domains\Audience\Services\EmbeddedFormService;
 use App\Models\MailList;
+use App\Support\PublicId;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -35,7 +36,7 @@ class ListFormController extends Controller
             'previewUrl' => $previewUrl,
             'subscriberCount' => $mailList?->contacts()->count() ?? 0,
             'listFieldsUrl' => $mailList
-                ? route('audience.list-fields', ['list' => $mailList->id])
+                ? route('audience.list-fields', ['list' => $mailList->uuid])
                 : null,
         ]);
     }
@@ -98,14 +99,14 @@ class ListFormController extends Controller
         }
 
         return redirect()
-            ->route('audience.forms', ['list' => $mailList->id])
+            ->route('audience.forms', ['list' => $mailList->uuid])
             ->with('status', 'Embedded form settings saved.');
     }
 
     private function resolveList(Request $request): ?MailList
     {
         if ($request->filled('list')) {
-            return MailList::query()->findOrFail($request->integer('list'));
+            return PublicId::findOrFail(MailList::class, (string) $request->input('list'));
         }
 
         return MailList::query()->orderBy('name')->first();

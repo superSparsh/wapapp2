@@ -6,6 +6,7 @@ namespace App\Domains\Audience\Http\Controllers;
 
 use App\Domains\Audience\Models\ListField;
 use App\Models\MailList;
+use App\Support\PublicId;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
@@ -19,8 +20,8 @@ class ListFieldController extends Controller
      */
     public function index(Request $request): View
     {
-        $mailList = $request->has('list')
-            ? MailList::query()->findOrFail($request->integer('list'))
+        $mailList = $request->filled('list')
+            ? PublicId::findOrFail(MailList::class, (string) $request->input('list'))
             : null;
 
         $fields = $mailList
@@ -43,7 +44,7 @@ class ListFieldController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'mail_list_id' => 'required|integer|exists:mail_lists,id',
+            'mail_list_id' => PublicId::uuidExistsRules(MailList::class, nullable: false),
             'label' => 'required|string|max:255',
             'type' => 'required|string|in:' . implode(',', ListField::TYPES),
             'tag' => 'nullable|string|max:255',
@@ -52,11 +53,12 @@ class ListFieldController extends Controller
             'visible' => 'boolean',
         ]);
 
-        $maxOrder = ListField::where('mail_list_id', $validated['mail_list_id'])->max('sort_order') ?? 0;
+        $mailList = PublicId::findOrFail(MailList::class, $validated['mail_list_id']);
+        $maxOrder = ListField::where('mail_list_id', $mailList->id)->max('sort_order') ?? 0;
 
         ListField::create([
             'uuid' => (string) Str::uuid(),
-            'mail_list_id' => $validated['mail_list_id'],
+            'mail_list_id' => $mailList->id,
             'label' => $validated['label'],
             'type' => $validated['type'],
             'tag' => $validated['tag'] ?? null,
@@ -66,7 +68,7 @@ class ListFieldController extends Controller
             'sort_order' => $maxOrder + 1,
         ]);
 
-        return redirect()->route('audience.list-fields', ['list' => $validated['mail_list_id']])
+        return redirect()->route('audience.list-fields', ['list' => $mailList->uuid])
             ->with('status', 'Field added successfully.');
     }
 
@@ -76,9 +78,9 @@ class ListFieldController extends Controller
     public function update(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'mail_list_id' => 'required|integer|exists:mail_lists,id',
+            'mail_list_id' => PublicId::uuidExistsRules(MailList::class, nullable: false),
             'fields' => 'array',
-            'fields.*.id' => 'required|integer|exists:list_fields,id',
+            'fields.*.id' => PublicId::uuidExistsRules(ListField::class, nullable: false),
             'fields.*.label' => 'required|string|max:255',
             'fields.*.type' => 'required|string|in:' . implode(',', ListField::TYPES),
             'fields.*.tag' => 'nullable|string|max:255',
@@ -87,9 +89,14 @@ class ListFieldController extends Controller
             'fields.*.visible' => 'boolean',
         ]);
 
+        $mailList = PublicId::findOrFail(MailList::class, $validated['mail_list_id']);
+
         if (! empty($validated['fields'])) {
             foreach ($validated['fields'] as $index => $fieldData) {
-                $field = ListField::findOrFail($fieldData['id']);
+                $field = ListField::query()
+                    ->where('mail_list_id', $mailList->id)
+                    ->where('uuid', $fieldData['id'])
+                    ->firstOrFail();
 
                 // Don't allow editing protected tags
                 $tag = $field->isProtected() ? $field->tag : ($fieldData['tag'] ?? null);
@@ -106,7 +113,7 @@ class ListFieldController extends Controller
             }
         }
 
-        return redirect()->route('audience.list-fields', ['list' => $validated['mail_list_id']])
+        return redirect()->route('audience.list-fields', ['list' => $mailList->uuid])
             ->with('status', 'Fields updated successfully.');
     }
 
@@ -115,17 +122,18 @@ class ListFieldController extends Controller
      */
     public function destroy(ListField $field): RedirectResponse
     {
-        $listId = $field->mail_list_id;
+        $mailList = MailList::query()->find($field->mail_list_id);
+        $listKey = $mailList?->uuid;
 
         if ($field->isProtected()) {
-            return redirect()->route('audience.list-fields', ['list' => $listId])
+            return redirect()->route('audience.list-fields', array_filter(['list' => $listKey]))
                 ->withErrors(['field' => 'Cannot delete a protected system field.']);
         }
 
         $field->options()->delete();
         $field->delete();
 
-        return redirect()->route('audience.list-fields', ['list' => $listId])
+        return redirect()->route('audience.list-fields', array_filter(['list' => $listKey]))
             ->with('status', 'Field deleted successfully.');
     }
 }

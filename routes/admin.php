@@ -14,6 +14,7 @@ use App\Domains\Admin\Http\Controllers\DataPurgeController;
 use App\Domains\Admin\Http\Controllers\ImpersonationController;
 use App\Domains\Admin\Http\Controllers\MessagePerformanceController;
 use App\Domains\Admin\Http\Controllers\PlanController;
+use App\Domains\Admin\Http\Controllers\QueueController;
 use App\Domains\Admin\Http\Controllers\RazorpaySubscriptionAdminController;
 use App\Domains\Admin\Http\Controllers\RetentionController;
 use App\Domains\Admin\Http\Controllers\SettingsController;
@@ -96,6 +97,12 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::get('/plans/{plan}/edit', [PlanController::class, 'edit'])->name('plans.edit');
         Route::put('/plans/{plan}', [PlanController::class, 'update'])->name('plans.update');
         Route::post('/plans/{plan}/toggle-status', [PlanController::class, 'toggleStatus'])->name('plans.toggle-status');
+
+        Route::get('/queues', [QueueController::class, 'index'])->name('queues.index');
+        Route::post('/queues/failed/retry-all', [QueueController::class, 'retryAll'])->name('queues.retry-all');
+        Route::post('/queues/failed/flush', [QueueController::class, 'flush'])->name('queues.flush');
+        Route::post('/queues/failed/{uuid}/retry', [QueueController::class, 'retry'])->name('queues.retry');
+        Route::post('/queues/failed/{uuid}/forget', [QueueController::class, 'forget'])->name('queues.forget');
 
         Route::get('/admins', [AdminUserController::class, 'index'])->name('admins.index');
         Route::get('/admins/create', [AdminUserController::class, 'create'])->name('admins.create');

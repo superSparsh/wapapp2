@@ -15,6 +15,7 @@ use App\Domains\Commerce\Services\CommercePaymentService;
 use App\Http\Controllers\Controller;
 use App\Models\Template;
 use App\Models\WhatsappLine;
+use App\Support\PublicId;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -129,7 +130,7 @@ class CommerceController extends Controller
         $config       = $this->paymentService->getConfig();
         $stats        = $this->paymentService->getStats();
         $payments     = CommercePayment::query()->latest('id')->paginate(25);
-        $templates    = Template::query()->select(['id', 'name', 'code'])->orderBy('name')->get();
+        $templates    = Template::query()->select(['id', 'uuid', 'name', 'code'])->orderBy('name')->get();
 
         return view('commerce.settings', compact('config', 'stats', 'payments', 'templates'));
     }
@@ -139,7 +140,16 @@ class CommerceController extends Controller
      */
     public function saveConfig(SavePaymentConfigRequest $request): RedirectResponse
     {
-        $this->paymentService->saveConfig($request->validated());
+        $data = $request->validated();
+
+        foreach (['payment_template_id', 'confirmation_template_id'] as $field) {
+            if (array_key_exists($field, $data)) {
+                $template = PublicId::find(Template::class, $data[$field] ?? null);
+                $data[$field] = $template?->id;
+            }
+        }
+
+        $this->paymentService->saveConfig($data);
 
         return redirect()->route('commerce.settings')
             ->with('success', 'Payment configuration saved successfully.');

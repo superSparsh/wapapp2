@@ -150,7 +150,7 @@
             <select id="create-whatsapp-line-id" name="whatsapp_line_id" class="w-full rounded-lg border border-divider bg-surface px-4 py-3 text-sm text-text-body focus:border-green-500 focus:outline-none">
               <option value="">-- None --</option>
               @foreach ($whatsappLines as $line)
-                <option value="{{ $line->id }}">{{ $line->display_name ?: $line->phone }}</option>
+                <option value="{{ $line->uuid }}">{{ $line->display_name ?: $line->phone }}</option>
               @endforeach
             </select>
           </div>
@@ -210,7 +210,7 @@ document.addEventListener('DOMContentLoaded', function () {
             var lineSelect = document.getElementById('create-whatsapp-line-id');
             var payload = { name: nameInput.value.trim() };
             if (lineSelect && lineSelect.value) {
-                payload.whatsapp_line_id = parseInt(lineSelect.value, 10);
+                payload.whatsapp_line_id = lineSelect.value;
             }
 
             fetch("{{ route('chatbot.store') }}", {

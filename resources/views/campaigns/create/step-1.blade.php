@@ -34,7 +34,13 @@
       >
         <option value="">Choose</option>
         @foreach ($whatsappLines ?? [] as $line)
-          <option value="{{ $line->id }}" @selected(old('whatsapp_line_id', $wizardData['whatsapp_line_id'] ?? '') == $line->id)>
+          <option
+            value="{{ $line->uuid }}"
+            @selected(
+              (string) old('whatsapp_line_id') === (string) $line->uuid
+              || (string) old('whatsapp_line_id', $wizardData['whatsapp_line_id'] ?? '') === (string) $line->id
+            )
+          >
             +{{ ltrim((string) $line->phone, '+') }}@if (filled($line->display_name)) — {{ $line->display_name }}@endif
           </option>
         @endforeach

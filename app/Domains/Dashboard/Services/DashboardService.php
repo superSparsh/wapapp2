@@ -15,6 +15,7 @@ use App\Models\Contact;
 use App\Models\User;
 use App\Models\WalletAccount;
 use App\Models\WhatsappLine;
+use App\Support\PublicId;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -48,7 +49,7 @@ class DashboardService
     public function indexPayload(User $user): array
     {
         $creditsPeriod = self::normalizePeriod(request()->string('credits_period')->toString());
-        $campaignId = request()->integer('campaign_id');
+        $campaign = $this->resolveCampaignFromRequest();
 
         return [
             'greeting' => $this->greeting($user),
@@ -59,8 +60,8 @@ class DashboardService
             'growthMetrics' => $this->growthMetrics(),
             'subscriberSeries' => $this->subscriberSeries(),
             'recentCampaigns' => $this->recentCampaigns(),
-            'selectedCampaign' => $this->selectedCampaign($campaignId > 0 ? $campaignId : null),
-            'campaignRecipients' => $this->selectedCampaignRecipients($campaignId > 0 ? $campaignId : null),
+            'selectedCampaign' => $this->selectedCampaign($campaign),
+            'campaignRecipients' => $this->selectedCampaignRecipients($campaign),
         ];
     }
 
@@ -80,10 +81,10 @@ class DashboardService
     /**
      * @return array<string, mixed>
      */
-    public function campaignReviewPayload(?int $campaignId = null): array
+    public function campaignReviewPayload(?Campaign $campaign = null): array
     {
-        $campaign = $this->selectedCampaign($campaignId);
-        $recipients = $this->selectedCampaignRecipients($campaignId);
+        $campaign = $this->selectedCampaign($campaign);
+        $recipients = $this->selectedCampaignRecipients($campaign);
         $total = (int) ($campaign?->total_recipients ?? 0);
         $pct = static fn (int $val): int => $total > 0 ? (int) round(($val / $total) * 100) : 0;
 
@@ -96,7 +97,7 @@ class DashboardService
 
         return [
             'campaign' => $campaign === null ? null : [
-                'id' => $campaign->id,
+                'id' => $campaign->uuid,
                 'name' => $campaign->name,
                 'total_recipients' => $total,
                 'total_delivered' => (int) $campaign->total_delivered,
@@ -412,25 +413,24 @@ class DashboardService
             ->get();
     }
 
-    private function selectedCampaign(?int $campaignId = null): ?Campaign
+    private function selectedCampaign(?Campaign $campaign = null): ?Campaign
     {
-        $id = $campaignId ?? request()->integer('campaign_id');
-        if ($id > 0) {
-            $campaign = Campaign::query()
-                ->with(['audience:id,name', 'template:id,name', 'whatsappLine:id,phone'])
-                ->find($id);
-            if ($campaign !== null) {
-                return $campaign;
-            }
+        if ($campaign instanceof Campaign) {
+            return $campaign->loadMissing(['audience:id,name', 'template:id,name', 'whatsappLine:id,phone']);
+        }
+
+        $fromRequest = $this->resolveCampaignFromRequest();
+        if ($fromRequest instanceof Campaign) {
+            return $fromRequest;
         }
 
         return $this->recentCampaigns()->first();
     }
 
     /** @return Collection<int, CampaignRecipient> */
-    private function selectedCampaignRecipients(?int $campaignId = null): Collection
+    private function selectedCampaignRecipients(?Campaign $campaign = null): Collection
     {
-        $campaign = $this->selectedCampaign($campaignId);
+        $campaign = $this->selectedCampaign($campaign);
         if ($campaign === null) {
             return collect();
         }
@@ -441,6 +441,21 @@ class DashboardService
             ->orderByDesc(DB::raw('COALESCE(sent_at, delivered_at, created_at)'))
             ->limit(25)
             ->get();
+    }
+
+    private function resolveCampaignFromRequest(): ?Campaign
+    {
+        $uuid = request()->input('campaign_id');
+        if (! is_string($uuid) && ! is_numeric($uuid)) {
+            return null;
+        }
+
+        $campaign = PublicId::find(Campaign::class, (string) $uuid);
+        if ($campaign === null) {
+            return null;
+        }
+
+        return $campaign->loadMissing(['audience:id,name', 'template:id,name', 'whatsappLine:id,phone']);
     }
 
     private function greeting(User $user): string

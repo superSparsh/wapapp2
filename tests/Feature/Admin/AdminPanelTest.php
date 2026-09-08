@@ -90,7 +90,7 @@ class AdminPanelTest extends TestCase
                 'company_name' => 'Updated Co',
                 'email' => 'owner@example.com',
                 'phone' => '919999999999',
-                'plan_id' => $plan->id,
+                'plan' => $plan->uuid,
                 'status' => TenantStatus::Suspended->value,
                 'timezone' => 'Asia/Kolkata',
             ])
@@ -142,5 +142,33 @@ class AdminPanelTest extends TestCase
             ->assertRedirect(route('admin.plans.index'));
 
         $this->assertDatabaseHas('plans', ['slug' => 'starter'], config('tenancy.database.central_connection'));
+
+        $plan = Plan::query()->where('slug', 'starter')->firstOrFail();
+        $this->assertNotEmpty($plan->uuid);
+
+        $this->actingAs($this->admin, 'admin')
+            ->get(route('admin.plans.edit', $plan))
+            ->assertOk()
+            ->assertSee($plan->name);
+
+        $this->assertStringContainsString($plan->uuid, route('admin.plans.edit', $plan));
+        $this->assertStringNotContainsString('/plans/'.$plan->id.'/', route('admin.plans.edit', $plan));
+    }
+
+    public function test_tenant_user_menu_shows_admin_view_when_email_matches_admin(): void
+    {
+        Admin::query()->where('email', $this->admin->email)->delete();
+        Admin::query()->create([
+            'name' => 'Linked Admin',
+            'email' => $this->testUser->email,
+            'password' => 'password',
+            'is_active' => true,
+        ]);
+
+        $this->actingAsTenantUser()
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('Admin View')
+            ->assertSee(route('admin.dashboard'), false);
     }
 }

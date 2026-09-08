@@ -6,8 +6,10 @@ namespace App\Domains\Audience\Http\Controllers;
 
 use App\Domains\Audience\Http\Requests\Segment\StoreSegmentRequest;
 use App\Domains\Audience\Http\Requests\Segment\UpdateSegmentRequest;
-use App\Domains\Audience\Services\SegmentService;
 use App\Domains\Audience\Models\Segment;
+use App\Domains\Audience\Services\SegmentService;
+use App\Models\MailList;
+use App\Support\PublicId;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
@@ -24,10 +26,12 @@ class SegmentController extends Controller
      */
     public function index(Request $request): View
     {
-        $mailListId = $request->has('list') ? $request->integer('list') : null;
+        $mailList = $request->filled('list')
+            ? PublicId::findOrFail(MailList::class, (string) $request->input('list'))
+            : null;
 
         $segments = $this->service->index(
-            mailListId: $mailListId,
+            mailListId: $mailList?->id,
             search: $request->get('search'),
             sort: $request->get('sort', 'created_at'),
             direction: $request->get('direction', 'desc'),
@@ -35,7 +39,8 @@ class SegmentController extends Controller
 
         return view('audience.segments', [
             'segments' => $segments,
-            'mailListId' => $mailListId,
+            'mailListId' => $mailList?->uuid,
+            'mailList' => $mailList,
             'currentSort' => $request->get('sort', 'created_at'),
             'currentDirection' => $request->get('direction', 'desc'),
         ]);
@@ -46,9 +51,13 @@ class SegmentController extends Controller
      */
     public function store(StoreSegmentRequest $request): RedirectResponse
     {
-        $this->service->store($request->validated());
+        $data = $request->validated();
+        $mailList = PublicId::find(MailList::class, $data['mail_list_id'] ?? null);
+        $data['mail_list_id'] = $mailList?->id;
 
-        return redirect()->route('audience.segments')
+        $this->service->store($data);
+
+        return redirect()->route('audience.segments', array_filter(['list' => $mailList?->uuid]))
             ->with('status', 'Segment created successfully.');
     }
 
@@ -57,9 +66,20 @@ class SegmentController extends Controller
      */
     public function update(UpdateSegmentRequest $request, Segment $segment): RedirectResponse
     {
-        $this->service->update($segment, $request->validated());
+        $data = $request->validated();
+        if (array_key_exists('mail_list_id', $data)) {
+            $mailList = PublicId::find(MailList::class, $data['mail_list_id'] ?? null);
+            $data['mail_list_id'] = $mailList?->id;
+        }
 
-        return redirect()->route('audience.segments')
+        $this->service->update($segment, $data);
+
+        $segment = $segment->fresh();
+        $listUuid = $segment?->mail_list_id
+            ? MailList::query()->whereKey($segment->mail_list_id)->value('uuid')
+            : null;
+
+        return redirect()->route('audience.segments', array_filter(['list' => $listUuid]))
             ->with('status', 'Segment updated successfully.');
     }
 
@@ -68,9 +88,13 @@ class SegmentController extends Controller
      */
     public function destroy(Segment $segment): RedirectResponse
     {
+        $listUuid = $segment->mail_list_id
+            ? MailList::query()->whereKey($segment->mail_list_id)->value('uuid')
+            : null;
+
         $this->service->destroy($segment);
 
-        return redirect()->route('audience.segments')
+        return redirect()->route('audience.segments', array_filter(['list' => $listUuid]))
             ->with('status', 'Segment deleted successfully.');
     }
 }

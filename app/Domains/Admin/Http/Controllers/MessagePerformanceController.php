@@ -18,7 +18,7 @@ class MessagePerformanceController extends Controller
 
     public function index(Request $request): View
     {
-        $report = $this->health->messagePerformance($request->only(['q', 'tenant_id']), (int) $request->integer('page', 1));
+        $report = $this->health->messagePerformance($request->only(['q', 'tenant']), (int) $request->integer('page', 1));
 
         return view('admin.message-performance.index', [
             ...$report,

@@ -8,6 +8,7 @@ use App\Domains\Audience\Http\Requests\MailList\StoreMailListRequest;
 use App\Domains\Audience\Http\Requests\MailList\UpdateMailListRequest;
 use App\Domains\Audience\Services\MailListService;
 use App\Models\MailList;
+use App\Support\PublicId;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -35,8 +36,8 @@ class MailListController extends Controller
      */
     public function overview(Request $request): View
     {
-        $mailList = $request->has('list')
-            ? MailList::query()->findOrFail($request->integer('list'))
+        $mailList = $request->filled('list')
+            ? PublicId::findOrFail(MailList::class, (string) $request->input('list'))
             : null;
 
         $stats = $this->service->overview($mailList);
@@ -110,8 +111,8 @@ class MailListController extends Controller
      */
     public function settings(Request $request): View
     {
-        $mailList = $request->has('list')
-            ? MailList::query()->findOrFail($request->integer('list'))
+        $mailList = $request->filled('list')
+            ? PublicId::findOrFail(MailList::class, (string) $request->input('list'))
             : null;
 
         return view('audience.settings', ['mailList' => $mailList]);

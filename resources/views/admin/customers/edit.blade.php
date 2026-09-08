@@ -31,10 +31,10 @@
       </label>
       <label class="flex flex-col gap-1.5 text-sm">
         <span class="font-semibold">Plan</span>
-        <select name="plan_id" class="rounded-lg border border-border px-3 py-2">
+        <select name="plan" class="rounded-lg border border-border px-3 py-2">
           <option value="">No plan</option>
           @foreach ($plans as $plan)
-            <option value="{{ $plan->id }}" @selected((int) old('plan_id', $tenant->plan_id) === (int) $plan->id)>{{ $plan->name }}</option>
+            <option value="{{ $plan->uuid }}" @selected(old('plan', $tenant->plan?->uuid) === $plan->uuid)>{{ $plan->name }}</option>
           @endforeach
         </select>
       </label>

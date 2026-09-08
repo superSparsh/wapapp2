@@ -13,6 +13,7 @@ use App\Domains\Chatbot\Services\ChatbotFlowStatService;
 use App\Http\Controllers\Controller;
 use App\Models\ChatbotFlow;
 use App\Models\WhatsappLine;
+use App\Support\PublicId;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -43,7 +44,7 @@ class ChatbotFlowController extends Controller
             'currentSort' => $request->query('sort', 'created_at'),
             'currentDirection' => $request->query('direction', 'desc'),
             'whatsappLines' => WhatsappLine::query()
-                ->select(['id', 'phone', 'display_name', 'status'])
+                ->select(['id', 'uuid', 'phone', 'display_name', 'status'])
                 ->orderBy('display_name')
                 ->get(),
             'showWhatsappLinePicker' => WhatsappLine::query()->count() > 1,
@@ -54,7 +55,7 @@ class ChatbotFlowController extends Controller
     {
         return view('automation.chatbot-create', [
             'whatsappLines' => WhatsappLine::query()
-                ->select(['id', 'phone', 'display_name', 'status'])
+                ->select(['id', 'uuid', 'phone', 'display_name', 'status'])
                 ->orderBy('display_name')
                 ->get(),
             'showWhatsappLinePicker' => WhatsappLine::query()->count() > 1,
@@ -63,7 +64,13 @@ class ChatbotFlowController extends Controller
 
     public function store(StoreChatbotFlowRequest $request): RedirectResponse|JsonResponse
     {
-        $flow = $this->flowService->create($request->validated());
+        $data = $request->validated();
+        if (! empty($data['whatsapp_line_id'])) {
+            $line = PublicId::find(WhatsappLine::class, (string) $data['whatsapp_line_id']);
+            $data['whatsapp_line_id'] = $line?->id;
+        }
+
+        $flow = $this->flowService->create($data);
 
         if ($request->expectsJson()) {
             return response()->json([
@@ -95,7 +102,13 @@ class ChatbotFlowController extends Controller
 
     public function update(UpdateChatbotFlowRequest $request, ChatbotFlow $chatbotFlow): RedirectResponse|JsonResponse
     {
-        $this->flowService->update($chatbotFlow, $request->validated());
+        $data = $request->validated();
+        if (array_key_exists('whatsapp_line_id', $data)) {
+            $line = PublicId::find(WhatsappLine::class, (string) ($data['whatsapp_line_id'] ?? ''));
+            $data['whatsapp_line_id'] = $line?->id;
+        }
+
+        $this->flowService->update($chatbotFlow, $data);
 
         if ($request->expectsJson()) {
             return response()->json([

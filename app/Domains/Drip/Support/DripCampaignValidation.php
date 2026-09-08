@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace App\Domains\Drip\Support;
 
-use Illuminate\Validation\Rule;
+use App\Models\MailList;
+use App\Support\PublicId;
 
 final class DripCampaignValidation
 {
@@ -15,7 +16,7 @@ final class DripCampaignValidation
     {
         return array_merge([
             'name' => ['required', 'string', 'min:2', 'max:191'],
-            'audience_id' => ['nullable', 'integer', 'exists:mail_lists,id'],
+            'audience_id' => PublicId::uuidExistsRules(MailList::class),
             'timezone' => ['nullable', 'timezone:all'],
             'start_date' => ['nullable', 'date'],
             'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
@@ -29,7 +30,7 @@ final class DripCampaignValidation
     {
         return array_merge([
             'name' => ['required', 'string', 'min:2', 'max:191'],
-            'audience_id' => ['required', 'integer', 'exists:mail_lists,id'],
+            'audience_id' => PublicId::uuidExistsRules(MailList::class, nullable: false),
             'timezone' => ['required', 'timezone:all'],
             'start_date' => ['required', 'date'],
             'end_date' => ['required', 'date', 'after_or_equal:start_date'],
@@ -46,6 +47,7 @@ final class DripCampaignValidation
             'name.min' => 'Automation name must be at least 2 characters.',
             'audience_id.required' => 'Please select an audience list.',
             'audience_id.exists' => 'The selected audience is invalid.',
+            'audience_id.uuid' => 'Please select an audience list.',
             'timezone.required' => 'Please select a time zone.',
             'timezone.timezone' => 'Please select a valid time zone.',
             'start_date.required' => 'Start date is required.',

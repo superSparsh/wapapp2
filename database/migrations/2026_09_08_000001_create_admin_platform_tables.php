@@ -19,6 +19,7 @@ return new class extends Migration
 
         Schema::create('announcements', function (Blueprint $table): void {
             $table->id();
+            $table->publicUuid();
             $table->string('title');
             $table->text('body');
             $table->boolean('is_active')->default(true)->index();
@@ -29,6 +30,7 @@ return new class extends Migration
 
         Schema::create('country_pricing', function (Blueprint $table): void {
             $table->id();
+            $table->publicUuid();
             $table->string('country_code', 8)->unique();
             $table->string('country_name');
             $table->decimal('marketing_rate', 12, 4)->default(0);
@@ -42,6 +44,7 @@ return new class extends Migration
 
         Schema::create('cloud_bill_uploads', function (Blueprint $table): void {
             $table->id();
+            $table->publicUuid();
             $table->string('filename');
             $table->string('path');
             $table->string('period')->nullable();

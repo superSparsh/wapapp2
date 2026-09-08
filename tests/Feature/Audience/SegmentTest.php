@@ -67,7 +67,7 @@ class SegmentTest extends TestCase
         Segment::factory()->count(3)->create(['mail_list_id' => $list2->id]);
 
         $this->actingAsTenantUser()
-            ->get(route('audience.segments', ['list' => $list1->id]))
+            ->get(route('audience.segments', ['list' => $list1->uuid]))
             ->assertOk()
             ->assertViewHas('segments', function ($segments) {
                 return $segments->total() === 2;
@@ -104,12 +104,12 @@ class SegmentTest extends TestCase
         $this->actingAsTenantUser()
             ->post(route('audience.segments.store'), [
                 'name' => 'Test Segment',
-                'mail_list_id' => $list->id,
+                'mail_list_id' => $list->uuid,
                 'conditions' => [
                     ['field' => 'status', 'type' => 'equals', 'value' => 'subscribed'],
                 ],
             ])
-            ->assertRedirect(route('audience.segments'))
+            ->assertRedirect(route('audience.segments', ['list' => $list->uuid]))
             ->assertSessionHas('status');
 
         $this->assertDatabaseHas('segments', [
@@ -129,12 +129,12 @@ class SegmentTest extends TestCase
         $this->actingAsTenantUser()
             ->post(route('audience.segments.store'), [
                 'name' => 'Subscribed Segment',
-                'mail_list_id' => $list->id,
+                'mail_list_id' => $list->uuid,
                 'conditions' => [
                     ['field' => 'status', 'type' => 'equals', 'value' => 'subscribed'],
                 ],
             ])
-            ->assertRedirect(route('audience.segments'));
+            ->assertRedirect(route('audience.segments', ['list' => $list->uuid]));
 
         $segment = Segment::where('name', 'Subscribed Segment')->first();
         $this->assertEquals(5, $segment->contact_count);

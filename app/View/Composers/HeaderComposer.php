@@ -6,6 +6,7 @@ namespace App\View\Composers;
 
 use App\Domains\Account\Services\NotificationService;
 use App\Domains\Admin\Support\AdminSession;
+use App\Domains\Admin\Support\AdminViewAccess;
 use App\Domains\Team\Services\TeamImpersonationService;
 use App\Support\CurrentAccount;
 use Illuminate\View\View;
@@ -31,6 +32,7 @@ class HeaderComposer
             'impersonatedMember' => $this->impersonationService->impersonatedMember(),
             'isAdminImpersonating' => $adminImpersonation !== null,
             'adminImpersonatorName' => $adminImpersonation['admin_name'] ?? null,
+            'canAccessAdminView' => AdminViewAccess::canAccess(),
         ]);
     }
 }

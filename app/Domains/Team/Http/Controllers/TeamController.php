@@ -172,6 +172,6 @@ class TeamController extends Controller
             ->where('status', RecordStatus::Active)
             ->orderByDesc('is_default')
             ->orderBy('phone')
-            ->get(['id', 'phone', 'display_name']);
+            ->get(['id', 'uuid', 'phone', 'display_name']);
     }
 }

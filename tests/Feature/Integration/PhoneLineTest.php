@@ -86,7 +86,7 @@ class PhoneLineTest extends TestCase
 
         $this->actingAsTenantUser()
             ->post(route('profile.phone-lines.password'), [
-                'line_id'               => $line->id,
+                'line'                  => $line->uuid,
                 'password'              => 'MySecret88',
                 'password_confirmation' => 'MySecret88',
             ])
@@ -104,7 +104,7 @@ class PhoneLineTest extends TestCase
 
         $this->actingAsTenantUser()
             ->post(route('profile.phone-lines.password'), [
-                'line_id'               => $line->id,
+                'line'                  => $line->uuid,
                 'password'              => 'MySecret88',
                 'password_confirmation' => 'WrongConfirm',
             ])
@@ -117,7 +117,7 @@ class PhoneLineTest extends TestCase
 
         $this->actingAsTenantUser()
             ->post(route('profile.phone-lines.password'), [
-                'line_id'               => $line->id,
+                'line'                  => $line->uuid,
                 'password'              => 'short',
                 'password_confirmation' => 'short',
             ])
@@ -128,7 +128,7 @@ class PhoneLineTest extends TestCase
     {
         $this->actingAsTenantUser()
             ->post(route('profile.phone-lines.password'), [
-                'line_id'               => $this->testLine->id,
+                'line'                  => $this->testLine->uuid,
                 'password'              => 'MySecret88',
                 'password_confirmation' => 'MySecret88',
             ])
@@ -144,7 +144,7 @@ class PhoneLineTest extends TestCase
 
         $this->actingAsTenantUser()
             ->post(route('profile.phone-lines.login-as'), [
-                'line_id'  => $line->id,
+                'line'     => $line->uuid,
                 'password' => 'password123',
             ])
             ->assertRedirect(route('dashboard'))
@@ -160,7 +160,7 @@ class PhoneLineTest extends TestCase
 
         $this->actingAsTenantUser()
             ->post(route('profile.phone-lines.login-as'), [
-                'line_id'  => $line->id,
+                'line'     => $line->uuid,
                 'password' => 'wrongpassword',
             ])
             ->assertRedirect(route('profile.phone-lines.index'))
@@ -175,7 +175,7 @@ class PhoneLineTest extends TestCase
 
         $this->actingAsTenantUser()
             ->post(route('profile.phone-lines.login-as'), [
-                'line_id'  => $line->id,
+                'line'     => $line->uuid,
                 'password' => 'password123',
             ])
             ->assertRedirect(route('profile.phone-lines.index'))
@@ -188,7 +188,7 @@ class PhoneLineTest extends TestCase
 
         $this->actingAsTenantUser()
             ->post(route('profile.phone-lines.login-as'), [
-                'line_id'  => $line->id,
+                'line'     => $line->uuid,
                 'password' => 'password123',
             ])
             ->assertRedirect(route('profile.phone-lines.index'))
@@ -226,7 +226,7 @@ class PhoneLineTest extends TestCase
 
         $this->actingAsTenantUser()
             ->post(route('profile.phone-lines.set-default'), [
-                'line_id' => $secondary->id,
+                'line' => $secondary->uuid,
             ])
             ->assertRedirect(route('profile.phone-lines.index'))
             ->assertSessionHas('success');
@@ -244,7 +244,7 @@ class PhoneLineTest extends TestCase
 
         $this->actingAsTenantUser()
             ->post(route('profile.phone-lines.set-default'), [
-                'line_id' => $secondary->id,
+                'line' => $secondary->uuid,
             ])
             ->assertRedirect(route('profile.phone-lines.index'))
             ->assertSessionHas('error');
@@ -258,7 +258,7 @@ class PhoneLineTest extends TestCase
         // testLine is already default
         $this->actingAsTenantUser()
             ->post(route('profile.phone-lines.set-default'), [
-                'line_id' => $this->testLine->id,
+                'line' => $this->testLine->uuid,
             ])
             ->assertRedirect(route('profile.phone-lines.index'))
             ->assertSessionHas('error');
@@ -272,7 +272,7 @@ class PhoneLineTest extends TestCase
 
         $this->actingAsTenantUser()
             ->post(route('profile.phone-lines.set-default'), [
-                'line_id' => $secondary->id,
+                'line' => $secondary->uuid,
             ])
             ->assertRedirect(route('profile.phone-lines.index'))
             ->assertSessionHas('error');

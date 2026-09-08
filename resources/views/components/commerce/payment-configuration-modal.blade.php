@@ -77,8 +77,11 @@
               <option value="">— Select Template —</option>
               @foreach ($templates as $tpl)
                 <option
-                  value="{{ $tpl->id }}"
-                  @selected(old('payment_template_id', $config?->payment_template_id) == $tpl->id)
+                  value="{{ $tpl->uuid }}"
+                  @selected(
+                    (string) old('payment_template_id') === (string) $tpl->uuid
+                    || (string) old('payment_template_id', $config?->payment_template_id) === (string) $tpl->id
+                  )
                 >{{ $tpl->name }}</option>
               @endforeach
             </select>
@@ -96,8 +99,11 @@
               <option value="">— None —</option>
               @foreach ($templates as $tpl)
                 <option
-                  value="{{ $tpl->id }}"
-                  @selected(old('confirmation_template_id', $config?->confirmation_template_id) == $tpl->id)
+                  value="{{ $tpl->uuid }}"
+                  @selected(
+                    (string) old('confirmation_template_id') === (string) $tpl->uuid
+                    || (string) old('confirmation_template_id', $config?->confirmation_template_id) === (string) $tpl->id
+                  )
                 >{{ $tpl->name }}</option>
               @endforeach
             </select>

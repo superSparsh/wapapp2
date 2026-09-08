@@ -69,7 +69,7 @@
           <select name="subscription_id" class="w-full appearance-none rounded-lg bg-elevated p-3 pr-10 text-sm font-medium leading-[1.4] text-text-body focus:outline-none">
             <option value="">All Webhooks</option>
             @foreach ($subscriptions as $sub)
-              <option value="{{ $sub->id }}" @selected(request('subscription_id') == $sub->id)>{{ $sub->description }}</option>
+              <option value="{{ $sub->uuid }}" @selected(request('subscription_id') == $sub->uuid)>{{ $sub->description }}</option>
             @endforeach
           </select>
           <img

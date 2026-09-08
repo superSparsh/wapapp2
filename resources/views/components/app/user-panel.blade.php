@@ -56,6 +56,17 @@
         <span class="min-w-0 flex-1">{{ $item['label'] }}</span>
       </a>
     @endforeach
+
+    @if (! empty($canAccessAdminView))
+      <a
+        href="{{ route('admin.dashboard') }}"
+        class="fd-nav-item flex items-center gap-3 rounded-md p-3 text-blue-200 transition-colors hover:bg-surface"
+        role="menuitem"
+      >
+        <x-icons.sidebar-icon name="box" :active="false" class="size-5 shrink-0" />
+        <span class="min-w-0 flex-1">Admin View</span>
+      </a>
+    @endif
   </nav>
 
   <form action="{{ route('logout') }}" method="POST">

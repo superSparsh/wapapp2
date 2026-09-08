@@ -39,7 +39,7 @@ Route::middleware('team.permission:campaign_read')->prefix('campaigns')->name('c
         }
 
         Route::get('/template-preview/{template}', [CampaignCreateController::class, 'templatePreview'])
-            ->whereNumber('template')
+            ->whereUuid('template')
             ->name('template-preview');
         Route::post('/test-message', [CampaignCreateController::class, 'testMessage'])
             ->middleware('team.permission:campaign_write')

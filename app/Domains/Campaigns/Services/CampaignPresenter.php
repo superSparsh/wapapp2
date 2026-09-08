@@ -83,11 +83,11 @@ class CampaignPresenter
         return match ($step) {
             1, 2 => [
                 'whatsappLines' => WhatsappLine::query()
-                    ->select(['id', 'phone', 'display_name', 'status'])
+                    ->select(['id', 'uuid', 'phone', 'display_name', 'status'])
                     ->orderBy('display_name')
                     ->get(),
                 'audiences' => MailList::query()
-                    ->select(['id', 'name'])
+                    ->select(['id', 'uuid', 'name'])
                     ->withCount('contacts')
                     ->orderBy('name')
                     ->get(),
@@ -108,7 +108,7 @@ class CampaignPresenter
 
         $templates = Template::query()
             ->with('variables')
-            ->select(['id', 'name', 'code', 'language', 'category', 'body_preview', 'payload'])
+            ->select(['id', 'uuid', 'name', 'code', 'language', 'category', 'body_preview', 'payload'])
             ->where('status', TemplateStatus::Approved)
             ->whereNotNull('code')
             ->where('code', '!=', '')

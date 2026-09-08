@@ -45,12 +45,12 @@
               <option value="">-- None --</option>
               @if ($showWhatsappLinePicker ?? false)
                 @foreach ($whatsappLines as $line)
-                  <option value="{{ $line->id }}" @selected((string) old('whatsapp_line_id') === (string) $line->id)>
+                  <option value="{{ $line->uuid }}" @selected((string) old('whatsapp_line_id') === (string) $line->uuid)>
                     {{ $line->display_name ?: $line->phone }}
                   </option>
                 @endforeach
               @elseif (($whatsappLines ?? collect())->isNotEmpty())
-                <option value="{{ $whatsappLines->first()->id }}" selected>
+                <option value="{{ $whatsappLines->first()->uuid }}" selected>
                   {{ $whatsappLines->first()->display_name ?: $whatsappLines->first()->phone }}
                 </option>
               @endif

@@ -20,7 +20,7 @@
             <select name="mail_list_id" class="fd-filter-label mt-1.5 w-full rounded-xl border border-border bg-elevated px-3.5 py-3.5 focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500">
               <option value="">-- Select List --</option>
               @foreach($mailLists as $list)
-                <option value="{{ $list->id }}" @selected($mailListId === $list->id)>{{ $list->name }}</option>
+                <option value="{{ $list->uuid }}" @selected($mailListId === $list->uuid)>{{ $list->name }}</option>
               @endforeach
             </select>
           </div>

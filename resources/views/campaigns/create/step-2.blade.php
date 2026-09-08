@@ -20,7 +20,13 @@
       >
         <option value="">-- Select Audience --</option>
         @foreach ($audiences ?? [] as $list)
-          <option value="{{ $list->id }}" @selected(old('audience_id', $wizardData['audience_id'] ?? '') == $list->id)>
+          <option
+            value="{{ $list->uuid }}"
+            @selected(
+              (string) old('audience_id') === (string) $list->uuid
+              || (string) old('audience_id', $wizardData['audience_id'] ?? '') === (string) $list->id
+            )
+          >
             {{ $list->name }} ({{ $list->contacts_count }} contacts)
           </option>
         @endforeach

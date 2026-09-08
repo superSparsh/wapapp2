@@ -106,7 +106,7 @@ class DashboardTest extends TestCase
         ]);
 
         $this->actingAsTenantUser()
-            ->get(route('dashboard', ['campaign_id' => $campaignB->id]))
+            ->get(route('dashboard', ['campaign_id' => $campaignB->uuid]))
             ->assertOk()
             ->assertSee('Alpha Campaign')
             ->assertSee('Beta Campaign')
@@ -164,7 +164,7 @@ class DashboardTest extends TestCase
         ]);
 
         $this->actingAsTenantUser()
-            ->getJson(route('dashboard.campaign-review', ['campaign_id' => $campaign->id]))
+            ->getJson(route('dashboard.campaign-review', ['campaign_id' => $campaign->uuid]))
             ->assertOk()
             ->assertJsonPath('campaign.name', 'Live Campaign')
             ->assertJsonPath('recipients.0.name', 'Neha')

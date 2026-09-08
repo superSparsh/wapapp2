@@ -6,7 +6,9 @@ namespace App\Domains\Team\Http\Requests;
 
 use App\Enums\TeamMemberRole;
 use App\Models\TeamMember;
+use App\Models\WhatsappLine;
 use App\Support\PhoneNormalizer;
+use App\Support\PublicId;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
@@ -33,7 +35,7 @@ class StoreTeamMemberRequest extends FormRequest
             'password' => ['required', 'confirmed', Password::defaults()],
             'role' => ['required', Rule::enum(TeamMemberRole::class)],
             'whatsapp_line_ids' => ['nullable', 'array'],
-            'whatsapp_line_ids.*' => ['integer', 'exists:whatsapp_lines,id'],
+            'whatsapp_line_ids.*' => PublicId::uuidExistsRules(WhatsappLine::class, nullable: false),
         ];
     }
 

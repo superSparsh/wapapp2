@@ -4,14 +4,17 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Models\Concerns\HasPublicUuid;
 use App\Models\Concerns\UsesCentralConnection;
 use Illuminate\Database\Eloquent\Model;
 
 class Announcement extends Model
 {
+    use HasPublicUuid;
     use UsesCentralConnection;
 
     protected $fillable = [
+        'uuid',
         'title',
         'body',
         'is_active',

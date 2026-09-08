@@ -24,7 +24,7 @@
     <div class="flex flex-col items-stretch gap-3 lg:flex-row lg:items-end lg:justify-center">
       @foreach ($plans as $index => $plan)
         @php
-          $isCurrent = $currentPlanId === $plan->id;
+          $isCurrent = (string) $currentPlanId === (string) $plan->uuid;
           $isPopular = $index === 0;
           $period = match ($plan->billing_cycle->value) {
             'yearly' => '/365 Days',
@@ -55,7 +55,7 @@
 
               <form method="POST" action="{{ route('profile.subscription.select-plan') }}">
                 @csrf
-                <input type="hidden" name="plan_id" value="{{ $plan->id }}">
+                <input type="hidden" name="plan_id" value="{{ $plan->uuid }}">
                 <button
                   type="submit"
                   @class([

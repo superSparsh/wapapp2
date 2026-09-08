@@ -6,6 +6,8 @@ namespace App\Domains\Drip\Http\Requests;
 
 use App\Domains\Drip\Support\DripCampaignValidation;
 use App\Domains\Drip\Support\DripTriggerCatalog;
+use App\Models\MailList;
+use App\Support\PublicId;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateDripCampaignRequest extends FormRequest
@@ -40,7 +42,7 @@ class UpdateDripCampaignRequest extends FormRequest
         if (! $this->has('trigger_type')) {
             return [
                 'name' => ['sometimes', 'string', 'min:2', 'max:191'],
-                'audience_id' => ['nullable', 'integer', 'exists:mail_lists,id'],
+                'audience_id' => PublicId::uuidExistsRules(MailList::class),
                 'timezone' => ['nullable', 'timezone:all'],
                 'start_date' => ['nullable', 'date'],
                 'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],

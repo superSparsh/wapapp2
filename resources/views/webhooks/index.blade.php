@@ -131,7 +131,7 @@ TXT;
                 >
                   <option value="">Select an Audience List</option>
                   @foreach ($mailLists as $list)
-                    <option value="{{ $list->id }}" @selected(old('audience_list_id') == $list->id)>{{ $list->name }}</option>
+                    <option value="{{ $list->uuid }}" @selected(old('audience_list_id') == $list->uuid)>{{ $list->name }}</option>
                   @endforeach
                 </select>
                 <p class="text-sm font-medium leading-[1.4] text-text-muted">

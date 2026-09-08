@@ -19,6 +19,7 @@ use App\Models\AiBusinessInfo;
 use App\Models\AiProviderKey;
 use App\Models\AiSetting;
 use App\Models\AiTokenUsageLog;
+use App\Support\PublicId;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -132,7 +133,7 @@ class OpenAiKeyController extends Controller
     public function storeBusinessInfo(StoreBusinessInfoRequest $request): RedirectResponse
     {
         $validated = $request->validated();
-        $bot = AiBot::query()->findOrFail($validated['ai_bot_id']);
+        $bot = PublicId::findOrFail(AiBot::class, (string) ($validated['ai_bot_id'] ?? ''));
 
         if ($request->hasFile('file')) {
             $this->businessInfoService->upload($bot, $request->file('file'), $validated['title']);
@@ -141,7 +142,7 @@ class OpenAiKeyController extends Controller
         }
 
         return redirect()
-            ->route('openai-key.index', ['tab' => 'knowledge-base', 'bot' => $bot->id])
+            ->route('openai-key.index', ['tab' => 'knowledge-base', 'bot' => $bot->uuid])
             ->with('status', 'Knowledge base entry added successfully.');
     }
 
@@ -150,7 +151,7 @@ class OpenAiKeyController extends Controller
         $this->businessInfoService->delete($business_info);
 
         return redirect()
-            ->route('openai-key.index', ['tab' => 'knowledge-base', 'bot' => $aiBot->id])
+            ->route('openai-key.index', ['tab' => 'knowledge-base', 'bot' => $aiBot->uuid])
             ->with('status', 'Knowledge base entry deleted successfully.');
     }
 
@@ -159,11 +160,11 @@ class OpenAiKeyController extends Controller
     public function testBot(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'bot_id' => ['required', 'integer', 'exists:ai_bots,id'],
+            'bot_id' => PublicId::uuidExistsRules(AiBot::class, nullable: false),
             'message' => ['required', 'string', 'max:2000'],
         ]);
 
-        $bot = AiBot::query()->find($validated['bot_id']);
+        $bot = PublicId::findOrFail(AiBot::class, (string) $validated['bot_id']);
 
         try {
             $result = $this->testBotService->test($bot, $validated['message']);
@@ -224,7 +225,7 @@ class OpenAiKeyController extends Controller
 
         $selectedBotId = $request->query('bot');
         $selectedBot = $selectedBotId
-            ? $bots->firstWhere('id', (int) $selectedBotId)
+            ? $bots->firstWhere('uuid', (string) $selectedBotId)
             : $bots->first();
 
         $data['selectedBot'] = $selectedBot;

@@ -43,6 +43,12 @@ return [
         'matches' => ['admin.admins.*'],
     ],
     [
+        'label' => 'Queues',
+        'route' => 'admin.queues.index',
+        'icon' => 'ticket',
+        'matches' => ['admin.queues.*'],
+    ],
+    [
         'label' => 'Announcements',
         'route' => 'admin.announcements.index',
         'icon' => 'file-text',

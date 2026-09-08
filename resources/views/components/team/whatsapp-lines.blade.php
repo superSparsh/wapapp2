@@ -1,5 +1,14 @@
 @props(['whatsappLines' => [], 'assignedLineIds' => [], 'inputName' => 'whatsapp_line_ids'])
 
+@php
+  $selectedValues = old($inputName);
+  if (! is_array($selectedValues)) {
+    $selectedValues = collect($assignedLineIds)
+      ->map(fn ($id) => (string) $id)
+      ->all();
+  }
+@endphp
+
 @if ($whatsappLines !== [])
   <div class="flex flex-col gap-3">
     <div class="flex flex-col gap-1">
@@ -13,8 +22,11 @@
           <input
             type="checkbox"
             name="{{ $inputName }}[]"
-            value="{{ $line->id }}"
-            @checked(in_array($line->id, old($inputName, $assignedLineIds), true))
+            value="{{ $line->uuid }}"
+            @checked(
+              in_array((string) $line->uuid, $selectedValues, true)
+              || in_array((string) $line->id, $selectedValues, true)
+            )
             class="size-4 shrink-0 rounded border-border text-green-500 focus:ring-green-500"
           >
           <span class="min-w-0 flex-1">

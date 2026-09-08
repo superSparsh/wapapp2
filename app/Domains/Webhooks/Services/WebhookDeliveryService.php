@@ -171,12 +171,12 @@ class WebhookDeliveryService
     /**
      * Paginated delivery logs with filters.
      */
-    public function logs(Request $request, int $perPage = 15): LengthAwarePaginator
+    public function logs(Request $request, int $perPage = 15, ?int $subscriptionId = null): LengthAwarePaginator
     {
         return WebhookDelivery::query()
             ->with('subscription:id,description,url')
             ->when($request->filled('status'), fn ($q) => $q->where('status', $request->input('status')))
-            ->when($request->filled('subscription_id'), fn ($q) => $q->where('webhook_subscription_id', $request->input('subscription_id')))
+            ->when($subscriptionId !== null, fn ($q) => $q->where('webhook_subscription_id', $subscriptionId))
             ->when($request->filled('search'), function ($q) use ($request): void {
                 $search = $request->input('search');
                 $q->where(function ($sub) use ($search): void {

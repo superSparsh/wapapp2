@@ -9,6 +9,7 @@ use App\Domains\Webhooks\Http\Requests\UpdateWebhookSubscriptionRequest;
 use App\Domains\Webhooks\Services\WebhookSubscriptionService;
 use App\Models\MailList;
 use App\Models\WebhookSubscription;
+use App\Support\PublicId;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -27,7 +28,7 @@ class WebhookSubscriptionController extends Controller
     public function index(Request $request): View
     {
         $subscriptions = $this->service->index($request->get('search'));
-        $mailLists = MailList::query()->select(['id', 'name'])->orderBy('name')->get();
+        $mailLists = MailList::query()->select(['id', 'uuid', 'name'])->orderBy('name')->get();
 
         return view('webhooks.index', [
             'subscriptions' => $subscriptions,
@@ -40,7 +41,11 @@ class WebhookSubscriptionController extends Controller
      */
     public function store(StoreWebhookSubscriptionRequest $request): RedirectResponse
     {
-        $this->service->store($request->validated());
+        $data = $request->validated();
+        $list = PublicId::find(MailList::class, $data['audience_list_id'] ?? null);
+        $data['audience_list_id'] = $list?->id;
+
+        $this->service->store($data);
 
         return redirect()->route('webhooks.index')
             ->with('status', 'Webhook created successfully.');
@@ -51,7 +56,11 @@ class WebhookSubscriptionController extends Controller
      */
     public function update(UpdateWebhookSubscriptionRequest $request, WebhookSubscription $webhookSubscription): RedirectResponse
     {
-        $this->service->update($webhookSubscription, $request->validated());
+        $data = $request->validated();
+        $list = PublicId::find(MailList::class, $data['audience_list_id'] ?? null);
+        $data['audience_list_id'] = $list?->id;
+
+        $this->service->update($webhookSubscription, $data);
 
         return redirect()->route('webhooks.index')
             ->with('status', 'Webhook updated successfully.');

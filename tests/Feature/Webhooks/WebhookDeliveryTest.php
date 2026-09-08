@@ -82,7 +82,7 @@ class WebhookDeliveryTest extends TestCase
         WebhookDelivery::factory()->count(2)->sent()->forSubscription($sub2)->create();
 
         $response = $this->actingAsTenantUser()
-            ->get(route('webhooks.logs', ['subscription_id' => $sub1->id]))
+            ->get(route('webhooks.logs', ['subscription_id' => $sub1->uuid]))
             ->assertOk();
 
         $response->assertViewHas('deliveries', function ($deliveries) {

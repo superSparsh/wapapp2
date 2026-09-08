@@ -7,6 +7,7 @@ namespace App\Domains\Webhooks\Http\Controllers;
 use App\Domains\Webhooks\Services\WebhookDeliveryService;
 use App\Models\WebhookDelivery;
 use App\Models\WebhookSubscription;
+use App\Support\PublicId;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
@@ -23,9 +24,13 @@ class WebhookDeliveryController extends Controller
      */
     public function index(Request $request): View
     {
-        $metrics = $this->service->metrics($request->integer('subscription_id', 0) ?: null);
-        $deliveries = $this->service->logs($request);
-        $subscriptions = WebhookSubscription::query()->select(['id', 'description'])->orderBy('description')->get();
+        $subscription = $request->filled('subscription_id')
+            ? PublicId::find(WebhookSubscription::class, (string) $request->input('subscription_id'))
+            : null;
+
+        $metrics = $this->service->metrics($subscription?->id);
+        $deliveries = $this->service->logs($request, subscriptionId: $subscription?->id);
+        $subscriptions = WebhookSubscription::query()->select(['id', 'uuid', 'description'])->orderBy('description')->get();
 
         return view('webhooks.logs', [
             'metrics' => $metrics,

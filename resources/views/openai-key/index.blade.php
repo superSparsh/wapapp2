@@ -306,7 +306,7 @@
                     </td>
                     <td class="p-2">
                       <div class="flex items-center justify-center gap-6">
-                        <button type="button" data-open-modal="bot-analytics" data-bot-id="{{ $bot->id }}" data-bot-name="{{ $bot->name }}" data-bot-provider="{{ $bot->provider->label() }}" data-bot-model="{{ $bot->chat_model }}" data-bot-prompt="{{ $bot->system_prompt ? 'Yes' : 'No' }}" data-bot-kb="{{ $bot->businessInfoEntries->count() }}" aria-label="View analytics">
+                        <button type="button" data-open-modal="bot-analytics" data-bot-id="{{ $bot->uuid }}" data-bot-name="{{ $bot->name }}" data-bot-provider="{{ $bot->provider->label() }}" data-bot-model="{{ $bot->chat_model }}" data-bot-prompt="{{ $bot->system_prompt ? 'Yes' : 'No' }}" data-bot-kb="{{ $bot->businessInfoEntries->count() }}" aria-label="View analytics">
                           <img src="{{ asset('images/team/chart.svg') }}" alt="" class="size-5" width="20" height="20">
                         </button>
                         <a href="{{ route('ai-bots.edit', $bot) }}" aria-label="Edit bot">
@@ -330,7 +330,7 @@
                     <td class="p-2">
                       <button
                         type="button"
-                        onclick="toggleDefault({{ $bot->id }}, this)"
+                        onclick="toggleDefault(@js($bot->uuid), this)"
                         @class([
                           'inline-flex cursor-pointer items-center justify-center gap-2 rounded px-4 py-1.5',
                           'border border-green-500 bg-green-50' => $bot->is_default,
@@ -453,7 +453,7 @@
               </div>
 
               <div class="flex flex-wrap items-center gap-4">
-                <a href="{{ route('openai-key.index', ['tab' => 'knowledge-base', 'bot' => $selectedBot->id]) }}"
+                <a href="{{ route('openai-key.index', ['tab' => 'knowledge-base', 'bot' => $selectedBot->uuid]) }}"
                   class="fd-btn inline-flex items-center justify-center gap-3 rounded border border-solid border-border-light bg-elevated px-4 py-3 text-sm font-semibold leading-[1.5] text-green-500 transition-colors hover:bg-surface"
                 >
                   <img src="{{ asset('images/openai-key/refresh.svg') }}" alt="" class="size-4" width="16" height="16">
@@ -528,7 +528,7 @@
                 >
                   <option value="" selected disabled>Select a bot</option>
                   @foreach ($bots as $bot)
-                    <option value="{{ $bot->id }}">{{ $bot->name }} ({{ $bot->provider->label() }})</option>
+                    <option value="{{ $bot->uuid }}">{{ $bot->name }} ({{ $bot->provider->label() }})</option>
                   @endforeach
                 </select>
               </div>
@@ -706,8 +706,8 @@
   @if ($currentTab === 'knowledge-base' && isset($selectedBot) && $selectedBot)
     <x-openai-key.add-sources-modal
       :open="request('modal') === 'add-sources'"
-      :close-href="route('openai-key.index', ['tab' => 'knowledge-base', 'bot' => $selectedBot->id])"
-      :bot-id="$selectedBot->id"
+      :close-href="route('openai-key.index', ['tab' => 'knowledge-base', 'bot' => $selectedBot->uuid])"
+      :bot-id="$selectedBot->uuid"
     />
   @endif
   <x-openai-key.bot-analytics-modal
@@ -770,7 +770,7 @@ async function testBot() {
     const res = await fetch('{{ route("openai-key.test-bot") }}', {
       method: 'POST',
       headers: { 'X-CSRF-TOKEN': token, 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      body: JSON.stringify({ bot_id: parseInt(botId), message: message }),
+      body: JSON.stringify({ bot_id: botId, message: message }),
     });
     const data = await res.json();
     if (data.error) {

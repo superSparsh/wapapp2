@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Domains\Chatbot\Http\Requests;
 
+use App\Models\WhatsappLine;
+use App\Support\PublicId;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreChatbotFlowRequest extends FormRequest
@@ -20,7 +22,7 @@ class StoreChatbotFlowRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
-            'whatsapp_line_id' => ['nullable', 'integer', 'exists:whatsapp_lines,id'],
+            'whatsapp_line_id' => PublicId::uuidExistsRules(WhatsappLine::class),
         ];
     }
 }

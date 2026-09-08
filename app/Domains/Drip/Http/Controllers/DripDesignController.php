@@ -10,6 +10,7 @@ use App\Domains\Drip\Support\DripNodeCatalog;
 use App\Http\Controllers\Controller;
 use App\Models\DripCampaign;
 use App\Models\MailList;
+use App\Support\PublicId;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
 
@@ -27,7 +28,7 @@ class DripDesignController extends Controller
         $campaign->load('audience');
 
         $audiences = MailList::query()
-            ->select('id', 'name')
+            ->select('id', 'uuid', 'name')
             ->orderBy('name')
             ->get();
 
@@ -69,7 +70,13 @@ class DripDesignController extends Controller
      */
     public function update(UpdateDripCampaignRequest $request, DripCampaign $campaign): RedirectResponse
     {
-        $this->campaignService->updateSettings($campaign, $request->validated());
+        $data = $request->validated();
+        if (array_key_exists('audience_id', $data)) {
+            $list = PublicId::find(MailList::class, $data['audience_id'] ?? null);
+            $data['audience_id'] = $list?->id;
+        }
+
+        $this->campaignService->updateSettings($campaign, $data);
 
         return redirect()
             ->route('automation.drip.design', $campaign)

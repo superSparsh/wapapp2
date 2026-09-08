@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Domains\Audience\Http\Requests\Contact;
 
+use App\Models\MailList;
+use App\Support\PublicId;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateContactRequest extends FormRequest
@@ -20,7 +22,7 @@ class UpdateContactRequest extends FormRequest
             'name' => ['nullable', 'string', 'max:150'],
             'email' => ['nullable', 'email', 'max:191'],
             'country_code' => ['nullable', 'string', 'max:3'],
-            'mail_list_id' => ['nullable', 'integer', 'exists:mail_lists,id'],
+            'mail_list_id' => PublicId::uuidExistsRules(MailList::class),
             'source' => ['nullable', 'string', 'max:64'],
             'tags' => ['nullable', 'array'],
             'tags.*' => ['string', 'max:100'],

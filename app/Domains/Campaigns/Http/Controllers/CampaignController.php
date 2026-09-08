@@ -10,6 +10,10 @@ use App\Domains\Campaigns\Services\CampaignServiceAdapter;
 use App\Enums\CampaignStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Campaign;
+use App\Models\MailList;
+use App\Models\Template;
+use App\Models\WhatsappLine;
+use App\Support\PublicId;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -73,6 +77,18 @@ class CampaignController extends Controller
         }
 
         unset($data['send_mode']);
+
+        $line = PublicId::find(WhatsappLine::class, (string) ($data['whatsapp_line_id'] ?? ''));
+        abort_if($line === null, 422, 'Please choose a From Number before sending.');
+        $data['whatsapp_line_id'] = $line->id;
+
+        $audience = PublicId::find(MailList::class, (string) ($data['audience_id'] ?? ''));
+        abort_if($audience === null, 422, 'Please select an audience list before sending.');
+        $data['audience_id'] = $audience->id;
+
+        $template = PublicId::find(Template::class, (string) ($data['template_id'] ?? ''));
+        abort_if($template === null, 422, 'Please select a template before sending.');
+        $data['template_id'] = $template->id;
 
         $wizard = $request->session()->get('campaign_wizard', []);
         $draftId = (int) ($wizard['draft_id'] ?? 0);

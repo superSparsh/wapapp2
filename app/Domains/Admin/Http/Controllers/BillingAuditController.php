@@ -19,7 +19,7 @@ class BillingAuditController extends Controller
 
     public function index(Request $request): View
     {
-        $filters = $request->only(['q', 'tenant_id', 'type']);
+        $filters = $request->only(['q', 'tenant', 'type']);
         $report = $this->billing->audit($filters, (int) $request->integer('page', 1));
 
         return view('admin.billing-audit.index', [
@@ -30,6 +30,6 @@ class BillingAuditController extends Controller
 
     public function export(Request $request): StreamedResponse
     {
-        return $this->billing->exportCsv($request->only(['q', 'tenant_id', 'type']));
+        return $this->billing->exportCsv($request->only(['q', 'tenant', 'type']));
     }
 }

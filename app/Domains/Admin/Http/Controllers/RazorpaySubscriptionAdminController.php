@@ -20,7 +20,7 @@ class RazorpaySubscriptionAdminController extends Controller
 
     public function index(Request $request): View
     {
-        $tenantId = trim((string) $request->query('tenant_id', ''));
+        $tenantId = trim((string) $request->query('tenant', ''));
         $rows = $this->scanner->map(function (): array {
             return Subscription::query()
                 ->whereNotNull('razorpay_subscription_id')
@@ -47,12 +47,12 @@ class RazorpaySubscriptionAdminController extends Controller
             $sorted->count(),
             $perPage,
             $page,
-            ['path' => LengthAwarePaginator::resolveCurrentPath(), 'query' => array_filter(['tenant_id' => $tenantId])],
+            ['path' => LengthAwarePaginator::resolveCurrentPath(), 'query' => array_filter(['tenant' => $tenantId])],
         );
 
         return view('admin.razorpay.index', [
             'items' => $paginator,
-            'filters' => ['tenant_id' => $tenantId],
+            'filters' => ['tenant' => $tenantId],
             'tenants' => Tenant::query()->orderBy('name')->limit(500)->get(['id', 'name', 'company_name']),
         ]);
     }

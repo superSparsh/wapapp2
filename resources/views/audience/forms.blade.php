@@ -27,13 +27,13 @@
       @else
         <form
           method="POST"
-          action="{{ route('audience.forms.update', ['list' => $mailList->id]) }}"
+          action="{{ route('audience.forms.update', ['list' => $mailList->uuid]) }}"
           class="bg-surface flex flex-col gap-4 items-start justify-center p-4 relative shrink-0 w-full"
           data-audience-forms
           data-autosave="true"
         >
           @csrf
-          <input type="hidden" name="list" value="{{ $mailList->id }}">
+          <input type="hidden" name="list" value="{{ $mailList->uuid }}">
 
           <div class="flex w-full items-center justify-between gap-3">
             <div class="flex min-w-0 flex-col gap-1">

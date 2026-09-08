@@ -18,7 +18,7 @@ class WalletRechargeController extends Controller
 
     public function index(Request $request): View
     {
-        $filters = $request->only(['q', 'tenant_id']);
+        $filters = $request->only(['q', 'tenant']);
         $report = $this->billing->walletRecharges($filters, (int) $request->integer('page', 1));
 
         return view('admin.wallet-recharges.index', [

@@ -6,10 +6,12 @@ namespace App\Domains\Templates\Http\Controllers;
 
 use App\Domains\Templates\Services\InteractiveMessagePreviewService;
 use App\Domains\Templates\Services\InteractiveMessageService;
-use App\Domains\WhatsappFlow\Services\WhatsappFlowQueryService;
 use App\Domains\Templates\Support\InteractiveMessagePresenter;
+use App\Domains\WhatsappFlow\Services\WhatsappFlowQueryService;
 use App\Http\Controllers\Controller;
 use App\Models\InteractiveMessage;
+use App\Models\WhatsappFlow;
+use App\Support\PublicId;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -111,7 +113,12 @@ class InteractiveMessageController extends Controller
             'list_sections.*.rows.*.description' => ['nullable', 'string', 'max:72'],
             'catalog_id' => ['required_if:type,product', 'nullable', 'string', 'max:120'],
             'product_retailer_id' => ['required_if:type,product', 'nullable', 'string', 'max:120'],
-            'flow_id' => ['required_if:type,flow', 'nullable', 'string', 'max:120'],
+            'flow_id' => [
+                'required_if:type,flow',
+                'nullable',
+                'uuid',
+                \Illuminate\Validation\Rule::exists(WhatsappFlow::class, 'uuid'),
+            ],
             'flow_cta' => ['required_if:type,flow', 'nullable', 'string', 'max:20'],
         ]);
 
@@ -158,7 +165,8 @@ class InteractiveMessageController extends Controller
         }
 
         if ($type === 'flow') {
-            $content['flow_id'] = (string) ($validated['flow_id'] ?? '');
+            $flow = PublicId::findOrFail(WhatsappFlow::class, (string) ($validated['flow_id'] ?? ''));
+            $content['flow_id'] = (string) $flow->uuid;
             $content['flow_cta'] = (string) ($validated['flow_cta'] ?? '');
         }
 

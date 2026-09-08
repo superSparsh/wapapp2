@@ -77,7 +77,7 @@ class ContactTest extends TestCase
         Contact::factory()->count(2)->create(['mail_list_id' => $list2->id]);
 
         $this->actingAsTenantUser()
-            ->get(route('audience.subscribers', ['list' => $list1->id]))
+            ->get(route('audience.subscribers', ['list' => $list1->uuid]))
             ->assertOk()
             ->assertViewHas('contacts', function ($contacts) {
                 return $contacts->total() === 3;
@@ -157,10 +157,10 @@ class ContactTest extends TestCase
                 'phone' => '919876543210',
                 'name' => 'Test Contact',
                 'email' => 'test@example.com',
-                'mail_list_id' => $list->id,
+                'mail_list_id' => $list->uuid,
                 'tags' => ['vip', 'new'],
             ])
-            ->assertRedirect(route('audience.subscribers', ['list' => $list->id]))
+            ->assertRedirect(route('audience.subscribers', ['list' => $list->uuid]))
             ->assertSessionHas('status');
 
         $this->assertDatabaseHas('contacts', [
@@ -396,7 +396,7 @@ class ContactTest extends TestCase
 
         $this->actingAsTenantUser()
             ->post(route('audience.subscribers.export'), [
-                'mail_list_id' => $list->id,
+                'mail_list_id' => $list->uuid,
             ])
             ->assertOk()
             ->assertHeader('content-type', 'text/csv; charset=UTF-8');

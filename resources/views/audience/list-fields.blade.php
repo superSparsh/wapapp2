@@ -32,7 +32,7 @@
           @foreach ($fieldTypes as $fieldType)
             <form method="POST" action="{{ route('audience.list-fields.store') }}" class="inline">
               @csrf
-              <input type="hidden" name="mail_list_id" value="{{ $mailList->id }}">
+              <input type="hidden" name="mail_list_id" value="{{ $mailList->uuid }}">
               <input type="hidden" name="label" value="New {{ $fieldType['label'] }}">
               <input type="hidden" name="type" value="{{ $fieldType['value'] }}">
               <button
@@ -55,7 +55,7 @@
       <form method="POST" action="{{ route('audience.list-fields.update') }}" class="flex flex-col gap-4 rounded-[12px] bg-surface p-4">
         @csrf
         @method('PUT')
-        <input type="hidden" name="mail_list_id" value="{{ $mailList->id }}">
+        <input type="hidden" name="mail_list_id" value="{{ $mailList->uuid }}">
 
         <div class="text-[20px] font-semibold leading-[1.5] text-text-primary">
           Manage list fields
@@ -92,7 +92,7 @@
           <div class="flex flex-col">
             @foreach ($fields as $index => $field)
               <div class="flex items-center gap-2 bg-elevated px-2 py-1.5 border-t border-border-sidebar">
-                <input type="hidden" name="fields[{{ $index }}][id]" value="{{ $field->id }}">
+                <input type="hidden" name="fields[{{ $index }}][id]" value="{{ $field->uuid }}">
                 <div class="flex w-[54px] shrink-0 items-center p-2">
                   <p class="text-[13px] font-normal leading-[1.5] text-text-body whitespace-nowrap">
                     {{ str_pad((string) ($index + 1), 2, '0', STR_PAD_LEFT) }}

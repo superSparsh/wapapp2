@@ -24,7 +24,7 @@ class WhatsappHealthAdminService
     {
         $filters = [
             'q' => trim((string) ($filters['q'] ?? '')),
-            'tenant_id' => trim((string) ($filters['tenant_id'] ?? '')),
+            'tenant' => trim((string) ($filters['tenant'] ?? $filters['tenant_id'] ?? '')),
             'quality' => trim((string) ($filters['quality'] ?? '')),
         ];
 
@@ -54,7 +54,7 @@ class WhatsappHealthAdminService
                         'failed' => $failed,
                     ];
                 })->all();
-        }, $filters['tenant_id'] !== '' ? $filters['tenant_id'] : null);
+        }, $filters['tenant'] !== '' ? $filters['tenant'] : null);
 
         if ($filters['q'] !== '') {
             $q = strtolower($filters['q']);

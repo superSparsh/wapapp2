@@ -23,10 +23,21 @@
 
   <form id="campaign-wizard-form" method="POST" action="{{ route('campaigns.store') }}" data-validate-form class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_458px]">
     @csrf
+    @php
+      $lineUuid = filled($wizardData['whatsapp_line_id'] ?? null)
+        ? (\App\Models\WhatsappLine::query()->find($wizardData['whatsapp_line_id'])?->uuid ?? '')
+        : '';
+      $audienceUuid = filled($wizardData['audience_id'] ?? null)
+        ? (\App\Models\MailList::query()->find($wizardData['audience_id'])?->uuid ?? '')
+        : '';
+      $templateUuid = filled($wizardData['template_id'] ?? null)
+        ? (\App\Models\Template::query()->find($wizardData['template_id'])?->uuid ?? '')
+        : '';
+    @endphp
     <input type="hidden" name="name" value="{{ $wizardData['name'] ?? '' }}">
-    <input type="hidden" name="whatsapp_line_id" value="{{ $wizardData['whatsapp_line_id'] ?? '' }}">
-    <input type="hidden" name="audience_id" value="{{ $wizardData['audience_id'] ?? '' }}">
-    <input type="hidden" name="template_id" value="{{ $wizardData['template_id'] ?? '' }}">
+    <input type="hidden" name="whatsapp_line_id" value="{{ $lineUuid }}">
+    <input type="hidden" name="audience_id" value="{{ $audienceUuid }}">
+    <input type="hidden" name="template_id" value="{{ $templateUuid }}">
     @if (! empty($wizardData['template_variables']))
       @foreach ((array) $wizardData['template_variables'] as $key => $val)
         <input type="hidden" name="template_variables[{{ $key }}]" value="{{ $val }}">

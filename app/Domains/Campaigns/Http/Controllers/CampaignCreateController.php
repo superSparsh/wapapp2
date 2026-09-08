@@ -15,8 +15,10 @@ use App\Domains\Templates\Support\CamsTemplateIdentity;
 use App\Enums\CampaignStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Campaign;
+use App\Models\MailList;
 use App\Models\Template;
 use App\Models\WhatsappLine;
+use App\Support\PublicId;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -205,12 +207,14 @@ class CampaignCreateController extends Controller
     /**
      * Live template preview for campaign wizard (legacy /preview-template equivalent).
      */
-    public function templatePreview(Request $request, int $template): JsonResponse
+    public function templatePreview(Request $request, string $template): JsonResponse
     {
-        $model = Template::query()
-            ->with('variables')
-            ->where('status', TemplateStatus::Approved)
-            ->findOrFail($template);
+        $model = PublicId::findOrFail(Template::class, $template);
+        abort_unless(
+            $model->status === TemplateStatus::Approved,
+            404,
+        );
+        $model->load('variables');
 
         $values = is_array($request->input('variables'))
             ? $request->input('variables')
@@ -301,6 +305,21 @@ class CampaignCreateController extends Controller
             if ($request->has($field)) {
                 $wizardData[$field] = $request->input($field);
             }
+        }
+
+        if ($step === 1 && isset($wizardData['whatsapp_line_id'])) {
+            $line = PublicId::find(WhatsappLine::class, (string) $wizardData['whatsapp_line_id']);
+            $wizardData['whatsapp_line_id'] = $line?->id;
+        }
+
+        if ($step === 2 && isset($wizardData['audience_id'])) {
+            $audience = PublicId::find(MailList::class, (string) $wizardData['audience_id']);
+            $wizardData['audience_id'] = $audience?->id;
+        }
+
+        if ($step === 3 && isset($wizardData['template_id'])) {
+            $template = PublicId::find(Template::class, (string) $wizardData['template_id']);
+            $wizardData['template_id'] = $template?->id;
         }
 
         $wizardData = $this->stashWizardAsDraft($wizardData) ?? $wizardData;

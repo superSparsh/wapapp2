@@ -9,6 +9,8 @@ use App\Domains\Audience\Http\Requests\Contact\StoreContactRequest;
 use App\Domains\Audience\Http\Requests\Contact\UpdateContactRequest;
 use App\Domains\Audience\Services\ContactService;
 use App\Models\Contact;
+use App\Models\MailList;
+use App\Support\PublicId;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -26,10 +28,12 @@ class ContactController extends Controller
      */
     public function index(Request $request): View
     {
-        $mailListId = $request->has('list') ? $request->integer('list') : null;
+        $mailList = $request->filled('list')
+            ? PublicId::findOrFail(MailList::class, (string) $request->input('list'))
+            : null;
 
         $contacts = $this->service->index(
-            mailListId: $mailListId,
+            mailListId: $mailList?->id,
             search: $request->get('search'),
             status: $request->get('status'),
             optIn: $request->get('opt_in'),
@@ -39,13 +43,11 @@ class ContactController extends Controller
             sortDir: $request->get('sort_dir', 'desc'),
         );
 
-        $mailList = $mailListId ? \App\Models\MailList::query()->find($mailListId) : null;
-
         return view('audience.subscribers', [
             'contacts' => $contacts,
-            'mailListId' => $mailListId,
+            'mailListId' => $mailList?->uuid,
             'mailList' => $mailList,
-            'mailLists' => \App\Models\MailList::query()->orderBy('name')->get(['id', 'name']),
+            'mailLists' => MailList::query()->orderBy('name')->get(['id', 'uuid', 'name']),
             'phoneCodes' => config('account.phone_codes', []),
             'countries' => config('account.countries', []),
         ]);
@@ -56,8 +58,12 @@ class ContactController extends Controller
      */
     public function empty(Request $request): View
     {
+        $mailList = $request->filled('list')
+            ? PublicId::findOrFail(MailList::class, (string) $request->input('list'))
+            : null;
+
         return view('audience.subscribers-empty', [
-            'mailListId' => $request->integer('list'),
+            'mailListId' => $mailList?->uuid,
         ]);
     }
 
@@ -66,9 +72,8 @@ class ContactController extends Controller
      */
     public function detail(Request $request): View
     {
-        $contact = Contact::query()
-            ->with(['tags', 'mailList'])
-            ->findOrFail($request->integer('id'));
+        $contact = PublicId::findOrFail(Contact::class, (string) $request->input('id'));
+        $contact->load(['tags', 'mailList']);
 
         return view('audience.subscribers-detail', ['contact' => $contact]);
     }
@@ -82,10 +87,13 @@ class ContactController extends Controller
         $tags = $data['tags'] ?? null;
         unset($data['tags']);
 
+        $mailList = PublicId::find(MailList::class, $data['mail_list_id'] ?? null);
+        $data['mail_list_id'] = $mailList?->id;
+
         $this->service->store($data, $tags);
 
         return redirect()
-            ->route('audience.subscribers', array_filter(['list' => $data['mail_list_id'] ?? null]))
+            ->route('audience.subscribers', array_filter(['list' => $mailList?->uuid]))
             ->with('status', 'Contact created successfully.');
     }
 
@@ -97,6 +105,11 @@ class ContactController extends Controller
         $data = $request->validated();
         $tags = $data['tags'] ?? null;
         unset($data['tags']);
+
+        if (array_key_exists('mail_list_id', $data)) {
+            $mailList = PublicId::find(MailList::class, $data['mail_list_id'] ?? null);
+            $data['mail_list_id'] = $mailList?->id;
+        }
 
         $this->service->update($contact, $data, $tags);
 
@@ -120,7 +133,8 @@ class ContactController extends Controller
      */
     public function subscribe(BulkContactRequest $request): JsonResponse|RedirectResponse
     {
-        $count = $this->service->bulkSubscribe($request->validated()['ids']);
+        $ids = $this->resolveContactIds($request->validated()['ids']);
+        $count = $this->service->bulkSubscribe($ids);
 
         if ($request->wantsJson()) {
             return response()->json([
@@ -138,7 +152,8 @@ class ContactController extends Controller
      */
     public function unsubscribe(BulkContactRequest $request): JsonResponse|RedirectResponse
     {
-        $count = $this->service->bulkUnsubscribe($request->validated()['ids']);
+        $ids = $this->resolveContactIds($request->validated()['ids']);
+        $count = $this->service->bulkUnsubscribe($ids);
 
         if ($request->wantsJson()) {
             return response()->json([
@@ -156,7 +171,8 @@ class ContactController extends Controller
      */
     public function bulkDelete(BulkContactRequest $request): JsonResponse|RedirectResponse
     {
-        $count = $this->service->bulkDelete($request->validated()['ids']);
+        $ids = $this->resolveContactIds($request->validated()['ids']);
+        $count = $this->service->bulkDelete($ids);
 
         if ($request->wantsJson()) {
             return response()->json([
@@ -167,5 +183,18 @@ class ContactController extends Controller
 
         return redirect()->route('audience.subscribers')
             ->with('status', "{$count} contact(s) deleted.");
+    }
+
+    /**
+     * @param  list<string>  $uuids
+     * @return list<int>
+     */
+    private function resolveContactIds(array $uuids): array
+    {
+        return Contact::query()
+            ->whereIn('uuid', $uuids)
+            ->pluck('id')
+            ->map(fn ($id): int => (int) $id)
+            ->all();
     }
 }

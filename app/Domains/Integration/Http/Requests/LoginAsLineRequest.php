@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Domains\Integration\Http\Requests;
 
+use App\Models\WhatsappLine;
+use App\Support\PublicId;
 use Illuminate\Foundation\Http\FormRequest;
 
 class LoginAsLineRequest extends FormRequest
@@ -13,11 +15,11 @@ class LoginAsLineRequest extends FormRequest
         return true;
     }
 
-    /** @return array<string, list<string>> */
+    /** @return array<string, list<\Illuminate\Contracts\Validation\ValidationRule|string>> */
     public function rules(): array
     {
         return [
-            'line_id'  => ['required', 'integer', 'min:1'],
+            'line' => PublicId::uuidExistsRules(WhatsappLine::class, nullable: false),
             'password' => ['required', 'string'],
         ];
     }

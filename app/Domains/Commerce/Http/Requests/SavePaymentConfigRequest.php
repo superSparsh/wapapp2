@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Domains\Commerce\Http\Requests;
 
+use App\Models\Template;
+use App\Support\PublicId;
 use Illuminate\Foundation\Http\FormRequest;
 
 class SavePaymentConfigRequest extends FormRequest
@@ -25,8 +27,8 @@ class SavePaymentConfigRequest extends FormRequest
             'client_name'              => ['required', 'string', 'max:191'],
             'razorpay_key'             => ['required', 'string', 'max:191'],
             'razorpay_secret'          => $secretRules,
-            'payment_template_id'      => ['nullable', 'integer', 'exists:templates,id'],
-            'confirmation_template_id' => ['nullable', 'integer', 'exists:templates,id'],
+            'payment_template_id'      => PublicId::uuidExistsRules(Template::class),
+            'confirmation_template_id' => PublicId::uuidExistsRules(Template::class),
         ];
     }
 

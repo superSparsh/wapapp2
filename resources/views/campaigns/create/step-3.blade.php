@@ -3,7 +3,8 @@
 
   $selectedTemplateId = (string) old('template_id', $wizardData['template_id'] ?? '');
   $selectedTemplate = collect($templates ?? [])->first(
-    fn ($template) => (string) $template->id === $selectedTemplateId,
+    fn ($template) => (string) $template->uuid === $selectedTemplateId
+      || (string) $template->id === $selectedTemplateId,
   );
   $showMarketingPricing = $selectedTemplate
     && strtoupper((string) $selectedTemplate->category) === TemplateCategoryCatalog::MARKETING;
@@ -45,8 +46,11 @@
               $isMarketing = $category === TemplateCategoryCatalog::MARKETING;
             @endphp
             <option
-              value="{{ $template->id }}"
-              @selected($selectedTemplateId == $template->id)
+              value="{{ $template->uuid }}"
+              @selected(
+                $selectedTemplateId === (string) $template->uuid
+                || $selectedTemplateId === (string) $template->id
+              )
               data-category="{{ $category }}"
               @if ($categoryLabel !== '') data-category-pill="{{ $categoryLabel }}" @endif
               @if ($isMarketing) data-show-pricing="1" @endif

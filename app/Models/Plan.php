@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\BillingCycle;
+use App\Models\Concerns\HasPublicUuid;
 use App\Models\Concerns\UsesCentralConnection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -12,10 +13,12 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Plan extends Model
 {
+    use HasPublicUuid;
     use SoftDeletes;
     use UsesCentralConnection;
 
     protected $fillable = [
+        'uuid',
         'name',
         'slug',
         'description',

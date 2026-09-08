@@ -13,6 +13,7 @@ return new class extends Migration
     {
         Schema::create('plans', function (Blueprint $table) {
             $table->id();
+            $table->publicUuid();
             $table->string('name', 120);
             $table->string('slug', 80)->unique();
             $table->text('description')->nullable();

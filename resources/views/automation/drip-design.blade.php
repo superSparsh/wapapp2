@@ -73,9 +73,15 @@
                 required
                 class="w-full rounded-xl border border-solid border-border bg-elevated p-3.5 text-sm font-medium text-text-muted focus:outline-none focus:ring-2 focus:ring-green-500 @error('audience_id') border-red-500 @enderror"
               >
-                <option value="" disabled @selected(! old('audience_id', $campaign->audience_id))>-- Select Audience --</option>
+                <option value="" disabled @selected(! old('audience_id', $campaign->audience?->uuid))>-- Select Audience --</option>
                 @foreach ($audiences as $list)
-                  <option value="{{ $list->id }}" @selected(old('audience_id', $campaign->audience_id) == $list->id)>
+                  <option
+                    value="{{ $list->uuid }}"
+                    @selected(
+                      (string) old('audience_id') === (string) $list->uuid
+                      || (string) old('audience_id', $campaign->audience?->uuid) === (string) $list->uuid
+                    )
+                  >
                     {{ $list->name }}
                   </option>
                 @endforeach

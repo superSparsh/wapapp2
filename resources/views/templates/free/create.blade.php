@@ -103,7 +103,13 @@
             <x-ui.select id="flow_id" name="flow_id" variant="default" class="w-full">
               <option value="">Select flow</option>
               @foreach ($whatsappFlows ?? [] as $flow)
-                <option value="{{ $flow->id }}" @selected((string) old('flow_id', $content['flow_id'] ?? '') === (string) $flow->id)>{{ $flow->name }}</option>
+                <option
+                  value="{{ $flow->uuid }}"
+                  @selected(
+                    (string) old('flow_id', $content['flow_id'] ?? '') === (string) $flow->uuid
+                    || (string) old('flow_id', $content['flow_id'] ?? '') === (string) $flow->id
+                  )
+                >{{ $flow->name }}</option>
               @endforeach
             </x-ui.select>
             <label for="flow_cta" class="fd-label">Flow CTA button text<span class="text-[red]">*</span></label>

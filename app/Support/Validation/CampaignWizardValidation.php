@@ -5,6 +5,10 @@ declare(strict_types=1);
 namespace App\Support\Validation;
 
 use App\Domains\Templates\Enums\TemplateStatus;
+use App\Models\MailList;
+use App\Models\Template;
+use App\Models\WhatsappLine;
+use App\Support\PublicId;
 use Illuminate\Validation\Rule;
 
 final class CampaignWizardValidation
@@ -17,13 +21,16 @@ final class CampaignWizardValidation
         return match ($step) {
             1 => [
                 'name' => ['required', 'string', 'min:2', 'max:255'],
-                'whatsapp_line_id' => ['required', 'integer', 'exists:whatsapp_lines,id'],
+                'whatsapp_line_id' => PublicId::uuidExistsRules(WhatsappLine::class, nullable: false),
             ],
             2 => [
-                'audience_id' => ['required', 'integer', 'exists:mail_lists,id'],
+                'audience_id' => PublicId::uuidExistsRules(MailList::class, nullable: false),
             ],
             3 => [
-                'template_id' => ['required', 'integer', self::approvedTemplateRule()],
+                'template_id' => array_merge(
+                    PublicId::uuidExistsRules(Template::class, nullable: false),
+                    [self::approvedTemplateRule()],
+                ),
             ],
             4 => [
                 'recipients' => ['nullable', 'array'],
@@ -49,10 +56,13 @@ final class CampaignWizardValidation
             'name.min' => 'Campaign name must be at least 2 characters.',
             'whatsapp_line_id.required' => 'Please choose a From Number.',
             'whatsapp_line_id.exists' => 'The selected From Number is invalid.',
+            'whatsapp_line_id.uuid' => 'Please choose a From Number.',
             'audience_id.required' => 'Please select an audience list.',
             'audience_id.exists' => 'The selected audience is invalid.',
+            'audience_id.uuid' => 'Please select an audience list.',
             'template_id.required' => 'Please select a template.',
             'template_id.exists' => 'The selected template is invalid.',
+            'template_id.uuid' => 'Please select a template.',
             'template_variables.*.max' => 'Each variable value may not be greater than 60 characters.',
             'send_mode.required' => 'Please choose when to send the campaign.',
             'scheduled_at.required_if' => 'Scheduled date and time are required.',
@@ -67,9 +77,12 @@ final class CampaignWizardValidation
     {
         return [
             'name' => ['required', 'string', 'min:2', 'max:255'],
-            'audience_id' => ['required', 'integer', 'exists:mail_lists,id'],
-            'whatsapp_line_id' => ['required', 'integer', 'exists:whatsapp_lines,id'],
-            'template_id' => ['required', 'integer', self::approvedTemplateRule()],
+            'audience_id' => PublicId::uuidExistsRules(MailList::class, nullable: false),
+            'whatsapp_line_id' => PublicId::uuidExistsRules(WhatsappLine::class, nullable: false),
+            'template_id' => array_merge(
+                PublicId::uuidExistsRules(Template::class, nullable: false),
+                [self::approvedTemplateRule()],
+            ),
             'template_variables' => ['nullable', 'array'],
             'template_variables.*' => ['nullable', 'string', 'max:60'],
             'scheduled_at' => ['required_if:send_mode,schedule', 'nullable', 'date', 'after:now'],
@@ -79,7 +92,7 @@ final class CampaignWizardValidation
 
     private static function approvedTemplateRule(): \Illuminate\Validation\Rules\Exists
     {
-        return Rule::exists('templates', 'id')->where(function ($query): void {
+        return Rule::exists('templates', 'uuid')->where(function ($query): void {
             $query->where('status', TemplateStatus::Approved->value)
                 ->whereNotNull('code')
                 ->where('code', '!=', '');

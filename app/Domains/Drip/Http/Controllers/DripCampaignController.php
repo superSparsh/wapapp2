@@ -9,6 +9,8 @@ use App\Domains\Drip\Services\DripCampaignQueryService;
 use App\Domains\Drip\Services\DripCampaignService;
 use App\Http\Controllers\Controller;
 use App\Models\DripCampaign;
+use App\Models\MailList;
+use App\Support\PublicId;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -55,7 +57,13 @@ class DripCampaignController extends Controller
      */
     public function store(StoreDripCampaignRequest $request): RedirectResponse
     {
-        $campaign = $this->campaignService->create($request->validated());
+        $data = $request->validated();
+        if (array_key_exists('audience_id', $data)) {
+            $list = PublicId::find(MailList::class, $data['audience_id'] ?? null);
+            $data['audience_id'] = $list?->id;
+        }
+
+        $campaign = $this->campaignService->create($data);
 
         return redirect()
             ->route('automation.drip.design', $campaign)

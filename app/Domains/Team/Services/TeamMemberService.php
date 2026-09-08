@@ -166,9 +166,14 @@ class TeamMemberService
             return $this->defaultWhatsappLineIds();
         }
 
+        $uuids = array_values(array_filter(array_map(
+            static fn ($id): string => trim((string) $id),
+            $lineIds,
+        )));
+
         $validIds = \App\Models\WhatsappLine::query()
             ->where('status', RecordStatus::Active)
-            ->whereIn('id', $lineIds)
+            ->whereIn('uuid', $uuids)
             ->pluck('id')
             ->map(fn ($id): int => (int) $id)
             ->all();

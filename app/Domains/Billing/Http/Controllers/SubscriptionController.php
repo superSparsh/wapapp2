@@ -14,7 +14,9 @@ use App\Domains\Billing\Services\SubscriptionService;
 use App\Domains\Billing\Services\WalletService;
 use App\Enums\RazorpayOrderPurpose;
 use App\Http\Controllers\Controller;
+use App\Models\Plan;
 use App\Models\RazorpayOrder;
+use App\Support\PublicId;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -45,14 +47,15 @@ class SubscriptionController extends Controller
     {
         return view('profile.subscription.upgrade', [
             'plans' => $subscriptionService->availablePlans(),
-            'currentPlanId' => $subscriptionService->currentPlan()?->id,
+            'currentPlanId' => $subscriptionService->currentPlan()?->uuid,
         ]);
     }
 
     public function selectPlan(Request $request, SubscriptionService $subscriptionService): RedirectResponse
     {
-        $request->validate(['plan_id' => ['required', 'integer']]);
-        $subscriptionService->selectPlan((int) $request->input('plan_id'));
+        $request->validate(['plan_id' => PublicId::uuidExistsRules(Plan::class, nullable: false)]);
+        $plan = PublicId::findOrFail(Plan::class, (string) $request->input('plan_id'));
+        $subscriptionService->selectPlan($plan->id);
 
         return redirect()->route('profile.subscription.billing');
     }

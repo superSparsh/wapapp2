@@ -43,7 +43,7 @@
         class="w-full rounded-xl border border-border bg-elevated p-3.5 text-sm font-medium leading-[1.4] text-text-primary outline-none focus:border-green-500"
       >
         @forelse ($recentCampaigns as $campaign)
-          <option value="{{ $campaign->id }}" @selected($selectedCampaign?->id === $campaign->id)>
+          <option value="{{ $campaign->uuid }}" @selected($selectedCampaign?->uuid === $campaign->uuid)>
             {{ $campaign->name }}
           </option>
         @empty

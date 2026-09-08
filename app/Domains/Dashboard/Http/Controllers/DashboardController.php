@@ -7,7 +7,9 @@ namespace App\Domains\Dashboard\Http\Controllers;
 use App\Domains\Billing\Services\WalletService;
 use App\Domains\Dashboard\Services\DashboardService;
 use App\Http\Controllers\Controller;
+use App\Models\Campaign;
 use App\Models\User;
+use App\Support\PublicId;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -31,11 +33,9 @@ class DashboardController extends Controller
 
     public function campaignReview(Request $request, DashboardService $dashboardService): JsonResponse
     {
-        $campaignId = $request->integer('campaign_id');
+        $campaign = PublicId::find(Campaign::class, (string) $request->input('campaign_id', ''));
 
-        return response()->json($dashboardService->campaignReviewPayload(
-            $campaignId > 0 ? $campaignId : null,
-        ));
+        return response()->json($dashboardService->campaignReviewPayload($campaign));
     }
 
     public function wallet(Request $request, WalletService $walletService): View

@@ -18,7 +18,7 @@ class WhatsappHealthController extends Controller
 
     public function index(Request $request): View
     {
-        $report = $this->health->fleet($request->only(['q', 'tenant_id', 'quality']), (int) $request->integer('page', 1));
+        $report = $this->health->fleet($request->only(['q', 'tenant', 'quality']), (int) $request->integer('page', 1));
 
         return view('admin.whatsapp-health.index', [
             ...$report,

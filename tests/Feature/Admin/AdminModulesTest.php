@@ -84,13 +84,13 @@ class AdminModulesTest extends TestCase
         ]);
 
         $this->actingAs($this->admin, 'admin')
-            ->get(route('admin.wallet-recharges.index', ['tenant_id' => $this->testTenant->id]))
+            ->get(route('admin.wallet-recharges.index', ['tenant' => $this->testTenant->id]))
             ->assertOk()
             ->assertSee('Admin wallet topup')
             ->assertSee('pay_test_123');
 
         $this->actingAs($this->admin, 'admin')
-            ->get(route('admin.billing-audit.index', ['type' => 'wallet', 'tenant_id' => $this->testTenant->id]))
+            ->get(route('admin.billing-audit.index', ['type' => 'wallet', 'tenant' => $this->testTenant->id]))
             ->assertOk()
             ->assertSee('Admin wallet topup');
     }
@@ -204,7 +204,7 @@ class AdminModulesTest extends TestCase
         ]);
 
         $this->actingAs($this->admin, 'admin')
-            ->get(route('admin.razorpay.index', ['tenant_id' => $this->testTenant->id]))
+            ->get(route('admin.razorpay.index', ['tenant' => $this->testTenant->id]))
             ->assertOk()
             ->assertSee('sub_test_abc');
     }
@@ -249,13 +249,13 @@ class AdminModulesTest extends TestCase
         ])->save();
 
         $this->actingAs($this->admin, 'admin')
-            ->get(route('admin.whatsapp-health.index', ['tenant_id' => $this->testTenant->id]))
+            ->get(route('admin.whatsapp-health.index', ['tenant' => $this->testTenant->id]))
             ->assertOk()
             ->assertSee('919999999999')
             ->assertSee('GREEN');
 
         $this->actingAs($this->admin, 'admin')
-            ->get(route('admin.message-performance.index', ['tenant_id' => $this->testTenant->id]))
+            ->get(route('admin.message-performance.index', ['tenant' => $this->testTenant->id]))
             ->assertOk()
             ->assertSee('919999999999');
     }

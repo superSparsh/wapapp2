@@ -97,7 +97,7 @@ class CampaignWizardTest extends TestCase
         $this->actingAsTenantUser()
             ->post(route('campaigns.create.save', 1), [
                 'name' => 'Test Campaign',
-                'whatsapp_line_id' => $this->testLine->id,
+                'whatsapp_line_id' => $this->testLine->uuid,
             ])
             ->assertRedirect(route('campaigns.create.step', 2));
 
@@ -174,7 +174,7 @@ class CampaignWizardTest extends TestCase
         $this->actingAsTenantUser()
             ->post(route('campaigns.create.save', 1), [
                 'name' => 'Vars Grid',
-                'whatsapp_line_id' => $this->testLine->id,
+                'whatsapp_line_id' => $this->testLine->uuid,
             ]);
 
         $this->actingAsTenantUser()
@@ -288,7 +288,7 @@ class CampaignWizardTest extends TestCase
         $this->actingAsTenantUser()
             ->post(route('campaigns.create.save', 1), [
                 'name' => 'Var Campaign',
-                'whatsapp_line_id' => $this->testLine->id,
+                'whatsapp_line_id' => $this->testLine->uuid,
             ]);
         $this->actingAsTenantUser()
             ->post(route('campaigns.create.save', 2), [
@@ -330,7 +330,7 @@ class CampaignWizardTest extends TestCase
         $response = $this->actingAsTenantUser()
             ->post(route('campaigns.create.save', 1), [
                 'name' => 'Wizard Test',
-                'whatsapp_line_id' => $this->testLine->id,
+                'whatsapp_line_id' => $this->testLine->uuid,
             ]);
 
         $response->assertRedirect(route('campaigns.create.step', 2));
@@ -354,7 +354,7 @@ class CampaignWizardTest extends TestCase
         $this->actingAsTenantUser()
             ->post(route('campaigns.create.save', 1), [
                 'name' => 'Full Wizard Campaign',
-                'whatsapp_line_id' => $this->testLine->id,
+                'whatsapp_line_id' => $this->testLine->uuid,
             ]);
 
         $this->actingAsTenantUser()
@@ -541,7 +541,7 @@ class CampaignWizardTest extends TestCase
         $this->actingAsTenantUser()
             ->post(route('campaigns.create.save', 1), [
                 'name' => 'Draft From Step One',
-                'whatsapp_line_id' => $this->testLine->id,
+                'whatsapp_line_id' => $this->testLine->uuid,
             ])
             ->assertRedirect(route('campaigns.create.step', 2));
 
@@ -591,7 +591,7 @@ class CampaignWizardTest extends TestCase
         $this->actingAsTenantUser()
             ->post(route('campaigns.create.save', 1), [
                 'name' => 'Single Campaign',
-                'whatsapp_line_id' => $this->testLine->id,
+                'whatsapp_line_id' => $this->testLine->uuid,
             ]);
 
         $draftId = (int) session('campaign_wizard.draft_id');
@@ -600,7 +600,7 @@ class CampaignWizardTest extends TestCase
         $this->actingAsTenantUser()
             ->post(route('campaigns.store'), [
                 'name' => 'Single Campaign',
-                'whatsapp_line_id' => $this->testLine->id,
+                'whatsapp_line_id' => $this->testLine->uuid,
                 'audience_id' => $audience->id,
                 'template_id' => $template->id,
                 'send_mode' => 'schedule',
