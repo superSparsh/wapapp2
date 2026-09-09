@@ -33,6 +33,8 @@ Schedule::command(ProcessDataDeletionSchedules::class)->hourly();
 // Template lifecycle
 Schedule::command(SubmitPendingTemplates::class)->everyFiveMinutes();
 Schedule::command(SyncTemplateStatuses::class)->everyTenMinutes();
+// Daily: GetChatappTemplateDetail for coded templates — pick up Meta category changes
+Schedule::command(SyncTemplateStatuses::class, ['--coded', '--limit=200'])->dailyAt('05:30');
 Schedule::command(DeleteSoftDeletedTemplates::class)->everyFifteenMinutes();
 
 // Campaign & automation execution

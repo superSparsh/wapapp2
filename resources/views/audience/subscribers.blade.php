@@ -6,41 +6,58 @@
     </div>
 
     <section class="flex flex-col gap-4 p-4 pt-5">
-      <div class="flex flex-wrap items-center justify-end gap-3">
-        <div class="relative" data-filter-dropdown>
-          <button type="button" class="flex w-full max-w-[221px] items-center justify-between rounded-lg bg-elevated p-3 sm:w-[221px]" data-filter-toggle>
-            <span class="fd-filter-label">
-              @if(request('status') === 'subscribed') Subscribed
-              @elseif(request('status') === 'unsubscribed') Unsubscribed
-              @elseif(request('status') === 'blacklisted') Blacklisted
-              @else Filter Subscribers
-              @endif
-            </span>
-            <x-icons.nav-icon name="arrow-down" class="size-4 shrink-0" />
-          </button>
-          <div class="absolute right-0 z-30 mt-1 hidden w-52 rounded-lg border border-border-light bg-elevated py-1 shadow-lg" data-filter-menu>
-            <a href="{{ route('audience.subscribers', array_merge(request()->query(), ['status' => null])) }}" class="block px-4 py-2 text-sm text-text-body hover:bg-muted-surface {{ !request('status') ? 'bg-green-50 text-green-600 font-semibold' : '' }}">All subscribers</a>
-            <a href="{{ route('audience.subscribers', array_merge(request()->query(), ['status' => 'subscribed'])) }}" class="block px-4 py-2 text-sm text-text-body hover:bg-muted-surface {{ request('status') === 'subscribed' ? 'bg-green-50 text-green-600 font-semibold' : '' }}">Subscribed</a>
-            <a href="{{ route('audience.subscribers', array_merge(request()->query(), ['status' => 'unsubscribed'])) }}" class="block px-4 py-2 text-sm text-text-body hover:bg-muted-surface {{ request('status') === 'unsubscribed' ? 'bg-green-50 text-green-600 font-semibold' : '' }}">Unsubscribed</a>
-            <a href="{{ route('audience.subscribers', array_merge(request()->query(), ['status' => 'blacklisted'])) }}" class="block px-4 py-2 text-sm text-text-body hover:bg-muted-surface {{ request('status') === 'blacklisted' ? 'bg-green-50 text-green-600 font-semibold' : '' }}">Blacklisted</a>
-          </div>
-        </div>
-        <button type="button" data-open-modal="new-subscriber" class="fd-btn inline-flex items-center justify-center rounded bg-green-500 px-4 py-3 text-sm font-semibold text-primary-2 transition-colors hover:opacity-90">
-          <img src="{{ asset('images/icons/sidebar/dbfd6f4cd73e6e1ecbcca79a8be160d3f18f5172.svg') }}" alt="" class="size-5" width="20" height="20">
-          Add New Subscribers
-        </button>
-        <button type="button" data-open-modal="import-subscribers" class="fd-btn inline-flex items-center justify-center rounded-lg border border-green-500 bg-green-100 px-4 py-3 text-sm font-semibold text-green-500 transition-colors hover:bg-green-50/80">
-          <img src="{{ asset('images/automation/refresh.svg') }}" alt="" class="size-4" width="16" height="16">
-          Import
-        </button>
-        <form method="POST" action="{{ route('audience.subscribers.export') }}" class="inline">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <form id="bulk-subscribers-form" method="POST" class="flex flex-wrap items-center gap-2" data-bulk-form>
           @csrf
-          @if($mailListId)<input type="hidden" name="mail_list_id" value="{{ $mailListId }}">@endif
-          <button type="submit" class="fd-btn inline-flex items-center justify-center rounded-lg border border-green-500 bg-green-100 px-4 py-3 text-sm font-semibold text-green-500 transition-colors hover:bg-green-50/80">
-            <img src="{{ asset('images/automation/refresh.svg') }}" alt="" class="size-4" width="16" height="16">
-            Export
+          @if($mailListId)<input type="hidden" name="list" value="{{ $mailListId }}">@endif
+          @if(request('status'))<input type="hidden" name="status" value="{{ request('status') }}">@endif
+          <select name="bulk_action" data-bulk-action class="rounded-lg border border-border bg-elevated px-3 py-2 text-sm">
+            <option value="">Bulk actions</option>
+            <option value="subscribe">Subscribe</option>
+            <option value="unsubscribe">Unsubscribe</option>
+            <option value="delete">Delete</option>
+          </select>
+          <button type="submit" class="fd-btn rounded border border-green-500 px-3 py-2 text-sm font-semibold text-green-500 disabled:opacity-50" data-bulk-submit disabled>
+            Apply
           </button>
         </form>
+
+        <div class="flex flex-wrap items-center justify-end gap-3">
+          <div class="relative" data-filter-dropdown>
+            <button type="button" class="flex w-full max-w-[221px] items-center justify-between rounded-lg bg-elevated p-3 sm:w-[221px]" data-filter-toggle>
+              <span class="fd-filter-label">
+                @if(request('status') === 'subscribed') Subscribed
+                @elseif(request('status') === 'unsubscribed') Unsubscribed
+                @elseif(request('status') === 'blacklisted') Blacklisted
+                @else Filter Subscribers
+                @endif
+              </span>
+              <x-icons.nav-icon name="arrow-down" class="size-4 shrink-0" />
+            </button>
+            <div class="absolute right-0 z-30 mt-1 hidden w-52 rounded-lg border border-border-light bg-elevated py-1 shadow-lg" data-filter-menu>
+              <a href="{{ route('audience.subscribers', array_merge(request()->query(), ['status' => null])) }}" class="block px-4 py-2 text-sm text-text-body hover:bg-muted-surface {{ !request('status') ? 'bg-green-50 text-green-600 font-semibold' : '' }}">All subscribers</a>
+              <a href="{{ route('audience.subscribers', array_merge(request()->query(), ['status' => 'subscribed'])) }}" class="block px-4 py-2 text-sm text-text-body hover:bg-muted-surface {{ request('status') === 'subscribed' ? 'bg-green-50 text-green-600 font-semibold' : '' }}">Subscribed</a>
+              <a href="{{ route('audience.subscribers', array_merge(request()->query(), ['status' => 'unsubscribed'])) }}" class="block px-4 py-2 text-sm text-text-body hover:bg-muted-surface {{ request('status') === 'unsubscribed' ? 'bg-green-50 text-green-600 font-semibold' : '' }}">Unsubscribed</a>
+              <a href="{{ route('audience.subscribers', array_merge(request()->query(), ['status' => 'blacklisted'])) }}" class="block px-4 py-2 text-sm text-text-body hover:bg-muted-surface {{ request('status') === 'blacklisted' ? 'bg-green-50 text-green-600 font-semibold' : '' }}">Blacklisted</a>
+            </div>
+          </div>
+          <button type="button" data-open-modal="new-subscriber" class="fd-btn inline-flex items-center justify-center rounded bg-green-500 px-4 py-3 text-sm font-semibold text-primary-2 transition-colors hover:opacity-90">
+            <img src="{{ asset('images/icons/sidebar/dbfd6f4cd73e6e1ecbcca79a8be160d3f18f5172.svg') }}" alt="" class="size-5" width="20" height="20">
+            Add New Subscribers
+          </button>
+          <button type="button" data-open-modal="import-subscribers" @if($mailListId) data-mail-list-id="{{ $mailListId }}" @endif class="fd-btn inline-flex items-center justify-center rounded-lg border border-green-500 bg-green-100 px-4 py-3 text-sm font-semibold text-green-500 transition-colors hover:bg-green-50/80">
+            <img src="{{ asset('images/automation/refresh.svg') }}" alt="" class="size-4" width="16" height="16">
+            Import
+          </button>
+          <form method="POST" action="{{ route('audience.subscribers.export') }}" class="inline">
+            @csrf
+            @if($mailListId)<input type="hidden" name="mail_list_id" value="{{ $mailListId }}">@endif
+            <button type="submit" class="fd-btn inline-flex items-center justify-center rounded-lg border border-green-500 bg-green-100 px-4 py-3 text-sm font-semibold text-green-500 transition-colors hover:bg-green-50/80">
+              <img src="{{ asset('images/automation/refresh.svg') }}" alt="" class="size-4" width="16" height="16">
+              Export
+            </button>
+          </form>
+        </div>
       </div>
 
       <div class="flex flex-wrap items-center gap-3">
@@ -80,7 +97,14 @@
             <td class="fd-table-cell w-[54px] p-2">{{ $contacts->firstItem() + $i }}</td>
             <td class="w-[200px] p-2">
               <div class="flex items-center gap-3">
-                <div class="size-4 shrink-0 border-[1.5px] border-border-light bg-elevated"></div>
+                <input
+                  type="checkbox"
+                  form="bulk-subscribers-form"
+                  name="ids[]"
+                  value="{{ $contact->uuid }}"
+                  class="size-4 shrink-0 rounded border-border-light"
+                  data-bulk-checkbox
+                >
                 <img src="{{ asset('images/audience/avatar-placeholder.svg') }}" alt="" class="size-8 shrink-0 rounded-full" width="32" height="32">
                 <span class="fd-table-name whitespace-nowrap">{{ $contact->phone }}</span>
               </div>
@@ -96,18 +120,30 @@
             <td class="fd-table-cell p-2">{{ $contact->name ?? '-' }}</td>
             <td class="w-[140px] p-2">
               @if($contact->send_opt_in_message === 'yes')
-                @php $deliveryStatus = $contact->opt_in_message_delivery_status; @endphp
-                @if($deliveryStatus === 'delivered')
-                  <span class="inline-flex items-center rounded bg-green-50 px-2 py-1 text-[10px] font-medium text-green-600">Delivered</span>
-                @elseif($deliveryStatus === 'failed')
-                  <span class="inline-flex items-center rounded bg-red-50 px-2 py-1 text-[10px] font-medium text-red-600">Failed</span>
-                @elseif($deliveryStatus === 'pending')
-                  <span class="inline-flex items-center rounded bg-yellow-50 px-2 py-1 text-[10px] font-medium text-yellow-600">Pending</span>
-                @elseif($contact->opt_in_message_sent)
-                  <span class="inline-flex items-center rounded bg-gray-100 px-2 py-1 text-[10px] font-medium text-gray-600">Sent</span>
-                @else
-                  <span class="text-[10px] text-text-body/60">Not sent yet</span>
-                @endif
+                @php
+                  $deliveryStatus = $contact->opt_in_message_delivery_status;
+                  $isNonWa = $contact->tags->contains(fn ($t) => strtolower((string) $t->name) === 'non whatsapp number')
+                    || str_contains((string) ($contact->opt_in_message_delivery_error ?? ''), '131026');
+                @endphp
+                <div class="flex flex-col gap-1">
+                  @if($deliveryStatus === 'delivered')
+                    <span class="inline-flex items-center rounded bg-green-50 px-2 py-1 text-[10px] font-medium text-green-600">Delivered</span>
+                  @elseif($deliveryStatus === 'failed')
+                    <span class="inline-flex items-center rounded bg-red-50 px-2 py-1 text-[10px] font-medium text-red-600">Failed</span>
+                  @elseif($deliveryStatus === 'pending')
+                    <span class="inline-flex items-center rounded bg-yellow-50 px-2 py-1 text-[10px] font-medium text-yellow-600">Pending</span>
+                  @elseif($contact->opt_in_message_sent)
+                    <span class="inline-flex items-center rounded bg-gray-100 px-2 py-1 text-[10px] font-medium text-gray-600">Sent</span>
+                  @else
+                    <span class="text-[10px] text-text-body/60">Not sent yet</span>
+                  @endif
+                  @if($isNonWa)
+                    <span class="inline-flex items-center rounded bg-yellow-50 px-2 py-1 text-[10px] font-medium text-yellow-700">non whatsapp number</span>
+                  @endif
+                  @if($deliveryStatus === 'failed' && filled($contact->opt_in_message_delivery_error))
+                    <span class="text-[10px] leading-snug text-red-500" title="{{ $contact->opt_in_message_delivery_error }}">{{ \Illuminate\Support\Str::limit($contact->opt_in_message_delivery_error, 80) }}</span>
+                  @endif
+                </div>
               @else
                 <span class="text-[10px] text-text-body/40">&mdash;</span>
               @endif
@@ -206,6 +242,12 @@
                 <input id="subscriber_email" name="email" type="email" placeholder="Enter Email" class="w-full rounded-[12px] border border-border bg-elevated px-[14px] py-[14px] text-sm font-medium leading-[1.4] text-text-muted placeholder:text-text-muted focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500">
               </div>
             </div>
+
+            <label class="flex items-center gap-2 text-sm font-medium text-text-body">
+              <input type="hidden" name="send_opt_in_message" value="no">
+              <input type="checkbox" name="send_opt_in_message" value="yes" class="size-4 rounded border-border">
+              Send WhatsApp opt-in message
+            </label>
           </div>
         </div>
 
@@ -217,12 +259,11 @@
     </div>
   </div>
 
-  <x-audience.import-subscribers-modal />
+  <x-audience.import-subscribers-modal :mail-list-id="$mailListId" :mail-lists="$mailLists ?? []" />
   <x-audience.export-subscribers-modal />
 
   <script>
   document.addEventListener('DOMContentLoaded', () => {
-    // Filter dropdown toggle
     const filterToggle = document.querySelector('[data-filter-toggle]');
     const filterMenu = document.querySelector('[data-filter-menu]');
     if (filterToggle && filterMenu) {
@@ -232,7 +273,6 @@
       });
     }
 
-    // Sort dropdown toggle
     const sortToggle = document.querySelector('[data-sort-toggle]');
     const sortMenu = document.querySelector('[data-sort-menu]');
     if (sortToggle && sortMenu) {
@@ -242,10 +282,37 @@
       });
     }
 
-    // Close dropdowns on outside click
     document.addEventListener('click', () => {
       filterMenu?.classList.add('hidden');
       sortMenu?.classList.add('hidden');
+    });
+
+    const bulkForm = document.querySelector('[data-bulk-form]');
+    const bulkSubmit = document.querySelector('[data-bulk-submit]');
+    const bulkAction = document.querySelector('[data-bulk-action]');
+    const syncBulk = () => {
+      const checked = document.querySelectorAll('[data-bulk-checkbox]:checked').length;
+      if (bulkSubmit) bulkSubmit.disabled = checked === 0 || !bulkAction?.value;
+    };
+    document.querySelectorAll('[data-bulk-checkbox]').forEach((el) => el.addEventListener('change', syncBulk));
+    bulkAction?.addEventListener('change', syncBulk);
+
+    bulkForm?.addEventListener('submit', (event) => {
+      const action = bulkAction?.value;
+      const routes = {
+        subscribe: @json(route('audience.subscribers.subscribe')),
+        unsubscribe: @json(route('audience.subscribers.unsubscribe')),
+        delete: @json(route('audience.subscribers.bulk-delete')),
+      };
+      if (!action || !routes[action]) {
+        event.preventDefault();
+        return;
+      }
+      if (action === 'delete' && !confirm('Delete selected subscribers?')) {
+        event.preventDefault();
+        return;
+      }
+      bulkForm.setAttribute('action', routes[action]);
     });
   });
   </script>

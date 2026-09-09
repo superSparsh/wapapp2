@@ -28,6 +28,13 @@ class Blacklist extends TenantModel
      */
     public static function isBlacklisted(?string $phone, ?string $email): bool
     {
+        $phone = filled($phone) ? trim((string) $phone) : null;
+        $email = filled($email) ? trim((string) $email) : null;
+
+        if ($phone === null && $email === null) {
+            return false;
+        }
+
         return static::query()
             ->where(function ($query) use ($phone, $email): void {
                 if ($phone) {

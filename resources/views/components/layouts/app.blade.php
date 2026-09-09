@@ -128,6 +128,10 @@
             if (markBtn) {
               markBtn.disabled = true;
             }
+            const list = document.querySelector('[data-notifications-list]');
+            if (list) {
+              list.innerHTML = '<div class="px-4 py-8 text-center text-sm text-text-muted" data-notifications-empty>No new notifications.</div>';
+            }
           } catch (e) {
             // Ignore mark-read failures; panel still works.
           }

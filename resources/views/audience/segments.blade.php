@@ -64,5 +64,5 @@
     </section>
   </div>
 
-  <x-audience.create-segment-modal />
+  <x-audience.create-segment-modal :mail-list-id="$mailListId" :list-fields="$listFields ?? []" />
 </x-layouts.app>

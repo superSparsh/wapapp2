@@ -133,6 +133,7 @@ return Application::configure(basePath: dirname(__DIR__))
         SyncMetaPricingCommand::class,
         SyncFreeUicQuotaCommand::class,
         VerifyListContactsCommand::class,
+        \App\Domains\Audience\Console\Commands\BackfillNonWhatsAppNumbersCommand::class,
         SubmitPendingTemplates::class,
         SyncTemplateStatuses::class,
         DeleteSoftDeletedTemplates::class,

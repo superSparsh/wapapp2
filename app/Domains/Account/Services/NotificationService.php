@@ -18,10 +18,13 @@ class NotificationService
             ->count();
     }
 
-    /** @return Collection<int, ActivityLog> */
+    /** @return Collection<int, ActivityLog> Unread (new) notifications only — never re-show after mark-as-read. */
     public function recent(int $limit = 8): Collection
     {
+        $readAt = session('notifications.read_at');
+
         return ActivityLog::query()
+            ->when($readAt, fn ($query) => $query->where('created_at', '>', $readAt))
             ->latest('created_at')
             ->limit($limit)
             ->get([

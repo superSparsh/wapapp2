@@ -183,4 +183,21 @@ class CampaignController extends Controller
             ->route('campaigns.index')
             ->with('status', 'Campaign deleted successfully.');
     }
+
+    /**
+     * Create an audience list from delivered campaign recipients.
+     */
+    public function createDeliveredList(Request $request, Campaign $bulkCampaign): RedirectResponse
+    {
+        $validated = $request->validate([
+            'new_list_name' => ['required', 'string', 'max:255'],
+        ]);
+
+        $result = app(\App\Domains\Campaigns\Services\CampaignService::class)
+            ->createDeliveredMailList($bulkCampaign, $validated['new_list_name']);
+
+        return redirect()
+            ->route('audience.subscribers', ['list' => $result['list']->uuid])
+            ->with('status', "List \"{$result['list']->name}\" created with {$result['imported']} delivered contact(s).");
+    }
 }

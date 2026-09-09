@@ -175,7 +175,7 @@ class MailListTest extends TestCase
         $list = MailList::factory()->create();
 
         $this->actingAsTenantUser()
-            ->get(route('audience.overview', ['list' => $list->id]))
+            ->get(route('audience.overview', ['list' => $list->uuid]))
             ->assertOk()
             ->assertViewHas('mailList', function ($mailList) use ($list) {
                 return $mailList->id === $list->id;
@@ -195,7 +195,7 @@ class MailListTest extends TestCase
         ]);
 
         $this->actingAsTenantUser()
-            ->get(route('audience.overview', ['list' => $list->id]))
+            ->get(route('audience.overview', ['list' => $list->uuid]))
             ->assertOk()
             ->assertViewHas('stats', function ($stats) {
                 return $stats['subscriber_count'] === 7
@@ -211,7 +211,7 @@ class MailListTest extends TestCase
         $list = MailList::factory()->create();
 
         $this->actingAsTenantUser()
-            ->get(route('audience.settings', ['list' => $list->id]))
+            ->get(route('audience.settings', ['list' => $list->uuid]))
             ->assertOk()
             ->assertViewIs('audience.settings')
             ->assertViewHas('mailList');
@@ -253,7 +253,7 @@ class MailListTest extends TestCase
         $list = MailList::factory()->create(['name' => 'Leads']);
 
         $this->actingAsTenantUser()
-            ->get(route('audience.forms', ['list' => $list->id]))
+            ->get(route('audience.forms', ['list' => $list->uuid]))
             ->assertOk()
             ->assertViewIs('audience.forms')
             ->assertSee('Embedded form')
@@ -265,8 +265,8 @@ class MailListTest extends TestCase
         $list = MailList::factory()->create(['name' => 'Leads']);
 
         $this->actingAsTenantUser()
-            ->post(route('audience.forms.update', ['list' => $list->id]), [
-                'list' => $list->id,
+            ->post(route('audience.forms.update', ['list' => $list->uuid]), [
+                'list' => $list->uuid,
                 'form_title' => 'Subscribe to our WhatsApp list',
                 'redirect_url' => 'https://example.com/thanks',
                 'custom_css' => '.x { color: red; }',
@@ -275,7 +275,7 @@ class MailListTest extends TestCase
                 'include_css' => '1',
                 'show_invisible_fields' => '1',
             ])
-            ->assertRedirect(route('audience.forms', ['list' => $list->id]));
+            ->assertRedirect(route('audience.forms', ['list' => $list->uuid]));
 
         $list->refresh();
         $options = $list->embedded_form_options;
@@ -300,8 +300,8 @@ class MailListTest extends TestCase
         ]);
 
         $this->actingAsTenantUser()
-            ->postJson(route('audience.forms.update', ['list' => $list->id]), [
-                'list' => $list->id,
+            ->postJson(route('audience.forms.update', ['list' => $list->uuid]), [
+                'list' => $list->uuid,
                 'form_title' => 'Join list',
                 'redirect_url' => '',
                 'custom_css' => '',
@@ -315,8 +315,8 @@ class MailListTest extends TestCase
             ->assertJsonFragment(['status' => 'success']);
 
         $embed = (string) $this->actingAsTenantUser()
-            ->postJson(route('audience.forms.update', ['list' => $list->id]), [
-                'list' => $list->id,
+            ->postJson(route('audience.forms.update', ['list' => $list->uuid]), [
+                'list' => $list->uuid,
                 'form_title' => 'Join list',
                 'include_js' => '1',
                 'include_css' => '1',

@@ -140,6 +140,37 @@ class DashboardTest extends TestCase
             ->assertJson(['success' => true]);
     }
 
+    public function test_bell_notifications_only_include_unread_after_mark_read(): void
+    {
+        \App\Models\ActivityLog::query()->create([
+            'uid' => (string) \Illuminate\Support\Str::uuid(),
+            'scope' => 'tenant',
+            'actor_type' => 'user',
+            'action' => 'campaign.created',
+            'description' => 'Old notification',
+            'created_at' => now()->subMinute(),
+        ]);
+
+        $this->actingAsTenantUser()
+            ->postJson(route('notifications.read'))
+            ->assertOk();
+
+        \App\Models\ActivityLog::query()->create([
+            'uid' => (string) \Illuminate\Support\Str::uuid(),
+            'scope' => 'tenant',
+            'actor_type' => 'user',
+            'action' => 'campaign.created',
+            'description' => 'Brand new notification',
+            'created_at' => now()->addSecond(),
+        ]);
+
+        $service = app(\App\Domains\Account\Services\NotificationService::class);
+
+        $this->assertSame(1, $service->unreadCount());
+        $this->assertCount(1, $service->recent());
+        $this->assertSame('Brand new notification', $service->recent()->first()->description);
+    }
+
     public function test_credits_endpoint_returns_period_payload(): void
     {
         $this->actingAsTenantUser()

@@ -23,7 +23,7 @@ return [
             ['label' => 'Templates', 'route' => 'templates.index', 'matches' => ['templates.preview', 'templates.builder.create', 'templates.builder.body', 'templates.builder.header', 'templates.builder.body-media', 'templates.builder.footer', 'templates.builder.buttons', 'templates.builder.submit']],
         ],
     ],
-    ['label' => 'Audience', 'route' => 'audience.index', 'icon' => 'box', 'matches' => ['audience.overview', 'audience.subscribers', 'audience.subscribers.empty', 'audience.subscribers.detail', 'audience.subscribers.import', 'audience.segments', 'audience.forms', 'audience.list-fields', 'audience.settings']],
+    ['label' => 'Audience', 'route' => 'audience.index', 'icon' => 'box', 'matches' => ['audience.overview', 'audience.subscribers', 'audience.subscribers.empty', 'audience.subscribers.detail', 'audience.subscribers.import', 'audience.segments', 'audience.forms', 'audience.list-fields', 'audience.settings', 'audience.blacklist']],
     ['label' => 'Campaigns', 'route' => 'campaigns.index', 'icon' => 'file-text', 'matches' => ['campaigns.active', 'campaigns.scheduled', 'campaigns.detail', 'campaigns.create.step-1', 'campaigns.create.step-2', 'campaigns.create.step-3', 'campaigns.create.step-4', 'campaigns.create.step-5', 'campaigns.create.step-6']],
     [
         'label' => 'Connected Apps',

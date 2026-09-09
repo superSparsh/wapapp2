@@ -1,3 +1,12 @@
+@props([
+    'mailListId' => null,
+    'mailLists' => null,
+])
+
+@php
+  $lists = $mailLists ?? collect();
+@endphp
+
 <div id="modal-import-subscribers" data-modal="import-subscribers" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60 p-4" role="dialog" aria-modal="true" aria-labelledby="modal-title-import-subscribers">
   <div class="flex max-h-[90vh] w-full max-w-[681px] flex-col gap-4 overflow-y-auto rounded-[20px] bg-elevated p-5 shadow-[0px_4px_6px_rgba(0,0,0,0.1)]">
     <div class="flex items-start justify-end gap-4">
@@ -11,6 +20,30 @@
 
     <form method="POST" action="{{ route('audience.subscribers.import.store') }}" enctype="multipart/form-data" class="space-y-4">
       @csrf
+      @if ($mailListId)
+        <input type="hidden" name="mail_list_id" value="{{ $mailListId }}" data-import-list-input>
+      @elseif ($lists->isNotEmpty())
+        <div>
+          <label for="import_mail_list_id" class="mb-2 block text-sm font-semibold leading-[1.4] text-text-primary">
+            List <span class="text-red-500">*</span>
+          </label>
+          <select
+            id="import_mail_list_id"
+            name="mail_list_id"
+            required
+            data-import-list-input
+            class="w-full appearance-none rounded-[12px] border border-border bg-elevated px-[14px] py-[14px] text-sm font-medium leading-[1.4] text-text-muted focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
+          >
+            <option value="">Select a list</option>
+            @foreach ($lists as $listOption)
+              <option value="{{ $listOption->uuid }}">{{ $listOption->name }}</option>
+            @endforeach
+          </select>
+        </div>
+      @else
+        <input type="hidden" name="mail_list_id" value="" data-import-list-input>
+      @endif
+
       <div class="rounded-[12px] border border-border-light bg-muted-surface p-4">
         <div class="flex flex-col gap-2">
           <label for="subscriber_import_file" class="text-sm font-semibold leading-[1.4] text-text-primary">
@@ -33,10 +66,16 @@
               <p class="text-[10px] text-text-body/60" data-filesize></p>
               <button type="button" class="mt-1 text-[10px] text-red-500 hover:underline" data-dropzone-clear>Remove</button>
             </div>
-            <input id="subscriber_import_file" name="file" type="file" accept=".csv,.txt" class="sr-only" data-dropzone-input>
+            <input id="subscriber_import_file" name="file" type="file" accept=".csv,.txt" class="sr-only" data-dropzone-input required>
           </div>
         </div>
       </div>
+
+      <label class="flex items-center gap-2 text-sm font-medium text-text-body">
+        <input type="hidden" name="send_opt_in_message" value="no">
+        <input type="checkbox" name="send_opt_in_message" value="yes" class="size-4 rounded border-border">
+        Send WhatsApp opt-in message to imported contacts
+      </label>
 
       <div class="flex justify-end">
         <button type="submit" class="fd-btn rounded bg-green-500 px-4 py-3 text-sm font-semibold text-primary-2 transition-colors hover:opacity-90">
@@ -49,64 +88,13 @@
         <div class="min-w-0 flex-1">
           <p class="text-sm font-bold leading-[1.4] text-text-body">File Upload Guidelines</p>
           <ul class="mt-[10px] list-disc space-y-3 pl-5 text-sm font-normal leading-[1.4] text-text-muted">
-            <li>File Size Limit: Please be aware that the maximum file size for uploads to our server is 100 megabytes (100MB). Make sure that your input file does not exceed this size.</li>
-            <li>File Type Requirement: We accept files in CSV (Comma-Separated Values) format only. Your CSV file should include a header row containing the column or field names. For example, your header row might have columns like "Country_Code","WHATSAPP_NUMBER," "FIRST_NAME," "LAST_NAME,".</li>
+            <li>CSV only, max 100MB. Include a header row.</li>
+            <li>Required columns: <code>country_code</code>, <code>whatsapp_number</code> (or <code>phone</code>). Optional: <code>FIRST_NAME</code>, <code>LAST_NAME</code>, <code>email</code>.</li>
             <li>
-              Sample Input File: You can download a sample input file that meets these requirements by clicking on this link:
-              <a href="https://wapdev.tittu.in/files/csv_import_example-new-5.csv" target="_blank" class="underline">Sample.csv</a>.
-              This sample file will help you understand the expected format of the CSV files you can upload to our server.
+              Sample file:
+              <a href="{{ asset('files/csv_import_example.csv') }}" target="_blank" class="underline">Sample.csv</a>
             </li>
           </ul>
-        </div>
-      </div>
-
-      <div class="flex gap-3 rounded-[12px] bg-stat-blue/15 p-[14px]">
-        <x-icons.nav-icon name="info-circle" class="size-6 shrink-0" />
-        <div class="min-w-0 flex-1 text-sm font-normal leading-[1.4] text-text-muted">
-          <p class="text-sm font-bold leading-[1.4] text-text-body">Instructions for Saving Excel as CSV</p>
-          <ul class="mt-[10px] list-disc pl-5">
-            <li>Here are the instructions for saving an Excel file as a CSV for some well-known Operating Systems:</li>
-          </ul>
-
-          <div class="mt-2 space-y-2 pl-5">
-            <p>For Windows:</p>
-            <ul class="list-disc pl-5 space-y-1">
-              <li>If you are using Microsoft Excel 2019, 2016, 2013, or 2010:</li>
-              <li>Click on the "File" menu at the top left.</li>
-              <li>Choose "Save As" from the menu.</li>
-              <li>Select the location on your computer where you want to save the file.</li>
-              <li>In the "Save As" dialog that appears, look for the dropdown menu labeled "Save as type."</li>
-              <li>From the dropdown menu, choose "CSV (Comma delimited) (*.csv)" as the file type.</li>
-            </ul>
-
-            <p>For Mac:</p>
-            <ul class="list-disc pl-5 space-y-1">
-              <li>If you are using Microsoft Excel for Mac:</li>
-              <li>Click on the "File" menu in the upper left corner.</li>
-              <li>Choose "Save As" from the menu.</li>
-              <li>Select the location on your Mac where you want to save the file.</li>
-              <li>In the "Save As" dialog that appears, find the "File Format" dropdown.</li>
-              <li>From the "File Format" dropdown, select "Comma Separated Values (.csv)."</li>
-            </ul>
-
-            <p>For Linux:</p>
-            <ul class="list-disc pl-5 space-y-1">
-              <li>Click on "File" in the menu bar.</li>
-              <li>Select "Save As" or "Export."</li>
-              <li>In the "Save As" dialog, choose a location to save the CSV file.</li>
-              <li>In the "File type" dropdown menu, select "Text CSV (*.csv)."</li>
-              <li>Click the "Save" button.</li>
-              <li>You will be presented with a CSV Export Options dialog. Ensure that the options are configured according to your needs and click "OK."</li>
-            </ul>
-
-            <p>Excel Online (the web version of Microsoft Excel):</p>
-            <ul class="list-disc pl-5 space-y-1">
-              <li>Click "File" in the upper-left corner.</li>
-              <li>Choose "Save As" and then select "Download."</li>
-              <li>From the list of formats, pick "CSV."</li>
-              <li>Confirm your selection, and the Excel file will download as a CSV.</li>
-            </ul>
-          </div>
         </div>
       </div>
     </form>
@@ -116,6 +104,17 @@
 <script>
 document.addEventListener('DOMContentLoaded', () => {
   const zone = document.querySelector('#modal-import-subscribers [data-dropzone]');
+  const listInput = document.querySelector('#modal-import-subscribers [data-import-list-input]');
+
+  document.querySelectorAll('[data-open-modal="import-subscribers"]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const listId = btn.getAttribute('data-mail-list-id');
+      if (listId && listInput) {
+        listInput.value = listId;
+      }
+    });
+  });
+
   if (!zone) return;
   const input = zone.querySelector('[data-dropzone-input]');
   const content = zone.querySelector('[data-dropzone-content]');

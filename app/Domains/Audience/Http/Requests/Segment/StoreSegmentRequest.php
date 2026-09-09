@@ -20,6 +20,7 @@ class StoreSegmentRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:255'],
             'mail_list_id' => PublicId::uuidExistsRules(MailList::class),
+            'match_type' => ['nullable', 'string', 'in:all,any'],
             'conditions' => ['nullable', 'array'],
             'conditions.*.field' => ['required_with:conditions', 'string', 'max:100'],
             'conditions.*.type' => ['required_with:conditions', 'string', 'in:equals,not_equals,contains,starts_with,ends_with,greater_than,less_than,is_empty,is_not_empty'],

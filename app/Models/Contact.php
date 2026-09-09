@@ -28,6 +28,12 @@ class Contact extends TenantModel
         'custom_fields',
         'metadata',
         'status',
+        'send_opt_in_message',
+        'opt_in_message_sent',
+        'opt_in_message_sent_at',
+        'opt_in_message_delivery_status',
+        'opt_in_message_delivery_error',
+        'opt_in_message_delivered_at',
     ];
 
     protected function casts(): array
@@ -39,6 +45,9 @@ class Contact extends TenantModel
             'opted_out_at' => 'datetime',
             'custom_fields' => 'array',
             'metadata' => 'array',
+            'opt_in_message_sent' => 'boolean',
+            'opt_in_message_sent_at' => 'datetime',
+            'opt_in_message_delivered_at' => 'datetime',
         ];
     }
 
@@ -130,5 +139,33 @@ class Contact extends TenantModel
         foreach (array_unique(array_filter($tags)) as $tag) {
             $this->tags()->create(['name' => $tag]);
         }
+    }
+
+    public function subscribe(): void
+    {
+        $this->update([
+            'status' => ContactStatus::Subscribed,
+            'opt_in_status' => ContactOptInStatus::OptedIn,
+            'opted_in_at' => now(),
+            'opted_out_at' => null,
+        ]);
+    }
+
+    public function unsubscribe(): void
+    {
+        $this->update([
+            'status' => ContactStatus::Unsubscribed,
+            'opt_in_status' => ContactOptInStatus::OptedOut,
+            'opted_out_at' => now(),
+        ]);
+    }
+
+    public function markBlacklisted(): void
+    {
+        $this->update([
+            'status' => ContactStatus::Blacklisted,
+            'opt_in_status' => ContactOptInStatus::OptedOut,
+            'opted_out_at' => $this->opted_out_at ?? now(),
+        ]);
     }
 }

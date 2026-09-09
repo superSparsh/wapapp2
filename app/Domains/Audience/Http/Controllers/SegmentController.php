@@ -41,6 +41,9 @@ class SegmentController extends Controller
             'segments' => $segments,
             'mailListId' => $mailList?->uuid,
             'mailList' => $mailList,
+            'listFields' => $mailList
+                ? $mailList->listFields()->orderBy('sort_order')->get(['id', 'label', 'tag', 'type'])
+                : collect(),
             'currentSort' => $request->get('sort', 'created_at'),
             'currentDirection' => $request->get('direction', 'desc'),
         ]);

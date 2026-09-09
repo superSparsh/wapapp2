@@ -10,12 +10,20 @@ use App\Domains\Audience\Services\BlacklistService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
+use Illuminate\View\View;
 
 class BlacklistController extends Controller
 {
     public function __construct(
         private readonly BlacklistService $service,
     ) {}
+
+    public function index(Request $request): View
+    {
+        return view('audience.blacklist', [
+            'entries' => $this->service->index($request->get('search')),
+        ]);
+    }
 
     /**
      * Add to blacklist.
@@ -24,7 +32,7 @@ class BlacklistController extends Controller
     {
         $this->service->store($request->validated());
 
-        return redirect()->back()
+        return redirect()->route('audience.blacklist')
             ->with('status', 'Entry added to blacklist.');
     }
 
@@ -35,7 +43,7 @@ class BlacklistController extends Controller
     {
         $this->service->destroy($blacklist);
 
-        return redirect()->back()
+        return redirect()->route('audience.blacklist')
             ->with('status', 'Entry removed from blacklist.');
     }
 
@@ -50,16 +58,20 @@ class BlacklistController extends Controller
 
         $handle = fopen($request->file('file')->getRealPath(), 'r');
         $headers = fgetcsv($handle);
+        $headers = array_map(fn ($h) => strtolower(trim((string) $h)), $headers ?: []);
         $rows = [];
 
         while (($row = fgetcsv($handle)) !== false) {
-            $rows[] = array_combine($headers, $row);
+            if (count($headers) !== count($row)) {
+                continue;
+            }
+            $rows[] = array_combine($headers, $row) ?: [];
         }
         fclose($handle);
 
         $count = $this->service->importRows($rows);
 
-        return redirect()->back()
+        return redirect()->route('audience.blacklist')
             ->with('status', "{$count} entries imported to blacklist.");
     }
 }

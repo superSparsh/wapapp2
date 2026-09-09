@@ -6,10 +6,14 @@ namespace App\Domains\Campaigns\Services;
 
 use App\Domains\Campaigns\Services\CampaignSendService;
 use App\Domains\Audience\Enums\ContactStatus;
+use App\Enums\CampaignRecipientStatus;
 use App\Enums\CampaignStatus;
+use App\Enums\ContactOptInStatus;
+use App\Enums\RecordStatus;
 use App\Models\Campaign;
 use App\Models\CampaignRecipient;
 use App\Models\Contact;
+use App\Models\MailList;
 use Illuminate\Support\Facades\DB;
 
 class CampaignService
@@ -215,5 +219,68 @@ class CampaignService
         $campaign->update(['total_recipients' => $count]);
 
         return $count;
+    }
+
+    /**
+     * Create a new mail list from successfully delivered campaign recipients (legacy parity).
+     *
+     * @return array{list: MailList, imported: int}
+     */
+    public function createDeliveredMailList(Campaign $campaign, string $listName): array
+    {
+        $listName = trim($listName);
+        abort_if($listName === '', 422, 'List name is required.');
+
+        return DB::transaction(function () use ($campaign, $listName): array {
+            $list = MailList::query()->create([
+                'name' => $listName,
+                'status' => RecordStatus::Active,
+                'description' => 'Created from delivered recipients of campaign: '.$campaign->name,
+            ]);
+
+            $imported = 0;
+            $seen = [];
+
+            CampaignRecipient::query()
+                ->where('campaign_id', $campaign->id)
+                ->whereIn('status', [
+                    CampaignRecipientStatus::Delivered,
+                    CampaignRecipientStatus::Read,
+                    CampaignRecipientStatus::Response,
+                ])
+                ->orderBy('id')
+                ->chunkById(200, function ($rows) use ($list, &$imported, &$seen): void {
+                    foreach ($rows as $row) {
+                        $phone = trim((string) $row->contact_phone);
+                        if ($phone === '' || isset($seen[$phone])) {
+                            continue;
+                        }
+                        $seen[$phone] = true;
+
+                        $source = $row->contact_id
+                            ? Contact::query()->find($row->contact_id)
+                            : null;
+
+                        Contact::query()->firstOrCreate(
+                            [
+                                'mail_list_id' => $list->id,
+                                'phone' => $phone,
+                            ],
+                            [
+                                'name' => $source?->name,
+                                'email' => $source?->email,
+                                'country_code' => $source?->country_code,
+                                'status' => ContactStatus::Subscribed,
+                                'opt_in_status' => ContactOptInStatus::OptedIn,
+                                'opted_in_at' => now(),
+                                'source' => 'campaign_delivered',
+                            ]
+                        );
+                        $imported++;
+                    }
+                });
+
+            return ['list' => $list, 'imported' => $imported];
+        });
     }
 }

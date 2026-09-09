@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace App\Domains\Webhooks\Handlers;
 
+use App\Domains\Audience\Services\NonWhatsAppNumberService;
+use App\Domains\Audience\Services\OptInMessageService;
 use App\Domains\Webhooks\Parsers\AlibabaWebhookParser;
 use App\Domains\Webhooks\Services\WhatsappLineRegistryService;
 use App\Enums\CampaignRecipientStatus;
 use App\Enums\MessageStatus;
 use App\Models\CampaignRecipient;
+use App\Models\Contact;
 use App\Models\InboundWebhookEvent;
 use App\Models\Message;
 use App\Support\PhoneNormalizer;
@@ -67,6 +70,8 @@ class DeliveryStatusHandler
                 if ($updates !== []) {
                     $message->forceFill($updates)->save();
                 }
+
+                $this->syncOptInContactDelivery($message, $status, $item, $now);
             }
 
             $this->syncCampaignRecipient($item, $messageId, $status, $now);
@@ -124,6 +129,59 @@ class DeliveryStatusHandler
     /**
      * @param  array<string, mixed>  $item
      */
+    private function syncOptInContactDelivery(Message $message, string $status, array $item, \Illuminate\Support\Carbon $now): void
+    {
+        $meta = is_array($message->metadata) ? $message->metadata : [];
+        $contactId = (int) ($meta['opt_in_contact_id'] ?? 0);
+        $contact = $contactId > 0
+            ? Contact::query()->find($contactId)
+            : null;
+
+        if ($contact === null) {
+            $message->loadMissing('conversation');
+            $phone = PhoneNormalizer::normalize((string) ($item['To'] ?? $item['to'] ?? $message->conversation?->contact_phone ?? ''));
+            if ($phone) {
+                $contact = Contact::query()
+                    ->where('phone', $phone)
+                    ->where('send_opt_in_message', 'yes')
+                    ->orderByDesc('id')
+                    ->first();
+            }
+        }
+
+        if ($contact === null || ($contact->send_opt_in_message ?? 'no') !== 'yes') {
+            return;
+        }
+
+        $error = (string) ($item['ErrorDescription'] ?? $item['ErrorCode'] ?? '');
+        $errorCode = (string) ($item['ErrorCode'] ?? '');
+
+        if ($status === 'Delivered' || $status === 'Read') {
+            $contact->forceFill([
+                'opt_in_message_delivery_status' => OptInMessageService::DELIVERY_DELIVERED,
+                'opt_in_message_delivered_at' => $contact->opt_in_message_delivered_at ?? $now,
+                'opt_in_message_delivery_error' => null,
+            ])->save();
+
+            return;
+        }
+
+        if ($status === 'Failed') {
+            $contact->forceFill([
+                'opt_in_message_delivery_status' => OptInMessageService::DELIVERY_FAILED,
+                'opt_in_message_delivery_error' => $error !== '' ? $error : 'Delivery failed',
+            ])->save();
+
+            $nonWa = app(NonWhatsAppNumberService::class);
+            if ($nonWa->isUndeliverableCode($errorCode) || $nonWa->errorLooksLike131026($error)) {
+                $nonWa->markContact($contact);
+            }
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $item
+     */
     private function syncCampaignRecipient(array $item, string $messageId, string $status, \Illuminate\Support\Carbon $now): void
     {
         $recipientStatus = match ($status) {
@@ -175,6 +233,20 @@ class DeliveryStatusHandler
             $updates['failure_reason'] = mb_substr((string) ($item['ErrorDescription'] ?? 'Delivery failed'), 0, 255);
             if ($recipient->status !== CampaignRecipientStatus::Failed) {
                 $recipient->campaign?->increment('total_failed');
+            }
+
+            $error = (string) ($item['ErrorDescription'] ?? $item['ErrorCode'] ?? '');
+            $errorCode = (string) ($item['ErrorCode'] ?? '');
+            $nonWa = app(NonWhatsAppNumberService::class);
+            if ($nonWa->isUndeliverableCode($errorCode) || $nonWa->errorLooksLike131026($error)) {
+                if ($recipient->contact_id) {
+                    $contact = Contact::query()->find($recipient->contact_id);
+                    if ($contact) {
+                        $nonWa->markContact($contact);
+                    }
+                } else {
+                    $nonWa->markByPhone($recipient->contact_phone);
+                }
             }
         }
 

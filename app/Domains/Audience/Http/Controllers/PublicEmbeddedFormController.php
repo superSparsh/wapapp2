@@ -54,6 +54,14 @@ class PublicEmbeddedFormController extends Controller
         $phone = $this->normalizePhone((string) $validated['phone_number']);
         abort_if($phone === '', 422, 'WhatsApp number is required.');
 
+        if (\App\Domains\Audience\Models\Blacklist::isBlacklisted($phone, null)) {
+            return response(
+                '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Blocked</title></head><body style="font-family:system-ui;padding:32px;text-align:center"><h1>Unable to subscribe</h1><p>This number cannot be added to the list.</p></body></html>',
+                403,
+                ['Content-Type' => 'text/html; charset=UTF-8']
+            );
+        }
+
         $firstName = trim((string) ($validated['FIRST_NAME'] ?? ''));
         $lastName = trim((string) ($validated['LAST_NAME'] ?? ''));
         $name = trim($firstName.' '.$lastName);

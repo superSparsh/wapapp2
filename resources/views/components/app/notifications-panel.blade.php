@@ -27,7 +27,7 @@
         <p class="mt-1 text-xs text-text-muted">{{ $notification->created_at?->diffForHumans() }}</p>
       </div>
     @empty
-      <div class="px-4 py-8 text-center text-sm text-text-muted">No notifications yet.</div>
+      <div class="px-4 py-8 text-center text-sm text-text-muted" data-notifications-empty>No new notifications.</div>
     @endforelse
   </div>
 

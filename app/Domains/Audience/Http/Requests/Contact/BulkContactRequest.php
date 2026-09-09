@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Domains\Audience\Http\Requests\Contact;
 
 use App\Models\Contact;
-use App\Support\PublicId;
 use Illuminate\Foundation\Http\FormRequest;
 
 class BulkContactRequest extends FormRequest
@@ -19,7 +18,7 @@ class BulkContactRequest extends FormRequest
     {
         return [
             'ids' => ['required', 'array', 'min:1'],
-            'ids.*' => PublicId::uuidExistsRules(Contact::class, nullable: false),
+            'ids.*' => ['required'],
         ];
     }
 }

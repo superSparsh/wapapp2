@@ -5,15 +5,18 @@ declare(strict_types=1);
 namespace App\Domains\Audience\Services;
 
 use App\Domains\Audience\Enums\ContactStatus;
+use App\Domains\Audience\Models\Blacklist;
 use App\Domains\Drip\Services\DripTriggerDispatcher;
 use App\Enums\ContactOptInStatus;
 use App\Models\Contact;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Validation\ValidationException;
 
 class ContactService
 {
     public function __construct(
         private readonly DripTriggerDispatcher $dripTriggerDispatcher,
+        private readonly OptInMessageService $optInMessageService,
     ) {}
 
     /**
@@ -50,9 +53,16 @@ class ContactService
      */
     public function store(array $data, ?array $tags = null): Contact
     {
+        if (Blacklist::isBlacklisted($data['phone'] ?? null, $data['email'] ?? null)) {
+            throw ValidationException::withMessages([
+                'phone' => 'This phone or email is blacklisted and cannot be added.',
+            ]);
+        }
+
         $data['status'] ??= ContactStatus::Subscribed;
         $data['opt_in_status'] ??= ContactOptInStatus::OptedIn;
         $data['opted_in_at'] ??= now();
+        $data['send_opt_in_message'] = (($data['send_opt_in_message'] ?? 'no') === 'yes') ? 'yes' : 'no';
 
         $contact = Contact::query()->create($data);
 
@@ -62,7 +72,11 @@ class ContactService
 
         $this->dripTriggerDispatcher->dispatchForContact('welcome-new-subscriber', $contact);
 
-        return $contact->load('tags');
+        if ($contact->send_opt_in_message === 'yes') {
+            $this->optInMessageService->sendOptInToContact($contact->fresh());
+        }
+
+        return $contact->fresh()->load('tags');
     }
 
     /**

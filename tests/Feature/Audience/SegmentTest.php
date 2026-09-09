@@ -160,7 +160,7 @@ class SegmentTest extends TestCase
                 'name' => 'New Name',
                 'conditions' => $segment->conditions,
             ])
-            ->assertRedirect(route('audience.segments'))
+            ->assertRedirect(route('audience.segments', array_filter(['list' => $segment->mailList?->uuid ?? optional(App\Models\MailList::find($segment->mail_list_id))->uuid])))
             ->assertSessionHas('status');
 
         $this->assertDatabaseHas('segments', ['id' => $segment->id, 'name' => 'New Name']);
@@ -186,7 +186,7 @@ class SegmentTest extends TestCase
                     ['field' => 'status', 'type' => 'equals', 'value' => 'subscribed'],
                 ],
             ])
-            ->assertRedirect(route('audience.segments'));
+            ->assertRedirect(route('audience.segments', array_filter(['list' => $segment->mailList?->uuid ?? optional(App\Models\MailList::find($segment->mail_list_id))->uuid])));
 
         $segment->refresh();
         $this->assertEquals(3, $segment->contact_count);
@@ -200,7 +200,7 @@ class SegmentTest extends TestCase
 
         $this->actingAsTenantUser()
             ->delete(route('audience.segments.destroy', $segment))
-            ->assertRedirect(route('audience.segments'))
+            ->assertRedirect(route('audience.segments', array_filter(['list' => $segment->mailList?->uuid ?? optional(App\Models\MailList::find($segment->mail_list_id))->uuid])))
             ->assertSessionHas('status');
 
         $this->assertSoftDeleted('segments', ['id' => $segment->id]);

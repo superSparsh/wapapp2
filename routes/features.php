@@ -65,6 +65,7 @@ Route::middleware('team.permission:campaign_read')->prefix('campaigns')->name('c
     Route::get('/{bulkCampaign}', [CampaignController::class, 'show'])->name('show');
     Route::patch('/{bulkCampaign}/toggle', [CampaignController::class, 'toggle'])->middleware('team.permission:campaign_write')->name('toggle');
     Route::post('/{bulkCampaign}/duplicate', [CampaignController::class, 'duplicate'])->middleware('team.permission:campaign_write')->name('duplicate');
+    Route::post('/{bulkCampaign}/create-delivered-list', [CampaignController::class, 'createDeliveredList'])->middleware('team.permission:campaign_write')->name('create-delivered-list');
     Route::delete('/{bulkCampaign}', [CampaignController::class, 'destroy'])->middleware('team.permission:campaign_write')->name('destroy');
 
     Route::post('/{bulkCampaign}/test-message', [CampaignActionsController::class, 'testMessage'])->middleware('team.permission:campaign_write')->name('test-message');
@@ -118,6 +119,7 @@ Route::middleware('team.permission:audience_read')->prefix('audience')->name('au
     Route::put('/list-fields', [ListFieldController::class, 'update'])->middleware('team.permission:audience_write')->name('list-fields.update');
     Route::delete('/list-fields/{field}', [ListFieldController::class, 'destroy'])->middleware('team.permission:audience_write')->name('list-fields.destroy');
 
+    Route::get('/blacklist', [BlacklistController::class, 'index'])->name('blacklist');
     Route::post('/blacklist', [BlacklistController::class, 'store'])->middleware('team.permission:audience_write')->name('blacklist.store');
     Route::delete('/blacklist/{blacklist}', [BlacklistController::class, 'destroy'])->middleware('team.permission:audience_write')->name('blacklist.destroy');
     Route::post('/blacklist/import', [BlacklistController::class, 'import'])->middleware('team.permission:audience_write')->name('blacklist.import');

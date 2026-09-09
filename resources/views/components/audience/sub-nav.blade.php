@@ -9,6 +9,7 @@ $items = [
     ['route' => 'audience.segments', 'label' => 'Segments'],
     ['route' => 'audience.forms', 'label' => 'Forms / pages'],
     ['route' => 'audience.list-fields', 'label' => 'Manage list fields'],
+    ['route' => 'audience.blacklist', 'label' => 'Blacklist'],
 ];
 
 $isActive = function (array $item) use ($active): bool {

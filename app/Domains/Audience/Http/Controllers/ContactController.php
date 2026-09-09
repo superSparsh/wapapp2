@@ -106,6 +106,13 @@ class ContactController extends Controller
         $tags = $data['tags'] ?? null;
         unset($data['tags']);
 
+        if (filled($request->input('tags_raw'))) {
+            $tags = array_values(array_filter(array_map(
+                'trim',
+                preg_split('/[,|]+/', (string) $request->input('tags_raw')) ?: []
+            )));
+        }
+
         if (array_key_exists('mail_list_id', $data)) {
             $mailList = PublicId::find(MailList::class, $data['mail_list_id'] ?? null);
             $data['mail_list_id'] = $mailList?->id;
@@ -113,7 +120,7 @@ class ContactController extends Controller
 
         $this->service->update($contact, $data, $tags);
 
-        return redirect()->route('audience.subscribers')
+        return redirect()->route('audience.subscribers.detail', ['id' => $contact->uuid])
             ->with('status', 'Contact updated successfully.');
     }
 
@@ -122,9 +129,13 @@ class ContactController extends Controller
      */
     public function destroy(Contact $contact): RedirectResponse
     {
+        $listUuid = $contact->mail_list_id
+            ? MailList::query()->whereKey($contact->mail_list_id)->value('uuid')
+            : null;
+
         $this->service->destroy($contact);
 
-        return redirect()->route('audience.subscribers')
+        return redirect()->route('audience.subscribers', array_filter(['list' => $listUuid]))
             ->with('status', 'Contact deleted successfully.');
     }
 
@@ -143,8 +154,10 @@ class ContactController extends Controller
             ]);
         }
 
-        return redirect()->route('audience.subscribers')
-            ->with('status', "{$count} contact(s) subscribed.");
+        return redirect()->route('audience.subscribers', array_filter([
+            'list' => request('list'),
+            'status' => request('status'),
+        ]))->with('status', "{$count} contact(s) subscribed.");
     }
 
     /**
@@ -162,8 +175,10 @@ class ContactController extends Controller
             ]);
         }
 
-        return redirect()->route('audience.subscribers')
-            ->with('status', "{$count} contact(s) unsubscribed.");
+        return redirect()->route('audience.subscribers', array_filter([
+            'list' => request('list'),
+            'status' => request('status'),
+        ]))->with('status', "{$count} contact(s) unsubscribed.");
     }
 
     /**
@@ -181,18 +196,38 @@ class ContactController extends Controller
             ]);
         }
 
-        return redirect()->route('audience.subscribers')
-            ->with('status', "{$count} contact(s) deleted.");
+        return redirect()->route('audience.subscribers', array_filter([
+            'list' => request('list'),
+            'status' => request('status'),
+        ]))->with('status', "{$count} contact(s) deleted.");
     }
 
     /**
-     * @param  list<string>  $uuids
+     * @param  list<int|string>  $values
      * @return list<int>
      */
-    private function resolveContactIds(array $uuids): array
+    private function resolveContactIds(array $values): array
     {
+        $ids = [];
+        $uuids = [];
+
+        foreach ($values as $value) {
+            if (is_numeric($value)) {
+                $ids[] = (int) $value;
+            } else {
+                $uuids[] = (string) $value;
+            }
+        }
+
         return Contact::query()
-            ->whereIn('uuid', $uuids)
+            ->where(function ($query) use ($ids, $uuids): void {
+                if ($ids !== []) {
+                    $query->orWhereIn('id', $ids);
+                }
+                if ($uuids !== []) {
+                    $query->orWhereIn('uuid', $uuids);
+                }
+            })
             ->pluck('id')
             ->map(fn ($id): int => (int) $id)
             ->all();

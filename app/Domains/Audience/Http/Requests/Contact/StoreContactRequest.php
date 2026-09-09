@@ -24,6 +24,7 @@ class StoreContactRequest extends FormRequest
             'country_code' => ['nullable', 'string', 'max:8'],
             'mail_list_id' => PublicId::uuidExistsRules(MailList::class),
             'source' => ['nullable', 'string', 'max:64'],
+            'send_opt_in_message' => ['nullable', 'string', 'in:yes,no'],
             'tags' => ['nullable', 'array'],
             'tags.*' => ['string', 'max:100'],
             'custom_fields' => ['nullable', 'array'],

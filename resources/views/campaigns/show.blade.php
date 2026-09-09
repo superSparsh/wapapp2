@@ -50,10 +50,13 @@
         </div>
       </div>
 
-      <div class="flex gap-3">
+      <div class="flex flex-wrap gap-3">
         <a href="{{ route('campaigns.statistics', $campaign) }}" class="fd-btn flex items-center justify-center gap-2 rounded bg-green-500 px-4 py-3 text-xs font-semibold text-primary-2 transition-opacity hover:opacity-90">
           View Statistics
         </a>
+        <button type="button" data-open-modal="create-delivered-list" class="fd-btn flex items-center justify-center rounded border border-green-500 bg-elevated px-4 py-3 text-xs font-semibold text-green-500 transition-colors hover:bg-surface">
+          Create list from delivered
+        </button>
         @if ($campaign->canBeEdited())
           <a href="{{ route('campaigns.edit', $campaign) }}" class="fd-btn flex items-center justify-center rounded border border-green-500 bg-elevated px-4 py-3 text-xs font-semibold text-green-500 transition-colors hover:bg-surface">
             Edit Campaign
@@ -69,6 +72,28 @@
       </div>
     </div>
   </x-campaigns.campaign-header>
+
+  <div id="modal-create-delivered-list" data-modal="create-delivered-list" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60 p-4">
+    <div class="w-full max-w-md rounded-[20px] bg-elevated p-5 shadow-lg">
+      <div class="mb-4 flex items-start justify-between">
+        <h2 class="text-xl font-bold text-text-primary">Create list from delivered</h2>
+        <button type="button" data-modal-close class="text-text-muted">&times;</button>
+      </div>
+      <form method="POST" action="{{ route('campaigns.create-delivered-list', $campaign) }}" class="space-y-4">
+        @csrf
+        <div>
+          <label class="mb-1 block text-sm font-semibold">New list name</label>
+          <input name="new_list_name" type="text" required value="{{ $campaign->name }} - Delivered" class="w-full rounded-xl border border-border bg-elevated px-3 py-3 text-sm">
+        </div>
+        <p class="text-xs text-text-muted">Contacts with Delivered / Read / Response status will be copied into the new list.</p>
+        <div class="flex justify-end gap-2">
+          <button type="button" data-modal-close class="rounded border border-green-500 px-4 py-2 text-sm font-semibold text-green-500">Cancel</button>
+          <button type="submit" class="rounded bg-green-500 px-4 py-2 text-sm font-semibold text-primary-2">Create list</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   @push('scripts')
   <script src="{{ asset('js/campaigns/campaigns.js') }}" defer></script>
   @endpush

@@ -45,7 +45,8 @@ class ContactImportController extends Controller
     {
         $validated = $request->validate([
             'file' => ['required', 'file', 'mimes:csv,txt', 'max:102400'],
-            'mail_list_id' => PublicId::uuidExistsRules(MailList::class),
+            'mail_list_id' => PublicId::uuidExistsRules(MailList::class, nullable: false),
+            'send_opt_in_message' => ['nullable', 'string', 'in:yes,no'],
         ]);
 
         $mailList = PublicId::find(MailList::class, $validated['mail_list_id'] ?? null);
@@ -53,6 +54,7 @@ class ContactImportController extends Controller
         $result = $this->importService->import(
             $request->file('file'),
             $mailList?->id,
+            ($validated['send_opt_in_message'] ?? 'no') === 'yes',
         );
 
         return redirect()->route('audience.subscribers', array_filter(['list' => $mailList?->uuid]))

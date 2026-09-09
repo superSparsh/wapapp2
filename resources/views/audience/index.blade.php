@@ -50,7 +50,7 @@
                 <a href="{{ route('audience.overview', ['list' => $list->uuid]) }}" class="flex size-5 items-center justify-center" aria-label="Chart">
                   <img src="{{ asset('images/audience/chart.svg') }}" alt="" class="size-5" width="20" height="20">
                 </a>
-                <button type="button" data-open-modal="import-subscribers" class="flex size-5 items-center justify-center" aria-label="Import subscribers">
+                <button type="button" data-open-modal="import-subscribers" data-mail-list-id="{{ $list->uuid }}" class="flex size-5 items-center justify-center" aria-label="Import subscribers">
                   <img src="{{ asset('images/icons/user-add.svg') }}" alt="" class="size-5" width="20" height="20">
                 </button>
                 <a href="{{ route('audience.settings', ['list' => $list->uuid]) }}" class="flex size-5 items-center justify-center" aria-label="Edit">
@@ -70,6 +70,6 @@
     </section>
   </div>
 
-  <x-audience.import-subscribers-modal />
+  <x-audience.import-subscribers-modal :mail-lists="$lists" />
   <x-audience.create-list-modal />
 </x-layouts.app>

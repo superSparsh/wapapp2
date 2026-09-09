@@ -117,7 +117,7 @@ class ContactTest extends TestCase
         $contact = Contact::factory()->create();
 
         $this->actingAsTenantUser()
-            ->get(route('audience.subscribers.detail', ['id' => $contact->id]))
+            ->get(route('audience.subscribers.detail', ['id' => $contact->uuid]))
             ->assertOk()
             ->assertViewIs('audience.subscribers-detail')
             ->assertViewHas('contact', function ($c) use ($contact) {
@@ -132,7 +132,7 @@ class ContactTest extends TestCase
         ContactTag::factory()->count(3)->create(['contact_id' => $contact->id]);
 
         $this->actingAsTenantUser()
-            ->get(route('audience.subscribers.detail', ['id' => $contact->id]))
+            ->get(route('audience.subscribers.detail', ['id' => $contact->uuid]))
             ->assertOk()
             ->assertViewHas('contact', function ($c) {
                 return $c->tags->count() === 3 && $c->mailList !== null;
@@ -206,7 +206,7 @@ class ContactTest extends TestCase
                 'phone' => $contact->phone,
                 'name' => 'New Name',
             ])
-            ->assertRedirect(route('audience.subscribers'))
+            ->assertRedirect(route('audience.subscribers.detail', ['id' => $contact->uuid]))
             ->assertSessionHas('status');
 
         $this->assertDatabaseHas('contacts', ['id' => $contact->id, 'name' => 'New Name']);
@@ -222,7 +222,7 @@ class ContactTest extends TestCase
                 'phone' => $contact->phone,
                 'tags' => ['new-tag-1', 'new-tag-2'],
             ])
-            ->assertRedirect(route('audience.subscribers'));
+            ->assertRedirect(route('audience.subscribers.detail', ['id' => $contact->uuid]));
 
         $contact->refresh();
         $this->assertEquals(2, $contact->tags->count());
@@ -348,14 +348,16 @@ class ContactTest extends TestCase
     public function test_import_accepts_csv_file(): void
     {
         Storage::fake('local');
+        $list = MailList::factory()->create();
         $csvContent = "phone,name,email\n919876543210,Test User,test@example.com\n";
         $file = UploadedFile::fake()->createWithContent('contacts.csv', $csvContent, 'text/csv');
 
         $this->actingAsTenantUser()
             ->post(route('audience.subscribers.import.store'), [
                 'file' => $file,
+                'mail_list_id' => $list->uuid,
             ])
-            ->assertRedirect(route('audience.subscribers'))
+            ->assertRedirect(route('audience.subscribers', ['list' => $list->uuid]))
             ->assertSessionHas('status');
     }
 
