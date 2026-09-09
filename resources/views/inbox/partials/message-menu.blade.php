@@ -2,6 +2,7 @@
   $menuOpen = $menuOpen ?? false;
   $menuItems = [
     ['modal' => 'send-templates', 'label' => 'Send Templates', 'image' => 'send-templates.png', 'requires_window' => false],
+    ['modal' => 'send-whatsapp-flow', 'label' => 'WhatsApp Flow', 'image' => 'ask-questions.png', 'requires_window' => true],
     ['modal' => 'request-payment', 'label' => 'Request Payment', 'image' => 'request-payment.png', 'requires_window' => true],
     ['modal' => 'media', 'label' => 'Media', 'image' => 'media.png', 'requires_window' => true],
     ['modal' => 'location', 'label' => 'Location', 'image' => 'location.png', 'requires_window' => true],

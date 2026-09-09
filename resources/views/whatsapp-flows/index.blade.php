@@ -119,6 +119,13 @@
                         >
                           <img src="{{ asset('images/automation/send-flow.svg') }}" alt="" class="size-5" width="20" height="20">
                         </button>
+                        <form action="{{ $flow['archive_url'] }}" method="POST" class="inline" data-confirm="Deprecate / archive this published flow on WhatsApp?" data-confirm-variant="danger">
+                          @csrf
+                          @method('PATCH')
+                          <button type="submit" class="flex size-5 items-center justify-center" aria-label="Archive" title="Archive / Deprecate">
+                            <img src="{{ asset('images/automation/trash.svg') }}" alt="" class="size-5 opacity-70" width="20" height="20">
+                          </button>
+                        </form>
                       @endif
                       <a href="{{ $flow['edit_url'] }}" class="flex size-5 items-center justify-center" aria-label="Edit" title="Edit Builder">
                         <img src="{{ asset('images/automation/edit.svg') }}" alt="" class="size-5" width="20" height="20">
@@ -129,11 +136,13 @@
                           <img src="{{ asset('images/automation/import-flow.svg') }}" alt="" class="size-5" width="20" height="20">
                         </button>
                       </form>
-                      <x-automation.listing-delete-button
-                        :action="$flow['delete_url']"
-                        confirm="Delete this flow? This action cannot be undone."
-                        title="Delete flow"
-                      />
+                      @unless ($flow['is_active'])
+                        <x-automation.listing-delete-button
+                          :action="$flow['delete_url']"
+                          confirm="Delete this flow? This action cannot be undone."
+                          title="Delete flow"
+                        />
+                      @endunless
                     </div>
                   </td>
                 </tr>
@@ -175,6 +184,24 @@
             placeholder="e.g. Customer Feedback Survey"
             class="w-full rounded-lg border border-divider bg-surface px-4 py-3 text-sm text-text-body focus:border-green-500 focus:outline-none"
           >
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <span class="text-sm font-semibold text-text-body">Categories <span class="text-red-500">*</span></span>
+          <p class="text-xs text-text-muted">Meta requires at least one category.</p>
+          <div class="grid grid-cols-2 gap-2 rounded-lg border border-divider bg-surface p-3">
+            @foreach (config('whatsapp-flows.categories', ['OTHER']) as $category)
+              <label class="flex items-center gap-2 text-xs text-text-body">
+                <input
+                  type="checkbox"
+                  name="categories[]"
+                  value="{{ $category }}"
+                  class="create-flow-category rounded border-divider"
+                  @checked($category === 'OTHER')
+                >
+                {{ str_replace('_', ' ', $category) }}
+              </label>
+            @endforeach
+          </div>
         </div>
         <div class="flex flex-col gap-1.5">
           <label for="create-on-submit-action" class="text-sm font-semibold text-text-body">On Submit Action</label>
@@ -260,8 +287,19 @@
               submitBtn.textContent = 'Creating...';
 
               var csrf = document.querySelector('meta[name="csrf-token"]').content;
+              var categories = Array.from(document.querySelectorAll('.create-flow-category:checked')).map(function (el) {
+                  return el.value;
+              });
+              if (categories.length === 0) {
+                  errorsEl.textContent = 'Select at least one category.';
+                  errorsEl.classList.remove('hidden');
+                  submitBtn.disabled = false;
+                  submitBtn.textContent = 'Create & Open Builder';
+                  return;
+              }
               var payload = {
                   name: nameInput.value.trim(),
+                  categories: categories,
                   on_submit_action: actionSelect ? actionSelect.value : '',
               };
               if (payload.on_submit_action === 'webhook') {

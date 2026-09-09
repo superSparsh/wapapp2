@@ -260,6 +260,36 @@ class InboxServiceAdapter
         return response()->json($this->messagePayload($message), 201);
     }
 
+    public function sendFlow(
+        \App\Domains\Inbox\Http\Requests\SendInboxFlowRequest $request,
+        Conversation $conversation,
+    ): JsonResponse {
+        $this->localInboxService->authorizeConversation($conversation);
+
+        $flow = \App\Models\WhatsappFlow::query()->findOrFail((int) $request->validated('flow_id'));
+
+        if (! $flow->isActive() || blank($flow->meta_flow_id)) {
+            return response()->json([
+                'message' => 'Select a published WhatsApp Flow with a Meta Flow ID.',
+            ], 422);
+        }
+
+        $interactive = app(\App\Domains\WhatsappFlow\Services\WhatsappFlowInteractiveService::class)
+            ->buildFlowInteractiveContent(
+                $flow,
+                (string) $request->validated('body'),
+                (string) $request->validated('flow_cta'),
+            );
+
+        $message = $this->localOutboundService->sendInteractive(
+            $conversation,
+            $interactive,
+            previewBody: (string) $request->validated('body'),
+        );
+
+        return response()->json($this->messagePayload($message), 201);
+    }
+
     public function markRead(Conversation $conversation): JsonResponse
     {
         $this->localInboxService->authorizeConversation($conversation);

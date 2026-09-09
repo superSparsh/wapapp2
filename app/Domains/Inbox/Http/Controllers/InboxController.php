@@ -95,6 +95,14 @@ class InboxController extends Controller
         return $adapter->sendSticker($request, $conversation);
     }
 
+    public function sendFlow(
+        \App\Domains\Inbox\Http\Requests\SendInboxFlowRequest $request,
+        Conversation $conversation,
+        InboxServiceAdapter $adapter,
+    ): JsonResponse {
+        return $adapter->sendFlow($request, $conversation);
+    }
+
     public function requestPayment(
         Request $request,
         Conversation $conversation,

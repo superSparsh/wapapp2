@@ -16,7 +16,20 @@ return [
     'max_screens_per_flow' => 8,
 
     // Maximum fields allowed per screen
-    'max_fields_per_screen' => 50,
+    'max_fields_per_screen' => 8,
+
+    // Meta Flow categories (legacy parity)
+    'categories' => [
+        'SIGN_UP',
+        'SIGN_IN',
+        'APPOINTMENT_BOOKING',
+        'LEAD_GENERATION',
+        'SHOPPING',
+        'CONTACT_US',
+        'CUSTOMER_SUPPORT',
+        'SURVEY',
+        'OTHER',
+    ],
 
     // Submission data retention in days (submissions older than this are purged)
     'submission_retention_days' => (int) env('WHATSAPP_FLOWS_RETENTION_DAYS', 90),

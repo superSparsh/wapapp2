@@ -29,7 +29,7 @@ return [
             'description' => 'Enable carousel template node type',
         ],
         'whatsapp-flow-template' => [
-            'default' => false,
+            'default' => true,
             'description' => 'Enable WhatsApp Flow template node in chatbot builder',
         ],
         'function-call' => [

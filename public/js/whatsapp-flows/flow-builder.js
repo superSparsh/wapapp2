@@ -373,6 +373,13 @@ function addFieldToScreen(type, label) {
     const screen = getScreen(currentScreenId);
     if (!screen) return;
 
+    const maxFields = 8;
+    const nonFooterCount = (screen.fields || []).filter((field) => field.type !== 'footer').length;
+    if (type !== 'footer' && nonFooterCount >= maxFields) {
+        alert('Maximum ' + maxFields + ' components allowed per screen (legacy WhatsApp Flow limit).');
+        return;
+    }
+
     const name = type.replace(/-/g, '_') + '_' + Date.now();
     const field = {
         name,

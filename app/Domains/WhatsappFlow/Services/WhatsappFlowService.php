@@ -7,6 +7,7 @@ namespace App\Domains\WhatsappFlow\Services;
 use App\Domains\WhatsappFlow\Support\WhatsappFlowMetaJsonConverter;
 use App\Enums\WhatsappFlowStatus;
 use App\Models\WhatsappFlow;
+use App\Models\WhatsappLine;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -34,13 +35,22 @@ class WhatsappFlowService
         }
 
         return DB::transaction(function () use ($data): WhatsappFlow {
-            $categories = $data['categories'] ?? ['OTHER'];
+            $categories = array_values(array_filter((array) ($data['categories'] ?? ['OTHER'])));
+            if ($categories === []) {
+                $categories = ['OTHER'];
+            }
+
+            $lineId = $data['whatsapp_line_id'] ?? null;
+            if ($lineId === null) {
+                $lineId = WhatsappLine::query()->where('is_default', true)->value('id')
+                    ?? WhatsappLine::query()->orderBy('id')->value('id');
+            }
 
             $flow = WhatsappFlow::query()->create([
                 'name' => $data['name'],
                 'status' => WhatsappFlowStatus::Draft,
                 'categories' => $categories,
-                'whatsapp_line_id' => $data['whatsapp_line_id'] ?? null,
+                'whatsapp_line_id' => $lineId,
                 'on_submit_action' => $data['on_submit_action'] ?? 'none',
                 'on_submit_webhook_url' => $data['on_submit_webhook_url'] ?? null,
                 'created_by' => auth('team')->id(),
@@ -51,9 +61,21 @@ class WhatsappFlowService
             ]);
             $flow->refresh();
 
-            $metaFlowId = $this->camsService->createRemote($flow, $categories);
+            if ($this->camsService->isConfigured()) {
+                if (blank($flow->cust_space_id)) {
+                    throw ValidationException::withMessages([
+                        'name' => 'Connect a WhatsApp line with Cust Space ID before creating Flows.',
+                    ]);
+                }
 
-            if ($metaFlowId !== null) {
+                $metaFlowId = $this->camsService->createRemote($flow, $categories);
+
+                if ($metaFlowId === null) {
+                    throw ValidationException::withMessages([
+                        'name' => 'Unable to create flow on WhatsApp (CAMS). Check credentials and try again.',
+                    ]);
+                }
+
                 $flow->update(['meta_flow_id' => $metaFlowId]);
             }
 
@@ -139,16 +161,42 @@ class WhatsappFlowService
             ]);
         }
 
-        $token = (string) Str::uuid();
-        $endpoint = url('/v1/flow-exchange/'.$token);
+        if ($this->camsService->isConfigured() && blank($flow->json_asset_path)) {
+            throw ValidationException::withMessages([
+                'flow' => 'Save the flow as draft so the WhatsApp JSON asset is uploaded before publishing.',
+            ]);
+        }
 
-        if ($this->camsService->isConfigured() && filled($flow->meta_flow_id)) {
+        if ($this->camsService->isConfigured()) {
+            if (blank($flow->meta_flow_id)) {
+                $categories = (array) ($flow->categories ?? ['OTHER']);
+                $metaFlowId = $this->camsService->createRemote($flow, $categories);
+
+                if ($metaFlowId === null) {
+                    throw ValidationException::withMessages([
+                        'flow' => 'Unable to register flow on WhatsApp (CAMS) before publish.',
+                    ]);
+                }
+
+                $flow->update(['meta_flow_id' => $metaFlowId]);
+                $flow->refresh();
+            }
+
+            if (! $this->camsService->syncJsonAsset($flow)) {
+                throw ValidationException::withMessages([
+                    'flow' => 'Unable to upload flow JSON to WhatsApp before publish. Save draft again and retry.',
+                ]);
+            }
+
             if (! $this->camsService->publishRemote($flow)) {
                 throw ValidationException::withMessages([
                     'flow' => 'Remote publish failed. Check CAMS configuration and try again.',
                 ]);
             }
         }
+
+        $token = (string) Str::uuid();
+        $endpoint = url('/v1/flow-exchange/'.$token);
 
         $tenant = tenant();
 
@@ -237,8 +285,14 @@ class WhatsappFlowService
 
         $synced = $this->camsService->syncJsonAsset($flow->refresh());
 
+        if ($this->camsService->isConfigured() && ! $synced) {
+            throw ValidationException::withMessages([
+                'flow_json' => 'Draft saved locally but WhatsApp (CAMS) JSON upload failed. Fix CAMS config and save again.',
+            ]);
+        }
+
         $flow->update([
-            'draft_synced_at' => $synced || ! $this->camsService->isConfigured() ? now() : null,
+            'draft_synced_at' => now(),
         ]);
 
         return $flow->refresh();
@@ -272,11 +326,15 @@ class WhatsappFlowService
         }
 
         foreach ($screens as $screen) {
-            $fieldCount = count($screen['fields'] ?? []);
+            $fields = is_array($screen['fields'] ?? null) ? $screen['fields'] : [];
+            $fieldCount = count(array_filter(
+                $fields,
+                static fn ($field): bool => ($field['type'] ?? '') !== 'footer',
+            ));
 
             if ($fieldCount > $maxFields) {
                 throw ValidationException::withMessages([
-                    'flow_json' => "Maximum {$maxFields} fields allowed per screen.",
+                    'flow_json' => "Maximum {$maxFields} components allowed per screen.",
                 ]);
             }
         }

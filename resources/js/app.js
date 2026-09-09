@@ -884,6 +884,8 @@ function initInboxOutboundModals() {
     const csrf = document.querySelector('meta[name="csrf-token"]')?.content;
     const mediaUrl = chat.dataset.mediaUrl;
     const templateUrl = chat.dataset.templateUrl;
+    const flowUrl = chat.dataset.flowUrl;
+    const flowsUrl = chat.dataset.flowsUrl;
     const locationUrl = chat.dataset.locationUrl;
     const stickerUrl = chat.dataset.stickerUrl;
     const sendUrl = chat.dataset.sendUrl;
@@ -948,7 +950,7 @@ function initInboxOutboundModals() {
     };
 
     const showFormError = (form, message) => {
-        const errorEl = form.querySelector('[data-inbox-media-error], [data-inbox-template-error], [data-inbox-location-error], [data-inbox-sticker-error], [data-inbox-payment-error], [data-inbox-reaction-error]');
+        const errorEl = form.querySelector('[data-inbox-media-error], [data-inbox-template-error], [data-inbox-flow-error], [data-inbox-location-error], [data-inbox-sticker-error], [data-inbox-payment-error], [data-inbox-reaction-error]');
         if (!errorEl) return;
 
         errorEl.textContent = message;
@@ -1065,6 +1067,96 @@ function initInboxOutboundModals() {
                 closeModal(templateForm);
             } catch {
                 showFormError(templateForm, 'Unable to send template.');
+            }
+        });
+    }
+
+    const flowForm = document.querySelector('[data-inbox-flow-form]');
+    const flowSelect = document.querySelector('[data-inbox-flow-select]');
+
+    if (flowSelect && flowsUrl) {
+        fetch(flowsUrl, {
+            headers: { Accept: 'application/json' },
+            credentials: 'same-origin',
+        })
+            .then((response) => (response.ok ? response.json() : { flow_data: { data: [] } }))
+            .then((data) => {
+                const items = Array.isArray(data?.flow_data?.data) ? data.flow_data.data : [];
+                flowSelect.innerHTML = '';
+
+                if (items.length === 0) {
+                    const option = document.createElement('option');
+                    option.value = '';
+                    option.textContent = 'No published flows';
+                    flowSelect.appendChild(option);
+
+                    return;
+                }
+
+                const placeholder = document.createElement('option');
+                placeholder.value = '';
+                placeholder.textContent = 'Select a flow';
+                flowSelect.appendChild(placeholder);
+
+                items.forEach((flow) => {
+                    const option = document.createElement('option');
+                    option.value = flow.id;
+                    option.textContent = flow.name || flow.flowName || `Flow #${flow.id}`;
+                    flowSelect.appendChild(option);
+                });
+            })
+            .catch(() => {
+                flowSelect.innerHTML = '<option value="">No published flows</option>';
+            });
+    }
+
+    if (flowForm && flowUrl) {
+        flowForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            showFormError(flowForm, '');
+
+            if (!assertWithinWindow()) {
+                return;
+            }
+
+            const flowId = flowSelect?.value;
+            const body = flowForm.querySelector('[name="body"]')?.value?.trim();
+            const flowCta = flowForm.querySelector('[name="flow_cta"]')?.value?.trim();
+
+            if (!flowId) {
+                showFormError(flowForm, 'Select a published flow.');
+
+                return;
+            }
+
+            try {
+                const response = await fetch(flowUrl, {
+                    method: 'POST',
+                    headers: {
+                        Accept: 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrf,
+                    },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({
+                        flow_id: Number(flowId),
+                        body,
+                        flow_cta: flowCta,
+                    }),
+                });
+
+                if (!response.ok) {
+                    const error = await response.json().catch(() => ({}));
+                    showFormError(flowForm, error.message || 'Unable to send WhatsApp Flow.');
+
+                    return;
+                }
+
+                const data = await response.json();
+                appendMessage(data.message);
+                closeModal(flowForm);
+            } catch {
+                showFormError(flowForm, 'Unable to send WhatsApp Flow.');
             }
         });
     }

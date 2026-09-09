@@ -3,6 +3,7 @@
 return [
     'query_map' => [
         'send-templates' => 'send-templates',
+        'send-whatsapp-flow' => 'send-whatsapp-flow',
         'send-templates-alt' => 'send-templates-menu',
         'media' => 'media',
         'location' => 'location',
@@ -26,6 +27,11 @@ return [
         'title' => 'Send Approved Template Message',
         'subtitle' => 'Send pre-approved template messages.',
         'has_preview' => true,
+    ],
+    'send-whatsapp-flow' => [
+        'title' => 'Send WhatsApp Flow',
+        'subtitle' => 'Send a published interactive Flow form in this chat.',
+        'has_preview' => false,
     ],
     'send-templates-menu' => [
         'title' => 'Buttons & Lists',

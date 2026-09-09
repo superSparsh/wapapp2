@@ -5,6 +5,7 @@
 
 @include('inbox.modals.send-templates-menu', ['open' => $modalOpen('send-templates-menu')])
 @include('inbox.modals.send-templates', ['open' => $modalOpen('send-templates')])
+@include('inbox.modals.send-whatsapp-flow', ['open' => $modalOpen('send-whatsapp-flow')])
 @include('inbox.modals.media', ['open' => $modalOpen('media')])
 @include('inbox.modals.location', ['open' => $modalOpen('location')])
 @include('inbox.modals.sticker', ['open' => $modalOpen('sticker')])

@@ -151,8 +151,8 @@ Route::middleware(['tenancy.session', 'auth:web,team', '2fa', 'verified', 'team.
         Route::post('/inbox/fileuploadinpublic', [ChatbotBuilderSupportController::class, 'publicFileUpload']);
         Route::get('/getCatalogData', [ChatbotBuilderSupportController::class, 'catalogData']);
         Route::get('/getProductData', [ChatbotBuilderSupportController::class, 'productData']);
-        Route::get('/getflowData', [ChatbotBuilderSupportController::class, 'flowData']);
-        Route::get('/getflowJsonCode/{flowIdentifier}', [ChatbotBuilderSupportController::class, 'flowJsonCode']);
+        Route::get('/getflowData', [ChatbotBuilderSupportController::class, 'flowData'])->name('getflowData');
+        Route::get('/getflowJsonCode/{flowIdentifier}', [ChatbotBuilderSupportController::class, 'flowJsonCode'])->name('getflowJsonCode');
         Route::get('/template-cards/{template}', [ChatbotBuilderSupportController::class, 'templateCards']);
         Route::post('/api/test-webhook', [ChatbotBuilderSupportController::class, 'testWebhook']);
 
@@ -368,6 +368,7 @@ Route::middleware(['tenancy.session', 'auth:web,team', '2fa', 'verified', 'team.
             Route::post('/conversations/{conversation}/templates', [InboxController::class, 'sendTemplate'])->name('send-template');
             Route::post('/conversations/{conversation}/location', [InboxController::class, 'sendLocation'])->name('send-location');
             Route::post('/conversations/{conversation}/sticker', [InboxController::class, 'sendSticker'])->name('send-sticker');
+            Route::post('/conversations/{conversation}/flow', [InboxController::class, 'sendFlow'])->name('send-flow');
             Route::post('/conversations/{conversation}/payment', [InboxController::class, 'requestPayment'])->name('request-payment');
             Route::post('/conversations/{conversation}/read', [InboxController::class, 'markRead'])->name('read');
             Route::post('/conversations/{conversation}/assign', [InboxController::class, 'assign'])->name('assign');

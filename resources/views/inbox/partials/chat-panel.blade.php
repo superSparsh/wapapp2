@@ -20,6 +20,8 @@
     data-send-url="{{ route('inbox.api.send', $conversation) }}"
     data-media-url="{{ route('inbox.api.send-media', $conversation) }}"
     data-template-url="{{ route('inbox.api.send-template', $conversation) }}"
+    data-flow-url="{{ route('inbox.api.send-flow', $conversation) }}"
+    data-flows-url="{{ route('getflowData') }}"
     data-location-url="{{ route('inbox.api.send-location', $conversation) }}"
     data-sticker-url="{{ route('inbox.api.send-sticker', $conversation) }}"
     data-payment-url="{{ route('inbox.api.request-payment', $conversation) }}"

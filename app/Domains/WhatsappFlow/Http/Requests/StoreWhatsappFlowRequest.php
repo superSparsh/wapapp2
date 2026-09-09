@@ -16,9 +16,13 @@ class StoreWhatsappFlowRequest extends FormRequest
     /** @return array<string, mixed> */
     public function rules(): array
     {
+        $categories = config('whatsapp-flows.categories', ['OTHER']);
+
         return [
             'name' => ['required', 'string', 'max:191'],
             'whatsapp_line_id' => ['nullable', 'integer', 'exists:whatsapp_lines,id'],
+            'categories' => ['nullable', 'array', 'min:1'],
+            'categories.*' => ['string', 'in:'.implode(',', $categories)],
             'on_submit_action' => ['nullable', 'in:create_lead,update_contact,webhook,none'],
             'on_submit_webhook_url' => ['nullable', 'url', 'max:500'],
         ];

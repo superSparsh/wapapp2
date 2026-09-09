@@ -45,6 +45,7 @@ class FlowDataExchangeService
             $submission = WhatsappFlowSubmission::query()->create([
                 'whatsapp_flow_id' => $flow->id,
                 'contact_phone' => $contactPhone,
+                'conversation_id' => isset($payload['conversation_id']) ? (int) $payload['conversation_id'] : null,
                 'form_data' => is_array($formData) ? $formData : [],
                 'status' => 'received',
             ]);
