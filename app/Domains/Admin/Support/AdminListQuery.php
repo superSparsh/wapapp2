@@ -87,7 +87,7 @@ final class AdminListQuery
         string $dateTo,
         bool $columnIsUnix = false,
     ): void {
-        $tz = ist_timezone();
+        $tz = \ist_timezone();
 
         if ($dateFrom !== '') {
             $from = Carbon::parse($dateFrom, $tz)->startOfDay();

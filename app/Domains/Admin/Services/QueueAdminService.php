@@ -180,8 +180,8 @@ class QueueAdminService
                     'display_name' => $displayName,
                     'module' => $module ?? $this->resolver->fromDisplayName($displayName),
                     'attempts' => $job->attempts,
-                    'available_at' => format_ist($job->available_at),
-                    'created_at' => format_ist($job->created_at),
+                    'available_at' => \format_ist($job->available_at),
+                    'created_at' => \format_ist($job->created_at),
                 ];
             });
     }
@@ -216,7 +216,7 @@ class QueueAdminService
                     'display_name' => $displayName,
                     'module' => $module ?? $this->resolver->fromDisplayName($displayName),
                     'exception' => \Illuminate\Support\Str::limit((string) $job->exception, 280),
-                    'failed_at' => format_ist($job->failed_at),
+                    'failed_at' => \format_ist($job->failed_at),
                 ];
             });
     }
