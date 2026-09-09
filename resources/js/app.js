@@ -16,6 +16,8 @@ import { initCommerceOrderModal } from './commerce.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     initToast();
+    // Confirm must register before the page loader so intercepted submits never flash a loader.
+    initConfirmDialog();
     initPageLoader();
     initThemeToggle();
     initTabToggle();
@@ -44,7 +46,6 @@ document.addEventListener('DOMContentLoaded', () => {
     initTemplateBuilder();
     initTemplatesIndex();
     initFreeTemplateBuilder();
-    initConfirmDialog();
     initListingFilters();
     initChatbotListingToggle();
 

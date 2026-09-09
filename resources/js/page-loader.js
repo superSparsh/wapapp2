@@ -91,7 +91,10 @@ export function initPageLoader() {
         if (!(form instanceof HTMLFormElement)) return;
         if (form.dataset.noLoader !== undefined || form.closest('[data-no-loader]')) return;
 
-        showUnlessCancelled(event, form.dataset.loaderLabel || 'Saving…');
+        // Confirm dialog intercepts the first submit; don't cover the modal with a loader.
+        if (form.dataset.confirm && form.dataset.confirmBypass !== 'true') return;
+
+        showUnlessCancelled(event, form.dataset.loaderLabel || 'Loading…');
     }, true);
 
     window.addEventListener('pageshow', () => hidePageLoader());

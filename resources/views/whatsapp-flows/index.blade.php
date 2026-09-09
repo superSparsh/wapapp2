@@ -105,27 +105,18 @@
                     {{ $flow['published_at'] ?? '—' }}
                   </td>
                   <td class="p-2">
-                    <div class="flex items-center gap-4">
-                      <a href="{{ $flow['show_url'] }}" class="flex size-5 items-center justify-center" aria-label="View" title="View">
-                        <img src="{{ asset('images/automation/eye.svg') }}" alt="" class="size-5" width="20" height="20">
-                      </a>
-                      @if ($flow['is_active'])
+                    <div class="flex items-center gap-0">
+                      {{-- Eye / Meta preview only when published (not draft) --}}
+                      @if ($flow['status'] !== 'draft')
                         <button
                           type="button"
                           class="preview-flow-btn flex size-5 items-center justify-center"
                           data-preview-url="{{ $flow['preview_url'] }}"
                           aria-label="Preview"
-                          title="Preview in WhatsApp"
+                          title="Open Flow Preview"
                         >
-                          <img src="{{ asset('images/automation/send-flow.svg') }}" alt="" class="size-5" width="20" height="20">
+                          <img src="{{ asset('images/automation/eye.svg') }}" alt="" class="size-5" width="20" height="20">
                         </button>
-                        <form action="{{ $flow['archive_url'] }}" method="POST" class="inline" data-confirm="Deprecate / archive this published flow on WhatsApp?" data-confirm-variant="danger">
-                          @csrf
-                          @method('PATCH')
-                          <button type="submit" class="flex size-5 items-center justify-center" aria-label="Archive" title="Archive / Deprecate">
-                            <img src="{{ asset('images/automation/trash.svg') }}" alt="" class="size-5 opacity-70" width="20" height="20">
-                          </button>
-                        </form>
                       @endif
                       <a href="{{ $flow['edit_url'] }}" class="flex size-5 items-center justify-center" aria-label="Edit" title="Edit Builder">
                         <img src="{{ asset('images/automation/edit.svg') }}" alt="" class="size-5" width="20" height="20">
@@ -136,13 +127,21 @@
                           <img src="{{ asset('images/automation/import-flow.svg') }}" alt="" class="size-5" width="20" height="20">
                         </button>
                       </form>
-                      @unless ($flow['is_active'])
+                      @if ($flow['is_active'])
+                        <form action="{{ $flow['archive_url'] }}" method="POST" class="inline" data-confirm="Deprecate / archive this published flow on WhatsApp?" data-confirm-title="Archive flow" data-confirm-label="Archive" data-confirm-variant="danger">
+                          @csrf
+                          @method('PATCH')
+                          <button type="submit" class="flex size-5 items-center justify-center" aria-label="Archive" title="Archive / Deprecate">
+                            <img src="{{ asset('images/automation/trash.svg') }}" alt="" class="size-5" width="20" height="20">
+                          </button>
+                        </form>
+                      @else
                         <x-automation.listing-delete-button
                           :action="$flow['delete_url']"
                           confirm="Delete this flow? This action cannot be undone."
                           title="Delete flow"
                         />
-                      @endunless
+                      @endif
                     </div>
                   </td>
                 </tr>
