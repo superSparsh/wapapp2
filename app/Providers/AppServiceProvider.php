@@ -70,6 +70,8 @@ class AppServiceProvider extends ServiceProvider
             'components.app.user-panel',
             'components.app.header-avatar',
             'components.app.notifications-panel',
+            'components.app.impersonation-banner',
+            'components.app.admin-area-ribbon',
         ], HeaderComposer::class);
 
         View::composer('components.app.sidebar', SidebarComposer::class);

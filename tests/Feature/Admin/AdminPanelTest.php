@@ -159,6 +159,12 @@ class AdminPanelTest extends TestCase
         $this->assertAuthenticatedAs($this->testUser, 'web');
         $this->assertGuest('admin');
 
+        $this->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('Admin Area')
+            ->assertSee('Return to admin')
+            ->assertSee(route('admin.impersonation.stop'), false);
+
         $this->post(route('admin.impersonation.stop'))
             ->assertRedirect(route('admin.dashboard'));
 
@@ -207,6 +213,7 @@ class AdminPanelTest extends TestCase
             ->get(route('dashboard'))
             ->assertOk()
             ->assertSee('Admin View')
+            ->assertSee('Admin Area')
             ->assertSee(route('admin.enter-from-app'), false);
     }
 
