@@ -174,7 +174,11 @@ class WhatsappFlowCamsService
         }
 
         return Arr::get($response->json(), 'Data.PreviewUrl')
-            ?? Arr::get($response->json(), 'data.previewUrl');
+            ?? Arr::get($response->json(), 'Data.previewUrl')
+            ?? Arr::get($response->json(), 'data.PreviewUrl')
+            ?? Arr::get($response->json(), 'data.previewUrl')
+            ?? Arr::get($response->json(), 'body.data.previewUrl')
+            ?? Arr::get($response->json(), 'Body.Data.PreviewUrl');
     }
 
     /**

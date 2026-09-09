@@ -203,29 +203,6 @@
             @endforeach
           </div>
         </div>
-        <div class="flex flex-col gap-1.5">
-          <label for="create-on-submit-action" class="text-sm font-semibold text-text-body">On Submit Action</label>
-          <select
-            id="create-on-submit-action"
-            name="on_submit_action"
-            class="w-full rounded-lg border border-divider bg-surface px-4 py-3 text-sm text-text-body focus:border-green-500 focus:outline-none"
-          >
-            <option value="">None (just collect data)</option>
-            <option value="create_lead">Create / Update Contact</option>
-            <option value="update_contact">Update Existing Contact</option>
-            <option value="webhook">Call Webhook URL</option>
-          </select>
-        </div>
-        <div id="create-webhook-url-field" class="flex flex-col gap-1.5" style="display:none">
-          <label for="create-webhook-url" class="text-sm font-semibold text-text-body">Webhook URL</label>
-          <input
-            type="url"
-            id="create-webhook-url"
-            name="on_submit_webhook_url"
-            placeholder="https://your-server.com/webhook"
-            class="w-full rounded-lg border border-divider bg-surface px-4 py-3 text-sm text-text-body focus:border-green-500 focus:outline-none"
-          >
-        </div>
         <div class="flex justify-end gap-3">
           <button type="button" id="cancel-create-modal" class="rounded-lg border border-divider bg-surface px-4 py-2 text-sm font-semibold text-text-body">Cancel</button>
           <button type="submit" id="create-submit-btn" class="rounded-lg bg-green-500 px-4 py-2 text-sm font-semibold text-white">Create &amp; Open Builder</button>
@@ -234,10 +211,25 @@
     </div>
   </div>
 
+  {{-- Legacy: Meta/Facebook Flow Preview opens via clickable link (popup blockers block async window.open) --}}
+  <div id="modal-flow-preview" class="fixed inset-0 z-50 hidden items-center justify-center bg-overlay">
+    <div class="w-full max-w-md rounded-xl bg-elevated p-6 shadow-xl">
+      <div class="flex items-center justify-between">
+        <h3 class="text-lg font-semibold text-text-primary">Flow Preview</h3>
+        <button type="button" id="close-flow-preview-modal" class="text-xl text-text-muted hover:text-text-body">&times;</button>
+      </div>
+      <div id="flow-preview-content" class="mt-4 text-sm text-text-body">
+        <p class="text-text-muted">Loading preview…</p>
+      </div>
+      <div class="mt-6 flex justify-end">
+        <button type="button" id="dismiss-flow-preview-modal" class="rounded-lg border border-divider bg-surface px-4 py-2 text-sm font-semibold text-text-body">Close</button>
+      </div>
+    </div>
+  </div>
+
   @push('scripts')
   <script>
   document.addEventListener('DOMContentLoaded', function () {
-      // ── Create Modal ──
       var modal = document.getElementById('modal-create-flow');
       var openBtn = document.getElementById('open-create-modal-btn');
       var closeBtn = document.getElementById('close-create-modal');
@@ -246,8 +238,8 @@
       var nameInput = document.getElementById('create-flow-name');
       var errorsEl = document.getElementById('create-form-errors');
       var submitBtn = document.getElementById('create-submit-btn');
-      var actionSelect = document.getElementById('create-on-submit-action');
-      var webhookField = document.getElementById('create-webhook-url-field');
+      var previewModal = document.getElementById('modal-flow-preview');
+      var previewContent = document.getElementById('flow-preview-content');
 
       function openModal() {
           modal.classList.remove('hidden');
@@ -262,20 +254,30 @@
           modal.classList.remove('flex');
       }
 
+      function openPreviewModal() {
+          previewModal.classList.remove('hidden');
+          previewModal.classList.add('flex');
+      }
+
+      function closePreviewModal() {
+          previewModal.classList.add('hidden');
+          previewModal.classList.remove('flex');
+      }
+
       if (openBtn) openBtn.addEventListener('click', openModal);
       if (closeBtn) closeBtn.addEventListener('click', closeModal);
       if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
+      document.getElementById('close-flow-preview-modal')?.addEventListener('click', closePreviewModal);
+      document.getElementById('dismiss-flow-preview-modal')?.addEventListener('click', closePreviewModal);
 
       if (modal) {
           modal.addEventListener('click', function (e) {
               if (e.target === modal) closeModal();
           });
       }
-
-      // Conditional webhook URL field
-      if (actionSelect && webhookField) {
-          actionSelect.addEventListener('change', function () {
-              webhookField.style.display = this.value === 'webhook' ? '' : 'none';
+      if (previewModal) {
+          previewModal.addEventListener('click', function (e) {
+              if (e.target === previewModal) closePreviewModal();
           });
       }
 
@@ -297,14 +299,6 @@
                   submitBtn.textContent = 'Create & Open Builder';
                   return;
               }
-              var payload = {
-                  name: nameInput.value.trim(),
-                  categories: categories,
-                  on_submit_action: actionSelect ? actionSelect.value : '',
-              };
-              if (payload.on_submit_action === 'webhook') {
-                  payload.on_submit_webhook_url = document.getElementById('create-webhook-url').value;
-              }
 
               fetch("{{ route('whatsapp-flows.store') }}", {
                   method: 'POST',
@@ -313,7 +307,10 @@
                       'X-CSRF-TOKEN': csrf,
                       'Accept': 'application/json',
                   },
-                  body: JSON.stringify(payload),
+                  body: JSON.stringify({
+                      name: nameInput.value.trim(),
+                      categories: categories,
+                  }),
               }).then(function (resp) {
                   return resp.json().then(function (result) {
                       return { ok: resp.ok, result: result };
@@ -348,22 +345,31 @@
 
       document.querySelectorAll('.preview-flow-btn').forEach(function (btn) {
           btn.addEventListener('click', function () {
-              var previewUrl = btn.dataset.previewUrl;
-              if (!previewUrl) return;
+              var previewEndpoint = btn.dataset.previewUrl;
+              if (!previewEndpoint || !previewContent) return;
 
-              fetch(previewUrl, {
-                  headers: { 'Accept': 'application/json' },
-              })
-                  .then(function (resp) { return resp.json(); })
-                  .then(function (data) {
-                      if (data.success && data.preview_url) {
-                          window.open(data.preview_url, '_blank');
+              previewContent.innerHTML = '<p class="text-text-muted">Loading preview…</p>';
+              openPreviewModal();
+
+              fetch(previewEndpoint, { headers: { 'Accept': 'application/json' } })
+                  .then(function (resp) {
+                      return resp.json().then(function (data) {
+                          return { ok: resp.ok, data: data };
+                      });
+                  })
+                  .then(function (result) {
+                      if (result.ok && result.data.success && result.data.preview_url) {
+                          var href = result.data.preview_url;
+                          previewContent.innerHTML =
+                              '<p class="mb-4">Click below to open the Meta / Facebook Flow preview:</p>' +
+                              '<a href="' + href + '" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center rounded-lg bg-green-500 px-4 py-2 text-sm font-semibold text-white hover:opacity-90">Open Flow Preview</a>' +
+                              '<p class="mt-3 break-all text-xs text-text-muted">' + href + '</p>';
                       } else {
-                          alert(data.message || 'Preview unavailable');
+                          previewContent.innerHTML = '<p class="text-red-500">' + (result.data.message || 'Failed to load preview.') + '</p>';
                       }
                   })
                   .catch(function () {
-                      alert('Preview request failed');
+                      previewContent.innerHTML = '<p class="text-red-500">An error occurred while fetching the preview.</p>';
                   });
           });
       });

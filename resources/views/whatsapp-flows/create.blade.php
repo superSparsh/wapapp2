@@ -41,29 +41,22 @@
           </div>
 
           <div class="flex flex-col gap-1.5">
-            <label for="on_submit_action" class="text-sm font-semibold text-text-body">On Submit Action</label>
-            <select
-              id="on_submit_action"
-              name="on_submit_action"
-              class="w-full rounded-lg border border-divider bg-surface px-4 py-3 text-sm text-text-body focus:border-green-500 focus:outline-none"
-            >
-              <option value="">None (just collect data)</option>
-              <option value="create_lead" @selected(old('on_submit_action') === 'create_lead')>Create / Update Contact</option>
-              <option value="update_contact" @selected(old('on_submit_action') === 'update_contact')>Update Existing Contact</option>
-              <option value="webhook" @selected(old('on_submit_action') === 'webhook')>Call Webhook URL</option>
-            </select>
-          </div>
-
-          <div id="webhook-url-field" class="flex flex-col gap-1.5" style="{{ old('on_submit_action') === 'webhook' ? '' : 'display:none' }}">
-            <label for="on_submit_webhook_url" class="text-sm font-semibold text-text-body">Webhook URL</label>
-            <input
-              type="url"
-              id="on_submit_webhook_url"
-              name="on_submit_webhook_url"
-              value="{{ old('on_submit_webhook_url') }}"
-              placeholder="https://your-server.com/webhook"
-              class="w-full rounded-lg border border-divider bg-surface px-4 py-3 text-sm text-text-body focus:border-green-500 focus:outline-none"
-            >
+            <span class="text-sm font-semibold text-text-body">Categories <span class="text-red-500">*</span></span>
+            <p class="text-xs text-text-muted">Meta requires at least one category.</p>
+            <div class="grid grid-cols-2 gap-2 rounded-lg border border-divider bg-surface p-3">
+              @foreach (config('whatsapp-flows.categories', ['OTHER']) as $category)
+                <label class="flex items-center gap-2 text-xs text-text-body">
+                  <input
+                    type="checkbox"
+                    name="categories[]"
+                    value="{{ $category }}"
+                    class="rounded border-divider"
+                    @checked(collect(old('categories', ['OTHER']))->contains($category))
+                  >
+                  {{ str_replace('_', ' ', $category) }}
+                </label>
+              @endforeach
+            </div>
           </div>
 
           <div class="flex justify-end gap-3 pt-2">
@@ -74,18 +67,4 @@
       </div>
     </div>
   </div>
-
-  @push('scripts')
-  <script>
-  document.addEventListener('DOMContentLoaded', function () {
-      var actionSelect = document.getElementById('on_submit_action');
-      var webhookField = document.getElementById('webhook-url-field');
-      if (actionSelect && webhookField) {
-          actionSelect.addEventListener('change', function () {
-              webhookField.style.display = this.value === 'webhook' ? '' : 'none';
-          });
-      }
-  });
-  </script>
-  @endpush
 </x-layouts.app>

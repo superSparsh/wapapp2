@@ -21,6 +21,13 @@
                 </button>
               </form>
             @else
+              <button
+                type="button"
+                class="preview-flow-btn fd-btn inline-flex items-center justify-center gap-2 rounded border border-solid border-green-500 bg-green-50 px-4 py-3 text-sm font-semibold leading-[1.5] text-green-500"
+                data-preview-url="{{ route('whatsapp-flows.preview', $flow) }}"
+              >
+                Open Flow Preview
+              </button>
               <form action="{{ route('whatsapp-flows.archive', $flow) }}" method="POST" class="inline">
                 @csrf
                 @method('PATCH')
@@ -120,4 +127,70 @@
       </div>
     </div>
   </div>
+
+  <div id="modal-flow-preview" class="fixed inset-0 z-50 hidden items-center justify-center bg-overlay">
+    <div class="w-full max-w-md rounded-xl bg-elevated p-6 shadow-xl">
+      <div class="flex items-center justify-between">
+        <h3 class="text-lg font-semibold text-text-primary">Flow Preview</h3>
+        <button type="button" id="close-flow-preview-modal" class="text-xl text-text-muted hover:text-text-body">&times;</button>
+      </div>
+      <div id="flow-preview-content" class="mt-4 text-sm text-text-body">
+        <p class="text-text-muted">Loading preview…</p>
+      </div>
+      <div class="mt-6 flex justify-end">
+        <button type="button" id="dismiss-flow-preview-modal" class="rounded-lg border border-divider bg-surface px-4 py-2 text-sm font-semibold text-text-body">Close</button>
+      </div>
+    </div>
+  </div>
+
+  @push('scripts')
+  <script>
+  document.addEventListener('DOMContentLoaded', function () {
+      var previewModal = document.getElementById('modal-flow-preview');
+      var previewContent = document.getElementById('flow-preview-content');
+
+      function openPreviewModal() {
+          previewModal.classList.remove('hidden');
+          previewModal.classList.add('flex');
+      }
+      function closePreviewModal() {
+          previewModal.classList.add('hidden');
+          previewModal.classList.remove('flex');
+      }
+
+      document.getElementById('close-flow-preview-modal')?.addEventListener('click', closePreviewModal);
+      document.getElementById('dismiss-flow-preview-modal')?.addEventListener('click', closePreviewModal);
+      previewModal?.addEventListener('click', function (e) {
+          if (e.target === previewModal) closePreviewModal();
+      });
+
+      document.querySelectorAll('.preview-flow-btn').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+              var previewEndpoint = btn.dataset.previewUrl;
+              if (!previewEndpoint || !previewContent) return;
+              previewContent.innerHTML = '<p class="text-text-muted">Loading preview…</p>';
+              openPreviewModal();
+              fetch(previewEndpoint, { headers: { 'Accept': 'application/json' } })
+                  .then(function (resp) {
+                      return resp.json().then(function (data) { return { ok: resp.ok, data: data }; });
+                  })
+                  .then(function (result) {
+                      if (result.ok && result.data.success && result.data.preview_url) {
+                          var href = result.data.preview_url;
+                          previewContent.innerHTML =
+                              '<p class="mb-4">Click below to open the Meta / Facebook Flow preview:</p>' +
+                              '<a href="' + href + '" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center rounded-lg bg-green-500 px-4 py-2 text-sm font-semibold text-white hover:opacity-90">Open Flow Preview</a>' +
+                              '<p class="mt-3 break-all text-xs text-text-muted">' + href + '</p>';
+                      } else {
+                          previewContent.innerHTML = '<p class="text-red-500">' + (result.data.message || 'Failed to load preview.') + '</p>';
+                      }
+                  })
+                  .catch(function () {
+                      previewContent.innerHTML = '<p class="text-red-500">An error occurred while fetching the preview.</p>';
+                  });
+          });
+      });
+  });
+  </script>
+  @endpush
 </x-layouts.app>
