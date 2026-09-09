@@ -1156,7 +1156,8 @@ body.builder-fullscreen > .flex > div > .min-h-0 > main > .flex > .flex-col:firs
 }
 
 .fd-page-loader {
-    background: transparent;
+    background: color-mix(in srgb, var(--color-overlay) 55%, transparent);
+    backdrop-filter: blur(2px);
 }
 
 html.fd-page-loading,

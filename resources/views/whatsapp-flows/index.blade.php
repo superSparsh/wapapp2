@@ -105,7 +105,7 @@
                     {{ $flow['published_at'] ?? '—' }}
                   </td>
                   <td class="p-2">
-                    <div class="flex items-center gap-0">
+                    <div class="flex items-center gap-2">
                       {{-- Eye / Meta preview only when published (not draft) --}}
                       @if ($flow['status'] !== 'draft')
                         <button
