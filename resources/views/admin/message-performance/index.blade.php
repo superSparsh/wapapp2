@@ -18,20 +18,20 @@
   <div class="p-4 pt-0">
     <x-ui.data-table :headers="['Customer', 'Line', 'Sent', 'Delivered', 'Read', 'Failed', 'Delivery %', 'Read %']" :paginator="$items">
       @forelse ($items as $row)
-        <tr>
-          <td class="p-3">
-            <a href="{{ route('admin.customers.show', $row['tenant_id']) }}" class="font-semibold text-green-600 hover:underline">{{ $row['tenant_name'] }}</a>
+        <tr class="bg-elevated">
+          <td class="fd-table-cell p-2 align-middle">
+            <a href="{{ route('admin.customers.show', $row['tenant_id']) }}" class="fd-table-name hover:text-green-500">{{ $row['tenant_name'] }}</a>
           </td>
-          <td class="p-3 text-sm">
+          <td class="fd-table-cell p-2 align-middle text-sm">
             <div>{{ $row['display_name'] ?: '—' }}</div>
             <div class="text-xs text-text-subtle">{{ $row['phone'] }}</div>
           </td>
-          <td class="p-3 text-sm">{{ $row['sent'] }}</td>
-          <td class="p-3 text-sm">{{ $row['delivered'] }}</td>
-          <td class="p-3 text-sm">{{ $row['read'] }}</td>
-          <td class="p-3 text-sm">{{ $row['failed'] }}</td>
-          <td class="p-3 text-sm font-semibold">{{ $row['delivery_rate'] }}%</td>
-          <td class="p-3 text-sm font-semibold">{{ $row['read_rate'] }}%</td>
+          <td class="fd-table-cell p-2 align-middle text-sm">{{ $row['sent'] }}</td>
+          <td class="fd-table-cell p-2 align-middle text-sm">{{ $row['delivered'] }}</td>
+          <td class="fd-table-cell p-2 align-middle text-sm">{{ $row['read'] }}</td>
+          <td class="fd-table-cell p-2 align-middle text-sm">{{ $row['failed'] }}</td>
+          <td class="fd-table-cell p-2 align-middle text-sm font-semibold">{{ $row['delivery_rate'] }}%</td>
+          <td class="fd-table-cell p-2 align-middle text-sm font-semibold">{{ $row['read_rate'] }}%</td>
         </tr>
       @empty
         <tr><td colspan="8" class="p-6 text-center text-sm text-text-subtle">No performance data.</td></tr>

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Admin\Http\Controllers;
 
+use App\Domains\Admin\Support\AdminListQuery;
 use App\Http\Controllers\Controller;
 use App\Models\PageLayout;
 use Illuminate\Http\RedirectResponse;
@@ -13,10 +14,32 @@ use Illuminate\View\View;
 
 class PageLayoutController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
+        $parsed = AdminListQuery::fromRequest(
+            $request,
+            allowedSorts: ['name', 'id'],
+            defaultSort: 'name',
+            defaultDirection: 'asc',
+        );
+
+        $query = PageLayout::query();
+        AdminListQuery::applySearch($query, $parsed['q'], ['name', 'slug']);
+        AdminListQuery::applySort(
+            $query,
+            $parsed['sort'],
+            $parsed['direction'],
+            ['name' => 'name', 'id' => 'id'],
+            'name',
+        );
+
         return view('admin.page-layouts.index', [
-            'rows' => PageLayout::query()->orderBy('name')->paginate(20),
+            'rows' => $query->paginate(20)->withQueryString(),
+            'filters' => $parsed,
+            'sortOptions' => [
+                ['value' => 'name', 'label' => 'Name A–Z', 'direction' => 'asc'],
+                ['value' => 'id', 'label' => 'Newest first', 'direction' => 'desc'],
+            ],
         ]);
     }
 

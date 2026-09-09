@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Admin\Http\Controllers;
 
+use App\Domains\Admin\Support\AdminListQuery;
 use App\Http\Controllers\Controller;
 use App\Models\AdminRole;
 use Illuminate\Http\RedirectResponse;
@@ -14,10 +15,32 @@ use Illuminate\View\View;
 
 class AdminRoleController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
+        $parsed = AdminListQuery::fromRequest(
+            $request,
+            allowedSorts: ['name', 'id'],
+            defaultSort: 'name',
+            defaultDirection: 'asc',
+        );
+
+        $query = AdminRole::query()->withCount('admins');
+        AdminListQuery::applySearch($query, $parsed['q'], ['name', 'slug']);
+        AdminListQuery::applySort(
+            $query,
+            $parsed['sort'],
+            $parsed['direction'],
+            ['name' => 'name', 'id' => 'id'],
+            'name',
+        );
+
         return view('admin.admin-roles.index', [
-            'roles' => AdminRole::query()->withCount('admins')->orderBy('name')->paginate(20),
+            'roles' => $query->paginate(20)->withQueryString(),
+            'filters' => $parsed,
+            'sortOptions' => [
+                ['value' => 'name', 'label' => 'Name A–Z', 'direction' => 'asc'],
+                ['value' => 'id', 'label' => 'Newest first', 'direction' => 'desc'],
+            ],
         ]);
     }
 

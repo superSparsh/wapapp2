@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Admin\Http\Controllers;
 
+use App\Domains\Admin\Support\AdminListQuery;
 use App\Http\Controllers\Controller;
 use App\Models\Admin;
 use App\Models\AdminRole;
@@ -14,10 +15,39 @@ use Illuminate\View\View;
 
 class AdminUserController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
+        $parsed = AdminListQuery::fromRequest(
+            $request,
+            allowedSorts: ['id', 'name', 'email', 'last_login_at'],
+            defaultSort: 'id',
+            defaultDirection: 'desc',
+        );
+
+        $query = Admin::query()->with('adminRole:id,name');
+        AdminListQuery::applySearch($query, $parsed['q'], ['name', 'email']);
+        AdminListQuery::applySort(
+            $query,
+            $parsed['sort'],
+            $parsed['direction'],
+            [
+                'id' => 'id',
+                'name' => 'name',
+                'email' => 'email',
+                'last_login_at' => 'last_login_at',
+            ],
+            'id',
+        );
+
         return view('admin.admins.index', [
-            'admins' => Admin::query()->with('adminRole:id,name')->latest('id')->paginate(20),
+            'admins' => $query->paginate(20)->withQueryString(),
+            'filters' => $parsed,
+            'sortOptions' => [
+                ['value' => 'id', 'label' => 'Newest first', 'direction' => 'desc'],
+                ['value' => 'name', 'label' => 'Name A–Z', 'direction' => 'asc'],
+                ['value' => 'email', 'label' => 'Email A–Z', 'direction' => 'asc'],
+                ['value' => 'last_login_at', 'label' => 'Last login', 'direction' => 'desc'],
+            ],
         ]);
     }
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Admin\Services;
 
+use App\Domains\Admin\Support\AdminListQuery;
 use App\Enums\TenantStatus;
 use App\Models\Plan;
 use App\Models\Tenant;
@@ -15,12 +16,12 @@ use Illuminate\Support\Carbon;
 class CustomerAdminService
 {
     /**
-     * @param  array{q?: string, status?: string}  $filters
+     * @param  array{q?: string, status?: string, sort?: string, direction?: string, date_from?: string, date_to?: string}  $filters
      * @return LengthAwarePaginator<int, Tenant>
      */
     public function paginate(array $filters = [], int $perPage = 20): LengthAwarePaginator
     {
-        $query = Tenant::query()->with('plan:id,name')->latest('created_at');
+        $query = Tenant::query()->with('plan:id,name');
 
         $q = trim((string) ($filters['q'] ?? ''));
         if ($q !== '') {
@@ -37,6 +38,28 @@ class CustomerAdminService
         if ($status !== '' && TenantStatus::tryFrom($status) !== null) {
             $query->where('status', $status);
         }
+
+        AdminListQuery::applyDateRange(
+            $query,
+            'created_at',
+            (string) ($filters['date_from'] ?? ''),
+            (string) ($filters['date_to'] ?? ''),
+        );
+
+        AdminListQuery::applySort(
+            $query,
+            (string) ($filters['sort'] ?? 'created_at'),
+            (string) ($filters['direction'] ?? 'desc'),
+            [
+                'created_at' => 'created_at',
+                'name' => 'name',
+                'company_name' => 'company_name',
+                'email' => 'email',
+                'status' => 'status',
+                'id' => 'id',
+            ],
+            'created_at',
+        );
 
         return $query->paginate($perPage)->withQueryString();
     }

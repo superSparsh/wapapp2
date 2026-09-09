@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Admin\Http\Controllers;
 
+use App\Domains\Admin\Support\AdminListQuery;
 use App\Http\Controllers\Controller;
 use App\Models\CustomerOnboardingSubmission;
 use App\Models\CustomerReadinessSubmission;
@@ -22,32 +23,43 @@ class CustomerSubmissionController extends Controller
             $tab = 'readiness';
         }
 
-        $search = trim((string) $request->query('q', ''));
+        $parsed = AdminListQuery::fromRequest(
+            $request,
+            allowedSorts: ['id', 'created_at', 'status'],
+            defaultSort: 'id',
+            defaultDirection: 'desc',
+        );
 
-        $rows = $tab === 'onboarding'
-            ? CustomerOnboardingSubmission::query()
-                ->when($search !== '', fn ($query) => $query->where(function ($nested) use ($search): void {
-                    $nested->where('company_name', 'like', "%{$search}%")
-                        ->orWhere('email', 'like', "%{$search}%")
-                        ->orWhere('reference', 'like', "%{$search}%");
-                }))
-                ->latest('id')
-                ->paginate(20)
-                ->withQueryString()
-            : CustomerReadinessSubmission::query()
-                ->when($search !== '', fn ($query) => $query->where(function ($nested) use ($search): void {
-                    $nested->where('customer_name', 'like', "%{$search}%")
-                        ->orWhere('customer_email', 'like', "%{$search}%")
-                        ->orWhere('business_name', 'like', "%{$search}%");
-                }))
-                ->latest('id')
-                ->paginate(20)
-                ->withQueryString();
+        if ($tab === 'onboarding') {
+            $query = CustomerOnboardingSubmission::query();
+            AdminListQuery::applySearch($query, $parsed['q'], ['company_name', 'email', 'reference']);
+        } else {
+            $query = CustomerReadinessSubmission::query();
+            AdminListQuery::applySearch($query, $parsed['q'], ['customer_name', 'customer_email', 'business_name']);
+        }
+
+        AdminListQuery::applySort(
+            $query,
+            $parsed['sort'],
+            $parsed['direction'],
+            [
+                'id' => 'id',
+                'created_at' => 'created_at',
+                'status' => 'status',
+            ],
+            'id',
+        );
 
         return view('admin.submissions.index', [
             'tab' => $tab,
-            'rows' => $rows,
-            'search' => $search,
+            'rows' => $query->paginate(20)->withQueryString(),
+            'filters' => $parsed,
+            'sortOptions' => [
+                ['value' => 'id', 'label' => 'Newest first', 'direction' => 'desc'],
+                ['value' => 'id', 'label' => 'Oldest first', 'direction' => 'asc'],
+                ['value' => 'status', 'label' => 'Status', 'direction' => 'asc'],
+                ['value' => 'created_at', 'label' => 'Received', 'direction' => 'desc'],
+            ],
         ]);
     }
 

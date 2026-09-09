@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Admin\Http\Controllers;
 
+use App\Domains\Admin\Support\AdminListQuery;
 use App\Http\Controllers\Controller;
 use App\Models\Language;
 use Illuminate\Http\RedirectResponse;
@@ -12,10 +13,33 @@ use Illuminate\View\View;
 
 class LanguageController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
+        $parsed = AdminListQuery::fromRequest(
+            $request,
+            allowedSorts: ['name', 'code', 'id'],
+            defaultSort: 'name',
+            defaultDirection: 'asc',
+        );
+
+        $query = Language::query();
+        AdminListQuery::applySearch($query, $parsed['q'], ['name', 'code', 'region_code']);
+        AdminListQuery::applySort(
+            $query,
+            $parsed['sort'],
+            $parsed['direction'],
+            ['name' => 'name', 'code' => 'code', 'id' => 'id'],
+            'name',
+        );
+
         return view('admin.languages.index', [
-            'rows' => Language::query()->orderBy('name')->paginate(50),
+            'rows' => $query->paginate(50)->withQueryString(),
+            'filters' => $parsed,
+            'sortOptions' => [
+                ['value' => 'name', 'label' => 'Name A–Z', 'direction' => 'asc'],
+                ['value' => 'code', 'label' => 'Code A–Z', 'direction' => 'asc'],
+                ['value' => 'id', 'label' => 'Newest first', 'direction' => 'desc'],
+            ],
         ]);
     }
 

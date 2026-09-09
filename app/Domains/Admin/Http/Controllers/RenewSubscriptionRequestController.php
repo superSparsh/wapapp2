@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domains\Admin\Http\Controllers;
 
 use App\Domains\Admin\Services\CustomerAdminService;
+use App\Domains\Admin\Support\AdminListQuery;
 use App\Http\Controllers\Controller;
 use App\Models\RenewSubscriptionRequest;
 use Illuminate\Http\RedirectResponse;
@@ -20,15 +21,35 @@ class RenewSubscriptionRequestController extends Controller
     public function index(Request $request): View
     {
         $status = (string) $request->query('status', '');
+        $parsed = AdminListQuery::fromRequest(
+            $request,
+            allowedSorts: ['id', 'status', 'created_at'],
+            defaultSort: 'id',
+            defaultDirection: 'desc',
+        );
+
+        $query = RenewSubscriptionRequest::query()
+            ->with(['tenant:id,name,company_name', 'plan:id,name,currency,price'])
+            ->when($status !== '', fn ($builder) => $builder->where('status', $status));
+
+        AdminListQuery::applySearch($query, $parsed['q'], ['tenant_id', 'notes', 'status']);
+        AdminListQuery::applySort(
+            $query,
+            $parsed['sort'],
+            $parsed['direction'],
+            ['id' => 'id', 'status' => 'status', 'created_at' => 'created_at'],
+            'id',
+        );
 
         return view('admin.renew-requests.index', [
-            'rows' => RenewSubscriptionRequest::query()
-                ->with(['tenant:id,name,company_name', 'plan:id,name,currency,price'])
-                ->when($status !== '', fn ($query) => $query->where('status', $status))
-                ->latest('id')
-                ->paginate(20)
-                ->withQueryString(),
+            'rows' => $query->paginate(20)->withQueryString(),
             'status' => $status,
+            'filters' => $parsed,
+            'sortOptions' => [
+                ['value' => 'id', 'label' => 'Newest first', 'direction' => 'desc'],
+                ['value' => 'status', 'label' => 'Status', 'direction' => 'asc'],
+                ['value' => 'created_at', 'label' => 'Requested', 'direction' => 'desc'],
+            ],
         ]);
     }
 

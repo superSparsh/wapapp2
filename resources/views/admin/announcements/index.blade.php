@@ -11,28 +11,41 @@
     <div class="mx-4 mb-4 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">{{ session('status') }}</div>
   @endif
 
+  <x-admin.filter-bar
+    :action="route('admin.announcements.index')"
+    :search="$filters['q'] ?? ''"
+    search-placeholder="Search title or body…"
+    :show-dates="false"
+    :sort="$filters['sort'] ?? 'id'"
+    :direction="$filters['direction'] ?? 'desc'"
+    :sort-options="$sortOptions"
+  />
+
   <div class="p-4 pt-0">
-    <x-ui.data-table :headers="['Title', 'Active', 'Window', '']" :paginator="$announcements">
+    <x-ui.data-table :headers="['Title', 'Active', 'Window', 'Actions']" :paginator="$announcements">
       @forelse ($announcements as $row)
-        <tr>
-          <td class="p-3">
-            <div class="font-semibold">{{ $row->title }}</div>
+        <tr class="bg-elevated">
+          <td class="fd-table-cell p-2 align-middle">
+            <div class="fd-table-name">{{ $row->title }}</div>
             <div class="line-clamp-1 text-xs text-text-subtle">{{ \Illuminate\Support\Str::limit($row->body, 80) }}</div>
           </td>
-          <td class="p-3 text-sm">{{ $row->is_active ? 'Yes' : 'No' }}</td>
-          <td class="p-3 text-xs text-text-subtle">
-            {{ optional($row->starts_at)?->toDateString() ?: '—' }} → {{ optional($row->ends_at)?->toDateString() ?: '—' }}
+          <td class="fd-table-cell p-2 align-middle text-sm">{{ $row->is_active ? 'Yes' : 'No' }}</td>
+          <td class="fd-table-cell p-2 align-middle text-xs text-text-subtle">
+            {{ format_ist($row->starts_at, 'd M Y') }} → {{ format_ist($row->ends_at, 'd M Y') }}
           </td>
-          <td class="p-3">
-            <div class="flex flex-wrap gap-2">
-              <a href="{{ route('admin.announcements.edit', $row) }}" class="text-xs font-semibold text-green-600 hover:underline">Edit</a>
-              <form method="POST" action="{{ route('admin.announcements.toggle', $row) }}">@csrf
-                <button class="text-xs font-semibold text-text-subtle hover:underline">{{ $row->is_active ? 'Disable' : 'Enable' }}</button>
-              </form>
-              <form method="POST" action="{{ route('admin.announcements.destroy', $row) }}">@csrf @method('DELETE')
-                <button class="text-xs font-semibold text-red-600 hover:underline">Delete</button>
-              </form>
-            </div>
+          <td class="w-[160px] p-2 align-middle">
+            <x-ui.table-actions
+              :actions="['edit', 'toggle', 'trash']"
+              :links="[
+                'edit' => route('admin.announcements.edit', $row),
+                'toggle' => route('admin.announcements.toggle', $row),
+                'trash' => route('admin.announcements.destroy', $row),
+              ]"
+              :methods="['toggle' => 'POST', 'trash' => 'DELETE']"
+              confirm="Delete this announcement? This action cannot be undone."
+              confirm-title="Delete announcement"
+              confirm-label="Delete"
+            />
           </td>
         </tr>
       @empty

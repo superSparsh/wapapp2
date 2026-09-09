@@ -29,27 +29,39 @@
     <div class="mx-4 mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">{{ $errors->first() }}</div>
   @endif
 
+  <x-admin.filter-bar
+    :action="route('admin.plugins.index')"
+    :search="$filters['q'] ?? ''"
+    search-placeholder="Search title, key, type…"
+    :show-dates="false"
+    :sort="$filters['sort'] ?? 'title'"
+    :direction="$filters['direction'] ?? 'asc'"
+    :sort-options="$sortOptions"
+  />
+
   <div class="p-4 pt-0">
-    <x-ui.data-table :headers="['Plugin', 'Type', 'Version', 'Enabled', '']" :paginator="$rows">
+    <x-ui.data-table :headers="['Plugin', 'Type', 'Version', 'Enabled', 'Actions']" :paginator="$rows">
       @forelse ($rows as $row)
-        <tr>
-          <td class="p-3">
-            <div class="font-semibold">{{ $row->title }}</div>
+        <tr class="bg-elevated">
+          <td class="fd-table-cell p-2 align-middle">
+            <div class="fd-table-name">{{ $row->title }}</div>
             <div class="text-xs text-text-subtle">{{ $row->name }}</div>
           </td>
-          <td class="p-3 text-sm">{{ $row->type }}</td>
-          <td class="p-3 text-sm">{{ $row->version ?: '—' }}</td>
-          <td class="p-3 text-sm">{{ $row->is_enabled ? 'Yes' : 'No' }}</td>
-          <td class="p-3">
-            <div class="flex gap-2">
-              <form method="POST" action="{{ route('admin.plugins.toggle', $row) }}">@csrf
-                <button class="text-xs font-semibold text-green-600 hover:underline">{{ $row->is_enabled ? 'Disable' : 'Enable' }}</button>
-              </form>
-              <form method="POST" action="{{ route('admin.plugins.destroy', $row) }}" data-confirm="Remove this plugin?" data-confirm-title="Remove plugin" data-confirm-variant="danger">
-                @csrf @method('DELETE')
-                <button class="text-xs font-semibold text-red-600 hover:underline">Remove</button>
-              </form>
-            </div>
+          <td class="fd-table-cell p-2 align-middle text-sm">{{ $row->type }}</td>
+          <td class="fd-table-cell p-2 align-middle text-sm">{{ $row->version ?: '—' }}</td>
+          <td class="fd-table-cell p-2 align-middle text-sm">{{ $row->is_enabled ? 'Yes' : 'No' }}</td>
+          <td class="w-[120px] p-2 align-middle">
+            <x-ui.table-actions
+              :actions="['toggle', 'trash']"
+              :links="[
+                'toggle' => route('admin.plugins.toggle', $row),
+                'trash' => route('admin.plugins.destroy', $row),
+              ]"
+              :methods="['toggle' => 'POST', 'trash' => 'DELETE']"
+              confirm="Remove this plugin? This action cannot be undone."
+              confirm-title="Remove plugin"
+              confirm-label="Remove"
+            />
           </td>
         </tr>
       @empty

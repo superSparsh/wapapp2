@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Admin\Http\Controllers;
 
+use App\Domains\Admin\Support\AdminListQuery;
 use App\Http\Controllers\Controller;
 use App\Models\Announcement;
 use Illuminate\Http\RedirectResponse;
@@ -12,10 +13,39 @@ use Illuminate\View\View;
 
 class AnnouncementController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
+        $parsed = AdminListQuery::fromRequest(
+            $request,
+            allowedSorts: ['id', 'title', 'starts_at', 'ends_at'],
+            defaultSort: 'id',
+            defaultDirection: 'desc',
+        );
+
+        $query = Announcement::query();
+        AdminListQuery::applySearch($query, $parsed['q'], ['title', 'body']);
+        AdminListQuery::applySort(
+            $query,
+            $parsed['sort'],
+            $parsed['direction'],
+            [
+                'id' => 'id',
+                'title' => 'title',
+                'starts_at' => 'starts_at',
+                'ends_at' => 'ends_at',
+            ],
+            'id',
+        );
+
         return view('admin.announcements.index', [
-            'announcements' => Announcement::query()->latest('id')->paginate(20),
+            'announcements' => $query->paginate(20)->withQueryString(),
+            'filters' => $parsed,
+            'sortOptions' => [
+                ['value' => 'id', 'label' => 'Newest first', 'direction' => 'desc'],
+                ['value' => 'title', 'label' => 'Title A–Z', 'direction' => 'asc'],
+                ['value' => 'starts_at', 'label' => 'Starts', 'direction' => 'desc'],
+                ['value' => 'ends_at', 'label' => 'Ends', 'direction' => 'desc'],
+            ],
         ]);
     }
 

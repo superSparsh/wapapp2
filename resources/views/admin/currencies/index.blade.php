@@ -7,21 +7,33 @@
     <a href="{{ route('admin.currencies.create') }}" class="rounded-lg bg-green-500 px-3 py-2 text-xs font-semibold text-white">Add currency</a>
   </div>
 
+  <x-admin.filter-bar
+    :action="route('admin.currencies.index')"
+    :search="$filters['q'] ?? ''"
+    search-placeholder="Search name or code…"
+    :show-dates="false"
+    :sort="$filters['sort'] ?? 'code'"
+    :direction="$filters['direction'] ?? 'asc'"
+    :sort-options="$sortOptions"
+  />
+
   <div class="p-4 pt-0">
-    <x-ui.data-table :headers="['Name', 'Code', 'Format', 'Active', '']" :paginator="$rows">
+    <x-ui.data-table :headers="['Name', 'Code', 'Format', 'Active', 'Actions']" :paginator="$rows">
       @forelse ($rows as $row)
-        <tr>
-          <td class="p-3 font-semibold">{{ $row->name }}</td>
-          <td class="p-3 text-sm">{{ $row->code }}</td>
-          <td class="p-3 text-sm">{{ $row->format }}</td>
-          <td class="p-3 text-sm">{{ $row->is_active ? 'Yes' : 'No' }}</td>
-          <td class="p-3">
-            <div class="flex gap-2">
-              <a href="{{ route('admin.currencies.edit', $row) }}" class="text-xs font-semibold text-green-600 hover:underline">Edit</a>
-              <form method="POST" action="{{ route('admin.currencies.toggle', $row) }}">@csrf
-                <button class="text-xs font-semibold text-text-subtle hover:underline">{{ $row->is_active ? 'Disable' : 'Enable' }}</button>
-              </form>
-            </div>
+        <tr class="bg-elevated">
+          <td class="fd-table-cell p-2 align-middle font-semibold">{{ $row->name }}</td>
+          <td class="fd-table-cell p-2 align-middle text-sm">{{ $row->code }}</td>
+          <td class="fd-table-cell p-2 align-middle text-sm">{{ $row->format }}</td>
+          <td class="fd-table-cell p-2 align-middle text-sm">{{ $row->is_active ? 'Yes' : 'No' }}</td>
+          <td class="w-[120px] p-2 align-middle">
+            <x-ui.table-actions
+              :actions="['edit', 'toggle']"
+              :links="[
+                'edit' => route('admin.currencies.edit', $row),
+                'toggle' => route('admin.currencies.toggle', $row),
+              ]"
+              :methods="['toggle' => 'POST']"
+            />
           </td>
         </tr>
       @empty

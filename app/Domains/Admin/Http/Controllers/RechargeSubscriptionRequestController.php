@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Admin\Http\Controllers;
 
+use App\Domains\Admin\Support\AdminListQuery;
 use App\Domains\Billing\Services\WalletService;
 use App\Http\Controllers\Controller;
 use App\Models\RechargeSubscriptionRequest;
@@ -17,15 +18,41 @@ class RechargeSubscriptionRequestController extends Controller
     public function index(Request $request): View
     {
         $status = (string) $request->query('status', '');
+        $parsed = AdminListQuery::fromRequest(
+            $request,
+            allowedSorts: ['id', 'status', 'amount', 'created_at'],
+            defaultSort: 'id',
+            defaultDirection: 'desc',
+        );
+
+        $query = RechargeSubscriptionRequest::query()
+            ->with('tenant:id,name,company_name')
+            ->when($status !== '', fn ($builder) => $builder->where('status', $status));
+
+        AdminListQuery::applySearch($query, $parsed['q'], ['tenant_id', 'notes', 'status', 'currency']);
+        AdminListQuery::applySort(
+            $query,
+            $parsed['sort'],
+            $parsed['direction'],
+            [
+                'id' => 'id',
+                'status' => 'status',
+                'amount' => 'amount',
+                'created_at' => 'created_at',
+            ],
+            'id',
+        );
 
         return view('admin.recharge-requests.index', [
-            'rows' => RechargeSubscriptionRequest::query()
-                ->with('tenant:id,name,company_name')
-                ->when($status !== '', fn ($query) => $query->where('status', $status))
-                ->latest('id')
-                ->paginate(20)
-                ->withQueryString(),
+            'rows' => $query->paginate(20)->withQueryString(),
             'status' => $status,
+            'filters' => $parsed,
+            'sortOptions' => [
+                ['value' => 'id', 'label' => 'Newest first', 'direction' => 'desc'],
+                ['value' => 'amount', 'label' => 'Amount high–low', 'direction' => 'desc'],
+                ['value' => 'status', 'label' => 'Status', 'direction' => 'asc'],
+                ['value' => 'created_at', 'label' => 'Requested', 'direction' => 'desc'],
+            ],
         ]);
     }
 

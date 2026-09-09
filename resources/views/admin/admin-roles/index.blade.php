@@ -7,25 +7,39 @@
     <a href="{{ route('admin.admin-roles.create') }}" class="rounded-lg bg-green-500 px-3 py-2 text-xs font-semibold text-white">Add role</a>
   </div>
 
+  <x-admin.filter-bar
+    :action="route('admin.admin-roles.index')"
+    :search="$filters['q'] ?? ''"
+    search-placeholder="Search role name…"
+    :show-dates="false"
+    :sort="$filters['sort'] ?? 'name'"
+    :direction="$filters['direction'] ?? 'asc'"
+    :sort-options="$sortOptions"
+  />
+
   <div class="p-4 pt-0">
-    <x-ui.data-table :headers="['Name', 'Permissions', 'Admins', 'Active', '']" :paginator="$roles">
+    <x-ui.data-table :headers="['Name', 'Permissions', 'Admins', 'Active', 'Actions']" :paginator="$roles">
       @forelse ($roles as $role)
-        <tr>
-          <td class="p-3">
-            <div class="font-semibold">{{ $role->name }}</div>
+        <tr class="bg-elevated">
+          <td class="fd-table-cell p-2 align-middle">
+            <div class="fd-table-name">{{ $role->name }}</div>
             <div class="text-xs text-text-subtle">{{ $role->slug }}</div>
           </td>
-          <td class="p-3 text-xs text-text-subtle">{{ implode(', ', $role->permissions ?? []) ?: '—' }}</td>
-          <td class="p-3 text-sm">{{ $role->admins_count }}</td>
-          <td class="p-3 text-sm">{{ $role->is_active ? 'Yes' : 'No' }}</td>
-          <td class="p-3">
-            <div class="flex gap-2">
-              <a href="{{ route('admin.admin-roles.edit', $role) }}" class="text-xs font-semibold text-green-600 hover:underline">Edit</a>
-              <form method="POST" action="{{ route('admin.admin-roles.destroy', $role) }}" data-confirm="Delete this role?" data-confirm-title="Delete role" data-confirm-variant="danger">
-                @csrf @method('DELETE')
-                <button class="text-xs font-semibold text-red-600 hover:underline">Delete</button>
-              </form>
-            </div>
+          <td class="fd-table-cell p-2 align-middle text-xs text-text-subtle">{{ implode(', ', $role->permissions ?? []) ?: '—' }}</td>
+          <td class="fd-table-cell p-2 align-middle text-sm">{{ $role->admins_count }}</td>
+          <td class="fd-table-cell p-2 align-middle text-sm">{{ $role->is_active ? 'Yes' : 'No' }}</td>
+          <td class="w-[120px] p-2 align-middle">
+            <x-ui.table-actions
+              :actions="['edit', 'trash']"
+              :links="[
+                'edit' => route('admin.admin-roles.edit', $role),
+                'trash' => route('admin.admin-roles.destroy', $role),
+              ]"
+              :methods="['trash' => 'DELETE']"
+              confirm="Delete this role? This action cannot be undone."
+              confirm-title="Delete role"
+              confirm-label="Delete"
+            />
           </td>
         </tr>
       @empty

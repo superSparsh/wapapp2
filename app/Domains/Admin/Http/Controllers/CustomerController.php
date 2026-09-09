@@ -6,6 +6,7 @@ namespace App\Domains\Admin\Http\Controllers;
 
 use App\Domains\Admin\Services\AdminImpersonationService;
 use App\Domains\Admin\Services\CustomerAdminService;
+use App\Domains\Admin\Support\AdminListQuery;
 use App\Enums\TenantStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Admin;
@@ -27,15 +28,34 @@ class CustomerController extends Controller
 
     public function index(Request $request): View
     {
+        $parsed = AdminListQuery::fromRequest(
+            $request,
+            allowedSorts: ['created_at', 'name', 'company_name', 'email', 'status', 'id'],
+            defaultSort: 'created_at',
+            defaultDirection: 'desc',
+        );
+
         $filters = [
-            'q' => (string) $request->query('q', ''),
+            'q' => $parsed['q'],
             'status' => (string) $request->query('status', ''),
+            'date_from' => $parsed['date_from'],
+            'date_to' => $parsed['date_to'],
+            'sort' => $parsed['sort'],
+            'direction' => $parsed['direction'],
         ];
 
         return view('admin.customers.index', [
             'customers' => $this->customers->paginate($filters),
             'filters' => $filters,
             'statuses' => TenantStatus::cases(),
+            'sortOptions' => [
+                ['value' => 'created_at', 'label' => 'Newest first', 'direction' => 'desc'],
+                ['value' => 'created_at', 'label' => 'Oldest first', 'direction' => 'asc'],
+                ['value' => 'name', 'label' => 'Name A–Z', 'direction' => 'asc'],
+                ['value' => 'company_name', 'label' => 'Company A–Z', 'direction' => 'asc'],
+                ['value' => 'email', 'label' => 'Email A–Z', 'direction' => 'asc'],
+                ['value' => 'status', 'label' => 'Status', 'direction' => 'asc'],
+            ],
         ]);
     }
 

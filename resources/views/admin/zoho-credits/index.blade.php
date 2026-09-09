@@ -21,19 +21,22 @@
   </form>
 
   <div class="p-4 pt-0">
-    <x-ui.data-table :headers="['Customer', 'Source', 'Amount', 'Status', 'Credited', '']" :paginator="$rows">
+    <x-ui.data-table :headers="['Customer', 'Source', 'Amount', 'Status', 'Credited', 'Actions']" :paginator="$rows">
       @forelse ($rows as $row)
-        <tr>
-          <td class="p-3">
-            <div class="font-semibold">{{ $row->tenant?->company_name ?: ($row->tenant?->name ?: $row->tenant_id) }}</div>
+        <tr class="bg-elevated">
+          <td class="fd-table-cell p-2 align-middle">
+            <div class="fd-table-name">{{ $row->tenant?->company_name ?: ($row->tenant?->name ?: $row->tenant_id) }}</div>
             <div class="text-xs text-text-subtle">{{ $row->invoice_number ?: $row->external_id ?: '—' }}</div>
           </td>
-          <td class="p-3 text-sm">{{ ucfirst($row->source) }}</td>
-          <td class="p-3 text-sm font-semibold">{{ $row->currency }} {{ $row->amount }}</td>
-          <td class="p-3 text-sm">{{ ucfirst($row->status) }}</td>
-          <td class="p-3 text-sm text-text-subtle">{{ optional($row->wallet_credited_at)->toDayDateTimeString() ?: '—' }}</td>
-          <td class="p-3">
-            <a href="{{ route('admin.zoho-credits.show', $row) }}" class="text-xs font-semibold text-green-600 hover:underline">View</a>
+          <td class="fd-table-cell p-2 align-middle text-sm">{{ ucfirst($row->source) }}</td>
+          <td class="fd-table-cell p-2 align-middle text-sm font-semibold">{{ $row->currency }} {{ $row->amount }}</td>
+          <td class="fd-table-cell p-2 align-middle text-sm">{{ ucfirst($row->status) }}</td>
+          <td class="fd-table-cell p-2 align-middle text-sm text-text-subtle">{{ format_ist($row->wallet_credited_at) }}</td>
+          <td class="w-[120px] p-2 align-middle">
+            <x-ui.table-actions
+              :actions="['eye']"
+              :links="['eye' => route('admin.zoho-credits.show', $row)]"
+            />
           </td>
         </tr>
       @empty

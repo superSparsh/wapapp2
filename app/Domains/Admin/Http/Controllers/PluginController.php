@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Admin\Http\Controllers;
 
+use App\Domains\Admin\Support\AdminListQuery;
 use App\Http\Controllers\Controller;
 use App\Models\Plugin;
 use Illuminate\Http\RedirectResponse;
@@ -13,10 +14,39 @@ use Illuminate\View\View;
 
 class PluginController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
+        $parsed = AdminListQuery::fromRequest(
+            $request,
+            allowedSorts: ['title', 'name', 'type', 'id'],
+            defaultSort: 'title',
+            defaultDirection: 'asc',
+        );
+
+        $query = Plugin::query();
+        AdminListQuery::applySearch($query, $parsed['q'], ['title', 'name', 'type']);
+        AdminListQuery::applySort(
+            $query,
+            $parsed['sort'],
+            $parsed['direction'],
+            [
+                'title' => 'title',
+                'name' => 'name',
+                'type' => 'type',
+                'id' => 'id',
+            ],
+            'title',
+        );
+
         return view('admin.plugins.index', [
-            'rows' => Plugin::query()->orderBy('title')->paginate(50),
+            'rows' => $query->paginate(50)->withQueryString(),
+            'filters' => $parsed,
+            'sortOptions' => [
+                ['value' => 'title', 'label' => 'Title A–Z', 'direction' => 'asc'],
+                ['value' => 'name', 'label' => 'Key A–Z', 'direction' => 'asc'],
+                ['value' => 'type', 'label' => 'Type', 'direction' => 'asc'],
+                ['value' => 'id', 'label' => 'Newest first', 'direction' => 'desc'],
+            ],
         ]);
     }
 

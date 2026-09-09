@@ -7,7 +7,12 @@
   <div class="mx-4 mb-4 flex flex-wrap gap-2">
     @foreach (['readiness' => 'Readiness', 'onboarding' => 'Onboarding'] as $key => $label)
       <a
-        href="{{ route('admin.submissions.index', ['tab' => $key]) }}"
+        href="{{ route('admin.submissions.index', array_filter([
+          'tab' => $key,
+          'q' => $filters['q'] ?? null,
+          'sort' => $filters['sort'] ?? null,
+          'direction' => $filters['direction'] ?? null,
+        ])) }}"
         @class([
           'rounded-lg px-3 py-2 text-xs font-semibold',
           'bg-green-500 text-white' => $tab === $key,
@@ -17,27 +22,38 @@
     @endforeach
   </div>
 
-  <form method="GET" class="mx-4 mb-4 flex flex-wrap gap-3 rounded-[20px] border border-border bg-elevated p-4">
-    <input type="hidden" name="tab" value="{{ $tab }}">
-    <input type="search" name="q" value="{{ $search }}" placeholder="Search name / email" class="min-w-[220px] flex-1 rounded-lg border border-border px-3 py-2 text-sm">
-    <button class="rounded-lg bg-green-500 px-4 py-2 text-sm font-semibold text-white">Search</button>
-  </form>
+  <x-admin.filter-bar
+    :action="route('admin.submissions.index')"
+    :search="$filters['q'] ?? ''"
+    search-placeholder="Search name / email"
+    :show-dates="false"
+    :sort="$filters['sort'] ?? 'id'"
+    :direction="$filters['direction'] ?? 'desc'"
+    :sort-options="$sortOptions"
+  >
+    <x-slot:hidden>
+      <input type="hidden" name="tab" value="{{ $tab }}">
+    </x-slot:hidden>
+  </x-admin.filter-bar>
 
   <div class="p-4 pt-0">
     @if ($tab === 'onboarding')
-      <x-ui.data-table :headers="['Company', 'Email', 'Service', 'Status', 'Received', '']" :paginator="$rows">
+      <x-ui.data-table :headers="['Company', 'Email', 'Service', 'Status', 'Received', 'Actions']" :paginator="$rows">
         @forelse ($rows as $row)
-          <tr>
-            <td class="p-3">
-              <div class="font-semibold">{{ $row->company_name ?: '—' }}</div>
+          <tr class="bg-elevated">
+            <td class="fd-table-cell p-2 align-middle">
+              <div class="fd-table-name">{{ $row->company_name ?: '—' }}</div>
               <div class="text-xs text-text-subtle">{{ $row->reference ?: '—' }}</div>
             </td>
-            <td class="p-3 text-sm">{{ $row->email ?: '—' }}</td>
-            <td class="p-3 text-sm">{{ $row->service_label ?: '—' }}</td>
-            <td class="p-3 text-sm">{{ ucfirst($row->status) }}</td>
-            <td class="p-3 text-sm text-text-subtle">{{ optional($row->created_at)->diffForHumans() ?: '—' }}</td>
-            <td class="p-3">
-              <a href="{{ route('admin.submissions.onboarding.show', $row) }}" class="text-xs font-semibold text-green-600 hover:underline">View</a>
+            <td class="fd-table-cell p-2 align-middle text-sm">{{ $row->email ?: '—' }}</td>
+            <td class="fd-table-cell p-2 align-middle text-sm">{{ $row->service_label ?: '—' }}</td>
+            <td class="fd-table-cell p-2 align-middle text-sm">{{ ucfirst($row->status) }}</td>
+            <td class="fd-table-cell p-2 align-middle text-sm text-text-subtle">{{ format_ist($row->created_at) }}</td>
+            <td class="w-[120px] p-2 align-middle">
+              <x-ui.table-actions
+                :actions="['eye']"
+                :links="['eye' => route('admin.submissions.onboarding.show', $row)]"
+              />
             </td>
           </tr>
         @empty
@@ -45,19 +61,22 @@
         @endforelse
       </x-ui.data-table>
     @else
-      <x-ui.data-table :headers="['Customer', 'Business', 'Document', 'Status', 'Received', '']" :paginator="$rows">
+      <x-ui.data-table :headers="['Customer', 'Business', 'Document', 'Status', 'Received', 'Actions']" :paginator="$rows">
         @forelse ($rows as $row)
-          <tr>
-            <td class="p-3">
-              <div class="font-semibold">{{ $row->customer_name ?: '—' }}</div>
+          <tr class="bg-elevated">
+            <td class="fd-table-cell p-2 align-middle">
+              <div class="fd-table-name">{{ $row->customer_name ?: '—' }}</div>
               <div class="text-xs text-text-subtle">{{ $row->customer_email ?: '—' }}</div>
             </td>
-            <td class="p-3 text-sm">{{ $row->business_name ?: '—' }}</td>
-            <td class="p-3 text-sm">{{ $row->doc_type ?: '—' }}</td>
-            <td class="p-3 text-sm">{{ ucfirst($row->status) }}</td>
-            <td class="p-3 text-sm text-text-subtle">{{ optional($row->created_at)->diffForHumans() ?: '—' }}</td>
-            <td class="p-3">
-              <a href="{{ route('admin.submissions.readiness.show', $row) }}" class="text-xs font-semibold text-green-600 hover:underline">View</a>
+            <td class="fd-table-cell p-2 align-middle text-sm">{{ $row->business_name ?: '—' }}</td>
+            <td class="fd-table-cell p-2 align-middle text-sm">{{ $row->doc_type ?: '—' }}</td>
+            <td class="fd-table-cell p-2 align-middle text-sm">{{ ucfirst($row->status) }}</td>
+            <td class="fd-table-cell p-2 align-middle text-sm text-text-subtle">{{ format_ist($row->created_at) }}</td>
+            <td class="w-[120px] p-2 align-middle">
+              <x-ui.table-actions
+                :actions="['eye']"
+                :links="['eye' => route('admin.submissions.readiness.show', $row)]"
+              />
             </td>
           </tr>
         @empty

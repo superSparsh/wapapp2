@@ -7,33 +7,49 @@
     <a href="{{ route('admin.platform-templates.create') }}" class="rounded-lg bg-green-500 px-3 py-2 text-xs font-semibold text-white">Add template</a>
   </div>
 
-  <form method="GET" class="mx-4 mb-4 flex flex-wrap gap-3 rounded-[20px] border border-border bg-elevated p-4">
-    <select name="category" class="rounded-lg border border-border px-3 py-2 text-sm">
-      <option value="">All categories</option>
-      @foreach ($categories as $option)
-        <option value="{{ $option }}" @selected($category === $option)>{{ $option }}</option>
-      @endforeach
-    </select>
-    <button class="rounded-lg bg-green-500 px-4 py-2 text-sm font-semibold text-white">Filter</button>
-  </form>
+  <x-admin.filter-bar
+    :action="route('admin.platform-templates.index')"
+    :search="$filters['q'] ?? ''"
+    search-placeholder="Search name, category, type…"
+    :show-dates="false"
+    :sort="$filters['sort'] ?? 'name'"
+    :direction="$filters['direction'] ?? 'asc'"
+    :sort-options="$sortOptions"
+  >
+    <x-slot:filters>
+      <label class="flex min-w-[160px] flex-col gap-1.5 text-sm">
+        <span class="font-semibold text-text-primary">Category</span>
+        <select name="category" class="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary" data-listing-filter>
+          <option value="">All categories</option>
+          @foreach ($categories as $option)
+            <option value="{{ $option }}" @selected($category === $option)>{{ $option }}</option>
+          @endforeach
+        </select>
+      </label>
+    </x-slot:filters>
+  </x-admin.filter-bar>
 
   <div class="p-4 pt-0">
-    <x-ui.data-table :headers="['Name', 'Category', 'Type', 'Body', 'Active', '']" :paginator="$rows">
+    <x-ui.data-table :headers="['Name', 'Category', 'Type', 'Body', 'Active', 'Actions']" :paginator="$rows">
       @forelse ($rows as $row)
-        <tr>
-          <td class="p-3 font-semibold">{{ $row->name }}</td>
-          <td class="p-3 text-sm">{{ $row->category ?: '—' }}</td>
-          <td class="p-3 text-sm">{{ $row->type }}</td>
-          <td class="p-3 text-xs text-text-subtle">{{ \Illuminate\Support\Str::limit($row->body, 60) ?: '—' }}</td>
-          <td class="p-3 text-sm">{{ $row->is_active ? 'Yes' : 'No' }}</td>
-          <td class="p-3">
-            <div class="flex gap-2">
-              <a href="{{ route('admin.platform-templates.edit', $row) }}" class="text-xs font-semibold text-green-600 hover:underline">Edit</a>
-              <form method="POST" action="{{ route('admin.platform-templates.destroy', $row) }}" data-confirm="Delete this template?" data-confirm-title="Delete template" data-confirm-variant="danger">
-                @csrf @method('DELETE')
-                <button class="text-xs font-semibold text-red-600 hover:underline">Delete</button>
-              </form>
-            </div>
+        <tr class="bg-elevated">
+          <td class="fd-table-cell p-2 align-middle font-semibold fd-table-name">{{ $row->name }}</td>
+          <td class="fd-table-cell p-2 align-middle text-sm">{{ $row->category ?: '—' }}</td>
+          <td class="fd-table-cell p-2 align-middle text-sm">{{ $row->type }}</td>
+          <td class="fd-table-cell p-2 align-middle text-xs text-text-subtle">{{ \Illuminate\Support\Str::limit($row->body, 60) ?: '—' }}</td>
+          <td class="fd-table-cell p-2 align-middle text-sm">{{ $row->is_active ? 'Yes' : 'No' }}</td>
+          <td class="w-[120px] p-2 align-middle">
+            <x-ui.table-actions
+              :actions="['edit', 'trash']"
+              :links="[
+                'edit' => route('admin.platform-templates.edit', $row),
+                'trash' => route('admin.platform-templates.destroy', $row),
+              ]"
+              :methods="['trash' => 'DELETE']"
+              confirm="Delete this template? This action cannot be undone."
+              confirm-title="Delete template"
+              confirm-label="Delete"
+            />
           </td>
         </tr>
       @empty

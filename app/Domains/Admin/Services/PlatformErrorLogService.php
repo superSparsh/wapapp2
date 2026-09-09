@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Admin\Services;
 
+use App\Domains\Admin\Support\AdminListQuery;
 use App\Domains\Admin\Support\ErrorModuleResolver;
 use App\Enums\PlatformErrorType;
 use App\Models\PlatformErrorLog;
@@ -73,21 +74,60 @@ class PlatformErrorLogService
     }
 
     /**
+     * @param  array{
+     *   type?: string|null,
+     *   tenant_id?: string|null,
+     *   q?: string,
+     *   date_from?: string,
+     *   date_to?: string,
+     *   sort?: string,
+     *   direction?: string
+     * }  $filters
      * @return LengthAwarePaginator<int, PlatformErrorLog>
      */
-    public function forModule(string $module, ?string $type = null, ?string $tenantId = null, int $perPage = 25): LengthAwarePaginator
+    public function forModule(string $module, array $filters = [], int $perPage = 25): LengthAwarePaginator
     {
-        $query = PlatformErrorLog::query()
-            ->where('module', $module)
-            ->orderByDesc('occurred_at')
-            ->orderByDesc('id');
+        $query = PlatformErrorLog::query()->where('module', $module);
 
-        if ($type !== null && $type !== '' && $type !== 'all') {
+        $type = (string) ($filters['type'] ?? 'all');
+        if ($type !== '' && $type !== 'all') {
             $query->where('type', $type);
         }
 
-        if ($tenantId !== null && $tenantId !== '') {
+        $tenantId = $filters['tenant_id'] ?? null;
+        if (is_string($tenantId) && $tenantId !== '') {
             $query->where('tenant_id', $tenantId);
+        }
+
+        AdminListQuery::applySearch(
+            $query,
+            (string) ($filters['q'] ?? ''),
+            ['message', 'source', 'tenant_id'],
+        );
+
+        AdminListQuery::applyDateRange(
+            $query,
+            'occurred_at',
+            (string) ($filters['date_from'] ?? ''),
+            (string) ($filters['date_to'] ?? ''),
+        );
+
+        AdminListQuery::applySort(
+            $query,
+            (string) ($filters['sort'] ?? 'occurred_at'),
+            (string) ($filters['direction'] ?? 'desc'),
+            [
+                'occurred_at' => 'occurred_at',
+                'type' => 'type',
+                'source' => 'source',
+                'tenant_id' => 'tenant_id',
+                'id' => 'id',
+            ],
+            'occurred_at',
+        );
+
+        if (($filters['sort'] ?? 'occurred_at') === 'occurred_at') {
+            $query->orderByDesc('id');
         }
 
         return $query->paginate($perPage)->withQueryString();

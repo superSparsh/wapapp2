@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Admin\Http\Controllers;
 
+use App\Domains\Admin\Support\AdminListQuery;
 use App\Http\Controllers\Controller;
 use App\Models\CountryPricing;
 use Illuminate\Http\RedirectResponse;
@@ -12,10 +13,37 @@ use Illuminate\View\View;
 
 class CountryPricingController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
+        $parsed = AdminListQuery::fromRequest(
+            $request,
+            allowedSorts: ['country_name', 'country_code', 'id'],
+            defaultSort: 'country_name',
+            defaultDirection: 'asc',
+        );
+
+        $query = CountryPricing::query();
+        AdminListQuery::applySearch($query, $parsed['q'], ['country_name', 'country_code']);
+        AdminListQuery::applySort(
+            $query,
+            $parsed['sort'],
+            $parsed['direction'],
+            [
+                'country_name' => 'country_name',
+                'country_code' => 'country_code',
+                'id' => 'id',
+            ],
+            'country_name',
+        );
+
         return view('admin.pricing.index', [
-            'rows' => CountryPricing::query()->orderBy('country_name')->paginate(50),
+            'rows' => $query->paginate(50)->withQueryString(),
+            'filters' => $parsed,
+            'sortOptions' => [
+                ['value' => 'country_name', 'label' => 'Country A–Z', 'direction' => 'asc'],
+                ['value' => 'country_code', 'label' => 'Code A–Z', 'direction' => 'asc'],
+                ['value' => 'id', 'label' => 'Newest first', 'direction' => 'desc'],
+            ],
         ]);
     }
 

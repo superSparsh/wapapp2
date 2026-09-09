@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Admin\Http\Controllers;
 
+use App\Domains\Admin\Support\AdminListQuery;
 use App\Http\Controllers\Controller;
 use App\Models\Currency;
 use Illuminate\Http\RedirectResponse;
@@ -12,10 +13,33 @@ use Illuminate\View\View;
 
 class CurrencyController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
+        $parsed = AdminListQuery::fromRequest(
+            $request,
+            allowedSorts: ['code', 'name', 'id'],
+            defaultSort: 'code',
+            defaultDirection: 'asc',
+        );
+
+        $query = Currency::query();
+        AdminListQuery::applySearch($query, $parsed['q'], ['code', 'name', 'format']);
+        AdminListQuery::applySort(
+            $query,
+            $parsed['sort'],
+            $parsed['direction'],
+            ['code' => 'code', 'name' => 'name', 'id' => 'id'],
+            'code',
+        );
+
         return view('admin.currencies.index', [
-            'rows' => Currency::query()->orderBy('code')->paginate(50),
+            'rows' => $query->paginate(50)->withQueryString(),
+            'filters' => $parsed,
+            'sortOptions' => [
+                ['value' => 'code', 'label' => 'Code A–Z', 'direction' => 'asc'],
+                ['value' => 'name', 'label' => 'Name A–Z', 'direction' => 'asc'],
+                ['value' => 'id', 'label' => 'Newest first', 'direction' => 'desc'],
+            ],
         ]);
     }
 

@@ -7,23 +7,34 @@
     <a href="{{ route('admin.admins.create') }}" class="rounded-lg bg-green-500 px-3 py-2 text-xs font-semibold text-white">Add admin</a>
   </div>
 
+  <x-admin.filter-bar
+    :action="route('admin.admins.index')"
+    :search="$filters['q'] ?? ''"
+    search-placeholder="Search name or email…"
+    :show-dates="false"
+    :sort="$filters['sort'] ?? 'id'"
+    :direction="$filters['direction'] ?? 'desc'"
+    :sort-options="$sortOptions"
+  />
+
   <div class="p-4 pt-0">
     <x-ui.data-table :headers="['Name', 'Email', 'Role', 'Status', 'Last login', 'Actions']" :paginator="$admins">
       @forelse ($admins as $admin)
-        <tr>
-          <td class="p-3 font-semibold">{{ $admin->name }}</td>
-          <td class="p-3 text-sm">{{ $admin->email }}</td>
-          <td class="p-3 text-sm">{{ $admin->adminRole?->name ?: '—' }}</td>
-          <td class="p-3 text-sm">{{ $admin->is_active ? 'Active' : 'Disabled' }}</td>
-          <td class="p-3 text-sm text-text-subtle">{{ optional($admin->last_login_at)->diffForHumans() ?: '—' }}</td>
-          <td class="p-3">
-            <div class="flex gap-2">
-              <a href="{{ route('admin.admins.edit', $admin) }}" class="text-xs font-semibold text-green-600 hover:underline">Edit</a>
-              <form method="POST" action="{{ route('admin.admins.toggle-status', $admin) }}">
-                @csrf
-                <button class="text-xs font-semibold hover:underline">{{ $admin->is_active ? 'Disable' : 'Enable' }}</button>
-              </form>
-            </div>
+        <tr class="bg-elevated">
+          <td class="fd-table-cell p-2 align-middle font-semibold">{{ $admin->name }}</td>
+          <td class="fd-table-cell p-2 align-middle text-sm">{{ $admin->email }}</td>
+          <td class="fd-table-cell p-2 align-middle text-sm">{{ $admin->adminRole?->name ?: '—' }}</td>
+          <td class="fd-table-cell p-2 align-middle text-sm">{{ $admin->is_active ? 'Active' : 'Disabled' }}</td>
+          <td class="fd-table-cell p-2 align-middle text-sm text-text-subtle">{{ format_ist($admin->last_login_at) }}</td>
+          <td class="w-[120px] p-2 align-middle">
+            <x-ui.table-actions
+              :actions="['edit', 'toggle']"
+              :links="[
+                'edit' => route('admin.admins.edit', $admin),
+                'toggle' => route('admin.admins.toggle-status', $admin),
+              ]"
+              :methods="['toggle' => 'POST']"
+            />
           </td>
         </tr>
       @empty

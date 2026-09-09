@@ -7,25 +7,37 @@
     <a href="{{ route('admin.languages.create') }}" class="rounded-lg bg-green-500 px-3 py-2 text-xs font-semibold text-white">Add language</a>
   </div>
 
+  <x-admin.filter-bar
+    :action="route('admin.languages.index')"
+    :search="$filters['q'] ?? ''"
+    search-placeholder="Search name or code…"
+    :show-dates="false"
+    :sort="$filters['sort'] ?? 'name'"
+    :direction="$filters['direction'] ?? 'asc'"
+    :sort-options="$sortOptions"
+  />
+
   <div class="p-4 pt-0">
-    <x-ui.data-table :headers="['Name', 'Code', 'Region', 'Active', '']" :paginator="$rows">
+    <x-ui.data-table :headers="['Name', 'Code', 'Region', 'Active', 'Actions']" :paginator="$rows">
       @forelse ($rows as $row)
-        <tr>
-          <td class="p-3 font-semibold">{{ $row->name }}</td>
-          <td class="p-3 text-sm">{{ $row->code }}</td>
-          <td class="p-3 text-sm">{{ $row->region_code ?: '—' }}</td>
-          <td class="p-3 text-sm">{{ $row->is_active ? 'Yes' : 'No' }}</td>
-          <td class="p-3">
-            <div class="flex gap-2">
-              <a href="{{ route('admin.languages.edit', $row) }}" class="text-xs font-semibold text-green-600 hover:underline">Edit</a>
-              <form method="POST" action="{{ route('admin.languages.toggle', $row) }}">@csrf
-                <button class="text-xs font-semibold text-text-subtle hover:underline">{{ $row->is_active ? 'Disable' : 'Enable' }}</button>
-              </form>
-              <form method="POST" action="{{ route('admin.languages.destroy', $row) }}" data-confirm="Delete this language?" data-confirm-title="Delete language" data-confirm-variant="danger">
-                @csrf @method('DELETE')
-                <button class="text-xs font-semibold text-red-600 hover:underline">Delete</button>
-              </form>
-            </div>
+        <tr class="bg-elevated">
+          <td class="fd-table-cell p-2 align-middle font-semibold fd-table-name">{{ $row->name }}</td>
+          <td class="fd-table-cell p-2 align-middle text-sm">{{ $row->code }}</td>
+          <td class="fd-table-cell p-2 align-middle text-sm">{{ $row->region_code ?: '—' }}</td>
+          <td class="fd-table-cell p-2 align-middle text-sm">{{ $row->is_active ? 'Yes' : 'No' }}</td>
+          <td class="w-[160px] p-2 align-middle">
+            <x-ui.table-actions
+              :actions="['edit', 'toggle', 'trash']"
+              :links="[
+                'edit' => route('admin.languages.edit', $row),
+                'toggle' => route('admin.languages.toggle', $row),
+                'trash' => route('admin.languages.destroy', $row),
+              ]"
+              :methods="['toggle' => 'POST', 'trash' => 'DELETE']"
+              confirm="Delete this language? This action cannot be undone."
+              confirm-title="Delete language"
+              confirm-label="Delete"
+            />
           </td>
         </tr>
       @empty

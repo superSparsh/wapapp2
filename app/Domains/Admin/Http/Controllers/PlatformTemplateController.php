@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Admin\Http\Controllers;
 
+use App\Domains\Admin\Support\AdminListQuery;
 use App\Http\Controllers\Controller;
 use App\Models\PlatformTemplate;
 use Illuminate\Http\RedirectResponse;
@@ -18,19 +19,43 @@ class PlatformTemplateController extends Controller
     public function index(Request $request): View
     {
         $category = trim((string) $request->query('category', ''));
+        $parsed = AdminListQuery::fromRequest(
+            $request,
+            allowedSorts: ['name', 'category', 'id'],
+            defaultSort: 'name',
+            defaultDirection: 'asc',
+        );
+
+        $query = PlatformTemplate::query()
+            ->when($category !== '', fn ($builder) => $builder->where('category', $category));
+
+        AdminListQuery::applySearch($query, $parsed['q'], ['name', 'category', 'type']);
+        AdminListQuery::applySort(
+            $query,
+            $parsed['sort'],
+            $parsed['direction'],
+            [
+                'name' => 'name',
+                'category' => 'category',
+                'id' => 'id',
+            ],
+            'name',
+        );
 
         return view('admin.platform-templates.index', [
-            'rows' => PlatformTemplate::query()
-                ->when($category !== '', fn ($query) => $query->where('category', $category))
-                ->orderBy('name')
-                ->paginate(24)
-                ->withQueryString(),
+            'rows' => $query->paginate(24)->withQueryString(),
             'categories' => PlatformTemplate::query()
                 ->whereNotNull('category')
                 ->distinct()
                 ->orderBy('category')
                 ->pluck('category'),
             'category' => $category,
+            'filters' => $parsed,
+            'sortOptions' => [
+                ['value' => 'name', 'label' => 'Name A–Z', 'direction' => 'asc'],
+                ['value' => 'category', 'label' => 'Category', 'direction' => 'asc'],
+                ['value' => 'id', 'label' => 'Newest first', 'direction' => 'desc'],
+            ],
         ]);
     }
 

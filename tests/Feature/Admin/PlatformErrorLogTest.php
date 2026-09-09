@@ -176,6 +176,48 @@ class PlatformErrorLogTest extends TestCase
             ->assertSee('Campaign send failed');
     }
 
+    public function test_error_module_supports_search_and_date_filters(): void
+    {
+        PlatformErrorLog::query()->create([
+            'module' => 'inbox',
+            'type' => PlatformErrorType::Exception,
+            'tenant_id' => 'tenant-a',
+            'source' => 'OutboundService',
+            'message' => 'UniqueAlpha error text',
+            'context' => [],
+            'occurred_at' => now()->subDays(2),
+        ]);
+
+        PlatformErrorLog::query()->create([
+            'module' => 'inbox',
+            'type' => PlatformErrorType::Api,
+            'tenant_id' => 'tenant-b',
+            'source' => 'CamsClient',
+            'message' => 'Other noise',
+            'context' => [],
+            'occurred_at' => now(),
+        ]);
+
+        $this->actingAs($this->admin, 'admin')
+            ->get(route('admin.errors.show', [
+                'module' => 'inbox',
+                'q' => 'UniqueAlpha',
+            ]))
+            ->assertOk()
+            ->assertSee('UniqueAlpha error text')
+            ->assertDontSee('Other noise');
+
+        $this->actingAs($this->admin, 'admin')
+            ->get(route('admin.errors.show', [
+                'module' => 'inbox',
+                'date_from' => now()->toDateString(),
+                'date_to' => now()->toDateString(),
+            ]))
+            ->assertOk()
+            ->assertSee('Other noise')
+            ->assertDontSee('UniqueAlpha error text');
+    }
+
     public function test_queues_module_filter_shows_only_matching_jobs(): void
     {
         $central = config('tenancy.database.central_connection');
@@ -210,5 +252,47 @@ class PlatformErrorLogTest extends TestCase
             ->assertOk()
             ->assertSee(SendCampaignRecipientJob::class)
             ->assertDontSee(SendOutboundMessageJob::class);
+    }
+
+    public function test_queues_search_and_queue_name_filter(): void
+    {
+        $central = config('tenancy.database.central_connection');
+
+        DB::connection($central)->table('failed_jobs')->insert([
+            [
+                'uuid' => (string) Str::uuid(),
+                'connection' => 'database',
+                'queue' => 'mail',
+                'payload' => json_encode([
+                    'displayName' => 'App\\Jobs\\MailJob',
+                    'data' => ['commandName' => 'App\\Jobs\\MailJob'],
+                ]),
+                'exception' => 'SMTP timeout UniqueQueueSearch',
+                'failed_at' => now(),
+            ],
+            [
+                'uuid' => (string) Str::uuid(),
+                'connection' => 'database',
+                'queue' => 'default',
+                'payload' => json_encode([
+                    'displayName' => 'App\\Jobs\\OtherJob',
+                    'data' => ['commandName' => 'App\\Jobs\\OtherJob'],
+                ]),
+                'exception' => 'Something else',
+                'failed_at' => now(),
+            ],
+        ]);
+
+        $this->actingAs($this->admin, 'admin')
+            ->get(route('admin.queues.index', ['q' => 'UniqueQueueSearch']))
+            ->assertOk()
+            ->assertSee('SMTP timeout UniqueQueueSearch')
+            ->assertDontSee('Something else');
+
+        $this->actingAs($this->admin, 'admin')
+            ->get(route('admin.queues.index', ['queue' => 'mail']))
+            ->assertOk()
+            ->assertSee('App\\Jobs\\MailJob')
+            ->assertDontSee('App\\Jobs\\OtherJob');
     }
 }

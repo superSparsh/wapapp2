@@ -10,17 +10,22 @@
   </form>
 
   <div class="p-4 pt-0">
-    <x-ui.data-table :headers="['Customer', 'Reason', 'Valid until', 'Status', '']" :paginator="$items">
+    <x-ui.data-table :headers="['Customer', 'Reason', 'Valid until', 'Status', 'Actions']" :paginator="$items">
       @forelse ($items as $row)
-        <tr>
-          <td class="p-3">
-            <div class="font-semibold">{{ $row['name'] }}</div>
+        <tr class="bg-elevated">
+          <td class="fd-table-cell p-2 align-middle">
+            <div class="fd-table-name">{{ $row['name'] }}</div>
             <div class="text-xs text-text-subtle">{{ $row['email'] ?: $row['id'] }}</div>
           </td>
-          <td class="p-3 text-sm">{{ $row['reason'] }}</td>
-          <td class="p-3 text-sm">{{ $row['valid_until'] ?: '—' }}</td>
-          <td class="p-3 text-sm">{{ $row['status'] }}</td>
-          <td class="p-3"><a href="{{ route('admin.data-purge.show', $row['id']) }}" class="text-xs font-semibold text-green-600 hover:underline">Review</a></td>
+          <td class="fd-table-cell p-2 align-middle text-sm">{{ $row['reason'] }}</td>
+          <td class="fd-table-cell p-2 align-middle text-sm">{{ $row['valid_until'] ? format_ist($row['valid_until'], 'd M Y') : '—' }}</td>
+          <td class="fd-table-cell p-2 align-middle text-sm">{{ $row['status'] }}</td>
+          <td class="w-[120px] p-2 align-middle">
+            <x-ui.table-actions
+              :actions="['eye']"
+              :links="['eye' => route('admin.data-purge.show', $row['id'])]"
+            />
+          </td>
         </tr>
       @empty
         <tr><td colspan="5" class="p-6 text-center text-sm text-text-subtle">No purge candidates.</td></tr>

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Admin\Http\Controllers;
 
+use App\Domains\Admin\Support\AdminListQuery;
 use App\Http\Controllers\Controller;
 use App\Models\Plan;
 use Illuminate\Http\RedirectResponse;
@@ -12,10 +13,40 @@ use Illuminate\View\View;
 
 class PlanController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
+        $parsed = AdminListQuery::fromRequest(
+            $request,
+            allowedSorts: ['sort_order', 'name', 'price', 'id'],
+            defaultSort: 'sort_order',
+            defaultDirection: 'asc',
+        );
+
+        $query = Plan::query()->withCount('tenants');
+        AdminListQuery::applySearch($query, $parsed['q'], ['name', 'slug']);
+        AdminListQuery::applySort(
+            $query,
+            $parsed['sort'],
+            $parsed['direction'],
+            [
+                'sort_order' => 'sort_order',
+                'name' => 'name',
+                'price' => 'price',
+                'id' => 'id',
+            ],
+            'sort_order',
+        );
+
         return view('admin.plans.index', [
-            'plans' => Plan::query()->withCount('tenants')->orderBy('sort_order')->paginate(20),
+            'plans' => $query->paginate(20)->withQueryString(),
+            'filters' => $parsed,
+            'sortOptions' => [
+                ['value' => 'sort_order', 'label' => 'Sort order', 'direction' => 'asc'],
+                ['value' => 'name', 'label' => 'Name A–Z', 'direction' => 'asc'],
+                ['value' => 'price', 'label' => 'Price low–high', 'direction' => 'asc'],
+                ['value' => 'price', 'label' => 'Price high–low', 'direction' => 'desc'],
+                ['value' => 'id', 'label' => 'Newest first', 'direction' => 'desc'],
+            ],
         ]);
     }
 

@@ -6,22 +6,28 @@
     </div>
   </div>
 
-  <form method="GET" action="{{ route('admin.customers.index') }}" class="mx-4 mb-4 flex flex-wrap gap-3 rounded-[20px] border border-border bg-elevated p-4">
-    <input
-      type="search"
-      name="q"
-      value="{{ $filters['q'] }}"
-      placeholder="Search name, email, phone, id"
-      class="min-w-[220px] flex-1 rounded-lg border border-border px-3 py-2 text-sm"
-    >
-    <select name="status" class="rounded-lg border border-border px-3 py-2 text-sm">
-      <option value="">All statuses</option>
-      @foreach ($statuses as $status)
-        <option value="{{ $status->value }}" @selected($filters['status'] === $status->value)>{{ ucfirst($status->value) }}</option>
-      @endforeach
-    </select>
-    <button type="submit" class="rounded-lg bg-green-500 px-4 py-2 text-sm font-semibold text-white hover:bg-green-600">Filter</button>
-  </form>
+  <x-admin.filter-bar
+    :action="route('admin.customers.index')"
+    :search="$filters['q'] ?? ''"
+    search-placeholder="Search name, email, phone, id"
+    :date-from="$filters['date_from'] ?? ''"
+    :date-to="$filters['date_to'] ?? ''"
+    :sort="$filters['sort'] ?? 'created_at'"
+    :direction="$filters['direction'] ?? 'desc'"
+    :sort-options="$sortOptions"
+  >
+    <x-slot:filters>
+      <label class="flex min-w-[150px] flex-col gap-1.5 text-sm">
+        <span class="font-semibold text-text-primary">Status</span>
+        <select name="status" class="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary" data-listing-filter>
+          <option value="">All statuses</option>
+          @foreach ($statuses as $status)
+            <option value="{{ $status->value }}" @selected(($filters['status'] ?? '') === $status->value)>{{ ucfirst($status->value) }}</option>
+          @endforeach
+        </select>
+      </label>
+    </x-slot:filters>
+  </x-admin.filter-bar>
 
   <div class="p-4 pt-0">
     <x-ui.data-table
@@ -30,30 +36,31 @@
     >
       @forelse ($customers as $customer)
         <tr class="bg-elevated">
-          <td class="p-3">
-            <a href="{{ route('admin.customers.show', $customer) }}" class="font-semibold text-text-primary hover:underline">
+          <td class="fd-table-cell p-2 align-middle">
+            <a href="{{ route('admin.customers.show', $customer) }}" class="fd-table-name hover:text-green-500">
               {{ $customer->company_name ?: $customer->name }}
             </a>
             <div class="text-xs text-text-subtle">{{ $customer->id }}</div>
           </td>
-          <td class="p-3 text-sm text-text-subtle">
+          <td class="fd-table-cell p-2 align-middle text-sm text-text-subtle">
             <div>{{ $customer->email ?: '—' }}</div>
             <div>{{ $customer->phone ?: '—' }}</div>
           </td>
-          <td class="p-3 text-sm">{{ $customer->plan?->name ?: '—' }}</td>
-          <td class="p-3">
+          <td class="fd-table-cell p-2 align-middle text-sm">{{ $customer->plan?->name ?: '—' }}</td>
+          <td class="fd-table-cell p-2 align-middle">
             <span class="rounded-full bg-surface px-2 py-1 text-xs font-medium">{{ $customer->status?->value }}</span>
           </td>
-          <td class="p-3 text-sm text-text-subtle">{{ optional($customer->created_at)->format('d M Y') }}</td>
-          <td class="p-3">
-            <div class="flex flex-wrap gap-2">
-              <a href="{{ route('admin.customers.show', $customer) }}" class="text-xs font-semibold text-green-600 hover:underline">View</a>
-              <a href="{{ route('admin.customers.edit', $customer) }}" class="text-xs font-semibold text-text-primary hover:underline">Edit</a>
-              <form method="POST" action="{{ route('admin.customers.login-as', $customer) }}" class="inline">
-                @csrf
-                <button type="submit" class="text-xs font-semibold text-amber-700 hover:underline">Login as</button>
-              </form>
-            </div>
+          <td class="fd-table-cell p-2 align-middle text-sm text-text-subtle">{{ format_ist($customer->created_at, 'd M Y') }}</td>
+          <td class="w-[160px] p-2 align-middle">
+            <x-ui.table-actions
+              :actions="['eye', 'edit', 'login-as']"
+              :links="[
+                'eye' => route('admin.customers.show', $customer),
+                'edit' => route('admin.customers.edit', $customer),
+                'login-as' => route('admin.customers.login-as', $customer),
+              ]"
+              :methods="['login-as' => 'POST']"
+            />
           </td>
         </tr>
       @empty

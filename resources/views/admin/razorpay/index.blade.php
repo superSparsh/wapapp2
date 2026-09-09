@@ -17,15 +17,15 @@
   <div class="p-4 pt-0">
     <x-ui.data-table :headers="['Customer', 'Razorpay ID', 'Status', 'Amount', 'Starts', 'Ends']" :paginator="$items">
       @forelse ($items as $row)
-        <tr>
-          <td class="p-3">
-            <a href="{{ route('admin.customers.show', $row['tenant_id']) }}" class="font-semibold text-green-600 hover:underline">{{ $row['tenant_name'] }}</a>
+        <tr class="bg-elevated">
+          <td class="fd-table-cell p-2 align-middle">
+            <a href="{{ route('admin.customers.show', $row['tenant_id']) }}" class="fd-table-name hover:text-green-500">{{ $row['tenant_name'] }}</a>
           </td>
-          <td class="p-3 text-xs font-mono">{{ $row['razorpay_subscription_id'] }}</td>
-          <td class="p-3 text-sm">{{ $row['status'] ?: '—' }}</td>
-          <td class="p-3 text-sm">{{ $row['currency'] }} {{ $row['amount'] }}</td>
-          <td class="p-3 text-sm text-text-subtle">{{ $row['starts_at'] ?: '—' }}</td>
-          <td class="p-3 text-sm text-text-subtle">{{ $row['ends_at'] ?: '—' }}</td>
+          <td class="fd-table-cell p-2 align-middle text-xs font-mono">{{ $row['razorpay_subscription_id'] }}</td>
+          <td class="fd-table-cell p-2 align-middle text-sm">{{ $row['status'] ?: '—' }}</td>
+          <td class="fd-table-cell p-2 align-middle text-sm">{{ $row['currency'] }} {{ $row['amount'] }}</td>
+          <td class="fd-table-cell p-2 align-middle text-sm text-text-subtle">{{ format_ist($row['starts_at'], 'd M Y') }}</td>
+          <td class="fd-table-cell p-2 align-middle text-sm text-text-subtle">{{ format_ist($row['ends_at'], 'd M Y') }}</td>
         </tr>
       @empty
         <tr><td colspan="6" class="p-6 text-center text-sm text-text-subtle">No Razorpay subscriptions found.</td></tr>

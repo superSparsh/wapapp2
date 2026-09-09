@@ -52,6 +52,15 @@ class AppServiceProvider extends ServiceProvider
             URL::forceScheme('https');
         }
 
+        // WapApp displays all times in Indian Standard Time (admin + customer).
+        config(['app.timezone' => 'Asia/Kolkata']);
+        date_default_timezone_set('Asia/Kolkata');
+        \Carbon\Carbon::setLocale((string) config('app.locale', 'en'));
+
+        \Illuminate\Support\Facades\Blade::directive('ist', function (string $expression): string {
+            return "<?php echo e(format_ist({$expression})); ?>";
+        });
+
         Auth::provider('tenant-eloquent', function ($app, array $config) {
             return new TenantAwareUserProvider($app['hash'], $config['model']);
         });

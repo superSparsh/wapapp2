@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domains\Admin\Http\Controllers;
 
 use App\Domains\Admin\Services\QueueAdminService;
+use App\Domains\Admin\Support\AdminListQuery;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -18,14 +19,31 @@ class QueueController extends Controller
 
     public function index(Request $request): View
     {
+        $parsed = AdminListQuery::fromRequest(
+            $request,
+            allowedSorts: ['id', 'queue', 'available_at', 'failed_at'],
+            defaultSort: 'id',
+            defaultDirection: 'desc',
+        );
+
         $module = $request->query('module');
         $module = is_string($module) ? $module : null;
+        $queue = $request->query('queue');
+        $queue = is_string($queue) ? $queue : '';
 
         return view('admin.queues.index', $this->queues->dashboard(
             max(1, (int) $request->integer('page', 1)),
             max(1, (int) $request->integer('failed_page', 1)),
             25,
-            $module,
+            [
+                'module' => $module,
+                'q' => $parsed['q'],
+                'queue' => $queue,
+                'date_from' => $parsed['date_from'],
+                'date_to' => $parsed['date_to'],
+                'sort' => $parsed['sort'],
+                'direction' => $parsed['direction'],
+            ],
         ));
     }
 

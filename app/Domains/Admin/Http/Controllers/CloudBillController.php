@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Admin\Http\Controllers;
 
+use App\Domains\Admin\Support\AdminListQuery;
 use App\Http\Controllers\Controller;
 use App\Models\CloudBillUpload;
 use Illuminate\Http\RedirectResponse;
@@ -14,10 +15,39 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class CloudBillController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
+        $parsed = AdminListQuery::fromRequest(
+            $request,
+            allowedSorts: ['id', 'period', 'amount', 'filename'],
+            defaultSort: 'id',
+            defaultDirection: 'desc',
+        );
+
+        $query = CloudBillUpload::query();
+        AdminListQuery::applySearch($query, $parsed['q'], ['filename', 'period', 'status', 'currency']);
+        AdminListQuery::applySort(
+            $query,
+            $parsed['sort'],
+            $parsed['direction'],
+            [
+                'id' => 'id',
+                'period' => 'period',
+                'amount' => 'amount',
+                'filename' => 'filename',
+            ],
+            'id',
+        );
+
         return view('admin.cloud-bills.index', [
-            'bills' => CloudBillUpload::query()->latest('id')->paginate(20),
+            'bills' => $query->paginate(20)->withQueryString(),
+            'filters' => $parsed,
+            'sortOptions' => [
+                ['value' => 'id', 'label' => 'Newest first', 'direction' => 'desc'],
+                ['value' => 'period', 'label' => 'Period', 'direction' => 'desc'],
+                ['value' => 'amount', 'label' => 'Amount', 'direction' => 'desc'],
+                ['value' => 'filename', 'label' => 'Filename A–Z', 'direction' => 'asc'],
+            ],
         ]);
     }
 

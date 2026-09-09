@@ -20,26 +20,38 @@
     <button class="rounded-lg border border-border px-3 py-2 text-xs font-semibold hover:bg-surface">Upload</button>
   </form>
 
+  <x-admin.filter-bar
+    :action="route('admin.pricing.index')"
+    :search="$filters['q'] ?? ''"
+    search-placeholder="Search country name or code…"
+    :show-dates="false"
+    :sort="$filters['sort'] ?? 'country_name'"
+    :direction="$filters['direction'] ?? 'asc'"
+    :sort-options="$sortOptions"
+  />
+
   <div class="p-4 pt-0">
-    <x-ui.data-table :headers="['Country', 'Marketing', 'Utility', 'Auth', 'Service', 'Active', '']" :paginator="$rows">
+    <x-ui.data-table :headers="['Country', 'Marketing', 'Utility', 'Auth', 'Service', 'Active', 'Actions']" :paginator="$rows">
       @forelse ($rows as $row)
-        <tr>
-          <td class="p-3">
-            <div class="font-semibold">{{ $row->country_name }}</div>
+        <tr class="bg-elevated">
+          <td class="fd-table-cell p-2 align-middle">
+            <div class="fd-table-name">{{ $row->country_name }}</div>
             <div class="text-xs text-text-subtle">{{ $row->country_code }} · {{ $row->currency }}</div>
           </td>
-          <td class="p-3 text-sm">{{ $row->marketing_rate }}</td>
-          <td class="p-3 text-sm">{{ $row->utility_rate }}</td>
-          <td class="p-3 text-sm">{{ $row->authentication_rate }}</td>
-          <td class="p-3 text-sm">{{ $row->service_rate }}</td>
-          <td class="p-3 text-sm">{{ $row->is_active ? 'Yes' : 'No' }}</td>
-          <td class="p-3">
-            <div class="flex gap-2">
-              <a href="{{ route('admin.pricing.edit', $row) }}" class="text-xs font-semibold text-green-600 hover:underline">Edit</a>
-              <form method="POST" action="{{ route('admin.pricing.toggle', $row) }}">@csrf
-                <button class="text-xs font-semibold text-text-subtle hover:underline">{{ $row->is_active ? 'Disable' : 'Enable' }}</button>
-              </form>
-            </div>
+          <td class="fd-table-cell p-2 align-middle text-sm">{{ $row->marketing_rate }}</td>
+          <td class="fd-table-cell p-2 align-middle text-sm">{{ $row->utility_rate }}</td>
+          <td class="fd-table-cell p-2 align-middle text-sm">{{ $row->authentication_rate }}</td>
+          <td class="fd-table-cell p-2 align-middle text-sm">{{ $row->service_rate }}</td>
+          <td class="fd-table-cell p-2 align-middle text-sm">{{ $row->is_active ? 'Yes' : 'No' }}</td>
+          <td class="w-[120px] p-2 align-middle">
+            <x-ui.table-actions
+              :actions="['edit', 'toggle']"
+              :links="[
+                'edit' => route('admin.pricing.edit', $row),
+                'toggle' => route('admin.pricing.toggle', $row),
+              ]"
+              :methods="['toggle' => 'POST']"
+            />
           </td>
         </tr>
       @empty
