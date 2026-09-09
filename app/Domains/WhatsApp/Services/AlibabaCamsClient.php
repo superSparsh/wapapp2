@@ -337,7 +337,56 @@ class AlibabaCamsClient
         $signature = base64_encode(hash_hmac('sha1', $stringToSign, $accessKeySecret.'&', true));
         $query['Signature'] = $signature;
 
-        return Http::timeout(20)->get("https://{$endpoint}/", $query);
+        $response = Http::timeout(20)->get("https://{$endpoint}/", $query);
+        $this->recordApiFailureIfNeeded($params['Action'] ?? null, $response);
+
+        return $response;
+    }
+
+    /**
+     * Persist CAMS HTTP / business-code failures for the admin Errors hub.
+     */
+    private function recordApiFailureIfNeeded(mixed $action, Response $response): void
+    {
+        try {
+            $actionName = is_scalar($action) ? (string) $action : null;
+            $json = $response->json();
+            $code = is_array($json)
+                ? ($json['Code'] ?? $json['code'] ?? null)
+                : null;
+            $codeOk = ! is_scalar($code) || strtoupper((string) $code) === 'OK';
+            $httpOk = $response->successful();
+
+            if ($httpOk && $codeOk) {
+                return;
+            }
+
+            $message = is_array($json)
+                ? (string) ($json['Message'] ?? $json['message'] ?? $response->body())
+                : $response->body();
+
+            if ($message === '') {
+                $message = 'CAMS API request failed';
+            }
+
+            $resolver = app(\App\Domains\Admin\Support\ErrorModuleResolver::class);
+            $module = $resolver->fromCamsAction($actionName);
+
+            app(\App\Domains\Admin\Services\ModuleErrorRecorder::class)->recordApi(
+                message: $message,
+                module: $module,
+                source: $actionName ?? 'AlibabaCamsClient',
+                context: [
+                    'http_status' => $response->status(),
+                    'code' => is_scalar($code) ? (string) $code : null,
+                    'request_id' => is_array($json)
+                        ? ($json['RequestId'] ?? $json['requestId'] ?? null)
+                        : null,
+                ],
+            );
+        } catch (\Throwable) {
+            // Never break CAMS calls because of logging.
+        }
     }
 
     /**

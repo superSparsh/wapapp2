@@ -18,9 +18,14 @@ class QueueController extends Controller
 
     public function index(Request $request): View
     {
+        $module = $request->query('module');
+        $module = is_string($module) ? $module : null;
+
         return view('admin.queues.index', $this->queues->dashboard(
             max(1, (int) $request->integer('page', 1)),
             max(1, (int) $request->integer('failed_page', 1)),
+            25,
+            $module,
         ));
     }
 

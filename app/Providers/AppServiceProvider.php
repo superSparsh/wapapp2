@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Domains\Admin\Services\ModuleErrorRecorder;
+use App\Domains\Admin\Support\ErrorModuleResolver;
 use App\Domains\Auth\Auth\TenantAwareUserProvider;
 use App\Domains\Inbox\Contracts\OutboundMessageGateway;
 use App\Domains\Inbox\Services\DelegatingOutboundMessageGateway;
@@ -11,10 +13,13 @@ use App\Observers\MessageObserver;
 use App\Observers\WhatsappLineObserver;
 use App\View\Composers\HeaderComposer;
 use App\View\Composers\SidebarComposer;
+use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Str;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -62,5 +67,32 @@ class AppServiceProvider extends ServiceProvider
 
         WhatsappLine::observe(WhatsappLineObserver::class);
         Message::observe(MessageObserver::class);
+
+        Queue::failing(function (JobFailed $event): void {
+            try {
+                $resolver = app(ErrorModuleResolver::class);
+                $recorder = app(ModuleErrorRecorder::class);
+
+                $displayName = $event->job->resolveName();
+                $module = $resolver->fromDisplayName($displayName);
+                $exception = $event->exception;
+
+                $recorder->recordJob(
+                    message: $exception->getMessage() !== ''
+                        ? $exception->getMessage()
+                        : $exception::class,
+                    module: $module,
+                    source: $displayName,
+                    context: [
+                        'queue' => $event->job->getQueue(),
+                        'connection' => $event->connectionName,
+                        'exception' => $exception::class,
+                        'trace' => Str::limit($exception->getTraceAsString(), 4000, '…'),
+                    ],
+                );
+            } catch (\Throwable) {
+                //
+            }
+        });
     }
 }

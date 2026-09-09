@@ -4,17 +4,42 @@
       <h1 class="text-2xl font-bold text-text-primary">Queues</h1>
       <p class="text-sm text-text-subtle opacity-70">
         Connection <span class="font-semibold">{{ $connection }}</span>
-        ({{ $driver }}) — pending {{ $pending_count }}, failed {{ $failed_count }}.
+        ({{ $driver }}) — pending {{ $pending_count }}, failed {{ $failed_count }}
+        @if ($module)
+          for <span class="font-semibold">{{ $modules[$module] ?? $module }}</span>
+        @endif.
       </p>
+      <p class="mt-1 text-xs text-text-subtle">Retry all / Flush apply to <span class="font-semibold">all</span> failed jobs (every module).</p>
     </div>
     <div class="flex flex-wrap gap-2">
       <form method="POST" action="{{ route('admin.queues.retry-all') }}">@csrf
         <button class="rounded-lg border border-border px-3 py-2 text-xs font-semibold hover:bg-surface">Retry all failed</button>
       </form>
-      <form method="POST" action="{{ route('admin.queues.flush') }}" data-confirm="Flush all failed jobs?" data-confirm-variant="danger">@csrf
+      <form method="POST" action="{{ route('admin.queues.flush') }}" data-confirm="Flush ALL failed jobs across every module?" data-confirm-variant="danger">@csrf
         <button class="rounded-lg bg-red-500 px-3 py-2 text-xs font-semibold text-white">Flush failed</button>
       </form>
     </div>
+  </div>
+
+  <div class="flex flex-wrap items-center gap-2 px-4 pb-3">
+    <a
+      href="{{ route('admin.queues.index') }}"
+      @class([
+        'rounded-lg px-3 py-1.5 text-xs font-semibold transition',
+        'bg-green-600 text-white' => blank($module),
+        'border border-border text-text-subtle hover:bg-surface' => filled($module),
+      ])
+    >All</a>
+    @foreach ($modules as $key => $label)
+      <a
+        href="{{ route('admin.queues.index', ['module' => $key]) }}"
+        @class([
+          'rounded-lg px-3 py-1.5 text-xs font-semibold transition',
+          'bg-green-600 text-white' => $module === $key,
+          'border border-border text-text-subtle hover:bg-surface' => $module !== $key,
+        ])
+      >{{ $label }}</a>
+    @endforeach
   </div>
 
   @if (session('status'))
@@ -23,28 +48,30 @@
 
   <section class="p-4 pt-0">
     <h2 class="mb-3 text-lg font-bold">Pending jobs</h2>
-    <x-ui.data-table :headers="['Queue', 'Job', 'Attempts', 'Available', 'Created']" :paginator="$pending">
+    <x-ui.data-table :headers="['Queue', 'Module', 'Job', 'Attempts', 'Available', 'Created']" :paginator="$pending">
       @forelse ($pending as $job)
         <tr>
           <td class="p-3 text-sm">{{ $job['queue'] }}</td>
+          <td class="p-3 text-xs font-semibold">{{ $modules[$job['module']] ?? $job['module'] }}</td>
           <td class="p-3 text-sm font-semibold">{{ $job['display_name'] }}</td>
           <td class="p-3 text-sm">{{ $job['attempts'] }}</td>
           <td class="p-3 text-xs text-text-subtle">{{ $job['available_at'] }}</td>
           <td class="p-3 text-xs text-text-subtle">{{ $job['created_at'] }}</td>
         </tr>
       @empty
-        <tr><td colspan="5" class="p-6 text-center text-sm text-text-subtle">No pending jobs in the database queue table.</td></tr>
+        <tr><td colspan="6" class="p-6 text-center text-sm text-text-subtle">No pending jobs{{ $module ? ' for this module' : '' }}.</td></tr>
       @endforelse
     </x-ui.data-table>
   </section>
 
   <section class="p-4 pt-0">
     <h2 class="mb-3 text-lg font-bold">Failed jobs</h2>
-    <x-ui.data-table :headers="['UUID', 'Queue', 'Job', 'Error', 'Failed', '']" :paginator="$failed">
+    <x-ui.data-table :headers="['UUID', 'Queue', 'Module', 'Job', 'Error', 'Failed', '']" :paginator="$failed">
       @forelse ($failed as $job)
         <tr>
           <td class="p-3 font-mono text-xs">{{ \Illuminate\Support\Str::limit($job['uuid'], 13, '…') }}</td>
           <td class="p-3 text-sm">{{ $job['queue'] }}</td>
+          <td class="p-3 text-xs font-semibold">{{ $modules[$job['module']] ?? $job['module'] }}</td>
           <td class="p-3 text-sm font-semibold">{{ $job['display_name'] }}</td>
           <td class="p-3 text-xs text-text-subtle">{{ $job['exception'] }}</td>
           <td class="p-3 text-xs text-text-subtle">{{ $job['failed_at'] }}</td>
@@ -60,7 +87,7 @@
           </td>
         </tr>
       @empty
-        <tr><td colspan="6" class="p-6 text-center text-sm text-text-subtle">No failed jobs.</td></tr>
+        <tr><td colspan="7" class="p-6 text-center text-sm text-text-subtle">No failed jobs{{ $module ? ' for this module' : '' }}.</td></tr>
       @endforelse
     </x-ui.data-table>
   </section>

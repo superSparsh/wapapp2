@@ -63,6 +63,7 @@ return [
             ['label' => 'Page layouts', 'route' => 'admin.page-layouts.index', 'matches' => ['admin.page-layouts.create', 'admin.page-layouts.edit']],
             ['label' => 'Languages', 'route' => 'admin.languages.index', 'matches' => ['admin.languages.create', 'admin.languages.edit']],
             ['label' => 'Queues', 'route' => 'admin.queues.index', 'matches' => ['admin.queues.*']],
+            ['label' => 'Errors', 'route' => 'admin.errors.index', 'matches' => ['admin.errors.*']],
         ],
     ],
     [

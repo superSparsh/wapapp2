@@ -26,6 +26,7 @@ use App\Domains\Admin\Http\Controllers\OAuthSettingsController;
 use App\Domains\Admin\Http\Controllers\PageLayoutController;
 use App\Domains\Admin\Http\Controllers\PaymentGatewayController;
 use App\Domains\Admin\Http\Controllers\PlanController;
+use App\Domains\Admin\Http\Controllers\PlatformErrorLogController;
 use App\Domains\Admin\Http\Controllers\PlatformTemplateController;
 use App\Domains\Admin\Http\Controllers\PluginController;
 use App\Domains\Admin\Http\Controllers\QueueController;
@@ -160,6 +161,10 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::post('/queues/failed/flush', [QueueController::class, 'flush'])->name('queues.flush');
         Route::post('/queues/failed/{uuid}/retry', [QueueController::class, 'retry'])->name('queues.retry');
         Route::post('/queues/failed/{uuid}/forget', [QueueController::class, 'forget'])->name('queues.forget');
+
+        Route::get('/errors', [PlatformErrorLogController::class, 'index'])->name('errors.index');
+        Route::get('/errors/{module}', [PlatformErrorLogController::class, 'show'])->name('errors.show');
+        Route::post('/errors/{module}/clear', [PlatformErrorLogController::class, 'clear'])->name('errors.clear');
 
         Route::get('/admins', [AdminUserController::class, 'index'])->name('admins.index');
         Route::get('/admins/create', [AdminUserController::class, 'create'])->name('admins.create');

@@ -109,6 +109,15 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*'),
         );
+
+        $exceptions->reportable(function (\Throwable $e): void {
+            try {
+                app(\App\Domains\Admin\Services\ModuleErrorRecorder::class)
+                    ->recordException($e);
+            } catch (\Throwable) {
+                //
+            }
+        });
     })
     ->withCommands([
         ProcessDueCampaignsCommand::class,
