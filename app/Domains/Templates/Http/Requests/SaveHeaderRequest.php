@@ -22,6 +22,7 @@ class SaveHeaderRequest extends FormRequest
             'header_type' => ['required', 'in:none,text,image,video,document,audio,location'],
             'header_text' => ['nullable', 'string', 'max:'.config('templates.header_text_limit', 60)],
             'media_url' => ['nullable', 'string'],
+            'media_path' => ['nullable', 'string', 'max:500'],
             'doc_name' => ['nullable', 'string', 'max:255'],
             'use_url' => ['nullable', 'boolean'],
         ];
@@ -55,7 +56,8 @@ class SaveHeaderRequest extends FormRequest
             ];
 
             if (isset($limits[$type])) {
-                $rules['header_media'] = ['required', 'file', $limits[$type]];
+                // File is optional when a previous AJAX upload already stored media_path.
+                $rules['header_media'] = ['nullable', 'file', $limits[$type]];
             }
         }
 
@@ -77,7 +79,8 @@ class SaveHeaderRequest extends FormRequest
 
             /** @var Template|null $template */
             $template = $this->route('template');
-            $existingPath = $template?->wizardPayload()['header']['media_path'] ?? null;
+            $existingPath = $this->input('media_path')
+                ?: ($template?->wizardPayload()['header']['media_path'] ?? null);
             $existingUrl = $template?->wizardPayload()['header']['media_url'] ?? null;
 
             if (! filled($existingPath) && ! filled($existingUrl)) {

@@ -4,9 +4,11 @@
     'id' => 'header_media',
     'accept' => 'image/png,image/jpeg,video/mp4,video/3gpp',
     'previewUrl' => null,
+    'enabled' => true,
+    'maxBytes' => null,
 ])
 
-<div class="flex flex-col gap-3" data-header-upload>
+<div class="flex flex-col gap-3" data-header-upload @if ($maxBytes) data-max-bytes="{{ (int) $maxBytes }}" @endif>
   <label
     for="{{ $id }}"
     class="flex h-[88px] cursor-pointer flex-col items-center justify-center rounded-md border border-dashed border-divider px-[68px] py-3 transition-colors hover:border-green-500"
@@ -21,11 +23,12 @@
   </label>
   <input
     type="file"
-    name="{{ $name }}"
+    name="{{ $enabled ? $name : '' }}"
     id="{{ $id }}"
     accept="{{ $accept }}"
     class="sr-only"
     data-header-media-input
+    @disabled(! $enabled)
   >
   <div data-header-media-preview @class(['hidden' => blank($previewUrl)])>
     <img

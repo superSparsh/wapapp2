@@ -14,9 +14,14 @@ class TemplateMediaService
      */
     public function storeHeaderMedia(UploadedFile $file): array
     {
-        $disk = (string) config('filesystems.default', 'public');
+        // Always public so asset('storage/...') and WhatsApp preview URLs work.
+        $disk = (string) config('templates.header_media_disk', 'public');
         $directory = 'templates/headers';
         $path = $file->store($directory, $disk);
+
+        if ($path === false) {
+            throw new \RuntimeException('Failed to store header media.');
+        }
 
         return [
             'path' => $path,

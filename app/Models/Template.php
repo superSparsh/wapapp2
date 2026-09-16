@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Domains\Templates\Enums\TemplateSource;
 use App\Domains\Templates\Enums\TemplateStatus;
+use App\Domains\Templates\Support\CamsTemplateIdentity;
 use App\Models\TemplateStatusLog as ModelsTemplateStatusLog;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -75,13 +76,15 @@ class Template extends TenantModel
 
     public function whatsappCode(): ?string
     {
-        if (filled($this->code)) {
+        if (CamsTemplateIdentity::isProviderCode($this->code)) {
             return $this->code;
         }
 
         $archived = data_get($this->payload, 'meta.archived_code');
 
-        return is_string($archived) && $archived !== '' ? $archived : null;
+        return CamsTemplateIdentity::isProviderCode(is_string($archived) ? $archived : null)
+            ? $archived
+            : null;
     }
 
     protected static function booted(): void

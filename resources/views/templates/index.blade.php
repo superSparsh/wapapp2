@@ -22,7 +22,7 @@
 @endphp
 
 <x-layouts.app title="Templates - WapApp" active="templates.index">
-  <div class="flex flex-col bg-surface" @unless($isFreeTab) data-templates-index data-bulk-destroy-url="{{ route('templates.bulk-destroy') }}" @endunless>
+  <div class="flex flex-col bg-surface" @unless($isFreeTab) data-templates-index data-bulk-destroy-url="{{ route('templates.bulk-destroy') }}" data-statuses-url="{{ route('templates.api.statuses') }}" data-status-poll-ms="15000" @endunless>
     <div class="flex flex-col gap-4 p-4">
       <div class="flex flex-col gap-1">
         <h1 class="fd-page-title">{{ $isFreeTab ? 'Free Template Messages' : 'Templates' }}</h1>
@@ -164,33 +164,46 @@
                       <p class="fd-table-name">{{ $template['name'] }}</p>
                       <p class="fd-table-cell">Created at: {{ $template['created_at'] }}</p>
                     </td>
-                    <td class="fd-table-cell p-2">{{ $template['type'] }}</td>
-                    <td class="fd-table-cell p-2">{{ $template['category'] }}</td>
-                    <td class="relative p-2">
+                    <td class="p-2">
+                      <x-ui.status-chip
+                        :label="$template['type']"
+                        :variant="$template['type_variant'] ?? 'fd-type'"
+                      />
+                    </td>
+                    <td class="p-2">
+                      <x-ui.status-chip
+                        :label="$template['category']"
+                        :variant="$template['category_variant'] ?? 'fd-category'"
+                      />
+                    </td>
+                    <td class="relative p-2" data-template-status-cell>
                       <div class="flex items-center gap-2">
-                        <x-ui.status-chip :label="$template['status']" :variant="$template['status_variant']" />
-                        @if ($template['error'] && ! empty($template['rejection_reason']))
-                          <div class="group relative">
-                            <img src="{{ asset('images/templates/info-circle.svg') }}" alt="" class="size-4 shrink-0 cursor-help" width="16" height="16">
-                            <div class="absolute right-0 top-6 z-10 hidden w-64 rounded-lg bg-elevated p-3 text-xs text-text-body shadow-lg group-hover:block">
-                              {{ $template['rejection_reason'] }}
-                            </div>
+                        <x-ui.status-chip
+                          :label="$template['status']"
+                          :variant="$template['status_variant']"
+                          data-template-status-chip
+                        />
+                        <div class="group relative @if (! ($template['error'] && ! empty($template['rejection_reason']))) hidden @endif" data-template-rejection-wrap>
+                          <img src="{{ asset('images/templates/info-circle.svg') }}" alt="" class="size-4 shrink-0 cursor-help" width="16" height="16">
+                          <div class="absolute right-0 top-6 z-10 hidden w-64 rounded-lg bg-elevated p-3 text-xs text-text-body shadow-lg group-hover:block" data-template-rejection-reason>
+                            {{ $template['rejection_reason'] ?? '' }}
                           </div>
-                        @endif
+                        </div>
                       </div>
                     </td>
                     <td class="p-2">
                       @php
                         $actions = ['eye-view', 'copy'];
                         $links = [
-                          'eye-view' => $template['preview_url'],
-                          'copy' => $template['copy_url'],
+                          'eye-view' => $template['preview_url'] ?? '#',
+                          'copy' => $template['copy_url'] ?? '#',
                         ];
                         $methods = ['copy' => 'POST'];
                         if (! empty($template['edit_url'])) { $actions[] = 'edit'; $links['edit'] = $template['edit_url']; }
                       @endphp
                       <div class="flex items-center gap-2">
                         <x-ui.table-actions :actions="$actions" :links="$links" :methods="$methods" class="!gap-2" />
+                        @if (! empty($template['delete_url']))
                         <form
                           method="post"
                           action="{{ $template['delete_url'] }}"
@@ -204,6 +217,7 @@
                             <img src="{{ asset('images/icons/table/trash.svg') }}" alt="" class="size-5" width="20" height="20">
                           </button>
                         </form>
+                        @endif
                       </div>
                     </td>
                   </tr>

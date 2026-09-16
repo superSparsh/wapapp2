@@ -401,6 +401,7 @@ Route::middleware(['tenancy.session', 'auth:web,team', '2fa', 'verified', 'team.
 
         Route::prefix('api')->name('api.')->group(function () {
             Route::get('/list', [TemplateApiController::class, 'index'])->name('list');
+            Route::get('/statuses', [TemplateApiController::class, 'statuses'])->name('statuses');
             Route::post('/refresh', [TemplateApiController::class, 'refresh'])->middleware('team.permission:template_write')->name('refresh');
             Route::get('/preview/{code}', [TemplateApiController::class, 'preview'])->name('preview');
             Route::get('/variables', [TemplateApiController::class, 'variables'])->name('variables');

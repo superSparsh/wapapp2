@@ -77,8 +77,6 @@
       </button>
     </div>
 
-    <div class="flex w-full flex-col items-end justify-center">
-      <button type="submit" class="fd-btn-sm inline-flex items-center justify-center rounded bg-green-500 px-4 py-3 text-primary-2 transition-opacity hover:opacity-90">Next</button>
-    </div>
+    <x-templates.builder-actions :back-url="$previousStepUrl ?? route('templates.index')" />
   </form>
 </x-templates.builder-layout>

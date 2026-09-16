@@ -7,7 +7,9 @@ namespace App\Domains\Templates\Http\Controllers;
 use App\Domains\Templates\Services\TemplateRegistryService;
 use App\Domains\Templates\Services\TemplateServiceAdapter;
 use App\Http\Controllers\Controller;
+use App\Models\Template;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class TemplateApiController extends Controller
 {
@@ -20,6 +22,34 @@ class TemplateApiController extends Controller
         return response()->json([
             'items' => $this->adapter->options(),
         ]);
+    }
+
+    public function statuses(Request $request): JsonResponse
+    {
+        $uuids = collect($request->input('uuids', []))
+            ->filter(fn ($uuid) => is_string($uuid) && $uuid !== '')
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($uuids === []) {
+            return response()->json(['items' => []]);
+        }
+
+        $items = Template::query()
+            ->whereIn('uuid', $uuids)
+            ->get(['uuid', 'status', 'rejection_reason'])
+            ->map(fn (Template $template): array => [
+                'uuid' => $template->uuid,
+                'status' => $template->status->label(),
+                'status_variant' => $template->status->chipVariant(),
+                'error' => $template->status->value === 'rejected',
+                'rejection_reason' => $template->rejection_reason,
+            ])
+            ->values()
+            ->all();
+
+        return response()->json(['items' => $items]);
     }
 
     public function refresh(TemplateRegistryService $registry): JsonResponse

@@ -20,12 +20,13 @@ class SaveCarouselRequest extends FormRequest
 
         return [
             'cards' => ['required', 'array', "min:{$min}", "max:{$max}"],
+            'carousel_body' => ['nullable', 'string', 'max:'.(int) config('templates.body_limit', 1024)],
             'cards.*.body' => ['required', 'string', 'max:160'],
             'cards.*.header' => ['nullable', 'string', 'in:IMAGE,VIDEO'],
-            'cards.*.media_url' => ['nullable', 'string', 'max:2048'],
+            'cards.*.media_url' => ['required', 'string', 'max:2048'],
             'cards.*.buttons' => ['nullable', 'array', 'max:2'],
-            'cards.*.buttons.*.text' => ['required_with:cards.*.buttons', 'string', 'max:25'],
-            'cards.*.buttons.*.type' => ['nullable', 'string', 'in:QUICK_REPLY,URL'],
+            'cards.*.buttons.*.text' => ['nullable', 'string', 'max:25'],
+            'cards.*.buttons.*.type' => ['nullable', 'string', 'in:QUICK_REPLY,URL,PHONE_NUMBER'],
             'cards.*.buttons.*.url' => ['nullable', 'string', 'max:2000'],
         ];
     }

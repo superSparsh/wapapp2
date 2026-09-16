@@ -72,11 +72,7 @@
       </div>
     </div>
 
-    <div class="flex w-full items-center justify-end">
-      <button type="submit" class="fd-btn-sm inline-flex items-center justify-center rounded bg-green-500 px-4 py-3 text-primary-2 transition-opacity hover:opacity-90">
-        Next
-      </button>
-    </div>
+    <x-templates.builder-actions :back-url="$previousStepUrl ?? route('templates.index')" />
 
     <div id="variable-samples" class="flex flex-col gap-4"></div>
   </form>

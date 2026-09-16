@@ -27,4 +27,13 @@ class CamsTemplateIdentityTest extends TestCase
         $this->assertNull(CamsTemplateIdentity::code(''));
         $this->assertNull(CamsTemplateIdentity::code('has spaces'));
     }
+
+    public function test_is_provider_code_accepts_numeric_cams_ids_only(): void
+    {
+        $this->assertTrue(CamsTemplateIdentity::isProviderCode('1257583503568572416'));
+        $this->assertFalse(CamsTemplateIdentity::isProviderCode('welcome_message'));
+        $this->assertFalse(CamsTemplateIdentity::isProviderCode('ABC123'));
+        $this->assertFalse(CamsTemplateIdentity::isProviderCode('welcome_legacy_9'));
+        $this->assertFalse(CamsTemplateIdentity::isProviderCode(''));
+    }
 }

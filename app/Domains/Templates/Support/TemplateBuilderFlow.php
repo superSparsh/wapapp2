@@ -128,4 +128,32 @@ class TemplateBuilderFlow
     {
         return 'templates.builder.submit';
     }
+
+    /**
+     * Previous step URL for Back navigation. Body goes to templates index.
+     */
+    public function previousUrlFor(Template $template, string $currentKey): string
+    {
+        if ($currentKey === 'body') {
+            return route('templates.index');
+        }
+
+        $steps = $this->stepsFor($template);
+        $index = null;
+
+        foreach ($steps as $i => $step) {
+            if (($step['key'] ?? '') === $currentKey) {
+                $index = $i;
+                break;
+            }
+        }
+
+        if ($index === null || $index === 0) {
+            return route('templates.index');
+        }
+
+        $previous = $steps[$index - 1];
+
+        return route($previous['route'], $template);
+    }
 }

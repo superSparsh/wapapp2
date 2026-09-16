@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domains\Templates\Services;
 
 use App\Domains\Templates\Enums\TemplateStatus;
+use App\Domains\Templates\Support\CamsTemplateIdentity;
 use App\Domains\Templates\Support\TemplateCategoryCatalog;
 use App\Domains\WhatsApp\Services\AlibabaCamsClient;
 use App\Models\Template;
@@ -36,8 +37,13 @@ class TemplateWhatsAppService
             return false;
         }
 
+        // If we already have a real CAMS TemplateCode, modify instead of create.
+        if (filled($template->whatsappCode())) {
+            return $this->modifyTemplate($template);
+        }
+
         $components = $this->buildComponents($template);
-        $name = $this->normalizeName($template->code ?: $template->name);
+        $name = $this->normalizeName($template->name);
         $extra = ['CustSpaceId' => $line->alibaba_cust_space_id];
 
         // Add example data if body has variables
@@ -56,32 +62,31 @@ class TemplateWhatsAppService
         try {
             $response = $this->camsClient->createChatappTemplate(
                 $name,
-                $template->language,
+                CamsTemplateIdentity::language($template->language),
                 TemplateCategoryCatalog::whatsAppCategory((string) $template->category),
                 $components,
                 $extra,
             );
 
-            if ($response->successful()) {
-                $body = $response->json();
-                $templateCode = $body['TemplateCode'] ?? $body['templateCode'] ?? '';
+            $body = $response->json() ?? [];
+            if (! $this->isCamsSuccess($response->successful(), is_array($body) ? $body : [])) {
+                $this->handleSubmissionError($template, is_string($response->body()) ? $response->body() : json_encode($body));
 
-                $previous = $template->status;
-                $template->update([
-                    'code' => $templateCode ?: $template->code,
-                    'status' => TemplateStatus::PendingReview,
-                    'synced_at' => now(),
-                    'rejection_reason' => null,
-                ]);
-
-                $this->logStatusChange($template, $previous, TemplateStatus::PendingReview);
-
-                return true;
+                return false;
             }
 
-            $this->handleSubmissionError($template, $response->body());
+            $templateCode = $this->extractTemplateCode(is_array($body) ? $body : []);
+            $previous = $template->status;
+            $template->update([
+                'code' => $templateCode ?: $template->code,
+                'status' => TemplateStatus::PendingReview,
+                'synced_at' => now(),
+                'rejection_reason' => null,
+            ]);
 
-            return false;
+            $this->logStatusChange($template, $previous, TemplateStatus::PendingReview);
+
+            return true;
         } catch (\Throwable $e) {
             $this->handleSubmissionError($template, $e->getMessage());
 
@@ -94,7 +99,8 @@ class TemplateWhatsAppService
      */
     public function modifyTemplate(Template $template): bool
     {
-        if (! $template->code) {
+        $providerCode = $template->whatsappCode();
+        if (! $providerCode) {
             return $this->submitTemplate($template);
         }
 
@@ -108,35 +114,36 @@ class TemplateWhatsAppService
         }
 
         $components = $this->buildComponents($template);
-        $name = $this->normalizeName($template->code ?: $template->name);
+        $name = $this->normalizeName($template->name);
         $extra = ['CustSpaceId' => $line->alibaba_cust_space_id];
 
         try {
             $response = $this->camsClient->modifyChatappTemplate(
-                $template->code,
+                $providerCode,
                 $name,
-                $template->language,
+                CamsTemplateIdentity::language($template->language),
                 TemplateCategoryCatalog::whatsAppCategory((string) $template->category),
                 $components,
                 $extra,
             );
 
-            if ($response->successful()) {
-                $previous = $template->status;
-                $template->update([
-                    'status' => TemplateStatus::PendingReview,
-                    'synced_at' => now(),
-                    'rejection_reason' => null,
-                ]);
+            $body = $response->json() ?? [];
+            if (! $this->isCamsSuccess($response->successful(), is_array($body) ? $body : [])) {
+                $this->handleSubmissionError($template, is_string($response->body()) ? $response->body() : json_encode($body));
 
-                $this->logStatusChange($template, $previous, TemplateStatus::PendingReview);
-
-                return true;
+                return false;
             }
 
-            $this->handleSubmissionError($template, $response->body());
+            $previous = $template->status;
+            $template->update([
+                'status' => TemplateStatus::PendingReview,
+                'synced_at' => now(),
+                'rejection_reason' => null,
+            ]);
 
-            return false;
+            $this->logStatusChange($template, $previous, TemplateStatus::PendingReview);
+
+            return true;
         } catch (\Throwable $e) {
             $this->handleSubmissionError($template, $e->getMessage());
 
@@ -195,6 +202,10 @@ class TemplateWhatsAppService
 
         $carousel = $payload['carousel'] ?? [];
         if ($carousel['enabled'] ?? false) {
+            if (! filled($carousel['body'] ?? null)) {
+                $carousel['body'] = (string) ($payload['body']['text'] ?? '');
+            }
+
             return $this->buildCarouselComponents($carousel);
         }
 
@@ -359,11 +370,11 @@ class TemplateWhatsAppService
     private function buildCarouselComponents(array $carousel): array
     {
         $cards = collect($carousel['cards'] ?? [])
-            ->filter(fn ($card) => ! empty($card['body']))
+            ->filter(fn ($card) => is_array($card) && filled($card['body'] ?? null))
             ->map(function (array $card): array {
                 $cardComponent = [
-                    'headerType' => strtoupper($card['header'] ?? 'IMAGE'),
-                    'bodyText' => $card['body'] ?? '',
+                    'headerType' => strtoupper((string) ($card['header'] ?? 'IMAGE')),
+                    'bodyText' => (string) ($card['body'] ?? ''),
                 ];
 
                 if (! empty($card['media_url'])) {
@@ -371,11 +382,31 @@ class TemplateWhatsAppService
                 }
 
                 $cardButtons = collect($card['buttons'] ?? [])
-                    ->filter(fn ($btn) => ! empty($btn['text']))
-                    ->map(fn ($btn) => [
-                        'type' => $btn['type'] ?? 'QUICK_REPLY',
-                        'text' => $btn['text'],
-                    ])
+                    ->filter(fn ($btn) => is_array($btn) && filled($btn['text'] ?? null))
+                    ->map(function (array $btn): array {
+                        $type = strtoupper((string) ($btn['type'] ?? 'QUICK_REPLY'));
+
+                        if ($type === 'URL') {
+                            return [
+                                'type' => 'URL',
+                                'text' => (string) $btn['text'],
+                                'url' => (string) ($btn['url'] ?? ''),
+                            ];
+                        }
+
+                        if ($type === 'PHONE_NUMBER' || $type === 'PHONE') {
+                            return [
+                                'type' => 'PHONE_NUMBER',
+                                'text' => (string) $btn['text'],
+                                'phoneNumber' => (string) ($btn['url'] ?? ''),
+                            ];
+                        }
+
+                        return [
+                            'type' => 'QUICK_REPLY',
+                            'text' => (string) $btn['text'],
+                        ];
+                    })
                     ->values()
                     ->all();
 
@@ -388,10 +419,77 @@ class TemplateWhatsAppService
             ->values()
             ->all();
 
-        return [[
+        $components = [];
+
+        // WhatsApp carousel templates require a top-level BODY plus CAROUSEL cards.
+        $intro = trim((string) ($carousel['body'] ?? $carousel['intro'] ?? ''));
+        if ($intro === '') {
+            $intro = ' ';
+        }
+
+        $components[] = [
+            'type' => 'BODY',
+            'text' => $intro,
+            'format' => 'TEXT',
+        ];
+
+        $components[] = [
             'type' => 'CAROUSEL',
             'cards' => $cards,
-        ]];
+        ];
+
+        return $components;
+    }
+
+    /**
+     * @param  array<string, mixed>  $body
+     */
+    private function isCamsSuccess(bool $httpOk, array $body): bool
+    {
+        if (! $httpOk) {
+            return false;
+        }
+
+        $code = $body['Code'] ?? $body['code'] ?? null;
+        if ($code === null || $code === '') {
+            return true;
+        }
+
+        return in_array(strtoupper((string) $code), ['OK', '200', 'SUCCESS'], true);
+    }
+
+    /**
+     * @param  array<string, mixed>  $body
+     */
+    private function extractTemplateCode(array $body): string
+    {
+        $candidates = [
+            $body['TemplateCode'] ?? null,
+            $body['templateCode'] ?? null,
+            data_get($body, 'Data.TemplateCode'),
+            data_get($body, 'Data.templateCode'),
+            data_get($body, 'data.TemplateCode'),
+            data_get($body, 'data.templateCode'),
+            data_get($body, 'body.Data.TemplateCode'),
+            data_get($body, 'body.data.TemplateCode'),
+        ];
+
+        foreach ($candidates as $candidate) {
+            if (is_string($candidate) && CamsTemplateIdentity::isProviderCode($candidate)) {
+                return $candidate;
+            }
+            if (is_numeric($candidate) && CamsTemplateIdentity::isProviderCode((string) $candidate)) {
+                return (string) $candidate;
+            }
+        }
+
+        foreach ($candidates as $candidate) {
+            if (is_string($candidate) && trim($candidate) !== '') {
+                return trim($candidate);
+            }
+        }
+
+        return '';
     }
 
     /**

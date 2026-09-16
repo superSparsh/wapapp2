@@ -41,4 +41,20 @@ final class CamsTemplateIdentity
 
         return null;
     }
+
+    /**
+     * True when the value looks like an Alibaba CAMS TemplateCode
+     * (long numeric id), not a local snake_case template name.
+     */
+    public static function isProviderCode(?string $code): bool
+    {
+        $value = trim((string) $code);
+
+        if ($value === '' || str_contains($value, ' ') || str_contains($value, '_legacy_')) {
+            return false;
+        }
+
+        // Alibaba TemplateCode is typically a long numeric string.
+        return (bool) preg_match('/^\d{10,}$/', $value);
+    }
 }

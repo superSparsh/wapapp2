@@ -122,15 +122,16 @@ class TemplateOperativeParityTest extends TestCase
 
         $template = Template::factory()->create([
             'whatsapp_line_id' => $this->testLine->id,
-            'code' => 'META_ABC',
+            'code' => '1257583503568572416',
         ]);
         $template->delete();
 
         $this->assertNull($template->fresh()->code);
-        $this->assertSame('META_ABC', $template->fresh()->whatsappCode());
+        $this->assertSame('1257583503568572416', $template->fresh()->whatsappCode());
 
-        $this->artisan(DeleteSoftDeletedTemplates::class)
-            ->assertSuccessful();
+        $this->artisan(DeleteSoftDeletedTemplates::class, [
+            '--tenants' => [$this->testTenant->id],
+        ])->assertSuccessful();
 
         Bus::assertDispatched(DeleteTemplateJob::class, fn (DeleteTemplateJob $job) => $job->templateId === $template->id);
     }
@@ -142,7 +143,7 @@ class TemplateOperativeParityTest extends TestCase
         Template::factory()->create([
             'whatsapp_line_id' => $this->testLine->id,
             'status' => TemplateStatus::PendingReview,
-            'code' => 'ALREADY_SENT',
+            'code' => '1257583503568572416',
             'synced_at' => now()->subMinutes(10),
         ]);
 
@@ -153,10 +154,16 @@ class TemplateOperativeParityTest extends TestCase
             'synced_at' => null,
         ]);
 
-        $this->artisan(SubmitPendingTemplates::class)
-            ->assertSuccessful();
+        $this->artisan(SubmitPendingTemplates::class, [
+            '--tenants' => [$this->testTenant->id],
+        ])->assertSuccessful();
 
-        Bus::assertDispatched(SubmitTemplateJob::class, fn (SubmitTemplateJob $job) => $job->templateId === $unsynced->id);
+        Bus::assertDispatched(SubmitTemplateJob::class, function (SubmitTemplateJob $job) use ($unsynced): bool {
+            return $job->templateId === $unsynced->id && $job->isEdit === false;
+        });
         Bus::assertDispatchedTimes(SubmitTemplateJob::class, 1);
+
+        tenancy()->initialize($this->testTenant);
+        $this->assertNull($unsynced->fresh()->code);
     }
 }

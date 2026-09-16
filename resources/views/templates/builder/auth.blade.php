@@ -61,8 +61,6 @@
       </div>
     </div>
 
-    <div class="flex justify-end">
-      <button type="submit" class="fd-btn-sm rounded bg-green-500 px-4 py-3 text-primary-2">Next</button>
-    </div>
+    <x-templates.builder-actions :back-url="$previousStepUrl ?? route('templates.index')" />
   </form>
 </x-templates.builder-layout>

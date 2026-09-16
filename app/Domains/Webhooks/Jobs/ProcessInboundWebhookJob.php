@@ -6,6 +6,8 @@ namespace App\Domains\Webhooks\Jobs;
 
 use App\Domains\Webhooks\Handlers\DeliveryStatusHandler;
 use App\Domains\Webhooks\Handlers\InboundMessageHandler;
+use App\Domains\Webhooks\Handlers\TemplateAuditWebhookHandler;
+use App\Domains\Webhooks\Parsers\AlibabaWebhookParser;
 use App\Enums\InboundWebhookEventType;
 use App\Enums\InboundWebhookStatus;
 use App\Models\InboundWebhookEvent;
@@ -26,6 +28,8 @@ class ProcessInboundWebhookJob implements ShouldQueue
     public function handle(
         InboundMessageHandler $messageHandler,
         DeliveryStatusHandler $statusHandler,
+        TemplateAuditWebhookHandler $templateAuditHandler,
+        AlibabaWebhookParser $parser,
     ): void {
         $event = InboundWebhookEvent::query()->find($this->eventId);
 
@@ -45,7 +49,12 @@ class ProcessInboundWebhookJob implements ShouldQueue
         try {
             match ($event->event_type) {
                 InboundWebhookEventType::Message => $messageHandler->handle($event),
-                InboundWebhookEventType::Status => $statusHandler->handle($event),
+                InboundWebhookEventType::Status => $this->handleStatus(
+                    $event,
+                    $statusHandler,
+                    $templateAuditHandler,
+                    $parser,
+                ),
             };
 
             $event->forceFill([
@@ -61,5 +70,22 @@ class ProcessInboundWebhookJob implements ShouldQueue
 
             throw $exception;
         }
+    }
+
+    private function handleStatus(
+        InboundWebhookEvent $event,
+        DeliveryStatusHandler $statusHandler,
+        TemplateAuditWebhookHandler $templateAuditHandler,
+        AlibabaWebhookParser $parser,
+    ): void {
+        $item = $parser->firstItem($parser->parsePayload($event->payload));
+
+        if ($item !== null && $templateAuditHandler->looksLikeTemplateAudit($item)) {
+            $templateAuditHandler->handle($event);
+
+            return;
+        }
+
+        $statusHandler->handle($event);
     }
 }

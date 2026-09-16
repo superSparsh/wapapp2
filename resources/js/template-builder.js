@@ -736,10 +736,58 @@ function initVariableModal(root) {
 function initHeaderSections(scheduleUpdate) {
     const sections = document.querySelectorAll('[data-header-section]');
     const radios = document.querySelectorAll('input[name="header_type"]');
+    const form = document.getElementById('builder-header-form');
 
     if (!sections.length && !radios.length) {
         return;
     }
+
+    const syncActiveInputs = (selected) => {
+        sections.forEach((section) => {
+            const sectionType = section.dataset.headerSection;
+            const isActive = sectionType === selected
+                || (sectionType === 'text' && selected === 'text')
+                || (sectionType === 'location' && selected === 'location');
+
+            const useUrlCheckbox = section.querySelector('[data-header-use-url]');
+            const useUrl = Boolean(useUrlCheckbox?.checked) && isActive;
+            const fileInput = section.querySelector('[data-header-media-input]');
+            const urlInput = section.querySelector('[data-header-url-input]');
+            const fileWrap = section.querySelector('[data-header-file-wrap]');
+            const urlWrap = section.querySelector('[data-header-url-wrap]');
+            const docName = section.querySelector('input[name="doc_name"]');
+
+            if (useUrlCheckbox) {
+                useUrlCheckbox.disabled = !isActive;
+                if (!isActive) {
+                    useUrlCheckbox.checked = false;
+                }
+            }
+
+            if (fileWrap) {
+                fileWrap.classList.toggle('hidden', useUrl);
+            }
+            if (urlWrap) {
+                urlWrap.classList.toggle('hidden', !useUrl);
+            }
+
+            if (fileInput) {
+                const enableFile = isActive && !useUrl;
+                fileInput.disabled = !enableFile;
+                fileInput.name = enableFile ? 'header_media' : '';
+            }
+
+            if (urlInput) {
+                const enableUrl = isActive && useUrl;
+                urlInput.disabled = !enableUrl;
+                urlInput.name = enableUrl ? 'media_url' : '';
+            }
+
+            if (docName) {
+                docName.disabled = !isActive;
+            }
+        });
+    };
 
     const syncSections = () => {
         const selected = document.querySelector('input[name="header_type"]:checked')?.value || 'none';
@@ -775,11 +823,16 @@ function initHeaderSections(scheduleUpdate) {
             }
         });
 
+        syncActiveInputs(selected);
         scheduleUpdate();
     };
 
     radios.forEach((radio) => {
         radio.addEventListener('change', syncSections);
+    });
+
+    form?.querySelectorAll('[data-header-use-url]').forEach((checkbox) => {
+        checkbox.addEventListener('change', syncSections);
     });
 
     ['header_text', 'template_name'].forEach((id) => {
@@ -789,9 +842,23 @@ function initHeaderSections(scheduleUpdate) {
     syncSections();
 }
 
+function showHeaderUploadError(zone, message) {
+    const section = zone.closest('[data-header-section]');
+    const errorEl = section?.querySelector('[data-header-upload-error]');
+    if (errorEl) {
+        errorEl.textContent = message || '';
+        errorEl.classList.toggle('hidden', !message);
+    }
+
+    if (message && typeof window.showAppToast === 'function') {
+        window.showAppToast({ type: 'error', message, title: 'Upload failed' });
+    }
+}
+
 function initHeaderMedia(scheduleUpdate) {
     const form = document.getElementById('builder-header-form');
     const uploadUrl = form?.dataset.headerUploadUrl || '';
+    const mediaPathInput = form?.querySelector('input[name="media_path"]');
 
     document.querySelectorAll('[data-header-upload]').forEach((zone) => {
         const input = zone.querySelector('[data-header-media-input]');
@@ -799,6 +866,7 @@ function initHeaderMedia(scheduleUpdate) {
         const imageEl = zone.querySelector('[data-header-media-image]');
         const videoEl = zone.querySelector('[data-header-media-video]');
         const nameEl = zone.querySelector('[data-header-media-name]');
+        const maxBytes = Number(zone.dataset.maxBytes || 0);
 
         if (!input) {
             return;
@@ -810,8 +878,18 @@ function initHeaderMedia(scheduleUpdate) {
                 return;
             }
 
+            showHeaderUploadError(zone, '');
+
+            if (maxBytes > 0 && file.size > maxBytes) {
+                const mb = Math.round(maxBytes / (1024 * 1024));
+                showHeaderUploadError(zone, `File is too large. Max allowed is ${mb} MB.`);
+                input.value = '';
+                return;
+            }
+
             const objectUrl = URL.createObjectURL(file);
             const isVideo = file.type.startsWith('video/');
+            const isImage = file.type.startsWith('image/');
 
             previewWrap?.classList.remove('hidden');
             if (nameEl) {
@@ -825,7 +903,7 @@ function initHeaderMedia(scheduleUpdate) {
                     videoEl.src = objectUrl;
                     videoEl.dataset.previewUrl = objectUrl;
                 }
-            } else {
+            } else if (isImage) {
                 videoEl?.classList.add('hidden');
                 if (videoEl) {
                     videoEl.removeAttribute('src');
@@ -835,6 +913,9 @@ function initHeaderMedia(scheduleUpdate) {
                     imageEl.src = objectUrl;
                     imageEl.dataset.previewUrl = objectUrl;
                 }
+            } else {
+                videoEl?.classList.add('hidden');
+                imageEl?.classList.add('hidden');
             }
 
             scheduleUpdate();
@@ -857,12 +938,21 @@ function initHeaderMedia(scheduleUpdate) {
                     body,
                 });
 
+                const data = await response.json().catch(() => ({}));
+
                 if (!response.ok) {
+                    const firstError = data?.errors
+                        ? Object.values(data.errors).flat()[0]
+                        : null;
+                    const message = firstError || data.message || 'Upload failed. Please try again.';
+                    showHeaderUploadError(zone, message);
                     return;
                 }
 
-                const data = await response.json();
                 const remoteUrl = data.url || '';
+                if (mediaPathInput && data.path) {
+                    mediaPathInput.value = data.path;
+                }
 
                 if (!remoteUrl) {
                     return;
@@ -873,16 +963,24 @@ function initHeaderMedia(scheduleUpdate) {
                     videoEl.dataset.previewUrl = remoteUrl;
                     videoEl.classList.remove('hidden');
                     imageEl?.classList.add('hidden');
-                } else if (imageEl) {
+                } else if (imageEl && (data.type === 'image' || isImage)) {
                     imageEl.src = remoteUrl;
                     imageEl.dataset.previewUrl = remoteUrl;
                     imageEl.classList.remove('hidden');
                     videoEl?.classList.add('hidden');
                 }
 
+                if (typeof window.showAppToast === 'function') {
+                    window.showAppToast({
+                        type: 'success',
+                        message: data.message || 'Media uploaded.',
+                        title: 'Uploaded',
+                    });
+                }
+
                 scheduleUpdate();
             } catch {
-                // Keep local object URL preview when upload fails.
+                showHeaderUploadError(zone, 'Network error while uploading. Please try again.');
             }
         });
     });
@@ -1474,20 +1572,60 @@ function initCarouselBuilder() {
     const maxCards = Number(form.dataset.carouselMax || 10);
     let cards = JSON.parse(root.dataset.savedCards || '[]');
 
+    const buttonFields = (card, index, buttonIndex) => {
+        const button = card.buttons?.[buttonIndex] || {};
+        const type = button.type || 'QUICK_REPLY';
+        const showUrl = type === 'URL' || type === 'PHONE_NUMBER';
+
+        return `
+          <div class="grid grid-cols-1 gap-2 rounded-lg bg-muted-surface p-3 md:grid-cols-3" data-carousel-button>
+            <div>
+              <label class="text-xs font-medium text-text-subtle">Button ${buttonIndex + 1} type</label>
+              <select name="cards[${index}][buttons][${buttonIndex}][type]" class="fd-input mt-1 w-full rounded-xl border border-border p-2.5" data-carousel-button-type>
+                <option value="QUICK_REPLY" ${type === 'QUICK_REPLY' ? 'selected' : ''}>Quick Reply</option>
+                <option value="URL" ${type === 'URL' ? 'selected' : ''}>Visit Website</option>
+                <option value="PHONE_NUMBER" ${type === 'PHONE_NUMBER' ? 'selected' : ''}>Call Phone</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-xs font-medium text-text-subtle">Button text</label>
+              <input name="cards[${index}][buttons][${buttonIndex}][text]" value="${escapeHtml(button.text || '')}" maxlength="25" class="fd-input mt-1 w-full rounded-xl border border-border p-2.5" placeholder="Learn more">
+            </div>
+            <div class="${showUrl ? '' : 'hidden'}" data-carousel-button-url-wrap>
+              <label class="text-xs font-medium text-text-subtle">${type === 'PHONE_NUMBER' ? 'Phone number' : 'Website URL'}</label>
+              <input name="cards[${index}][buttons][${buttonIndex}][url]" value="${escapeHtml(button.url || '')}" class="fd-input mt-1 w-full rounded-xl border border-border p-2.5" placeholder="${type === 'PHONE_NUMBER' ? '+919876543210' : 'https://example.com'}">
+            </div>
+          </div>`;
+    };
+
     const renderCard = (card, index) => `
-      <div class="flex flex-col gap-3 rounded-lg border border-divider p-3" data-carousel-card>
+      <div class="flex flex-col gap-3 rounded-lg border border-divider p-4" data-carousel-card>
         <div class="flex items-center justify-between">
           <p class="text-sm font-semibold text-text-body">Card ${index + 1}</p>
           <button type="button" data-carousel-remove class="text-sm text-red-600">Remove</button>
         </div>
-        <input type="hidden" name="cards[${index}][header]" value="${escapeHtml(card.header || 'IMAGE')}">
-        <label class="text-sm font-medium">Media URL</label>
-        <input name="cards[${index}][media_url]" value="${escapeHtml(card.media_url || '')}" class="fd-input w-full rounded-xl border border-border p-3" placeholder="https://example.com/image.jpg">
-        <label class="text-sm font-medium">Body <span class="text-[red]">*</span></label>
-        <textarea name="cards[${index}][body]" maxlength="160" rows="3" required class="fd-input w-full rounded-xl border border-border p-3">${escapeHtml(card.body || '')}</textarea>
-        <label class="text-sm font-medium">Button text (optional)</label>
-        <input name="cards[${index}][buttons][0][text]" value="${escapeHtml(card.buttons?.[0]?.text || '')}" maxlength="25" class="fd-input w-full rounded-xl border border-border p-3">
-        <input type="hidden" name="cards[${index}][buttons][0][type]" value="QUICK_REPLY">
+        <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+          <div>
+            <label class="text-sm font-medium">Header type</label>
+            <select name="cards[${index}][header]" class="fd-input mt-1 w-full rounded-xl border border-border p-3">
+              <option value="IMAGE" ${(card.header || 'IMAGE') === 'IMAGE' ? 'selected' : ''}>Image</option>
+              <option value="VIDEO" ${card.header === 'VIDEO' ? 'selected' : ''}>Video</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-sm font-medium">Media URL <span class="text-[red]">*</span></label>
+            <input name="cards[${index}][media_url]" value="${escapeHtml(card.media_url || '')}" required class="fd-input mt-1 w-full rounded-xl border border-border p-3" placeholder="https://example.com/image.jpg">
+          </div>
+        </div>
+        <div>
+          <label class="text-sm font-medium">Card body <span class="text-[red]">*</span></label>
+          <textarea name="cards[${index}][body]" maxlength="160" rows="3" required class="fd-input mt-1 w-full rounded-xl border border-border p-3">${escapeHtml(card.body || '')}</textarea>
+        </div>
+        <div class="flex flex-col gap-2">
+          <p class="text-sm font-medium text-text-body">Buttons (up to 2)</p>
+          ${buttonFields(card, index, 0)}
+          ${buttonFields(card, index, 1)}
+        </div>
       </div>`;
 
     const paint = () => {
@@ -1499,7 +1637,15 @@ function initCarouselBuilder() {
         if (cards.length >= maxCards) {
             return;
         }
-        cards.push({ header: 'IMAGE', body: '', media_url: '', buttons: [] });
+        cards.push({
+            header: 'IMAGE',
+            body: '',
+            media_url: '',
+            buttons: [
+                { text: '', type: 'QUICK_REPLY', url: '' },
+                { text: '', type: 'QUICK_REPLY', url: '' },
+            ],
+        });
         paint();
     });
 
@@ -1513,6 +1659,24 @@ function initCarouselBuilder() {
         if (index >= 0) {
             cards.splice(index, 1);
             paint();
+        }
+    });
+
+    root.addEventListener('change', (event) => {
+        const typeSelect = event.target.closest('[data-carousel-button-type]');
+        if (!typeSelect) {
+            return;
+        }
+        const wrap = typeSelect.closest('[data-carousel-button]')?.querySelector('[data-carousel-button-url-wrap]');
+        const showUrl = typeSelect.value === 'URL' || typeSelect.value === 'PHONE_NUMBER';
+        wrap?.classList.toggle('hidden', !showUrl);
+        const label = wrap?.querySelector('label');
+        const input = wrap?.querySelector('input');
+        if (label) {
+            label.textContent = typeSelect.value === 'PHONE_NUMBER' ? 'Phone number' : 'Website URL';
+        }
+        if (input) {
+            input.placeholder = typeSelect.value === 'PHONE_NUMBER' ? '+919876543210' : 'https://example.com';
         }
     });
 

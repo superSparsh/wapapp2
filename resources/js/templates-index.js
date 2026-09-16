@@ -5,11 +5,100 @@ function getCsrfToken() {
     return document.querySelector('meta[name="csrf-token"]')?.content || '';
 }
 
+const STATUS_VARIANT_CLASSES = {
+    'fd-approved': 'bg-green-50 text-green-700',
+    'fd-draft': 'bg-blue-50 text-primary-2',
+    'fd-error': 'bg-danger/10 text-danger',
+    'fd-type': 'bg-indigo-50 text-indigo-700',
+    'fd-category': 'bg-violet-50 text-violet-700',
+    'fd-category-marketing': 'bg-pink-50 text-pink-700',
+    'fd-category-utility': 'bg-sky-50 text-sky-700',
+    'fd-category-auth': 'bg-amber-50 text-amber-800',
+    'fd-category-carousel': 'bg-fuchsia-50 text-fuchsia-700',
+    'fd-category-lto': 'bg-orange-50 text-orange-700',
+    approved: 'bg-stat-emerald/15 text-stat-emerald',
+    pending: 'bg-stat-orange/15 text-stat-orange',
+    rejected: 'bg-danger/10 text-danger',
+    default: 'bg-muted-surface text-text-body',
+};
+
+function applyStatusChip(chip, label, variant) {
+    if (!chip) {
+        return;
+    }
+
+    chip.textContent = label || '—';
+    chip.className = `fd-status-chip inline-flex items-center rounded px-2 py-1 ${STATUS_VARIANT_CLASSES[variant] || STATUS_VARIANT_CLASSES.default}`;
+}
+
+function initStatusPolling(root) {
+    const statusesUrl = root.dataset.statusesUrl;
+    if (!statusesUrl) {
+        return;
+    }
+
+    const pollMs = Math.max(5000, Number(root.dataset.statusPollMs || 15000));
+
+    const poll = async () => {
+        if (document.hidden) {
+            return;
+        }
+
+        const rows = [...root.querySelectorAll('[data-template-row][data-template-uuid]')];
+        const uuids = rows.map((row) => row.dataset.templateUuid).filter(Boolean);
+        if (!uuids.length) {
+            return;
+        }
+
+        try {
+            const params = new URLSearchParams();
+            uuids.forEach((uuid) => params.append('uuids[]', uuid));
+            const response = await fetch(`${statusesUrl}?${params.toString()}`, {
+                headers: { Accept: 'application/json' },
+            });
+
+            if (!response.ok) {
+                return;
+            }
+
+            const data = await response.json();
+            const byUuid = new Map((data.items || []).map((item) => [item.uuid, item]));
+
+            rows.forEach((row) => {
+                const item = byUuid.get(row.dataset.templateUuid);
+                if (!item) {
+                    return;
+                }
+
+                const chip = row.querySelector('[data-template-status-chip]');
+                applyStatusChip(chip, item.status, item.status_variant);
+
+                const rejectionWrap = row.querySelector('[data-template-rejection-wrap]');
+                const rejectionText = row.querySelector('[data-template-rejection-reason]');
+                if (rejectionWrap) {
+                    const show = Boolean(item.error && item.rejection_reason);
+                    rejectionWrap.classList.toggle('hidden', !show);
+                    if (rejectionText && item.rejection_reason) {
+                        rejectionText.textContent = item.rejection_reason;
+                    }
+                }
+            });
+        } catch {
+            // Ignore transient poll errors.
+        }
+    };
+
+    poll();
+    window.setInterval(poll, pollMs);
+}
+
 export function initTemplatesIndex() {
     const root = document.querySelector('[data-templates-index]');
     if (!root) {
         return;
     }
+
+    initStatusPolling(root);
 
     const bulkUrl = root.dataset.bulkDestroyUrl;
     const bulkBar = document.getElementById('templates-bulk-actions');

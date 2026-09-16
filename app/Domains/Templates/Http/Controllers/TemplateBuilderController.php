@@ -51,6 +51,10 @@ class TemplateBuilderController extends Controller
         $mediaPath = $payload['header']['media_path'] ?? null;
         $mediaUrl = $payload['header']['media_url'] ?? null;
 
+        if ($request->filled('media_path') && ! $request->hasFile('header_media') && ! $request->boolean('use_url')) {
+            $mediaPath = (string) $request->input('media_path');
+        }
+
         if ($request->hasFile('header_media')) {
             $stored = app(TemplateMediaService::class)->storeHeaderMedia($request->file('header_media'));
             $mediaPath = $stored['path'];
@@ -78,8 +82,33 @@ class TemplateBuilderController extends Controller
         TemplateBuilderService $builderService,
         TemplateMediaService $mediaService,
     ): JsonResponse {
+        $file = $request->file('header_media');
+        $mime = (string) ($file?->getMimeType() ?? '');
+        $headerType = match (true) {
+            str_starts_with($mime, 'image/') => 'image',
+            str_starts_with($mime, 'video/') => 'video',
+            str_starts_with($mime, 'audio/') => 'audio',
+            str_starts_with($mime, 'application/pdf') => 'document',
+            default => null,
+        };
+
+        $limits = [
+            'image' => ['mimes:jpeg,jpg,png', 'max:'.(int) (config('templates.header_image_max', 5242880) / 1024)],
+            'video' => ['mimes:mp4,3gp', 'max:'.(int) (config('templates.header_video_max', 16777216) / 1024)],
+            'document' => ['mimes:pdf', 'max:'.(int) (config('templates.header_document_max', 10485760) / 1024)],
+            'audio' => ['mimes:mp3,wav,aac,ogg,m4a', 'max:'.(int) (config('templates.header_audio_max', 16777216) / 1024)],
+        ];
+
+        $typeRules = $headerType && isset($limits[$headerType])
+            ? $limits[$headerType]
+            : ['mimes:jpeg,jpg,png,mp4,3gp,pdf,mp3,wav,aac,ogg,m4a', 'max:16384'];
+
         $request->validate([
-            'header_media' => ['required', 'file', 'mimes:jpg,jpeg,png,mp4,3gp,pdf,mp3,wav,aac,ogg,m4a', 'max:16384'],
+            'header_media' => array_merge(['required', 'file'], $typeRules),
+        ], [
+            'header_media.required' => 'Please choose a file to upload.',
+            'header_media.mimes' => 'This file type is not supported for the header.',
+            'header_media.max' => 'The file is too large for this header type.',
         ]);
 
         $stored = $mediaService->storeHeaderMedia($request->file('header_media'));
@@ -95,12 +124,15 @@ class TemplateBuilderController extends Controller
         $builderService->saveStep($template, 'header', [
             'type' => $headerType,
             'media_path' => $stored['path'],
+            'media_url' => null,
+            'use_url' => false,
         ]);
 
         return response()->json([
             'path' => $stored['path'],
             'url' => $stored['url'],
             'type' => $headerType,
+            'message' => 'Media uploaded successfully.',
         ]);
     }
 
@@ -251,8 +283,16 @@ class TemplateBuilderController extends Controller
 
         $builderService->saveStep($template, 'carousel', [
             'enabled' => true,
+            'body' => (string) $request->input('carousel_body', ''),
             'cards' => $cards,
         ]);
+
+        if ($request->filled('carousel_body')) {
+            $builderService->saveStep($template, 'body', [
+                'text' => (string) $request->input('carousel_body'),
+                'samples' => $template->wizardPayload()['body']['samples'] ?? [],
+            ]);
+        }
 
         return redirect()->route($this->builderFlow->nextRouteAfterCarousel(), $template);
     }
@@ -378,6 +418,7 @@ class TemplateBuilderController extends Controller
             'setupComplete' => $template->isSetupComplete(),
             'builderSteps' => $this->builderFlow->stepsFor($template),
             'canUseCarousel' => $this->builderFlow->canUseCarousel(),
+            'previousStepUrl' => $this->builderFlow->previousUrlFor($template, $step),
         ], $extra));
     }
 }

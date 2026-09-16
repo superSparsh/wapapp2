@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Templates\Support;
 
+use App\Domains\Templates\Support\TemplateCategoryCatalog;
 use App\Domains\Templates\Enums\TemplateStatus;
 use App\Models\Template;
 use Illuminate\Support\Collection;
@@ -29,7 +30,17 @@ class TemplateCatalogPresenter
                 'code' => (string) ($template->code ?? ''),
                 'created_at' => $template->created_at?->format('Y-m-d h:i A') ?? '—',
                 'type' => $template->source->value === 'cams' ? 'Regular' : 'Draft',
-                'category' => $template->category !== '' ? $template->category : 'Marketing',
+                'type_variant' => $template->source->value === 'cams' ? 'fd-type' : 'fd-draft',
+                'category' => $template->category !== ''
+                    ? TemplateCategoryCatalog::label($template->category)
+                    : 'Marketing',
+                'category_variant' => match (strtoupper((string) $template->category)) {
+                    'UTILITY' => 'fd-category-utility',
+                    'AUTHENTICATION' => 'fd-category-auth',
+                    'CAROUSEL' => 'fd-category-carousel',
+                    'LIMITED_TIME_OFFER' => 'fd-category-lto',
+                    default => 'fd-category-marketing',
+                },
                 'status' => $template->status->label(),
                 'status_variant' => $template->status->chipVariant(),
                 'error' => $template->status === TemplateStatus::Rejected,

@@ -6,6 +6,7 @@ namespace App\Domains\Templates\Services;
 
 use App\Domains\Templates\Contracts\TemplateServiceClientInterface;
 use App\Domains\Templates\Support\InteractiveMessagePresenter;
+use App\Domains\Templates\Support\TemplateCategoryCatalog;
 use App\Models\Template;
 use App\Models\Variable;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -91,7 +92,15 @@ class TemplateServiceAdapter
                         'code' => (string) ($row['code'] ?? ''),
                         'created_at' => $row['created_at'] ?? '—',
                         'type' => $row['type'] ?? 'Regular',
-                        'category' => $row['category'] !== '' ? ($row['category'] ?? 'Marketing') : 'Marketing',
+                        'type_variant' => ($row['type'] ?? 'Regular') === 'Draft' ? 'fd-draft' : 'fd-type',
+                        'category' => TemplateCategoryCatalog::label((string) ($row['category'] ?? 'MARKETING')),
+                        'category_variant' => match (strtoupper((string) ($row['category'] ?? 'MARKETING'))) {
+                            'UTILITY' => 'fd-category-utility',
+                            'AUTHENTICATION' => 'fd-category-auth',
+                            'CAROUSEL' => 'fd-category-carousel',
+                            'LIMITED_TIME_OFFER' => 'fd-category-lto',
+                            default => 'fd-category-marketing',
+                        },
                         'status' => $row['status'] ?? 'Approved',
                         'status_variant' => $row['status_variant'] ?? 'fd-approved',
                         'error' => (bool) ($row['error'] ?? false),
@@ -104,6 +113,9 @@ class TemplateServiceAdapter
                         'edit_url' => in_array($row['status_value'] ?? strtolower((string) ($row['status'] ?? '')), ['draft', 'pending_review', 'rejected'], true) && ! empty($row['uuid'])
                             ? route('templates.builder.body', ['template' => $row['uuid']])
                             : null,
+                        'copy_url' => ! empty($row['uuid'])
+                            ? route('templates.duplicate', ['template' => $row['uuid']])
+                            : '#',
                         'uuid' => $row['uuid'] ?? '',
                         'delete_url' => ! empty($row['uuid'])
                             ? route('templates.destroy', ['template' => $row['uuid']])

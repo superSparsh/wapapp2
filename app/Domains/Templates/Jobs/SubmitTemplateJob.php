@@ -35,7 +35,7 @@ class SubmitTemplateJob implements ShouldQueue
             return;
         }
 
-        if ($this->isEdit && $template->code) {
+        if ($this->isEdit && $template->whatsappCode()) {
             $whatsappService->modifyTemplate($template);
         } else {
             $whatsappService->submitTemplate($template);

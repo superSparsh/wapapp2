@@ -2,11 +2,18 @@
   $headerType = old('header_type', $payload['header']['type'] ?? 'none');
   $mediaPath = $payload['header']['media_path'] ?? null;
   $mediaUrl = $payload['header']['media_url'] ?? null;
-  $useUrl = old('use_url', $payload['header']['use_url'] ?? false);
+  $useUrl = (bool) old('use_url', $payload['header']['use_url'] ?? false);
   $previewUrl = $mediaPath ? asset('storage/'.$mediaPath) : $mediaUrl;
+  $previousStepUrl = $previousStepUrl ?? route('templates.index');
 @endphp
 
-<x-templates.builder-layout active="header" :template="$template" :payload="$payload" :preview-data="$previewData ?? null">
+<x-templates.builder-layout
+  active="header"
+  :template="$template"
+  :payload="$payload"
+  :preview-data="$previewData ?? null"
+  :builder-steps="$builderSteps ?? null"
+>
   <form
     id="builder-header-form"
     method="post"
@@ -17,6 +24,7 @@
     data-validate-form
   >
     @csrf
+    <input type="hidden" name="media_path" value="{{ old('media_path', $mediaPath ?? '') }}">
 
     <div class="flex flex-col gap-2">
       <p class="text-sm font-semibold leading-[1.5] text-text-body">Type</p>
@@ -50,67 +58,114 @@
         @endforeach
       </div>
       <p class="text-xs text-text-subtle">Header is optional. Choose None to skip this step.</p>
+      <x-ui.field-error field="header_type" />
     </div>
 
-    <div data-header-section="text" @class(['flex w-full max-w-[420px] flex-col gap-3', 'hidden' => ! in_array($headerType, ['text', 'location'], true)])>
+    <div data-header-section="text" @class(['flex w-full max-w-[420px] flex-col gap-3', 'hidden' => $headerType !== 'text'])>
       <label for="header_text" class="fd-label">Header Text</label>
-      <input
-        id="header_text"
-        name="header_text"
-        type="text"
-        value="{{ old('header_text', $payload['header']['text'] ?? '') }}"
-        placeholder="Write headline"
-        class="fd-input w-full rounded-xl border border-solid border-border bg-elevated p-3.5 text-text-muted focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500 @error('header_text') border-red-500 @enderror"
-      >
-      <x-ui.field-error field="header_text" />
+      <div data-validate-field>
+        <input
+          id="header_text"
+          name="header_text"
+          type="text"
+          value="{{ old('header_text', $payload['header']['text'] ?? '') }}"
+          placeholder="Write headline"
+          class="fd-input w-full rounded-xl border border-solid border-border bg-elevated p-3.5 text-text-muted focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500 @error('header_text') border-red-500 @enderror"
+        >
+        <x-ui.field-error field="header_text" />
+      </div>
     </div>
 
     <div data-header-section="image" @class(['flex w-full flex-col gap-3', 'hidden' => $headerType !== 'image'])>
       <label class="fd-label">Image</label>
-      @if ($useUrl)
-        <input type="url" name="media_url" value="{{ old('media_url', $mediaUrl ?? '') }}" placeholder="https://example.com/image.png" class="fd-input w-full rounded-xl border border-solid border-border bg-elevated p-3.5 text-text-muted focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500">
-      @else
-        <x-templates.upload-zone :preview-url="$previewUrl" accept="image/png,image/jpeg" hint="Only .png or .jpg (max 5 MB)" />
-      @endif
+      <div data-header-url-wrap @class(['hidden' => ! $useUrl])>
+        <div data-validate-field>
+          <input type="url" name="media_url" value="{{ old('media_url', $mediaUrl ?? '') }}" placeholder="https://example.com/image.png" class="fd-input w-full rounded-xl border border-solid border-border bg-elevated p-3.5 text-text-muted focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500 @error('media_url') border-red-500 @enderror" data-header-url-input @disabled(! $useUrl || $headerType !== 'image')>
+          <x-ui.field-error field="media_url" />
+        </div>
+      </div>
+      <div data-header-file-wrap @class(['hidden' => $useUrl])>
+        <x-templates.upload-zone
+          id="header_image"
+          accept="image/png,image/jpeg"
+          hint="Only .png or .jpg (max 5 MB)"
+          :preview-url="$headerType === 'image' ? $previewUrl : null"
+          :enabled="$headerType === 'image' && ! $useUrl"
+          :max-bytes="5242880"
+        />
+        <x-ui.field-error field="header_media" />
+        <p class="hidden text-xs text-red-500" data-header-upload-error></p>
+      </div>
       <label class="flex items-center gap-2 text-sm text-text-muted">
-        <input type="checkbox" name="use_url" value="1" @checked($useUrl)> Use URL instead of uploading a file
+        <input type="checkbox" name="use_url" value="1" data-header-use-url @checked($useUrl && $headerType === 'image') @disabled($headerType !== 'image')>
+        Use URL instead of uploading a file
       </label>
     </div>
 
     <div data-header-section="video" @class(['flex w-full flex-col gap-3', 'hidden' => $headerType !== 'video'])>
       <label class="fd-label">Video</label>
-      @if ($useUrl)
-        <input type="url" name="media_url" value="{{ old('media_url', $mediaUrl ?? '') }}" placeholder="https://example.com/video.mp4" class="fd-input w-full rounded-xl border border-solid border-border bg-elevated p-3.5 text-text-muted focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500">
-      @else
-        <x-templates.upload-zone id="header_video" accept="video/mp4,video/3gpp" hint="Only .mp4 or .3gp (max 16 MB)" :preview-url="$previewUrl" />
-      @endif
+      <div data-header-url-wrap @class(['hidden' => ! $useUrl])>
+        <input type="url" name="media_url" value="{{ old('media_url', $mediaUrl ?? '') }}" placeholder="https://example.com/video.mp4" class="fd-input w-full rounded-xl border border-solid border-border bg-elevated p-3.5 text-text-muted focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500" data-header-url-input @disabled(! $useUrl || $headerType !== 'video')>
+      </div>
+      <div data-header-file-wrap @class(['hidden' => $useUrl])>
+        <x-templates.upload-zone
+          id="header_video"
+          accept="video/mp4,video/3gpp"
+          hint="Only .mp4 or .3gp (max 16 MB)"
+          :preview-url="$headerType === 'video' ? $previewUrl : null"
+          :enabled="$headerType === 'video' && ! $useUrl"
+          :max-bytes="16777216"
+        />
+        <p class="hidden text-xs text-red-500" data-header-upload-error></p>
+      </div>
       <label class="flex items-center gap-2 text-sm text-text-muted">
-        <input type="checkbox" name="use_url" value="1" @checked($useUrl)> Use URL instead of uploading a file
+        <input type="checkbox" name="use_url" value="1" data-header-use-url @checked($useUrl && $headerType === 'video') @disabled($headerType !== 'video')>
+        Use URL instead of uploading a file
       </label>
     </div>
 
     <div data-header-section="document" @class(['flex w-full flex-col gap-3', 'hidden' => $headerType !== 'document'])>
       <label class="fd-label">Document</label>
-      @if ($useUrl)
-        <input type="url" name="media_url" value="{{ old('media_url', $mediaUrl ?? '') }}" placeholder="https://example.com/doc.pdf" class="fd-input w-full rounded-xl border border-solid border-border bg-elevated p-3.5 text-text-muted focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500">
-      @else
-        <x-templates.upload-zone id="header_document" accept="application/pdf" hint="Only .pdf (max 10 MB)" :preview-url="$previewUrl" />
-      @endif
+      <div data-header-url-wrap @class(['hidden' => ! $useUrl])>
+        <input type="url" name="media_url" value="{{ old('media_url', $mediaUrl ?? '') }}" placeholder="https://example.com/doc.pdf" class="fd-input w-full rounded-xl border border-solid border-border bg-elevated p-3.5 text-text-muted focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500" data-header-url-input @disabled(! $useUrl || $headerType !== 'document')>
+      </div>
+      <div data-header-file-wrap @class(['hidden' => $useUrl])>
+        <x-templates.upload-zone
+          id="header_document"
+          accept="application/pdf"
+          hint="Only .pdf (max 10 MB)"
+          :preview-url="$headerType === 'document' ? $previewUrl : null"
+          :enabled="$headerType === 'document' && ! $useUrl"
+          :max-bytes="10485760"
+        />
+        <p class="hidden text-xs text-red-500" data-header-upload-error></p>
+      </div>
       <label class="flex items-center gap-2 text-sm text-text-muted">
-        <input type="checkbox" name="use_url" value="1" @checked($useUrl)> Use URL instead of uploading a file
+        <input type="checkbox" name="use_url" value="1" data-header-use-url @checked($useUrl && $headerType === 'document') @disabled($headerType !== 'document')>
+        Use URL instead of uploading a file
       </label>
-      <input type="text" name="doc_name" value="{{ old('doc_name', $payload['header']['doc_name'] ?? '') }}" placeholder="Document file name" class="fd-input w-full rounded-xl border border-solid border-border bg-elevated p-3.5 text-text-muted focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500">
+      <input type="text" name="doc_name" value="{{ old('doc_name', $payload['header']['doc_name'] ?? '') }}" placeholder="Document file name" class="fd-input w-full rounded-xl border border-solid border-border bg-elevated p-3.5 text-text-muted focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500" @disabled($headerType !== 'document')>
     </div>
 
     <div data-header-section="audio" @class(['flex w-full flex-col gap-3', 'hidden' => $headerType !== 'audio'])>
       <label class="fd-label">Audio</label>
-      @if ($useUrl)
-        <input type="url" name="media_url" value="{{ old('media_url', $mediaUrl ?? '') }}" placeholder="https://example.com/audio.mp3" class="fd-input w-full rounded-xl border border-solid border-border bg-elevated p-3.5 text-text-muted focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500">
-      @else
-        <x-templates.upload-zone id="header_audio" accept="audio/mpeg,audio/wav,audio/aac,audio/ogg,audio/mp4" hint=".mp3, .wav, .aac, .ogg, .m4a (max 16 MB)" :preview-url="$previewUrl" />
-      @endif
+      <div data-header-url-wrap @class(['hidden' => ! $useUrl])>
+        <input type="url" name="media_url" value="{{ old('media_url', $mediaUrl ?? '') }}" placeholder="https://example.com/audio.mp3" class="fd-input w-full rounded-xl border border-solid border-border bg-elevated p-3.5 text-text-muted focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500" data-header-url-input @disabled(! $useUrl || $headerType !== 'audio')>
+      </div>
+      <div data-header-file-wrap @class(['hidden' => $useUrl])>
+        <x-templates.upload-zone
+          id="header_audio"
+          accept="audio/mpeg,audio/wav,audio/aac,audio/ogg,audio/mp4"
+          hint=".mp3, .wav, .aac, .ogg, .m4a (max 16 MB)"
+          :preview-url="$headerType === 'audio' ? $previewUrl : null"
+          :enabled="$headerType === 'audio' && ! $useUrl"
+          :max-bytes="16777216"
+        />
+        <p class="hidden text-xs text-red-500" data-header-upload-error></p>
+      </div>
       <label class="flex items-center gap-2 text-sm text-text-muted">
-        <input type="checkbox" name="use_url" value="1" @checked($useUrl)> Use URL instead of uploading a file
+        <input type="checkbox" name="use_url" value="1" data-header-use-url @checked($useUrl && $headerType === 'audio') @disabled($headerType !== 'audio')>
+        Use URL instead of uploading a file
       </label>
     </div>
 
@@ -118,10 +173,6 @@
       Location header will use the customer's location when the message is sent.
     </div>
 
-    <div class="flex w-full items-center justify-end">
-      <button type="submit" class="fd-btn-sm inline-flex items-center justify-center rounded bg-green-500 px-4 py-2 text-primary-2 transition-opacity hover:opacity-90">
-        Next
-      </button>
-    </div>
+    <x-templates.builder-actions :back-url="$previousStepUrl" />
   </form>
 </x-templates.builder-layout>

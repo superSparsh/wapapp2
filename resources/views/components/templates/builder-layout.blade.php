@@ -51,6 +51,8 @@
         </p>
       </div>
 
+      <x-ui.validation-errors class="max-w-[854px]" />
+
       <div class="flex flex-col gap-8">
         <div class="grid grid-cols-1 gap-4 lg:grid-cols-12 lg:items-start">
           <div class="flex min-w-0 flex-col gap-3 lg:col-span-4">

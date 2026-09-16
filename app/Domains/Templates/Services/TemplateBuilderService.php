@@ -164,9 +164,13 @@ class TemplateBuilderService
     {
         $previousStatus = $template->status;
 
+        // Do NOT put the local name into `code` — that value is reserved for the
+        // Alibaba TemplateCode returned by CreateChatappTemplate. Filling it early
+        // makes retry jobs call Modify with a fake code.
         $template->update([
             'status' => TemplateStatus::PendingReview,
-            'code' => $template->code ?: TemplateNameValidator::normalizeCode($template->name),
+            'synced_at' => null,
+            'rejection_reason' => null,
         ]);
 
         $this->logStatusChange($template, $previousStatus, TemplateStatus::PendingReview);
@@ -174,7 +178,8 @@ class TemplateBuilderService
         // Auto-create payment_link variable if button URL references $(payment_link)
         $this->ensurePaymentLinkVariable($template);
 
-        SubmitTemplateJob::dispatch($template->id);
+        $isEdit = filled($template->whatsappCode());
+        SubmitTemplateJob::dispatch($template->id, $isEdit);
 
         return $template->refresh();
     }

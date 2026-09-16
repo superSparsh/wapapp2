@@ -1,5 +1,12 @@
-<x-templates.builder-layout active="submit" :card="false" :template="$template" :payload="$payload" :preview-data="$previewData ?? null">
-  <form method="post" action="{{ route('templates.builder.submit.save', $template) }}">
+<x-templates.builder-layout
+  active="submit"
+  :card="false"
+  :template="$template"
+  :payload="$payload"
+  :preview-data="$previewData ?? null"
+  :builder-steps="$builderSteps ?? null"
+>
+  <form method="post" action="{{ route('templates.builder.submit.save', $template) }}" data-validate-form>
     @csrf
     <div class="flex w-full flex-col items-center gap-14 overflow-hidden rounded-xl bg-elevated p-14 shadow-[0px_0px_4px_0px_rgba(0,0,0,0.04)]">
       <div class="flex w-full flex-col items-center gap-8">
@@ -15,19 +22,29 @@
         </div>
       </div>
 
-      <label class="flex cursor-pointer items-center gap-2 text-sm text-text-muted">
-        <input type="checkbox" name="confirm" value="1" required>
-        I confirm this template is ready for WhatsApp approval
-      </label>
+      <div data-validate-field class="flex flex-col items-center gap-2">
+        <label class="flex cursor-pointer items-center gap-2 text-sm text-text-muted">
+          <input type="checkbox" name="confirm" value="1" required>
+          I confirm this template is ready for WhatsApp approval
+        </label>
+        <x-ui.field-error field="confirm" />
+      </div>
 
-      <button
-        type="submit"
-        class="inline-flex items-center justify-center overflow-hidden rounded-xl px-6 py-3 text-center text-base font-semibold leading-[1.5] whitespace-nowrap text-white transition-opacity hover:opacity-90"
-        style="background-image: linear-gradient(178.91deg, #6dbb48 0%, rgba(17, 153, 170, 0.557) 100%)"
-      >
-        Yes, Submit for approval
-      </button>
+      <div class="flex w-full max-w-[520px] items-center justify-between gap-3">
+        <a
+          href="{{ $previousStepUrl ?? route('templates.index') }}"
+          class="fd-btn-sm inline-flex items-center justify-center rounded border border-solid border-border bg-elevated px-4 py-2 text-sm font-medium text-text-body transition-colors hover:border-green-500 hover:text-green-600"
+        >
+          Back
+        </a>
+        <button
+          type="submit"
+          class="inline-flex items-center justify-center overflow-hidden rounded-xl px-6 py-3 text-center text-base font-semibold leading-[1.5] whitespace-nowrap text-white transition-opacity hover:opacity-90"
+          style="background-image: linear-gradient(178.91deg, #6dbb48 0%, rgba(17, 153, 170, 0.557) 100%)"
+        >
+          Yes, Submit for approval
+        </button>
+      </div>
     </div>
   </form>
 </x-templates.builder-layout>
-
