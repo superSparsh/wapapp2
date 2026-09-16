@@ -171,6 +171,32 @@ class DashboardTest extends TestCase
         $this->assertSame('Brand new notification', $service->recent()->first()->description);
     }
 
+    public function test_notification_read_state_survives_session_flush_like_login(): void
+    {
+        \App\Models\ActivityLog::query()->create([
+            'uid' => (string) \Illuminate\Support\Str::uuid(),
+            'scope' => 'tenant',
+            'actor_type' => 'user',
+            'action' => 'campaign.created',
+            'description' => 'Already read notification',
+            'created_at' => now()->subMinutes(5),
+        ]);
+
+        $this->actingAsTenantUser()
+            ->postJson(route('notifications.read'))
+            ->assertOk();
+
+        // Login regenerates session — previously this wiped notifications.read_at.
+        session()->flush();
+        $this->actingAsTenantUser();
+
+        $service = app(\App\Domains\Account\Services\NotificationService::class);
+
+        $this->assertSame(0, $service->unreadCount());
+        $this->assertCount(0, $service->recent());
+        $this->assertNotNull(\App\Models\AccountPreference::current()->notifications_read_at);
+    }
+
     public function test_credits_endpoint_returns_period_payload(): void
     {
         $this->actingAsTenantUser()

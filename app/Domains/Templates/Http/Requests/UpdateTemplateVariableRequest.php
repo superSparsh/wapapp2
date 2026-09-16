@@ -17,6 +17,19 @@ class UpdateTemplateVariableRequest extends FormRequest
         return $this->route('variable') instanceof Variable;
     }
 
+    protected function prepareForValidation(): void
+    {
+        if ($this->filled('name')) {
+            $this->merge([
+                'name' => \Illuminate\Support\Str::of((string) $this->input('name'))
+                    ->trim()
+                    ->lower()
+                    ->replace(' ', '_')
+                    ->toString(),
+            ]);
+        }
+    }
+
     public function rules(): array
     {
         /** @var Variable $variable */
@@ -27,7 +40,7 @@ class UpdateTemplateVariableRequest extends FormRequest
                 'required',
                 'string',
                 'max:255',
-                'regex:/^[a-zA-Z0-9_\s-]+$/',
+                'regex:/^[a-z0-9_]+$/',
                 Rule::unique('variables', 'name')
                     ->ignore($variable->id)
                     ->where(function ($query) use ($variable) {

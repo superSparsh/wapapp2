@@ -160,6 +160,13 @@ class Contact extends TenantModel
         ]);
     }
 
+    public function hasStoppedMessaging(): bool
+    {
+        return $this->status === ContactStatus::Unsubscribed
+            || $this->opt_in_status === ContactOptInStatus::OptedOut
+            || (bool) data_get($this->metadata, 'stopped_via_keyword');
+    }
+
     public function markBlacklisted(): void
     {
         $this->update([

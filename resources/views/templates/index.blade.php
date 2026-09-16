@@ -181,12 +181,16 @@
                     </td>
                     <td class="p-2">
                       @php
-                        $actions = ['eye-view'];
-                        $links = ['eye-view' => $template['preview_url']];
+                        $actions = ['eye-view', 'copy'];
+                        $links = [
+                          'eye-view' => $template['preview_url'],
+                          'copy' => $template['copy_url'],
+                        ];
+                        $methods = ['copy' => 'POST'];
                         if (! empty($template['edit_url'])) { $actions[] = 'edit'; $links['edit'] = $template['edit_url']; }
                       @endphp
-                      <div class="flex items-center gap-6">
-                        <x-ui.table-actions :actions="$actions" :links="$links" />
+                      <div class="flex items-center gap-2">
+                        <x-ui.table-actions :actions="$actions" :links="$links" :methods="$methods" class="!gap-2" />
                         <form
                           method="post"
                           action="{{ $template['delete_url'] }}"

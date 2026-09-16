@@ -9,7 +9,7 @@
       <div class="flex w-full flex-col gap-1">
         <h1 class="fd-page-title">{{ $isEdit ? 'Edit Variable' : 'Create New Variable' }}</h1>
         <p class="fd-page-note max-w-[854px]">
-          Variables are always created as dynamic placeholders. Choose a data type that matches how the value will be used in your templates.
+          Variables are dynamic placeholders. After saving, insert them in template body as <code class="font-mono text-xs">$(variable_name)</code>.
         </p>
       </div>
     </div>

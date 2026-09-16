@@ -18,6 +18,19 @@ class StoreTemplateVariableRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        if ($this->filled('name')) {
+            $this->merge([
+                'name' => \Illuminate\Support\Str::of((string) $this->input('name'))
+                    ->trim()
+                    ->lower()
+                    ->replace(' ', '_')
+                    ->toString(),
+            ]);
+        }
+    }
+
     public function rules(): array
     {
         return [
@@ -25,7 +38,7 @@ class StoreTemplateVariableRequest extends FormRequest
                 'required',
                 'string',
                 'max:255',
-                'regex:/^[a-zA-Z0-9_\s-]+$/',
+                'regex:/^[a-z0-9_]+$/',
                 Rule::unique('variables', 'name')->where(function ($query) {
                     $context = app(VariableActorContext::class);
                     $lineId = $context->whatsappLineId();

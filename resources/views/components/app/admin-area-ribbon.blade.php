@@ -1,6 +1,6 @@
-{{-- Legacy sticky right-side "Admin Area" ribbon --}}
+{{-- Sticky "Admin Area" only for customers with Admin View assigned --}}
 @php
-  $showAdminArea = ! empty($isAdminImpersonating) || ! empty($canAccessAdminView);
+  $showAdminArea = ! empty($canAccessAdminView);
 @endphp
 
 @if ($showAdminArea)

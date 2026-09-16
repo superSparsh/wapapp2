@@ -386,34 +386,35 @@ Route::middleware(['tenancy.session', 'auth:web,team', '2fa', 'verified', 'team.
     Route::middleware('team.permission:template_read')->prefix('templates')->name('templates.')->group(function () {
         Route::get('/', [TemplateController::class, 'index'])->name('index');
         Route::get('/preview', [TemplateController::class, 'index'])->name('preview');
+        Route::post('/{template}/duplicate', [TemplateController::class, 'duplicate'])->middleware('team.permission:template_write')->name('duplicate');
         Route::delete('/{template}', [TemplateController::class, 'destroy'])->middleware('team.permission:template_write')->name('destroy');
         Route::post('/bulk-destroy', [TemplateController::class, 'bulkDestroy'])->middleware('team.permission:template_write')->name('bulk-destroy');
         Route::post('/ai/suggest', [TemplateAiController::class, 'suggestBodies'])->middleware('team.permission:template_write')->name('ai.suggest');
         Route::get('/variables/chatbot', [TemplateVariableController::class, 'chatbot'])->name('variables.chatbot');
         Route::get('/variables', [TemplateVariableController::class, 'index'])->name('variables');
-        Route::get('/variables/create', [TemplateVariableController::class, 'create'])->name('variables.create');
-        Route::post('/variables', [TemplateVariableController::class, 'store'])->name('variables.store');
-        Route::get('/variables/{variable}/edit', [TemplateVariableController::class, 'edit'])->name('variables.edit');
-        Route::put('/variables/{variable}', [TemplateVariableController::class, 'update'])->name('variables.update');
-        Route::delete('/variables/{variable}', [TemplateVariableController::class, 'destroy'])->name('variables.destroy');
+        Route::get('/variables/create', [TemplateVariableController::class, 'create'])->middleware('team.permission:template_write')->name('variables.create');
+        Route::post('/variables', [TemplateVariableController::class, 'store'])->middleware('team.permission:template_write')->name('variables.store');
+        Route::get('/variables/{variable}/edit', [TemplateVariableController::class, 'edit'])->middleware('team.permission:template_write')->name('variables.edit');
+        Route::put('/variables/{variable}', [TemplateVariableController::class, 'update'])->middleware('team.permission:template_write')->name('variables.update');
+        Route::delete('/variables/{variable}', [TemplateVariableController::class, 'destroy'])->middleware('team.permission:template_write')->name('variables.destroy');
         Route::get('/variables/samples', fn () => view('templates.variables-samples'))->name('variables.samples');
 
         Route::prefix('api')->name('api.')->group(function () {
             Route::get('/list', [TemplateApiController::class, 'index'])->name('list');
-            Route::post('/refresh', [TemplateApiController::class, 'refresh'])->name('refresh');
+            Route::post('/refresh', [TemplateApiController::class, 'refresh'])->middleware('team.permission:template_write')->name('refresh');
             Route::get('/preview/{code}', [TemplateApiController::class, 'preview'])->name('preview');
             Route::get('/variables', [TemplateApiController::class, 'variables'])->name('variables');
         });
 
-        Route::get('/free/create', [InteractiveMessageController::class, 'create'])->name('free.create');
-        Route::post('/free', [InteractiveMessageController::class, 'store'])->name('free.store');
-        Route::get('/free/{interactiveMessage}/edit', [InteractiveMessageController::class, 'edit'])->name('free.edit');
-        Route::put('/free/{interactiveMessage}', [InteractiveMessageController::class, 'update'])->name('free.update');
-        Route::delete('/free/{interactiveMessage}', [InteractiveMessageController::class, 'destroy'])->name('free.destroy');
+        Route::get('/free/create', [InteractiveMessageController::class, 'create'])->middleware('team.permission:template_write')->name('free.create');
+        Route::post('/free', [InteractiveMessageController::class, 'store'])->middleware('team.permission:template_write')->name('free.store');
+        Route::get('/free/{interactiveMessage}/edit', [InteractiveMessageController::class, 'edit'])->middleware('team.permission:template_write')->name('free.edit');
+        Route::put('/free/{interactiveMessage}', [InteractiveMessageController::class, 'update'])->middleware('team.permission:template_write')->name('free.update');
+        Route::delete('/free/{interactiveMessage}', [InteractiveMessageController::class, 'destroy'])->middleware('team.permission:template_write')->name('free.destroy');
         Route::get('/free/{interactiveMessage}/preview', [InteractiveMessageController::class, 'preview'])->name('free.preview');
 
-        Route::get('/builder', [TemplateBuilderController::class, 'create'])->name('builder.create');
-        Route::prefix('builder/{template}')->group(function () {
+        Route::get('/builder', [TemplateBuilderController::class, 'create'])->middleware('team.permission:template_write')->name('builder.create');
+        Route::prefix('builder/{template}')->middleware('team.permission:template_write')->group(function () {
             Route::get('/header', [TemplateBuilderController::class, 'header'])->name('builder.header');
             Route::post('/header', [TemplateBuilderController::class, 'saveHeader'])->name('builder.header.save');
             Route::post('/header/media', [TemplateBuilderController::class, 'uploadHeaderMedia'])->name('builder.header.media');

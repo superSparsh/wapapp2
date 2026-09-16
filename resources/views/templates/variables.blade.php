@@ -10,7 +10,7 @@
       <div class="flex flex-col gap-1">
         <h1 class="fd-page-title">Variables</h1>
         <p class="fd-page-note max-w-[854px]">
-          Create reusable placeholders for WhatsApp templates and chatbot flows. Use syntax like <code class="font-mono text-xs">@verbatim{{variable_name}}@endverbatim</code> in your template body.
+          Create reusable placeholders for WhatsApp templates and chatbot flows. In templates use <code class="font-mono text-xs">$(variable_name)</code>. Chatbot flows can also use <code class="font-mono text-xs">@verbatim{{variable_name}}@endverbatim</code>.
         </p>
       </div>
 
@@ -27,7 +27,13 @@
         </label>
 
         <div class="flex items-center gap-2">
-          <x-templates.refresh-button />
+          <a
+            href="{{ route('templates.variables', array_filter(['q' => $search !== '' ? $search : null])) }}"
+            class="fd-btn inline-flex shrink-0 items-center justify-center gap-3 rounded border border-border-light bg-elevated px-4 py-3 text-green-500"
+          >
+            <img src="{{ asset('images/templates/refresh-2.svg') }}" alt="" class="size-4" width="16" height="16">
+            Refresh
+          </a>
           <a
             href="{{ route('templates.variables.create') }}"
             class="fd-btn inline-flex shrink-0 items-center justify-center gap-2 rounded bg-green-500 px-4 py-3 text-primary-2 transition-opacity hover:opacity-90"

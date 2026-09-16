@@ -161,7 +161,8 @@ class AdminPanelTest extends TestCase
 
         $this->get(route('dashboard'))
             ->assertOk()
-            ->assertSee('Admin Area')
+            ->assertDontSee('Admin Area')
+            ->assertDontSee('Admin view as customer')
             ->assertSee('Return to admin')
             ->assertSee(route('admin.impersonation.stop'), false);
 
@@ -169,6 +170,32 @@ class AdminPanelTest extends TestCase
             ->assertRedirect(route('admin.dashboard'));
 
         $this->assertAuthenticatedAs($this->admin, 'admin');
+    }
+
+    public function test_login_as_shows_admin_area_only_when_customer_has_admin_view(): void
+    {
+        TenantUserAccess::query()->updateOrCreate(
+            ['email' => strtolower($this->testUser->email)],
+            [
+                'tenant_id' => $this->testTenant->id,
+                'account_type' => TenantUserAccountType::Owner,
+                'is_active' => true,
+                'phone' => $this->testUser->phone,
+            ],
+        );
+
+        config(['admin.view_emails' => [strtolower($this->testUser->email)]]);
+
+        $this->actingAs($this->admin, 'admin')
+            ->post(route('admin.customers.login-as', $this->testTenant))
+            ->assertRedirect(route('dashboard'));
+
+        $this->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('Admin Area')
+            ->assertSee('Admin view as customer')
+            ->assertSee('Return to admin')
+            ->assertSee(route('admin.impersonation.stop'), false);
     }
 
     public function test_admin_can_manage_plans(): void
@@ -270,6 +297,8 @@ class AdminPanelTest extends TestCase
         $this->actingAsTenantUser()
             ->get(route('dashboard'))
             ->assertOk()
-            ->assertDontSee('>Admin View<', false);
+            ->assertDontSee('>Admin View<', false)
+            ->assertDontSee('Admin Area')
+            ->assertDontSee('Admin view as customer');
     }
 }

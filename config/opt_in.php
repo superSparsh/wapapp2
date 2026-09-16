@@ -19,4 +19,27 @@ return [
         explode(',', (string) env('OPT_IN_V2_CUSTOMER_IDS', ''))
     ), static fn (int $id) => $id > 0)),
 
+    /*
+    |--------------------------------------------------------------------------
+    | STOP / START keyword handling (inbound WhatsApp)
+    |--------------------------------------------------------------------------
+    |
+    | Matching is case-insensitive. Exact match after normalize (plain text or
+    | interactive button/list title).
+    |
+    */
+
+    'stop_keywords' => [
+        'stop',
+        'stop promotions',
+    ],
+
+    'start_keywords' => [
+        'start',
+    ],
+
+    'stop_confirmation' => 'Thank you. You have been unsubscribed and will no longer receive promotional messages from us. To start receiving messages again, reply START.',
+
+    'start_confirmation' => 'Welcome back! You have been re-subscribed and can receive messages again.',
+
 ];

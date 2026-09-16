@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Webhooks\Handlers;
 
+use App\Domains\Audience\Services\StopKeywordService;
 use App\Domains\Chatbot\Services\ChatbotFlowEngine;
 use App\Domains\Commerce\Services\CommerceOrderIngestService;
 use App\Domains\Inbox\Services\InboxConversationService;
@@ -31,6 +32,7 @@ class InboundMessageHandler
         private readonly NewLeadWebhookListener $newLeadWebhookListener,
         private readonly WhatsappFlowInboundService $whatsappFlowInboundService,
         private readonly CommerceOrderIngestService $commerceOrderIngest,
+        private readonly StopKeywordService $stopKeywordService,
     ) {}
 
     public function handle(InboundWebhookEvent $event): void
@@ -96,13 +98,17 @@ class InboundMessageHandler
                 }
             }
 
-            $this->triggerTemplateEngine->process($conversation->refresh(), $message);
+            // STOP / START keywords: unsubscribe or restart before chatbot/triggers.
+            $keywordHandled = $this->stopKeywordService->handle($conversation->refresh(), $message);
 
-            $this->chatbotFlowEngine->processInbound($conversation->refresh(), $message);
-            $this->newLeadWebhookListener->handle($message, $conversation->refresh());
+            if (! $keywordHandled) {
+                $this->triggerTemplateEngine->process($conversation->refresh(), $message);
+                $this->chatbotFlowEngine->processInbound($conversation->refresh(), $message);
+                $this->newLeadWebhookListener->handle($message, $conversation->refresh());
 
-            if ($message->message_type === MessageType::Interactive) {
-                $this->whatsappFlowInboundService->handleInteractiveMessage($message);
+                if ($message->message_type === MessageType::Interactive) {
+                    $this->whatsappFlowInboundService->handleInteractiveMessage($message);
+                }
             }
 
             $this->registryService->indexMessage(

@@ -48,6 +48,7 @@ class InboxQueryService
             ->with([
                 'assignedUser:id,uuid,name,first_name',
                 'assignedTeamMember:id,uuid,first_name,last_name,email',
+                'contact:id,phone,status,opt_in_status,metadata',
             ]);
 
         $query
@@ -69,6 +70,8 @@ class InboxQueryService
 
         $items = $rows->values()->map(function (Conversation $conversation, int $index): array {
             $preview = InboxPresenter::preview($conversation->latestMessage?->body);
+            $contact = $conversation->contact;
+            $stopped = $contact?->hasStoppedMessaging() ?? false;
 
             return [
                 'uuid' => $conversation->uuid,
@@ -81,6 +84,8 @@ class InboxQueryService
                 'unread' => (int) $conversation->unread_count,
                 'assignee' => $this->assigneeLabel($conversation),
                 'ai_enabled' => $conversation->response_type?->isAi() ?? false,
+                'stopped' => $stopped,
+                'stop_label' => $stopped ? 'STOP' : null,
             ];
         })->all();
 

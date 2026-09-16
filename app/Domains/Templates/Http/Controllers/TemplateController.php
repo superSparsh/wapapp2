@@ -6,11 +6,13 @@ namespace App\Domains\Templates\Http\Controllers;
 
 use App\Domains\Templates\Jobs\DeleteTemplateJob;
 use App\Domains\Templates\Services\InteractiveMessageService;
+use App\Domains\Templates\Services\TemplateBuilderService;
 use App\Domains\Templates\Services\TemplateCatalogService;
 use App\Domains\Templates\Services\TemplatePreviewService;
 use App\Domains\Templates\Services\TemplateServiceAdapter;
 use App\Domains\Templates\Support\InteractiveMessagePresenter;
 use App\Http\Controllers\Controller;
+use App\Models\Campaign;
 use App\Models\Template;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -66,11 +68,35 @@ class TemplateController extends Controller
     }
 
     /**
+     * Duplicate a template as a local draft.
+     */
+    public function duplicate(Template $template, TemplateBuilderService $builderService): RedirectResponse
+    {
+        $copy = $builderService->duplicate($template);
+
+        return redirect()
+            ->route('templates.builder.body', $copy)
+            ->with('status', 'Template duplicated as draft. Review and submit when ready.');
+    }
+
+    /**
      * Delete a single template (soft-delete).
      * If the template has a WhatsApp template code, it is marked for async deletion.
      */
     public function destroy(Request $request, Template $template): RedirectResponse|JsonResponse
     {
+        if ($this->isUsedInCampaign($template)) {
+            $message = 'This template cannot be deleted because it is currently used in a campaign.';
+
+            if ($request->expectsJson()) {
+                return response()->json(['status' => 'error', 'message' => $message], 400);
+            }
+
+            return redirect()
+                ->route('templates.index', $request->only(['tab', 'q', 'category', 'type', 'page']))
+                ->withErrors(['template' => $message]);
+        }
+
         $needsWhatsAppDelete = filled($template->whatsappCode());
 
         $this->adapter->delete($template);
@@ -98,13 +124,43 @@ class TemplateController extends Controller
             'uuids.*' => ['required', 'string'],
         ]);
 
-        $deleted = $this->adapter->bulkDelete((array) $validated['uuids']);
+        $templates = Template::query()->whereIn('uuid', $validated['uuids'])->get();
+        $deleted = 0;
+        $blocked = 0;
+
+        foreach ($templates as $template) {
+            if ($this->isUsedInCampaign($template)) {
+                $blocked++;
+
+                continue;
+            }
+
+            $needsWhatsAppDelete = filled($template->whatsappCode());
+            $this->adapter->delete($template);
+
+            if ($needsWhatsAppDelete) {
+                DeleteTemplateJob::dispatch($template->id);
+            }
+
+            $deleted++;
+        }
+
+        $message = "{$deleted} template(s) deleted.";
+        if ($blocked > 0) {
+            $message .= " {$blocked} skipped because they are used in campaigns.";
+        }
 
         return response()->json([
-            'status' => 'success',
-            'message' => "{$deleted} template(s) deleted.",
+            'status' => $deleted > 0 ? 'success' : 'error',
+            'message' => $message,
             'deleted' => $deleted,
+            'blocked' => $blocked,
             'total' => count($validated['uuids']),
-        ]);
+        ], $deleted > 0 ? 200 : 400);
+    }
+
+    private function isUsedInCampaign(Template $template): bool
+    {
+        return Campaign::query()->where('template_id', $template->id)->exists();
     }
 }

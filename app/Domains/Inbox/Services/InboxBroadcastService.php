@@ -38,6 +38,7 @@ class InboxBroadcastService
             ),
             'assignedUser:id,uuid,name,first_name',
             'assignedTeamMember:id,uuid,first_name,last_name,email',
+            'contact:id,phone,status,opt_in_status,metadata',
         ]);
 
         $thread = $this->threadPayload($conversation);
@@ -71,6 +72,7 @@ class InboxBroadcastService
             ),
             'assignedUser:id,uuid,name,first_name',
             'assignedTeamMember:id,uuid,first_name,last_name,email',
+            'contact:id,phone,status,opt_in_status,metadata',
         ]);
 
         broadcast(new InboxThreadUpdated(
@@ -119,6 +121,7 @@ class InboxBroadcastService
             'unread' => (int) $conversation->unread_count,
             'assignee' => $assigneeKey,
             'ai_enabled' => $conversation->response_type?->isAi() ?? false,
+            'stopped' => $conversation->contact?->hasStoppedMessaging() ?? false,
         ];
     }
 

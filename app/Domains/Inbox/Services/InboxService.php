@@ -166,6 +166,9 @@ class InboxService
             $assigneeKey = 'member:'.$conversation->assignedTeamMember->uuid;
         }
 
+        $conversation->loadMissing('contact');
+        $stopped = $conversation->contact?->hasStoppedMessaging() ?? false;
+
         return [
             'uuid' => $conversation->uuid,
             'initials' => InboxPresenter::initials($conversation->contact_name, $conversation->contact_phone),
@@ -173,6 +176,8 @@ class InboxService
             'phone' => $this->settingsService->shouldMaskPhone($conversation->contact_phone),
             'assignee' => $assigneeKey,
             'ai_enabled' => $conversation->response_type?->isAi() ?? false,
+            'stopped' => $stopped,
+            'stop_label' => $stopped ? 'Marked STOP — unsubscribed' : null,
         ];
     }
 }

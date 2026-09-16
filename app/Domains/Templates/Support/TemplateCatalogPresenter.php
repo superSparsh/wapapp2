@@ -42,6 +42,7 @@ class TemplateCatalogPresenter
                 'edit_url' => in_array($template->status, [TemplateStatus::Draft, TemplateStatus::PendingReview, TemplateStatus::Rejected], true)
                     ? route('templates.builder.body', $template)
                     : null,
+                'copy_url' => route('templates.duplicate', $template),
                 'uuid' => $template->uuid,
                 'delete_url' => route('templates.destroy', $template),
             ])

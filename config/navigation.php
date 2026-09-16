@@ -19,8 +19,8 @@ return [
         'route' => 'templates.index',
         'icon' => 'ticket',
         'children' => [
-            ['label' => 'Variables', 'route' => 'templates.variables', 'matches' => ['templates.variables.create', 'templates.variables.samples']],
-            ['label' => 'Templates', 'route' => 'templates.index', 'matches' => ['templates.preview', 'templates.builder.create', 'templates.builder.body', 'templates.builder.header', 'templates.builder.body-media', 'templates.builder.footer', 'templates.builder.buttons', 'templates.builder.submit']],
+            ['label' => 'Variables', 'route' => 'templates.variables', 'matches' => ['templates.variables.create', 'templates.variables.samples', 'templates.variables.edit']],
+            ['label' => 'Templates', 'route' => 'templates.index', 'matches' => ['templates.preview', 'templates.builder.create', 'templates.builder.body', 'templates.builder.header', 'templates.builder.body-media', 'templates.builder.footer', 'templates.builder.buttons', 'templates.builder.auth', 'templates.builder.lto', 'templates.builder.carousel', 'templates.builder.submit', 'templates.free.create', 'templates.free.edit', 'templates.duplicate']],
         ],
     ],
     ['label' => 'Audience', 'route' => 'audience.index', 'icon' => 'box', 'matches' => ['audience.overview', 'audience.subscribers', 'audience.subscribers.empty', 'audience.subscribers.detail', 'audience.subscribers.import', 'audience.segments', 'audience.forms', 'audience.list-fields', 'audience.settings', 'audience.blacklist']],

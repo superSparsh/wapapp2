@@ -78,19 +78,20 @@ class TemplateSyncService
      */
     public function deleteFirstReady(): void
     {
-        // Soft-deleted templates with a code need API deletion
+        // Soft-deleted templates that still have a WhatsApp code (live or archived in payload)
         $template = Template::query()
             ->onlyTrashed()
-            ->whereNotNull('code')
             ->orderBy('deleted_at')
-            ->first();
+            ->get()
+            ->first(fn (Template $row): bool => filled($row->whatsappCode()));
 
         if (! $template instanceof Template) {
             return;
         }
 
+        $code = $template->whatsappCode();
         $line = $template->whatsappLine;
-        if (! $line instanceof WhatsappLine || blank($line->alibaba_cust_space_id)) {
+        if (! $line instanceof WhatsappLine || blank($line->alibaba_cust_space_id) || blank($code)) {
             $template->forceDelete();
 
             return;
@@ -98,7 +99,7 @@ class TemplateSyncService
 
         try {
             $response = $this->camsClient->deleteChatappTemplate([
-                'TemplateCode' => $template->code,
+                'TemplateCode' => $code,
                 'CustSpaceId' => $line->alibaba_cust_space_id,
             ]);
 

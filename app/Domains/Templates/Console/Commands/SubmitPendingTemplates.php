@@ -12,18 +12,18 @@ use Illuminate\Console\Command;
 class SubmitPendingTemplates extends Command
 {
     protected $signature = 'templates:submit-pending';
+
     protected $description = 'Submit pending-review templates to the WhatsApp API (async via queue).';
 
     public function handle(): int
     {
+        // Only templates that have never been successfully handed to CAMS.
+        // (synced_at is set on successful create/modify — do not re-submit while Meta is auditing.)
         $templates = Template::query()
             ->where('status', TemplateStatus::PendingReview)
             ->whereNull('synced_at')
-            ->orWhere(function ($query) {
-                $query->where('status', TemplateStatus::PendingReview)
-                    ->whereNotNull('code')
-                    ->where('synced_at', '<', now()->subMinutes(5));
-            })
+            ->orderBy('updated_at')
+            ->limit(50)
             ->get();
 
         if ($templates->isEmpty()) {
@@ -34,7 +34,7 @@ class SubmitPendingTemplates extends Command
 
         $count = 0;
         foreach ($templates as $template) {
-            $isEdit = filled($template->code);
+            $isEdit = filled($template->whatsappCode());
             SubmitTemplateJob::dispatch($template->id, $isEdit);
             $count++;
         }

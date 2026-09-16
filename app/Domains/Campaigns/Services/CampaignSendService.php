@@ -4,15 +4,19 @@ declare(strict_types=1);
 
 namespace App\Domains\Campaigns\Services;
 
+use App\Domains\Audience\Enums\ContactStatus;
 use App\Domains\Inbox\Services\InboxConversationService;
 use App\Domains\Inbox\Services\InboxOutboundService;
 use App\Domains\Templates\Services\OptInTemplateService;
 use App\Domains\Templates\Support\CamsTemplateIdentity;
 use App\Enums\CampaignRecipientStatus;
 use App\Enums\CampaignStatus;
+use App\Enums\ContactOptInStatus;
 use App\Enums\MessageStatus;
 use App\Models\Campaign;
 use App\Models\CampaignRecipient;
+use App\Models\Contact;
+use App\Support\PhoneNormalizer;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
@@ -83,6 +87,16 @@ class CampaignSendService
         }
 
         if ($recipient->status !== CampaignRecipientStatus::Pending) {
+            return;
+        }
+
+        if ($this->recipientIsUnsubscribed($recipient)) {
+            $recipient->update([
+                'status' => CampaignRecipientStatus::Unsubscribed,
+                'unsubscribed_at' => now(),
+            ]);
+            $campaign->increment('total_unsubscribed');
+
             return;
         }
 
@@ -213,5 +227,32 @@ class CampaignSendService
             'failed_at' => now(),
             'failure_reason' => mb_substr($reason, 0, 255),
         ]);
+    }
+
+    private function recipientIsUnsubscribed(CampaignRecipient $recipient): bool
+    {
+        if ($recipient->contact_id) {
+            $contact = Contact::query()->find($recipient->contact_id);
+            if ($contact instanceof Contact && $this->contactBlocksSends($contact)) {
+                return true;
+            }
+        }
+
+        $variants = PhoneNormalizer::lookupVariants($recipient->contact_phone);
+        if ($variants === []) {
+            return false;
+        }
+
+        return Contact::query()
+            ->whereIn('phone', $variants)
+            ->get()
+            ->contains(fn (Contact $contact): bool => $this->contactBlocksSends($contact));
+    }
+
+    private function contactBlocksSends(Contact $contact): bool
+    {
+        return $contact->status === ContactStatus::Unsubscribed
+            || $contact->status === ContactStatus::Blacklisted
+            || $contact->opt_in_status === ContactOptInStatus::OptedOut;
     }
 }

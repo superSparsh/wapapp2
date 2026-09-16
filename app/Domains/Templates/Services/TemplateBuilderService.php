@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace App\Domains\Templates\Services;
 
+use App\Domains\Templates\Enums\TemplateSource;
 use App\Domains\Templates\Enums\TemplateStatus;
+use App\Domains\Templates\Enums\VariableDataType;
+use App\Domains\Templates\Enums\VariableType;
 use App\Domains\Templates\Jobs\SubmitTemplateJob;
 use App\Domains\Templates\Support\TemplateCategoryCatalog;
 use App\Domains\Templates\Support\TemplateNameValidator;
@@ -233,28 +236,83 @@ class TemplateBuilderService
         }
     }
 
+    /**
+     * Duplicate a template as a local draft (no WhatsApp code).
+     */
+    public function duplicate(Template $template): Template
+    {
+        return DB::transaction(function () use ($template): Template {
+            $template->loadMissing('variables');
+
+            $copy = $template->replicate([
+                'uuid',
+                'code',
+                'synced_at',
+                'rejection_reason',
+                'deleted_at',
+            ]);
+            $copy->name = $this->uniqueName($template->name.'_copy');
+            $copy->code = null;
+            $copy->status = TemplateStatus::Draft;
+            $copy->source = TemplateSource::Local;
+            $copy->synced_at = null;
+            $copy->rejection_reason = null;
+
+            $payload = $template->wizardPayload();
+            unset($payload['meta']['archived_code']);
+            $payload['meta']['name'] = $copy->name;
+            $payload['meta']['setup_completed'] = (bool) ($payload['meta']['setup_completed'] ?? false);
+            $copy->payload = $payload;
+            $copy->body_preview = $template->body_preview;
+            $copy->save();
+
+            foreach ($template->variables as $variable) {
+                $copy->variables()->attach($variable->id, [
+                    'placement' => (string) ($variable->pivot->placement ?? 'body'),
+                    'position' => (int) ($variable->pivot->position ?? 0),
+                ]);
+            }
+
+            return $copy->refresh();
+        });
+    }
+
+    /**
+     * Sync body placeholders to template_variables without wiping header/button pivots.
+     * Missing custom variable names are auto-created (legacy parity).
+     */
     private function syncBodyVariables(Template $template, string $body): void
     {
-        $names = collect(TemplateVariableSyntax::extractVariableNames($body));
+        $names = collect(TemplateVariableSyntax::extractVariableNames($body))->values();
+
+        DB::table('template_variables')
+            ->where('template_id', $template->id)
+            ->where('placement', 'body')
+            ->delete();
 
         if ($names->isEmpty()) {
-            $template->variables()->detach();
-
             return;
         }
 
-        $variableIds = Variable::query()
-            ->whereIn('name', $names->all())
-            ->pluck('id', 'name');
-
-        $sync = [];
         foreach ($names as $index => $name) {
-            $id = $variableIds->get($name);
-            if ($id !== null) {
-                $sync[$id] = ['placement' => 'body', 'position' => $index];
-            }
-        }
+            $variable = Variable::query()->firstOrCreate(
+                [
+                    'name' => $name,
+                    'whatsapp_line_id' => $template->whatsapp_line_id,
+                    'team_member_id' => $template->team_member_id,
+                ],
+                [
+                    'type' => VariableType::Dynamic,
+                    'data_type' => VariableDataType::String,
+                    'value' => null,
+                    'team_member_name' => $template->team_member_name,
+                ],
+            );
 
-        $template->variables()->sync($sync);
+            $template->variables()->attach($variable->id, [
+                'placement' => 'body',
+                'position' => $index,
+            ]);
+        }
     }
 }

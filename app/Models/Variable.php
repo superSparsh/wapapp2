@@ -8,6 +8,7 @@ use App\Domains\Templates\Enums\VariableDataType;
 use App\Domains\Templates\Enums\VariableType;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Variable extends TenantModel
 {
@@ -34,5 +35,12 @@ class Variable extends TenantModel
     public function whatsappLine(): BelongsTo
     {
         return $this->belongsTo(WhatsappLine::class);
+    }
+
+    public function templates(): BelongsToMany
+    {
+        return $this->belongsToMany(Template::class, 'template_variables')
+            ->withPivot(['placement', 'position'])
+            ->withTimestamps();
     }
 }
