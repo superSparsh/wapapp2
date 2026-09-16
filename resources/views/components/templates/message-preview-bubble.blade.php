@@ -6,8 +6,11 @@
 ])
 
 @php
+  use App\Domains\Templates\Support\WhatsAppTextFormatter;
+
   $isCompact = $size === 'compact';
   $bodyText = $previewData['body'] ?? 'Select a template to preview the message.';
+  $bodyHtml = WhatsAppTextFormatter::toHtml($bodyText);
   $footerText = $previewData['footer'] ?? '';
   $headerType = $previewData['header_type'] ?? 'none';
   $headerText = $previewData['header_text'] ?? '';
@@ -39,7 +42,7 @@
   >
   <video
     data-preview-header-video
-    src="{{ $showHeaderVideo ? $headerImage : '' }}"
+    src="{{ $showHeaderVideo ? ($previewData['header_video'] ?? $headerImage) : '' }}"
     @class([
       'max-h-40 w-full rounded object-cover',
       'hidden' => ! $showHeaderVideo,
@@ -57,12 +60,12 @@
   <div
     data-preview-body
     @class([
-      'w-full whitespace-pre-wrap font-normal leading-[1.4] text-text-body',
+      'wa-preview-body w-full font-normal leading-[1.4] text-text-body',
       'text-base' => ! $isCompact,
       'text-sm' => $isCompact,
       'h-[450px] overflow-y-scroll' => $scrollBody,
     ])
-  >{{ $bodyText }}</div>
+  >{!! $bodyHtml !== '' ? $bodyHtml : e($bodyText) !!}</div>
   <p
     data-preview-footer
     @class([

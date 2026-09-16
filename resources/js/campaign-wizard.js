@@ -20,6 +20,18 @@ function escapeHtml(value) {
         .replace(/"/g, '&quot;');
 }
 
+function applyWhatsAppFormatting(text) {
+    let html = escapeHtml(text);
+
+    html = html.replace(/```([^`]+)```/g, '<code class="wa-mono">$1</code>');
+    html = html.replace(/\*([^*\n]+)\*/g, '<strong>$1</strong>');
+    html = html.replace(/\^([^\^\n]+)\^/g, '<strong>$1</strong>');
+    html = html.replace(/(?<![A-Za-z0-9])_([^_\n]+)_(?![A-Za-z0-9])/g, '<em>$1</em>');
+    html = html.replace(/~([^~\n]+)~/g, '<del>$1</del>');
+
+    return html.replace(/\n/g, '<br>');
+}
+
 function applyCampaignPreview(root, data) {
     if (!root || !data) {
         return;
@@ -58,7 +70,8 @@ function applyCampaignPreview(root, data) {
     }
 
     if (body) {
-        body.textContent = data.body || 'Select a template to preview the message.';
+        const rawBody = data.body || 'Select a template to preview the message.';
+        body.innerHTML = applyWhatsAppFormatting(rawBody);
     }
 
     if (footer) {

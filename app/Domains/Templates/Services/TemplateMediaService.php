@@ -14,20 +14,36 @@ class TemplateMediaService
      */
     public function storeHeaderMedia(UploadedFile $file): array
     {
-        // Always public so asset('storage/...') and WhatsApp preview URLs work.
+        // Always public so /storage/... and WhatsApp preview URLs work.
         $disk = (string) config('templates.header_media_disk', 'public');
         $directory = 'templates/headers';
+
+        Storage::disk($disk)->makeDirectory($directory);
+
         $path = $file->store($directory, $disk);
 
-        if ($path === false) {
+        if ($path === false || $path === '') {
             throw new \RuntimeException('Failed to store header media.');
         }
 
         return [
             'path' => $path,
-            'url' => Storage::disk($disk)->url($path),
+            // Prefer request-rooted URL over disk config APP_URL (avoids localhost 403
+            // when the app is opened on Herd/Valet/another host).
+            'url' => $this->publicUrl($path),
             'mime' => (string) ($file->getMimeType() ?? 'application/octet-stream'),
             'original_name' => (string) $file->getClientOriginalName(),
         ];
+    }
+
+    private function publicUrl(string $path): string
+    {
+        $relative = '/storage/'.ltrim($path, '/');
+
+        try {
+            return url($relative);
+        } catch (\Throwable) {
+            return $relative;
+        }
     }
 }

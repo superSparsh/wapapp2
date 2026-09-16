@@ -78,13 +78,13 @@ class TemplatePreviewService
         $mediaUrl = $payload['header']['media_url'] ?? null;
 
         if ($headerType === 'image' && (filled($mediaPath) || filled($mediaUrl))) {
-            $headerImage = filled($mediaUrl) ? $mediaUrl : ($mediaPath ? asset('storage/'.$mediaPath) : null);
+            $headerImage = filled($mediaUrl) ? $mediaUrl : ($mediaPath ? url('storage/'.$mediaPath) : null);
         }
         if ($headerType === 'video' && (filled($mediaPath) || filled($mediaUrl))) {
-            $headerVideo = filled($mediaUrl) ? $mediaUrl : ($mediaPath ? asset('storage/'.$mediaPath) : null);
+            $headerVideo = filled($mediaUrl) ? $mediaUrl : ($mediaPath ? url('storage/'.$mediaPath) : null);
         }
         if ($headerType === 'document' && (filled($mediaPath) || filled($mediaUrl))) {
-            $headerDocument = filled($mediaUrl) ? $mediaUrl : ($mediaPath ? asset('storage/'.$mediaPath) : null);
+            $headerDocument = filled($mediaUrl) ? $mediaUrl : ($mediaPath ? url('storage/'.$mediaPath) : null);
         }
 
         // Authentication template preview data

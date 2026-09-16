@@ -3,7 +3,7 @@
   $mediaPath = $payload['header']['media_path'] ?? null;
   $mediaUrl = $payload['header']['media_url'] ?? null;
   $useUrl = (bool) old('use_url', $payload['header']['use_url'] ?? false);
-  $previewUrl = $mediaPath ? asset('storage/'.$mediaPath) : $mediaUrl;
+  $previewUrl = $mediaPath ? url('storage/'.$mediaPath) : $mediaUrl;
   $previousStepUrl = $previousStepUrl ?? route('templates.index');
 @endphp
 

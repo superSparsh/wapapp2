@@ -22,9 +22,18 @@ function countBodyCharacters(text) {
 function applyWhatsAppFormatting(text) {
     let html = escapeHtml(text);
 
-    html = html.replace(/(\^)([^\^]+)(\^)/g, '<strong>$2</strong>');
-    html = html.replace(/(_)([^_]+)(_)/g, '<em>$2</em>');
-    html = html.replace(/(~)([^~]+)(~)/g, '<del>$2</del>');
+    // Monospace first
+    html = html.replace(/```([^`]+)```/g, '<code class="wa-mono">$1</code>');
+
+    // Bold: WhatsApp (*) and legacy (^)
+    html = html.replace(/\*([^*\n]+)\*/g, '<strong>$1</strong>');
+    html = html.replace(/\^([^\^\n]+)\^/g, '<strong>$1</strong>');
+
+    // Italic: _text_ (skip mid-word underscores)
+    html = html.replace(/(?<![A-Za-z0-9])_([^_\n]+)_(?![A-Za-z0-9])/g, '<em>$1</em>');
+
+    // Strikethrough
+    html = html.replace(/~([^~\n]+)~/g, '<del>$1</del>');
 
     return html.replace(/\n/g, '<br>');
 }
@@ -362,6 +371,7 @@ function initBodyEditor(root, preview, scheduleUpdate) {
             const action = button.dataset.editorAction;
 
             if (action === 'bold') {
+                // Legacy template bold marker (^text^) — also rendered as bold in preview
                 wrapSelection(textarea, '^');
             } else if (action === 'italic') {
                 wrapSelection(textarea, '_');
@@ -925,16 +935,26 @@ function initHeaderMedia(scheduleUpdate) {
             }
 
             const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+            const xsrfCookie = document.cookie
+                .split('; ')
+                .find((row) => row.startsWith('XSRF-TOKEN='))
+                ?.split('=')
+                .slice(1)
+                .join('=');
             const body = new FormData();
             body.append('header_media', file);
+            body.append('_token', csrfToken);
 
             try {
                 const response = await fetch(uploadUrl, {
                     method: 'POST',
                     headers: {
                         Accept: 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
                         ...(csrfToken ? { 'X-CSRF-TOKEN': csrfToken } : {}),
+                        ...(xsrfCookie ? { 'X-XSRF-TOKEN': decodeURIComponent(xsrfCookie) } : {}),
                     },
+                    credentials: 'same-origin',
                     body,
                 });
 
@@ -944,7 +964,20 @@ function initHeaderMedia(scheduleUpdate) {
                     const firstError = data?.errors
                         ? Object.values(data.errors).flat()[0]
                         : null;
-                    const message = firstError || data.message || 'Upload failed. Please try again.';
+                    let message = firstError || data.message || '';
+
+                    if (!message) {
+                        if (response.status === 419) {
+                            message = 'Session expired. Please refresh the page and try again.';
+                        } else if (response.status === 403) {
+                            message = 'Upload forbidden. Check template permissions or refresh and retry.';
+                        } else if (response.status === 413) {
+                            message = 'File is too large for the server.';
+                        } else {
+                            message = `Upload failed (${response.status}). Please try again.`;
+                        }
+                    }
+
                     showHeaderUploadError(zone, message);
                     return;
                 }

@@ -59,9 +59,12 @@
         {{-- <p class="text-xs text-text-subtle">Use <code>$(variable_name)</code> for dynamic variables. Pick from + Variable.</p> --}}
 
         <div class="flex flex-wrap items-center gap-2 border-t border-divider pt-2">
-          <button type="button" data-editor-action="bold" class="template-editor-btn" title="Bold">B</button>
-          <button type="button" data-editor-action="italic" class="template-editor-btn" title="Italic"><em>I</em></button>
-          <button type="button" data-editor-action="strike" class="template-editor-btn" title="Strikethrough"><s>S</s></button>
+          {{-- Legacy SimpleMDE-style format sticker (editor-toolbar.png) --}}
+          <div class="template-format-sticker" role="toolbar" aria-label="Text formatting">
+            <button type="button" data-editor-action="bold" class="template-format-sticker__btn template-format-sticker__btn--bold" title="Bold (^text^)" aria-label="Bold"></button>
+            <button type="button" data-editor-action="italic" class="template-format-sticker__btn template-format-sticker__btn--italic" title="Italic (_text_)" aria-label="Italic"></button>
+            <button type="button" data-editor-action="strike" class="template-format-sticker__btn template-format-sticker__btn--strike" title="Strikethrough (~text~)" aria-label="Strikethrough"><span>S</span></button>
+          </div>
           <button type="button" data-editor-action="emoji" class="template-editor-btn" title="Emoji">😀</button>
           <button type="button" data-editor-action="variable" class="template-editor-btn template-editor-btn--accent" title="Select Variable">+ Variable</button>
           @if (filled($aiSuggestUrl ?? null))
