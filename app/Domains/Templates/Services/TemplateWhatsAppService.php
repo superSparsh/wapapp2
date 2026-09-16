@@ -697,11 +697,12 @@ class TemplateWhatsAppService
     private function handleSubmissionError(Template $template, string $error): void
     {
         $previous = $template->status;
-        $friendly = CamsComponentEncoder::friendlyError($error);
+        $presented = CamsComponentEncoder::presentError($error);
+        $friendly = trim($presented['message'].($presented['hint'] ? ' '.$presented['hint'] : ''));
 
         $template->update([
             'status' => TemplateStatus::Rejected,
-            'rejection_reason' => \Illuminate\Support\Str::limit($friendly, 500),
+            'rejection_reason' => \Illuminate\Support\Str::limit($friendly !== '' ? $friendly : $presented['message'], 500),
         ]);
 
         $this->logStatusChange($template, $previous, TemplateStatus::Rejected, $friendly);
@@ -710,6 +711,7 @@ class TemplateWhatsAppService
             'template_id' => $template->id,
             'error' => $error,
             'friendly' => $friendly,
+            'title' => $presented['title'],
         ]);
     }
 

@@ -186,14 +186,15 @@
                         <div class="group relative @if (! ($template['error'] ?? false)) hidden @endif" data-template-rejection-wrap>
                           <button
                             type="button"
-                            class="inline-flex size-5 items-center justify-center rounded-full border border-red-200 bg-red-50 text-[10px] font-bold text-red-600"
+                            class="inline-flex size-5 items-center justify-center rounded-full border border-red-200 bg-red-50 text-[11px] font-bold leading-none text-red-600 hover:bg-red-100"
                             aria-label="View submission error"
                           >!</button>
-                          <div class="absolute right-0 top-7 z-20 hidden w-72 rounded-xl border border-red-100 bg-elevated p-3 shadow-[0_8px_24px_rgba(0,0,0,0.12)] group-hover:block group-focus-within:block" data-template-rejection-popover>
-                            <p class="mb-1 text-xs font-semibold text-red-600" data-template-rejection-title>{{ $template['rejection_title'] ?? 'Submission failed' }}</p>
-                            <p class="text-xs leading-[1.45] text-text-body" data-template-rejection-text>{{ $template['rejection_reason'] ?? 'WhatsApp submission failed. Please try again.' }}</p>
+                          <div class="absolute right-0 top-7 z-20 hidden w-80 rounded-xl border border-red-100 bg-elevated p-3.5 shadow-[0_10px_28px_rgba(0,0,0,0.14)] group-hover:block group-focus-within:block" data-template-rejection-popover>
+                            <p class="mb-1.5 text-sm font-semibold text-red-600" data-template-rejection-title>{{ $template['rejection_title'] ?? 'Submission failed' }}</p>
+                            <p class="text-xs leading-[1.5] text-text-body" data-template-rejection-text>{{ $template['rejection_reason'] ?? 'WhatsApp could not accept this template.' }}</p>
+                            <p class="mt-2 text-xs leading-[1.45] text-text-muted @if (empty($template['rejection_hint'])) hidden @endif" data-template-rejection-hint>{{ $template['rejection_hint'] ?? '' }}</p>
                             @if (! empty($template['edit_url']))
-                              <a href="{{ $template['edit_url'] }}" class="mt-2 inline-flex text-xs font-semibold text-link-green hover:underline">Edit &amp; resubmit</a>
+                              <a href="{{ $template['edit_url'] }}" class="mt-3 inline-flex text-xs font-semibold text-link-green hover:underline">Edit &amp; resubmit</a>
                             @endif
                           </div>
                         </div>

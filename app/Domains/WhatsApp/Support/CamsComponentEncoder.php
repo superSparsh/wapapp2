@@ -76,43 +76,15 @@ final class CamsComponentEncoder
      */
     public static function friendlyError(?string $raw): string
     {
-        $raw = trim((string) $raw);
-        if ($raw === '') {
-            return 'WhatsApp submission failed. Please try again.';
-        }
+        return CamsErrorPresenter::friendlyMessage($raw);
+    }
 
-        $decoded = json_decode($raw, true);
-        if (! is_array($decoded)) {
-            return \Illuminate\Support\Str::limit($raw, 280);
-        }
-
-        $message = trim((string) ($decoded['Message'] ?? $decoded['message'] ?? ''));
-        $code = trim((string) ($decoded['Code'] ?? $decoded['code'] ?? ''));
-
-        if ($message === '' && $code === '') {
-            return \Illuminate\Support\Str::limit($raw, 280);
-        }
-
-        $friendly = match (strtoupper($code)) {
-            'MISSINGTYPE' => 'Template component Type is missing. Please re-check header/body/buttons and submit again.',
-            'MISSINGCOMPONENTS' => 'Template components were not sent to WhatsApp. Please edit the template body and submit again.',
-            'INVALIDPARAMETER.FILEURLERROR' => 'WhatsApp could not download the header media. Re-upload the image/video/document and submit again.',
-            'INVALIDPARAMETER', 'INVALIDPARAMETER.FORMAT' => $message !== '' ? $message : 'Invalid template parameter sent to WhatsApp.',
-            'FORBIDDEN.RAM' => 'WhatsApp account permission error. Contact support.',
-            default => $message !== '' ? $message : 'WhatsApp submission failed.',
-        };
-
-        // Message often embeds FileUrlError even when Code is InvalidParameter
-        if (str_contains(strtoupper($code.' '.$message), 'FILEURLERROR')
-            && ! str_contains(strtoupper($friendly), 'DOWNLOAD')) {
-            $friendly = 'WhatsApp could not download the header media. Re-upload the image/video/document and submit again.';
-        }
-
-        if ($code !== '' && ! str_contains($friendly, $code)) {
-            $friendly .= " ({$code})";
-        }
-
-        return \Illuminate\Support\Str::limit($friendly, 280);
+    /**
+     * @return array{title: string, message: string, hint: string|null}
+     */
+    public static function presentError(?string $raw): array
+    {
+        return CamsErrorPresenter::present($raw);
     }
 
     /**

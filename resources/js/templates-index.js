@@ -74,13 +74,23 @@ function initStatusPolling(root) {
                 applyStatusChip(chip, item.status, item.status_variant);
 
                 const rejectionWrap = row.querySelector('[data-template-rejection-wrap]');
+                const rejectionTitle = row.querySelector('[data-template-rejection-title]');
                 const rejectionText = row.querySelector('[data-template-rejection-text]');
+                const rejectionHint = row.querySelector('[data-template-rejection-hint]');
                 if (rejectionWrap) {
                     const show = Boolean(item.error);
                     rejectionWrap.classList.toggle('hidden', !show);
+                    if (rejectionTitle) {
+                        rejectionTitle.textContent = item.rejection_title || 'Submission failed';
+                    }
                     if (rejectionText) {
                         rejectionText.textContent = item.rejection_reason
-                            || 'WhatsApp submission failed. Please try again.';
+                            || 'WhatsApp could not accept this template.';
+                    }
+                    if (rejectionHint) {
+                        const hint = item.rejection_hint || '';
+                        rejectionHint.textContent = hint;
+                        rejectionHint.classList.toggle('hidden', hint === '');
                     }
                 }
             });

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit\WhatsApp;
 
 use App\Domains\WhatsApp\Support\CamsComponentEncoder;
+use App\Domains\WhatsApp\Support\CamsErrorPresenter;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -60,11 +61,12 @@ final class CamsComponentEncoderTest extends TestCase
             'Code' => 'MissingType',
         ], JSON_THROW_ON_ERROR);
 
-        $friendly = CamsComponentEncoder::friendlyError($raw);
+        $presented = CamsErrorPresenter::present($raw);
 
-        $this->assertStringContainsString('Type is missing', $friendly);
-        $this->assertStringContainsString('MissingType', $friendly);
-        $this->assertStringNotContainsString('RequestId', $friendly);
+        $this->assertSame('Template structure incomplete', $presented['title']);
+        $this->assertStringContainsString('missing type information', $presented['message']);
+        $this->assertStringContainsString('submit again', (string) $presented['hint']);
+        $this->assertStringNotContainsString('RequestId', $presented['message']);
     }
 
     #[Test]
@@ -75,8 +77,37 @@ final class CamsComponentEncoderTest extends TestCase
             'Code' => 'InvalidParameter.FileUrlError',
         ], JSON_THROW_ON_ERROR);
 
+        $presented = CamsErrorPresenter::present($raw);
+
+        $this->assertSame('Header media unavailable', $presented['title']);
+        $this->assertStringContainsString('could not download', $presented['message']);
+        $this->assertStringContainsString('Re-upload', (string) $presented['hint']);
+    }
+
+    #[Test]
+    public function it_polishes_tea_sdk_style_errors_without_request_ids(): void
+    {
+        $raw = 'code: 400, A template with the same name and language already exists request id: 01A0A9C9-5367-3B21';
+
+        $presented = CamsErrorPresenter::present($raw);
+
+        $this->assertSame('Template name already used', $presented['title']);
+        $this->assertStringContainsString('already exists', $presented['message']);
+        $this->assertStringNotContainsString('request id', strtolower($presented['message']));
+        $this->assertStringNotContainsString('code: 400', strtolower($presented['message']));
+    }
+
+    #[Test]
+    public function friendly_error_includes_actionable_hint(): void
+    {
+        $raw = json_encode([
+            'Message' => 'The file can not download.',
+            'Code' => 'InvalidParameter.FileUrlError',
+        ], JSON_THROW_ON_ERROR);
+
         $friendly = CamsComponentEncoder::friendlyError($raw);
 
-        $this->assertStringContainsString('could not download the header media', $friendly);
+        $this->assertStringContainsString('could not download', $friendly);
+        $this->assertStringContainsString('Re-upload', $friendly);
     }
 }

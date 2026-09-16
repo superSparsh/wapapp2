@@ -42,15 +42,18 @@ class TemplateApiController extends Controller
             ->get(['uuid', 'status', 'rejection_reason'])
             ->map(function (Template $template): array {
                 $isRejected = $template->status->value === 'rejected';
+                $error = $isRejected
+                    ? CamsComponentEncoder::presentError($template->rejection_reason)
+                    : null;
 
                 return [
                     'uuid' => $template->uuid,
                     'status' => $template->status->label(),
                     'status_variant' => $template->status->chipVariant(),
                     'error' => $isRejected,
-                    'rejection_reason' => $isRejected
-                        ? CamsComponentEncoder::friendlyError($template->rejection_reason)
-                        : null,
+                    'rejection_title' => $error['title'] ?? null,
+                    'rejection_reason' => $error['message'] ?? null,
+                    'rejection_hint' => $error['hint'] ?? null,
                 ];
             })
             ->values()

@@ -399,9 +399,15 @@ class TemplateBuilderController extends Controller
         $template->refresh();
 
         if ($template->status === TemplateStatus::Rejected) {
+            $presented = \App\Domains\WhatsApp\Support\CamsComponentEncoder::presentError($template->rejection_reason);
+            $flash = $presented['message'];
+            if (filled($presented['hint'])) {
+                $flash .= ' '.$presented['hint'];
+            }
+
             return redirect()
                 ->route('templates.index')
-                ->with('error', $template->rejection_reason ?: 'Template submission failed. Check the error icon on the template row.');
+                ->with('error', $flash);
         }
 
         $message = filled($template->whatsappCode())

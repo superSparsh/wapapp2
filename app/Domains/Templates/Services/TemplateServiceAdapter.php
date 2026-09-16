@@ -87,7 +87,13 @@ class TemplateServiceAdapter
                 $total = (int) ($response['meta']['total'] ?? 0);
 
                 $rows = collect($response['items'] ?? [])
-                    ->map(fn (array $row, int $index): array => [
+                    ->map(function (array $row, int $index) use ($page, $perPage): array {
+                        $isError = (bool) ($row['error'] ?? false);
+                        $presented = $isError
+                            ? CamsComponentEncoder::presentError($row['rejection_reason'] ?? null)
+                            : null;
+
+                        return [
                         'serial' => $row['serial'] ?? str_pad((string) (($page - 1) * $perPage + $index + 1), 2, '0', STR_PAD_LEFT),
                         'name' => $row['name'] ?? '',
                         'code' => (string) ($row['code'] ?? ''),
@@ -107,11 +113,10 @@ class TemplateServiceAdapter
                         },
                         'status' => $row['status'] ?? 'Approved',
                         'status_variant' => $row['status_variant'] ?? 'fd-approved',
-                        'error' => (bool) ($row['error'] ?? false),
-                        'rejection_reason' => ! empty($row['error'])
-                            ? CamsComponentEncoder::friendlyError($row['rejection_reason'] ?? null)
-                            : null,
-                        'rejection_title' => ! empty($row['error']) ? 'Submission failed' : null,
+                        'error' => $isError,
+                        'rejection_title' => $presented['title'] ?? null,
+                        'rejection_reason' => $presented['message'] ?? null,
+                        'rejection_hint' => $presented['hint'] ?? null,
                         'preview_url' => route('templates.preview', array_filter([
                             'code' => $row['code'] ?: null,
                             'draft' => ! empty($row['code']) ? null : ($row['uuid'] ?? null),
@@ -127,7 +132,8 @@ class TemplateServiceAdapter
                         'delete_url' => ! empty($row['uuid'])
                             ? route('templates.destroy', ['template' => $row['uuid']])
                             : null,
-                    ])
+                        ];
+                    })
                     ->all();
 
                 return [
