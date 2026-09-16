@@ -1028,63 +1028,6 @@ body.builder-fullscreen > .flex > div > .min-h-0 > main > .flex > .flex-col:firs
     color: var(--color-green-500);
 }
 
-/* Legacy SimpleMDE editor-toolbar.png sticker for B / I / strike */
-.template-format-sticker {
-    display: inline-flex;
-    height: 30px;
-    align-items: stretch;
-    overflow: hidden;
-    border-radius: 0.375rem;
-    border: 1px solid var(--color-border);
-    background: #f9f9f9;
-}
-
-.template-format-sticker__btn {
-    width: 28px;
-    height: 30px;
-    flex-shrink: 0;
-    border: 0;
-    background-color: transparent;
-    background-image: url('/images/templates/editor-toolbar.png');
-    background-repeat: no-repeat;
-    background-size: 250px 30px;
-    cursor: pointer;
-    transition: background-color 0.15s ease;
-}
-
-.template-format-sticker__btn:hover {
-    background-color: color-mix(in srgb, var(--color-green-500) 12%, transparent);
-}
-
-.template-format-sticker__btn--bold {
-    /* B icon ~ x=34 in 250px strip */
-    background-position: -34px 0;
-}
-
-.template-format-sticker__btn--italic {
-    /* I icon ~ x=54 */
-    background-position: -54px 0;
-    border-left: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
-}
-
-.template-format-sticker__btn--strike {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background-image: none;
-    border-left: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
-    color: #555;
-    font-family: Georgia, 'Times New Roman', serif;
-    font-size: 14px;
-    font-weight: 700;
-    line-height: 1;
-}
-
-.template-format-sticker__btn--strike span {
-    text-decoration: line-through;
-    text-decoration-thickness: 1.5px;
-}
-
 .wa-preview-body strong {
     font-weight: 700;
 }

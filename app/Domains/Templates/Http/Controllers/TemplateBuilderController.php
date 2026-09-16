@@ -136,6 +136,11 @@ class TemplateBuilderController extends Controller
         ]);
     }
 
+    public function showMedia(string $path, TemplateMediaService $mediaService): \Symfony\Component\HttpFoundation\StreamedResponse
+    {
+        return $mediaService->stream($path);
+    }
+
     public function body(
         Template $template,
         TemplatePreviewService $previewService,

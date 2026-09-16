@@ -384,6 +384,10 @@ Route::middleware(['tenancy.session', 'auth:web,team', '2fa', 'verified', 'team.
     });
 
     Route::middleware('team.permission:template_read')->prefix('templates')->name('templates.')->group(function () {
+        Route::get('/media/{path}', [TemplateBuilderController::class, 'showMedia'])
+            ->where('path', '.*')
+            ->name('media.show');
+
         Route::get('/', [TemplateController::class, 'index'])->name('index');
         Route::get('/preview', [TemplateController::class, 'index'])->name('preview');
         Route::post('/{template}/duplicate', [TemplateController::class, 'duplicate'])->middleware('team.permission:template_write')->name('duplicate');

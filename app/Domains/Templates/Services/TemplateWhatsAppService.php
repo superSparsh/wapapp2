@@ -251,19 +251,19 @@ class TemplateWhatsAppService
             $components[] = [
                 'type' => 'HEADER',
                 'format' => 'IMAGE',
-                'url' => $header['media_url'] ?? ($header['media_path'] ? asset('storage/'.$header['media_path']) : ''),
+                'url' => $header['media_url'] ?? ($header['media_path'] ? app(TemplateMediaService::class)->absolutePublicUrl((string) $header['media_path']) : ''),
             ];
         } elseif ($headerType === 'video') {
             $components[] = [
                 'type' => 'HEADER',
                 'format' => 'VIDEO',
-                'url' => $header['media_url'] ?? ($header['media_path'] ? asset('storage/'.$header['media_path']) : ''),
+                'url' => $header['media_url'] ?? ($header['media_path'] ? app(TemplateMediaService::class)->absolutePublicUrl((string) $header['media_path']) : ''),
             ];
         } elseif ($headerType === 'document') {
             $components[] = [
                 'type' => 'HEADER',
                 'format' => 'DOCUMENT',
-                'url' => $header['media_url'] ?? ($header['media_path'] ? asset('storage/'.$header['media_path']) : ''),
+                'url' => $header['media_url'] ?? ($header['media_path'] ? app(TemplateMediaService::class)->absolutePublicUrl((string) $header['media_path']) : ''),
                 'fileName' => (string) ($header['doc_name'] ?? 'document'),
             ];
         } elseif ($headerType === 'location') {

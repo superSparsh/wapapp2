@@ -987,20 +987,38 @@ function initHeaderMedia(scheduleUpdate) {
                     mediaPathInput.value = data.path;
                 }
 
-                if (!remoteUrl) {
-                    return;
-                }
+                // Prefer server URL for preview; if it 403/fails, keep local blob preview.
+                if (remoteUrl) {
+                    const applyRemote = (ok) => {
+                        if (!ok) {
+                            return;
+                        }
+                        if (data.type === 'video' && videoEl) {
+                            videoEl.src = remoteUrl;
+                            videoEl.dataset.previewUrl = remoteUrl;
+                            videoEl.classList.remove('hidden');
+                            imageEl?.classList.add('hidden');
+                        } else if (imageEl && (data.type === 'image' || isImage)) {
+                            imageEl.src = remoteUrl;
+                            imageEl.dataset.previewUrl = remoteUrl;
+                            imageEl.classList.remove('hidden');
+                            videoEl?.classList.add('hidden');
+                        }
+                        scheduleUpdate();
+                    };
 
-                if (data.type === 'video' && videoEl) {
-                    videoEl.src = remoteUrl;
-                    videoEl.dataset.previewUrl = remoteUrl;
-                    videoEl.classList.remove('hidden');
-                    imageEl?.classList.add('hidden');
-                } else if (imageEl && (data.type === 'image' || isImage)) {
-                    imageEl.src = remoteUrl;
-                    imageEl.dataset.previewUrl = remoteUrl;
-                    imageEl.classList.remove('hidden');
-                    videoEl?.classList.add('hidden');
+                    if (data.type === 'video' || isVideo) {
+                        const probe = document.createElement('video');
+                        probe.preload = 'metadata';
+                        probe.onloadeddata = () => applyRemote(true);
+                        probe.onerror = () => applyRemote(false);
+                        probe.src = remoteUrl;
+                    } else {
+                        const probe = new Image();
+                        probe.onload = () => applyRemote(true);
+                        probe.onerror = () => applyRemote(false);
+                        probe.src = remoteUrl;
+                    }
                 }
 
                 if (typeof window.showAppToast === 'function') {

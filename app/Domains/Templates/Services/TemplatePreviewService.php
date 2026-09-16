@@ -11,6 +11,7 @@ class TemplatePreviewService
 {
     public function __construct(
         private readonly TemplateRegistryService $registry,
+        private readonly TemplateMediaService $mediaService,
     ) {}
 
     /**
@@ -78,13 +79,13 @@ class TemplatePreviewService
         $mediaUrl = $payload['header']['media_url'] ?? null;
 
         if ($headerType === 'image' && (filled($mediaPath) || filled($mediaUrl))) {
-            $headerImage = filled($mediaUrl) ? $mediaUrl : ($mediaPath ? url('storage/'.$mediaPath) : null);
+            $headerImage = filled($mediaUrl) ? $mediaUrl : ($mediaPath ? $this->mediaService->previewUrl((string) $mediaPath) : null);
         }
         if ($headerType === 'video' && (filled($mediaPath) || filled($mediaUrl))) {
-            $headerVideo = filled($mediaUrl) ? $mediaUrl : ($mediaPath ? url('storage/'.$mediaPath) : null);
+            $headerVideo = filled($mediaUrl) ? $mediaUrl : ($mediaPath ? $this->mediaService->previewUrl((string) $mediaPath) : null);
         }
         if ($headerType === 'document' && (filled($mediaPath) || filled($mediaUrl))) {
-            $headerDocument = filled($mediaUrl) ? $mediaUrl : ($mediaPath ? url('storage/'.$mediaPath) : null);
+            $headerDocument = filled($mediaUrl) ? $mediaUrl : ($mediaPath ? $this->mediaService->previewUrl((string) $mediaPath) : null);
         }
 
         // Authentication template preview data

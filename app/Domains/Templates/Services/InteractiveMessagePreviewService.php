@@ -18,7 +18,7 @@ class InteractiveMessagePreviewService
         $headerImage = null;
 
         if (($header['type'] ?? 'none') === 'image' && filled($header['media_path'] ?? null)) {
-            $headerImage = asset('storage/'.$header['media_path']);
+            $headerImage = app(TemplateMediaService::class)->previewUrl((string) $header['media_path']);
         }
 
         $buttons = collect($content['buttons'] ?? [])
