@@ -6,6 +6,7 @@ namespace App\Domains\Templates\Support;
 
 use App\Domains\Templates\Support\TemplateCategoryCatalog;
 use App\Domains\Templates\Enums\TemplateStatus;
+use App\Domains\WhatsApp\Support\CamsComponentEncoder;
 use App\Models\Template;
 use Illuminate\Support\Collection;
 
@@ -44,7 +45,8 @@ class TemplateCatalogPresenter
                 'status' => $template->status->label(),
                 'status_variant' => $template->status->chipVariant(),
                 'error' => $template->status === TemplateStatus::Rejected,
-                'rejection_reason' => $template->rejection_reason,
+                'rejection_reason' => CamsComponentEncoder::friendlyError($template->rejection_reason),
+                'rejection_title' => $template->status === TemplateStatus::Rejected ? 'Submission failed' : null,
                 'preview_url' => route('templates.preview', array_filter([
                     'code' => $template->code,
                     'draft' => $template->code ? null : $template->uuid,

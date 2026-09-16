@@ -184,9 +184,17 @@
                           data-template-status-chip
                         />
                         <div class="group relative @if (! ($template['error'] && ! empty($template['rejection_reason']))) hidden @endif" data-template-rejection-wrap>
-                          <img src="{{ asset('images/templates/info-circle.svg') }}" alt="" class="size-4 shrink-0 cursor-help" width="16" height="16">
-                          <div class="absolute right-0 top-6 z-10 hidden w-64 rounded-lg bg-elevated p-3 text-xs text-text-body shadow-lg group-hover:block" data-template-rejection-reason>
-                            {{ $template['rejection_reason'] ?? '' }}
+                          <button
+                            type="button"
+                            class="inline-flex size-5 items-center justify-center rounded-full border border-red-200 bg-red-50 text-[10px] font-bold text-red-600"
+                            aria-label="View submission error"
+                          >!</button>
+                          <div class="absolute right-0 top-7 z-20 hidden w-72 rounded-xl border border-red-100 bg-elevated p-3 shadow-[0_8px_24px_rgba(0,0,0,0.12)] group-hover:block group-focus-within:block" data-template-rejection-reason>
+                            <p class="mb-1 text-xs font-semibold text-red-600">{{ $template['rejection_title'] ?? 'Submission failed' }}</p>
+                            <p class="text-xs leading-[1.45] text-text-body">{{ $template['rejection_reason'] ?? '' }}</p>
+                            @if (! empty($template['edit_url']))
+                              <a href="{{ $template['edit_url'] }}" class="mt-2 inline-flex text-xs font-semibold text-link-green hover:underline">Edit &amp; resubmit</a>
+                            @endif
                           </div>
                         </div>
                       </div>

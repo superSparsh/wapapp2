@@ -8,6 +8,7 @@ use App\Domains\Templates\Enums\TemplateStatus;
 use App\Domains\Templates\Support\CamsTemplateIdentity;
 use App\Domains\Templates\Support\TemplateCategoryCatalog;
 use App\Domains\WhatsApp\Services\AlibabaCamsClient;
+use App\Domains\WhatsApp\Support\CamsComponentEncoder;
 use App\Models\Template;
 use App\Models\TemplateStatusLog;
 use App\Models\WhatsappLine;
@@ -49,7 +50,8 @@ class TemplateWhatsAppService
         // Add example data if body has variables
         $example = $this->buildExample($template);
         if (! empty($example)) {
-            $extra['Example'] = json_encode($example, JSON_THROW_ON_ERROR);
+            // Nested map → Example.body_text.1=… (do not JSON-encode)
+            $extra['Example'] = $example;
         }
 
         // Authentication template TTL
@@ -376,14 +378,18 @@ class TemplateWhatsAppService
         $cards = collect($carousel['cards'] ?? [])
             ->filter(fn ($card) => is_array($card) && filled($card['body'] ?? null))
             ->map(function (array $card): array {
-                $cardComponent = [
-                    'headerType' => strtoupper((string) ($card['header'] ?? 'IMAGE')),
-                    'bodyText' => (string) ($card['body'] ?? ''),
+                // Legacy / CAMS: each card has CardComponents[HEADER, BODY, BUTTONS]
+                $cardComponents = [
+                    [
+                        'type' => 'HEADER',
+                        'format' => strtoupper((string) ($card['header'] ?? $card['header_type'] ?? 'IMAGE')),
+                        'url' => (string) ($card['media_url'] ?? $card['url'] ?? ''),
+                    ],
+                    [
+                        'type' => 'BODY',
+                        'text' => (string) ($card['body'] ?? ''),
+                    ],
                 ];
-
-                if (! empty($card['media_url'])) {
-                    $cardComponent['mediaUrl'] = $card['media_url'];
-                }
 
                 $cardButtons = collect($card['buttons'] ?? [])
                     ->filter(fn ($btn) => is_array($btn) && filled($btn['text'] ?? null))
@@ -402,7 +408,7 @@ class TemplateWhatsAppService
                             return [
                                 'type' => 'PHONE_NUMBER',
                                 'text' => (string) $btn['text'],
-                                'phoneNumber' => (string) ($btn['url'] ?? ''),
+                                'phoneNumber' => (string) ($btn['url'] ?? $btn['phone'] ?? ''),
                             ];
                         }
 
@@ -415,10 +421,13 @@ class TemplateWhatsAppService
                     ->all();
 
                 if (! empty($cardButtons)) {
-                    $cardComponent['buttons'] = $cardButtons;
+                    $cardComponents[] = [
+                        'type' => 'BUTTONS',
+                        'buttons' => $cardButtons,
+                    ];
                 }
 
-                return $cardComponent;
+                return ['cardComponents' => $cardComponents];
             })
             ->values()
             ->all();
@@ -579,17 +588,19 @@ class TemplateWhatsAppService
     private function handleSubmissionError(Template $template, string $error): void
     {
         $previous = $template->status;
+        $friendly = CamsComponentEncoder::friendlyError($error);
 
         $template->update([
             'status' => TemplateStatus::Rejected,
-            'rejection_reason' => \Illuminate\Support\Str::limit($error, 500),
+            'rejection_reason' => \Illuminate\Support\Str::limit($friendly, 500),
         ]);
 
-        $this->logStatusChange($template, $previous, TemplateStatus::Rejected, $error);
+        $this->logStatusChange($template, $previous, TemplateStatus::Rejected, $friendly);
 
         Log::error('Template submission failed', [
             'template_id' => $template->id,
             'error' => $error,
+            'friendly' => $friendly,
         ]);
     }
 

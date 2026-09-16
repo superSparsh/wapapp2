@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\WhatsApp\Services;
 
+use App\Domains\WhatsApp\Support\CamsComponentEncoder;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 
@@ -67,7 +68,8 @@ class AlibabaCamsClient
             'Language' => $language,
             'Category' => $category,
             'TemplateType' => 'WHATSAPP',
-            'Components' => json_encode($components, JSON_THROW_ON_ERROR),
+            // Nested array → Components.1.Type=BODY (JSON blob loses Type for CAMS RPC)
+            'Components' => CamsComponentEncoder::forRpc($components),
             'AllowCategoryChange' => 'false',
         ], $params));
     }
@@ -87,7 +89,7 @@ class AlibabaCamsClient
             'Language' => $language,
             'Category' => $category,
             'TemplateType' => 'WHATSAPP',
-            'Components' => json_encode($components, JSON_THROW_ON_ERROR),
+            'Components' => CamsComponentEncoder::forRpc($components),
             'AllowCategoryChange' => 'false',
         ], $params));
     }

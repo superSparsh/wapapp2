@@ -398,15 +398,19 @@ class TemplateBuilderController extends Controller
         $builderService->submit($template);
         $template->refresh();
 
-        $message = match (true) {
-            $template->status === TemplateStatus::Rejected => 'Template submission failed: '.($template->rejection_reason ?: 'Unknown error'),
-            filled($template->whatsappCode()) => 'Template submitted to WhatsApp. Status will stay Pending review until Meta approves it.',
-            default => 'Template queued for WhatsApp submission. It will stay Pending review until Meta approves it.',
-        };
+        if ($template->status === TemplateStatus::Rejected) {
+            return redirect()
+                ->route('templates.index')
+                ->with('error', $template->rejection_reason ?: 'Template submission failed. Check the error icon on the template row.');
+        }
+
+        $message = filled($template->whatsappCode())
+            ? 'Template submitted to WhatsApp. It will stay Pending review until Meta approves it.'
+            : 'Template queued for WhatsApp submission. It will stay Pending review until Meta approves it.';
 
         return redirect()
             ->route('templates.index')
-            ->with($template->status === TemplateStatus::Rejected ? 'error' : 'status', $message);
+            ->with('status', $message);
     }
 
     /**
