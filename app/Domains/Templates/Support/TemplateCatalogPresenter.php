@@ -30,6 +30,9 @@ class TemplateCatalogPresenter
                 $isRegular = $template->source === TemplateSource::Cams
                     || filled($template->whatsappCode());
 
+                $isRejected = $template->status === TemplateStatus::Rejected;
+                $rejectionReason = CamsComponentEncoder::friendlyError($template->rejection_reason);
+
                 return [
                 'serial' => str_pad((string) ($offset + $index + 1), 2, '0', STR_PAD_LEFT),
                 'name' => $template->name,
@@ -53,9 +56,9 @@ class TemplateCatalogPresenter
                 },
                 'status' => $template->status->label(),
                 'status_variant' => $template->status->chipVariant(),
-                'error' => $template->status === TemplateStatus::Rejected,
-                'rejection_reason' => CamsComponentEncoder::friendlyError($template->rejection_reason),
-                'rejection_title' => $template->status === TemplateStatus::Rejected ? 'Submission failed' : null,
+                'error' => $isRejected,
+                'rejection_reason' => $isRejected ? $rejectionReason : null,
+                'rejection_title' => $isRejected ? 'Submission failed' : null,
                 'preview_url' => route('templates.preview', array_filter([
                     'code' => $template->code,
                     'draft' => $template->code ? null : $template->uuid,

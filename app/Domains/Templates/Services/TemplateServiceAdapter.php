@@ -7,6 +7,7 @@ namespace App\Domains\Templates\Services;
 use App\Domains\Templates\Contracts\TemplateServiceClientInterface;
 use App\Domains\Templates\Support\InteractiveMessagePresenter;
 use App\Domains\Templates\Support\TemplateCategoryCatalog;
+use App\Domains\WhatsApp\Support\CamsComponentEncoder;
 use App\Models\Template;
 use App\Models\Variable;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -107,7 +108,10 @@ class TemplateServiceAdapter
                         'status' => $row['status'] ?? 'Approved',
                         'status_variant' => $row['status_variant'] ?? 'fd-approved',
                         'error' => (bool) ($row['error'] ?? false),
-                        'rejection_reason' => $row['rejection_reason'] ?? null,
+                        'rejection_reason' => ! empty($row['error'])
+                            ? CamsComponentEncoder::friendlyError($row['rejection_reason'] ?? null)
+                            : null,
+                        'rejection_title' => ! empty($row['error']) ? 'Submission failed' : null,
                         'preview_url' => route('templates.preview', array_filter([
                             'code' => $row['code'] ?: null,
                             'draft' => ! empty($row['code']) ? null : ($row['uuid'] ?? null),

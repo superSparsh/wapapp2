@@ -6,6 +6,7 @@ namespace App\Domains\Templates\Http\Controllers;
 
 use App\Domains\Templates\Services\TemplateRegistryService;
 use App\Domains\Templates\Services\TemplateServiceAdapter;
+use App\Domains\WhatsApp\Support\CamsComponentEncoder;
 use App\Http\Controllers\Controller;
 use App\Models\Template;
 use Illuminate\Http\JsonResponse;
@@ -39,13 +40,19 @@ class TemplateApiController extends Controller
         $items = Template::query()
             ->whereIn('uuid', $uuids)
             ->get(['uuid', 'status', 'rejection_reason'])
-            ->map(fn (Template $template): array => [
-                'uuid' => $template->uuid,
-                'status' => $template->status->label(),
-                'status_variant' => $template->status->chipVariant(),
-                'error' => $template->status->value === 'rejected',
-                'rejection_reason' => $template->rejection_reason,
-            ])
+            ->map(function (Template $template): array {
+                $isRejected = $template->status->value === 'rejected';
+
+                return [
+                    'uuid' => $template->uuid,
+                    'status' => $template->status->label(),
+                    'status_variant' => $template->status->chipVariant(),
+                    'error' => $isRejected,
+                    'rejection_reason' => $isRejected
+                        ? CamsComponentEncoder::friendlyError($template->rejection_reason)
+                        : null,
+                ];
+            })
             ->values()
             ->all();
 

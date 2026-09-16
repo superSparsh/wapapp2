@@ -240,9 +240,10 @@ class TemplateSyncService
                 $updateData['status'] = $newStatus;
 
                 if ($newStatus === TemplateStatus::Rejected) {
-                    $updateData['rejection_reason'] = $rejectionReason
-                        ? \Illuminate\Support\Str::limit($rejectionReason, 500)
-                        : null;
+                    $updateData['rejection_reason'] = \Illuminate\Support\Str::limit(
+                        $rejectionReason ?: 'WhatsApp rejected this template.',
+                        500,
+                    );
                 }
 
                 if ($newStatus === TemplateStatus::Approved) {
