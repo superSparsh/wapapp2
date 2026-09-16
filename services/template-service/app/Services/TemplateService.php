@@ -12,6 +12,7 @@ use App\Repositories\Interfaces\TemplateRepositoryInterface;
 use App\Support\TemplateCategoryCatalog;
 use App\Support\TemplateNameValidator;
 use App\Support\TemplateVariableSyntax;
+use App\Support\TenantContext;
 use App\Support\VariableActorContext;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -21,12 +22,15 @@ class TemplateService
     public function __construct(
         private readonly TemplateRepositoryInterface $templateRepository,
         private readonly VariableActorContext $actorContext,
+        private readonly TenantContext $tenantContext,
+        private readonly TemplateWhatsAppService $whatsAppService,
     ) {}
 
     public function createDraft(): Template
     {
         $payload = Template::defaultPayload();
         $payload['meta']['setup_completed'] = false;
+        $payload = $this->withCustSpaceMeta($payload);
 
         return $this->templateRepository->create([
             'name' => $this->uniqueName('draft_template'),
@@ -46,10 +50,9 @@ class TemplateService
     public function createFromSetup(array $setup): Template
     {
         $name = (string) $setup['name'];
-        $code = TemplateNameValidator::normalizeCode($name);
         $lineId = $this->actorContext->whatsappLineId();
 
-        if (TemplateNameValidator::codeExistsForLine($code, $lineId)) {
+        if (TemplateNameValidator::nameExistsForLine($name, $lineId)) {
             throw ValidationException::withMessages([
                 'name' => 'A template with this name already exists. Please choose a different name.',
             ]);
@@ -62,12 +65,14 @@ class TemplateService
             'language' => (string) $setup['language'],
             'template_type' => (string) ($setup['template_type'] ?? 'regular'),
         ];
+        $payload = $this->withCustSpaceMeta($payload);
 
         return $this->templateRepository->create([
             'name' => $name,
             'category' => (string) $setup['category'],
             'language' => (string) $setup['language'],
-            'code' => $code,
+            // code is filled only after Alibaba returns TemplateCode — never store the local name here
+            'code' => null,
             'status' => TemplateStatus::Draft,
             'whatsapp_line_id' => $lineId,
             'team_member_id' => $this->actorContext->teamMemberId(),
@@ -94,9 +99,8 @@ class TemplateService
 
             if ($step === 'meta') {
                 $requestedName = (string) ($stepData['name'] ?? $template->name);
-                $code = TemplateNameValidator::normalizeCode($requestedName);
 
-                if (TemplateNameValidator::codeExistsForLine($code, $template->whatsapp_line_id, $template->id)) {
+                if (TemplateNameValidator::nameExistsForLine($requestedName, $template->whatsapp_line_id, $template->id)) {
                     throw ValidationException::withMessages([
                         'name' => 'A template with this name already exists. Please choose a different name.',
                     ]);
@@ -105,7 +109,6 @@ class TemplateService
                 $template->name = $requestedName;
                 $template->category = (string) ($stepData['category'] ?? $template->category);
                 $template->language = (string) ($stepData['language'] ?? $template->language);
-                $template->code = $code;
 
                 $payload['meta']['name'] = $template->name;
                 $payload['meta']['category'] = $template->category;
@@ -142,13 +145,32 @@ class TemplateService
     {
         $previousStatus = $template->status;
 
+        // Clear local snake_case "codes" (name-as-code). Real Alibaba TemplateCode is numeric.
+        if (filled($template->code) && ! filled($template->whatsappCode())) {
+            $template->forceFill(['code' => null])->saveQuietly();
+        }
+
+        $payload = $this->withCustSpaceMeta($template->wizardPayload());
+
+        // Do NOT put the local name into `code` — reserved for Alibaba TemplateCode.
         $template->update([
             'status' => TemplateStatus::PendingReview,
-            'code' => $template->code ?: TemplateNameValidator::normalizeCode($template->name),
+            'synced_at' => null,
+            'rejection_reason' => null,
+            'payload' => $payload,
         ]);
 
         $this->logStatusChange($template, $previousStatus, TemplateStatus::PendingReview);
         $this->ensurePaymentLinkVariable($template);
+
+        $template = $template->fresh() ?? $template;
+        $isEdit = filled($template->whatsappCode());
+
+        if ($isEdit) {
+            $this->whatsAppService->modifyTemplate($template);
+        } else {
+            $this->whatsAppService->submitTemplate($template);
+        }
 
         return $template->refresh();
     }
@@ -264,5 +286,21 @@ class TemplateService
                 'position' => 1,
             ]);
         }
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>
+     */
+    private function withCustSpaceMeta(array $payload): array
+    {
+        $custSpaceId = $this->tenantContext->getCustSpaceId();
+        if (filled($custSpaceId)) {
+            $payload['meta'] = array_merge($payload['meta'] ?? [], [
+                'cust_space_id' => $custSpaceId,
+            ]);
+        }
+
+        return $payload;
     }
 }

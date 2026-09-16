@@ -156,8 +156,9 @@ class CampaignSendService
         array $templateParams,
         string $language,
     ): array {
-        $to = PhoneNormalizer::normalize($contactPhone) ?? $contactPhone;
-        $to = str_starts_with($to, '+') ? $to : '+'.$to;
+        $normalized = PhoneNormalizer::normalize($contactPhone) ?? $contactPhone;
+        // CAMS requires From/To as digits only (InvalidParameter.FromOnlyNumeric).
+        $to = preg_replace('/\D+/', '', $normalized) ?: $normalized;
 
         $response = $this->camsClient->sendChatappMessage([
             'From' => $ctx['line_phone'],

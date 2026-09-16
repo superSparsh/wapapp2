@@ -6,6 +6,7 @@ return [
     'variables_per_page' => (int) env('TEMPLATE_VARIABLES_PER_PAGE', 10),
     'catalog_cache_seconds' => (int) env('TEMPLATE_CATALOG_CACHE_SECONDS', 300),
     'media_disk' => env('TEMPLATE_VARIABLE_MEDIA_DISK', 'local'),
+    'header_media_disk' => env('TEMPLATE_HEADER_MEDIA_DISK', 'public'),
     'media_directory' => 'template-variables',
 
     // Template builder limits (WhatsApp API constraints)

@@ -6,6 +6,8 @@ namespace App\Domains\Templates\Services;
 
 use App\Domains\Inbox\Support\InboxActor;
 use App\Domains\Templates\Contracts\TemplateServiceClientInterface;
+use App\Domains\Templates\Support\VariableActorContext;
+use App\Models\WhatsappLine;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
@@ -204,6 +206,22 @@ class TemplateServiceClient implements TemplateServiceClientInterface
         $teamMember = InboxActor::teamMember();
         if ($teamMember !== null && isset($teamMember->uuid)) {
             $headers['X-Actor-Team-Member-Uuid'] = (string) $teamMember->uuid;
+        }
+
+        $lineId = app(VariableActorContext::class)->whatsappLineId();
+        $line = null;
+        if ($lineId !== null) {
+            $line = WhatsappLine::query()->find($lineId);
+        }
+        if ($line === null) {
+            $line = WhatsappLine::query()->where('is_default', true)->first()
+                ?? WhatsappLine::query()->first();
+        }
+        if ($line !== null) {
+            $headers['X-Whatsapp-Line-Id'] = (string) $line->id;
+            if (filled($line->alibaba_cust_space_id)) {
+                $headers['X-Cust-Space-Id'] = (string) $line->alibaba_cust_space_id;
+            }
         }
 
         return $headers;

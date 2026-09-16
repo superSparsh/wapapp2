@@ -89,7 +89,7 @@ class TemplateApiTest extends TestCase
 
         $create->assertStatus(201)
             ->assertJsonPath('template.name', 'Festival Discount Offer')
-            ->assertJsonPath('template.code', 'festival_discount_offer');
+            ->assertJsonPath('template.code', null);
 
         $uuid = $create->json('template.uuid');
 
@@ -104,15 +104,15 @@ class TemplateApiTest extends TestCase
         $saveBody->assertOk()
             ->assertJsonPath('template.body_preview', 'Hello $(first_name), check out our sale: $(discount_code)!');
 
-        // Submit template
+        // Submit template (CAMS skipped when keys missing — stays pending_review)
         $submit = $this->postJson("/api/v1/templates/{$uuid}/submit", [], $this->authHeaders());
         $submit->assertOk()
             ->assertJsonPath('template.status', 'pending_review');
 
-        // Preview
-        $preview = $this->getJson('/api/v1/templates/preview/festival_discount_offer', $this->authHeaders());
-        $preview->assertOk()
-            ->assertJsonPath('title', 'Festival Discount Offer');
+        // Preview via template uuid payload (code is Alibaba-only)
+        $show = $this->getJson("/api/v1/templates/{$uuid}", $this->authHeaders());
+        $show->assertOk()
+            ->assertJsonPath('template.name', 'Festival Discount Offer');
     }
 
     public function test_variable_crud(): void

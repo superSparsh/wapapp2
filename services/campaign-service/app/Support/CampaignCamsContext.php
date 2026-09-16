@@ -32,12 +32,12 @@ final class CampaignCamsContext
         }
 
         $normalized = PhoneNormalizer::normalize($phone) ?? $phone;
-        $from = str_starts_with($normalized, '+') ? $normalized : '+'.$normalized;
 
+        // CAMS requires From/To as digits only (no leading +).
         return [
             'template_code' => $code,
             'language' => (string) ($vars['language'] ?? config('whatsapp.alibaba.default_language', 'en_GB')),
-            'line_phone' => $from,
+            'line_phone' => preg_replace('/\D+/', '', $normalized) ?: $normalized,
             'cust_space_id' => $spaceId,
         ];
     }

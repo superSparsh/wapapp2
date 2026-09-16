@@ -146,6 +146,6 @@ class CampaignMassSendService
             return '';
         }
 
-        return str_starts_with($normalized, '+') ? $normalized : '+'.$normalized;
+        return preg_replace('/\D+/', '', $normalized) ?: '';
     }
 }

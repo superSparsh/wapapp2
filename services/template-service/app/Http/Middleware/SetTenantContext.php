@@ -38,6 +38,7 @@ class SetTenantContext
         $teamMemberNameHeader = (string) config('service-auth.actor_team_member_name_header', 'X-Actor-Team-Member-Name');
         $isTeamMemberHeader = (string) config('service-auth.actor_is_team_member_header', 'X-Actor-Is-Team-Member');
         $lineIdHeader = 'X-Whatsapp-Line-Id';
+        $custSpaceHeader = 'X-Cust-Space-Id';
 
         $userId = $request->header($userIdHeader) ? (int) $request->header($userIdHeader) : null;
         $teamMemberId = $request->header($teamMemberIdHeader) ? (int) $request->header($teamMemberIdHeader) : null;
@@ -47,6 +48,8 @@ class SetTenantContext
         $teamMemberName = $request->header($teamMemberNameHeader);
         $isTeamMember = $request->header($isTeamMemberHeader) === '1' || $request->header($isTeamMemberHeader) === 'true';
         $whatsappLineId = $request->header($lineIdHeader) ? (int) $request->header($lineIdHeader) : null;
+        $custSpaceId = $request->header($custSpaceHeader);
+        $custSpaceId = is_string($custSpaceId) && trim($custSpaceId) !== '' ? trim($custSpaceId) : null;
 
         $this->tenantContext->setContext(
             tenantId: (string) $tenantId,
@@ -58,6 +61,7 @@ class SetTenantContext
             teamMemberName: $teamMemberName ? (string) $teamMemberName : null,
             whatsappLineId: $whatsappLineId,
             isTeamMember: $isTeamMember,
+            custSpaceId: $custSpaceId,
         );
 
         return $next($request);

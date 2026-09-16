@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support;
 
+use App\Enums\TemplateSource;
 use App\Enums\TemplateStatus;
 use App\Models\Template;
 use Illuminate\Support\Collection;
@@ -23,21 +24,33 @@ class TemplateCatalogPresenter
         return $templates
             ->slice($offset, $perPage)
             ->values()
-            ->map(fn (Template $template, int $index): array => [
-                'serial' => str_pad((string) ($offset + $index + 1), 2, '0', STR_PAD_LEFT),
-                'id' => $template->id,
-                'uuid' => $template->uuid,
-                'name' => $template->name,
-                'code' => (string) ($template->code ?? ''),
-                'created_at' => $template->created_at?->format('Y-m-d h:i A') ?? '—',
-                'type' => ($template->source->value === 'cams' || filled($template->whatsappCode())) ? 'Regular' : 'Draft',
-                'category' => $template->category !== '' ? $template->category : 'Marketing',
-                'status' => $template->status->label(),
-                'status_value' => $template->status->value,
-                'status_variant' => $template->status->chipVariant(),
-                'error' => $template->status === TemplateStatus::Rejected,
-                'rejection_reason' => $template->rejection_reason,
-            ])
+            ->map(function (Template $template, int $index) use ($offset): array {
+                $isRegular = $template->source === TemplateSource::Cams
+                    || filled($template->whatsappCode());
+
+                $isRejected = $template->status === TemplateStatus::Rejected;
+                $error = $isRejected
+                    ? CamsComponentEncoder::presentError($template->rejection_reason)
+                    : null;
+
+                return [
+                    'serial' => str_pad((string) ($offset + $index + 1), 2, '0', STR_PAD_LEFT),
+                    'id' => $template->id,
+                    'uuid' => $template->uuid,
+                    'name' => $template->name,
+                    'code' => (string) ($template->code ?? ''),
+                    'created_at' => $template->created_at?->format('Y-m-d h:i A') ?? '—',
+                    'type' => $isRegular ? 'Regular' : 'Draft',
+                    'category' => $template->category !== '' ? $template->category : 'Marketing',
+                    'status' => $template->status->label(),
+                    'status_value' => $template->status->value,
+                    'status_variant' => $template->status->chipVariant(),
+                    'error' => $isRejected,
+                    'rejection_title' => $error['title'] ?? null,
+                    'rejection_reason' => $error['message'] ?? $template->rejection_reason,
+                    'rejection_hint' => $error['hint'] ?? null,
+                ];
+            })
             ->all();
     }
 }

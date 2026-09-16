@@ -14,6 +14,7 @@ class TenantContext
     private ?string $userName = null;
     private ?string $teamMemberName = null;
     private ?int $whatsappLineId = null;
+    private ?string $custSpaceId = null;
     private bool $isTeamMember = false;
 
     public function setContext(
@@ -26,6 +27,7 @@ class TenantContext
         ?string $teamMemberName = null,
         ?int $whatsappLineId = null,
         bool $isTeamMember = false,
+        ?string $custSpaceId = null,
     ): self {
         $this->tenantId = $tenantId;
         $this->userId = $userId;
@@ -36,6 +38,7 @@ class TenantContext
         $this->teamMemberName = $teamMemberName;
         $this->whatsappLineId = $whatsappLineId;
         $this->isTeamMember = $isTeamMember;
+        $this->custSpaceId = $custSpaceId;
 
         return $this;
     }
@@ -80,6 +83,11 @@ class TenantContext
         return $this->whatsappLineId;
     }
 
+    public function getCustSpaceId(): ?string
+    {
+        return $this->custSpaceId;
+    }
+
     public function isTeamMember(): bool
     {
         return $this->isTeamMember;
@@ -100,6 +108,7 @@ class TenantContext
         $this->userName = null;
         $this->teamMemberName = null;
         $this->whatsappLineId = null;
+        $this->custSpaceId = null;
         $this->isTeamMember = false;
     }
 }
