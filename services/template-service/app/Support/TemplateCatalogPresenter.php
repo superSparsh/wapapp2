@@ -30,7 +30,7 @@ class TemplateCatalogPresenter
                 'name' => $template->name,
                 'code' => (string) ($template->code ?? ''),
                 'created_at' => $template->created_at?->format('Y-m-d h:i A') ?? '—',
-                'type' => $template->source->value === 'cams' ? 'Regular' : 'Draft',
+                'type' => ($template->source->value === 'cams' || filled($template->whatsappCode())) ? 'Regular' : 'Draft',
                 'category' => $template->category !== '' ? $template->category : 'Marketing',
                 'status' => $template->status->label(),
                 'status_value' => $template->status->value,

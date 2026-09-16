@@ -246,6 +246,9 @@ class InboxOutboundService
                 'name' => (string) ($template['TemplateName'] ?? $template['templateName'] ?? $template['TemplateCode'] ?? ''),
                 'language' => (string) ($template['Language'] ?? $template['language'] ?? config('whatsapp.alibaba.default_language', 'en_GB')),
                 'category' => (string) ($template['Category'] ?? $template['category'] ?? ''),
+                'audit_status' => (string) ($template['AuditStatus'] ?? $template['auditStatus'] ?? ''),
+                'reason' => (string) ($template['Reason'] ?? $template['reason'] ?? ''),
+                'body' => (string) ($template['Body'] ?? $template['body'] ?? ''),
             ])
             ->filter(fn (array $template) => $template['code'] !== '')
             ->values()

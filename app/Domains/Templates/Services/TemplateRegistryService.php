@@ -143,14 +143,20 @@ class TemplateRegistryService
     public function syncLine(WhatsappLine $line): int
     {
         $items = $this->outboundService->listTemplates($line);
+        $syncService = app(TemplateSyncService::class);
 
-        DB::transaction(function () use ($items, $line): void {
+        DB::transaction(function () use ($items, $line, $syncService): void {
             foreach ($items as $item) {
                 $code = (string) ($item['code'] ?? '');
 
                 if ($code === '') {
                     continue;
                 }
+
+                [$status] = $syncService->mapAuditStatus(
+                    filled($item['audit_status'] ?? null) ? (string) $item['audit_status'] : 'pass',
+                    filled($item['reason'] ?? null) ? (string) $item['reason'] : null,
+                );
 
                 Template::query()->updateOrCreate(
                     [
@@ -161,9 +167,12 @@ class TemplateRegistryService
                         'name' => (string) ($item['name'] ?? $code),
                         'language' => (string) ($item['language'] ?? 'en_GB'),
                         'category' => (string) ($item['category'] ?? 'MARKETING'),
-                        'status' => TemplateStatus::Approved,
+                        'status' => $status,
                         'source' => TemplateSource::Cams,
                         'synced_at' => now(),
+                        'rejection_reason' => $status === TemplateStatus::Rejected
+                            ? \Illuminate\Support\Str::limit((string) ($item['reason'] ?? ''), 500)
+                            : null,
                         'body_preview' => (string) ($item['body'] ?? $item['name'] ?? $code),
                     ],
                 );

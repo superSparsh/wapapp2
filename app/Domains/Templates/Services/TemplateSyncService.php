@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace App\Domains\Templates\Services;
 
+use App\Domains\Templates\Enums\TemplateSource;
 use App\Domains\Templates\Enums\TemplateStatus;
+use App\Domains\Templates\Support\CamsTemplateIdentity;
 use App\Domains\Templates\Support\TemplateCategoryCatalog;
 use App\Domains\WhatsApp\Services\AlibabaCamsClient;
 use App\Models\Template;
 use App\Models\TemplateStatusLog;
 use App\Models\WhatsappLine;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Log;
 
 class TemplateSyncService
@@ -19,14 +22,16 @@ class TemplateSyncService
     ) {}
 
     /**
-     * Sync the status of the first pending template (no code yet).
-     * Called by the queue worker.
+     * Sync the status of the first pending template (no provider code yet).
+     * Legacy: getTemplates:byName → ListChatappTemplate by Name.
      */
     public function syncFirstPending(): void
     {
         $template = Template::query()
             ->where('status', TemplateStatus::PendingReview)
-            ->whereNull('code')
+            ->where(function ($query): void {
+                $query->whereNull('code')->orWhere('code', '');
+            })
             ->orderBy('updated_at')
             ->first();
 
@@ -38,7 +43,8 @@ class TemplateSyncService
     }
 
     /**
-     * Batch-sync templates that have a code and are pending review.
+     * Batch-sync pending templates that already have a real CAMS TemplateCode.
+     * Legacy: getDetails:templates → GetChatappTemplateDetail.
      *
      * @return array{processed: int, success: int, errors: int, category_updates: int}
      */
@@ -47,16 +53,19 @@ class TemplateSyncService
         $templates = Template::query()
             ->where('status', TemplateStatus::PendingReview)
             ->whereNotNull('code')
+            ->where('code', '!=', '')
             ->orderBy('synced_at')
-            ->limit($limit)
-            ->get();
+            ->limit(max($limit * 3, 50))
+            ->get()
+            ->filter(fn (Template $row): bool => CamsTemplateIdentity::isProviderCode($row->code))
+            ->take($limit)
+            ->values();
 
         return $this->syncTemplates($templates);
     }
 
     /**
-     * Daily sync: pull GetChatappTemplateDetail for coded templates and apply
-     * status + category changes (Meta can reclassify Marketing → Utility, etc.).
+     * Daily sync: GetChatappTemplateDetail for coded templates (status + Meta category drift).
      *
      * @return array{processed: int, success: int, errors: int, category_updates: int}
      */
@@ -67,18 +76,20 @@ class TemplateSyncService
             ->where('code', '!=', '')
             ->orderBy('synced_at')
             ->orderBy('updated_at')
-            ->limit($limit)
-            ->get();
+            ->limit(max($limit * 3, 50))
+            ->get()
+            ->filter(fn (Template $row): bool => CamsTemplateIdentity::isProviderCode($row->code))
+            ->take($limit)
+            ->values();
 
         return $this->syncTemplates($templates);
     }
 
     /**
-     * Delete the first template marked for async deletion.
+     * Delete the first soft-deleted template that still has a WhatsApp code.
      */
     public function deleteFirstReady(): void
     {
-        // Soft-deleted templates that still have a WhatsApp code (live or archived in payload)
         $template = Template::query()
             ->onlyTrashed()
             ->orderBy('deleted_at')
@@ -168,45 +179,54 @@ class TemplateSyncService
         }
 
         $categoryChanged = false;
+        $providerCode = $template->whatsappCode();
 
         try {
             $params = ['CustSpaceId' => $line->alibaba_cust_space_id];
+            $language = CamsTemplateIdentity::language($template->language);
 
-            if ($template->code) {
-                $params['TemplateCode'] = $template->code;
-                $params['Language'] = filled($template->language) ? (string) $template->language : 'en_GB';
+            if ($providerCode) {
+                $params['TemplateCode'] = $providerCode;
+                $params['Language'] = $language;
                 $response = $this->camsClient->getChatappTemplateDetail($params);
             } else {
-                // For new templates without a code, list by name
-                $params['Name'] = $this->normalizeName($template->code ?: $template->name);
-                $params['Language'] = filled($template->language) ? (string) $template->language : 'en_GB';
+                // Legacy ListChatappTemplate by Name when TemplateCode is not known yet.
+                $params['Name'] = $this->normalizeName($template->name);
+                $params['Language'] = $language;
                 $response = $this->camsClient->listTemplates($params);
             }
 
             if (! $response->successful()) {
+                Log::warning('Template status sync HTTP failure', [
+                    'template_id' => $template->id,
+                    'status' => $response->status(),
+                    'body' => $response->body(),
+                ]);
+
                 return false;
             }
 
             $body = $response->json() ?? [];
-            $data = $this->extractDetailPayload($body);
+            if (! is_array($body)) {
+                return false;
+            }
 
-            $auditStatus = $data['auditStatus']
-                ?? $data['AuditStatus']
-                ?? $body['AuditStatus']
-                ?? null;
-            $reason = $data['reason'] ?? $data['Reason'] ?? $body['Reason'] ?? null;
-            $templateCode = $data['templateCode']
-                ?? $data['TemplateCode']
-                ?? $body['TemplateCode']
-                ?? null;
-            $remoteCategory = $data['category'] ?? $data['Category'] ?? null;
+            $fields = $this->extractAuditFields($body);
+            $auditStatus = $fields['audit_status'];
+            $reason = $fields['reason'];
+            $templateCode = $fields['template_code'] ?: $providerCode;
+            $remoteCategory = $fields['category'];
 
-            // For list response
-            if (! $auditStatus && ! empty($body['ListTemplate'][0])) {
-                $listItem = $body['ListTemplate'][0];
-                $auditStatus = $listItem['AuditStatus'] ?? $listItem['auditStatus'] ?? null;
-                $templateCode = $listItem['TemplateCode'] ?? $listItem['templateCode'] ?? $templateCode;
-                $remoteCategory = $listItem['Category'] ?? $listItem['category'] ?? $remoteCategory;
+            if ($auditStatus === null && $templateCode === null) {
+                Log::info('Template status sync: no CAMS match yet', [
+                    'template_id' => $template->id,
+                    'name' => $template->name,
+                    'code' => $providerCode,
+                ]);
+
+                $template->forceFill(['synced_at' => now()])->save();
+
+                return false;
             }
 
             $previousStatus = $template->status;
@@ -215,23 +235,28 @@ class TemplateSyncService
                 'synced_at' => now(),
             ];
 
-            if ($auditStatus) {
-                [$newStatus, $rejectionReason] = $this->mapAuditStatus($auditStatus, is_string($reason) ? $reason : null);
+            if ($auditStatus !== null) {
+                [$newStatus, $rejectionReason] = $this->mapAuditStatus($auditStatus, $reason);
                 $updateData['status'] = $newStatus;
 
-                if ($rejectionReason) {
-                    $updateData['rejection_reason'] = $rejectionReason;
+                if ($newStatus === TemplateStatus::Rejected) {
+                    $updateData['rejection_reason'] = $rejectionReason
+                        ? \Illuminate\Support\Str::limit($rejectionReason, 500)
+                        : null;
+                }
+
+                if ($newStatus === TemplateStatus::Approved) {
+                    $updateData['rejection_reason'] = null;
+                    $updateData['source'] = TemplateSource::Cams;
                 }
             }
 
-            if ($templateCode) {
-                $updateData['code'] = $templateCode;
+            if (filled($templateCode) && CamsTemplateIdentity::isProviderCode((string) $templateCode)) {
+                $updateData['code'] = (string) $templateCode;
+                $updateData['source'] = TemplateSource::Cams;
             }
 
-            $normalizedCategory = $this->normalizeRemoteCategory(
-                is_string($remoteCategory) ? $remoteCategory : null,
-                $previousCategory,
-            );
+            $normalizedCategory = $this->normalizeRemoteCategory($remoteCategory, $previousCategory);
 
             if ($normalizedCategory !== null && strtoupper($previousCategory) !== $normalizedCategory) {
                 $updateData['category'] = $normalizedCategory;
@@ -283,9 +308,84 @@ class TemplateSyncService
                 'template_id' => $template->id,
                 'error' => $e->getMessage(),
             ]);
+
+            throw $e;
         }
 
         return $categoryChanged;
+    }
+
+    /**
+     * Pull AuditStatus / TemplateCode / Category from GetChatappTemplateDetail or ListChatappTemplate bodies.
+     *
+     * @param  array<string, mixed>  $body
+     * @return array{audit_status: ?string, reason: ?string, template_code: ?string, category: ?string}
+     */
+    private function extractAuditFields(array $body): array
+    {
+        $data = $this->extractDetailPayload($body);
+        $listItem = $this->firstListTemplateItem($body, $data);
+
+        $auditStatus = $data['auditStatus']
+            ?? $data['AuditStatus']
+            ?? $body['AuditStatus']
+            ?? $body['auditStatus']
+            ?? ($listItem['AuditStatus'] ?? $listItem['auditStatus'] ?? null);
+
+        $reason = $data['reason']
+            ?? $data['Reason']
+            ?? $body['Reason']
+            ?? $body['reason']
+            ?? ($listItem['Reason'] ?? $listItem['reason'] ?? null);
+
+        $templateCode = $data['templateCode']
+            ?? $data['TemplateCode']
+            ?? $body['TemplateCode']
+            ?? $body['templateCode']
+            ?? ($listItem['TemplateCode'] ?? $listItem['templateCode'] ?? null);
+
+        $category = $data['category']
+            ?? $data['Category']
+            ?? $body['Category']
+            ?? $body['category']
+            ?? ($listItem['Category'] ?? $listItem['category'] ?? null);
+
+        return [
+            'audit_status' => is_string($auditStatus) && $auditStatus !== '' ? $auditStatus : null,
+            'reason' => is_string($reason) && $reason !== '' ? $reason : null,
+            'template_code' => is_string($templateCode) && $templateCode !== '' ? $templateCode : null,
+            'category' => is_string($category) && $category !== '' ? $category : null,
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $body
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function firstListTemplateItem(array $body, array $data): array
+    {
+        $candidates = [
+            Arr::get($body, 'ListTemplate'),
+            Arr::get($body, 'Data.ListTemplate'),
+            Arr::get($body, 'data.ListTemplate'),
+            Arr::get($data, 'ListTemplate'),
+            Arr::get($body, 'body.ListTemplate'),
+            Arr::get($body, 'body.Data.ListTemplate'),
+        ];
+
+        foreach ($candidates as $list) {
+            if (! is_array($list) || $list === []) {
+                continue;
+            }
+
+            $first = $list[0] ?? null;
+            if (is_array($first)) {
+                return $first;
+            }
+        }
+
+        return [];
     }
 
     /**
@@ -339,18 +439,20 @@ class TemplateSyncService
     }
 
     /**
-     * Map WhatsApp audit status to our TemplateStatus enum.
+     * Map WhatsApp / Alibaba AuditStatus → TemplateStatus (legacy + webhook aliases).
      *
      * @return array{0: TemplateStatus, 1: string|null}
      */
-    private function mapAuditStatus(?string $status, ?string $reason): array
+    public function mapAuditStatus(?string $status, ?string $reason = null): array
     {
-        return match ($status) {
-            'pass' => [TemplateStatus::Approved, null],
-            'fail' => [TemplateStatus::Rejected, $reason ? trim($reason) : null],
-            'sendFail' => [TemplateStatus::Rejected, $reason ? trim($reason) : null],
-            'auditing' => [TemplateStatus::PendingReview, null],
-            'unaudit' => [TemplateStatus::PendingReview, null],
+        $normalized = strtolower(trim((string) $status));
+        $normalized = str_replace(['_', ' '], '', $normalized);
+
+        return match ($normalized) {
+            'pass', 'approved', 'success' => [TemplateStatus::Approved, null],
+            'fail', 'failed', 'rejected' => [TemplateStatus::Rejected, $reason ? trim($reason) : null],
+            'sendfail' => [TemplateStatus::Rejected, $reason ? trim($reason) : null],
+            'auditing', 'unaudit', 'pending', 'pendingreview' => [TemplateStatus::PendingReview, null],
             default => [TemplateStatus::PendingReview, null],
         };
     }

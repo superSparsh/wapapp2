@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domains\Templates\Support;
 
 use App\Domains\Templates\Support\TemplateCategoryCatalog;
+use App\Domains\Templates\Enums\TemplateSource;
 use App\Domains\Templates\Enums\TemplateStatus;
 use App\Domains\WhatsApp\Support\CamsComponentEncoder;
 use App\Models\Template;
@@ -25,13 +26,17 @@ class TemplateCatalogPresenter
         return $templates
             ->slice($offset, $perPage)
             ->values()
-            ->map(fn (Template $template, int $index): array => [
+            ->map(function (Template $template, int $index) use ($offset): array {
+                $isRegular = $template->source === TemplateSource::Cams
+                    || filled($template->whatsappCode());
+
+                return [
                 'serial' => str_pad((string) ($offset + $index + 1), 2, '0', STR_PAD_LEFT),
                 'name' => $template->name,
                 'code' => (string) ($template->code ?? ''),
                 'created_at' => $template->created_at?->format('Y-m-d h:i A') ?? '—',
-                'type' => $template->source->value === 'cams' ? 'Regular' : 'Draft',
-                'type_variant' => $template->source->value === 'cams' ? 'fd-type' : 'fd-draft',
+                'type' => $isRegular ? 'Regular' : 'Draft',
+                'type_variant' => $isRegular ? 'fd-type' : 'fd-draft',
                 'category' => TemplateCategoryCatalog::listLabel(
                     (string) $template->category,
                     is_array($template->payload) ? $template->payload : []
@@ -62,7 +67,8 @@ class TemplateCatalogPresenter
                 'copy_url' => route('templates.duplicate', $template),
                 'uuid' => $template->uuid,
                 'delete_url' => route('templates.destroy', $template),
-            ])
+                ];
+            })
             ->all();
     }
 }

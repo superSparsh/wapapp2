@@ -87,7 +87,7 @@ class TemplateSyncServiceTest extends TestCase
 
         $template = Template::factory()->create([
             'whatsapp_line_id' => $line->id,
-            'code' => 'lto-code-1',
+            'code' => '1257583503568572417',
             'language' => 'en_GB',
             'category' => 'LIMITED_TIME_OFFER',
             'status' => TemplateStatus::Approved,
@@ -99,7 +99,7 @@ class TemplateSyncServiceTest extends TestCase
                 'data' => [
                     'auditStatus' => 'pass',
                     'category' => 'MARKETING',
-                    'templateCode' => 'lto-code-1',
+                    'templateCode' => '1257583503568572417',
                 ],
             ], 200),
         ]);
@@ -110,40 +110,53 @@ class TemplateSyncServiceTest extends TestCase
         $this->assertSame('LIMITED_TIME_OFFER', $template->fresh()->category);
     }
 
-    public function test_detail_request_includes_language_and_template_code(): void
+    public function test_list_by_name_reads_nested_data_list_template_and_approves(): void
     {
         $line = WhatsappLine::factory()->create([
             'alibaba_cust_space_id' => '100000430113',
         ]);
 
-        Template::factory()->create([
+        $template = Template::factory()->create([
             'whatsapp_line_id' => $line->id,
-            'code' => '1257583503568572416',
+            'name' => 'hello_world',
+            'code' => null,
             'language' => 'en_GB',
-            'category' => 'UTILITY',
-            'status' => TemplateStatus::Approved,
+            'category' => 'MARKETING',
+            'status' => TemplateStatus::PendingReview,
         ]);
 
         Http::fake([
             'cams.ap-southeast-1.aliyuncs.com/*' => Http::response([
                 'Code' => 'OK',
-                'data' => [
-                    'auditStatus' => 'pass',
-                    'category' => 'UTILITY',
-                    'templateCode' => '1257583503568572416',
+                'Data' => [
+                    'ListTemplate' => [[
+                        'AuditStatus' => 'PASS',
+                        'TemplateCode' => '1257583503568572999',
+                        'Category' => 'MARKETING',
+                        'TemplateName' => 'hello_world',
+                    ]],
                 ],
             ], 200),
         ]);
 
-        app(TemplateSyncService::class)->syncCodedDetailsBatch(10);
+        app(TemplateSyncService::class)->syncFirstPending();
 
-        Http::assertSent(function ($request) {
-            $data = $request->data();
+        $template->refresh();
+        $this->assertSame(TemplateStatus::Approved, $template->status);
+        $this->assertSame('1257583503568572999', $template->code);
+    }
 
-            return ($data['Action'] ?? null) === 'GetChatappTemplateDetail'
-                && ($data['TemplateCode'] ?? null) === '1257583503568572416'
-                && ($data['Language'] ?? null) === 'en_GB'
-                && ($data['CustSpaceId'] ?? null) === '100000430113';
-        });
+    public function test_map_audit_status_is_case_insensitive(): void
+    {
+        $service = app(TemplateSyncService::class);
+
+        [$status] = $service->mapAuditStatus('PASS');
+        $this->assertSame(TemplateStatus::Approved, $status);
+
+        [$status] = $service->mapAuditStatus('Fail', 'bad sample');
+        $this->assertSame(TemplateStatus::Rejected, $status);
+
+        [$status] = $service->mapAuditStatus('Auditing');
+        $this->assertSame(TemplateStatus::PendingReview, $status);
     }
 }

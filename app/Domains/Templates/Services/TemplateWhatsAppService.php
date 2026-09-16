@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domains\Templates\Services;
 
 use App\Domains\Templates\Enums\TemplateStatus;
+use App\Domains\Templates\Enums\TemplateSource;
 use App\Domains\Templates\Support\CamsTemplateIdentity;
 use App\Domains\Templates\Support\TemplateCategoryCatalog;
 use App\Domains\WhatsApp\Services\AlibabaCamsClient;
@@ -89,6 +90,7 @@ class TemplateWhatsAppService
             $template->update([
                 'code' => $templateCode ?: $template->code,
                 'status' => TemplateStatus::PendingReview,
+                'source' => TemplateSource::Cams,
                 'synced_at' => now(),
                 'rejection_reason' => null,
             ]);
@@ -155,6 +157,7 @@ class TemplateWhatsAppService
             $previous = $template->status;
             $template->update([
                 'status' => TemplateStatus::PendingReview,
+                'source' => TemplateSource::Cams,
                 'synced_at' => now(),
                 'rejection_reason' => null,
             ]);
