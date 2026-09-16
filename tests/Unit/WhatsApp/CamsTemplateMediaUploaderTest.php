@@ -19,6 +19,9 @@ final class CamsTemplateMediaUploaderTest extends TestCase
         $this->assertTrue($uploader->isProviderHostedUrl(
             'https://whatsapp-prod-oss-bucket.oss-ap-southeast-1.aliyuncs.com/123/file.jpg'
         ));
+        $this->assertFalse($uploader->isProviderHostedUrl(
+            'https://evil.oss-fake.example.com/file.jpg'
+        ));
         $this->assertFalse($uploader->isProviderHostedUrl('https://localhost/storage/templates/headers/a.jpg'));
         $this->assertFalse($uploader->isProviderHostedUrl('/storage/templates/headers/a.jpg'));
         $this->assertFalse($uploader->isProviderHostedUrl(null));

@@ -65,6 +65,10 @@ class TemplateWhatsAppService
         try {
             $this->ensureProviderMediaUrls($template, (string) $line->alibaba_cust_space_id);
             $components = $this->buildComponents($template);
+            Log::info('Submitting CreateChatappTemplate', [
+                'template_id' => $template->id,
+                'header_url' => collect($components)->firstWhere('type', 'HEADER')['url'] ?? null,
+            ]);
             $response = $this->camsClient->createChatappTemplate(
                 $name,
                 CamsTemplateIdentity::language($template->language),
@@ -128,6 +132,10 @@ class TemplateWhatsAppService
         try {
             $this->ensureProviderMediaUrls($template, (string) $line->alibaba_cust_space_id);
             $components = $this->buildComponents($template);
+            Log::info('Submitting ModifyChatappTemplate', [
+                'template_id' => $template->id,
+                'header_url' => collect($components)->firstWhere('type', 'HEADER')['url'] ?? null,
+            ]);
             $response = $this->camsClient->modifyChatappTemplate(
                 $providerCode,
                 $name,
@@ -598,8 +606,8 @@ class TemplateWhatsAppService
         $changed = false;
 
         $header = is_array($payload['header'] ?? null) ? $payload['header'] : [];
-        $headerType = (string) ($header['type'] ?? 'none');
-        if (in_array($headerType, ['image', 'video', 'document'], true)) {
+        $headerType = strtolower((string) ($header['type'] ?? 'none'));
+        if (in_array($headerType, ['image', 'img', 'video', 'document', 'doc'], true)) {
             $resolved = $this->resolveToProviderUrl(
                 isset($header['media_url']) ? (string) $header['media_url'] : null,
                 isset($header['media_path']) ? (string) $header['media_path'] : null,
@@ -642,15 +650,16 @@ class TemplateWhatsAppService
         $mediaUrl = filled($mediaUrl) ? trim((string) $mediaUrl) : null;
         $mediaPath = filled($mediaPath) ? trim((string) $mediaPath) : null;
 
-        if ($mediaUrl !== null && $this->mediaUploader->isProviderHostedUrl($mediaUrl)) {
-            return $mediaUrl;
-        }
-
+        // Always re-upload local files. Cached media_url may be localhost / auth-gated / private OSS.
         if ($mediaPath !== null) {
             return $this->mediaUploader->uploadLocalPath($mediaPath, $custSpaceId, $preferredName);
         }
 
-        // Already a public https URL the user pasted (carousel) — pass through.
+        if ($mediaUrl !== null && $this->mediaUploader->isProviderHostedUrl($mediaUrl)) {
+            return $mediaUrl;
+        }
+
+        // External URL the user pasted — CAMS must be able to download it as-is.
         if ($mediaUrl !== null && preg_match('#^https://#i', $mediaUrl) === 1) {
             return $mediaUrl;
         }
