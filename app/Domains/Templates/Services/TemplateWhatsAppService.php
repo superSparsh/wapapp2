@@ -8,6 +8,7 @@ use App\Domains\Templates\Enums\TemplateStatus;
 use App\Domains\Templates\Support\CamsTemplateIdentity;
 use App\Domains\Templates\Support\TemplateCategoryCatalog;
 use App\Domains\WhatsApp\Services\AlibabaCamsClient;
+use App\Domains\WhatsApp\Services\CamsTemplateMediaUploader;
 use App\Domains\WhatsApp\Support\CamsComponentEncoder;
 use App\Models\Template;
 use App\Models\TemplateStatusLog;
@@ -18,6 +19,7 @@ class TemplateWhatsAppService
 {
     public function __construct(
         private readonly AlibabaCamsClient $camsClient,
+        private readonly CamsTemplateMediaUploader $mediaUploader,
     ) {}
 
     /**
@@ -43,7 +45,6 @@ class TemplateWhatsAppService
             return $this->modifyTemplate($template);
         }
 
-        $components = $this->buildComponents($template);
         $name = $this->normalizeName($template->name);
         $extra = ['CustSpaceId' => $line->alibaba_cust_space_id];
 
@@ -62,6 +63,8 @@ class TemplateWhatsAppService
         }
 
         try {
+            $this->ensureProviderMediaUrls($template, (string) $line->alibaba_cust_space_id);
+            $components = $this->buildComponents($template);
             $response = $this->camsClient->createChatappTemplate(
                 $name,
                 CamsTemplateIdentity::language($template->language),
@@ -119,11 +122,12 @@ class TemplateWhatsAppService
             return false;
         }
 
-        $components = $this->buildComponents($template);
         $name = $this->normalizeName($template->name);
         $extra = ['CustSpaceId' => $line->alibaba_cust_space_id];
 
         try {
+            $this->ensureProviderMediaUrls($template, (string) $line->alibaba_cust_space_id);
+            $components = $this->buildComponents($template);
             $response = $this->camsClient->modifyChatappTemplate(
                 $providerCode,
                 $name,
@@ -261,19 +265,19 @@ class TemplateWhatsAppService
             $components[] = [
                 'type' => 'HEADER',
                 'format' => 'IMAGE',
-                'url' => $header['media_url'] ?? ($header['media_path'] ? app(TemplateMediaService::class)->absolutePublicUrl((string) $header['media_path']) : ''),
+                'url' => $this->headerMediaUrl($header),
             ];
         } elseif ($headerType === 'video') {
             $components[] = [
                 'type' => 'HEADER',
                 'format' => 'VIDEO',
-                'url' => $header['media_url'] ?? ($header['media_path'] ? app(TemplateMediaService::class)->absolutePublicUrl((string) $header['media_path']) : ''),
+                'url' => $this->headerMediaUrl($header),
             ];
         } elseif ($headerType === 'document') {
             $components[] = [
                 'type' => 'HEADER',
                 'format' => 'DOCUMENT',
-                'url' => $header['media_url'] ?? ($header['media_path'] ? app(TemplateMediaService::class)->absolutePublicUrl((string) $header['media_path']) : ''),
+                'url' => $this->headerMediaUrl($header),
                 'fileName' => (string) ($header['doc_name'] ?? 'document'),
             ];
         } elseif ($headerType === 'location') {
@@ -582,6 +586,95 @@ class TemplateWhatsAppService
         }
 
         return ['body_text' => $samples];
+    }
+
+    /**
+     * Upload local header/carousel sample media to CAMS OSS so Meta can download it.
+     * Persists provider URLs back onto the template payload.
+     */
+    private function ensureProviderMediaUrls(Template $template, string $custSpaceId): void
+    {
+        $payload = $template->wizardPayload();
+        $changed = false;
+
+        $header = is_array($payload['header'] ?? null) ? $payload['header'] : [];
+        $headerType = (string) ($header['type'] ?? 'none');
+        if (in_array($headerType, ['image', 'video', 'document'], true)) {
+            $resolved = $this->resolveToProviderUrl(
+                isset($header['media_url']) ? (string) $header['media_url'] : null,
+                isset($header['media_path']) ? (string) $header['media_path'] : null,
+                $custSpaceId,
+                isset($header['doc_name']) ? (string) $header['doc_name'] : null,
+            );
+            if ($resolved !== null && $resolved !== ($header['media_url'] ?? null)) {
+                $payload['header']['media_url'] = $resolved;
+                $changed = true;
+            }
+        }
+
+        $carousel = is_array($payload['carousel'] ?? null) ? $payload['carousel'] : [];
+        if (($carousel['enabled'] ?? false) && is_array($carousel['cards'] ?? null)) {
+            foreach ($carousel['cards'] as $index => $card) {
+                if (! is_array($card)) {
+                    continue;
+                }
+                $resolved = $this->resolveToProviderUrl(
+                    isset($card['media_url']) ? (string) $card['media_url'] : null,
+                    isset($card['media_path']) ? (string) $card['media_path'] : null,
+                    $custSpaceId,
+                    null,
+                );
+                if ($resolved !== null && $resolved !== ($card['media_url'] ?? null)) {
+                    $payload['carousel']['cards'][$index]['media_url'] = $resolved;
+                    $changed = true;
+                }
+            }
+        }
+
+        if ($changed) {
+            $template->forceFill(['payload' => $payload])->save();
+            $template->refresh();
+        }
+    }
+
+    private function resolveToProviderUrl(?string $mediaUrl, ?string $mediaPath, string $custSpaceId, ?string $preferredName): ?string
+    {
+        $mediaUrl = filled($mediaUrl) ? trim((string) $mediaUrl) : null;
+        $mediaPath = filled($mediaPath) ? trim((string) $mediaPath) : null;
+
+        if ($mediaUrl !== null && $this->mediaUploader->isProviderHostedUrl($mediaUrl)) {
+            return $mediaUrl;
+        }
+
+        if ($mediaPath !== null) {
+            return $this->mediaUploader->uploadLocalPath($mediaPath, $custSpaceId, $preferredName);
+        }
+
+        // Already a public https URL the user pasted (carousel) — pass through.
+        if ($mediaUrl !== null && preg_match('#^https://#i', $mediaUrl) === 1) {
+            return $mediaUrl;
+        }
+
+        return $mediaUrl;
+    }
+
+    /**
+     * @param  array<string, mixed>  $header
+     */
+    private function headerMediaUrl(array $header): string
+    {
+        $url = trim((string) ($header['media_url'] ?? ''));
+        if ($url !== '') {
+            return $url;
+        }
+
+        $path = trim((string) ($header['media_path'] ?? ''));
+        if ($path === '') {
+            return '';
+        }
+
+        // Fallback only — prefer ensureProviderMediaUrls before submit.
+        return app(TemplateMediaService::class)->absolutePublicUrl($path);
     }
 
     private function normalizeName(string $name): string

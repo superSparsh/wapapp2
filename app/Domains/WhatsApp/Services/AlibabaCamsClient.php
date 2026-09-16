@@ -55,6 +55,63 @@ class AlibabaCamsClient
     }
 
     /**
+     * STS credentials + bucket/dir for uploading files to CAMS OSS (template media, ISV terms, …).
+     *
+     * @param  array<string, string|null>  $params  Must include CustSpaceId
+     */
+    public function getChatappUploadAuthorization(array $params): Response
+    {
+        return $this->signedFormPost(array_merge([
+            'Action' => 'GetChatappUploadAuthorization',
+        ], $params));
+    }
+
+    /**
+     * @return array{
+     *     AccessKeyId: string,
+     *     AccessKeySecret: string,
+     *     SecurityToken: string,
+     *     BucketName: string,
+     *     Dir: string,
+     *     EndPoint: string,
+     *     Expire?: int|string|null
+     * }
+     */
+    public function getChatappUploadAuthorizationData(string $custSpaceId): array
+    {
+        $response = $this->getChatappUploadAuthorization([
+            'CustSpaceId' => $custSpaceId,
+        ]);
+
+        $body = $response->json() ?? [];
+        if (! is_array($body)) {
+            throw new \RuntimeException('GetChatappUploadAuthorization returned a non-JSON body.');
+        }
+
+        $code = strtoupper((string) ($body['Code'] ?? $body['code'] ?? ''));
+        if (! $response->successful() || ($code !== '' && $code !== 'OK')) {
+            $message = (string) ($body['Message'] ?? $body['message'] ?? $response->body());
+
+            throw new \RuntimeException('GetChatappUploadAuthorization failed: '.$message);
+        }
+
+        $data = $body['Data'] ?? $body['data'] ?? null;
+        if (! is_array($data)) {
+            throw new \RuntimeException('GetChatappUploadAuthorization response missing Data.');
+        }
+
+        return [
+            'AccessKeyId' => (string) ($data['AccessKeyId'] ?? $data['accessKeyId'] ?? ''),
+            'AccessKeySecret' => (string) ($data['AccessKeySecret'] ?? $data['accessKeySecret'] ?? ''),
+            'SecurityToken' => (string) ($data['SecurityToken'] ?? $data['securityToken'] ?? ''),
+            'BucketName' => (string) ($data['BucketName'] ?? $data['bucketName'] ?? ''),
+            'Dir' => (string) ($data['Dir'] ?? $data['dir'] ?? ''),
+            'EndPoint' => (string) ($data['EndPoint'] ?? $data['endPoint'] ?? ''),
+            'Expire' => $data['Expire'] ?? $data['expire'] ?? null,
+        ];
+    }
+
+    /**
      * Submit a new template to WhatsApp for approval.
      *
      * @param  array<string, mixed>  $components  Template component JSON

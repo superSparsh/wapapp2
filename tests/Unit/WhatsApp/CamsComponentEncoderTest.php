@@ -66,4 +66,17 @@ final class CamsComponentEncoderTest extends TestCase
         $this->assertStringContainsString('MissingType', $friendly);
         $this->assertStringNotContainsString('RequestId', $friendly);
     }
+
+    #[Test]
+    public function it_formats_file_url_errors_for_ui(): void
+    {
+        $raw = json_encode([
+            'Message' => 'The file can not download.',
+            'Code' => 'InvalidParameter.FileUrlError',
+        ], JSON_THROW_ON_ERROR);
+
+        $friendly = CamsComponentEncoder::friendlyError($raw);
+
+        $this->assertStringContainsString('could not download the header media', $friendly);
+    }
 }
