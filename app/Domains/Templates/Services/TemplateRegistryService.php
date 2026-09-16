@@ -8,6 +8,7 @@ use App\Domains\Inbox\Services\InboxOutboundService;
 use App\Domains\Templates\Enums\TemplateSource;
 use App\Domains\Templates\Enums\TemplateStatus;
 use App\Domains\Templates\Support\TemplateCatalogCache;
+use App\Domains\Templates\Support\TemplateCategoryCatalog;
 use App\Domains\Templates\Support\VariableActorContext;
 use App\Models\Template;
 use App\Models\WhatsappLine;
