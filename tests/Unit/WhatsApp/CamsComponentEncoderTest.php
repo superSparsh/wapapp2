@@ -53,7 +53,7 @@ final class CamsComponentEncoderTest extends TestCase
     }
 
     #[Test]
-    public function it_formats_cams_missing_type_errors_for_ui(): void
+    public function it_shows_alibaba_missing_type_message(): void
     {
         $raw = json_encode([
             'RequestId' => '01A0A9C9-5367-3B21-BC6A-C07BDD4BDF60',
@@ -63,14 +63,14 @@ final class CamsComponentEncoderTest extends TestCase
 
         $presented = CamsErrorPresenter::present($raw);
 
-        $this->assertSame('Template structure incomplete', $presented['title']);
-        $this->assertStringContainsString('missing type information', $presented['message']);
-        $this->assertStringContainsString('submit again', (string) $presented['hint']);
+        $this->assertSame('Missing template type', $presented['title']);
+        $this->assertStringContainsString('Type is mandatory for this action', $presented['message']);
         $this->assertStringNotContainsString('RequestId', $presented['message']);
+        $this->assertStringNotContainsString('could not accept', strtolower($presented['message']));
     }
 
     #[Test]
-    public function it_formats_file_url_errors_for_ui(): void
+    public function it_shows_alibaba_file_url_message(): void
     {
         $raw = json_encode([
             'Message' => 'The file can not download.',
@@ -79,26 +79,35 @@ final class CamsComponentEncoderTest extends TestCase
 
         $presented = CamsErrorPresenter::present($raw);
 
-        $this->assertSame('Header media unavailable', $presented['title']);
-        $this->assertStringContainsString('could not download', $presented['message']);
+        $this->assertSame('Header media error', $presented['title']);
+        $this->assertStringContainsString('file can not download', strtolower($presented['message']));
         $this->assertStringContainsString('Re-upload', (string) $presented['hint']);
     }
 
     #[Test]
-    public function it_polishes_tea_sdk_style_errors_without_request_ids(): void
+    public function it_keeps_alibaba_duplicate_name_message(): void
     {
         $raw = 'code: 400, A template with the same name and language already exists request id: 01A0A9C9-5367-3B21';
 
         $presented = CamsErrorPresenter::present($raw);
 
-        $this->assertSame('Template name already used', $presented['title']);
-        $this->assertStringContainsString('already exists', $presented['message']);
+        $this->assertSame('Duplicate template name', $presented['title']);
+        $this->assertStringContainsString('same name and language already exists', strtolower($presented['message']));
         $this->assertStringNotContainsString('request id', strtolower($presented['message']));
         $this->assertStringNotContainsString('code: 400', strtolower($presented['message']));
     }
 
     #[Test]
-    public function friendly_error_includes_actionable_hint(): void
+    public function it_does_not_invent_vague_accept_filler(): void
+    {
+        $presented = CamsErrorPresenter::present('');
+
+        $this->assertStringNotContainsString('could not accept this template', strtolower($presented['message']));
+        $this->assertStringNotContainsString('please review it', strtolower($presented['message']));
+    }
+
+    #[Test]
+    public function friendly_error_prefers_provider_text(): void
     {
         $raw = json_encode([
             'Message' => 'The file can not download.',
@@ -107,7 +116,7 @@ final class CamsComponentEncoderTest extends TestCase
 
         $friendly = CamsComponentEncoder::friendlyError($raw);
 
-        $this->assertStringContainsString('could not download', $friendly);
-        $this->assertStringContainsString('Re-upload', $friendly);
+        $this->assertStringContainsString('file can not download', strtolower($friendly));
+        $this->assertStringNotContainsString('could not accept this template', strtolower($friendly));
     }
 }

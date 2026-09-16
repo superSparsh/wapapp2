@@ -85,7 +85,7 @@ function initStatusPolling(root) {
                     }
                     if (rejectionText) {
                         rejectionText.textContent = item.rejection_reason
-                            || 'WhatsApp could not accept this template.';
+                            || 'No error details were returned by WhatsApp.';
                     }
                     if (rejectionHint) {
                         const hint = item.rejection_hint || '';

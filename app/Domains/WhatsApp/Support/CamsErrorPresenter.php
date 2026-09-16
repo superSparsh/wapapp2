@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace App\Domains\WhatsApp\Support;
 
 /**
- * Turns raw Alibaba CAMS / WhatsApp template errors into short, actionable UI copy.
+ * Presents Alibaba CAMS / WhatsApp template errors for the UI.
+ * Prefers the real provider Message (cleaned); never invents vague filler copy.
  */
 final class CamsErrorPresenter
 {
@@ -14,104 +15,72 @@ final class CamsErrorPresenter
      */
     public static function present(?string $raw): array
     {
-        $raw = trim((string) $raw);
+        $raw = self::stripStoredFiller(trim((string) $raw));
         if ($raw === '') {
             return [
                 'title' => 'Submission failed',
-                'message' => 'WhatsApp could not accept this template. Please review it and try again.',
-                'hint' => 'Edit the template, then submit again.',
+                'message' => 'No error details were returned by WhatsApp.',
+                'hint' => null,
             ];
         }
 
         [$code, $message] = self::extractCodeAndMessage($raw);
         $codeKey = self::normalizeCode($code);
+        $providerMessage = self::polishProviderMessage($message !== '' ? $message : $raw);
         $haystack = strtoupper($code.' '.$message.' '.$raw);
 
-        if (str_contains($haystack, 'FILEURLERROR') || str_contains($haystack, 'FILE CAN NOT DOWNLOAD') || str_contains($haystack, 'FILE CANNOT DOWNLOAD')) {
-            return [
-                'title' => 'Header media unavailable',
-                'message' => 'WhatsApp could not download the header image, video, or document.',
-                'hint' => 'Re-upload the media file (or use a public HTTPS URL), then submit again.',
-            ];
-        }
+        // Title + optional hint from known codes; body stays the real Alibaba/Meta text when present.
+        [$title, $hint, $fallbackMessage] = self::guidanceFor($codeKey, $haystack);
 
-        if (str_contains($haystack, 'SAME NAME') || str_contains($haystack, 'ALREADY EXISTS') || str_contains($haystack, 'DUPLICATE')) {
-            return [
-                'title' => 'Template name already used',
-                'message' => 'A WhatsApp template with this name and language already exists.',
-                'hint' => 'Choose a different template name and submit again.',
-            ];
-        }
-
-        $mapped = match ($codeKey) {
-            'MISSINGTYPE' => [
-                'title' => 'Template structure incomplete',
-                'message' => 'A required template section (header, body, or buttons) was missing type information.',
-                'hint' => 'Open the builder, re-check each step, and submit again.',
-            ],
-            'MISSINGCOMPONENTS' => [
-                'title' => 'Template content missing',
-                'message' => 'WhatsApp did not receive the template components.',
-                'hint' => 'Edit the body/header/buttons, save each step, then submit again.',
-            ],
-            'INVALIDPARAMETER.FILEURLERROR' => [
-                'title' => 'Header media unavailable',
-                'message' => 'WhatsApp could not download the header image, video, or document.',
-                'hint' => 'Re-upload the media file (or use a public HTTPS URL), then submit again.',
-            ],
-            'INVALIDPARAMETER.FORMAT', 'INVALIDPARAMETER' => [
-                'title' => 'Invalid template details',
-                'message' => self::polishMessage($message) ?: 'One or more template fields are not valid for WhatsApp.',
-                'hint' => 'Check header media, body text, variables, and buttons, then submit again.',
-            ],
-            'FORBIDDEN.RAM', 'FORBIDDEN', 'RAM.PERMISSIONDENY' => [
-                'title' => 'WhatsApp account permission error',
-                'message' => 'Your WhatsApp Business account does not have permission for this action.',
-                'hint' => 'Contact support so the Alibaba / WhatsApp permissions can be checked.',
-            ],
-            'THROTTLING.USER', 'SYSTEM.LIMITCONTROL', 'THROTTLING' => [
-                'title' => 'Too many requests',
-                'message' => 'WhatsApp is rate-limiting template submissions right now.',
-                'hint' => 'Wait a minute, then submit again.',
-            ],
-            'PRODUCT.UNSUBSCRIPT' => [
-                'title' => 'WhatsApp service not active',
-                'message' => 'The Chat App / WhatsApp product is not subscribed on this account.',
-                'hint' => 'Contact support to activate WhatsApp messaging.',
-            ],
-            'TEMPLATE.NOTFOUND', 'TEMPLATENOTFOUND' => [
-                'title' => 'Template not found on WhatsApp',
-                'message' => 'WhatsApp could not find this template to update.',
-                'hint' => 'Create a new template, or contact support if this keeps happening.',
-            ],
-            default => null,
-        };
-
-        if ($mapped !== null) {
-            return $mapped;
-        }
-
-        $polished = self::polishMessage($message !== '' ? $message : $raw);
-        if ($polished === '') {
-            $polished = 'WhatsApp could not accept this template.';
+        $body = $providerMessage !== '' ? $providerMessage : ($fallbackMessage ?? '');
+        if ($body === '') {
+            $body = $code !== '' ? $code : 'No error details were returned by WhatsApp.';
         }
 
         return [
-            'title' => 'Submission failed',
-            'message' => $polished,
-            'hint' => 'Edit the template and submit again. If it keeps failing, contact support.',
+            'title' => $title,
+            'message' => $body,
+            'hint' => $hint,
         ];
     }
 
     public static function friendlyMessage(?string $raw): string
     {
         $presented = self::present($raw);
+
+        // Store / toast: real provider message first; hint only when it adds action.
         $parts = array_filter([
             $presented['message'],
             $presented['hint'],
         ], static fn (?string $part): bool => filled($part));
 
         return \Illuminate\Support\Str::limit(implode(' ', $parts), 360);
+    }
+
+    /**
+     * @return array{0: string, 1: string|null, 2: string|null} [title, hint, fallbackMessage]
+     */
+    private static function guidanceFor(string $codeKey, string $haystack): array
+    {
+        if (str_contains($haystack, 'FILEURLERROR') || str_contains($haystack, 'FILE CAN NOT DOWNLOAD') || str_contains($haystack, 'FILE CANNOT DOWNLOAD')) {
+            return ['Header media error', 'Re-upload the header media, or use a public HTTPS URL.', 'The file can not download.'];
+        }
+
+        if (str_contains($haystack, 'SAME NAME') || str_contains($haystack, 'ALREADY EXISTS') || str_contains($haystack, 'DUPLICATE')) {
+            return ['Duplicate template name', 'Use a different template name and language combination.', null];
+        }
+
+        return match ($codeKey) {
+            'MISSINGTYPE' => ['Missing template type', 'Re-check header, body, and buttons, then submit again.', 'Type is mandatory for this action.'],
+            'MISSINGCOMPONENTS' => ['Missing template components', 'Save each builder step, then submit again.', 'Components are mandatory for this action.'],
+            'INVALIDPARAMETER.FILEURLERROR' => ['Header media error', 'Re-upload the header media, or use a public HTTPS URL.', 'The file can not download.'],
+            'INVALIDPARAMETER.FORMAT', 'INVALIDPARAMETER' => ['Invalid parameter', 'Check header media, body text, variables, and buttons.', null],
+            'FORBIDDEN.RAM', 'FORBIDDEN', 'RAM.PERMISSIONDENY' => ['Permission denied', 'Contact support to check WhatsApp / Alibaba permissions.', null],
+            'THROTTLING.USER', 'SYSTEM.LIMITCONTROL', 'THROTTLING' => ['Rate limited', 'Wait a minute, then submit again.', null],
+            'PRODUCT.UNSUBSCRIPT' => ['Service not subscribed', 'Contact support to activate WhatsApp messaging.', null],
+            'TEMPLATE.NOTFOUND', 'TEMPLATENOTFOUND' => ['Template not found', null, null],
+            default => ['Submission failed', null, null],
+        };
     }
 
     /**
@@ -127,56 +96,73 @@ final class CamsErrorPresenter
             return [$code, $message];
         }
 
-        // Tea SDK style: "code: 400, The file can not download. request id: ABC-123 Code: InvalidParameter.FileUrlError"
         $code = '';
         if (preg_match('/\bCode:\s*([A-Za-z0-9._-]+)/i', $raw, $match) === 1) {
             $code = trim($match[1]);
-        } elseif (preg_match('/\b([A-Za-z]+(?:\.[A-Za-z0-9_-]+)+)\b/', $raw, $match) === 1) {
+        } elseif (preg_match('/\b(InvalidParameter(?:\.[A-Za-z0-9_-]+)?|MissingType|MissingComponents|Forbidden(?:\.[A-Za-z0-9_-]+)?|Throttling(?:\.[A-Za-z0-9_-]+)?)\b/i', $raw, $match) === 1) {
             $code = trim($match[1]);
         }
 
-        $message = preg_replace('/\bcode:\s*\d{3},?/i', '', $raw) ?? $raw;
-        $message = preg_replace('/\brequest id:\s*[A-Z0-9-]+/i', '', $message) ?? $message;
-        $message = preg_replace('/\bCode:\s*[A-Za-z0-9._-]+/i', '', $message) ?? $message;
-        $message = preg_replace('/\bRequestId:\s*[A-Z0-9-]+/i', '', $message) ?? $message;
-        $message = trim((string) preg_replace('/\s+/', ' ', $message));
+        $message = self::stripNoise($raw);
+        // If the only content left is the code itself, treat message as empty.
+        if ($code !== '' && strcasecmp(trim($message, " ."), $code) === 0) {
+            $message = '';
+        }
 
         return [$code, $message];
     }
 
-    private static function normalizeCode(string $code): string
+    private static function polishProviderMessage(string $message): string
     {
-        return strtoupper(str_replace([' ', '_'], '', trim($code)));
-    }
-
-    private static function polishMessage(string $message): string
-    {
-        $message = trim($message);
+        $message = self::stripStoredFiller(self::stripNoise($message));
         if ($message === '') {
             return '';
         }
 
-        // Already polished earlier — keep as-is.
-        if (str_starts_with($message, 'WhatsApp ') || str_starts_with($message, 'A WhatsApp ')) {
-            return \Illuminate\Support\Str::limit($message, 280);
-        }
-
-        $message = preg_replace('/\bcode:\s*\d{3},?/i', '', $message) ?? $message;
-        $message = preg_replace('/\brequest id:\s*[A-Z0-9-]+/i', '', $message) ?? $message;
-        $message = preg_replace('/\bRequestId:\s*[A-Z0-9-]+/i', '', $message) ?? $message;
-        $message = trim((string) preg_replace('/\s+/', ' ', $message));
         $message = rtrim($message, " \t\n\r\0\x0B.,;");
-
         if ($message === '') {
             return '';
         }
 
-        // Capitalize first letter for UI readability.
         $message = mb_strtoupper(mb_substr($message, 0, 1)).mb_substr($message, 1);
         if (! str_ends_with($message, '.') && ! str_ends_with($message, '!') && ! str_ends_with($message, '?')) {
             $message .= '.';
         }
 
         return \Illuminate\Support\Str::limit($message, 280);
+    }
+
+    private static function stripNoise(string $text): string
+    {
+        $text = preg_replace('/\bcode:\s*\d{3},?/i', '', $text) ?? $text;
+        $text = preg_replace('/\brequest id:\s*[A-Z0-9-]+/i', '', $text) ?? $text;
+        $text = preg_replace('/\bRequestId\s*[:=]\s*[A-Z0-9-]+/i', '', $text) ?? $text;
+        $text = preg_replace('/\bCode\s*[:=]\s*[A-Za-z0-9._-]+/i', '', $text) ?? $text;
+        $text = preg_replace('/\s+/', ' ', $text) ?? $text;
+
+        return trim($text, " \t\n\r\0\x0B,;|-");
+    }
+
+    private static function stripStoredFiller(string $text): string
+    {
+        // Drop previously saved vague filler so the UI does not keep recycling it.
+        $patterns = [
+            '/WhatsApp could not accept this template\.?\s*Please review it and try again\.?/i',
+            '/WhatsApp could not accept this template\.?/i',
+            '/Please review it and try again\.?/i',
+            '/Edit the template,?\s*then submit again\.?/i',
+            '/Edit the template and submit again\.?\s*If it keeps failing, contact support\.?/i',
+        ];
+
+        foreach ($patterns as $pattern) {
+            $text = preg_replace($pattern, '', $text) ?? $text;
+        }
+
+        return trim((string) preg_replace('/\s+/', ' ', $text));
+    }
+
+    private static function normalizeCode(string $code): string
+    {
+        return strtoupper(str_replace([' ', '_'], '', trim($code)));
     }
 }
