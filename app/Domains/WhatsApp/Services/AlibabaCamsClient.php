@@ -62,16 +62,23 @@ class AlibabaCamsClient
      */
     public function createChatappTemplate(string $name, string $language, string $category, array $components, array $params = []): Response
     {
-        return $this->signedRequest(array_merge([
+        // Legacy SDK: Components/Example are JSON "shrink" strings (PascalCase keys), not Components.1.Type
+        $payload = array_merge([
             'Action' => 'CreateChatappTemplate',
             'Name' => $name,
             'Language' => $language,
             'Category' => $category,
             'TemplateType' => 'WHATSAPP',
-            // Nested array → Components.1.Type=BODY (JSON blob loses Type for CAMS RPC)
-            'Components' => CamsComponentEncoder::forRpc($components),
+            'Components' => CamsComponentEncoder::toJson($components),
             'AllowCategoryChange' => 'false',
-        ], $params));
+        ], $params);
+
+        if (isset($payload['Example']) && is_array($payload['Example'])) {
+            $payload['Example'] = CamsComponentEncoder::exampleToJson($payload['Example']);
+        }
+
+        // Legacy SDK: CreateChatappTemplate is POST formData with Components JSON shrink
+        return $this->signedFormPost($payload);
     }
 
     /**
@@ -82,16 +89,23 @@ class AlibabaCamsClient
      */
     public function modifyChatappTemplate(string $templateCode, string $name, string $language, string $category, array $components, array $params = []): Response
     {
-        return $this->signedRequest(array_merge([
+        $payload = array_merge([
             'Action' => 'ModifyChatappTemplate',
             'TemplateCode' => $templateCode,
-            'Name' => $name,
+            // SDK field is TemplateName (not Name)
+            'TemplateName' => $name,
             'Language' => $language,
             'Category' => $category,
             'TemplateType' => 'WHATSAPP',
-            'Components' => CamsComponentEncoder::forRpc($components),
+            'Components' => CamsComponentEncoder::toJson($components),
             'AllowCategoryChange' => 'false',
-        ], $params));
+        ], $params);
+
+        if (isset($payload['Example']) && is_array($payload['Example'])) {
+            $payload['Example'] = CamsComponentEncoder::exampleToJson($payload['Example']);
+        }
+
+        return $this->signedFormPost($payload);
     }
 
     /**
@@ -314,9 +328,28 @@ class AlibabaCamsClient
      */
     private function signedRequest(array $params): Response
     {
+        return $this->sendSigned('GET', $params);
+    }
+
+    /**
+     * Create/ModifyChatappTemplate — legacy SDK uses POST formData + Components JSON shrink.
+     *
+     * @param  array<string, mixed>  $params
+     */
+    private function signedFormPost(array $params): Response
+    {
+        return $this->sendSigned('POST', $params);
+    }
+
+    /**
+     * @param  array<string, mixed>  $params
+     */
+    private function sendSigned(string $method, array $params): Response
+    {
         $accessKeyId = (string) config('whatsapp.alibaba.access_key_id');
         $accessKeySecret = (string) config('whatsapp.alibaba.access_key_secret');
         $endpoint = (string) config('whatsapp.alibaba.endpoint', 'cams.ap-southeast-1.aliyuncs.com');
+        $method = strtoupper($method) === 'POST' ? 'POST' : 'GET';
 
         $common = [
             'Format' => 'JSON',
@@ -335,11 +368,15 @@ class AlibabaCamsClient
             ->map(fn (string $value, string $key) => $this->percentEncode($key).'='.$this->percentEncode($value))
             ->implode('&');
 
-        $stringToSign = 'GET&%2F&'.$this->percentEncode($canonicalized);
+        $stringToSign = $method.'&%2F&'.$this->percentEncode($canonicalized);
         $signature = base64_encode(hash_hmac('sha1', $stringToSign, $accessKeySecret.'&', true));
         $query['Signature'] = $signature;
 
-        $response = Http::timeout(20)->get("https://{$endpoint}/", $query);
+        $url = "https://{$endpoint}/";
+        $response = $method === 'POST'
+            ? Http::asForm()->timeout(30)->post($url, $query)
+            : Http::timeout(20)->get($url, $query);
+
         $this->recordApiFailureIfNeeded($params['Action'] ?? null, $response);
 
         return $response;

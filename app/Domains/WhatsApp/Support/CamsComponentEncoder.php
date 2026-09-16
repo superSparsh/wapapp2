@@ -54,6 +54,24 @@ final class CamsComponentEncoder
     }
 
     /**
+     * Legacy SDK shrink style: Components = json_encode(toMap components).
+     *
+     * @param  list<array<string, mixed>>  $components
+     */
+    public static function toJson(array $components): string
+    {
+        return json_encode(self::forRpc($components), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+    }
+
+    /**
+     * @param  array<string, mixed>  $example
+     */
+    public static function exampleToJson(array $example): string
+    {
+        return json_encode($example, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+    }
+
+    /**
      * Human-readable message from a raw CAMS error body / JSON string.
      */
     public static function friendlyError(?string $raw): string
@@ -77,6 +95,7 @@ final class CamsComponentEncoder
 
         $friendly = match (strtoupper($code)) {
             'MISSINGTYPE' => 'Template component Type is missing. Please re-check header/body/buttons and submit again.',
+            'MISSINGCOMPONENTS' => 'Template components were not sent to WhatsApp. Please edit the template body and submit again.',
             'INVALIDPARAMETER', 'INVALIDPARAMETER.FORMAT' => $message !== '' ? $message : 'Invalid template parameter sent to WhatsApp.',
             'FORBIDDEN.RAM' => 'WhatsApp account permission error. Contact support.',
             default => $message !== '' ? $message : 'WhatsApp submission failed.',

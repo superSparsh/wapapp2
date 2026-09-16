@@ -37,6 +37,21 @@ final class CamsComponentEncoderTest extends TestCase
     }
 
     #[Test]
+    public function it_json_encodes_components_like_alibaba_sdk_shrink(): void
+    {
+        $json = CamsComponentEncoder::toJson([
+            ['type' => 'BODY', 'text' => 'Hello', 'format' => 'TEXT'],
+        ]);
+
+        $decoded = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
+
+        $this->assertIsArray($decoded);
+        $this->assertSame('BODY', $decoded[0]['Type']);
+        $this->assertSame('Hello', $decoded[0]['Text']);
+        $this->assertArrayNotHasKey('type', $decoded[0]);
+    }
+
+    #[Test]
     public function it_formats_cams_missing_type_errors_for_ui(): void
     {
         $raw = json_encode([
