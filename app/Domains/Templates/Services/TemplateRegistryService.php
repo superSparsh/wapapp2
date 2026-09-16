@@ -104,10 +104,19 @@ class TemplateRegistryService
     {
         return Template::query()
             ->whereNotNull('category')
+            ->where('category', '!=', '')
             ->distinct()
             ->orderBy('category')
             ->pluck('category')
-            ->filter()
+            ->map(function (mixed $category): string {
+                $value = strtoupper((string) $category);
+
+                // Carousel drafts → Marketing filter (legacy list)
+                return TemplateCategoryCatalog::isCarousel($value)
+                    ? TemplateCategoryCatalog::MARKETING
+                    : $value;
+            })
+            ->unique()
             ->values()
             ->all();
     }

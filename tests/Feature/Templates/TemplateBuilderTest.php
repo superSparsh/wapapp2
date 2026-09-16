@@ -173,7 +173,8 @@ class TemplateBuilderTest extends TestCase
 
         $draft->refresh();
         $this->assertSame('reusable_name', $draft->name);
-        $this->assertSame('reusable_name', $draft->code);
+        // `code` stays empty until Alibaba returns TemplateCode
+        $this->assertNull($draft->code);
     }
 
     public function test_header_requires_content_when_type_is_not_none(): void

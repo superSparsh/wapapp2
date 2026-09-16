@@ -69,7 +69,7 @@
               <x-ui.select name="category" variant="filter" class="min-w-[140px]" onchange="this.form.submit()">
                 <option value="">Category</option>
                 @foreach ($categories as $category)
-                  <option value="{{ $category }}" @selected($selectedCategory === $category)>{{ $category }}</option>
+                  <option value="{{ $category }}" @selected($selectedCategory === $category)>{{ \App\Domains\Templates\Support\TemplateCategoryCatalog::label((string) $category) }}</option>
                 @endforeach
               </x-ui.select>
             </div>

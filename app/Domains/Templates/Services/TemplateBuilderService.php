@@ -47,26 +47,31 @@ class TemplateBuilderService
     public function createFromSetup(array $setup): Template
     {
         $name = (string) $setup['name'];
-        $code = TemplateNameValidator::normalizeCode($name);
         $lineId = $this->actorContext->whatsappLineId();
 
-        if (TemplateNameValidator::codeExistsForLine($code, $lineId)) {
+        if (TemplateNameValidator::nameExistsForLine($name, $lineId)) {
             throw \Illuminate\Validation\ValidationException::withMessages([
                 'name' => 'A template with this name already exists. Please choose a different name.',
             ]);
         }
 
+        $selectedCategory = strtoupper((string) $setup['category']);
+        $isCarousel = TemplateCategoryCatalog::isCarouselSelection($selectedCategory);
+        $storedCategory = TemplateCategoryCatalog::storedCategory($selectedCategory);
+
         $payload = Template::defaultPayload();
         $payload['meta'] = [
             'name' => $name,
-            'category' => (string) $setup['category'],
+            'category' => $storedCategory,
             'language' => (string) $setup['language'],
             'template_type' => (string) $setup['template_type'],
         ];
+        $payload['carousel']['enabled'] = $isCarousel;
+        $payload['lto']['enabled'] = TemplateCategoryCatalog::isLto($storedCategory);
 
         return Template::query()->create([
             'name' => $name,
-            'category' => (string) $setup['category'],
+            'category' => $storedCategory,
             'language' => (string) $setup['language'],
             // code is filled only after Alibaba returns TemplateCode — never store the local name here
             'code' => null,
@@ -117,25 +122,31 @@ class TemplateBuilderService
 
             if ($step === 'meta') {
                 $requestedName = (string) ($stepData['name'] ?? $template->name);
-                $code = TemplateNameValidator::normalizeCode($requestedName);
 
-                if (TemplateNameValidator::codeExistsForLine($code, $template->whatsapp_line_id, $template->id)) {
+                if (TemplateNameValidator::nameExistsForLine($requestedName, $template->whatsapp_line_id, $template->id)) {
                     throw \Illuminate\Validation\ValidationException::withMessages([
                         'name' => 'A template with this name already exists. Please choose a different name.',
                     ]);
                 }
 
+                $selectedCategory = strtoupper((string) ($stepData['category'] ?? $template->category));
+                $isCarousel = TemplateCategoryCatalog::isCarouselSelection($selectedCategory);
+                // Legacy: carousel option → Marketing category + is_carousel flag
+                $storedCategory = TemplateCategoryCatalog::storedCategory($selectedCategory);
+
                 $template->name = $requestedName;
-                $template->category = (string) ($stepData['category'] ?? $template->category);
+                $template->category = $storedCategory;
                 $template->language = (string) ($stepData['language'] ?? $template->language);
-                $template->code = $code;
+                // Never store the local name as Alibaba TemplateCode
 
                 $payload['meta']['name'] = $template->name;
-                $payload['meta']['category'] = $template->category;
+                $payload['meta']['category'] = $storedCategory;
                 $payload['meta']['language'] = $template->language;
 
-                $payload['carousel']['enabled'] = TemplateCategoryCatalog::isCarousel($template->category);
-                $payload['lto']['enabled'] = TemplateCategoryCatalog::isLto($template->category);
+                $payload['carousel'] = array_merge($payload['carousel'] ?? [], [
+                    'enabled' => $isCarousel,
+                ]);
+                $payload['lto']['enabled'] = TemplateCategoryCatalog::isLto($storedCategory);
 
                 if (isset($stepData['template_type'])) {
                     $payload['meta']['template_type'] = (string) $stepData['template_type'];
@@ -163,6 +174,9 @@ class TemplateBuilderService
 
     public function submit(Template $template): Template
     {
+        $this->normalizeCarouselStorage($template);
+        $template->refresh();
+
         $previousStatus = $template->status;
 
         // Clear local snake_case "codes" (name-as-code). Real Alibaba TemplateCode is numeric.
@@ -299,6 +313,28 @@ class TemplateBuilderService
 
             return $copy->refresh();
         });
+    }
+
+    /**
+     * Legacy parity: carousel is Marketing + flag, never a stored WhatsApp category.
+     */
+    private function normalizeCarouselStorage(Template $template): void
+    {
+        $payload = $template->wizardPayload();
+        $isLegacyCarouselCategory = TemplateCategoryCatalog::isCarousel((string) $template->category);
+        $enabled = (bool) data_get($payload, 'carousel.enabled', false);
+
+        if (! $isLegacyCarouselCategory && ! $enabled) {
+            return;
+        }
+
+        $payload['carousel'] = array_merge($payload['carousel'] ?? [], ['enabled' => true]);
+        $payload['meta']['category'] = TemplateCategoryCatalog::MARKETING;
+
+        $template->forceFill([
+            'category' => TemplateCategoryCatalog::MARKETING,
+            'payload' => $payload,
+        ])->saveQuietly();
     }
 
     /**

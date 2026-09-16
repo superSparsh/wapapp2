@@ -206,8 +206,12 @@ class TemplateWhatsAppService
             return $this->buildAuthenticationComponents($payload);
         }
 
+        // Carousel only when explicitly enabled (legacy is_carousel_template), not for all Marketing
         $carousel = $payload['carousel'] ?? [];
-        if ($carousel['enabled'] ?? false) {
+        $carouselEnabled = (bool) ($carousel['enabled'] ?? false)
+            || TemplateCategoryCatalog::isCarousel((string) $template->category);
+
+        if ($carouselEnabled) {
             if (! filled($carousel['body'] ?? null)) {
                 $carousel['body'] = (string) ($payload['body']['text'] ?? '');
             }

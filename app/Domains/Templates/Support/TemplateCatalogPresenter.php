@@ -32,13 +32,17 @@ class TemplateCatalogPresenter
                 'created_at' => $template->created_at?->format('Y-m-d h:i A') ?? '—',
                 'type' => $template->source->value === 'cams' ? 'Regular' : 'Draft',
                 'type_variant' => $template->source->value === 'cams' ? 'fd-type' : 'fd-draft',
-                'category' => $template->category !== ''
-                    ? TemplateCategoryCatalog::label($template->category)
-                    : 'Marketing',
-                'category_variant' => match (strtoupper((string) $template->category)) {
+                'category' => TemplateCategoryCatalog::listLabel(
+                    (string) $template->category,
+                    is_array($template->payload) ? $template->payload : []
+                ),
+                'category_variant' => match (strtoupper((string) (
+                    TemplateCategoryCatalog::isCarousel((string) $template->category)
+                        ? TemplateCategoryCatalog::MARKETING
+                        : $template->category
+                ))) {
                     'UTILITY' => 'fd-category-utility',
                     'AUTHENTICATION' => 'fd-category-auth',
-                    'CAROUSEL' => 'fd-category-carousel',
                     'LIMITED_TIME_OFFER' => 'fd-category-lto',
                     default => 'fd-category-marketing',
                 },

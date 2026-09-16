@@ -93,11 +93,14 @@ class TemplateServiceAdapter
                         'created_at' => $row['created_at'] ?? '—',
                         'type' => $row['type'] ?? 'Regular',
                         'type_variant' => ($row['type'] ?? 'Regular') === 'Draft' ? 'fd-draft' : 'fd-type',
-                        'category' => TemplateCategoryCatalog::label((string) ($row['category'] ?? 'MARKETING')),
-                        'category_variant' => match (strtoupper((string) ($row['category'] ?? 'MARKETING'))) {
+                        'category' => TemplateCategoryCatalog::listLabel((string) ($row['category'] ?? 'MARKETING'), is_array($row['payload'] ?? null) ? $row['payload'] : []),
+                        'category_variant' => match (strtoupper((string) (
+                            TemplateCategoryCatalog::isCarousel((string) ($row['category'] ?? ''))
+                                ? TemplateCategoryCatalog::MARKETING
+                                : ($row['category'] ?? 'MARKETING')
+                        ))) {
                             'UTILITY' => 'fd-category-utility',
                             'AUTHENTICATION' => 'fd-category-auth',
-                            'CAROUSEL' => 'fd-category-carousel',
                             'LIMITED_TIME_OFFER' => 'fd-category-lto',
                             default => 'fd-category-marketing',
                         },

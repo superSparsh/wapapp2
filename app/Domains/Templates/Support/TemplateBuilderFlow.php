@@ -40,13 +40,15 @@ class TemplateBuilderFlow
 
     public function isCarousel(Template $template): bool
     {
-        if (TemplateCategoryCatalog::isCarousel((string) $template->category)) {
-            return true;
-        }
-
         $payload = $template->wizardPayload();
 
-        return (bool) ($payload['carousel']['enabled'] ?? false);
+        // Preferred: explicit flag (legacy is_carousel_template)
+        if (array_key_exists('enabled', $payload['carousel'] ?? [])) {
+            return (bool) $payload['carousel']['enabled'];
+        }
+
+        // Older drafts mistakenly stored CAROUSEL as the category column
+        return TemplateCategoryCatalog::isCarousel((string) $template->category);
     }
 
     public function isLto(Template $template): bool

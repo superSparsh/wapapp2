@@ -9,11 +9,15 @@
   $categoryLabels = TemplateCategoryCatalog::labels();
   $editableMeta = ! $isSetupComplete && $active === 'body' && filled($bodyFormId);
   $displayName = old('name', $isSetupComplete ? ($template?->name ?? '') : ($meta['name'] ?: ''));
-  $displayCategory = old('category', $isSetupComplete ? ($template?->category ?? 'MARKETING') : ($meta['category'] ?: 'MARKETING'));
+  $storedCategory = $isSetupComplete ? ($template?->category ?? 'MARKETING') : ($meta['category'] ?: 'MARKETING');
+  $displayCategory = old('category', TemplateCategoryCatalog::uiCategory((string) $storedCategory, is_array($payload) ? $payload : []));
   $displayLanguage = old('language', $isSetupComplete ? ($template?->language ?? 'en_GB') : ($meta['language'] ?: 'en_GB'));
   $displayType = old('template_type', $meta['template_type'] ?? 'regular');
   $templateName = $template?->name ?: ($meta['name'] ?? 'Template Name');
-  $category = $template?->category ?: ($meta['category'] ?? 'MARKETING');
+  $category = TemplateCategoryCatalog::uiCategory(
+    (string) ($template?->category ?: ($meta['category'] ?? 'MARKETING')),
+    is_array($payload) ? $payload : []
+  );
   $language = $template?->language ?: ($meta['language'] ?? 'en_GB');
   $templateType = $meta['template_type'] ?? 'regular';
   $headerType = $payload['header']['type'] ?? 'none';
