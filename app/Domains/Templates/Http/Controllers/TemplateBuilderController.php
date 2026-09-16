@@ -13,6 +13,7 @@ use App\Domains\Templates\Http\Requests\SaveFooterRequest;
 use App\Domains\Templates\Http\Requests\SaveHeaderRequest;
 use App\Domains\Templates\Http\Requests\SaveLtoRequest;
 use App\Domains\Templates\Http\Requests\SaveSubmitRequest;
+use App\Domains\Templates\Enums\TemplateStatus;
 use App\Domains\Templates\Services\BuiltinVariableCatalog;
 use App\Domains\Templates\Services\TemplateBuilderService;
 use App\Domains\Templates\Services\TemplateMediaService;
@@ -395,10 +396,17 @@ class TemplateBuilderController extends Controller
     public function saveSubmit(SaveSubmitRequest $request, Template $template, TemplateBuilderService $builderService): RedirectResponse
     {
         $builderService->submit($template);
+        $template->refresh();
+
+        $message = match (true) {
+            $template->status === TemplateStatus::Rejected => 'Template submission failed: '.($template->rejection_reason ?: 'Unknown error'),
+            filled($template->whatsappCode()) => 'Template submitted to WhatsApp. Status will stay Pending review until Meta approves it.',
+            default => 'Template queued for WhatsApp submission. It will stay Pending review until Meta approves it.',
+        };
 
         return redirect()
             ->route('templates.index')
-            ->with('status', 'Template submitted for approval.');
+            ->with($template->status === TemplateStatus::Rejected ? 'error' : 'status', $message);
     }
 
     /**

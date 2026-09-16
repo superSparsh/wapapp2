@@ -105,11 +105,15 @@ class TemplateWhatsAppService
         }
 
         if (! $this->camsClient->isConfigured()) {
+            Log::warning('Cams client not configured; skipping template modify.', ['template_id' => $template->id]);
+
             return false;
         }
 
         $line = $template->whatsappLine;
         if (! $line instanceof WhatsappLine || blank($line->alibaba_cust_space_id)) {
+            Log::warning('No WhatsApp line configured for template modify.', ['template_id' => $template->id]);
+
             return false;
         }
 

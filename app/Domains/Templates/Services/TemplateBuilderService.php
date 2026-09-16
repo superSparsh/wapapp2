@@ -68,7 +68,8 @@ class TemplateBuilderService
             'name' => $name,
             'category' => (string) $setup['category'],
             'language' => (string) $setup['language'],
-            'code' => $code,
+            // code is filled only after Alibaba returns TemplateCode — never store the local name here
+            'code' => null,
             'status' => TemplateStatus::Draft,
             'whatsapp_line_id' => $lineId,
             'team_member_id' => $this->actorContext->teamMemberId(),
@@ -164,6 +165,11 @@ class TemplateBuilderService
     {
         $previousStatus = $template->status;
 
+        // Clear local snake_case "codes" (name-as-code). Real Alibaba TemplateCode is numeric.
+        if (filled($template->code) && ! filled($template->whatsappCode())) {
+            $template->forceFill(['code' => null])->saveQuietly();
+        }
+
         // Do NOT put the local name into `code` — that value is reserved for the
         // Alibaba TemplateCode returned by CreateChatappTemplate. Filling it early
         // makes retry jobs call Modify with a fake code.
@@ -178,10 +184,23 @@ class TemplateBuilderService
         // Auto-create payment_link variable if button URL references $(payment_link)
         $this->ensurePaymentLinkVariable($template);
 
+        $template = $template->fresh() ?? $template;
         $isEdit = filled($template->whatsappCode());
-        SubmitTemplateJob::dispatch($template->id, $isEdit);
+        $whatsapp = app(TemplateWhatsAppService::class);
 
-        return $template->refresh();
+        // Push to CAMS immediately (same request) so approval does not wait on queue workers.
+        $pushed = $isEdit
+            ? $whatsapp->modifyTemplate($template)
+            : $whatsapp->submitTemplate($template);
+
+        $template->refresh();
+
+        // Retry via queue/cron only when still pending and never handed to CAMS.
+        if (! $pushed && $template->status === TemplateStatus::PendingReview && $template->synced_at === null) {
+            SubmitTemplateJob::dispatch($template->id, $isEdit);
+        }
+
+        return $template;
     }
 
     /**
