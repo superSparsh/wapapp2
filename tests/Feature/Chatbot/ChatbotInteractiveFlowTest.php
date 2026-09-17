@@ -511,6 +511,116 @@ class ChatbotInteractiveFlowTest extends TestCase
         $this->assertSame($exactBot->id, $state->chatbot_flow_id);
     }
 
+    public function test_fuzzy_keyword_does_not_preempt_waiting_state(): void
+    {
+        $waitingBot = ChatbotFlow::factory()->active()->create([
+            'name' => 'Waiting Bot',
+            'exported_data' => [
+                'nodes' => [
+                    [
+                        'id' => 'interactive_1',
+                        'type' => 'interactiveMessage',
+                        'data' => [
+                            'interactiveType' => 'button',
+                            'bodyText' => 'Choose',
+                            'buttons' => [
+                                ['id' => 'a', 'title' => 'Option A'],
+                                ['id' => 'b', 'title' => 'Option B'],
+                            ],
+                        ],
+                    ],
+                    [
+                        'id' => 'done_a',
+                        'type' => 'welcomeMessage',
+                        'data' => ['messageType' => 'text', 'welcomeMessage' => 'Got A'],
+                    ],
+                ],
+                'edges' => [
+                    ['source' => 'interactive_1', 'target' => 'done_a', 'sourceHandle' => 'button-0'],
+                ],
+            ],
+        ]);
+
+        // Another bot whose keyword appears inside a longer reply must NOT steal mid-flow.
+        ChatbotFlow::factory()->active()->create([
+            'name' => 'Fuzzy Bot',
+            'exported_data' => [
+                'nodes' => [[
+                    'id' => 'welcome_fuzzy',
+                    'type' => 'welcomeMessage',
+                    'data' => [
+                        'messageType' => 'text',
+                        'triggerKeyword' => 'option',
+                        'welcomeMessage' => 'Fuzzy stole it',
+                    ],
+                ]],
+                'edges' => [],
+            ],
+        ]);
+
+        $conversation = Conversation::factory()->create();
+
+        ChatbotFlowState::query()->create([
+            'conversation_id' => $conversation->id,
+            'chatbot_flow_id' => $waitingBot->id,
+            'current_node_id' => 'interactive_1',
+            'variables' => [
+                '_interactive_options' => [
+                    ['id' => 'a', 'title' => 'Option A'],
+                    ['id' => 'b', 'title' => 'Option B'],
+                ],
+            ],
+            'status' => ChatbotFlowStateStatus::Waiting,
+            'expires_at' => now()->addHour(),
+        ]);
+
+        $engine = app(ChatbotFlowEngine::class);
+        $engine->processInbound($conversation, Message::factory()->create([
+            'conversation_id' => $conversation->id,
+            'body' => 'Option A',
+            'direction' => MessageDirection::Inbound,
+        ]));
+
+        $waitingState = ChatbotFlowState::query()
+            ->where('chatbot_flow_id', $waitingBot->id)
+            ->latest('id')
+            ->first();
+
+        $this->assertNotNull($waitingState);
+        $this->assertNotSame(ChatbotFlowStateStatus::Expired, $waitingState->status);
+        $this->assertSame(0, ChatbotFlowState::query()->whereHas('chatbotFlow', fn ($q) => $q->where('name', 'Fuzzy Bot'))->count());
+    }
+
+    public function test_legacy_text_field_used_as_trigger_when_keyword_missing(): void
+    {
+        ChatbotFlow::factory()->active()->create([
+            'exported_data' => [
+                'nodes' => [[
+                    'id' => 'welcome_1',
+                    'type' => 'welcomeMessage',
+                    'data' => [
+                        'messageType' => 'text',
+                        // Legacy Drawflow stored keyword in `text` when triggerKeyword was empty.
+                        'text' => 'bookdemo',
+                    ],
+                ]],
+                'edges' => [],
+            ],
+        ]);
+
+        $conversation = Conversation::factory()->create();
+        $engine = app(ChatbotFlowEngine::class);
+
+        $result = $engine->processInbound($conversation, Message::factory()->create([
+            'conversation_id' => $conversation->id,
+            'body' => 'bookdemo',
+            'direction' => MessageDirection::Inbound,
+        ]));
+
+        $this->assertSame('fired', $result->value);
+        $this->assertSame(1, ChatbotFlowState::query()->count());
+    }
+
     public function test_react_button_handle_routes_by_reply_id(): void
     {
         ChatbotFlow::factory()->active()->create([
