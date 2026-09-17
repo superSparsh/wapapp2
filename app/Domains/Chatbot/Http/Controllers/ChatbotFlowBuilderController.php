@@ -9,6 +9,8 @@ use App\Domains\Chatbot\Services\ChatbotBuilderDataService;
 use App\Domains\Chatbot\Services\ChatbotFlowService;
 use App\Domains\Chatbot\Support\FlowNodeDataMapper;
 use App\Models\ChatbotFlow;
+use App\Models\WhatsappLine;
+use App\Support\PublicId;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -183,6 +185,7 @@ class ChatbotFlowBuilderController
             ], 422);
         }
 
+        $this->applyWhatsappLineFromRequest($request, $chatbotFlow);
         $this->flowService->saveLegacyFlowData($chatbotFlow, $flowData);
         $fresh = $chatbotFlow->fresh();
         $savedTriggers = $this->extractSavedTriggers($fresh);
@@ -191,6 +194,7 @@ class ChatbotFlowBuilderController
             'flow_id' => $fresh->id,
             'flow_name' => $fresh->name,
             'status' => $fresh->status->value,
+            'whatsapp_line_id' => $fresh->whatsapp_line_id,
             'node_count' => $fresh->nodeCount(),
             'saved_triggers' => $savedTriggers,
         ]);
@@ -203,6 +207,8 @@ class ChatbotFlowBuilderController
                 : 'Flow saved successfully.',
             'is_active' => $fresh->isActive(),
             'flow_status' => $fresh->status->value,
+            'whatsapp_line_id' => $fresh->whatsapp_line_id,
+            'whatsapp_line_uuid' => $fresh->whatsappLine?->uuid,
             'saved_triggers' => $savedTriggers,
             'activation_errors' => $this->flowService->activationErrors($fresh),
             'automationBot' => [
@@ -213,6 +219,25 @@ class ChatbotFlowBuilderController
                 'exported_data' => $fresh->exported_data,
             ],
         ]);
+    }
+
+    private function applyWhatsappLineFromRequest(Request $request, ChatbotFlow $chatbotFlow): void
+    {
+        if ($request->filled('whatsapp_line_id')) {
+            $line = PublicId::find(WhatsappLine::class, (string) $request->input('whatsapp_line_id'));
+
+            if ($line === null) {
+                return;
+            }
+
+            $this->flowService->update($chatbotFlow, [
+                'whatsapp_line_id' => $line->id,
+            ]);
+
+            return;
+        }
+
+        $this->flowService->ensureDefaultWhatsappLine($chatbotFlow);
     }
 
     /**

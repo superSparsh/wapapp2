@@ -23,6 +23,7 @@ class SaveFlowDataRequest extends FormRequest
         if ($this->filled('customData')) {
             return [
                 'customData' => ['required'],
+                'whatsapp_line_id' => ['sometimes', 'nullable', 'uuid'],
             ];
         }
 

@@ -149,6 +149,46 @@ class ChatbotFlowBuilderTest extends TestCase
         $flow->refresh();
         $this->assertSame('pikaboo', $flow->exported_data['nodes'][0]['data']['triggerKeyword']);
         $this->assertSame('active', $flow->status->value);
+        $this->assertNotNull($flow->whatsapp_line_id);
+    }
+
+    public function test_legacy_save_binds_selected_whatsapp_line(): void
+    {
+        $otherLine = \App\Models\WhatsappLine::factory()->create([
+            'display_name' => 'Second Line',
+        ]);
+        $flow = ChatbotFlow::factory()->create([
+            'whatsapp_line_id' => null,
+        ]);
+
+        $payload = [
+            'nodes' => [
+                [
+                    'id' => 'welcome_1',
+                    'type' => 'welcomeMessage',
+                    'position' => ['x' => 0, 'y' => 0],
+                    'data' => [
+                        'messageType' => 'text',
+                        'triggerKeyword' => 'hello',
+                        'welcomeMessage' => 'Hi',
+                        'text' => 'Hi',
+                    ],
+                ],
+            ],
+            'edges' => [],
+        ];
+
+        $this->actingAsTenantUser()
+            ->postJson(route('chatbot.data.save', $flow), [
+                'customData' => json_encode($payload),
+                'whatsapp_line_id' => $otherLine->uuid,
+            ])
+            ->assertOk()
+            ->assertJsonPath('status', 'success')
+            ->assertJsonPath('whatsapp_line_uuid', $otherLine->uuid);
+
+        $flow->refresh();
+        $this->assertSame($otherLine->id, $flow->whatsapp_line_id);
     }
 
     public function test_save_and_load_flow_data_round_trip(): void

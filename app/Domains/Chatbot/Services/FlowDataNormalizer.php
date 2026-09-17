@@ -18,9 +18,14 @@ class FlowDataNormalizer
      *
      * @return array<string, array{id: string, type: string, data: array<string, mixed>, outputs: array<string, array{connections: array<int, array{node: string}>}>}>
      */
-    public function normalize(ChatbotFlow $flow): array
+    public function normalize(ChatbotFlow $flow, bool $bypassCache = false): array
     {
         $data = $flow->exported_data;
+
+        if ($bypassCache) {
+            return is_array($data) ? $this->buildNodeMap($data) : [];
+        }
+
         $version = $this->cacheManager->versionFor(
             $flow->updated_at,
             is_array($data) ? $data : null,

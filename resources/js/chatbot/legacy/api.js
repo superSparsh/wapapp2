@@ -14,6 +14,9 @@ export function getBuilderConfig() {
         toggleUrl: root?.dataset.toggleUrl || '',
         isActive: root?.dataset.isActive === '1',
         csrfToken: document.querySelector('meta[name="csrf-token"]')?.content || '',
+        whatsappLineUuid: root?.dataset.whatsappLineUuid || '',
+        whatsappLines: [],
+        showWhatsappLinePicker: false,
     };
 }
 

@@ -662,7 +662,9 @@ class ChatbotFlowEngine
                 continue;
             }
 
-            $nodeMap = $this->normalizer->normalize($flow);
+            // Legacy triggerWithCustomText reads exported_data live (no cache).
+            // Bypass node-map cache so Save Flow triggers are visible immediately.
+            $nodeMap = $this->normalizer->normalize($flow, bypassCache: true);
             $match = $this->findTriggeredMatch($nodeMap, $messageLower, $exactOnly);
 
             foreach ($nodeMap as $node) {
@@ -685,13 +687,20 @@ class ChatbotFlowEngine
                 continue;
             }
 
+            $lineRank = $this->flowLineRank($flow, $lineId);
+
+            // Bound to a different WhatsApp line — skip (user picks line on Save).
+            if ($lineRank === 0) {
+                continue;
+            }
+
             $candidate = [
                 'flow' => $flow,
                 'node_map' => $nodeMap,
                 'node_id' => $match['node_id'],
                 'keyword' => $match['keyword'],
                 'exact' => $match['exact'],
-                'line_rank' => $this->flowLineRank($flow, $lineId),
+                'line_rank' => $lineRank,
             ];
 
             if ($best === null || $this->compareFlowTriggerCandidates($candidate, $best) > 0) {
@@ -711,16 +720,13 @@ class ChatbotFlowEngine
             return TriggerFireResult::NoMatch;
         }
 
-        // Never start a bot hard-bound to a different WhatsApp line.
-        if ($best['line_rank'] === 0) {
-            return TriggerFireResult::NoMatch;
-        }
-
         Log::info('Chatbot keyword trigger matched', [
             'conversation_id' => $conversation->id,
             'line_id' => $lineId,
             'flow_id' => $best['flow']->id,
             'flow_name' => $best['flow']->name,
+            'flow_line_id' => $best['flow']->whatsapp_line_id,
+            'line_rank' => $best['line_rank'],
             'node_id' => $best['node_id'],
             'keyword' => $best['keyword'],
             'exact' => $best['exact'],

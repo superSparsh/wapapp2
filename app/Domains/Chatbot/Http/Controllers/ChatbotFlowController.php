@@ -95,8 +95,20 @@ class ChatbotFlowController extends Controller
 
     public function edit(ChatbotFlow $chatbotFlow): View
     {
+        $whatsappLines = WhatsappLine::query()
+            ->select(['id', 'uuid', 'phone', 'display_name', 'status'])
+            ->orderBy('display_name')
+            ->get();
+
+        // Single-number tenants always bind to that line.
+        if ($chatbotFlow->whatsapp_line_id === null && $whatsappLines->count() === 1) {
+            $chatbotFlow = $this->flowService->ensureDefaultWhatsappLine($chatbotFlow);
+        }
+
         return view('automation.chatbot-flow', [
             'flow' => $chatbotFlow,
+            'whatsappLines' => $whatsappLines,
+            'showWhatsappLinePicker' => $whatsappLines->count() > 1,
         ]);
     }
 

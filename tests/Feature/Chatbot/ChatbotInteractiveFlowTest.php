@@ -393,6 +393,39 @@ class ChatbotInteractiveFlowTest extends TestCase
         $this->assertSame($lineBot->id, $state->chatbot_flow_id);
     }
 
+    public function test_other_line_bound_bot_does_not_trigger_on_this_line(): void
+    {
+        $conversation = Conversation::factory()->create();
+        $otherLine = \App\Models\WhatsappLine::factory()->create();
+
+        ChatbotFlow::factory()->active()->create([
+            'name' => 'Other Line Bot',
+            'whatsapp_line_id' => $otherLine->id,
+            'exported_data' => [
+                'nodes' => [[
+                    'id' => 'welcome_other',
+                    'type' => 'welcomeMessage',
+                    'data' => [
+                        'messageType' => 'text',
+                        'triggerKeyword' => 'chatbotdev',
+                        'welcomeMessage' => 'Hello from other line bot',
+                    ],
+                ]],
+                'edges' => [],
+            ],
+        ]);
+
+        $engine = app(ChatbotFlowEngine::class);
+        $result = $engine->processInbound($conversation, Message::factory()->create([
+            'conversation_id' => $conversation->id,
+            'body' => 'chatbotdev',
+            'direction' => MessageDirection::Inbound,
+        ]));
+
+        $this->assertSame('no_match', $result->value);
+        $this->assertSame(0, ChatbotFlowState::query()->count());
+    }
+
     public function test_trigger_keyword_preempts_waiting_state_from_other_bot(): void
     {
         $waitingBot = ChatbotFlow::factory()->active()->create([

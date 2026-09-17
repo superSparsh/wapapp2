@@ -8,6 +8,7 @@ use App\Domains\Chatbot\Support\FlowCacheManager;
 use App\Domains\Chatbot\Support\FlowNodeDataMapper;
 use App\Enums\ChatbotFlowStatus;
 use App\Models\ChatbotFlow;
+use App\Models\WhatsappLine;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -36,7 +37,7 @@ class ChatbotFlowService
             return ChatbotFlow::query()->create([
                 'name' => $data['name'],
                 'status' => ChatbotFlowStatus::Draft,
-                'whatsapp_line_id' => $data['whatsapp_line_id'] ?? null,
+                'whatsapp_line_id' => $this->resolveWhatsappLineId($data['whatsapp_line_id'] ?? null),
                 'created_by' => $data['created_by'] ?? null,
             ]);
         });
@@ -68,6 +69,45 @@ class ChatbotFlowService
 
             return $flow->refresh();
         });
+    }
+
+    /**
+     * When the tenant has exactly one WhatsApp number, bind the chatbot to it.
+     * Multiple numbers require an explicit choice from the UI.
+     */
+    public function resolveWhatsappLineId(?int $lineId): ?int
+    {
+        if ($lineId !== null && $lineId > 0) {
+            return $lineId;
+        }
+
+        $onlyLineId = WhatsappLine::query()->orderBy('id')->limit(2)->pluck('id');
+
+        if ($onlyLineId->count() === 1) {
+            return (int) $onlyLineId->first();
+        }
+
+        return null;
+    }
+
+    /**
+     * Ensure a flow has a line when only one exists (legacy/null flows).
+     */
+    public function ensureDefaultWhatsappLine(ChatbotFlow $flow): ChatbotFlow
+    {
+        if ($flow->whatsapp_line_id !== null) {
+            return $flow;
+        }
+
+        $resolved = $this->resolveWhatsappLineId(null);
+
+        if ($resolved === null) {
+            return $flow;
+        }
+
+        $flow->update(['whatsapp_line_id' => $resolved]);
+
+        return $flow->refresh();
     }
 
     public function delete(ChatbotFlow $flow): void

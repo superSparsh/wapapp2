@@ -146,13 +146,21 @@
         </div>
         @if ($showWhatsappLinePicker ?? false)
           <div class="flex flex-col gap-1.5">
-            <label for="create-whatsapp-line-id" class="text-sm font-semibold text-text-body">WhatsApp Line (optional)</label>
-            <select id="create-whatsapp-line-id" name="whatsapp_line_id" class="w-full rounded-lg border border-divider bg-surface px-4 py-3 text-sm text-text-body focus:border-green-500 focus:outline-none">
-              <option value="">-- None --</option>
+            <label for="create-whatsapp-line-id" class="text-sm font-semibold text-text-body">
+              WhatsApp Number <span class="text-red-500">*</span>
+            </label>
+            <select id="create-whatsapp-line-id" name="whatsapp_line_id" required class="w-full rounded-lg border border-divider bg-surface px-4 py-3 text-sm text-text-body focus:border-green-500 focus:outline-none">
+              <option value="">-- Choose WhatsApp number --</option>
               @foreach ($whatsappLines as $line)
                 <option value="{{ $line->uuid }}">{{ $line->display_name ?: $line->phone }}</option>
               @endforeach
             </select>
+            <p class="text-xs text-text-muted">This chatbot will only reply on the selected number.</p>
+          </div>
+        @elseif (($whatsappLines ?? collect())->isNotEmpty())
+          <input type="hidden" id="create-whatsapp-line-id" name="whatsapp_line_id" value="{{ $whatsappLines->first()->uuid }}">
+          <div class="rounded-lg border border-divider bg-surface px-4 py-3 text-sm text-text-body">
+            Using: {{ $whatsappLines->first()->display_name ?: $whatsappLines->first()->phone }}
           </div>
         @endif
         <div class="flex justify-end gap-3">

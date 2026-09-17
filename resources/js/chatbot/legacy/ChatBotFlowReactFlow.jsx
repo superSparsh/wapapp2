@@ -88,6 +88,7 @@ import { getBuilderConfig } from "./api.js";
 import {
   alertChatbotAction,
   confirmChatbotAction,
+  promptChatbotLineChoice,
   requestConnectionDelete,
   requestNodeDelete,
 } from "./confirm.js";
@@ -5870,14 +5871,49 @@ const ChatBotFlowReactFlow = () => {
         viewport: reactFlowInstance?.getViewport?.() ?? { x: 0, y: 0, zoom: 1 },
       };
 
+      const whatsappLines = Array.isArray(builderConfig.whatsappLines)
+        ? builderConfig.whatsappLines
+        : [];
+      let whatsappLineUuid = builderConfig.whatsappLineUuid || null;
+
+      if (whatsappLines.length > 1) {
+        whatsappLineUuid = await promptChatbotLineChoice({
+          lines: whatsappLines,
+          selectedUuid: whatsappLineUuid,
+          title: "Choose WhatsApp number",
+          message:
+            "Multiple WhatsApp numbers are connected. Pick which number this chatbot should reply on.",
+        });
+
+        if (!whatsappLineUuid) {
+          message.info("Save cancelled — choose a WhatsApp number to continue.");
+          return;
+        }
+      } else if (whatsappLines.length === 1) {
+        whatsappLineUuid = whatsappLines[0].uuid;
+      }
+
+      const savePayload = {
+        customData: JSON.stringify(flowData),
+      };
+      if (whatsappLineUuid) {
+        savePayload.whatsapp_line_id = whatsappLineUuid;
+      }
+
       const response = await axios.post(
         builderConfig.saveUrl || `/templateflowlist/chatbotflowsave/${uid}`,
-        {
-          customData: JSON.stringify(flowData),
-        }
+        savePayload
       );
 
       if (response.data.status === "success" || response.data.success === true) {
+        if (response.data?.whatsapp_line_uuid) {
+          builderConfig.whatsappLineUuid = response.data.whatsapp_line_uuid;
+          if (window.__CHATBOT_BUILDER_CONFIG__) {
+            window.__CHATBOT_BUILDER_CONFIG__.whatsappLineUuid =
+              response.data.whatsapp_line_uuid;
+          }
+        }
+
         const exported = response.data?.automationBot?.exported_data;
         if (exported && Array.isArray(exported.nodes)) {
           setNodes(exported.nodes);

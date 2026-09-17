@@ -93,6 +93,7 @@
         data-clear-cache-url="{{ route('chatbot.clear-cache', $flow) }}"
         data-toggle-url="{{ route('chatbot.toggle', $flow) }}"
         data-is-active="{{ $flow->isActive() ? '1' : '0' }}"
+        data-whatsapp-line-uuid="{{ $flow->whatsappLine?->uuid }}"
       ></div>
     </section>
   </div>
@@ -111,6 +112,14 @@
         toggleUrl: @json(route('chatbot.toggle', $flow)),
         isActive: @json($flow->isActive()),
         csrfToken: @json(csrf_token()),
+        whatsappLineUuid: @json($flow->whatsappLine?->uuid),
+        whatsappLines: @json(
+          ($whatsappLines ?? collect())->map(fn ($line) => [
+            'uuid' => $line->uuid,
+            'label' => $line->display_name ?: $line->phone,
+          ])->values()
+        ),
+        showWhatsappLinePicker: @json($showWhatsappLinePicker ?? false),
       };
 
       document.addEventListener('DOMContentLoaded', function () {
