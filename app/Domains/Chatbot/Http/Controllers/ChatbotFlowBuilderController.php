@@ -185,6 +185,15 @@ class ChatbotFlowBuilderController
 
         $this->flowService->saveLegacyFlowData($chatbotFlow, $flowData);
         $fresh = $chatbotFlow->fresh();
+        $savedTriggers = $this->extractSavedTriggers($fresh);
+
+        \Illuminate\Support\Facades\Log::info('Chatbot flow saved', [
+            'flow_id' => $fresh->id,
+            'flow_name' => $fresh->name,
+            'status' => $fresh->status->value,
+            'node_count' => $fresh->nodeCount(),
+            'saved_triggers' => $savedTriggers,
+        ]);
 
         return response()->json([
             'success' => true,
@@ -194,6 +203,8 @@ class ChatbotFlowBuilderController
                 : 'Flow saved successfully.',
             'is_active' => $fresh->isActive(),
             'flow_status' => $fresh->status->value,
+            'saved_triggers' => $savedTriggers,
+            'activation_errors' => $this->flowService->activationErrors($fresh),
             'automationBot' => [
                 'id' => $fresh->id,
                 'uuid' => $fresh->uuid,
@@ -202,5 +213,35 @@ class ChatbotFlowBuilderController
                 'exported_data' => $fresh->exported_data,
             ],
         ]);
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function extractSavedTriggers(ChatbotFlow $flow): array
+    {
+        $data = $flow->exported_data;
+        $nodes = is_array($data['nodes'] ?? null) ? $data['nodes'] : [];
+        $triggers = [];
+
+        foreach ($nodes as $node) {
+            if (! is_array($node)) {
+                continue;
+            }
+
+            $type = (string) ($node['type'] ?? '');
+            if (! in_array($type, ['welcomeMessage', 'templateMessage'], true)) {
+                continue;
+            }
+
+            $nodeData = is_array($node['data'] ?? null) ? $node['data'] : [];
+            $keyword = trim((string) ($nodeData['triggerKeyword'] ?? $nodeData['keywords'] ?? ''));
+
+            if ($keyword !== '') {
+                $triggers[] = $keyword;
+            }
+        }
+
+        return array_values(array_unique($triggers));
     }
 }

@@ -251,16 +251,16 @@ const WelcomeMessageNode = ({ data = {}, selected, id }) => {
       </div>
 
       <div className="chatbot-node-card__body">
+        {data.triggerKeyword && (
+          <div>Trigger: {data.triggerKeyword}</div>
+        )}
         {data.messageType === "template" && data.selectedTemplate && (
           <div>Template: {data.selectedTemplate.template_name}</div>
-        )}
-        {data.messageType === "text" && data.triggerKeyword && (
-          <div>Trigger: {data.triggerKeyword}</div>
         )}
         {data.messageType === "text" && data.welcomeMessage && (
           <div>{data.welcomeMessage.substring(0, 80)}{data.welcomeMessage.length > 80 ? "..." : ""}</div>
         )}
-        {data.messageType === "text" && data.text && !data.triggerKeyword && (
+        {data.messageType === "text" && data.text && !data.welcomeMessage && !data.triggerKeyword && (
           <div>{data.text.substring(0, 80)}{data.text.length > 80 ? "..." : ""}</div>
         )}
         {data.selectedTemplate &&
@@ -4457,6 +4457,7 @@ const ChatBotFlowReactFlow = () => {
   const [selectedEdge, setSelectedEdge] = useState(null);
   const [currentConfiguringNodeId, setCurrentConfiguringNodeId] =
     useState(null);
+  const configuringNodeIdRef = useRef(null);
   const [templates, setTemplates] = useState([]);
   const [interactiveMessages, setInteractiveMessages] = useState([]);
   const [aiBots, setAiBots] = useState([]);
@@ -4527,6 +4528,7 @@ const ChatBotFlowReactFlow = () => {
 
       if (selectedNode?.id === nodeId) {
         setSelectedNode(null);
+        configuringNodeIdRef.current = null;
         setCurrentConfiguringNodeId(null);
       }
 
@@ -4640,10 +4642,10 @@ const ChatBotFlowReactFlow = () => {
           setNodes(convertedData.nodes);
           setEdges(convertedData.edges.map(decorateEdge));
           console.log("Converted drawflow to ReactFlow:", convertedData);
-        } else if (parsedData.nodes && parsedData.edges) {
-          // Already in ReactFlow format
+        } else if (Array.isArray(parsedData.nodes)) {
+          // Already in ReactFlow format (edges may be omitted on older saves)
           setNodes(parsedData.nodes);
-          setEdges(parsedData.edges.map(decorateEdge));
+          setEdges((parsedData.edges || []).map(decorateEdge));
           console.log("Loaded ReactFlow data:", parsedData);
         } else {
           console.warn("Unknown data format, starting with empty canvas");
@@ -5272,6 +5274,7 @@ const ChatBotFlowReactFlow = () => {
   const onNodeClick = useCallback((event, node) => {
     console.log("Node clicked:", node.id, node.type, node.data);
     setSelectedNode(node);
+    configuringNodeIdRef.current = node.id;
     setCurrentConfiguringNodeId(node.id);
     // Open appropriate module based on node type
     switch (node.type) {
@@ -5345,12 +5348,17 @@ const ChatBotFlowReactFlow = () => {
     console.log("Quick replies in save data:", data.quickReplies);
     console.log(
       "Node ID to update:",
-      nodeId || currentConfiguringNodeId || selectedNode?.id
+      nodeId || configuringNodeIdRef.current || currentConfiguringNodeId || selectedNode?.id
     );
 
-    const targetNodeId = nodeId || currentConfiguringNodeId || selectedNode?.id;
+    const targetNodeId =
+      nodeId ||
+      configuringNodeIdRef.current ||
+      currentConfiguringNodeId ||
+      selectedNode?.id;
 
     if (targetNodeId) {
+      const nextData = { ...(selectedNode?.data || {}), ...data };
       // Update existing node
       setNodes((nds) =>
         nds.map((node) =>
@@ -5358,11 +5366,12 @@ const ChatBotFlowReactFlow = () => {
             ? {
               ...node,
               data: { ...node.data, ...data },
-              // Force re-render by updating the key
-              key: `welcome-${Date.now()}`,
             }
             : node
         )
+      );
+      setSelectedNode((prev) =>
+        prev && prev.id === targetNodeId ? { ...prev, data: nextData } : prev
       );
       console.log("Updated existing welcome node:", targetNodeId);
     } else {
@@ -5374,13 +5383,11 @@ const ChatBotFlowReactFlow = () => {
         data: data,
       };
       setNodes((nds) => nds.concat(newNode));
+      setSelectedNode(newNode);
+      configuringNodeIdRef.current = newNode.id;
+      setCurrentConfiguringNodeId(newNode.id);
       console.log("Created new welcome node:", newNode.id);
     }
-
-    // Force a re-render of the ReactFlow component
-    setTimeout(() => {
-      setNodes((nds) => [...nds]);
-    }, 100);
   };
 
   const handleTypingIndicatorSave = (data, nodeId = null) => {
@@ -5808,10 +5815,59 @@ const ChatBotFlowReactFlow = () => {
   const saveFlow = async () => {
     try {
       setSaveLoading(true);
+
+      // Prefer React state node.data (latest module config) over RF internal
+      // snapshot, which can lag behind setNodes after drawer Save.
+      const instanceNodes = reactFlowInstance?.getNodes?.() ?? [];
+      const instanceEdges = reactFlowInstance?.getEdges?.() ?? edges;
+      const stateById = new Map(nodes.map((node) => [node.id, node]));
+      const mergedNodes = (instanceNodes.length > 0 ? instanceNodes : nodes).map(
+        (node) => {
+          const fromState = stateById.get(node.id);
+          if (!fromState) {
+            return {
+              id: node.id,
+              type: node.type,
+              position: node.position,
+              data: node.data ?? {},
+            };
+          }
+
+          return {
+            id: fromState.id,
+            type: fromState.type ?? node.type,
+            position: fromState.position ?? node.position,
+            data: { ...(node.data ?? {}), ...(fromState.data ?? {}) },
+          };
+        }
+      );
+
+      // Keep any nodes that exist only in React state (e.g. just added).
+      for (const node of nodes) {
+        if (mergedNodes.some((n) => n.id === node.id)) {
+          continue;
+        }
+        mergedNodes.push({
+          id: node.id,
+          type: node.type,
+          position: node.position,
+          data: node.data ?? {},
+        });
+      }
+
       const flowData = {
-        nodes,
-        edges,
-        viewport: reactFlowInstance.getViewport(),
+        nodes: mergedNodes,
+        edges: (instanceEdges.length > 0 ? instanceEdges : edges).map((edge) => ({
+          id: edge.id,
+          source: edge.source,
+          target: edge.target,
+          sourceHandle: edge.sourceHandle ?? null,
+          targetHandle: edge.targetHandle ?? null,
+          type: edge.type,
+          label: edge.label,
+          data: edge.data,
+        })),
+        viewport: reactFlowInstance?.getViewport?.() ?? { x: 0, y: 0, zoom: 1 },
       };
 
       const response = await axios.post(
@@ -5822,6 +5878,12 @@ const ChatBotFlowReactFlow = () => {
       );
 
       if (response.data.status === "success" || response.data.success === true) {
+        const exported = response.data?.automationBot?.exported_data;
+        if (exported && Array.isArray(exported.nodes)) {
+          setNodes(exported.nodes);
+          setEdges((exported.edges || []).map(decorateEdge));
+        }
+
         try {
           await axios.post(builderConfig.clearCacheUrl || `/templateflowlist/clearchatbotcache/${uid}`);
           console.log("Cache cleared successfully for customer:", uid);
@@ -5832,15 +5894,27 @@ const ChatBotFlowReactFlow = () => {
           );
         }
 
+        const savedTriggers = Array.isArray(response.data?.saved_triggers)
+          ? response.data.saved_triggers
+          : [];
         const becameActive = Boolean(response.data?.is_active);
-        if (becameActive) {
+        const triggerSummary =
+          savedTriggers.length > 0
+            ? ` Triggers: ${savedTriggers.join(", ")}.`
+            : "";
+
+        if (savedTriggers.length === 0) {
+          message.warning(
+            "Flow saved, but no trigger keywords were found on welcome/template nodes. WhatsApp will not start this bot."
+          );
+        } else if (becameActive) {
           builderConfig.isActive = true;
           if (window.__CHATBOT_BUILDER_CONFIG__) {
             window.__CHATBOT_BUILDER_CONFIG__.isActive = true;
           }
-          message.success("Flow saved and chatbot enabled!");
+          message.success(`Flow saved and chatbot enabled!${triggerSummary}`);
         } else if (!builderConfig.isActive && builderConfig.toggleUrl) {
-          message.success("Flow saved successfully!");
+          message.success(`Flow saved successfully!${triggerSummary}`);
           const enableChatbot = await confirmChatbotAction({
             title: "Enable chatbot?",
             message:
@@ -5869,14 +5943,16 @@ const ChatBotFlowReactFlow = () => {
             }
           }
         } else {
-          message.success("Flow saved successfully!");
+          message.success(`Flow saved successfully!${triggerSummary}`);
         }
       } else {
         message.error("Failed to save flow");
       }
     } catch (error) {
       console.error("Error saving flow:", error);
-      message.error("Error saving flow");
+      message.error(
+        error.response?.data?.message || "Error saving flow"
+      );
     } finally {
       setSaveLoading(false);
     }
@@ -6207,10 +6283,12 @@ const ChatBotFlowReactFlow = () => {
         visible={welcomeMessageModule}
         onClose={() => {
           setWelcomeMessageModule(false);
-          setCurrentConfiguringNodeId(null);
         }}
         onSave={(data) =>
-          handleWelcomeMessageSave(data, currentConfiguringNodeId)
+          handleWelcomeMessageSave(
+            data,
+            configuringNodeIdRef.current || currentConfiguringNodeId
+          )
         }
         templates={templates}
         nodeData={selectedNode?.data}

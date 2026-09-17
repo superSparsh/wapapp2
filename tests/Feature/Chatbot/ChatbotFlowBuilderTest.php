@@ -86,11 +86,69 @@ class ChatbotFlowBuilderTest extends TestCase
                 'customData' => json_encode($payload),
             ])
             ->assertOk()
-            ->assertJsonPath('status', 'success');
+            ->assertJsonPath('status', 'success')
+            ->assertJsonPath('saved_triggers.0', 'hello')
+            ->assertJsonPath('is_active', true);
 
         $flow->refresh();
         $this->assertSame('hello', $flow->exported_data['nodes'][0]['data']['triggerKeyword']);
         $this->assertSame(1, $flow->exported_data['viewport']['zoom']);
+        $this->assertSame('active', $flow->status->value);
+    }
+
+    public function test_legacy_save_updates_trigger_keyword_and_activates(): void
+    {
+        $flow = ChatbotFlow::factory()->create([
+            'status' => 'draft',
+            'exported_data' => [
+                'nodes' => [
+                    [
+                        'id' => 'welcome_1',
+                        'type' => 'welcomeMessage',
+                        'position' => ['x' => 0, 'y' => 0],
+                        'data' => [
+                            'messageType' => 'text',
+                            'triggerKeyword' => 'devchatbot',
+                            'welcomeMessage' => 'Old',
+                            'text' => 'Old',
+                        ],
+                    ],
+                ],
+                'edges' => [],
+            ],
+        ]);
+
+        $payload = [
+            'nodes' => [
+                [
+                    'id' => 'welcome_1',
+                    'type' => 'welcomeMessage',
+                    'position' => ['x' => 10, 'y' => 20],
+                    'data' => [
+                        'messageType' => 'text',
+                        'triggerKeyword' => 'pikaboo',
+                        'welcomeMessage' => 'Welcome',
+                        'text' => 'Welcome',
+                    ],
+                ],
+            ],
+            'edges' => [],
+            'viewport' => ['x' => 0, 'y' => 0, 'zoom' => 1],
+        ];
+
+        $this->actingAsTenantUser()
+            ->postJson(route('chatbot.data.save', $flow), [
+                'customData' => json_encode($payload),
+            ])
+            ->assertOk()
+            ->assertJsonPath('status', 'success')
+            ->assertJsonPath('saved_triggers.0', 'pikaboo')
+            ->assertJsonPath('is_active', true)
+            ->assertJsonPath('automationBot.exported_data.nodes.0.data.triggerKeyword', 'pikaboo');
+
+        $flow->refresh();
+        $this->assertSame('pikaboo', $flow->exported_data['nodes'][0]['data']['triggerKeyword']);
+        $this->assertSame('active', $flow->status->value);
     }
 
     public function test_save_and_load_flow_data_round_trip(): void
