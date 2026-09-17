@@ -2,12 +2,17 @@
   $filters = $filters ?? [];
   $filterOptions = $filterOptions ?? ['scopes' => [], 'lookback_days' => [], 'assignees' => []];
   $selectedConversation = $selectedConversation ?? null;
+  $availableLines = $availableLines ?? [];
+  $activeLine = $activeLine ?? null;
+  $activeLineUuid = $activeLine->uuid ?? ($filters['line'] ?? null);
+  $showLineFilter = count($availableLines) > 1;
 
   $baseQuery = array_filter([
     'q' => $filters['search'] ?? null,
     'scope' => ($filters['scope'] ?? null) ?: null,
     'assignee' => ($filters['assignee'] ?? null) ?: null,
     'days' => $filters['lookback_days'] ?? null,
+    'line' => $activeLineUuid,
   ], fn ($value) => $value !== null && $value !== '');
 
   $formAction = $selectedConversation
@@ -22,23 +27,51 @@
     'q' => $filters['search'] ?? null,
     'assignee' => $filters['assignee'] ?? null,
     'days' => $filters['lookback_days'] ?? null,
+    'line' => $activeLineUuid,
   ], fn ($value) => $value !== null && $value !== '');
 
   $assigneeHidden = array_filter([
     'q' => $filters['search'] ?? null,
     'scope' => $filters['scope'] ?? null,
     'days' => $filters['lookback_days'] ?? null,
+    'line' => $activeLineUuid,
   ], fn ($value) => $value !== null && $value !== '');
 
   $daysHidden = array_filter([
     'q' => $filters['search'] ?? null,
     'scope' => $filters['scope'] ?? null,
     'assignee' => $filters['assignee'] ?? null,
+    'line' => $activeLineUuid,
+  ], fn ($value) => $value !== null && $value !== '');
+
+  $lineHidden = array_filter([
+    'q' => $filters['search'] ?? null,
+    'scope' => $filters['scope'] ?? null,
+    'assignee' => $filters['assignee'] ?? null,
+    'days' => $filters['lookback_days'] ?? null,
   ], fn ($value) => $value !== null && $value !== '');
 @endphp
 
 <div class="flex w-full flex-nowrap items-center gap-2 lg:gap-3">
-  <div class="grid min-w-0 flex-1 grid-cols-1 gap-2 sm:grid-cols-3">
+  <div @class([
+    'grid min-w-0 flex-1 grid-cols-1 gap-2',
+    'sm:grid-cols-4' => $showLineFilter,
+    'sm:grid-cols-3' => ! $showLineFilter,
+  ])>
+    @if ($showLineFilter)
+      @include('inbox.partials.filter-select', [
+        'name' => 'line',
+        'action' => $formAction,
+        'options' => collect($availableLines)->map(fn (array $line) => [
+          'value' => $line['uuid'],
+          'label' => $line['label'] ?: ($line['phone'] ?? $line['uuid']),
+        ])->all(),
+        'selected' => $activeLineUuid,
+        'hidden' => $lineHidden,
+        'formClass' => 'min-w-0 w-full',
+      ])
+    @endif
+
     @include('inbox.partials.filter-select', [
       'name' => 'scope',
       'action' => $formAction,

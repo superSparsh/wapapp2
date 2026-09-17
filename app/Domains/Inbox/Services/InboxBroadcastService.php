@@ -87,6 +87,8 @@ class InboxBroadcastService
      */
     private function messagePayload(Message $message): array
     {
+        $metadata = is_array($message->metadata) ? $message->metadata : [];
+
         return [
             'uuid' => $message->uuid,
             'body' => (string) $message->body,
@@ -95,6 +97,13 @@ class InboxBroadcastService
             'message_type' => $message->message_type->value,
             'time' => InboxPresenter::relativeTime($message->created_at),
             'is_outbound' => $message->direction === MessageDirection::Outbound,
+            'media_url' => isset($metadata['media_url']) ? (string) $metadata['media_url'] : null,
+            'file_name' => isset($metadata['file_name']) ? (string) $metadata['file_name'] : null,
+            'latitude' => isset($metadata['latitude']) ? (float) $metadata['latitude'] : null,
+            'longitude' => isset($metadata['longitude']) ? (float) $metadata['longitude'] : null,
+            'contacts' => isset($metadata['contacts']) && is_array($metadata['contacts']) ? $metadata['contacts'] : null,
+            'template_code' => isset($metadata['template_code']) ? (string) $metadata['template_code'] : null,
+            'interactive' => isset($metadata['interactive']) && is_array($metadata['interactive']) ? $metadata['interactive'] : null,
         ];
     }
 
@@ -133,7 +142,8 @@ class InboxBroadcastService
 
         $connection = (string) config('broadcasting.default', 'null');
 
-        return $connection !== 'null' && $connection !== '';
+        // Only websocket-capable drivers deliver live inbox events to Echo.
+        return in_array($connection, ['reverb', 'pusher', 'ably'], true);
     }
 
     private function tenantId(): ?string

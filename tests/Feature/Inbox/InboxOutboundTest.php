@@ -10,6 +10,7 @@ use App\Enums\MessageType;
 use App\Models\Contact;
 use App\Models\Conversation;
 use App\Models\Message;
+use App\Models\WalletAccount;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
@@ -32,6 +33,11 @@ class InboxOutboundTest extends TestCase
         $this->messageService = app(InboxMessageService::class);
         Storage::fake('public');
         Queue::fake();
+
+        WalletAccount::query()->create([
+            'balance' => 500,
+            'currency' => 'INR',
+        ]);
     }
 
     protected function tearDown(): void
@@ -61,6 +67,35 @@ class InboxOutboundTest extends TestCase
             ->assertJsonPath('message.body', 'Reply now');
 
         Queue::assertPushed(SendOutboundMessageJob::class);
+    }
+
+    public function test_text_send_is_blocked_when_wallet_balance_is_low(): void
+    {
+        WalletAccount::query()->update(['balance' => 10]);
+
+        $conversation = $this->createConversation();
+        $this->messageService->recordInbound($conversation, 'Recent hello');
+
+        $this->actingAsTenantUser()
+            ->postJson(route('inbox.api.send', $conversation), ['body' => 'Should fail'])
+            ->assertStatus(422)
+            ->assertJsonFragment(['message' => 'Insufficient wallet balance (₹10.00). Please recharge to at least ₹50.00 to send messages.']);
+
+        Queue::assertNothingPushed();
+    }
+
+    public function test_template_send_works_when_wallet_balance_is_low(): void
+    {
+        WalletAccount::query()->update(['balance' => 10]);
+
+        $conversation = $this->createConversation();
+
+        $this->actingAsTenantUser()
+            ->postJson(route('inbox.api.send-template', $conversation), [
+                'template_code' => 'welcome_template',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('message.message_type', MessageType::Template->value);
     }
 
     public function test_template_send_works_outside_service_window(): void

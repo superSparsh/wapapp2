@@ -9,11 +9,15 @@
   $messages = $messages ?? [];
   $conversation = $conversation ?? null;
   $assignableAgents = $assignableAgents ?? collect();
+  $walletBlocked = (bool) ($walletBlocked ?? false);
+  $messagesHasMore = (bool) ($messagesHasMore ?? false);
+  $messagesOldestId = $messagesOldestId ?? null;
 @endphp
 
 <div
   class="relative flex h-full min-h-0 min-w-0 flex-1 flex-col rounded-xl"
   data-inbox-chat
+  data-wallet-blocked="{{ $walletBlocked ? '1' : '0' }}"
   @if ($conversation)
     data-conversation-uuid="{{ $conversation->uuid }}"
     data-messages-url="{{ route('inbox.api.messages', $conversation) }}"
@@ -26,7 +30,9 @@
     data-interactive-messages-url="{{ route('inbox.api.interactive-messages') }}"
     data-location-url="{{ route('inbox.api.send-location', $conversation) }}"
     data-sticker-url="{{ route('inbox.api.send-sticker', $conversation) }}"
+    data-contact-url="{{ route('inbox.api.send-contact', $conversation) }}"
     data-payment-url="{{ route('inbox.api.request-payment', $conversation) }}"
+    data-opt-in-url="{{ route('inbox.api.resend-opt-in', $conversation) }}"
     data-templates-url="{{ route('inbox.api.templates') }}"
     data-window-url="{{ route('inbox.api.window', $conversation) }}"
     data-window-hours="{{ config('whatsapp.service_window_hours', 24) }}"
@@ -131,15 +137,114 @@
     </button>
   </div>
 
-  <div class="relative z-0 flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto overscroll-contain p-4" data-inbox-messages>
+  <div
+    class="relative z-0 flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto overscroll-contain p-4"
+    data-inbox-messages
+    data-oldest-id="{{ $messagesOldestId ?? '' }}"
+    data-has-more="{{ $messagesHasMore ? '1' : '0' }}"
+  >
     @foreach ($messages as $message)
-      <div @class(['flex', 'justify-end' => ! empty($message['is_outbound']), 'justify-start' => empty($message['is_outbound'])])>
+      @php
+        $isOutbound = ! empty($message['is_outbound']);
+        $messageType = (string) ($message['message_type'] ?? 'text');
+        $mediaUrl = $message['media_url'] ?? null;
+        $fileName = $message['file_name'] ?? null;
+        $body = trim((string) ($message['body'] ?? ''));
+        $contacts = is_array($message['contacts'] ?? null) ? $message['contacts'] : [];
+        $templateCode = trim((string) ($message['template_code'] ?? ''));
+        $interactivePreview = is_array($message['interactive_preview'] ?? null)
+          ? $message['interactive_preview']
+          : null;
+      @endphp
+      <div
+        @class(['flex', 'justify-end' => $isOutbound, 'justify-start' => ! $isOutbound])
+        @if (! empty($message['uuid'])) data-message-uuid="{{ $message['uuid'] }}" @endif
+        @if (! empty($message['id'])) data-message-id="{{ $message['id'] }}" @endif
+      >
         <div @class([
           'max-w-[640px] rounded-bl-[12px] rounded-br-[12px] rounded-tr-[12px] p-4 text-xs leading-[1.8] text-text-body',
-          'bg-green-100 rounded-tl-[12px]' => ! empty($message['is_outbound']),
-          'bg-muted-surface' => empty($message['is_outbound']),
+          'bg-green-100 rounded-tl-[12px]' => $isOutbound,
+          'bg-muted-surface' => ! $isOutbound,
         ]) style="font-family: 'Poppins', var(--font-sans)">
-          {{ $message['body'] }}
+          @if (in_array($messageType, ['image', 'sticker'], true) && $mediaUrl)
+            <img src="{{ $mediaUrl }}" alt="{{ $fileName ?: 'Media' }}" class="mb-2 max-h-72 max-w-full rounded-lg object-contain">
+            @if ($body !== '')
+              <div>{{ $body }}</div>
+            @endif
+          @elseif ($messageType === 'video' && $mediaUrl)
+            <video src="{{ $mediaUrl }}" controls class="mb-2 max-h-72 max-w-full rounded-lg"></video>
+            @if ($body !== '')
+              <div>{{ $body }}</div>
+            @endif
+          @elseif ($messageType === 'audio' && $mediaUrl)
+            <audio src="{{ $mediaUrl }}" controls class="w-full"></audio>
+          @elseif ($messageType === 'document' && $mediaUrl)
+            <a href="{{ $mediaUrl }}" target="_blank" rel="noopener" class="font-semibold text-green-700 underline">
+              {{ $fileName ?: 'Download document' }}
+            </a>
+            @if ($body !== '')
+              <div class="mt-1">{{ $body }}</div>
+            @endif
+          @elseif ($messageType === 'location' && isset($message['latitude'], $message['longitude']))
+            <a
+              href="https://www.google.com/maps?q={{ $message['latitude'] }},{{ $message['longitude'] }}"
+              target="_blank"
+              rel="noopener"
+              class="font-semibold text-green-700 underline"
+            >
+              View location ({{ $message['latitude'] }}, {{ $message['longitude'] }})
+            </a>
+          @elseif ($messageType === 'contact' && $contacts !== [])
+            <div class="flex flex-col gap-2">
+              @foreach ($contacts as $sharedContact)
+                @php
+                  $contactName = is_array($sharedContact['name'] ?? null)
+                    ? (string) ($sharedContact['name']['formatted_name'] ?? $sharedContact['name']['first_name'] ?? 'Contact')
+                    : (string) ($sharedContact['name'] ?? ($body !== '' ? $body : 'Contact'));
+                  $contactPhone = is_array($sharedContact['phones'][0] ?? null)
+                    ? (string) ($sharedContact['phones'][0]['phone'] ?? '')
+                    : '';
+                  $contactCompany = is_array($sharedContact['org'] ?? null)
+                    ? (string) ($sharedContact['org']['company'] ?? '')
+                    : '';
+                @endphp
+                <div class="rounded-lg border border-green-200/80 bg-white/70 px-3 py-2">
+                  <div class="text-[10px] font-semibold uppercase tracking-wide text-green-700">Contact</div>
+                  <div class="mt-1 font-semibold text-text-subtle">{{ $contactName }}</div>
+                  @if ($contactPhone !== '')
+                    <div class="text-text-body/70">{{ $contactPhone }}</div>
+                  @endif
+                  @if ($contactCompany !== '')
+                    <div class="text-text-body/60">{{ $contactCompany }}</div>
+                  @endif
+                </div>
+              @endforeach
+            </div>
+          @elseif ($messageType === 'template')
+            <div class="inline-flex items-center gap-2 rounded-full border border-green-300 bg-white/70 px-3 py-1 text-[11px] font-semibold text-green-800">
+              <span>Template</span>
+              <span class="font-medium text-text-body">{{ $templateCode !== '' ? $templateCode : ($body !== '' ? $body : 'message') }}</span>
+            </div>
+          @elseif ($messageType === 'interactive')
+            @php
+              $interactiveBody = trim((string) ($interactivePreview['body'] ?? $body));
+              $interactiveButtons = is_array($interactivePreview['buttons'] ?? null) ? $interactivePreview['buttons'] : [];
+            @endphp
+            <div class="flex flex-col gap-2">
+              <div>{{ $interactiveBody !== '' ? $interactiveBody : '[interactive]' }}</div>
+              @if ($interactiveButtons !== [])
+                <div class="mt-1 flex flex-wrap gap-1.5">
+                  @foreach ($interactiveButtons as $buttonLabel)
+                    <span class="rounded border border-green-300 bg-white/80 px-2 py-1 text-[11px] font-medium text-green-800">
+                      {{ $buttonLabel }}
+                    </span>
+                  @endforeach
+                </div>
+              @endif
+            </div>
+          @else
+            {{ $body !== '' ? $body : '['.$messageType.']' }}
+          @endif
         </div>
       </div>
     @endforeach
@@ -150,18 +255,24 @@
       data-inbox-window-banner
       class="hidden rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-900"
       role="status"
+      style="white-space: pre-line"
     >
       <span data-inbox-window-banner-text>
-        24-hour session expired. Send an approved template to re-open the conversation.
+        Session expired. Send an approved template message to reach this contact again.
+
+When they reply, a 24-hour window opens so you can send normal free-form messages.
+
+Sending a template alone does not start that window — the customer still needs to reply once so the 24-hour window can begin.
       </span>
     </div>
 
-    <form data-inbox-send-form class="relative">
+    <form data-inbox-send-form data-inbox-composer class="relative">
       <div class="flex items-center gap-3.5 rounded-lg bg-elevated p-3.5">
         <div class="relative z-50 shrink-0" data-inbox-menu-anchor>
           <button
             type="button"
             data-inbox-menu-toggle
+            data-inbox-session-action
             class="flex size-5 cursor-pointer items-center justify-center"
             aria-expanded="{{ $menuOpen ? 'true' : 'false' }}"
             aria-controls="inbox-message-menu"
@@ -183,17 +294,23 @@
       </div>
     </form>
 
-    <div class="flex gap-2.5">
-      <x-ui.link-button variant="chat-action" size="sm" class="w-full justify-center rounded py-3 text-xs" data-open-modal="send-templates">
+    <div class="flex flex-wrap gap-2.5" data-inbox-expired-actions>
+      <x-ui.link-button variant="chat-action" size="sm" class="min-w-0 flex-1 justify-center rounded py-3 text-xs" data-open-modal="send-templates">
         <x-icons.nav-icon name="device-message" class="size-5" />
-        Select and Send a Template Message
+        Send Template Message
       </x-ui.link-button>
       <button
         type="button"
+        data-inbox-resend-opt-in
+        class="fd-btn inline-flex min-w-0 flex-1 items-center justify-center gap-2.5 rounded border border-green-500 bg-green-100 px-3 py-3 text-xs font-semibold text-primary-2 transition-colors hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        <x-icons.nav-icon name="device-message" class="size-5" />
+        Resend opt-in
+      </button>
+      <button
+        type="button"
         data-open-modal="request-payment"
-        data-inbox-requires-window
-        data-inbox-session-action
-        class="fd-btn inline-flex w-full items-center justify-center gap-2.5 rounded border border-green-500 bg-green-100 px-3 py-3 text-xs font-semibold text-primary-2 transition-colors hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+        class="fd-btn inline-flex min-w-0 flex-1 items-center justify-center gap-2.5 rounded border border-green-500 bg-green-100 px-3 py-3 text-xs font-semibold text-primary-2 transition-colors hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
       >
         <x-icons.nav-icon name="wallet" class="size-5" />
         Send Payment Link

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Inbox\Services;
 
+use App\Domains\Billing\Services\WalletService;
 use App\Domains\Inbox\Support\InboxPresenter;
 use App\Models\Conversation;
 use App\Models\WhatsappLine;
@@ -17,6 +18,7 @@ class InboxService
         private readonly InboxAssignmentService $assignmentService,
         private readonly InboxSettingsService $settingsService,
         private readonly InboxAccessService $accessService,
+        private readonly WalletService $walletService,
     ) {}
 
     /**
@@ -24,8 +26,9 @@ class InboxService
      */
     public function indexPayload(Request $request, ?Conversation $selected = null): array
     {
-        $line = $this->requireDefaultLine();
+        $line = $this->resolveActiveLine($request, $selected);
         $filters = $this->filtersFromRequest($request);
+        $filters['line'] = $line->uuid;
 
         $threads = $this->queryService->paginateThreads(
             line: $line,
@@ -38,6 +41,8 @@ class InboxService
         );
 
         $messages = [];
+        $messagesHasMore = false;
+        $messagesOldestId = null;
         $selectedContact = null;
 
         if ($selected !== null) {
@@ -49,13 +54,20 @@ class InboxService
             $this->messageService->markRead($selected);
             $selected->refresh();
 
-            $messages = $this->messageService->paginateMessages(
+            $paginatedMessages = $this->messageService->paginateMessages(
                 conversation: $selected,
                 lookbackDays: $filters['lookback_days'],
-            )['items'];
+            );
+
+            $messages = $paginatedMessages['items'];
+            $messagesHasMore = (bool) $paginatedMessages['has_more'];
+            $messagesOldestId = $paginatedMessages['oldest_id'];
 
             $selectedContact = $this->contactCard($selected);
         }
+
+        $walletBalance = $this->walletService->balance();
+        $walletMin = (float) config('inbox.wallet_min_balance', 50);
 
         return [
             'threads' => $threads['items'],
@@ -64,13 +76,18 @@ class InboxService
             'selectedConversation' => $selected,
             'selectedContact' => $selectedContact,
             'messages' => $messages,
+            'messagesHasMore' => $messagesHasMore,
+            'messagesOldestId' => $messagesOldestId,
             'filters' => $filters,
             'filterOptions' => $this->filterOptions(),
             'assignableAgents' => $this->assignmentService->assignableAgents(),
             'activeLine' => $line,
+            'availableLines' => $this->availableLines(),
             'unreadTotal' => $this->queryService->totalUnreadCount($line),
             'inboxPhoneMaskingEnabled' => $this->settingsService->isPhoneMaskingEnabled(),
             'isTeamInbox' => $this->accessService->isTeamMember(),
+            'walletBalance' => $walletBalance,
+            'walletBlocked' => $walletBalance <= $walletMin,
         ];
     }
 
@@ -89,6 +106,68 @@ class InboxService
     }
 
     /**
+     * Resolve which WhatsApp line the inbox should use for this request.
+     */
+    public function resolveActiveLine(Request $request, ?Conversation $selected = null): WhatsappLine
+    {
+        $line = null;
+
+        if ($selected !== null && $selected->whatsapp_line_id) {
+            $candidate = WhatsappLine::query()->find((int) $selected->whatsapp_line_id);
+            if ($candidate instanceof WhatsappLine && $this->lineIsAccessible($candidate)) {
+                $line = $candidate;
+            }
+        }
+
+        if ($line === null) {
+            $requestLineUuid = $request->string('line')->trim()->toString() ?: null;
+            if ($requestLineUuid !== null) {
+                $line = $this->findAccessibleLineByUuid($requestLineUuid);
+            }
+        }
+
+        if ($line === null) {
+            $sessionUuid = $request->session()->get('inbox_selected_line_uuid');
+            if (is_string($sessionUuid) && $sessionUuid !== '') {
+                $line = $this->findAccessibleLineByUuid($sessionUuid);
+            }
+        }
+
+        if ($line === null) {
+            $line = $this->requireDefaultLine();
+        }
+
+        $request->session()->put('inbox_selected_line_uuid', $line->uuid);
+
+        return $line;
+    }
+
+    /**
+     * @return array<int, array{uuid: string, label: string, phone: string, is_default: bool}>
+     */
+    public function availableLines(): array
+    {
+        $query = WhatsappLine::query()
+            ->orderByDesc('is_default')
+            ->orderBy('id');
+
+        $assignedLineIds = $this->accessService->assignedLineIds();
+        if ($assignedLineIds !== []) {
+            $query->whereIn('id', $assignedLineIds);
+        }
+
+        return $query->get()
+            ->map(fn (WhatsappLine $line): array => [
+                'uuid' => $line->uuid,
+                'label' => filled($line->display_name) ? (string) $line->display_name : $line->displayPhone(),
+                'phone' => (string) $line->phone,
+                'is_default' => (bool) $line->is_default,
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
      * @return array{
      *     search: ?string,
      *     unread_only: bool,
@@ -96,7 +175,8 @@ class InboxService
      *     cursor: ?string,
      *     scope: ?string,
      *     assignee: ?string,
-     *     assignee_filter: ?array
+     *     assignee_filter: ?array,
+     *     line: ?string
      * }
      */
     public function filtersFromRequest(Request $request): array
@@ -104,6 +184,7 @@ class InboxService
         $lookback = $request->integer('days');
         $scope = $request->string('scope')->trim()->toString() ?: null;
         $assignee = $request->string('assignee')->trim()->toString() ?: null;
+        $line = $request->string('line')->trim()->toString() ?: null;
 
         if (! in_array($scope, [null, '', 'all', 'unread', 'mine'], true)) {
             $scope = null;
@@ -121,6 +202,7 @@ class InboxService
             'scope' => $scope,
             'assignee' => $assignee ?: null,
             'assignee_filter' => $this->assignmentService->resolveAssigneeFilter($assignee),
+            'line' => $line,
         ];
     }
 
@@ -179,5 +261,28 @@ class InboxService
             'stopped' => $stopped,
             'stop_label' => $stopped ? 'Marked STOP — unsubscribed' : null,
         ];
+    }
+
+    private function findAccessibleLineByUuid(string $uuid): ?WhatsappLine
+    {
+        $query = WhatsappLine::query()->where('uuid', $uuid);
+
+        $assignedLineIds = $this->accessService->assignedLineIds();
+        if ($assignedLineIds !== []) {
+            $query->whereIn('id', $assignedLineIds);
+        }
+
+        return $query->first();
+    }
+
+    private function lineIsAccessible(WhatsappLine $line): bool
+    {
+        $assignedLineIds = $this->accessService->assignedLineIds();
+
+        if ($assignedLineIds === []) {
+            return true;
+        }
+
+        return in_array((int) $line->id, $assignedLineIds, true);
     }
 }

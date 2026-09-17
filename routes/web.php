@@ -369,9 +369,11 @@ Route::middleware(['tenancy.session', 'auth:web,team', '2fa', 'verified', 'team.
             Route::post('/conversations/{conversation}/templates', [InboxController::class, 'sendTemplate'])->name('send-template');
             Route::post('/conversations/{conversation}/location', [InboxController::class, 'sendLocation'])->name('send-location');
             Route::post('/conversations/{conversation}/sticker', [InboxController::class, 'sendSticker'])->name('send-sticker');
+            Route::post('/conversations/{conversation}/contact', [InboxController::class, 'sendContact'])->name('send-contact');
             Route::post('/conversations/{conversation}/flow', [InboxController::class, 'sendFlow'])->name('send-flow');
             Route::post('/conversations/{conversation}/interactive', [InboxController::class, 'sendInteractive'])->name('send-interactive');
             Route::post('/conversations/{conversation}/payment', [InboxController::class, 'requestPayment'])->name('request-payment');
+            Route::post('/conversations/{conversation}/opt-in', [InboxController::class, 'resendOptIn'])->name('resend-opt-in');
             Route::post('/conversations/{conversation}/read', [InboxController::class, 'markRead'])->name('read');
             Route::post('/conversations/{conversation}/assign', [InboxController::class, 'assign'])->name('assign');
             Route::post('/mark-all-read', [InboxController::class, 'markAllRead'])->name('mark-all-read');
@@ -381,7 +383,9 @@ Route::middleware(['tenancy.session', 'auth:web,team', '2fa', 'verified', 'team.
             ->name('modals.ask-for-address');
         Route::get('/modals/send-contact', fn () => redirect()->route('inbox.index', ['modal' => 'send-contact']))
             ->name('modals.send-contact');
-        Route::get('/empty', fn () => view('inbox.empty'))->name('empty');
+        Route::get('/empty', function (\Illuminate\Http\Request $request, \App\Domains\Inbox\Services\InboxService $inboxService) {
+            return view('inbox.empty', $inboxService->indexPayload($request));
+        })->name('empty');
         Route::get('/{conversation}', [InboxController::class, 'show'])->name('show');
     });
 

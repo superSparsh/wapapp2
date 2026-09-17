@@ -6,6 +6,7 @@ namespace App\Domains\Inbox\Services;
 
 use App\Domains\Inbox\Contracts\InboxServiceClientInterface;
 use App\Domains\Inbox\Http\Requests\AssignInboxConversationRequest;
+use App\Domains\Inbox\Http\Requests\SendInboxContactRequest;
 use App\Domains\Inbox\Http\Requests\SendInboxLocationRequest;
 use App\Domains\Inbox\Http\Requests\SendInboxMediaRequest;
 use App\Domains\Inbox\Http\Requests\SendInboxMessageRequest;
@@ -54,7 +55,7 @@ class InboxServiceAdapter
 
     public function threads(Request $request): JsonResponse
     {
-        $line = $this->localInboxService->requireDefaultLine();
+        $line = $this->localInboxService->resolveActiveLine($request);
         $filters = $this->localInboxService->filtersFromRequest($request);
 
         if ($this->isMicroserviceEnabled()) {
@@ -260,6 +261,18 @@ class InboxServiceAdapter
         return response()->json($this->messagePayload($message), 201);
     }
 
+    public function sendContact(SendInboxContactRequest $request, Conversation $conversation): JsonResponse
+    {
+        $this->localInboxService->authorizeConversation($conversation);
+
+        $message = $this->localOutboundService->sendContact(
+            conversation: $conversation,
+            contact: $request->validated(),
+        );
+
+        return response()->json($this->messagePayload($message), 201);
+    }
+
     public function sendFlow(
         \App\Domains\Inbox\Http\Requests\SendInboxFlowRequest $request,
         Conversation $conversation,
@@ -285,6 +298,7 @@ class InboxServiceAdapter
             $conversation,
             $interactive,
             previewBody: (string) $request->validated('body'),
+            enforceWindow: true,
         );
 
         return response()->json($this->messagePayload($message), 201);
@@ -322,6 +336,7 @@ class InboxServiceAdapter
             $conversation,
             $interactive,
             previewBody: (string) ($interactive['body']['text'] ?? $messageModel->name),
+            enforceWindow: true,
         );
 
         return response()->json($this->messagePayload($message), 201);
@@ -352,7 +367,7 @@ class InboxServiceAdapter
 
     public function markAllRead(Request $request): JsonResponse
     {
-        $line = $this->localInboxService->requireDefaultLine();
+        $line = $this->localInboxService->resolveActiveLine($request);
         $filters = $this->localInboxService->filtersFromRequest($request);
 
         if ($this->isMicroserviceEnabled()) {
@@ -467,7 +482,7 @@ class InboxServiceAdapter
 
     public function toggleAllResponseType(ToggleInboxResponseTypeRequest $request): JsonResponse
     {
-        $line = $this->localInboxService->requireDefaultLine();
+        $line = $this->localInboxService->resolveActiveLine($request);
         $filters = $this->localInboxService->filtersFromRequest($request);
         $aiEnabled = $request->boolean('ai_enabled');
 
@@ -538,7 +553,7 @@ class InboxServiceAdapter
 
     public function storeContact(StoreInboxContactRequest $request): JsonResponse
     {
-        $line = $this->localInboxService->requireDefaultLine();
+        $line = $this->localInboxService->resolveActiveLine($request);
 
         $conversation = $this->localContactService->addContact(
             line: $line,
@@ -592,7 +607,7 @@ class InboxServiceAdapter
 
     public function exportAll(Request $request): StreamedResponse
     {
-        $line = $this->localInboxService->requireDefaultLine();
+        $line = $this->localInboxService->resolveActiveLine($request);
         $filters = $this->localInboxService->filtersFromRequest($request);
 
         if ($this->isMicroserviceEnabled()) {
@@ -643,6 +658,13 @@ class InboxServiceAdapter
                 'status' => $message->status->value,
                 'message_type' => $message->message_type->value,
                 'is_outbound' => true,
+                'media_url' => is_array($message->metadata) ? ($message->metadata['media_url'] ?? null) : null,
+                'file_name' => is_array($message->metadata) ? ($message->metadata['file_name'] ?? null) : null,
+                'latitude' => is_array($message->metadata) ? ($message->metadata['latitude'] ?? null) : null,
+                'longitude' => is_array($message->metadata) ? ($message->metadata['longitude'] ?? null) : null,
+                'contacts' => is_array($message->metadata) ? ($message->metadata['contacts'] ?? null) : null,
+                'template_code' => is_array($message->metadata) ? ($message->metadata['template_code'] ?? null) : null,
+                'interactive' => is_array($message->metadata) ? ($message->metadata['interactive'] ?? null) : null,
             ],
         ];
     }

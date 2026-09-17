@@ -17,9 +17,12 @@ return [
 
     'realtime_enabled' => (bool) env('INBOX_REALTIME_ENABLED', true),
 
-    'realtime_fallback_poll_ms' => (int) env('INBOX_REALTIME_FALLBACK_POLL_MS', 120000),
+    // Keep close to legacy list/thread polling when websockets briefly drop.
+    'realtime_fallback_poll_ms' => (int) env('INBOX_REALTIME_FALLBACK_POLL_MS', 15000),
 
     'phone_masking_enabled' => (bool) env('INBOX_PHONE_MASKING_ENABLED', false),
 
     'export_max_conversations' => (int) env('INBOX_EXPORT_MAX_CONVERSATIONS', 500),
+
+    'wallet_min_balance' => (float) env('INBOX_WALLET_MIN_BALANCE', 50),
 ];

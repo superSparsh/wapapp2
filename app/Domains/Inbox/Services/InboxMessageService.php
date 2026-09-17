@@ -38,7 +38,7 @@ class InboxMessageService
         $since = now()->subDays($lookbackDays);
 
         $query = Message::query()
-            ->select(['id', 'uuid', 'body', 'direction', 'status', 'created_at'])
+            ->select(['id', 'uuid', 'body', 'direction', 'status', 'message_type', 'metadata', 'created_at'])
             ->where('conversation_id', $conversation->id)
             ->where('created_at', '>=', $since)
             ->when($beforeId !== null, fn ($builder) => $builder->where('id', '<', $beforeId))
@@ -53,19 +53,106 @@ class InboxMessageService
 
         $chronological = $rows->reverse()->values();
 
-        $items = $chronological->map(fn (Message $message): array => [
-            'uuid' => $message->uuid,
-            'body' => (string) $message->body,
-            'direction' => $message->direction->value,
-            'status' => $message->status->value,
-            'time' => InboxPresenter::relativeTime($message->created_at),
-            'is_outbound' => $message->direction === MessageDirection::Outbound,
-        ])->all();
+        $items = $chronological->map(fn (Message $message): array => $this->presentMessage($message))->all();
 
         return [
             'items' => $items,
             'has_more' => $hasMore,
             'oldest_id' => $chronological->first()?->id,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function presentMessage(Message $message): array
+    {
+        $metadata = is_array($message->metadata) ? $message->metadata : [];
+        $messageType = $message->message_type?->value ?? 'text';
+        $interactive = isset($metadata['interactive']) && is_array($metadata['interactive'])
+            ? $metadata['interactive']
+            : null;
+
+        return [
+            'id' => (int) $message->id,
+            'uuid' => $message->uuid,
+            'body' => (string) ($message->body ?? ''),
+            'direction' => $message->direction->value,
+            'status' => $message->status->value,
+            'message_type' => $messageType,
+            'time' => InboxPresenter::relativeTime($message->created_at),
+            'is_outbound' => $message->direction === MessageDirection::Outbound,
+            'media_url' => isset($metadata['media_url']) ? (string) $metadata['media_url'] : null,
+            'file_name' => isset($metadata['file_name']) ? (string) $metadata['file_name'] : null,
+            'latitude' => isset($metadata['latitude']) ? (float) $metadata['latitude'] : null,
+            'longitude' => isset($metadata['longitude']) ? (float) $metadata['longitude'] : null,
+            'contacts' => isset($metadata['contacts']) && is_array($metadata['contacts']) ? $metadata['contacts'] : null,
+            'template_code' => isset($metadata['template_code']) ? (string) $metadata['template_code'] : null,
+            'interactive' => $interactive,
+            'interactive_preview' => $this->interactivePreview($interactive, (string) ($message->body ?? '')),
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $interactive
+     * @return array{body: string, buttons: array<int, string>, type: ?string}|null
+     */
+    private function interactivePreview(?array $interactive, string $fallbackBody): ?array
+    {
+        if ($interactive === null) {
+            return null;
+        }
+
+        $bodyRaw = $interactive['body'] ?? null;
+        if (is_array($bodyRaw)) {
+            $body = trim((string) ($bodyRaw['text'] ?? $fallbackBody));
+        } elseif (is_string($bodyRaw)) {
+            $body = trim($bodyRaw);
+        } else {
+            $body = trim($fallbackBody);
+        }
+
+        $buttons = [];
+
+        foreach ($interactive['action']['buttons'] ?? [] as $button) {
+            if (! is_array($button)) {
+                continue;
+            }
+
+            $title = (string) (
+                $button['reply']['title']
+                ?? $button['title']
+                ?? $button['text']
+                ?? $button['label']
+                ?? ''
+            );
+
+            if ($title !== '') {
+                $buttons[] = $title;
+            }
+        }
+
+        foreach ($interactive['action']['sections'] ?? [] as $section) {
+            if (! is_array($section)) {
+                continue;
+            }
+
+            foreach ($section['rows'] ?? [] as $row) {
+                if (! is_array($row)) {
+                    continue;
+                }
+
+                $title = trim((string) ($row['title'] ?? ''));
+                if ($title !== '') {
+                    $buttons[] = $title;
+                }
+            }
+        }
+
+        return [
+            'body' => $body !== '' ? $body : $fallbackBody,
+            'buttons' => array_values(array_unique($buttons)),
+            'type' => isset($interactive['type']) ? (string) $interactive['type'] : null,
         ];
     }
 

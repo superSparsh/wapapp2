@@ -3,15 +3,25 @@
   $selectedConversation = $selectedConversation ?? null;
   $selectedUuid = $selectedConversation?->uuid;
   $filters = $filters ?? [];
+  $activeLine = $activeLine ?? null;
+  $activeLineUuid = $activeLine->uuid ?? ($filters['line'] ?? null);
+  $threadsCursor = $threadsCursor ?? null;
+  $threadsHasMore = (bool) ($threadsHasMore ?? false);
   $query = array_filter([
     'q' => $filters['search'] ?? null,
     'scope' => $filters['scope'] ?? null,
     'assignee' => $filters['assignee'] ?? null,
     'days' => $filters['lookback_days'] ?? null,
+    'line' => $activeLineUuid,
   ], fn ($value) => $value !== null && $value !== '');
 @endphp
 
-<div class="flex min-h-0 w-full shrink-0 flex-col gap-4 lg:w-[405px]" data-inbox-thread-panel>
+<div
+  class="flex min-h-0 w-full shrink-0 flex-col gap-4 lg:w-[405px]"
+  data-inbox-thread-panel
+  data-threads-cursor="{{ $threadsCursor ?? '' }}"
+  data-threads-has-more="{{ $threadsHasMore ? '1' : '0' }}"
+>
   <form
     method="get"
     action="{{ $selectedConversation ? route('inbox.show', $selectedConversation) : route('inbox.index') }}"
@@ -22,6 +32,7 @@
       'scope' => $filters['scope'] ?? null,
       'assignee' => $filters['assignee'] ?? null,
       'days' => $filters['lookback_days'] ?? null,
+      'line' => $activeLineUuid,
     ]) as $key => $value)
       <input type="hidden" name="{{ $key }}" value="{{ $value }}">
     @endforeach

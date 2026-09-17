@@ -23,7 +23,7 @@ class TemplateRegistryService
     ) {}
 
     /**
-     * @return list<array{code: string, name: string, language: string, category: string}>
+     * @return list<array{code: string, name: string, language: string, category: string, variables: list<array{name: string}>}>
      */
     public function options(?WhatsappLine $line = null): array
     {
@@ -33,17 +33,29 @@ class TemplateRegistryService
             return [];
         }
 
+        // Resolved lazily to avoid a constructor cycle with TemplatePreviewService.
+        $previewService = app(TemplatePreviewService::class);
+
         return Template::query()
             ->where('whatsapp_line_id', $line->id)
             ->where('status', TemplateStatus::Approved)
+            ->with('variables')
             ->orderBy('name')
-            ->get(['code', 'name', 'language', 'category'])
-            ->map(fn (Template $template): array => [
-                'code' => (string) $template->code,
-                'name' => $template->name,
-                'language' => $template->language,
-                'category' => $template->category,
-            ])
+            ->get()
+            ->map(function (Template $template) use ($previewService): array {
+                $variables = array_values(array_map(
+                    static fn (array $variable): array => ['name' => (string) $variable['name']],
+                    $previewService->variablesForTemplate($template),
+                ));
+
+                return [
+                    'code' => (string) $template->code,
+                    'name' => $template->name,
+                    'language' => $template->language,
+                    'category' => $template->category,
+                    'variables' => $variables,
+                ];
+            })
             ->filter(fn (array $row): bool => $row['code'] !== '')
             ->values()
             ->all();

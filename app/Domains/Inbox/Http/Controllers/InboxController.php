@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domains\Inbox\Http\Controllers;
 
 use App\Domains\Inbox\Http\Requests\AssignInboxConversationRequest;
+use App\Domains\Inbox\Http\Requests\SendInboxContactRequest;
 use App\Domains\Inbox\Http\Requests\SendInboxLocationRequest;
 use App\Domains\Inbox\Http\Requests\SendInboxMediaRequest;
 use App\Domains\Inbox\Http\Requests\SendInboxMessageRequest;
@@ -95,6 +96,14 @@ class InboxController extends Controller
         return $adapter->sendSticker($request, $conversation);
     }
 
+    public function sendContact(
+        SendInboxContactRequest $request,
+        Conversation $conversation,
+        InboxServiceAdapter $adapter,
+    ): JsonResponse {
+        return $adapter->sendContact($request, $conversation);
+    }
+
     public function sendFlow(
         \App\Domains\Inbox\Http\Requests\SendInboxFlowRequest $request,
         Conversation $conversation,
@@ -182,6 +191,39 @@ class InboxController extends Controller
                 'message' => $e->getMessage(),
             ], 422);
         }
+    }
+
+    public function resendOptIn(
+        Conversation $conversation,
+        InboxService $inboxService,
+        \App\Domains\Audience\Services\OptInMessageService $optInMessageService,
+    ): JsonResponse {
+        $inboxService->authorizeConversation($conversation);
+
+        $contact = $conversation->contact;
+
+        if ($contact === null) {
+            return response()->json(['message' => 'No contact linked to this conversation.'], 422);
+        }
+
+        $sent = $optInMessageService->sendOptInToContact(
+            contact: $contact,
+            line: $conversation->whatsappLine,
+            force: true,
+        );
+
+        if (! $sent) {
+            return response()->json(['message' => 'Unable to send opt-in template.'], 422);
+        }
+
+        return response()->json([
+            'ok' => true,
+            'message' => [
+                'body' => 'Opt-in template sent.',
+                'is_outbound' => true,
+                'message_type' => 'template',
+            ],
+        ]);
     }
 
     public function templates(Request $request, InboxService $inboxService, TemplateRegistryService $registry): JsonResponse

@@ -32,6 +32,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initInboxModals();
     initInboxMessageMenu();
     initCommerceOrderModal();
+    initInboxRealtime();
     initInboxChat();
     initInboxOutboundModals();
     initInboxTeamFeatures();
@@ -595,16 +596,30 @@ function initInboxServiceWindow(chat) {
         return {
             refresh: async () => {},
             isWithinWindow: () => true,
+            canSendFreeForm: () => chat.dataset.walletBlocked !== '1',
         };
     }
 
+    const root = inboxRoot();
     const banner = chat.querySelector('[data-inbox-window-banner]');
     const bannerText = chat.querySelector('[data-inbox-window-banner-text]');
+    const composer = chat.querySelector('[data-inbox-composer]');
+    const expiredActions = chat.querySelector('[data-inbox-expired-actions]');
     const input = chat.querySelector('[data-inbox-message-input]');
     const sendButton = chat.querySelector('[data-inbox-send-button]');
     const sessionActions = chat.querySelectorAll('[data-inbox-session-action]');
     const windowRequiredItems = chat.querySelectorAll('[data-inbox-requires-window]');
     const windowHours = Number(chat.dataset.windowHours || 24);
+    const walletBlocked = () =>
+        chat.dataset.walletBlocked === '1' || root?.dataset.walletBlocked === '1';
+    const walletCopy = 'Your wallet balance is currently insufficient to send messages.';
+    const expiredCopy = [
+        'Session expired. Send an approved template message to reach this contact again.',
+        '',
+        'When they reply, a 24-hour window opens so you can send normal free-form messages.',
+        '',
+        'Sending a template alone does not start that window — the customer still needs to reply once so the 24-hour window can begin.',
+    ].join('\n');
 
     let withinWindow = true;
 
@@ -612,10 +627,18 @@ function initInboxServiceWindow(chat) {
         withinWindow = Boolean(status?.within_window);
         chat.dataset.withinWindow = withinWindow ? '1' : '0';
 
+        const blocked = walletBlocked();
+        // Legacy parity: wallet block acts like timelapsed for free-form composer.
+        const canFreeForm = withinWindow && !blocked;
+
         if (banner && bannerText) {
             banner.classList.remove('border-green-300', 'bg-green-50', 'text-green-900', 'border-amber-300', 'bg-amber-50', 'text-amber-900');
 
-            if (withinWindow && status?.expires_at) {
+            if (blocked) {
+                banner.classList.remove('hidden');
+                banner.classList.add('border-amber-300', 'bg-amber-50', 'text-amber-900');
+                bannerText.textContent = walletCopy;
+            } else if (withinWindow && status?.expires_at) {
                 const remaining = formatWindowExpiry(status.expires_at);
                 banner.classList.remove('hidden');
                 banner.classList.add('border-green-300', 'bg-green-50', 'text-green-900');
@@ -623,27 +646,35 @@ function initInboxServiceWindow(chat) {
             } else if (!withinWindow) {
                 banner.classList.remove('hidden');
                 banner.classList.add('border-amber-300', 'bg-amber-50', 'text-amber-900');
-                bannerText.textContent = '24-hour session expired. Send an approved template to re-open the conversation.';
+                bannerText.textContent = expiredCopy;
             } else {
                 banner.classList.add('hidden');
             }
         }
 
-        input?.toggleAttribute('disabled', !withinWindow);
-        sendButton?.toggleAttribute('disabled', !withinWindow);
+        if (composer) {
+            composer.classList.toggle('hidden', !canFreeForm);
+        }
+
+        if (expiredActions) {
+            expiredActions.classList.toggle('opacity-100', !canFreeForm);
+        }
+
+        input?.toggleAttribute('disabled', !canFreeForm);
+        sendButton?.toggleAttribute('disabled', !canFreeForm);
 
         sessionActions.forEach((element) => {
-            element.toggleAttribute('disabled', !withinWindow);
-            element.setAttribute('aria-disabled', withinWindow ? 'false' : 'true');
-            element.classList.toggle('pointer-events-none', !withinWindow);
-            element.classList.toggle('opacity-50', !withinWindow);
+            element.toggleAttribute('disabled', !canFreeForm);
+            element.setAttribute('aria-disabled', canFreeForm ? 'false' : 'true');
+            element.classList.toggle('pointer-events-none', !canFreeForm);
+            element.classList.toggle('opacity-50', !canFreeForm);
         });
 
         windowRequiredItems.forEach((element) => {
-            element.toggleAttribute('disabled', !withinWindow);
-            element.setAttribute('aria-disabled', withinWindow ? 'false' : 'true');
-            element.classList.toggle('pointer-events-none', !withinWindow);
-            element.classList.toggle('opacity-50', !withinWindow);
+            element.toggleAttribute('disabled', !canFreeForm);
+            element.setAttribute('aria-disabled', canFreeForm ? 'false' : 'true');
+            element.classList.toggle('pointer-events-none', !canFreeForm);
+            element.classList.toggle('opacity-50', !canFreeForm);
         });
     };
 
@@ -670,40 +701,549 @@ function initInboxServiceWindow(chat) {
     return {
         refresh,
         isWithinWindow: () => withinWindow,
+        canSendFreeForm: () => withinWindow && !walletBlocked(),
     };
 }
 
-function updateThreadRow(thread) {
-    if (!thread?.uuid) return;
+function inboxRoot() {
+    return document.querySelector('[data-inbox-root]');
+}
 
-    const row = document.querySelector(`[data-thread-uuid="${thread.uuid}"]`);
-    if (!row) return;
+function inboxSelectedConversationUuid() {
+    return document.querySelector('[data-inbox-chat]')?.dataset.conversationUuid ?? null;
+}
 
-    const preview = row.querySelector('[data-thread-preview]');
-    const time = row.querySelector('[data-thread-time]');
-    const unread = row.querySelector('[data-thread-unread]');
+function inboxBaseUrl() {
+    return inboxRoot()?.dataset.inboxBaseUrl || '/inbox';
+}
 
-    if (preview && thread.preview !== undefined) {
-        preview.textContent = thread.preview;
+function buildThreadRowHtml(thread, selectedUuid = null) {
+    const isSelected = thread.uuid === selectedUuid;
+    const rowClass = isSelected ? 'bg-green-50' : 'bg-elevated hover:bg-surface';
+    const unreadCount = Number(thread.unread || 0);
+    const unreadClass = unreadCount > 0 ? 'flex' : 'hidden';
+    const params = new URLSearchParams(window.location.search);
+    const query = params.toString();
+    const href = `${inboxBaseUrl()}/${encodeURIComponent(thread.uuid)}${query ? `?${query}` : ''}`;
+    const stopBadge = thread.stopped
+        ? '<span class="rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-700" title="This contact marked STOP and is unsubscribed">STOP</span>'
+        : '';
+
+    return `
+        <a
+            href="${href}"
+            class="flex border-b border-divider px-2 py-1.5 last:border-0 ${rowClass}"
+            data-thread-uuid="${escapeHtml(thread.uuid)}"
+        >
+            <div class="flex min-w-0 flex-1 items-center gap-3 p-2">
+                <div class="fd-btn-sm flex size-8 shrink-0 items-center justify-center rounded-2xl bg-green-50 text-green-500">${escapeHtml(thread.initials || '?')}</div>
+                <div class="min-w-0 flex-1">
+                    <div class="flex items-center justify-between gap-2">
+                        <span class="fd-table-name truncate">${escapeHtml(thread.name || thread.phone || 'Unknown')}</span>
+                        <div class="flex shrink-0 items-center gap-1.5">
+                            ${stopBadge}
+                            <span class="fd-status-chip text-text-body/60" data-thread-time>${escapeHtml(thread.time || '')}</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between gap-2">
+                        <p class="fd-table-cell truncate text-xs opacity-50" data-thread-preview>${escapeHtml(thread.preview || '')}</p>
+                        <span class="fd-status-chip ${unreadClass} size-4 shrink-0 items-center justify-center rounded-full bg-green-500 text-white" data-thread-unread>${unreadCount > 0 ? unreadCount : ''}</span>
+                    </div>
+                </div>
+            </div>
+        </a>
+    `;
+}
+
+function upsertThreadRow(thread) {
+    if (!thread?.uuid) {
+        return;
     }
 
-    if (time && thread.time) {
-        time.textContent = thread.time;
+    const list = document.querySelector('[data-inbox-thread-list]');
+    if (!list) {
+        return;
     }
 
-    if (unread) {
-        const count = Number(thread.unread || 0);
+    const empty = list.querySelector('[data-inbox-thread-empty]');
+    if (empty) {
+        empty.remove();
+    }
 
-        if (count > 0) {
-            unread.textContent = String(count);
-            unread.classList.remove('hidden');
-            unread.classList.add('flex');
-        } else {
-            unread.textContent = '';
-            unread.classList.add('hidden');
-            unread.classList.remove('flex');
+    const selectedUuid = inboxSelectedConversationUuid();
+    let row = list.querySelector(`[data-thread-uuid="${thread.uuid}"]`);
+
+    if (!row) {
+        list.insertAdjacentHTML('afterbegin', buildThreadRowHtml(thread, selectedUuid));
+        row = list.querySelector(`[data-thread-uuid="${thread.uuid}"]`);
+    } else {
+        const preview = row.querySelector('[data-thread-preview]');
+        const time = row.querySelector('[data-thread-time]');
+        const unread = row.querySelector('[data-thread-unread]');
+        const name = row.querySelector('.fd-table-name');
+
+        if (name && thread.name) {
+            name.textContent = thread.name;
+        }
+
+        if (preview && thread.preview !== undefined) {
+            preview.textContent = thread.preview;
+        }
+
+        if (time && thread.time) {
+            time.textContent = thread.time;
+        }
+
+        if (unread) {
+            const count = Number(thread.unread || 0);
+
+            if (count > 0) {
+                unread.textContent = String(count);
+                unread.classList.remove('hidden');
+                unread.classList.add('flex');
+            } else {
+                unread.textContent = '';
+                unread.classList.add('hidden');
+                unread.classList.remove('flex');
+            }
+        }
+
+        // Keep the freshest conversation at the top (legacy parity).
+        if (list.firstElementChild !== row) {
+            list.insertBefore(row, list.firstElementChild);
         }
     }
+
+    return row;
+}
+
+function updateThreadRow(thread) {
+    upsertThreadRow(thread);
+}
+
+function getThreadsCursorState() {
+    const panel = document.querySelector('[data-inbox-thread-panel]');
+    const root = inboxRoot();
+
+    return {
+        panel,
+        root,
+        cursor: panel?.dataset.threadsCursor || root?.dataset.threadsCursor || '',
+        hasMore: (panel?.dataset.threadsHasMore || root?.dataset.threadsHasMore) === '1',
+    };
+}
+
+function setThreadsCursorState({ cursor = '', hasMore = false } = {}) {
+    const panel = document.querySelector('[data-inbox-thread-panel]');
+    const root = inboxRoot();
+    const nextCursor = cursor || '';
+    const nextHasMore = hasMore ? '1' : '0';
+
+    if (panel) {
+        panel.dataset.threadsCursor = nextCursor;
+        panel.dataset.threadsHasMore = nextHasMore;
+    }
+
+    if (root) {
+        root.dataset.threadsCursor = nextCursor;
+        root.dataset.threadsHasMore = nextHasMore;
+    }
+}
+
+function interactiveButtonLabels(interactive) {
+    if (!interactive || typeof interactive !== 'object') {
+        return [];
+    }
+
+    const labels = [];
+
+    (interactive.action?.buttons || []).forEach((button) => {
+        const title = button?.reply?.title || button?.title || button?.text || button?.label || '';
+        if (title) {
+            labels.push(String(title));
+        }
+    });
+
+    (interactive.action?.sections || []).forEach((section) => {
+        (section?.rows || []).forEach((row) => {
+            if (row?.title) {
+                labels.push(String(row.title));
+            }
+        });
+    });
+
+    return [...new Set(labels)];
+}
+
+function fillMessageBubble(bubble, message) {
+    const body = String(message.body || '').trim();
+    const messageType = String(message.message_type || 'text');
+    const mediaUrl = message.media_url || null;
+    const fileName = message.file_name || null;
+    const displayBody = body !== '' ? body : `[${messageType}]`;
+
+    const appendText = (text, className = '') => {
+        const textEl = document.createElement('div');
+        if (className) {
+            textEl.className = className;
+        }
+        textEl.textContent = text;
+        bubble.appendChild(textEl);
+    };
+
+    if ((messageType === 'image' || messageType === 'sticker') && mediaUrl) {
+        const img = document.createElement('img');
+        img.src = mediaUrl;
+        img.alt = fileName || 'Media';
+        img.className = 'mb-2 max-h-72 max-w-full rounded-lg object-contain';
+        bubble.appendChild(img);
+        if (body !== '') {
+            appendText(body);
+        }
+        return;
+    }
+
+    if (messageType === 'video' && mediaUrl) {
+        const video = document.createElement('video');
+        video.src = mediaUrl;
+        video.controls = true;
+        video.className = 'mb-2 max-h-72 max-w-full rounded-lg';
+        bubble.appendChild(video);
+        if (body !== '') {
+            appendText(body);
+        }
+        return;
+    }
+
+    if (messageType === 'audio' && mediaUrl) {
+        const audio = document.createElement('audio');
+        audio.src = mediaUrl;
+        audio.controls = true;
+        audio.className = 'w-full';
+        bubble.appendChild(audio);
+        return;
+    }
+
+    if (messageType === 'document' && mediaUrl) {
+        const link = document.createElement('a');
+        link.href = mediaUrl;
+        link.target = '_blank';
+        link.rel = 'noopener';
+        link.className = 'font-semibold text-green-700 underline';
+        link.textContent = fileName || 'Download document';
+        bubble.appendChild(link);
+        if (body !== '') {
+            appendText(body, 'mt-1');
+        }
+        return;
+    }
+
+    if (messageType === 'location' && message.latitude != null && message.longitude != null) {
+        const link = document.createElement('a');
+        link.href = `https://www.google.com/maps?q=${message.latitude},${message.longitude}`;
+        link.target = '_blank';
+        link.rel = 'noopener';
+        link.className = 'font-semibold text-green-700 underline';
+        link.textContent = `View location (${message.latitude}, ${message.longitude})`;
+        bubble.appendChild(link);
+        return;
+    }
+
+    if (messageType === 'contact' && Array.isArray(message.contacts) && message.contacts.length > 0) {
+        const wrap = document.createElement('div');
+        wrap.className = 'flex flex-col gap-2';
+
+        message.contacts.forEach((sharedContact) => {
+            const card = document.createElement('div');
+            card.className = 'rounded-lg border border-green-200/80 bg-white/70 px-3 py-2';
+
+            const label = document.createElement('div');
+            label.className = 'text-[10px] font-semibold uppercase tracking-wide text-green-700';
+            label.textContent = 'Contact';
+            card.appendChild(label);
+
+            const name = document.createElement('div');
+            name.className = 'mt-1 font-semibold text-text-subtle';
+            name.textContent =
+                sharedContact?.name?.formatted_name ||
+                sharedContact?.name?.first_name ||
+                sharedContact?.name ||
+                body ||
+                'Contact';
+            card.appendChild(name);
+
+            const phone = sharedContact?.phones?.[0]?.phone;
+            if (phone) {
+                const phoneEl = document.createElement('div');
+                phoneEl.className = 'text-text-body/70';
+                phoneEl.textContent = String(phone);
+                card.appendChild(phoneEl);
+            }
+
+            const company = sharedContact?.org?.company;
+            if (company) {
+                const companyEl = document.createElement('div');
+                companyEl.className = 'text-text-body/60';
+                companyEl.textContent = String(company);
+                card.appendChild(companyEl);
+            }
+
+            wrap.appendChild(card);
+        });
+
+        bubble.appendChild(wrap);
+        return;
+    }
+
+    if (messageType === 'template') {
+        const chip = document.createElement('div');
+        chip.className =
+            'inline-flex items-center gap-2 rounded-full border border-green-300 bg-white/70 px-3 py-1 text-[11px] font-semibold text-green-800';
+
+        const kind = document.createElement('span');
+        kind.textContent = 'Template';
+        chip.appendChild(kind);
+
+        const code = document.createElement('span');
+        code.className = 'font-medium text-text-body';
+        code.textContent = message.template_code || body || 'message';
+        chip.appendChild(code);
+
+        bubble.appendChild(chip);
+        return;
+    }
+
+    if (messageType === 'interactive') {
+        const preview = message.interactive_preview || null;
+        const interactiveBody = String(preview?.body || body || '[interactive]').trim();
+        const buttons = Array.isArray(preview?.buttons)
+            ? preview.buttons
+            : interactiveButtonLabels(message.interactive);
+
+        const wrap = document.createElement('div');
+        wrap.className = 'flex flex-col gap-2';
+
+        const bodyEl = document.createElement('div');
+        bodyEl.textContent = interactiveBody || '[interactive]';
+        wrap.appendChild(bodyEl);
+
+        if (buttons.length > 0) {
+            const row = document.createElement('div');
+            row.className = 'mt-1 flex flex-wrap gap-1.5';
+            buttons.forEach((label) => {
+                const chip = document.createElement('span');
+                chip.className =
+                    'rounded border border-green-300 bg-white/80 px-2 py-1 text-[11px] font-medium text-green-800';
+                chip.textContent = String(label);
+                row.appendChild(chip);
+            });
+            wrap.appendChild(row);
+        }
+
+        bubble.appendChild(wrap);
+        return;
+    }
+
+    bubble.textContent = displayBody;
+}
+
+/**
+ * Tenant-wide Echo subscription + list polling.
+ * Runs even when no conversation is open so new chats appear live.
+ */
+function initInboxRealtime() {
+    const root = inboxRoot();
+    if (!root) {
+        return;
+    }
+
+    const tenantId = root.dataset.tenantId;
+    const realtimeEnabled = root.dataset.realtimeEnabled === '1';
+    const threadsUrl = root.dataset.threadsUrl;
+    const listPollMs = realtimeEnabled
+        ? Number(root.dataset.realtimeFallbackPoll || 15000)
+        : Number(root.dataset.pollInterval || 30000);
+
+    if (realtimeEnabled && tenantId && window.Echo) {
+        window.Echo.private(`inbox.${tenantId}`)
+            .listen('.thread.updated', (payload) => {
+                upsertThreadRow(payload.thread);
+            })
+            .listen('.message.created', (payload) => {
+                upsertThreadRow(payload.thread);
+
+                const chat = document.querySelector('[data-inbox-chat]');
+                const openUuid = chat?.dataset.conversationUuid;
+                if (
+                    openUuid &&
+                    payload.conversation_uuid === openUuid &&
+                    typeof window.__inboxAppendMessage === 'function'
+                ) {
+                    window.__inboxAppendMessage(payload.message);
+                }
+            });
+    }
+
+    if (!threadsUrl || listPollMs <= 0) {
+        return;
+    }
+
+    let threadsAppended = false;
+    let loadingMoreThreads = false;
+
+    const refreshThreadList = async () => {
+        // Don't clobber an active search query mid-typing.
+        const searchInput = document.querySelector('[data-inbox-search-input]');
+        if (searchInput && document.activeElement === searchInput && searchInput.value.trim() !== '') {
+            return;
+        }
+
+        // Keep appended pages intact; Echo upserts handle live updates.
+        if (threadsAppended || loadingMoreThreads) {
+            return;
+        }
+
+        try {
+            const params = new URLSearchParams(window.location.search);
+            params.delete('cursor');
+            const response = await fetch(`${threadsUrl}?${params.toString()}`, {
+                headers: { Accept: 'application/json' },
+                credentials: 'same-origin',
+            });
+
+            if (!response.ok) {
+                return;
+            }
+
+            const data = await response.json();
+            const threads = Array.isArray(data.items) ? data.items : [];
+            const list = document.querySelector('[data-inbox-thread-list]');
+            if (!list) {
+                return;
+            }
+
+            setThreadsCursorState({
+                cursor: data.next_cursor || '',
+                hasMore: Boolean(data.has_more),
+            });
+            threadsAppended = false;
+
+            if (threads.length === 0) {
+                if (!list.querySelector('[data-thread-uuid]')) {
+                    list.innerHTML = '<div class="p-6 text-center text-sm text-text-body/70" data-inbox-thread-empty>No conversations yet.</div>';
+                }
+                return;
+            }
+
+            const selectedUuid = inboxSelectedConversationUuid();
+            // Merge: update known rows + insert missing, preserve order from API.
+            const existing = new Map(
+                [...list.querySelectorAll('[data-thread-uuid]')].map((el) => [el.dataset.threadUuid, el]),
+            );
+            const frag = document.createDocumentFragment();
+            const seen = new Set();
+
+            threads.forEach((thread) => {
+                if (!thread?.uuid || seen.has(thread.uuid)) {
+                    return;
+                }
+                seen.add(thread.uuid);
+
+                let row = existing.get(thread.uuid);
+                if (row) {
+                    upsertThreadRow(thread);
+                    row = list.querySelector(`[data-thread-uuid="${thread.uuid}"]`);
+                    if (row) {
+                        frag.appendChild(row);
+                    }
+                } else {
+                    const wrap = document.createElement('div');
+                    wrap.innerHTML = buildThreadRowHtml(thread, selectedUuid).trim();
+                    if (wrap.firstElementChild) {
+                        frag.appendChild(wrap.firstElementChild);
+                    }
+                }
+            });
+
+            list.innerHTML = '';
+            list.appendChild(frag);
+        } catch {
+            // Ignore transient poll errors.
+        }
+    };
+
+    const loadMoreThreads = async () => {
+        const state = getThreadsCursorState();
+        if (!state.hasMore || !state.cursor || loadingMoreThreads) {
+            return;
+        }
+
+        loadingMoreThreads = true;
+
+        try {
+            const params = new URLSearchParams(window.location.search);
+            params.set('cursor', state.cursor);
+            const response = await fetch(`${threadsUrl}?${params.toString()}`, {
+                headers: { Accept: 'application/json' },
+                credentials: 'same-origin',
+            });
+
+            if (!response.ok) {
+                return;
+            }
+
+            const data = await response.json();
+            const threads = Array.isArray(data.items) ? data.items : [];
+            const list = document.querySelector('[data-inbox-thread-list]');
+            if (!list) {
+                return;
+            }
+
+            const selectedUuid = inboxSelectedConversationUuid();
+            const existing = new Set(
+                [...list.querySelectorAll('[data-thread-uuid]')].map((el) => el.dataset.threadUuid),
+            );
+
+            threads.forEach((thread) => {
+                if (!thread?.uuid || existing.has(thread.uuid)) {
+                    return;
+                }
+
+                list.insertAdjacentHTML('beforeend', buildThreadRowHtml(thread, selectedUuid));
+                existing.add(thread.uuid);
+            });
+
+            setThreadsCursorState({
+                cursor: data.next_cursor || '',
+                hasMore: Boolean(data.has_more),
+            });
+            threadsAppended = true;
+        } catch {
+            // Ignore transient load-more errors.
+        } finally {
+            loadingMoreThreads = false;
+        }
+    };
+
+    const threadList = document.querySelector('[data-inbox-thread-list]');
+    threadList?.addEventListener('scroll', () => {
+        if (!threadList) {
+            return;
+        }
+
+        const remaining = threadList.scrollHeight - threadList.scrollTop - threadList.clientHeight;
+        if (remaining < 120) {
+            loadMoreThreads();
+        }
+    });
+
+    window.__inboxResetThreadsPagination = () => {
+        threadsAppended = false;
+    };
+
+    // Immediate catch-up, then legacy-like list polling.
+    refreshThreadList();
+    window.setInterval(refreshThreadList, listPollMs);
 }
 
 function initInboxChat() {
@@ -721,31 +1261,205 @@ function initInboxChat() {
 
     const serviceWindow = initInboxServiceWindow(chat);
     const seenMessageUuids = new Set();
+    const root = inboxRoot();
+    const realtimeEnabled = root?.dataset.realtimeEnabled === '1';
+    const tenantId = root?.dataset.tenantId;
+    const conversationUuid = chat.dataset.conversationUuid;
+    const pollInterval = realtimeEnabled
+        ? Number(root?.dataset.realtimeFallbackPoll || 15000)
+        : Number(root?.dataset.pollInterval || 30000);
+    let loadingOlderMessages = false;
 
-    const appendMessage = (message) => {
-        if (!messagesEl || !message?.body) return;
-
-        if (message.uuid) {
-            if (seenMessageUuids.has(message.uuid)) {
-                return;
-            }
-
-            seenMessageUuids.add(message.uuid);
+    // Seed uuids already rendered by Blade so Echo/poll don't duplicate them.
+    messagesEl?.querySelectorAll('[data-message-uuid]').forEach((el) => {
+        if (el.dataset.messageUuid) {
+            seenMessageUuids.add(el.dataset.messageUuid);
         }
+    });
 
+    const buildMessageRow = (message) => {
         const row = document.createElement('div');
         row.className = message.is_outbound ? 'flex justify-end' : 'flex justify-start';
+        if (message.uuid) {
+            row.dataset.messageUuid = message.uuid;
+        }
+        if (message.id != null) {
+            row.dataset.messageId = String(message.id);
+        }
 
         const bubble = document.createElement('div');
         bubble.className = message.is_outbound
             ? 'max-w-[640px] rounded-bl-[12px] rounded-tl-[12px] rounded-tr-[12px] bg-green-100 p-4 text-xs leading-[1.8] text-text-body'
             : 'max-w-[640px] rounded-bl-[12px] rounded-br-[12px] rounded-tr-[12px] bg-muted-surface p-4 text-xs leading-[1.8] text-text-body';
         bubble.style.fontFamily = "'Poppins', var(--font-sans)";
-        bubble.textContent = message.body;
-
+        fillMessageBubble(bubble, message);
         row.appendChild(bubble);
-        messagesEl.appendChild(row);
-        messagesEl.scrollTop = messagesEl.scrollHeight;
+
+        return row;
+    };
+
+    const appendMessage = (message, { scroll = true } = {}) => {
+        if (!messagesEl || !message) return false;
+
+        if (message.uuid) {
+            if (seenMessageUuids.has(message.uuid)) {
+                return false;
+            }
+
+            seenMessageUuids.add(message.uuid);
+        }
+
+        messagesEl.appendChild(buildMessageRow(message));
+
+        if (scroll) {
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+        }
+
+        return true;
+    };
+
+    const prependMessage = (message) => {
+        if (!messagesEl || !message) return false;
+
+        if (message.uuid) {
+            if (seenMessageUuids.has(message.uuid)) {
+                return false;
+            }
+
+            seenMessageUuids.add(message.uuid);
+        }
+
+        messagesEl.insertBefore(buildMessageRow(message), messagesEl.firstChild);
+
+        return true;
+    };
+
+    const loadOlderMessages = async () => {
+        if (!messagesEl || !messagesUrl || loadingOlderMessages) {
+            return;
+        }
+
+        if (messagesEl.dataset.hasMore !== '1') {
+            return;
+        }
+
+        const beforeId = messagesEl.dataset.oldestId;
+        if (!beforeId) {
+            return;
+        }
+
+        loadingOlderMessages = true;
+        const previousHeight = messagesEl.scrollHeight;
+        const previousTop = messagesEl.scrollTop;
+
+        try {
+            const params = new URLSearchParams(window.location.search);
+            params.set('before_id', beforeId);
+            const response = await fetch(`${messagesUrl}?${params.toString()}`, {
+                headers: { Accept: 'application/json' },
+                credentials: 'same-origin',
+            });
+
+            if (!response.ok) {
+                return;
+            }
+
+            const data = await response.json();
+            const items = Array.isArray(data.items) ? data.items : [];
+            const frag = document.createDocumentFragment();
+
+            items.forEach((message) => {
+                if (message.uuid && seenMessageUuids.has(message.uuid)) {
+                    return;
+                }
+
+                if (message.uuid) {
+                    seenMessageUuids.add(message.uuid);
+                }
+
+                frag.appendChild(
+                    buildMessageRow({
+                        id: message.id,
+                        uuid: message.uuid,
+                        body: message.body,
+                        message_type: message.message_type,
+                        is_outbound: message.is_outbound ?? message.direction === 'outbound',
+                        media_url: message.media_url,
+                        file_name: message.file_name,
+                        latitude: message.latitude,
+                        longitude: message.longitude,
+                        contacts: message.contacts,
+                        template_code: message.template_code,
+                        interactive: message.interactive,
+                        interactive_preview: message.interactive_preview,
+                    }),
+                );
+            });
+
+            if (frag.childNodes.length > 0) {
+                messagesEl.insertBefore(frag, messagesEl.firstChild);
+            }
+
+            if (data.oldest_id != null) {
+                messagesEl.dataset.oldestId = String(data.oldest_id);
+            }
+
+            messagesEl.dataset.hasMore = data.has_more ? '1' : '0';
+            messagesEl.scrollTop = previousTop + (messagesEl.scrollHeight - previousHeight);
+        } catch {
+            // Ignore transient older-message load errors.
+        } finally {
+            loadingOlderMessages = false;
+        }
+    };
+
+    messagesEl?.addEventListener('scroll', () => {
+        if (!messagesEl || messagesEl.scrollTop > 80) {
+            return;
+        }
+
+        loadOlderMessages();
+    });
+
+    window.__inboxAppendMessage = (message) => {
+        if (!message) {
+            return;
+        }
+
+        const before = message.uuid ? seenMessageUuids.has(message.uuid) : false;
+        appendMessage(message);
+
+        if (!before && message.uuid && seenMessageUuids.has(message.uuid) && !message.is_outbound) {
+            markConversationRead();
+        }
+    };
+
+    const markConversationRead = async () => {
+        const readUrl = chat.dataset.readUrl;
+        if (!readUrl || !csrf) {
+            return;
+        }
+
+        try {
+            await fetch(readUrl, {
+                method: 'POST',
+                headers: {
+                    Accept: 'application/json',
+                    'X-CSRF-TOKEN': csrf,
+                },
+                credentials: 'same-origin',
+            });
+
+            const openUuid = chat.dataset.conversationUuid;
+            if (openUuid) {
+                upsertThreadRow({
+                    uuid: openUuid,
+                    unread: 0,
+                });
+            }
+        } catch {
+            // Ignore mark-read failures; live append still works.
+        }
     };
 
     const refreshMessages = async () => {
@@ -760,11 +1474,36 @@ function initInboxChat() {
             const data = await response.json();
             if (!Array.isArray(data.items) || !messagesEl) return;
 
-            messagesEl.innerHTML = '';
-            data.items.forEach((message) => appendMessage({
-                body: message.body,
-                is_outbound: message.is_outbound ?? message.direction === 'outbound',
-            }));
+            let appendedInbound = false;
+
+            data.items.forEach((message) => {
+                const before = message.uuid ? seenMessageUuids.has(message.uuid) : false;
+                const isOutbound = message.is_outbound ?? message.direction === 'outbound';
+
+                appendMessage({
+                    id: message.id,
+                    uuid: message.uuid,
+                    body: message.body,
+                    message_type: message.message_type,
+                    is_outbound: isOutbound,
+                    media_url: message.media_url,
+                    file_name: message.file_name,
+                    latitude: message.latitude,
+                    longitude: message.longitude,
+                    contacts: message.contacts,
+                    template_code: message.template_code,
+                    interactive: message.interactive,
+                    interactive_preview: message.interactive_preview,
+                });
+
+                if (!before && message.uuid && seenMessageUuids.has(message.uuid) && !isOutbound) {
+                    appendedInbound = true;
+                }
+            });
+
+            if (appendedInbound) {
+                await markConversationRead();
+            }
         } catch {
             // Ignore transient poll errors.
         }
@@ -776,8 +1515,15 @@ function initInboxChat() {
         const body = input.value.trim();
         if (!body) return;
 
-        if (!serviceWindow.isWithinWindow()) {
-            showAppAlert('Outside the 24-hour messaging window. Send an approved template instead.', 'Session expired');
+        if (!serviceWindow.canSendFreeForm()) {
+            const walletBlocked =
+                chat.dataset.walletBlocked === '1' || root?.dataset.walletBlocked === '1';
+            showAppAlert(
+                walletBlocked
+                    ? 'Your wallet balance is currently insufficient to send messages.'
+                    : 'Outside the 24-hour messaging window. Send an approved template instead.',
+                walletBlocked ? 'Insufficient wallet balance' : 'Session expired',
+            );
 
             return;
         }
@@ -810,6 +1556,10 @@ function initInboxChat() {
                 uuid: data.message?.uuid,
                 body: data.message?.body ?? body,
                 is_outbound: true,
+                message_type: data.message?.message_type ?? 'text',
+                contacts: data.message?.contacts,
+                template_code: data.message?.template_code,
+                interactive: data.message?.interactive,
             });
             input.value = '';
             if (!realtimeEnabled) {
@@ -820,32 +1570,16 @@ function initInboxChat() {
         }
     });
 
-    const root = document.querySelector('[data-inbox-root]');
-    const realtimeEnabled = root?.dataset.realtimeEnabled === '1';
-    const tenantId = root?.dataset.tenantId;
-    const conversationUuid = chat.dataset.conversationUuid;
-    const pollInterval = realtimeEnabled
-        ? Number(root?.dataset.realtimeFallbackPoll || 120000)
-        : Number(root?.dataset.pollInterval || 30000);
-
-    if (realtimeEnabled && tenantId && window.Echo) {
-        window.Echo.private(`inbox.${tenantId}`)
-            .listen('.thread.updated', (payload) => {
-                updateThreadRow(payload.thread);
-            })
+    // Conversation-scoped Echo (tenant channel is handled in initInboxRealtime).
+    if (realtimeEnabled && tenantId && conversationUuid && window.Echo) {
+        window.Echo.private(`inbox.${tenantId}.conversation.${conversationUuid}`)
             .listen('.message.created', (payload) => {
-                updateThreadRow(payload.thread);
+                if (payload.conversation_uuid === conversationUuid) {
+                    window.__inboxAppendMessage?.(payload.message);
+                    upsertThreadRow(payload.thread);
+                    serviceWindow.refresh();
+                }
             });
-
-        if (conversationUuid) {
-            window.Echo.private(`inbox.${tenantId}.conversation.${conversationUuid}`)
-                .listen('.message.created', (payload) => {
-                    if (payload.conversation_uuid === conversationUuid) {
-                        appendMessage(payload.message);
-                        serviceWindow.refresh();
-                    }
-                });
-        }
     }
 
     if (pollInterval > 0) {
@@ -876,6 +1610,45 @@ function initInboxChat() {
             }
         });
     }
+
+    const optInButton = chat.querySelector('[data-inbox-resend-opt-in]');
+    const optInUrl = chat.dataset.optInUrl;
+
+    if (optInButton && optInUrl) {
+        optInButton.addEventListener('click', async () => {
+            optInButton.setAttribute('disabled', 'disabled');
+
+            try {
+                const response = await fetch(optInUrl, {
+                    method: 'POST',
+                    headers: {
+                        Accept: 'application/json',
+                        'X-CSRF-TOKEN': csrf,
+                    },
+                    credentials: 'same-origin',
+                });
+
+                if (!response.ok) {
+                    const error = await response.json().catch(() => ({}));
+                    showAppAlert(error.message || 'Unable to send opt-in.', 'Opt-in failed');
+
+                    return;
+                }
+
+                const data = await response.json();
+                appendMessage({
+                    body: data.message?.body ?? 'Opt-in template sent.',
+                    is_outbound: true,
+                    message_type: data.message?.message_type ?? 'template',
+                });
+                showAppAlert('Opt-in template sent.', 'Sent');
+            } catch {
+                showAppAlert('Unable to send opt-in.', 'Opt-in failed');
+            } finally {
+                optInButton.removeAttribute('disabled');
+            }
+        });
+    }
 }
 
 function initInboxOutboundModals() {
@@ -891,6 +1664,7 @@ function initInboxOutboundModals() {
     const interactiveMessagesUrl = chat.dataset.interactiveMessagesUrl;
     const locationUrl = chat.dataset.locationUrl;
     const stickerUrl = chat.dataset.stickerUrl;
+    const contactUrl = chat.dataset.contactUrl;
     const sendUrl = chat.dataset.sendUrl;
     const templatesUrl = chat.dataset.templatesUrl;
     const messagesEl = chat.querySelector('[data-inbox-messages]');
@@ -937,7 +1711,16 @@ function initInboxOutboundModals() {
     };
 
     const appendMessage = (message) => {
-        if (!messagesEl || !message?.body) return;
+        if (!messagesEl || !message) return;
+
+        if (typeof window.__inboxAppendMessage === 'function') {
+            window.__inboxAppendMessage({
+                ...message,
+                is_outbound: message.is_outbound ?? true,
+            });
+
+            return;
+        }
 
         const row = document.createElement('div');
         row.className = 'flex justify-end';
@@ -945,7 +1728,10 @@ function initInboxOutboundModals() {
         const bubble = document.createElement('div');
         bubble.className = 'max-w-[640px] rounded-bl-[12px] rounded-tl-[12px] rounded-tr-[12px] bg-green-100 p-4 text-xs leading-[1.8] text-text-body';
         bubble.style.fontFamily = "'Poppins', var(--font-sans)";
-        bubble.textContent = message.body;
+        fillMessageBubble(bubble, {
+            ...message,
+            is_outbound: true,
+        });
 
         row.appendChild(bubble);
         messagesEl.appendChild(row);
@@ -953,7 +1739,7 @@ function initInboxOutboundModals() {
     };
 
     const showFormError = (form, message) => {
-        const errorEl = form.querySelector('[data-inbox-media-error], [data-inbox-template-error], [data-inbox-flow-error], [data-inbox-interactive-error], [data-inbox-location-error], [data-inbox-sticker-error], [data-inbox-payment-error], [data-inbox-reaction-error]');
+        const errorEl = form.querySelector('[data-inbox-media-error], [data-inbox-template-error], [data-inbox-flow-error], [data-inbox-interactive-error], [data-inbox-location-error], [data-inbox-sticker-error], [data-inbox-contact-error], [data-inbox-payment-error], [data-inbox-reaction-error]');
         if (!errorEl) return;
 
         errorEl.textContent = message;
@@ -1002,6 +1788,92 @@ function initInboxOutboundModals() {
 
     const templateForm = document.querySelector('[data-inbox-template-form]');
     const templateSelect = document.querySelector('[data-inbox-template-select]');
+    const templateParamsEl = document.querySelector('[data-inbox-template-params]');
+
+    const templateVariableName = (variable) => {
+        if (typeof variable === 'string') {
+            return variable.trim();
+        }
+
+        return typeof variable?.name === 'string' ? variable.name.trim() : '';
+    };
+
+    const collectTemplateParams = () => {
+        const params = {};
+
+        templateForm?.querySelectorAll('[data-template-param]').forEach((input) => {
+            const name = input.dataset.templateParam?.trim();
+            if (!name) {
+                return;
+            }
+
+            params[name] = input.value?.trim() ?? '';
+        });
+
+        return params;
+    };
+
+    const renderTemplateParams = (variables) => {
+        if (!templateParamsEl) {
+            return;
+        }
+
+        templateParamsEl.replaceChildren();
+
+        const names = (Array.isArray(variables) ? variables : [])
+            .map(templateVariableName)
+            .filter(Boolean);
+
+        if (names.length === 0) {
+            templateParamsEl.classList.add('hidden');
+
+            return;
+        }
+
+        templateParamsEl.classList.remove('hidden');
+
+        const heading = document.createElement('p');
+        heading.className = 'text-sm font-semibold text-text-primary';
+        heading.textContent = 'Template variables';
+        templateParamsEl.appendChild(heading);
+
+        names.forEach((name) => {
+            const wrap = document.createElement('div');
+            wrap.className = 'flex flex-col gap-2';
+
+            const label = document.createElement('label');
+            label.className = 'text-sm font-medium text-text-body';
+            label.htmlFor = `inbox-template-param-${name}`;
+            label.textContent = name;
+
+            const input = document.createElement('input');
+            input.id = `inbox-template-param-${name}`;
+            input.type = 'text';
+            input.name = `template_params[${name}]`;
+            input.dataset.templateParam = name;
+            input.required = true;
+            input.maxLength = 1024;
+            input.placeholder = `Value for ${name}`;
+            input.className = 'w-full rounded-xl border border-border bg-elevated px-3.5 py-3.5 text-sm focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500';
+
+            wrap.appendChild(label);
+            wrap.appendChild(input);
+            templateParamsEl.appendChild(wrap);
+        });
+    };
+
+    const syncTemplateParamsFromSelect = () => {
+        const option = templateSelect?.selectedOptions?.[0];
+        let variables = [];
+
+        try {
+            variables = JSON.parse(option?.dataset.variables || '[]');
+        } catch {
+            variables = [];
+        }
+
+        renderTemplateParams(variables);
+    };
 
     if (templateSelect && templatesUrl) {
         fetch(templatesUrl, {
@@ -1018,20 +1890,33 @@ function initInboxOutboundModals() {
                     option.value = '';
                     option.textContent = 'No templates available';
                     templateSelect.appendChild(option);
+                    renderTemplateParams([]);
 
                     return;
                 }
+
+                const placeholder = document.createElement('option');
+                placeholder.value = '';
+                placeholder.textContent = 'Select a template';
+                templateSelect.appendChild(placeholder);
 
                 items.forEach((template) => {
                     const option = document.createElement('option');
                     option.value = template.code;
                     option.textContent = template.name || template.code;
+                    option.dataset.language = template.language || '';
+                    option.dataset.variables = JSON.stringify(template.variables || []);
                     templateSelect.appendChild(option);
                 });
+
+                syncTemplateParamsFromSelect();
             })
             .catch(() => {
                 templateSelect.innerHTML = '<option value="">No templates available</option>';
+                renderTemplateParams([]);
             });
+
+        templateSelect.addEventListener('change', syncTemplateParamsFromSelect);
     }
 
     if (templateForm && templateUrl) {
@@ -1046,6 +1931,16 @@ function initInboxOutboundModals() {
                 return;
             }
 
+            const templateParams = collectTemplateParams();
+            const missingParam = Object.entries(templateParams).find(([, value]) => value === '');
+            if (missingParam) {
+                showFormError(templateForm, `Enter a value for ${missingParam[0]}.`);
+
+                return;
+            }
+
+            const language = templateSelect.selectedOptions?.[0]?.dataset.language || undefined;
+
             try {
                 const response = await fetch(templateUrl, {
                     method: 'POST',
@@ -1055,7 +1950,11 @@ function initInboxOutboundModals() {
                         'X-CSRF-TOKEN': csrf,
                     },
                     credentials: 'same-origin',
-                    body: JSON.stringify({ template_code: templateCode }),
+                    body: JSON.stringify({
+                        template_code: templateCode,
+                        language,
+                        template_params: templateParams,
+                    }),
                 });
 
                 if (!response.ok) {
@@ -1356,6 +2255,61 @@ function initInboxOutboundModals() {
         });
     }
 
+    const contactForm = document.querySelector('[data-inbox-contact-form]');
+    if (contactForm && contactUrl) {
+        contactForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            showFormError(contactForm, '');
+
+            if (!assertWithinWindow()) {
+                return;
+            }
+
+            const payload = {
+                name: contactForm.querySelector('[name="name"]')?.value?.trim() || '',
+                first_name: contactForm.querySelector('[name="first_name"]')?.value?.trim() || null,
+                last_name: contactForm.querySelector('[name="last_name"]')?.value?.trim() || null,
+                phone: contactForm.querySelector('[name="phone"]')?.value?.trim() || '',
+                phone_type: contactForm.querySelector('[name="phone_type"]')?.value || 'CELL',
+                email: contactForm.querySelector('[name="email"]')?.value?.trim() || null,
+                company: contactForm.querySelector('[name="company"]')?.value?.trim() || null,
+            };
+
+            if (!payload.name || !payload.phone) {
+                showFormError(contactForm, 'Name and phone are required.');
+
+                return;
+            }
+
+            try {
+                const response = await fetch(contactUrl, {
+                    method: 'POST',
+                    headers: {
+                        Accept: 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrf,
+                    },
+                    credentials: 'same-origin',
+                    body: JSON.stringify(payload),
+                });
+
+                if (!response.ok) {
+                    const error = await response.json().catch(() => ({}));
+                    showFormError(contactForm, error.message || 'Unable to send contact.');
+
+                    return;
+                }
+
+                const data = await response.json();
+                appendMessage(data.message);
+                contactForm.reset();
+                closeModal(contactForm);
+            } catch {
+                showFormError(contactForm, 'Unable to send contact.');
+            }
+        });
+    }
+
     const paymentForm = document.querySelector('[data-inbox-payment-form]');
     const paymentUrl = chat.dataset.paymentUrl;
 
@@ -1639,6 +2593,8 @@ function initInboxSearch() {
             params.delete('q');
         }
 
+        params.delete('cursor');
+
         return params;
     };
 
@@ -1648,38 +2604,7 @@ function initInboxSearch() {
             return;
         }
 
-        const params = buildParams();
-        const query = params.toString();
-
-        list.innerHTML = threads.map((thread) => {
-            const isSelected = thread.uuid === selectedUuid;
-            const rowClass = isSelected ? 'bg-green-50' : 'bg-elevated hover:bg-surface';
-            const unreadCount = Number(thread.unread || 0);
-            const unreadClass = unreadCount > 0 ? 'flex' : 'hidden';
-            const href = `${inboxBaseUrl}/${encodeURIComponent(thread.uuid)}${query ? `?${query}` : ''}`;
-
-            return `
-                <a
-                    href="${href}"
-                    class="flex border-b border-divider px-2 py-1.5 last:border-0 ${rowClass}"
-                    data-thread-uuid="${escapeHtml(thread.uuid)}"
-                >
-                    <div class="flex min-w-0 flex-1 items-center gap-3 p-2">
-                        <div class="fd-btn-sm flex size-8 shrink-0 items-center justify-center rounded-2xl bg-green-50 text-green-500">${escapeHtml(thread.initials)}</div>
-                        <div class="min-w-0 flex-1">
-                            <div class="flex items-center justify-between gap-2">
-                                <span class="fd-table-name truncate">${escapeHtml(thread.name)}</span>
-                                <span class="fd-status-chip shrink-0 text-text-body/60" data-thread-time>${escapeHtml(thread.time)}</span>
-                            </div>
-                            <div class="flex items-center justify-between gap-2">
-                                <p class="fd-table-cell truncate text-xs opacity-50" data-thread-preview>${escapeHtml(thread.preview)}</p>
-                                <span class="fd-status-chip ${unreadClass} size-4 shrink-0 items-center justify-center rounded-full bg-green-500 text-white" data-thread-unread>${unreadCount > 0 ? unreadCount : ''}</span>
-                            </div>
-                        </div>
-                    </div>
-                </a>
-            `;
-        }).join('');
+        list.innerHTML = threads.map((thread) => buildThreadRowHtml(thread, selectedUuid)).join('');
     };
 
     const fetchThreads = async () => {
@@ -1698,6 +2623,11 @@ function initInboxSearch() {
 
             const data = await response.json();
             renderThreads(data.items || []);
+            setThreadsCursorState({
+                cursor: data.next_cursor || '',
+                hasMore: Boolean(data.has_more),
+            });
+            window.__inboxResetThreadsPagination?.();
 
             const nextQuery = params.toString();
             const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ''}`;

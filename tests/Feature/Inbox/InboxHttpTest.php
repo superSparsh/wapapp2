@@ -5,6 +5,7 @@ namespace Tests\Feature\Inbox;
 use App\Domains\Inbox\Services\InboxMessageService;
 use App\Models\Contact;
 use App\Models\Conversation;
+use App\Models\WalletAccount;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\InteractsWithTenants;
 use Tests\TestCase;
@@ -21,6 +22,11 @@ class InboxHttpTest extends TestCase
         parent::setUp();
         $this->setUpTenant();
         $this->messageService = app(InboxMessageService::class);
+
+        WalletAccount::query()->create([
+            'balance' => 500,
+            'currency' => 'INR',
+        ]);
     }
 
     protected function tearDown(): void
@@ -52,7 +58,15 @@ class InboxHttpTest extends TestCase
             ->get(route('inbox.show', $conversation))
             ->assertOk()
             ->assertSee('Inbox User')
-            ->assertSee('Inbound hello');
+            ->assertSee('Inbound hello')
+            ->assertViewHas('availableLines')
+            ->assertViewHas('walletBalance')
+            ->assertViewHas('walletBlocked', false)
+            ->assertViewHas('threadsCursor')
+            ->assertViewHas('threadsHasMore')
+            ->assertViewHas('messagesHasMore')
+            ->assertViewHas('messagesOldestId')
+            ->assertViewHas('activeLine', fn ($line) => $line->id === $this->testLine->id);
     }
 
     public function test_user_can_send_message_via_api(): void

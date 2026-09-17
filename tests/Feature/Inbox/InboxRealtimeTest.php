@@ -21,7 +21,7 @@ class InboxRealtimeTest extends TestCase
         parent::setUp();
         $this->setUpTenant();
         config([
-            'broadcasting.default' => 'log',
+            'broadcasting.default' => 'reverb',
             'inbox.realtime_enabled' => true,
         ]);
     }
@@ -49,7 +49,7 @@ class InboxRealtimeTest extends TestCase
 
     public function test_mark_read_broadcasts_thread_update(): void
     {
-        Event::fake([InboxThreadUpdated::class]);
+        Event::fake([InboxMessageCreated::class, InboxThreadUpdated::class]);
 
         $conversation = $this->createConversation();
         app(\App\Domains\Inbox\Services\InboxMessageService::class)

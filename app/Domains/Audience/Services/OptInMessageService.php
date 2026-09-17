@@ -28,18 +28,19 @@ class OptInMessageService
 
     /**
      * Send opt-in template once per contact when send_opt_in_message=yes.
+     * Pass $force=true from inbox "Resend opt-in" to allow another send.
      */
-    public function sendOptInToContact(Contact $contact, ?WhatsappLine $line = null): bool
+    public function sendOptInToContact(Contact $contact, ?WhatsappLine $line = null, bool $force = false): bool
     {
-        if (($contact->send_opt_in_message ?? 'no') !== 'yes') {
+        if (! $force && ($contact->send_opt_in_message ?? 'no') !== 'yes') {
             return false;
         }
 
-        if ((bool) $contact->opt_in_message_sent) {
+        if (! $force && (bool) $contact->opt_in_message_sent) {
             return false;
         }
 
-        if ($contact->opt_in_message_delivery_status === self::DELIVERY_PENDING) {
+        if (! $force && $contact->opt_in_message_delivery_status === self::DELIVERY_PENDING) {
             return false;
         }
 

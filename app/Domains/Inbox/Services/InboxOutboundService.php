@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Inbox\Services;
 
+use App\Domains\Billing\Services\WalletService;
 use App\Domains\Inbox\Jobs\SendOutboundMessageJob;
 use App\Domains\WhatsApp\Services\AlibabaCamsClient;
 use App\Enums\MessageDirection;
@@ -24,6 +25,7 @@ class InboxOutboundService
         private readonly MessagingWindowService $windowService,
         private readonly InboxMediaService $mediaService,
         private readonly AlibabaCamsClient $camsClient,
+        private readonly WalletService $walletService,
     ) {}
 
     public function sendText(Conversation $conversation, string $body, bool $enforceWindow = true): Message
@@ -181,6 +183,74 @@ class InboxOutboundService
     }
 
     /**
+     * @param  array{
+     *     name: string,
+     *     phone: string,
+     *     first_name?: string|null,
+     *     last_name?: string|null,
+     *     phone_type?: string|null,
+     *     email?: string|null,
+     *     company?: string|null
+     * }  $contact
+     */
+    public function sendContact(Conversation $conversation, array $contact): Message
+    {
+        $this->windowService->assertWithinServiceWindow($conversation);
+
+        $formattedName = trim((string) ($contact['name'] ?? ''));
+        abort_if($formattedName === '', 422, 'Contact name is required.');
+
+        $phone = trim((string) ($contact['phone'] ?? ''));
+        abort_if($phone === '', 422, 'Contact phone is required.');
+
+        $phoneType = strtoupper(trim((string) ($contact['phone_type'] ?? 'CELL')));
+        if (! in_array($phoneType, ['CELL', 'WORK', 'HOME', 'MAIN', 'IPHONE'], true)) {
+            $phoneType = 'CELL';
+        }
+
+        $waId = PhoneNormalizer::normalize($phone) ?? (preg_replace('/\D+/', '', $phone) ?: null);
+
+        $namePayload = array_filter([
+            'formatted_name' => $formattedName,
+            'first_name' => filled($contact['first_name'] ?? null) ? trim((string) $contact['first_name']) : null,
+            'last_name' => filled($contact['last_name'] ?? null) ? trim((string) $contact['last_name']) : null,
+        ], fn ($value) => $value !== null && $value !== '');
+
+        $phonePayload = array_filter([
+            'phone' => $phone,
+            'type' => $phoneType,
+            'wa_id' => $waId,
+        ], fn ($value) => $value !== null && $value !== '');
+
+        $contactPayload = [
+            'name' => $namePayload,
+            'phones' => [$phonePayload],
+        ];
+
+        if (filled($contact['email'] ?? null)) {
+            $contactPayload['emails'] = [[
+                'email' => trim((string) $contact['email']),
+                'type' => 'WORK',
+            ]];
+        }
+
+        if (filled($contact['company'] ?? null)) {
+            $contactPayload['org'] = [
+                'company' => trim((string) $contact['company']),
+            ];
+        }
+
+        return $this->createOutboundMessage(
+            conversation: $conversation,
+            body: $formattedName,
+            messageType: MessageType::Contact,
+            metadata: [
+                'contacts' => [$contactPayload],
+            ],
+        );
+    }
+
+    /**
      * Send real-time typing indicator to WhatsApp user via Alibaba CAMS.
      */
     public function sendTypingIndicator(Conversation $conversation): bool
@@ -265,6 +335,11 @@ class InboxOutboundService
         ?array $metadata = null,
         bool $sendImmediately = false,
     ): Message {
+        // Legacy parity: low wallet blocks free-form, but templates / opt-in / payment still go out.
+        if ($messageType !== MessageType::Template && $messageType !== MessageType::System) {
+            $this->assertWalletAllowsSend();
+        }
+
         if ($messageType === MessageType::Text) {
             abort_if(blank($body), 422, 'Message body is required.');
         }
@@ -311,5 +386,21 @@ class InboxOutboundService
             'document' => MessageType::Document,
             default => MessageType::Image,
         };
+    }
+
+    private function assertWalletAllowsSend(): void
+    {
+        $minBalance = (float) config('inbox.wallet_min_balance', 50);
+        $balance = $this->walletService->balance();
+
+        abort_if(
+            $balance <= $minBalance,
+            422,
+            sprintf(
+                'Insufficient wallet balance (₹%s). Please recharge to at least ₹%s to send messages.',
+                number_format($balance, 2),
+                number_format($minBalance, 2),
+            ),
+        );
     }
 }

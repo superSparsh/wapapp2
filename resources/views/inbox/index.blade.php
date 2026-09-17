@@ -3,12 +3,15 @@
     class="flex h-full min-h-0 flex-col overflow-hidden"
     data-inbox-root
     data-poll-interval="{{ config('inbox.poll_interval_ms', 30000) }}"
-    data-realtime-fallback-poll="{{ config('inbox.realtime_fallback_poll_ms', 120000) }}"
-    data-realtime-enabled="{{ config('inbox.realtime_enabled') && config('broadcasting.default') !== 'null' ? '1' : '0' }}"
+    data-realtime-fallback-poll="{{ config('inbox.realtime_fallback_poll_ms', 15000) }}"
+    data-realtime-enabled="{{ config('inbox.realtime_enabled') && in_array(config('broadcasting.default'), ['reverb', 'pusher', 'ably'], true) ? '1' : '0' }}"
     data-tenant-id="{{ tenant('id') }}"
     data-add-contact-url="{{ route('inbox.api.contacts.store') }}"
     data-threads-url="{{ route('inbox.api.threads') }}"
     data-inbox-base-url="{{ url('/inbox') }}"
+    data-wallet-blocked="{{ ! empty($walletBlocked) ? '1' : '0' }}"
+    data-threads-cursor="{{ $threadsCursor ?? '' }}"
+    data-threads-has-more="{{ ! empty($threadsHasMore) ? '1' : '0' }}"
   >
     <div class="flex shrink-0 flex-col gap-4 p-4 pb-3">
       <x-ui.page-header title="Inbox" />
@@ -17,6 +20,8 @@
         'filters' => $filters ?? [],
         'filterOptions' => $filterOptions ?? [],
         'selectedConversation' => $selectedConversation ?? null,
+        'availableLines' => $availableLines ?? [],
+        'activeLine' => $activeLine ?? null,
       ])
     </div>
 
@@ -26,6 +31,10 @@
           'threads' => $threads ?? [],
           'selectedConversation' => $selectedConversation ?? null,
           'filters' => $filters ?? [],
+          'availableLines' => $availableLines ?? [],
+          'activeLine' => $activeLine ?? null,
+          'threadsCursor' => $threadsCursor ?? null,
+          'threadsHasMore' => $threadsHasMore ?? false,
         ])
 
         @if (! empty($selectedConversation) && ! empty($selectedContact))
@@ -35,6 +44,9 @@
             'conversation' => $selectedConversation,
             'assignableAgents' => $assignableAgents ?? collect(),
             'menuOpen' => false,
+            'walletBlocked' => $walletBlocked ?? false,
+            'messagesHasMore' => $messagesHasMore ?? false,
+            'messagesOldestId' => $messagesOldestId ?? null,
           ])
         @else
           @include('inbox.partials.chat-empty')

@@ -14,6 +14,7 @@
                     <option value="">Loading templates...</option>
                 </select>
             </div>
+            <div class="flex flex-col gap-3 hidden" data-inbox-template-params></div>
             <p class="hidden text-xs text-red-500" data-inbox-template-error></p>
             <x-inbox.modal-actions submit="Send Template" />
         </form>

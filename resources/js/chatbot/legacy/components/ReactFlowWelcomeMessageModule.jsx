@@ -333,18 +333,12 @@ const ReactFlowWelcomeMessageModule = ({
                   <Form.Item
                     name="welcomeMessage"
                     label="Welcome Message"
-                    rules={[
-                      {
-                        required: true,
-                        message: "Please enter welcome message",
-                      },
-                    ]}
-                    help="This message will be sent when the trigger keyword is matched"
+                    help="Optional. Leave empty to skip sending text and continue to the next node."
                   >
                     <div>
                       <TextArea
                         rows={4}
-                        placeholder="Enter your welcome message..."
+                        placeholder="Enter your welcome message (optional)..."
                         showCount
                         maxLength={1000}
                       />

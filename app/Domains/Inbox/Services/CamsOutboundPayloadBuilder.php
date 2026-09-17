@@ -39,6 +39,7 @@ class CamsOutboundPayloadBuilder
             MessageType::Image, MessageType::Video, MessageType::Audio, MessageType::Document => $this->buildMediaPayload($message, $payload),
             MessageType::Location => $this->buildLocationPayload($message, $payload),
             MessageType::Sticker => $this->buildStickerPayload($message, $payload),
+            MessageType::Contact => $this->buildContactPayload($message, $payload),
             default => $this->buildTextPayload($message, $payload),
         };
     }
@@ -167,6 +168,24 @@ class CamsOutboundPayloadBuilder
             'MessageType' => 'sticker',
             'Content' => json_encode([
                 'link' => (string) ($metadata['media_url'] ?? ''),
+            ], JSON_THROW_ON_ERROR),
+        ]);
+    }
+
+    /**
+     * @param  array<string, string>  $payload
+     * @return array<string, string>
+     */
+    private function buildContactPayload(Message $message, array $payload): array
+    {
+        $metadata = $message->metadata ?? [];
+        $contacts = is_array($metadata['contacts'] ?? null) ? $metadata['contacts'] : [];
+
+        return array_merge($payload, [
+            'Type' => 'message',
+            'MessageType' => 'contacts',
+            'Content' => json_encode([
+                'contacts' => $contacts,
             ], JSON_THROW_ON_ERROR),
         ]);
     }
