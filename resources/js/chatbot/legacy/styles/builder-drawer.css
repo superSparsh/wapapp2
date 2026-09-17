@@ -146,25 +146,73 @@
   background: #eff6ff;
 }
 
+/* Inline template picker (no portaled Select dropdown) */
+.chatbot-template-picker__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 280px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.chatbot-template-picker__empty {
+  padding: 16px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--color-text-muted, #6b7280);
+  border: 1px dashed var(--color-divider, #e5e7eb);
+  border-radius: 8px;
+  background: var(--color-surface, #f7f8fa);
+}
+
+.chatbot-template-picker__item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--color-divider, #e5e7eb);
+  border-radius: 10px;
+  background: var(--color-elevated, #fff);
+  padding: 12px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.chatbot-template-picker__item:hover {
+  border-color: var(--color-green-500, #22c55e);
+  background: var(--color-green-50, #f0fdf4);
+}
+
+.chatbot-template-picker__item.is-selected {
+  border-color: var(--color-green-500, #22c55e);
+  background: var(--color-green-50, #f0fdf4);
+  box-shadow: 0 0 0 1px var(--color-green-500, #22c55e);
+}
+
+.chatbot-template-picker__item-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.chatbot-template-picker__name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary, #111827);
+  line-height: 1.4;
+}
+
+.chatbot-template-picker__body {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--color-text-muted, #6b7280);
+}
+
 /* Drawer stack */
 .chatbot-builder-drawer-root,
 .chatbot-builder-drawer-root .ant-drawer-mask,
 .chatbot-builder-drawer-root .ant-drawer-wrap {
   z-index: 1100 !important;
-}
-
-/*
- * Select / DatePicker / Cascader menus must sit ABOVE the drawer.
- * Body class is toggled by BuilderDrawer while any builder drawer is open.
- */
-body.chatbot-builder-drawer-open .ant-select-dropdown,
-body.chatbot-builder-drawer-open .ant-select-dropdown.ant-select-dropdown-placement-bottomLeft,
-body.chatbot-builder-drawer-open .ant-select-dropdown.ant-select-dropdown-placement-topLeft,
-body.chatbot-builder-drawer-open .ant-picker-dropdown,
-body.chatbot-builder-drawer-open .ant-cascader-dropdown,
-body.chatbot-builder-drawer-open .ant-dropdown,
-.chatbot-builder-select-dropdown,
-.ant-select-dropdown.chatbot-builder-select-dropdown {
-  z-index: 10050 !important;
-  pointer-events: auto !important;
 }

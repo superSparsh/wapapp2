@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import BuilderDrawer, { BuilderDrawerTitle } from "./BuilderDrawer.jsx";
 import {
   Form,
@@ -8,13 +8,9 @@ import {
   Space,
   message,
   Card,
-  Select,
   Upload,
   Typography,
   Tag,
-  Row,
-  Col,
-  Divider,
 } from "antd";
 import {
   HomeOutlined,
@@ -22,6 +18,8 @@ import {
   FileTextOutlined,
   PictureOutlined,
   UploadOutlined,
+  SearchOutlined,
+  CheckCircleFilled,
 } from "@ant-design/icons";
 import VariableHelper from "./VariableHelper.jsx";
 
@@ -41,12 +39,37 @@ const ReactFlowWelcomeMessageModule = ({
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [quickReplies, setQuickReplies] = useState([]);
   const [showBranchingConfig, setShowBranchingConfig] = useState(false);
+  const [templateSearch, setTemplateSearch] = useState("");
 
   // Timeout configuration state
   const [timeoutConfig, setTimeoutConfig] = useState({
     unreadTimeout: 300, // 5 minutes default
     undeliveredTimeout: 60, // 1 minute default
   });
+
+  const selectableTemplates = useMemo(
+    () =>
+      templates.filter(
+        (template) =>
+          template.is_carousel_template !== 1 &&
+          (template.button_text_flow === null ||
+            template.button_text_flow === "")
+      ),
+    [templates]
+  );
+
+  const filteredTemplates = useMemo(() => {
+    const query = templateSearch.trim().toLowerCase();
+    if (!query) {
+      return selectableTemplates;
+    }
+
+    return selectableTemplates.filter((template) => {
+      const name = String(template.template_name || "").toLowerCase();
+      const body = String(template.actual_body || "").toLowerCase();
+      return name.includes(query) || body.includes(query);
+    });
+  }, [selectableTemplates, templateSearch]);
 
   // Initialize form with node data if editing
   useEffect(() => {
@@ -64,6 +87,7 @@ const ReactFlowWelcomeMessageModule = ({
       if (nodeData.timeoutConfig) {
         setTimeoutConfig(nodeData.timeoutConfig);
       }
+      setTemplateSearch("");
     } else if (visible) {
       // Reset all form fields and state for new node
       form.resetFields();
@@ -75,6 +99,7 @@ const ReactFlowWelcomeMessageModule = ({
       setSelectedTemplate(null);
       setQuickReplies([]);
       setShowBranchingConfig(false);
+      setTemplateSearch("");
       setTimeoutConfig({
         unreadTimeout: 300,
         undeliveredTimeout: 60,
@@ -133,6 +158,7 @@ const ReactFlowWelcomeMessageModule = ({
     console.log("Template changed to:", templateId);
     const template = templates.find((t) => t.id === templateId);
     setSelectedTemplate(template);
+    form.setFieldsValue({ templateId: templateId || undefined });
 
     if (template) {
       console.log("Template button_type:", template.button_type);
@@ -169,6 +195,69 @@ const ReactFlowWelcomeMessageModule = ({
       setQuickReplies([]);
       setShowBranchingConfig(false);
     }
+  };
+
+  const renderTemplatePicker = () => {
+    const selectedId = selectedTemplate?.id ?? form.getFieldValue("templateId");
+
+    return (
+      <div className="chatbot-template-picker">
+        <Input
+          allowClear
+          prefix={<SearchOutlined style={{ color: "#9ca3af" }} />}
+          placeholder="Search templates..."
+          value={templateSearch}
+          onChange={(event) => setTemplateSearch(event.target.value)}
+          style={{ marginBottom: 12 }}
+        />
+
+        <div className="chatbot-template-picker__list">
+          {filteredTemplates.length === 0 ? (
+            <div className="chatbot-template-picker__empty">
+              No templates found
+            </div>
+          ) : (
+            filteredTemplates.map((template) => {
+              const isSelected = selectedId === template.id;
+              const isQuickReply =
+                template.button_type == 2 || template.button_type == 4;
+
+              return (
+                <button
+                  key={template.id}
+                  type="button"
+                  className={`chatbot-template-picker__item${
+                    isSelected ? " is-selected" : ""
+                  }`}
+                  onClick={() => handleTemplateChange(template.id)}
+                >
+                  <div className="chatbot-template-picker__item-top">
+                    <span className="chatbot-template-picker__name">
+                      {template.template_name}
+                    </span>
+                    {isSelected ? (
+                      <CheckCircleFilled style={{ color: "#22c55e" }} />
+                    ) : null}
+                  </div>
+                  {isQuickReply ? (
+                    <Tag
+                      color="green"
+                      style={{ margin: "6px 0 0 0", fontSize: "10px" }}
+                    >
+                      Quick Reply Template
+                    </Tag>
+                  ) : null}
+                  <div className="chatbot-template-picker__body">
+                    {template.actual_body?.substring(0, 90) || "No preview"}
+                    {template.actual_body?.length > 90 ? "..." : ""}
+                  </div>
+                </button>
+              );
+            })
+          )}
+        </div>
+      </div>
+    );
   };
 
   const renderQuickReplyInfo = () => {
@@ -379,20 +468,22 @@ const ReactFlowWelcomeMessageModule = ({
                       },
                     ]}
                   >
-                    <Select>
-                      <Select.Option value="image">
-                        <Space>
-                          <PictureOutlined />
-                          Image
-                        </Space>
-                      </Select.Option>
-                      <Select.Option value="video">
-                        <Space>
-                          <PictureOutlined />
-                          Video
-                        </Space>
-                      </Select.Option>
-                    </Select>
+                    <Radio.Group>
+                      <Space>
+                        <Radio.Button value="image">
+                          <Space>
+                            <PictureOutlined />
+                            Image
+                          </Space>
+                        </Radio.Button>
+                        <Radio.Button value="video">
+                          <Space>
+                            <PictureOutlined />
+                            Video
+                          </Space>
+                        </Radio.Button>
+                      </Space>
+                    </Radio.Group>
                   </Form.Item>
 
                   <Form.Item
@@ -444,87 +535,27 @@ const ReactFlowWelcomeMessageModule = ({
                   size="small"
                   style={{ marginBottom: 16 }}
                 >
+                  <div
+                    style={{
+                      marginBottom: 8,
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: "#374151",
+                    }}
+                  >
+                    Choose Template
+                  </div>
                   <Form.Item
                     name="templateId"
-                    label="Select Template"
                     rules={[
                       { required: true, message: "Please select a template" },
                     ]}
+                    hidden
                   >
-                    <Select
-                      placeholder="Choose a template"
-                      showSearch
-                      optionFilterProp="children"
-                      onChange={handleTemplateChange}
-                      getPopupContainer={() => document.body}
-                      popupClassName="chatbot-builder-select-dropdown"
-                      listHeight={320}
-                      virtual={false}
-                      filterOption={(input, option) => {
-                        // Get the template name from the option's data attribute
-                        const templateName = option["data-template-name"] || "";
-                        return (
-                          templateName
-                            .toLowerCase()
-                            .indexOf(input.toLowerCase()) >= 0
-                        );
-                      }}
-                      style={{
-                        height: "74px", // Set the height of the select input
-                      }}
-                      styles={{
-                        popup: {
-                          root: {
-                            zIndex: 10050,
-                          },
-                        },
-                      }}
-                    >
-                      {(() => {
-                        const filteredTemplates = templates.filter(
-                          (template) =>
-                            template.is_carousel_template !== 1 &&
-                            (template.button_text_flow === null ||
-                              template.button_text_flow === "")
-                        ); // Exclude carousel templates and WhatsApp Flow templates - they have their own dedicated nodes
-
-                        return filteredTemplates.map((template) => (
-                          <Select.Option
-                            key={template.id}
-                            value={template.id}
-                            data-template-name={template.template_name}
-                          >
-                            <div>
-                              <div
-                                style={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  justifyContent: "space-between",
-                                  marginBottom: "4px",
-                                }}
-                              >
-                                <div style={{ fontWeight: 500 }}>
-                                  {template.template_name}
-                                </div>
-                                {(template.button_type == 2 ||
-                                  template.button_type == 4) && (
-                                  <Tag
-                                    color="green"
-                                    style={{ margin: 0, fontSize: "10px" }}
-                                  >
-                                    Quick Reply Template
-                                  </Tag>
-                                )}
-                              </div>
-                              <div style={{ fontSize: "12px", color: "#666" }}>
-                                {template.actual_body?.substring(0, 50)}...
-                              </div>
-                            </div>
-                          </Select.Option>
-                        ));
-                      })()}
-                    </Select>
+                    <Input />
                   </Form.Item>
+
+                  {renderTemplatePicker()}
 
                   {/* Quick Reply Info Section */}
                   {renderQuickReplyInfo()}
