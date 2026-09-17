@@ -115,8 +115,14 @@ class InboundMessageHandler
             $keywordHandled = $this->stopKeywordService->handle($conversation->refresh(), $message);
 
             if (! $keywordHandled) {
-                $this->triggerTemplateEngine->process($conversation->refresh(), $message);
-                $this->chatbotFlowEngine->processInbound($conversation->refresh(), $message);
+                // Chatbot keyword flows take priority over free trigger-templates
+                // so the same word does not send template + wrong "next" chatbot message.
+                $chatbotResult = $this->chatbotFlowEngine->processInbound($conversation->refresh(), $message);
+
+                if ($chatbotResult === \App\Domains\TriggerTemplate\Enums\TriggerFireResult::NoMatch) {
+                    $this->triggerTemplateEngine->process($conversation->refresh(), $message);
+                }
+
                 $this->newLeadWebhookListener->handle($message, $conversation->refresh());
 
                 if ($message->message_type === MessageType::Interactive) {

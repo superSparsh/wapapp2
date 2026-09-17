@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domains\Chatbot\Services\NodeTypes;
 
 use App\Domains\Chatbot\Enums\NodeProcessResult;
+use App\Enums\ChatbotFlowStateStatus;
 use App\Models\ChatbotFlowState;
 use App\Models\Conversation;
 
@@ -28,40 +29,45 @@ class TemplateMessageProcessor extends AbstractNodeProcessor
                 $this->sendTemplate($conversation, $templateCode, is_array($params) ? $params : []);
             }
         } else {
-            $text = (string) ($data['text'] ?? '');
+            $text = (string) ($data['text'] ?? $data['message'] ?? $data['welcomeMessage'] ?? '');
 
             if ($text !== '') {
-                $resolved = $this->resolveText($text, $variables);
-                $this->sendText($conversation, $resolved);
+                $this->sendText($conversation, $this->resolveText($text, $variables));
             }
+        }
 
-            // Send quick replies as numbered options if present
-            $quickReplies = $data['quickReplies'] ?? [];
+        $quickReplies = $data['quickReplies'] ?? [];
+        if (! is_array($quickReplies)) {
+            $quickReplies = [];
+        }
 
-            if (is_array($quickReplies) && $quickReplies !== []) {
+        if ($quickReplies !== [] || $this->hasQuickReplyBranches($node)) {
+            if ($quickReplies !== [] && $messageType !== 'template') {
                 $lines = [];
-
                 foreach ($quickReplies as $i => $reply) {
                     $title = is_string($reply) ? $reply : (string) ($reply['title'] ?? $reply['text'] ?? '');
-
                     if ($title !== '') {
                         $lines[] = ($i + 1).'. '.$title;
                     }
                 }
-
                 if ($lines !== []) {
                     $this->sendText($conversation, implode("\n", $lines));
                 }
-
-                // Store quick replies for response matching
-                $state->mergeVariables([
-                    '_quick_replies' => $quickReplies,
-                    '_quick_reply_node_id' => (string) ($node['id'] ?? ''),
-                ]);
             }
+
+            $state->mergeVariables([
+                '_quick_replies' => $quickReplies,
+                '_quick_reply_node_id' => (string) ($node['id'] ?? ''),
+                '_wait_variable_name' => 'user_response',
+            ]);
+            $state->forceFill([
+                'status' => ChatbotFlowStateStatus::Waiting,
+                'current_node_id' => (string) ($node['id'] ?? ''),
+            ])->save();
+
+            return NodeProcessResult::WaitForResponse;
         }
 
-        // Advance to next node
         $nextId = $this->defaultNextNodeId($node);
 
         if ($nextId !== null) {
@@ -69,5 +75,23 @@ class TemplateMessageProcessor extends AbstractNodeProcessor
         }
 
         return NodeProcessResult::Continue;
+    }
+
+    /**
+     * @param  array<string, mixed>  $node
+     */
+    private function hasQuickReplyBranches(array $node): bool
+    {
+        foreach (array_keys($node['outputs'] ?? []) as $handle) {
+            $handle = (string) $handle;
+            if (str_starts_with($handle, 'reply-') || str_starts_with($handle, 'reply_')) {
+                $connections = $node['outputs'][$handle]['connections'] ?? [];
+                if ($connections !== []) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 }

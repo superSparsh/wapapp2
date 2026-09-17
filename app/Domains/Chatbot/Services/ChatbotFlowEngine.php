@@ -297,7 +297,7 @@ class ChatbotFlowEngine
             }
         }
 
-        // Quick replies → output_{n} / button-{n}
+        // Quick replies → reply-{n} / output_{n} / button-{n}
         $quickReplies = $variables['_quick_replies'] ?? [];
         if (is_array($quickReplies)) {
             foreach ($quickReplies as $index => $reply) {
@@ -309,7 +309,7 @@ class ChatbotFlowEngine
                     continue;
                 }
 
-                foreach (['output_'.($index + 1), 'button-'.$index] as $handleKey) {
+                foreach (['reply-'.$index, 'reply_'.$index, 'output_'.($index + 1), 'button-'.$index] as $handleKey) {
                     $nextId = $this->nextNodeIdFromHandle($node, $handleKey);
                     if ($nextId !== null) {
                         return $nextId;
@@ -474,6 +474,9 @@ class ChatbotFlowEngine
                 continue;
             }
 
+            // Prefer dedicated triggerKeyword/keywords over text-field fallback.
+            $hasDedicatedKeyword = trim((string) ($data['triggerKeyword'] ?? $data['keywords'] ?? '')) !== '';
+
             $keywords = array_filter(
                 array_map(fn (string $kw): string => mb_strtolower(trim($kw)), explode(',', $triggerKeyword)),
             );
@@ -495,6 +498,7 @@ class ChatbotFlowEngine
                     'node_id' => (string) $nodeId,
                     'keyword' => $keyword,
                     'exact' => $exact,
+                    'dedicated' => $hasDedicatedKeyword,
                 ];
 
                 if ($best === null || $this->compareTriggerCandidates($candidate, $best) > 0) {
@@ -654,13 +658,19 @@ class ChatbotFlowEngine
     }
 
     /**
-     * @param  array{keyword: string, exact: bool}  $a
-     * @param  array{keyword: string, exact: bool}  $b
+     * @param  array{keyword: string, exact: bool, dedicated?: bool}  $a
+     * @param  array{keyword: string, exact: bool, dedicated?: bool}  $b
      */
     private function compareTriggerCandidates(array $a, array $b): int
     {
         if ($a['exact'] !== $b['exact']) {
             return $a['exact'] ? 1 : -1;
+        }
+
+        $aDedicated = (bool) ($a['dedicated'] ?? true);
+        $bDedicated = (bool) ($b['dedicated'] ?? true);
+        if ($aDedicated !== $bDedicated) {
+            return $aDedicated ? 1 : -1;
         }
 
         $lenCmp = mb_strlen($a['keyword']) <=> mb_strlen($b['keyword']);
@@ -863,23 +873,12 @@ class ChatbotFlowEngine
      */
     private function defaultNextNodeId(array $node): ?string
     {
-        $outputs = $node['outputs'] ?? [];
-
-        // Try output_1, then default
-        foreach (['output_1', 'default'] as $handle) {
+        // Legacy getDefaultContinueNodeIds — only default/output_1, never branch handles.
+        foreach (['default', 'output_1'] as $handle) {
             $nextId = $this->nextNodeIdFromHandle($node, $handle);
 
             if ($nextId !== null) {
                 return $nextId;
-            }
-        }
-
-        // Fall back to first available
-        foreach ($outputs as $output) {
-            $connections = $output['connections'] ?? [];
-
-            if (isset($connections[0]['node'])) {
-                return (string) $connections[0]['node'];
             }
         }
 

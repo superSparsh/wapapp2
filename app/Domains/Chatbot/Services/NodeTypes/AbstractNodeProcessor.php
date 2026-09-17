@@ -39,33 +39,17 @@ abstract class AbstractNodeProcessor implements NodeProcessorInterface
     }
 
     /**
-     * Resolve the default next node ID (output_1 or first available).
+     * Resolve the default next node ID (legacy: only `default` / `output_1`).
+     * Never fall through to reply-*, button-*, unread, etc. — those are branch handles.
      *
      * @param  array<string, mixed>  $node
      */
     protected function defaultNextNodeId(array $node): ?string
     {
-        // Try output_1 first, then 'default'
-        $nextId = $this->nextNodeIdFromHandle($node, 'output_1');
-
-        if ($nextId !== null) {
-            return $nextId;
-        }
-
-        $nextId = $this->nextNodeIdFromHandle($node, 'default');
-
-        if ($nextId !== null) {
-            return $nextId;
-        }
-
-        // Fall back to first available output
-        $outputs = $node['outputs'] ?? [];
-
-        foreach ($outputs as $output) {
-            $connections = $output['connections'] ?? [];
-
-            if (isset($connections[0]['node'])) {
-                return (string) $connections[0]['node'];
+        foreach (['default', 'output_1'] as $handle) {
+            $nextId = $this->nextNodeIdFromHandle($node, $handle);
+            if ($nextId !== null) {
+                return $nextId;
             }
         }
 

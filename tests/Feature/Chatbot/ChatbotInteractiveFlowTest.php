@@ -643,6 +643,89 @@ class ChatbotInteractiveFlowTest extends TestCase
         $this->assertSame($support->id, ChatbotFlowState::query()->latest('id')->first()?->chatbot_flow_id);
     }
 
+    public function test_welcome_does_not_auto_follow_reply_branch_on_trigger(): void
+    {
+        $sent = [];
+        $this->mock(InboxOutboundService::class, function ($mock) use (&$sent): void {
+            $mock->shouldReceive('sendText')->andReturnUsing(function ($conversation, string $body) use (&$sent) {
+                $sent[] = $body;
+
+                return new Message([
+                    'id' => count($sent),
+                    'body' => $body,
+                    'direction' => MessageDirection::Outbound,
+                    'message_type' => MessageType::Text,
+                ]);
+            });
+            $mock->shouldReceive('sendInteractive')->andReturn(new Message([
+                'id' => 998,
+                'body' => 'interactive',
+                'direction' => MessageDirection::Outbound,
+                'message_type' => MessageType::Interactive,
+            ]));
+            $mock->shouldReceive('sendMedia')->andReturn(new Message([
+                'id' => 997,
+                'body' => 'media',
+                'direction' => MessageDirection::Outbound,
+                'message_type' => MessageType::Image,
+            ]));
+            $mock->shouldReceive('sendTypingIndicator')->andReturn(true);
+        });
+
+        ChatbotFlow::factory()->active()->create([
+            'exported_data' => [
+                'nodes' => [
+                    [
+                        'id' => 'welcome_1',
+                        'type' => 'welcomeMessage',
+                        'data' => [
+                            'messageType' => 'text',
+                            'triggerKeyword' => 'hello',
+                            'welcomeMessage' => 'Welcome body',
+                            'quickReplies' => [
+                                ['id' => 1, 'text' => 'Sales'],
+                                ['id' => 2, 'text' => 'Support'],
+                            ],
+                        ],
+                    ],
+                    [
+                        'id' => 'sales_node',
+                        'type' => 'welcomeMessage',
+                        'data' => ['messageType' => 'text', 'welcomeMessage' => 'WRONG sales branch'],
+                    ],
+                    [
+                        'id' => 'next_default',
+                        'type' => 'welcomeMessage',
+                        'data' => ['messageType' => 'text', 'welcomeMessage' => 'Default continue'],
+                    ],
+                ],
+                'edges' => [
+                    // Branch handle only — must NOT auto-follow on trigger
+                    ['source' => 'welcome_1', 'target' => 'sales_node', 'sourceHandle' => 'reply-0'],
+                    ['source' => 'welcome_1', 'target' => 'next_default', 'sourceHandle' => 'default'],
+                ],
+            ],
+        ]);
+
+        $conversation = Conversation::factory()->create();
+        $engine = app(ChatbotFlowEngine::class);
+
+        $engine->processInbound($conversation, Message::factory()->create([
+            'conversation_id' => $conversation->id,
+            'body' => 'hello',
+            'direction' => MessageDirection::Inbound,
+        ]));
+
+        $this->assertContains('Welcome body', $sent);
+        $this->assertNotContains('WRONG sales branch', $sent);
+        $this->assertNotContains('Default continue', $sent);
+
+        $state = ChatbotFlowState::query()->first();
+        $this->assertNotNull($state);
+        $this->assertSame(ChatbotFlowStateStatus::Waiting, $state->status);
+        $this->assertSame('welcome_1', $state->current_node_id);
+    }
+
     public function test_legacy_text_field_used_as_trigger_when_keyword_missing(): void
     {
         ChatbotFlow::factory()->active()->create([
