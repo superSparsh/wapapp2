@@ -100,4 +100,60 @@ class FlowDataNormalizerTest extends TestCase
 
         $this->assertArrayHasKey('outputs', $result['n1']);
     }
+
+    public function test_normalize_does_not_return_stale_cache_after_trigger_change(): void
+    {
+        $flow = ChatbotFlow::factory()->create([
+            'exported_data' => [
+                'nodes' => [
+                    [
+                        'id' => 'welcome_1',
+                        'type' => 'welcomeMessage',
+                        'data' => [
+                            'triggerKeyword' => 'devchatbot',
+                            'welcomeMessage' => 'Old',
+                        ],
+                    ],
+                ],
+                'edges' => [],
+            ],
+        ]);
+
+        $first = $this->normalizer->normalize($flow);
+        $this->assertSame('devchatbot', $first['welcome_1']['data']['triggerKeyword']);
+
+        // Simulate a stale legacy cache entry that would previously keep serving
+        // the old keyword even after Save Flow wrote a new trigger.
+        $cache = app(\App\Domains\Chatbot\Support\FlowCacheManager::class);
+        $cache->putNodeMap($flow->id, [
+            'welcome_1' => [
+                'id' => 'welcome_1',
+                'class' => 'welcomeMessage',
+                'data' => ['triggerKeyword' => 'devchatbot'],
+                'outputs' => ['output_1' => ['connections' => []]],
+            ],
+        ], '');
+
+        $flow->update([
+            'exported_data' => [
+                'nodes' => [
+                    [
+                        'id' => 'welcome_1',
+                        'type' => 'welcomeMessage',
+                        'data' => [
+                            'triggerKeyword' => 'testing',
+                            'welcomeMessage' => 'New',
+                        ],
+                    ],
+                ],
+                'edges' => [],
+            ],
+        ]);
+
+        $fresh = $flow->refresh();
+        $this->normalizer->refreshCache($fresh);
+
+        $second = $this->normalizer->normalize($fresh);
+        $this->assertSame('testing', $second['welcome_1']['data']['triggerKeyword']);
+    }
 }

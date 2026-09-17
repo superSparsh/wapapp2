@@ -14,26 +14,30 @@ class FlowDataNormalizer
     ) {}
 
     /**
-     * Get the normalized node map for a flow (cache-first).
+     * Get the normalized node map for a flow (cache-first, versioned).
      *
      * @return array<string, array{id: string, type: string, data: array<string, mixed>, outputs: array<string, array{connections: array<int, array{node: string}>}>}>
      */
     public function normalize(ChatbotFlow $flow): array
     {
-        $cached = $this->cacheManager->getNodeMap($flow->id);
+        $data = $flow->exported_data;
+        $version = $this->cacheManager->versionFor(
+            $flow->updated_at,
+            is_array($data) ? $data : null,
+        );
+
+        $cached = $this->cacheManager->getNodeMap($flow->id, $version);
 
         if ($cached !== null) {
             return $cached;
         }
-
-        $data = $flow->exported_data;
 
         if (! is_array($data)) {
             return [];
         }
 
         $nodeMap = $this->buildNodeMap($data);
-        $this->cacheManager->putNodeMap($flow->id, $nodeMap);
+        $this->cacheManager->putNodeMap($flow->id, $nodeMap, $version);
 
         return $nodeMap;
     }
@@ -41,9 +45,34 @@ class FlowDataNormalizer
     /**
      * Bust the cache for a flow (called on save/publish).
      */
-    public function bustCache(int $flowId): void
+    public function bustCache(int $flowId, string $version = ''): void
     {
-        $this->cacheManager->forgetNodeMap($flowId);
+        $this->cacheManager->forgetNodeMap($flowId, $version);
+    }
+
+    /**
+     * Bust any prior cache entry and warm the versioned map for this flow.
+     */
+    public function refreshCache(ChatbotFlow $flow): array
+    {
+        $data = $flow->exported_data;
+        $version = $this->cacheManager->versionFor(
+            $flow->updated_at,
+            is_array($data) ? $data : null,
+        );
+
+        // Drop legacy + previous version keys when we know the new version.
+        $this->cacheManager->forgetNodeMap($flow->id, $version);
+        $this->cacheManager->forgetNodeMap($flow->id, '');
+
+        if (! is_array($data)) {
+            return [];
+        }
+
+        $nodeMap = $this->buildNodeMap($data);
+        $this->cacheManager->putNodeMap($flow->id, $nodeMap, $version);
+
+        return $nodeMap;
     }
 
     /**

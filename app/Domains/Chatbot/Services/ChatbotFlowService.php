@@ -123,7 +123,7 @@ class ChatbotFlowService
 
     public function clearCache(ChatbotFlow $flow): void
     {
-        $this->normalizer->bustCache($flow->id);
+        $this->normalizer->refreshCache($flow);
     }
 
     /**
@@ -143,9 +143,10 @@ class ChatbotFlowService
         }
 
         $flow->update(['exported_data' => $normalized]);
-        $this->normalizer->bustCache($flow->id);
+        $fresh = $this->activateAfterSaveIfNeeded($flow->refresh());
+        $this->normalizer->refreshCache($fresh);
 
-        return $this->activateAfterSaveIfNeeded($flow->refresh());
+        return $fresh;
     }
 
     /**
@@ -165,9 +166,10 @@ class ChatbotFlowService
         }
 
         $flow->update(['exported_data' => $normalized]);
-        $this->normalizer->bustCache($flow->id);
+        $fresh = $this->activateAfterSaveIfNeeded($flow->refresh());
+        $this->normalizer->refreshCache($fresh);
 
-        return $this->activateAfterSaveIfNeeded($flow->refresh());
+        return $fresh;
     }
 
     /**
