@@ -655,6 +655,7 @@ class ChatbotFlowEngine
             ->get();
 
         $best = null;
+        $scannedKeywords = [];
 
         foreach ($flows as $flow) {
             if (! $flow->hasFlowData()) {
@@ -663,6 +664,22 @@ class ChatbotFlowEngine
 
             $nodeMap = $this->normalizer->normalize($flow);
             $match = $this->findTriggeredMatch($nodeMap, $messageLower, $exactOnly);
+
+            foreach ($nodeMap as $node) {
+                $nodeType = (string) ($node['class'] ?? 'unknown');
+                if (! in_array($nodeType, ['welcomeMessage', 'templateMessage'], true)) {
+                    continue;
+                }
+                $kw = $this->resolveNodeTriggerKeywords(is_array($node['data'] ?? null) ? $node['data'] : []);
+                if ($kw !== '') {
+                    $scannedKeywords[] = [
+                        'flow_id' => $flow->id,
+                        'flow_name' => $flow->name,
+                        'keywords' => $kw,
+                        'status' => $flow->status->value ?? (string) $flow->status,
+                    ];
+                }
+            }
 
             if ($match === null) {
                 continue;
@@ -688,6 +705,7 @@ class ChatbotFlowEngine
                 'line_id' => $lineId,
                 'message' => $messageLower,
                 'active_flows_scanned' => $flows->count(),
+                'registered_keywords' => $scannedKeywords,
             ]);
 
             return TriggerFireResult::NoMatch;

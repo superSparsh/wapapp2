@@ -127,16 +127,25 @@ class ChatbotFlowService
     }
 
     /**
-     * Save legacy React Flow payload without field remapping.
+     * Save legacy React Flow payload (normalize field names for the engine).
      *
      * @param  array<string, mixed>  $flowData
      */
     public function saveLegacyFlowData(ChatbotFlow $flow, array $flowData): ChatbotFlow
     {
-        $flow->update(['exported_data' => $flowData]);
+        $normalized = $this->nodeDataMapper->prepareForStorage($flowData);
+        $maxNodes = (int) config('chatbot.max_nodes_per_flow', 100);
+
+        if (count($normalized['nodes']) > $maxNodes) {
+            throw ValidationException::withMessages([
+                'nodes' => "A flow can have at most {$maxNodes} nodes.",
+            ]);
+        }
+
+        $flow->update(['exported_data' => $normalized]);
         $this->normalizer->bustCache($flow->id);
 
-        return $flow->refresh();
+        return $this->activateAfterSaveIfNeeded($flow->refresh());
     }
 
     /**
@@ -157,6 +166,28 @@ class ChatbotFlowService
 
         $flow->update(['exported_data' => $normalized]);
         $this->normalizer->bustCache($flow->id);
+
+        return $this->activateAfterSaveIfNeeded($flow->refresh());
+    }
+
+    /**
+     * Saving a flow with trigger keywords should make it live — users expect
+     * "Save Flow" to start responding to WhatsApp triggers (not stay Draft).
+     */
+    private function activateAfterSaveIfNeeded(ChatbotFlow $flow): ChatbotFlow
+    {
+        if ($flow->isActive()) {
+            return $flow;
+        }
+
+        if ($this->activationErrors($flow) !== []) {
+            return $flow;
+        }
+
+        $flow->update([
+            'status' => ChatbotFlowStatus::Active,
+            'published_at' => $flow->published_at ?? now(),
+        ]);
 
         return $flow->refresh();
     }

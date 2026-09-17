@@ -80,6 +80,8 @@ class ChatbotFlowBuilderController
             'status' => 'success',
             'message' => 'Flow data saved successfully.',
             'node_count' => $chatbotFlow->fresh()->nodeCount(),
+            'is_active' => $chatbotFlow->fresh()->isActive(),
+            'flow_status' => $chatbotFlow->fresh()->status->value,
         ]);
     }
 
@@ -182,16 +184,22 @@ class ChatbotFlowBuilderController
         }
 
         $this->flowService->saveLegacyFlowData($chatbotFlow, $flowData);
+        $fresh = $chatbotFlow->fresh();
 
         return response()->json([
             'success' => true,
             'status' => 'success',
-            'message' => 'Flow saved successfully.',
+            'message' => $fresh->isActive()
+                ? 'Flow saved and enabled successfully.'
+                : 'Flow saved successfully.',
+            'is_active' => $fresh->isActive(),
+            'flow_status' => $fresh->status->value,
             'automationBot' => [
-                'id' => $chatbotFlow->id,
-                'uuid' => $chatbotFlow->uuid,
-                'name' => $chatbotFlow->name,
-                'exported_data' => $chatbotFlow->fresh()->exported_data,
+                'id' => $fresh->id,
+                'uuid' => $fresh->uuid,
+                'name' => $fresh->name,
+                'status' => $fresh->status->value,
+                'exported_data' => $fresh->exported_data,
             ],
         ]);
     }

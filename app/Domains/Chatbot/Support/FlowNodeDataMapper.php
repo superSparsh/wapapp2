@@ -30,10 +30,10 @@ class FlowNodeDataMapper
             ]);
         }
 
-        return [
+        return array_merge($flowData, [
             'nodes' => $nodes,
             'edges' => is_array($flowData['edges'] ?? null) ? $flowData['edges'] : [],
-        ];
+        ]);
     }
 
     /**

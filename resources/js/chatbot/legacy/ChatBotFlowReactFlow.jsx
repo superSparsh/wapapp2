@@ -5832,13 +5832,19 @@ const ChatBotFlowReactFlow = () => {
           );
         }
 
-        message.success("Flow saved and cache cleared successfully!");
-
-        if (!builderConfig.isActive && builderConfig.toggleUrl) {
+        const becameActive = Boolean(response.data?.is_active);
+        if (becameActive) {
+          builderConfig.isActive = true;
+          if (window.__CHATBOT_BUILDER_CONFIG__) {
+            window.__CHATBOT_BUILDER_CONFIG__.isActive = true;
+          }
+          message.success("Flow saved and chatbot enabled!");
+        } else if (!builderConfig.isActive && builderConfig.toggleUrl) {
+          message.success("Flow saved successfully!");
           const enableChatbot = await confirmChatbotAction({
             title: "Enable chatbot?",
             message:
-              "Your flow has been saved. Do you want to enable this chatbot now?",
+              "Your flow has been saved, but it is not enabled yet. Enable it so WhatsApp triggers work?",
             confirmLabel: "Enable",
             variant: "default",
           });
@@ -5862,6 +5868,8 @@ const ChatBotFlowReactFlow = () => {
               await alertChatbotAction(toggleMessage, "Enable chatbot");
             }
           }
+        } else {
+          message.success("Flow saved successfully!");
         }
       } else {
         message.error("Failed to save flow");
