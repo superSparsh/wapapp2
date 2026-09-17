@@ -290,6 +290,43 @@ class InboxServiceAdapter
         return response()->json($this->messagePayload($message), 201);
     }
 
+    public function sendInteractiveMessage(Conversation $conversation, string $interactiveMessageId): JsonResponse
+    {
+        $this->localInboxService->authorizeConversation($conversation);
+
+        $messageModel = \App\Models\InteractiveMessage::query()
+            ->where(function ($query) use ($interactiveMessageId): void {
+                $query->where('uuid', $interactiveMessageId);
+                if (is_numeric($interactiveMessageId)) {
+                    $query->orWhere('id', (int) $interactiveMessageId);
+                }
+            })
+            ->first();
+
+        if ($messageModel === null) {
+            return response()->json(['message' => 'Free template message not found.'], 404);
+        }
+
+        $interactive = app(\App\Domains\Templates\Support\InteractiveMessagePayloadBuilder::class)
+            ->forMessage($messageModel);
+
+        if (($interactive['type'] ?? '') === 'button' && empty($interactive['action']['buttons'] ?? [])) {
+            return response()->json(['message' => 'This free template has no buttons configured.'], 422);
+        }
+
+        if (($interactive['type'] ?? '') === 'list' && empty($interactive['action']['sections'] ?? [])) {
+            return response()->json(['message' => 'This free template has no list sections configured.'], 422);
+        }
+
+        $message = $this->localOutboundService->sendInteractive(
+            $conversation,
+            $interactive,
+            previewBody: (string) ($interactive['body']['text'] ?? $messageModel->name),
+        );
+
+        return response()->json($this->messagePayload($message), 201);
+    }
+
     public function markRead(Conversation $conversation): JsonResponse
     {
         $this->localInboxService->authorizeConversation($conversation);

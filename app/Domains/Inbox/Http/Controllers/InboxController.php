@@ -103,6 +103,41 @@ class InboxController extends Controller
         return $adapter->sendFlow($request, $conversation);
     }
 
+    public function interactiveMessages(
+        InboxService $inboxService,
+        \App\Domains\Templates\Services\InteractiveMessageService $interactiveMessageService,
+    ): JsonResponse {
+        $inboxService->requireDefaultLine();
+
+        $items = $interactiveMessageService->list()
+            ->map(fn (\App\Models\InteractiveMessage $message): array => [
+                'id' => $message->id,
+                'uuid' => $message->uuid,
+                'name' => $message->name,
+                'type' => $message->type,
+                'preview' => \Illuminate\Support\Str::limit(
+                    (string) ($message->normalizedContent()['body'] ?? ''),
+                    80,
+                ),
+            ])
+            ->values()
+            ->all();
+
+        return response()->json(['items' => $items]);
+    }
+
+    public function sendInteractive(
+        Request $request,
+        Conversation $conversation,
+        InboxServiceAdapter $adapter,
+    ): JsonResponse {
+        $validated = $request->validate([
+            'interactive_message_id' => ['required', 'string'],
+        ]);
+
+        return $adapter->sendInteractiveMessage($conversation, (string) $validated['interactive_message_id']);
+    }
+
     public function requestPayment(
         Request $request,
         Conversation $conversation,

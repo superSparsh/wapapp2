@@ -35,6 +35,12 @@ class ChatbotInteractiveFlowTest extends TestCase
                 'direction' => MessageDirection::Outbound,
                 'message_type' => MessageType::Text,
             ]));
+            $mock->shouldReceive('sendInteractive')->andReturn(new Message([
+                'id' => 998,
+                'body' => 'mocked interactive',
+                'direction' => MessageDirection::Outbound,
+                'message_type' => MessageType::Interactive,
+            ]));
             $mock->shouldReceive('sendMedia')->andReturn(new Message([
                 'id' => 999,
                 'body' => 'mocked',
@@ -278,6 +284,200 @@ class ChatbotInteractiveFlowTest extends TestCase
         ]));
 
         // Only one flow state should be created (first match wins)
+        $this->assertSame(1, ChatbotFlowState::query()->count());
+    }
+
+    public function test_react_button_handle_routes_by_reply_id(): void
+    {
+        ChatbotFlow::factory()->active()->create([
+            'exported_data' => [
+                'nodes' => [
+                    [
+                        'id' => 'welcome_1',
+                        'type' => 'welcomeMessage',
+                        'data' => [
+                            'messageType' => 'text',
+                            'triggerKeyword' => 'menu',
+                            'welcomeMessage' => 'Welcome! Pick an option.',
+                            'text' => 'menu',
+                        ],
+                    ],
+                    [
+                        'id' => 'interactive_1',
+                        'type' => 'interactiveMessage',
+                        'data' => [
+                            'interactiveType' => 'button',
+                            'bodyText' => 'Choose:',
+                            'buttons' => [
+                                ['id' => 'btn_sales', 'title' => 'Sales'],
+                                ['id' => 'btn_support', 'title' => 'Support'],
+                            ],
+                        ],
+                    ],
+                    [
+                        'id' => 'sales_node',
+                        'type' => 'welcomeMessage',
+                        'data' => [
+                            'messageType' => 'text',
+                            'welcomeMessage' => 'Sales desk',
+                        ],
+                    ],
+                    [
+                        'id' => 'support_node',
+                        'type' => 'welcomeMessage',
+                        'data' => [
+                            'messageType' => 'text',
+                            'welcomeMessage' => 'Support desk',
+                        ],
+                    ],
+                ],
+                'edges' => [
+                    ['source' => 'welcome_1', 'target' => 'interactive_1', 'sourceHandle' => 'output_1'],
+                    ['source' => 'interactive_1', 'target' => 'sales_node', 'sourceHandle' => 'button-0'],
+                    ['source' => 'interactive_1', 'target' => 'support_node', 'sourceHandle' => 'button-1'],
+                ],
+            ],
+        ]);
+
+        $conversation = Conversation::factory()->create();
+        $engine = app(ChatbotFlowEngine::class);
+
+        $engine->processInbound($conversation, Message::factory()->create([
+            'conversation_id' => $conversation->id,
+            'body' => 'menu',
+            'direction' => MessageDirection::Inbound,
+        ]));
+
+        $state = ChatbotFlowState::query()->first();
+        $this->assertNotNull($state);
+        $this->assertSame('interactive_1', $state->current_node_id);
+        $this->assertSame(ChatbotFlowStateStatus::Waiting, $state->status);
+
+        $engine->processInbound($conversation, Message::factory()->create([
+            'conversation_id' => $conversation->id,
+            'body' => 'Sales',
+            'direction' => MessageDirection::Inbound,
+            'message_type' => MessageType::Interactive,
+            'metadata' => [
+                'interactive_reply_id' => 'btn_sales',
+                'reply_id' => 'btn_sales',
+            ],
+        ]));
+
+        $state->refresh();
+        $this->assertSame(ChatbotFlowStateStatus::Completed, $state->status);
+    }
+
+    public function test_list_reply_routes_via_interactive_section_row_handle(): void
+    {
+        ChatbotFlow::factory()->active()->create([
+            'exported_data' => [
+                'nodes' => [
+                    [
+                        'id' => 'welcome_1',
+                        'type' => 'welcomeMessage',
+                        'data' => [
+                            'messageType' => 'text',
+                            'triggerKeyword' => 'list',
+                            'welcomeMessage' => 'Opening list',
+                        ],
+                    ],
+                    [
+                        'id' => 'list_1',
+                        'type' => 'interactiveMessage',
+                        'data' => [
+                            'interactiveType' => 'list',
+                            'bodyText' => 'Pick a row',
+                            'sections' => [
+                                [
+                                    'title' => 'Main',
+                                    'rows' => [
+                                        ['id' => 'row_a', 'title' => 'Option A'],
+                                        ['id' => 'row_b', 'title' => 'Option B'],
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ],
+                    [
+                        'id' => 'node_a',
+                        'type' => 'welcomeMessage',
+                        'data' => ['messageType' => 'text', 'welcomeMessage' => 'Got A'],
+                    ],
+                    [
+                        'id' => 'node_b',
+                        'type' => 'welcomeMessage',
+                        'data' => ['messageType' => 'text', 'welcomeMessage' => 'Got B'],
+                    ],
+                ],
+                'edges' => [
+                    ['source' => 'welcome_1', 'target' => 'list_1', 'sourceHandle' => 'output_1'],
+                    ['source' => 'list_1', 'target' => 'node_a', 'sourceHandle' => 'interactive-0-0'],
+                    ['source' => 'list_1', 'target' => 'node_b', 'sourceHandle' => 'interactive-0-1'],
+                ],
+            ],
+        ]);
+
+        $conversation = Conversation::factory()->create();
+        $engine = app(ChatbotFlowEngine::class);
+
+        $engine->processInbound($conversation, Message::factory()->create([
+            'conversation_id' => $conversation->id,
+            'body' => 'list',
+            'direction' => MessageDirection::Inbound,
+        ]));
+
+        $state = ChatbotFlowState::query()->firstOrFail();
+        $this->assertSame('list_1', $state->current_node_id);
+
+        $engine->processInbound($conversation, Message::factory()->create([
+            'conversation_id' => $conversation->id,
+            'body' => 'Option B',
+            'direction' => MessageDirection::Inbound,
+            'message_type' => MessageType::Interactive,
+            'metadata' => ['interactive_reply_id' => 'row_b'],
+        ]));
+
+        $state->refresh();
+        $this->assertSame(ChatbotFlowStateStatus::Completed, $state->status);
+    }
+
+    public function test_keyword_does_not_match_substring_inside_word(): void
+    {
+        ChatbotFlow::factory()->active()->create([
+            'exported_data' => [
+                'nodes' => [
+                    [
+                        'id' => 'welcome_1',
+                        'type' => 'welcomeMessage',
+                        'data' => [
+                            'messageType' => 'text',
+                            'triggerKeyword' => 'hi',
+                            'welcomeMessage' => 'Hello there',
+                        ],
+                    ],
+                ],
+                'edges' => [],
+            ],
+        ]);
+
+        $conversation = Conversation::factory()->create();
+        $engine = app(ChatbotFlowEngine::class);
+
+        $engine->processInbound($conversation, Message::factory()->create([
+            'conversation_id' => $conversation->id,
+            'body' => 'this',
+            'direction' => MessageDirection::Inbound,
+        ]));
+
+        $this->assertSame(0, ChatbotFlowState::query()->count());
+
+        $engine->processInbound($conversation, Message::factory()->create([
+            'conversation_id' => $conversation->id,
+            'body' => 'hi!',
+            'direction' => MessageDirection::Inbound,
+        ]));
+
         $this->assertSame(1, ChatbotFlowState::query()->count());
     }
 }

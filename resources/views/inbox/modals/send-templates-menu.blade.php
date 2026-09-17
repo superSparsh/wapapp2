@@ -15,20 +15,28 @@
 
 <x-inbox.modal id="send-templates-menu" :title="$modal['title']" :subtitle="$modal['subtitle']" :wide="true" :open="$open ?? false">
     <div class="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-5 pt-0">
-        {{-- Send Saved Message --}}
-        <div class="flex flex-col gap-8 mt-3 rounded-xl border border-border-light bg-muted-surface p-4">
+        {{-- Send Saved Free Template --}}
+        <form class="mt-3 flex flex-col gap-8 rounded-xl border border-border-light bg-muted-surface p-4" data-inbox-interactive-form>
             <div class="flex flex-col gap-2">
                 <p class="fd-label text-sm">Send Saved Message</p>
-                <div class="flex items-center gap-3 rounded-xl border border-border bg-elevated p-3.5">
-                    <span class="fd-filter-placeholder min-w-0 flex-1 text-sm">Select a Send Saved Message</span>
-                    <x-icons.nav-icon name="arrow-down" class="size-4 shrink-0" />
-                </div>
+                <select
+                    name="interactive_message_id"
+                    data-inbox-interactive-select
+                    class="w-full rounded-xl border border-border bg-elevated px-3.5 py-3.5 text-sm focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
+                    required
+                >
+                    <option value="">Loading saved messages...</option>
+                </select>
+                <p class="text-xs text-text-muted" style="font-family: var(--font-display)">
+                    Choose a Free Template (button / list / product / flow) saved under Templates → Free Templates.
+                </p>
+                <p class="hidden text-xs text-red-500" data-inbox-interactive-error></p>
             </div>
             <div class="flex items-center justify-between border-t border-[rgba(90,90,90,0.15)] py-4">
                 <button type="button" data-modal-close class="fd-btn rounded-lg border border-green-500 px-6 py-3 text-base text-green-500 hover:bg-green-50">Cancel</button>
-                <button type="button" class="fd-btn rounded-lg bg-green-500 px-6 py-3 text-base text-primary-2 hover:opacity-90">Send</button>
+                <button type="submit" class="fd-btn rounded-lg bg-green-500 px-6 py-3 text-base text-primary-2 hover:opacity-90">Send</button>
             </div>
-        </div>
+        </form>
 
         {{-- Create New --}}
         <div class="flex flex-col gap-4 bg-muted-surface p-4">
@@ -61,6 +69,11 @@
                     </button>
                 @endforeach
             </div>
+            <p class="text-xs text-text-muted" style="font-family: var(--font-display)">
+                Tip: build reusable messages under
+                <a href="{{ route('templates.free.create') }}" class="text-green-500 underline">Templates → Free Templates</a>,
+                then send them from “Send Saved Message” above.
+            </p>
         </div>
     </div>
 </x-inbox.modal>

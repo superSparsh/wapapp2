@@ -887,6 +887,8 @@ function initInboxOutboundModals() {
     const templateUrl = chat.dataset.templateUrl;
     const flowUrl = chat.dataset.flowUrl;
     const flowsUrl = chat.dataset.flowsUrl;
+    const interactiveUrl = chat.dataset.interactiveUrl;
+    const interactiveMessagesUrl = chat.dataset.interactiveMessagesUrl;
     const locationUrl = chat.dataset.locationUrl;
     const stickerUrl = chat.dataset.stickerUrl;
     const sendUrl = chat.dataset.sendUrl;
@@ -951,7 +953,7 @@ function initInboxOutboundModals() {
     };
 
     const showFormError = (form, message) => {
-        const errorEl = form.querySelector('[data-inbox-media-error], [data-inbox-template-error], [data-inbox-flow-error], [data-inbox-location-error], [data-inbox-sticker-error], [data-inbox-payment-error], [data-inbox-reaction-error]');
+        const errorEl = form.querySelector('[data-inbox-media-error], [data-inbox-template-error], [data-inbox-flow-error], [data-inbox-interactive-error], [data-inbox-location-error], [data-inbox-sticker-error], [data-inbox-payment-error], [data-inbox-reaction-error]');
         if (!errorEl) return;
 
         errorEl.textContent = message;
@@ -1158,6 +1160,92 @@ function initInboxOutboundModals() {
                 closeModal(flowForm);
             } catch {
                 showFormError(flowForm, 'Unable to send WhatsApp Flow.');
+            }
+        });
+    }
+
+    const interactiveForm = document.querySelector('[data-inbox-interactive-form]');
+    const interactiveSelect = document.querySelector('[data-inbox-interactive-select]');
+
+    if (interactiveSelect && interactiveMessagesUrl) {
+        fetch(interactiveMessagesUrl, {
+            headers: { Accept: 'application/json' },
+            credentials: 'same-origin',
+        })
+            .then((response) => (response.ok ? response.json() : { items: [] }))
+            .then((data) => {
+                const items = Array.isArray(data?.items) ? data.items : [];
+                interactiveSelect.innerHTML = '';
+
+                if (items.length === 0) {
+                    const option = document.createElement('option');
+                    option.value = '';
+                    option.textContent = 'No free templates saved';
+                    interactiveSelect.appendChild(option);
+
+                    return;
+                }
+
+                const placeholder = document.createElement('option');
+                placeholder.value = '';
+                placeholder.textContent = 'Select a saved message';
+                interactiveSelect.appendChild(placeholder);
+
+                items.forEach((item) => {
+                    const option = document.createElement('option');
+                    option.value = item.uuid || item.id;
+                    const typeLabel = item.type ? ` (${item.type})` : '';
+                    option.textContent = `${item.name || 'Untitled'}${typeLabel}`;
+                    interactiveSelect.appendChild(option);
+                });
+            })
+            .catch(() => {
+                interactiveSelect.innerHTML = '<option value="">No free templates saved</option>';
+            });
+    }
+
+    if (interactiveForm && interactiveUrl) {
+        interactiveForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            showFormError(interactiveForm, '');
+
+            if (!assertWithinWindow()) {
+                return;
+            }
+
+            const interactiveMessageId = interactiveSelect?.value;
+            if (!interactiveMessageId) {
+                showFormError(interactiveForm, 'Select a saved free template.');
+
+                return;
+            }
+
+            try {
+                const response = await fetch(interactiveUrl, {
+                    method: 'POST',
+                    headers: {
+                        Accept: 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrf,
+                    },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({
+                        interactive_message_id: interactiveMessageId,
+                    }),
+                });
+
+                if (!response.ok) {
+                    const error = await response.json().catch(() => ({}));
+                    showFormError(interactiveForm, error.message || 'Unable to send interactive message.');
+
+                    return;
+                }
+
+                const data = await response.json();
+                appendMessage(data.message);
+                closeModal(interactiveForm);
+            } catch {
+                showFormError(interactiveForm, 'Unable to send interactive message.');
             }
         });
     }

@@ -184,6 +184,11 @@ class ChatbotFlowEngine
         $variables[$waitVariableName] = $replyBody;
         $variables['_last_reply'] = $replyBody;
         $variables['_last_reply_type'] = (string) $inboundMessage->message_type->value;
+        $replyId = (string) (($inboundMessage->metadata['interactive_reply_id'] ?? null)
+            ?: ($inboundMessage->metadata['reply_id'] ?? ''));
+        if ($replyId !== '') {
+            $variables['_last_reply_id'] = $replyId;
+        }
 
         $state->forceFill([
             'variables' => $variables,
@@ -191,7 +196,7 @@ class ChatbotFlowEngine
         ])->save();
 
         // Find the next node based on the reply
-        $nextNodeId = $this->resolveNextNodeFromReply($currentNode, $replyBody, $variables);
+        $nextNodeId = $this->resolveNextNodeFromReply($currentNode, $replyBody, $variables, $replyId);
 
         if ($nextNodeId === null) {
             // No matching branch → use default output
@@ -216,69 +221,90 @@ class ChatbotFlowEngine
 
     /**
      * Resolve next node from a user reply to an interactive / quick-reply / carousel node.
+     * Matches legacy React handles: button-{i}, interactive-{section}-{row}, carousel-{card}-{btn}.
      *
      * @param  array<string, mixed>  $node
      * @param  array<string, mixed>  $variables
      */
-    private function resolveNextNodeFromReply(array $node, string $replyBody, array $variables): ?string
-    {
+    private function resolveNextNodeFromReply(
+        array $node,
+        string $replyBody,
+        array $variables,
+        string $replyId = '',
+    ): ?string {
+        $data = is_array($node['data'] ?? null) ? $node['data'] : [];
+        $nodeClass = (string) ($node['class'] ?? $node['type'] ?? '');
+        $interactiveType = strtolower((string) ($data['interactiveType'] ?? $data['interactive_type'] ?? $data['type'] ?? ''));
+
+        if ($nodeClass === 'interactiveMessage' || in_array($interactiveType, ['button', 'list'], true)) {
+            $fromInteractive = $this->resolveInteractiveHandle($node, $data, $replyBody, $replyId);
+            if ($fromInteractive !== null) {
+                return $fromInteractive;
+            }
+        }
+
+        if ($nodeClass === 'carouselTemplate') {
+            $fromCarousel = $this->resolveCarouselHandle($node, $data, $replyBody);
+            if ($fromCarousel !== null) {
+                return $fromCarousel;
+            }
+        }
+
         $outputs = $node['outputs'] ?? [];
         $replyLower = mb_strtolower(trim($replyBody));
+        $replyIdLower = mb_strtolower(trim($replyId));
 
-        // Try to match reply against output handles (button IDs, option text, etc.)
+        // Direct handle match (exact)
         foreach ($outputs as $handle => $output) {
             $connections = $output['connections'] ?? [];
-
             if ($connections === []) {
                 continue;
             }
-
-            $handleLower = mb_strtolower($handle);
-
-            // Match by handle name (e.g., "yes", "no", "option_1")
-            if ($handleLower === $replyLower || str_contains($handleLower, $replyLower)) {
+            $handleLower = mb_strtolower((string) $handle);
+            if ($handleLower === $replyLower || ($replyIdLower !== '' && $handleLower === $replyIdLower)) {
                 return (string) $connections[0]['node'];
             }
         }
 
-        // Try matching against stored interactive options
+        // Stored interactive options → button-{index} / id / title
         $options = $variables['_interactive_options'] ?? [];
-
         if (is_array($options)) {
-            foreach ($options as $option) {
-                $title = mb_strtolower((string) ($option['title'] ?? ''));
-                $id = mb_strtolower((string) ($option['id'] ?? ''));
+            foreach ($options as $index => $option) {
+                if (! is_array($option)) {
+                    continue;
+                }
+                $title = mb_strtolower(trim((string) ($option['title'] ?? '')));
+                $id = mb_strtolower(trim((string) ($option['id'] ?? '')));
 
-                if ($title === $replyLower || $id === $replyLower) {
-                    // Find the output handle matching this option
-                    $handleKey = $id !== '' ? $id : $title;
-
-                    foreach ($outputs as $handle => $output) {
-                        $connections = $output['connections'] ?? [];
-
-                        if ($connections === []) {
+                if (($title !== '' && $this->labelsMatch($title, $replyLower))
+                    || ($id !== '' && ($id === $replyLower || $id === $replyIdLower))) {
+                    foreach (['button-'.$index, $id, $title] as $handleKey) {
+                        if ($handleKey === '') {
                             continue;
                         }
-
-                        if (str_contains(mb_strtolower($handle), $handleKey)) {
-                            return (string) $connections[0]['node'];
+                        $nextId = $this->nextNodeIdFromHandle($node, (string) $handleKey);
+                        if ($nextId !== null) {
+                            return $nextId;
                         }
                     }
                 }
             }
         }
 
-        // Try matching against quick replies
+        // Quick replies → output_{n} / button-{n}
         $quickReplies = $variables['_quick_replies'] ?? [];
-
         if (is_array($quickReplies)) {
             foreach ($quickReplies as $index => $reply) {
-                $replyTitle = is_string($reply) ? $reply : (string) ($reply['title'] ?? $reply['text'] ?? '');
+                $replyTitle = is_string($reply)
+                    ? $reply
+                    : (string) ($reply['title'] ?? $reply['text'] ?? '');
 
-                if (mb_strtolower($replyTitle) === $replyLower) {
-                    $handleKey = 'output_'.($index + 1);
+                if (! $this->labelsMatch($replyTitle, $replyBody)) {
+                    continue;
+                }
+
+                foreach (['output_'.($index + 1), 'button-'.$index] as $handleKey) {
                     $nextId = $this->nextNodeIdFromHandle($node, $handleKey);
-
                     if ($nextId !== null) {
                         return $nextId;
                     }
@@ -289,52 +315,137 @@ class ChatbotFlowEngine
         return null;
     }
 
-    // ─── Private: Keyword Matching & Flow Triggering ─────────────────
+    /**
+     * @param  array<string, mixed>  $node
+     * @param  array<string, mixed>  $data
+     */
+    private function resolveInteractiveHandle(array $node, array $data, string $replyBody, string $replyId): ?string
+    {
+        $interactiveType = strtolower((string) ($data['interactiveType'] ?? $data['interactive_type'] ?? $data['type'] ?? 'button'));
 
-    private function matchAndTriggerFlow(
-        Conversation $conversation,
-        Message $inboundMessage,
-        string $body,
-    ): TriggerFireResult {
-        $lineId = (int) $conversation->whatsapp_line_id;
-        $messageLower = mb_strtolower($body);
+        if ($interactiveType === 'button' || ($interactiveType === '' && isset($data['buttons']))) {
+            foreach (array_values($data['buttons'] ?? []) as $buttonIndex => $button) {
+                if (! is_array($button)) {
+                    continue;
+                }
+                $buttonId = (string) ($button['id'] ?? '');
+                $buttonTitle = (string) ($button['title'] ?? $button['text'] ?? $button['label'] ?? '');
 
-        $flows = ChatbotFlow::query()
-            ->active()
-            ->where(function ($query) use ($lineId): void {
-                $query->whereNull('whatsapp_line_id')
-                    ->orWhere('whatsapp_line_id', $lineId);
-            })
-            ->orderByDesc('id')
-            ->get();
+                $matched = ($replyId !== '' && $buttonId !== '' && strcasecmp($replyId, $buttonId) === 0)
+                    || ($buttonTitle !== '' && $this->labelsMatch($buttonTitle, $replyBody))
+                    || ($buttonId !== '' && strcasecmp($buttonId, trim($replyBody)) === 0);
 
-        foreach ($flows as $flow) {
-            if (! $flow->hasFlowData()) {
-                continue;
+                if (! $matched) {
+                    continue;
+                }
+
+                foreach (['button-'.$buttonIndex, $buttonId, $buttonTitle] as $handleKey) {
+                    if ($handleKey === '') {
+                        continue;
+                    }
+                    $nextId = $this->nextNodeIdFromHandle($node, (string) $handleKey);
+                    if ($nextId !== null) {
+                        return $nextId;
+                    }
+                }
             }
-
-            $nodeMap = $this->normalizer->normalize($flow);
-
-            if ($nodeMap === []) {
-                continue;
-            }
-
-            // Scan for welcome/template nodes with trigger keywords
-            $triggeredNodeId = $this->findTriggeredNode($nodeMap, $messageLower);
-
-            if ($triggeredNodeId === null) {
-                continue;
-            }
-
-            return $this->startFlow($flow, $nodeMap, $conversation, $triggeredNodeId, $body);
         }
 
-        return TriggerFireResult::NoMatch;
+        if ($interactiveType === 'list' || isset($data['sections']) || isset($data['list_sections'])) {
+            $sections = $data['sections'] ?? $data['list_sections'] ?? [];
+            foreach (array_values($sections) as $sectionIndex => $section) {
+                if (! is_array($section)) {
+                    continue;
+                }
+                foreach (array_values($section['rows'] ?? $section['items'] ?? []) as $rowIndex => $row) {
+                    if (! is_array($row)) {
+                        continue;
+                    }
+                    $rowId = (string) ($row['id'] ?? '');
+                    $rowTitle = (string) ($row['title'] ?? $row['text'] ?? $row['label'] ?? '');
+
+                    $matched = ($replyId !== '' && $rowId !== '' && strcasecmp($replyId, $rowId) === 0)
+                        || ($rowTitle !== '' && $this->labelsMatch($rowTitle, $replyBody))
+                        || ($rowId !== '' && strcasecmp($rowId, trim($replyBody)) === 0);
+
+                    if (! $matched) {
+                        continue;
+                    }
+
+                    foreach ([
+                        'interactive-'.$sectionIndex.'-'.$rowIndex,
+                        'interactive-0-'.$rowIndex,
+                        $rowId,
+                        $rowTitle,
+                    ] as $handleKey) {
+                        if ($handleKey === '') {
+                            continue;
+                        }
+                        $nextId = $this->nextNodeIdFromHandle($node, (string) $handleKey);
+                        if ($nextId !== null) {
+                            return $nextId;
+                        }
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $node
+     * @param  array<string, mixed>  $data
+     */
+    private function resolveCarouselHandle(array $node, array $data, string $replyBody): ?string
+    {
+        foreach (array_values($data['templateCards'] ?? $data['cards'] ?? []) as $cardIndex => $card) {
+            if (! is_array($card)) {
+                continue;
+            }
+            foreach (array_values($card['buttons'] ?? []) as $buttonIndex => $button) {
+                if (! is_array($button)) {
+                    continue;
+                }
+                $buttonText = (string) ($button['text'] ?? $button['title'] ?? '');
+                if ($buttonText === '' || ! $this->labelsMatch($buttonText, $replyBody)) {
+                    continue;
+                }
+                $nextId = $this->nextNodeIdFromHandle($node, 'carousel-'.$cardIndex.'-'.$buttonIndex);
+                if ($nextId !== null) {
+                    return $nextId;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private function labelsMatch(string $a, string $b): bool
+    {
+        $a = trim($a);
+        $b = trim($b);
+        if ($a === '' || $b === '') {
+            return false;
+        }
+        if (strcasecmp($a, $b) === 0) {
+            return true;
+        }
+
+        return $this->normalizeLabel($a) === $this->normalizeLabel($b);
+    }
+
+    private function normalizeLabel(string $text): string
+    {
+        $text = mb_strtolower($text);
+        $text = preg_replace('/[^\p{L}\p{N}\s]+/u', ' ', $text) ?? $text;
+        $text = preg_replace('/\s+/u', ' ', $text) ?? $text;
+
+        return trim($text);
     }
 
     /**
      * Find a node in the flow that has a trigger keyword matching the user message.
-     * Only welcome and template message nodes with text messageType are scanned.
      *
      * @param  array<string, array<string, mixed>>  $nodeMap
      */
@@ -348,31 +459,79 @@ class ChatbotFlowEngine
             }
 
             $data = $node['data'] ?? [];
-            $messageType = (string) ($data['messageType'] ?? 'text');
-
-            if ($messageType !== 'text') {
-                continue;
-            }
-
-            $triggerKeyword = (string) ($data['triggerKeyword'] ?? $data['text'] ?? '');
+            // Never use body/text as keyword — React stores the keyword separately.
+            $triggerKeyword = (string) ($data['triggerKeyword'] ?? $data['keywords'] ?? '');
 
             if ($triggerKeyword === '') {
                 continue;
             }
 
-            // Split comma-separated keywords and check exact match only
             $keywords = array_filter(
                 array_map(fn (string $kw): string => mb_strtolower(trim($kw)), explode(',', $triggerKeyword)),
             );
 
             foreach ($keywords as $keyword) {
-                if ($keyword !== '' && $messageLower === $keyword) {
+                if ($keyword === '') {
+                    continue;
+                }
+                if ($this->messageMatchesKeyword($messageLower, $keyword)) {
                     return $nodeId;
                 }
             }
         }
 
         return null;
+    }
+
+    private function messageMatchesKeyword(string $messageLower, string $keywordLower): bool
+    {
+        $messageLower = trim($messageLower);
+        $keywordLower = trim($keywordLower);
+
+        if ($messageLower === '' || $keywordLower === '') {
+            return false;
+        }
+
+        if ($messageLower === $keywordLower) {
+            return true;
+        }
+
+        // Whole-word / punctuated match (legacy parity): "hi!" / "hi there" for keyword "hi"
+        $pattern = '/(?:^|[^\p{L}\p{N}])'.preg_quote($keywordLower, '/').'(?:[^\p{L}\p{N}]|$)/ui';
+
+        return (bool) preg_match($pattern, $messageLower);
+    }
+
+    /**
+     * Scan all active flows for a keyword match and start the matching flow.
+     */
+    private function matchAndTriggerFlow(
+        Conversation $conversation,
+        Message $inboundMessage,
+        string $body,
+    ): TriggerFireResult {
+        $messageLower = mb_strtolower(trim($body));
+
+        $flows = ChatbotFlow::query()
+            ->where('status', ChatbotFlowStatus::Active)
+            ->get();
+
+        foreach ($flows as $flow) {
+            if (! $flow->hasFlowData()) {
+                continue;
+            }
+
+            $nodeMap = $this->normalizer->normalize($flow);
+            $triggeredNodeId = $this->findTriggeredNode($nodeMap, $messageLower);
+
+            if ($triggeredNodeId === null) {
+                continue;
+            }
+
+            return $this->startFlow($flow, $nodeMap, $conversation, $triggeredNodeId, $body);
+        }
+
+        return TriggerFireResult::NoMatch;
     }
 
     /**

@@ -17,19 +17,22 @@ class MediaMessageProcessor extends AbstractNodeProcessor
         ChatbotFlowState $state,
     ): NodeProcessResult {
         $data = $this->nodeData($node);
-        $caption = (string) ($data['caption'] ?? '');
         $variables = $state->variables ?? [];
-
-        if ($caption !== '') {
-            $resolved = $this->resolveText($caption, $variables);
-            $this->sendText($conversation, $resolved);
-        }
-
-        // Media URL is sent as text with the URL — actual media upload handled at webhook layer
-        $mediaUrl = (string) ($data['mediaUrl'] ?? $data['url'] ?? '');
+        $caption = $this->resolveText((string) ($data['caption'] ?? $data['text'] ?? $data['message'] ?? ''), $variables);
+        $mediaUrl = trim((string) ($data['mediaUrl'] ?? $data['media_url'] ?? $data['url'] ?? ''));
+        $mediaType = strtolower((string) ($data['mediaType'] ?? $data['media_type'] ?? 'image'));
 
         if ($mediaUrl !== '') {
-            $this->sendText($conversation, $mediaUrl);
+            $this->outboundService->sendMediaFromUrl(
+                conversation: $conversation,
+                mediaUrl: $mediaUrl,
+                mediaType: $mediaType,
+                caption: $caption !== '' ? $caption : null,
+                fileName: isset($data['fileName']) ? (string) $data['fileName'] : null,
+                enforceWindow: false,
+            );
+        } elseif ($caption !== '') {
+            $this->sendText($conversation, $caption);
         }
 
         $nextId = $this->defaultNextNodeId($node);

@@ -22,6 +22,8 @@
     data-template-url="{{ route('inbox.api.send-template', $conversation) }}"
     data-flow-url="{{ route('inbox.api.send-flow', $conversation) }}"
     data-flows-url="{{ route('getflowData') }}"
+    data-interactive-url="{{ route('inbox.api.send-interactive', $conversation) }}"
+    data-interactive-messages-url="{{ route('inbox.api.interactive-messages') }}"
     data-location-url="{{ route('inbox.api.send-location', $conversation) }}"
     data-sticker-url="{{ route('inbox.api.send-sticker', $conversation) }}"
     data-payment-url="{{ route('inbox.api.request-payment', $conversation) }}"

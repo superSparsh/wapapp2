@@ -62,7 +62,7 @@ class InboundWebhookTest extends TestCase
         $this->assertSame(InboundWebhookStatus::Received, $event->status);
 
         $job = new ProcessInboundWebhookJob((int) $event->id);
-        $job->handle(app(InboundMessageHandler::class), app(DeliveryStatusHandler::class));
+        $this->app->call([$job, 'handle']);
 
         tenancy()->initialize($this->testTenant);
 
@@ -89,10 +89,7 @@ class InboundWebhookTest extends TestCase
 
         $this->call('POST', route('webhooks.alibaba.message'), server: ['CONTENT_TYPE' => 'application/json'], content: $payload);
         $event = InboundWebhookEvent::query()->firstOrFail();
-        (new ProcessInboundWebhookJob((int) $event->id))->handle(
-            app(InboundMessageHandler::class),
-            app(DeliveryStatusHandler::class),
-        );
+        $this->app->call([new ProcessInboundWebhookJob((int) $event->id), 'handle']);
 
         $this->call('POST', route('webhooks.alibaba.message'), server: ['CONTENT_TYPE' => 'application/json'], content: $payload);
 
@@ -137,10 +134,7 @@ class InboundWebhookTest extends TestCase
         $this->call('POST', route('webhooks.alibaba.status'), server: ['CONTENT_TYPE' => 'application/json'], content: $payload);
         $event = InboundWebhookEvent::query()->latest('id')->firstOrFail();
 
-        (new ProcessInboundWebhookJob((int) $event->id))->handle(
-            app(InboundMessageHandler::class),
-            app(DeliveryStatusHandler::class),
-        );
+        $this->app->call([new ProcessInboundWebhookJob((int) $event->id), 'handle']);
 
         tenancy()->initialize($this->testTenant);
 

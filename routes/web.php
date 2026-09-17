@@ -356,6 +356,7 @@ Route::middleware(['tenancy.session', 'auth:web,team', '2fa', 'verified', 'team.
         Route::prefix('api')->name('api.')->group(function () {
             Route::get('/threads', [InboxController::class, 'threads'])->name('threads');
             Route::get('/templates', [InboxController::class, 'templates'])->name('templates');
+            Route::get('/interactive-messages', [InboxController::class, 'interactiveMessages'])->name('interactive-messages');
             Route::post('/contacts', [InboxController::class, 'storeContact'])->name('contacts.store');
             Route::get('/export', [InboxController::class, 'exportAll'])->name('export-all');
             Route::post('/response-type/all', [InboxController::class, 'toggleAllResponseType'])->name('response-type-all');
@@ -369,6 +370,7 @@ Route::middleware(['tenancy.session', 'auth:web,team', '2fa', 'verified', 'team.
             Route::post('/conversations/{conversation}/location', [InboxController::class, 'sendLocation'])->name('send-location');
             Route::post('/conversations/{conversation}/sticker', [InboxController::class, 'sendSticker'])->name('send-sticker');
             Route::post('/conversations/{conversation}/flow', [InboxController::class, 'sendFlow'])->name('send-flow');
+            Route::post('/conversations/{conversation}/interactive', [InboxController::class, 'sendInteractive'])->name('send-interactive');
             Route::post('/conversations/{conversation}/payment', [InboxController::class, 'requestPayment'])->name('request-payment');
             Route::post('/conversations/{conversation}/read', [InboxController::class, 'markRead'])->name('read');
             Route::post('/conversations/{conversation}/assign', [InboxController::class, 'assign'])->name('assign');

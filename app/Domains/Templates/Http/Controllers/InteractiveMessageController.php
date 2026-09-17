@@ -126,12 +126,14 @@ class InteractiveMessageController extends Controller
 
         $buttons = collect($validated['buttons'] ?? [])
             ->filter(fn ($button) => is_array($button) && filled($button['text'] ?? null))
-            ->map(fn (array $button): array => [
+            ->values()
+            ->map(fn (array $button, int $index): array => [
+                'id' => (string) ($button['id'] ?? 'btn_'.$index),
                 'text' => (string) $button['text'],
+                'title' => (string) $button['text'],
                 'type' => (string) ($button['type'] ?? 'quick_reply'),
                 'url' => (string) ($button['url'] ?? ''),
             ])
-            ->values()
             ->all();
 
         $content = [
@@ -144,18 +146,21 @@ class InteractiveMessageController extends Controller
         if ($type === 'list') {
             $content['list_button_text'] = (string) ($validated['list_button_text'] ?? '');
             $content['list_sections'] = collect($validated['list_sections'] ?? [])
-                ->map(fn (array $section): array => [
-                    'title' => (string) ($section['title'] ?? ''),
-                    'rows' => collect($section['rows'] ?? [])
-                        ->filter(fn ($row) => is_array($row) && filled($row['title'] ?? null))
-                        ->map(fn (array $row): array => [
-                            'title' => (string) $row['title'],
-                            'description' => (string) ($row['description'] ?? ''),
-                        ])
-                        ->values()
-                        ->all(),
-                ])
                 ->values()
+                ->map(function (array $section, int $sectionIndex): array {
+                    return [
+                        'title' => (string) ($section['title'] ?? ''),
+                        'rows' => collect($section['rows'] ?? [])
+                            ->filter(fn ($row) => is_array($row) && filled($row['title'] ?? null))
+                            ->values()
+                            ->map(fn (array $row, int $rowIndex): array => [
+                                'id' => (string) ($row['id'] ?? 'row_'.$sectionIndex.'_'.$rowIndex),
+                                'title' => (string) $row['title'],
+                                'description' => (string) ($row['description'] ?? ''),
+                            ])
+                            ->all(),
+                    ];
+                })
                 ->all();
         }
 

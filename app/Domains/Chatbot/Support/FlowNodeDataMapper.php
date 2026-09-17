@@ -78,11 +78,23 @@ class FlowNodeDataMapper
      */
     private function syncWelcomeMessage(array $data): array
     {
-        $text = (string) ($data['text'] ?? $data['message'] ?? '');
-        $keyword = (string) ($data['triggerKeyword'] ?? $data['keywords'] ?? '');
+        $keyword = trim((string) ($data['triggerKeyword'] ?? $data['keywords'] ?? ''));
 
-        $data['text'] = $text;
-        $data['message'] = $text;
+        // Prefer React `welcomeMessage`, then `message`, then non-keyword `text`.
+        $body = trim((string) ($data['welcomeMessage'] ?? ''));
+        if ($body === '') {
+            $body = trim((string) ($data['message'] ?? ''));
+        }
+        if ($body === '') {
+            $text = trim((string) ($data['text'] ?? ''));
+            if ($text !== '' && ($keyword === '' || strcasecmp($text, $keyword) !== 0)) {
+                $body = $text;
+            }
+        }
+
+        $data['welcomeMessage'] = $body;
+        $data['text'] = $body;
+        $data['message'] = $body;
         $data['triggerKeyword'] = $keyword;
         $data['keywords'] = $keyword;
         $data['messageType'] = (string) ($data['messageType'] ?? 'text');
@@ -97,7 +109,11 @@ class FlowNodeDataMapper
     private function syncInteractiveMessage(array $data): array
     {
         $body = (string) ($data['bodyText'] ?? $data['text'] ?? $data['message'] ?? '');
-        $interactiveType = strtolower((string) ($data['interactiveType'] ?? $data['interactive_type'] ?? 'button'));
+        if ($body === '' && is_array($data['body'] ?? null)) {
+            $body = (string) ($data['body']['text'] ?? '');
+        }
+
+        $interactiveType = strtolower((string) ($data['interactiveType'] ?? $data['interactive_type'] ?? $data['type'] ?? 'button'));
         $buttons = $this->normalizeButtons($data);
 
         $data['bodyText'] = $body;
@@ -107,6 +123,10 @@ class FlowNodeDataMapper
         $data['interactive_type'] = $interactiveType;
         $data['buttons'] = $buttons;
         $data['options'] = array_column($buttons, 'title');
+
+        if (! empty($data['sections']) && is_array($data['sections'])) {
+            $data['listItems'] = $data['sections'];
+        }
 
         return $data;
     }

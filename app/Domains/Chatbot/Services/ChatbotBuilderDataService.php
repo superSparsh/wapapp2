@@ -110,21 +110,24 @@ class ChatbotBuilderDataService
      */
     private function legacyInteractiveMessages(): array
     {
+        $builder = app(\App\Domains\Templates\Support\InteractiveMessagePayloadBuilder::class);
+
         return InteractiveMessage::query()
             ->orderByDesc('id')
             ->get()
-            ->map(function (InteractiveMessage $message): array {
-                $content = $message->normalizedContent();
+            ->map(function (InteractiveMessage $message) use ($builder): array {
+                $content = $builder->toLibraryContent($message);
 
                 return [
                     'id' => $message->id,
+                    'uuid' => $message->uuid,
                     'name' => $message->name,
                     'type' => $message->type,
                     'content' => $content,
-                    'body' => $content['body'],
-                    'footer' => $content['footer'],
-                    'buttons' => $content['buttons'],
-                    'header' => $content['header'],
+                    'body' => (string) ($content['bodyText'] ?? ''),
+                    'footer' => (string) ($content['footerText'] ?? ''),
+                    'buttons' => $content['buttons'] ?? [],
+                    'header' => $message->normalizedContent()['header'] ?? ['type' => 'none'],
                 ];
             })
             ->values()

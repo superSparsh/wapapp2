@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domains\Chatbot\Services\NodeTypes;
 
 use App\Domains\Chatbot\Enums\NodeProcessResult;
+use App\Domains\Templates\Support\InteractiveMessagePayloadBuilder;
 use App\Domains\WhatsappFlow\Services\WhatsappFlowInteractiveService;
 use App\Enums\ChatbotFlowStateStatus;
 use App\Models\ChatbotFlowState;
@@ -16,6 +17,7 @@ class InteractiveMessageProcessor extends AbstractNodeProcessor
         \App\Domains\Inbox\Services\InboxOutboundService $outboundService,
         \App\Domains\Chatbot\Support\FlowVariableResolver $variableResolver,
         private readonly WhatsappFlowInteractiveService $flowInteractiveService,
+        private readonly InteractiveMessagePayloadBuilder $payloadBuilder,
     ) {
         parent::__construct($outboundService, $variableResolver);
     }
@@ -27,25 +29,44 @@ class InteractiveMessageProcessor extends AbstractNodeProcessor
         ChatbotFlowState $state,
     ): NodeProcessResult {
         $data = $this->nodeData($node);
-        $interactiveType = (string) ($data['interactiveType'] ?? $data['interactive_type'] ?? 'button');
+        $interactiveType = (string) ($data['interactiveType'] ?? $data['interactive_type'] ?? $data['type'] ?? 'button');
         $variables = $state->variables ?? [];
+        $resolve = fn (string $text): string => $this->resolveText($text, $variables);
 
-        if ($this->hasApiInteractivePayload($data)) {
-            $content = $this->resolveInteractiveContent($data, $variables);
+        $content = $this->payloadBuilder->fromNodeData($data, $resolve);
+
+        if ($content === null && ($interactiveType === 'flow' || ($data['type'] ?? '') === 'flow')) {
+            $bodyText = (string) ($data['bodyText'] ?? $data['text'] ?? '');
+            $flowId = (string) ($data['flow_id'] ?? $data['flowId'] ?? '');
+            $flowCta = (string) ($data['flow_cta'] ?? $data['flowCta'] ?? 'Open');
+            $flow = $flowId !== '' ? $this->flowInteractiveService->findByIdentifier($flowId) : null;
+
+            if ($flow !== null) {
+                $content = $this->flowInteractiveService->buildFlowInteractiveContent(
+                    $flow,
+                    $bodyText !== '' ? $resolve($bodyText) : 'Tap below to continue',
+                    $flowCta,
+                    filled($data['flow_token'] ?? $data['flowToken'] ?? null)
+                        ? (string) ($data['flow_token'] ?? $data['flowToken'])
+                        : null,
+                );
+            }
+        }
+
+        if ($content !== null) {
             $previewBody = (string) ($content['body']['text'] ?? '[Interactive message]');
             $this->sendInteractive($conversation, $content, $previewBody);
 
-            if ($interactiveType === 'flow' || ($content['type'] ?? '') === 'flow') {
+            if (($content['type'] ?? '') === 'flow' || $interactiveType === 'flow') {
                 $state->mergeVariables([
                     '_whatsapp_flow_id' => (string) ($content['action']['parameters']['flow_id'] ?? ''),
                     '_whatsapp_flow_token' => (string) ($content['action']['parameters']['flow_token'] ?? ''),
                     '_whatsapp_flow_node_id' => (string) ($node['id'] ?? ''),
                 ]);
             } else {
-                $options = $this->buildOptions($data, $interactiveType);
                 $state->mergeVariables([
                     '_interactive_node_id' => $node['id'] ?? '',
-                    '_interactive_options' => $options,
+                    '_interactive_options' => $this->buildOptions($data, $content, $interactiveType),
                     '_interactive_type' => $interactiveType,
                 ]);
             }
@@ -58,55 +79,15 @@ class InteractiveMessageProcessor extends AbstractNodeProcessor
             return NodeProcessResult::WaitForResponse;
         }
 
+        // Last-resort: body text only (no interactive options available).
         $bodyText = (string) ($data['bodyText'] ?? $data['text'] ?? '');
-
         if ($bodyText !== '') {
-            $resolved = $this->resolveText($bodyText, $variables);
-            $this->sendText($conversation, $resolved);
-        }
-
-        if ($interactiveType === 'flow') {
-            $flowId = (string) ($data['flow_id'] ?? $data['flowId'] ?? '');
-            $flowCta = (string) ($data['flow_cta'] ?? $data['flowCta'] ?? 'Open');
-            $flow = $flowId !== '' ? $this->flowInteractiveService->findByIdentifier($flowId) : null;
-
-            if ($flow !== null) {
-                $content = $this->flowInteractiveService->buildFlowInteractiveContent(
-                    $flow,
-                    $bodyText !== '' ? $this->resolveText($bodyText, $variables) : 'Tap below to continue',
-                    $flowCta,
-                    filled($data['flow_token'] ?? $data['flowToken'] ?? null)
-                        ? (string) ($data['flow_token'] ?? $data['flowToken'])
-                        : null,
-                );
-
-                $this->sendInteractive($conversation, $content, (string) ($content['body']['text'] ?? null));
-
-                $state->mergeVariables([
-                    '_whatsapp_flow_id' => (string) ($content['action']['parameters']['flow_id'] ?? $flowId),
-                    '_whatsapp_flow_token' => (string) ($content['action']['parameters']['flow_token'] ?? ''),
-                    '_whatsapp_flow_node_id' => (string) ($node['id'] ?? ''),
-                ]);
-
-                $state->forceFill([
-                    'status' => ChatbotFlowStateStatus::Waiting,
-                    'current_node_id' => (string) ($node['id'] ?? ''),
-                ])->save();
-
-                return NodeProcessResult::WaitForResponse;
-            }
-        }
-
-        $options = $this->buildOptions($data, $interactiveType);
-
-        if ($options !== []) {
-            $messageBody = $this->formatOptionsAsText($options, $interactiveType);
-            $this->sendText($conversation, $messageBody);
+            $this->sendText($conversation, $resolve($bodyText));
         }
 
         $state->mergeVariables([
             '_interactive_node_id' => $node['id'] ?? '',
-            '_interactive_options' => $options,
+            '_interactive_options' => [],
             '_interactive_type' => $interactiveType,
         ]);
 
@@ -120,75 +101,75 @@ class InteractiveMessageProcessor extends AbstractNodeProcessor
 
     /**
      * @param  array<string, mixed>  $data
-     */
-    private function hasApiInteractivePayload(array $data): bool
-    {
-        return isset($data['action'], $data['type']);
-    }
-
-    /**
-     * @param  array<string, mixed>  $data
-     * @param  array<string, mixed>  $variables
-     * @return array<string, mixed>
-     */
-    private function resolveInteractiveContent(array $data, array $variables): array
-    {
-        $content = [
-            'type' => (string) $data['type'],
-        ];
-
-        foreach (['header', 'body', 'footer'] as $section) {
-            if (! isset($data[$section]) || ! is_array($data[$section])) {
-                continue;
-            }
-
-            $sectionData = $data[$section];
-
-            if (isset($sectionData['text']) && is_string($sectionData['text'])) {
-                $sectionData['text'] = $this->resolveText($sectionData['text'], $variables);
-            }
-
-            $content[$section] = $sectionData;
-        }
-
-        $content['action'] = is_array($data['action']) ? $data['action'] : [];
-
-        if (($content['type'] ?? '') === 'flow') {
-            $parameters = $content['action']['parameters'] ?? null;
-
-            if (is_array($parameters) && blank($parameters['flow_token'] ?? null) && filled($parameters['flow_id'] ?? null)) {
-                $parameters['flow_token'] = $this->flowInteractiveService->generateFlowToken((string) $parameters['flow_id']);
-                $content['action']['parameters'] = $parameters;
-            }
-        }
-
-        return $content;
-    }
-
-    /**
-     * @param  array<string, mixed>  $data
+     * @param  array<string, mixed>  $content
      * @return array<int, array{id: string, title: string}>
      */
-    private function buildOptions(array $data, string $interactiveType): array
+    private function buildOptions(array $data, array $content, string $interactiveType): array
     {
         $options = [];
 
-        if ($interactiveType === 'button') {
-            $buttons = $data['buttons'] ?? $data['options'] ?? [];
+        if (($content['type'] ?? $interactiveType) === 'button') {
+            foreach ($content['action']['buttons'] ?? [] as $index => $button) {
+                if (! is_array($button)) {
+                    continue;
+                }
+                $options[] = [
+                    'id' => (string) ($button['reply']['id'] ?? "btn_{$index}"),
+                    'title' => (string) ($button['reply']['title'] ?? ''),
+                ];
+            }
 
-            foreach ($buttons as $index => $button) {
+            if ($options !== []) {
+                return $options;
+            }
+        }
+
+        if (($content['type'] ?? $interactiveType) === 'list') {
+            foreach ($content['action']['sections'] ?? [] as $section) {
+                if (! is_array($section)) {
+                    continue;
+                }
+                foreach ($section['rows'] ?? [] as $index => $row) {
+                    if (! is_array($row)) {
+                        continue;
+                    }
+                    $options[] = [
+                        'id' => (string) ($row['id'] ?? "list_{$index}"),
+                        'title' => (string) ($row['title'] ?? ''),
+                    ];
+                }
+            }
+
+            if ($options !== []) {
+                return $options;
+            }
+        }
+
+        // Fallback to raw node buttons/sections
+        if ($interactiveType === 'button') {
+            foreach ($data['buttons'] ?? $data['options'] ?? [] as $index => $button) {
+                if (is_string($button)) {
+                    $options[] = ['id' => "btn_{$index}", 'title' => $button];
+
+                    continue;
+                }
+                if (! is_array($button)) {
+                    continue;
+                }
                 $options[] = [
                     'id' => (string) ($button['id'] ?? "btn_{$index}"),
                     'title' => (string) ($button['title'] ?? $button['text'] ?? $button['label'] ?? ''),
                 ];
             }
         } else {
-            $sections = $data['sections'] ?? $data['listItems'] ?? [];
-
-            foreach ($sections as $section) {
-                $rows = $section['rows'] ?? $section['items'] ?? [];
-
-                foreach ($rows as $index => $row) {
+            foreach ($data['sections'] ?? $data['listItems'] ?? [] as $section) {
+                if (! is_array($section)) {
+                    continue;
+                }
+                foreach ($section['rows'] ?? $section['items'] ?? [] as $index => $row) {
+                    if (! is_array($row)) {
+                        continue;
+                    }
                     $options[] = [
                         'id' => (string) ($row['id'] ?? "list_{$index}"),
                         'title' => (string) ($row['title'] ?? $row['text'] ?? $row['label'] ?? ''),
@@ -198,25 +179,5 @@ class InteractiveMessageProcessor extends AbstractNodeProcessor
         }
 
         return $options;
-    }
-
-    /**
-     * @param  array<int, array{id: string, title: string}>  $options
-     */
-    private function formatOptionsAsText(array $options, string $type): string
-    {
-        if ($type === 'button') {
-            $labels = array_map(fn (array $o): string => "[{$o['title']}]", $options);
-
-            return implode('  ', $labels);
-        }
-
-        $lines = [];
-
-        foreach ($options as $i => $option) {
-            $lines[] = ($i + 1).'. '.$option['title'];
-        }
-
-        return implode("\n", $lines);
     }
 }

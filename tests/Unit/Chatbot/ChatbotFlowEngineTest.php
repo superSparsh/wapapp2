@@ -129,13 +129,17 @@ class ChatbotFlowEngineTest extends TestCase
         $this->assertSame('welcome_1', $method->invoke($this->engine, $nodeMap, 'hey'));
         $this->assertSame('welcome_2', $method->invoke($this->engine, $nodeMap, 'pricing'));
 
-        // No partial match — must be exact
-        $this->assertNull($method->invoke($this->engine, $nodeMap, 'hello there'));
-        $this->assertNull($method->invoke($this->engine, $nodeMap, 'say hi'));
+        // Whole-word / phrase match (legacy parity)
+        $this->assertSame('welcome_1', $method->invoke($this->engine, $nodeMap, 'hello there'));
+        $this->assertSame('welcome_1', $method->invoke($this->engine, $nodeMap, 'say hi'));
+        $this->assertSame('welcome_1', $method->invoke($this->engine, $nodeMap, 'hi!'));
+
+        // Substring inside another word must not match
+        $this->assertNull($method->invoke($this->engine, $nodeMap, 'this'));
         $this->assertNull($method->invoke($this->engine, $nodeMap, 'unknown'));
     }
 
-    public function test_find_triggered_node_skips_non_text_message_types(): void
+    public function test_find_triggered_node_allows_template_welcome_triggers(): void
     {
         $method = new \ReflectionMethod($this->engine, 'findTriggeredNode');
         $method->setAccessible(true);
@@ -147,12 +151,13 @@ class ChatbotFlowEngineTest extends TestCase
                 'data' => [
                     'messageType' => 'template',
                     'triggerKeyword' => 'hello',
+                    'templateId' => 'WELCOME_TMPL',
                 ],
                 'outputs' => [],
             ],
         ];
 
-        $this->assertNull($method->invoke($this->engine, $nodeMap, 'hello'));
+        $this->assertSame('welcome_1', $method->invoke($this->engine, $nodeMap, 'hello'));
     }
 
     public function test_find_triggered_node_skips_non_welcome_nodes(): void

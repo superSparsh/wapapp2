@@ -320,7 +320,7 @@ class ChatbotFlowExecutionTest extends TestCase
         $this->assertSame('no_match', $result->value);
     }
 
-    public function test_only_exact_keyword_matches_trigger_flow(): void
+    public function test_whole_word_keyword_matches_trigger_flow(): void
     {
         ChatbotFlow::factory()->active()->create([
             'exported_data' => [
@@ -331,7 +331,7 @@ class ChatbotFlowExecutionTest extends TestCase
                         'data' => [
                             'messageType' => 'text',
                             'triggerKeyword' => 'hello',
-                            'text' => 'Welcome!',
+                            'welcomeMessage' => 'Welcome!',
                         ],
                     ],
                 ],
@@ -340,16 +340,23 @@ class ChatbotFlowExecutionTest extends TestCase
         ]);
 
         $conversation = Conversation::factory()->create();
-        $message = Message::factory()->create([
+        $engine = app(ChatbotFlowEngine::class);
+
+        // Whole-word match inside a sentence should trigger (legacy parity)
+        $result = $engine->processInbound($conversation, Message::factory()->create([
             'conversation_id' => $conversation->id,
             'body' => 'say hello world',
             'direction' => MessageDirection::Inbound,
-        ]);
+        ]));
+        $this->assertSame('fired', $result->value);
 
-        $engine = app(ChatbotFlowEngine::class);
-        $result = $engine->processInbound($conversation, $message);
-
-        // Partial match should NOT trigger
+        // Substring glued inside another word should not
+        ChatbotFlowState::query()->delete();
+        $result = $engine->processInbound($conversation, Message::factory()->create([
+            'conversation_id' => $conversation->id,
+            'body' => 'helloworld',
+            'direction' => MessageDirection::Inbound,
+        ]));
         $this->assertSame('no_match', $result->value);
     }
 

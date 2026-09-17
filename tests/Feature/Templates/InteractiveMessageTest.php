@@ -58,5 +58,35 @@ class InteractiveMessageTest extends TestCase
             'name' => 'Order Status',
             'type' => 'button',
         ]);
+
+        $message = InteractiveMessage::query()->where('name', 'Order Status')->first();
+        $this->assertNotNull($message);
+        $this->assertSame('btn_0', $message->content['buttons'][0]['id'] ?? null);
+        $this->assertSame('Track Order', $message->content['buttons'][0]['title'] ?? null);
+    }
+
+    public function test_owner_can_create_list_free_template(): void
+    {
+        $this->actingAsTenantUser()
+            ->post(route('templates.free.store'), [
+                'name' => 'Service Menu',
+                'type' => 'list',
+                'body' => 'Pick a service',
+                'list_button_text' => 'Menu',
+                'list_sections' => [
+                    [
+                        'title' => 'Help',
+                        'rows' => [
+                            ['title' => 'Billing', 'description' => 'Payments'],
+                        ],
+                    ],
+                ],
+            ])
+            ->assertRedirect(route('templates.index', ['tab' => 'free']));
+
+        $message = InteractiveMessage::query()->where('name', 'Service Menu')->first();
+        $this->assertNotNull($message);
+        $this->assertSame('list', $message->type);
+        $this->assertSame('row_0_0', $message->content['list_sections'][0]['rows'][0]['id'] ?? null);
     }
 }

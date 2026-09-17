@@ -202,22 +202,17 @@ class DripFlowEngine
 
             // 6. Interactive Message (Buttons / Lists)
             if ($type === 'interactiveMessage') {
-                $options = (array) ($nodeData['options'] ?? []);
-                $interactiveType = (string) ($nodeData['interactive_type'] ?? 'button');
-                $messageText = (string) ($nodeData['message'] ?? '');
+                $builder = app(\App\Domains\Templates\Support\InteractiveMessagePayloadBuilder::class);
+                $interactivePayload = $builder->fromNodeData($nodeData);
 
-                if ($messageText !== '' && ! empty($options)) {
-                    $interactivePayload = [
-                        'type' => $interactiveType === 'list' ? 'list' : 'button',
-                        'body' => ['text' => $messageText],
-                        'action' => [
-                            'buttons' => array_map(fn ($opt, $idx) => [
-                                'type' => 'reply',
-                                'reply' => ['id' => 'btn_'.$idx, 'title' => (string) $opt],
-                            ], $options, array_keys($options)),
-                        ],
-                    ];
-                    $this->outboundService->sendInteractive($conversation, $interactivePayload, previewBody: $messageText, enforceWindow: false);
+                if ($interactivePayload !== null) {
+                    $preview = (string) ($interactivePayload['body']['text'] ?? $nodeData['message'] ?? '[Interactive message]');
+                    $this->outboundService->sendInteractive(
+                        $conversation,
+                        $interactivePayload,
+                        previewBody: $preview,
+                        enforceWindow: false,
+                    );
                     $this->statService->record(
                         campaignId: (int) $state->drip_campaign_id,
                         nodeId: (string) ($node['id'] ?? 'interactiveMessage'),

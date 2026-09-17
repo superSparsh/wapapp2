@@ -33,9 +33,10 @@ class WhatsappFlowTemplateProcessor extends AbstractNodeProcessor
 
         if ($templateId !== null && $templateId !== '') {
             $template = Template::query()->find($templateId);
-            $templateCode = $template?->whatsappCode();
+            $templateCode = $template?->whatsappCode()
+                ?: (filled($template?->code) ? (string) $template->code : '');
 
-            if ($templateCode !== null && $templateCode !== '') {
+            if ($templateCode !== '') {
                 $this->sendTemplate($conversation, $templateCode);
 
                 $state->mergeVariables([
@@ -111,6 +112,11 @@ class WhatsappFlowTemplateProcessor extends AbstractNodeProcessor
         if ($flowCta !== '') {
             $this->sendText($conversation, "[{$flowCta}]");
         }
+
+        $state->forceFill([
+            'status' => ChatbotFlowStateStatus::Waiting,
+            'current_node_id' => (string) ($node['id'] ?? ''),
+        ])->save();
 
         return NodeProcessResult::WaitForResponse;
     }

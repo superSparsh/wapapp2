@@ -9,8 +9,8 @@ return [
     |--------------------------------------------------------------------------
     */
 
-    // Conversation state TTL in minutes before auto-expiry
-    'state_ttl_minutes' => (int) env('CHATBOT_STATE_TTL', 2),
+    // Conversation state TTL in minutes before auto-expiry (legacy waits ~5+ min; keep sessions usable)
+    'state_ttl_minutes' => (int) env('CHATBOT_STATE_TTL', 60),
 
     // Flow data cache TTL in seconds (2 hours)
     'flow_cache_ttl_seconds' => (int) env('CHATBOT_CACHE_TTL', 7200),
