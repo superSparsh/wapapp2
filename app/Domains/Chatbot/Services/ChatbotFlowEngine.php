@@ -65,28 +65,29 @@ class ChatbotFlowEngine
             $this->resetConversationStates($conversation);
         }
 
-        // 2. Exact trigger keyword always wins (legacy triggerWithCustomText).
-        // Only exact matches preempt mid-flow — whole-word/fuzzy must not steal button replies.
-        $exactTrigger = $this->matchAndTriggerFlow($conversation, $inboundMessage, $body, exactOnly: true);
-        if ($exactTrigger !== TriggerFireResult::NoMatch) {
-            return $exactTrigger;
+        // 2. Keyword trigger FIRST (legacy WebhookMessageService order).
+        // Any matching trigger word starts that bot and clears mid-flow state.
+        // Exact / longer / line-specific / newest scoring picks the right bot.
+        $triggered = $this->matchAndTriggerFlow($conversation, $inboundMessage, $body, exactOnly: false);
+        if ($triggered !== TriggerFireResult::NoMatch) {
+            return $triggered;
         }
 
-        // 3. Continue waiting / active conversation when no exact trigger hit
+        // 3. No keyword match → continue waiting reply if any
         $waitingState = $this->findWaitingState($conversation);
 
         if ($waitingState !== null) {
             return $this->processReply($conversation, $inboundMessage, $waitingState, $body);
         }
 
+        // 4. Or resume an active (non-waiting) state
         $activeState = $this->findActiveState($conversation);
 
         if ($activeState !== null) {
             return $this->continueFromState($conversation, $activeState);
         }
 
-        // 4. Cold start — allow whole-word / phrase keyword matches
-        return $this->matchAndTriggerFlow($conversation, $inboundMessage, $body, exactOnly: false);
+        return TriggerFireResult::NoMatch;
     }
 
     /**

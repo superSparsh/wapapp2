@@ -22,26 +22,54 @@ class TriggerMatcherService
 
         $anyMessageTrigger = (string) config('trigger-template.any_message_trigger');
 
-        $ordered = $triggers
-            ->sortByDesc(fn (TriggerVariable $trigger): int => mb_strlen($trigger->variable_name))
-            ->values();
-
-        foreach ($ordered as $trigger) {
-            if ($trigger->variable_name === $anyMessageTrigger) {
-                if ($isFirstMessage) {
-                    return $trigger;
+        $candidates = $triggers
+            ->filter(function (TriggerVariable $trigger) use ($anyMessageTrigger, $isFirstMessage, $normalizedMessage): bool {
+                if ($trigger->variable_name === $anyMessageTrigger) {
+                    return $isFirstMessage;
                 }
 
-                continue;
-            }
+                return $this->messageMatchesKeyword($normalizedMessage, mb_strtolower(trim($trigger->variable_name)));
+            })
+            ->values();
 
-            $keyword = mb_strtolower($trigger->variable_name);
-
-            if ($keyword !== '' && str_contains($normalizedMessage, $keyword)) {
-                return $trigger;
-            }
+        if ($candidates->isEmpty()) {
+            return null;
         }
 
-        return null;
+        // Prefer exact match, then longer keyword (avoids short names like "i" / "a" stealing every reply).
+        return $candidates
+            ->sort(function (TriggerVariable $a, TriggerVariable $b) use ($normalizedMessage): int {
+                $aName = mb_strtolower(trim($a->variable_name));
+                $bName = mb_strtolower(trim($b->variable_name));
+                $aExact = $normalizedMessage === $aName;
+                $bExact = $normalizedMessage === $bName;
+
+                if ($aExact !== $bExact) {
+                    return $aExact ? -1 : 1;
+                }
+
+                $lenCmp = mb_strlen($bName) <=> mb_strlen($aName);
+                if ($lenCmp !== 0) {
+                    return $lenCmp;
+                }
+
+                return $b->id <=> $a->id;
+            })
+            ->first();
+    }
+
+    private function messageMatchesKeyword(string $messageLower, string $keywordLower): bool
+    {
+        if ($messageLower === '' || $keywordLower === '') {
+            return false;
+        }
+
+        if ($messageLower === $keywordLower) {
+            return true;
+        }
+
+        $pattern = '/(?:^|[^\p{L}\p{N}])'.preg_quote($keywordLower, '/').'(?:[^\p{L}\p{N}]|$)/ui';
+
+        return (bool) preg_match($pattern, $messageLower);
     }
 }

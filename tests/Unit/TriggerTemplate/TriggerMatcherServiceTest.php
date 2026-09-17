@@ -60,6 +60,35 @@ class TriggerMatcherServiceTest extends TestCase
         $this->assertSame('book_now', $match->variable_name);
     }
 
+    public function test_short_substring_keyword_does_not_steal_unrelated_words(): void
+    {
+        $short = TriggerVariable::factory()->create(['variable_name' => 'i']);
+        $hi = TriggerVariable::factory()->create(['variable_name' => 'hi']);
+
+        $this->assertSame(
+            'hi',
+            $this->matcher->match(collect([$short, $hi]), 'hi', false)?->variable_name,
+        );
+
+        // "this" must not match trigger "hi" or lone "i" as a stolen substring reply
+        $this->assertNull($this->matcher->match(collect([$short, $hi]), 'this', false));
+    }
+
+    public function test_prefers_exact_match_over_longer_partial(): void
+    {
+        $partial = TriggerVariable::factory()->create(['variable_name' => 'help desk']);
+        $exact = TriggerVariable::factory()->create(['variable_name' => 'help']);
+
+        $match = $this->matcher->match(
+            collect([$partial, $exact]),
+            'help',
+            false,
+        );
+
+        $this->assertNotNull($match);
+        $this->assertSame('help', $match->variable_name);
+    }
+
     public function test_any_message_trigger_only_fires_on_first_message(): void
     {
         $trigger = TriggerVariable::factory()->anyMessage()->create([

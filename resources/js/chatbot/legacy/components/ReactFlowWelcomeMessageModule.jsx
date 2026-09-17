@@ -102,8 +102,12 @@ const ReactFlowWelcomeMessageModule = ({
           undeliveredTimeout: timeoutConfig.undeliveredTimeout,
         },
         label: `Welcome Message - ${values.messageType}`,
-        // Backward compatibility: include text field for existing nodes
-        text: values.triggerKeyword || values.text || "",
+        // Keep body in welcomeMessage; never overwrite text with the trigger keyword
+        // (that made every welcome look like the keyword and broke routing).
+        welcomeMessage: values.welcomeMessage || values.message || "",
+        text: values.welcomeMessage || values.message || values.text || "",
+        message: values.welcomeMessage || values.message || "",
+        triggerKeyword: values.triggerKeyword || "",
       };
 
       console.log("Final node data to save:", nodeData);

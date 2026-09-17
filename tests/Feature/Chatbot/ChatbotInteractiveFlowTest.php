@@ -511,7 +511,7 @@ class ChatbotInteractiveFlowTest extends TestCase
         $this->assertSame($exactBot->id, $state->chatbot_flow_id);
     }
 
-    public function test_fuzzy_keyword_does_not_preempt_waiting_state(): void
+    public function test_fuzzy_keyword_does_not_steal_unrelated_button_reply(): void
     {
         $waitingBot = ChatbotFlow::factory()->active()->create([
             'name' => 'Waiting Bot',
@@ -524,8 +524,8 @@ class ChatbotInteractiveFlowTest extends TestCase
                             'interactiveType' => 'button',
                             'bodyText' => 'Choose',
                             'buttons' => [
-                                ['id' => 'a', 'title' => 'Option A'],
-                                ['id' => 'b', 'title' => 'Option B'],
+                                ['id' => 'a', 'title' => 'Alpha'],
+                                ['id' => 'b', 'title' => 'Beta'],
                             ],
                         ],
                     ],
@@ -541,7 +541,7 @@ class ChatbotInteractiveFlowTest extends TestCase
             ],
         ]);
 
-        // Another bot whose keyword appears inside a longer reply must NOT steal mid-flow.
+        // Unrelated keyword must not steal a button reply that does not contain it.
         ChatbotFlow::factory()->active()->create([
             'name' => 'Fuzzy Bot',
             'exported_data' => [
@@ -550,7 +550,7 @@ class ChatbotInteractiveFlowTest extends TestCase
                     'type' => 'welcomeMessage',
                     'data' => [
                         'messageType' => 'text',
-                        'triggerKeyword' => 'option',
+                        'triggerKeyword' => 'promo',
                         'welcomeMessage' => 'Fuzzy stole it',
                     ],
                 ]],
@@ -566,8 +566,8 @@ class ChatbotInteractiveFlowTest extends TestCase
             'current_node_id' => 'interactive_1',
             'variables' => [
                 '_interactive_options' => [
-                    ['id' => 'a', 'title' => 'Option A'],
-                    ['id' => 'b', 'title' => 'Option B'],
+                    ['id' => 'a', 'title' => 'Alpha'],
+                    ['id' => 'b', 'title' => 'Beta'],
                 ],
             ],
             'status' => ChatbotFlowStateStatus::Waiting,
@@ -577,7 +577,7 @@ class ChatbotInteractiveFlowTest extends TestCase
         $engine = app(ChatbotFlowEngine::class);
         $engine->processInbound($conversation, Message::factory()->create([
             'conversation_id' => $conversation->id,
-            'body' => 'Option A',
+            'body' => 'Alpha',
             'direction' => MessageDirection::Inbound,
         ]));
 
@@ -589,6 +589,58 @@ class ChatbotInteractiveFlowTest extends TestCase
         $this->assertNotNull($waitingState);
         $this->assertNotSame(ChatbotFlowStateStatus::Expired, $waitingState->status);
         $this->assertSame(0, ChatbotFlowState::query()->whereHas('chatbotFlow', fn ($q) => $q->where('name', 'Fuzzy Bot'))->count());
+    }
+
+    public function test_each_exact_trigger_starts_its_own_bot(): void
+    {
+        $sales = ChatbotFlow::factory()->active()->create([
+            'name' => 'Sales Bot',
+            'exported_data' => [
+                'nodes' => [[
+                    'id' => 'welcome_sales',
+                    'type' => 'welcomeMessage',
+                    'data' => [
+                        'messageType' => 'text',
+                        'triggerKeyword' => 'sales',
+                        'welcomeMessage' => 'Sales desk',
+                    ],
+                ]],
+                'edges' => [],
+            ],
+        ]);
+
+        $support = ChatbotFlow::factory()->active()->create([
+            'name' => 'Support Bot',
+            'exported_data' => [
+                'nodes' => [[
+                    'id' => 'welcome_support',
+                    'type' => 'welcomeMessage',
+                    'data' => [
+                        'messageType' => 'text',
+                        'triggerKeyword' => 'support',
+                        'welcomeMessage' => 'Support desk',
+                    ],
+                ]],
+                'edges' => [],
+            ],
+        ]);
+
+        $conversation = Conversation::factory()->create();
+        $engine = app(ChatbotFlowEngine::class);
+
+        $engine->processInbound($conversation, Message::factory()->create([
+            'conversation_id' => $conversation->id,
+            'body' => 'sales',
+            'direction' => MessageDirection::Inbound,
+        ]));
+        $this->assertSame($sales->id, ChatbotFlowState::query()->latest('id')->first()?->chatbot_flow_id);
+
+        $engine->processInbound($conversation, Message::factory()->create([
+            'conversation_id' => $conversation->id,
+            'body' => 'support',
+            'direction' => MessageDirection::Inbound,
+        ]));
+        $this->assertSame($support->id, ChatbotFlowState::query()->latest('id')->first()?->chatbot_flow_id);
     }
 
     public function test_legacy_text_field_used_as_trigger_when_keyword_missing(): void
