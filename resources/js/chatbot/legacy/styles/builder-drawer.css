@@ -145,3 +145,16 @@
   border-color: #bfdbfe;
   background: #eff6ff;
 }
+
+/* Keep Select / DatePicker menus above the drawer */
+.chatbot-builder-drawer-root {
+  z-index: 1100 !important;
+}
+
+body:has(.chatbot-builder-drawer-root) .ant-select-dropdown,
+body:has(.chatbot-builder-drawer-root) .ant-picker-dropdown,
+body:has(.chatbot-builder-drawer-root) .ant-cascader-dropdown,
+.chatbot-builder-select-dropdown,
+.ant-select-dropdown.chatbot-builder-select-dropdown {
+  z-index: 2200 !important;
+}

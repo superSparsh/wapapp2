@@ -256,20 +256,6 @@ const ReactFlowWelcomeMessageModule = ({
           welcomeMessage: "",
         }}
       >
-        <Form.Item
-          name="triggerKeyword"
-          label="Trigger Keyword"
-          rules={[
-            {
-              required: true,
-              message: "Please enter trigger keyword",
-            },
-          ]}
-          help="Enter the keyword that will trigger this welcome message when a customer sends it"
-        >
-          <Input placeholder="e.g., hello, start, help" maxLength={100} />
-        </Form.Item>
-
         <Card title="Message Type" size="small" style={{ marginBottom: 16 }}>
           <Form.Item
             name="messageType"
@@ -327,6 +313,23 @@ const ReactFlowWelcomeMessageModule = ({
                   size="small"
                   style={{ marginBottom: 16 }}
                 >
+                  <Form.Item
+                    name="triggerKeyword"
+                    label="Trigger Keyword"
+                    rules={[
+                      {
+                        required: true,
+                        message: "Please enter trigger keyword",
+                      },
+                    ]}
+                    help="Enter the keyword that will trigger this welcome message when a customer sends it"
+                  >
+                    <Input
+                      placeholder="e.g., hello, start, help"
+                      maxLength={100}
+                    />
+                  </Form.Item>
+
                   <Form.Item
                     name="welcomeMessage"
                     label="Welcome Message"
@@ -442,6 +445,23 @@ const ReactFlowWelcomeMessageModule = ({
                   style={{ marginBottom: 16 }}
                 >
                   <Form.Item
+                    name="triggerKeyword"
+                    label="Trigger Keyword"
+                    rules={[
+                      {
+                        required: true,
+                        message: "Please enter trigger keyword",
+                      },
+                    ]}
+                    help="Enter the keyword that will trigger this welcome message when a customer sends it"
+                  >
+                    <Input
+                      placeholder="e.g., hello, start, help"
+                      maxLength={100}
+                    />
+                  </Form.Item>
+
+                  <Form.Item
                     name="templateId"
                     label="Select Template"
                     rules={[
@@ -453,6 +473,9 @@ const ReactFlowWelcomeMessageModule = ({
                       showSearch
                       optionFilterProp="children"
                       onChange={handleTemplateChange}
+                      getPopupContainer={() => document.body}
+                      popupClassName="chatbot-builder-select-dropdown"
+                      dropdownStyle={{ zIndex: 2200 }}
                       filterOption={(input, option) => {
                         // Get the template name from the option's data attribute
                         const templateName = option["data-template-name"] || "";

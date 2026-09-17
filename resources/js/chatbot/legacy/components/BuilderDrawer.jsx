@@ -1,5 +1,5 @@
 import React from "react";
-import { Drawer } from "antd";
+import { ConfigProvider, Drawer } from "antd";
 
 export const builderDrawerStyles = {
   header: {
@@ -55,9 +55,19 @@ export default function BuilderDrawer({
       styles={builderDrawerStyles}
       title={title}
       footer={footer}
+      zIndex={1100}
       {...rest}
     >
-      {children}
+      <ConfigProvider
+        getPopupContainer={() => document.body}
+        theme={{
+          token: {
+            zIndexPopupBase: 2200,
+          },
+        }}
+      >
+        {children}
+      </ConfigProvider>
     </Drawer>
   );
 }
