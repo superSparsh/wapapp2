@@ -23,6 +23,8 @@ export function alertChatbotAction(message, title = 'Notice') {
 
 /**
  * Ask which WhatsApp number this chatbot should use (multiple lines only).
+ * Uses a clickable list (not native <select>) so options never open behind the modal.
+ *
  * @param {{ lines: Array<{uuid: string, label: string}>, selectedUuid?: string|null, title?: string, message?: string }} options
  * @returns {Promise<string|null>} selected line uuid, or null if cancelled
  */
@@ -46,53 +48,190 @@ export function promptChatbotLineChoice({
             existing.remove();
         }
 
+        let currentUuid =
+            selectedUuid && lines.some((line) => line.uuid === selectedUuid)
+                ? selectedUuid
+                : lines[0].uuid;
+
         const modal = document.createElement('div');
         modal.id = 'chatbot-line-picker-modal';
-        modal.className = 'fixed inset-0 z-[10000] flex items-center justify-center bg-black/40 p-4';
-        modal.innerHTML = `
-          <div class="w-full max-w-md rounded-xl bg-white p-5 shadow-lg" role="dialog" aria-modal="true">
-            <h3 class="text-lg font-semibold text-gray-900"></h3>
-            <p class="mt-1 text-sm text-gray-600"></p>
-            <label class="mt-4 block text-sm font-medium text-gray-700" for="chatbot-line-picker-select">WhatsApp number</label>
-            <select id="chatbot-line-picker-select" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"></select>
-            <div class="mt-5 flex justify-end gap-2">
-              <button type="button" data-line-cancel class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700">Cancel</button>
-              <button type="button" data-line-confirm class="rounded-lg bg-green-500 px-4 py-2 text-sm font-semibold text-white">Save on this number</button>
-            </div>
-          </div>
-        `;
+        // Inline z-index: Tailwind may not emit arbitrary classes from JS strings.
+        Object.assign(modal.style, {
+            position: 'fixed',
+            inset: '0',
+            zIndex: '2147483646',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'rgba(0, 0, 0, 0.45)',
+            padding: '16px',
+        });
 
-        modal.querySelector('h3').textContent = title;
-        modal.querySelector('p').textContent = message;
+        const panel = document.createElement('div');
+        Object.assign(panel.style, {
+            width: '100%',
+            maxWidth: '28rem',
+            borderRadius: '12px',
+            background: '#fff',
+            padding: '20px',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
+            position: 'relative',
+            zIndex: '2147483647',
+        });
+        panel.setAttribute('role', 'dialog');
+        panel.setAttribute('aria-modal', 'true');
 
-        const select = modal.querySelector('#chatbot-line-picker-select');
-        lines.forEach((line) => {
-            const option = document.createElement('option');
-            option.value = line.uuid;
-            option.textContent = line.label || line.uuid;
-            if (line.uuid === selectedUuid) {
-                option.selected = true;
-            }
-            select.appendChild(option);
+        const heading = document.createElement('h3');
+        heading.textContent = title;
+        Object.assign(heading.style, {
+            margin: '0',
+            fontSize: '18px',
+            fontWeight: '600',
+            color: '#111827',
+        });
+
+        const description = document.createElement('p');
+        description.textContent = message;
+        Object.assign(description.style, {
+            margin: '8px 0 0',
+            fontSize: '14px',
+            color: '#4b5563',
+        });
+
+        const listLabel = document.createElement('div');
+        listLabel.textContent = 'WhatsApp number';
+        Object.assign(listLabel.style, {
+            marginTop: '16px',
+            marginBottom: '8px',
+            fontSize: '13px',
+            fontWeight: '600',
+            color: '#374151',
+        });
+
+        const list = document.createElement('div');
+        Object.assign(list.style, {
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px',
+            maxHeight: '240px',
+            overflowY: 'auto',
+        });
+
+        const paintList = () => {
+            list.innerHTML = '';
+            lines.forEach((line) => {
+                const selected = line.uuid === currentUuid;
+                const item = document.createElement('button');
+                item.type = 'button';
+                item.dataset.lineUuid = line.uuid;
+                Object.assign(item.style, {
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    width: '100%',
+                    textAlign: 'left',
+                    borderRadius: '8px',
+                    border: selected ? '2px solid #22c55e' : '1px solid #d1d5db',
+                    background: selected ? '#f0fdf4' : '#fff',
+                    padding: '10px 12px',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    fontWeight: selected ? '600' : '500',
+                    color: '#111827',
+                });
+
+                const radio = document.createElement('span');
+                Object.assign(radio.style, {
+                    width: '16px',
+                    height: '16px',
+                    borderRadius: '999px',
+                    border: selected ? '5px solid #22c55e' : '2px solid #9ca3af',
+                    flexShrink: '0',
+                    boxSizing: 'border-box',
+                });
+
+                const label = document.createElement('span');
+                label.textContent = line.label || line.uuid;
+
+                item.appendChild(radio);
+                item.appendChild(label);
+                item.addEventListener('click', () => {
+                    currentUuid = line.uuid;
+                    paintList();
+                });
+                list.appendChild(item);
+            });
+        };
+
+        paintList();
+
+        const actions = document.createElement('div');
+        Object.assign(actions.style, {
+            marginTop: '20px',
+            display: 'flex',
+            justifyContent: 'flex-end',
+            gap: '8px',
+        });
+
+        const cancelBtn = document.createElement('button');
+        cancelBtn.type = 'button';
+        cancelBtn.textContent = 'Cancel';
+        Object.assign(cancelBtn.style, {
+            borderRadius: '8px',
+            border: '1px solid #d1d5db',
+            background: '#fff',
+            padding: '8px 16px',
+            fontSize: '14px',
+            fontWeight: '600',
+            color: '#374151',
+            cursor: 'pointer',
+        });
+
+        const confirmBtn = document.createElement('button');
+        confirmBtn.type = 'button';
+        confirmBtn.textContent = 'Save on this number';
+        Object.assign(confirmBtn.style, {
+            borderRadius: '8px',
+            border: 'none',
+            background: '#22c55e',
+            padding: '8px 16px',
+            fontSize: '14px',
+            fontWeight: '600',
+            color: '#fff',
+            cursor: 'pointer',
         });
 
         const cleanup = (value) => {
             modal.remove();
+            document.removeEventListener('keydown', onKeyDown);
             resolve(value);
         };
 
-        modal.querySelector('[data-line-cancel]')?.addEventListener('click', () => cleanup(null));
+        const onKeyDown = (event) => {
+            if (event.key === 'Escape') {
+                cleanup(null);
+            }
+        };
+
+        cancelBtn.addEventListener('click', () => cleanup(null));
+        confirmBtn.addEventListener('click', () => cleanup(currentUuid));
         modal.addEventListener('click', (event) => {
             if (event.target === modal) {
                 cleanup(null);
             }
         });
-        modal.querySelector('[data-line-confirm]')?.addEventListener('click', () => {
-            cleanup(select?.value || null);
-        });
+        document.addEventListener('keydown', onKeyDown);
 
+        actions.appendChild(cancelBtn);
+        actions.appendChild(confirmBtn);
+        panel.appendChild(heading);
+        panel.appendChild(description);
+        panel.appendChild(listLabel);
+        panel.appendChild(list);
+        panel.appendChild(actions);
+        modal.appendChild(panel);
         document.body.appendChild(modal);
-        select?.focus();
+        confirmBtn.focus();
     });
 }
 
