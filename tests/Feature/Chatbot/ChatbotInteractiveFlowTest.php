@@ -283,8 +283,232 @@ class ChatbotInteractiveFlowTest extends TestCase
             'direction' => MessageDirection::Inbound,
         ]));
 
-        // Only one flow state should be created (first match wins)
+        // Only one flow state should be created (newest updated bot wins)
         $this->assertSame(1, ChatbotFlowState::query()->count());
+        $state = ChatbotFlowState::query()->first();
+        $this->assertSame('Second Bot', ChatbotFlow::query()->find($state->chatbot_flow_id)?->name);
+    }
+
+    public function test_newer_bot_wins_over_older_bot_with_same_keyword(): void
+    {
+        $older = ChatbotFlow::factory()->active()->create([
+            'name' => 'Older Bot',
+            'updated_at' => now()->subDay(),
+            'exported_data' => [
+                'nodes' => [[
+                    'id' => 'welcome_old',
+                    'type' => 'welcomeMessage',
+                    'data' => [
+                        'messageType' => 'text',
+                        'triggerKeyword' => 'promo',
+                        'welcomeMessage' => 'Old promo',
+                    ],
+                ]],
+                'edges' => [],
+            ],
+        ]);
+        // Force older timestamp (Eloquent may overwrite on create)
+        ChatbotFlow::query()->whereKey($older->id)->update(['updated_at' => now()->subDay()]);
+
+        $newer = ChatbotFlow::factory()->active()->create([
+            'name' => 'Newer Bot',
+            'exported_data' => [
+                'nodes' => [[
+                    'id' => 'welcome_new',
+                    'type' => 'welcomeMessage',
+                    'data' => [
+                        'messageType' => 'text',
+                        'triggerKeyword' => 'promo',
+                        'welcomeMessage' => 'New promo',
+                    ],
+                ]],
+                'edges' => [],
+            ],
+        ]);
+        ChatbotFlow::query()->whereKey($newer->id)->update(['updated_at' => now()]);
+
+        $conversation = Conversation::factory()->create();
+        $engine = app(ChatbotFlowEngine::class);
+
+        $engine->processInbound($conversation, Message::factory()->create([
+            'conversation_id' => $conversation->id,
+            'body' => 'promo',
+            'direction' => MessageDirection::Inbound,
+        ]));
+
+        $state = ChatbotFlowState::query()->first();
+        $this->assertNotNull($state);
+        $this->assertSame($newer->id, $state->chatbot_flow_id);
+    }
+
+    public function test_line_specific_bot_beats_global_bot_for_same_keyword(): void
+    {
+        $conversation = Conversation::factory()->create();
+        $lineId = (int) $conversation->whatsapp_line_id;
+
+        ChatbotFlow::factory()->active()->create([
+            'name' => 'Global Bot',
+            'whatsapp_line_id' => null,
+            'updated_at' => now(),
+            'exported_data' => [
+                'nodes' => [[
+                    'id' => 'welcome_g',
+                    'type' => 'welcomeMessage',
+                    'data' => [
+                        'messageType' => 'text',
+                        'triggerKeyword' => 'offers',
+                        'welcomeMessage' => 'Global',
+                    ],
+                ]],
+                'edges' => [],
+            ],
+        ]);
+
+        $lineBot = ChatbotFlow::factory()->active()->create([
+            'name' => 'Line Bot',
+            'whatsapp_line_id' => $lineId,
+            'exported_data' => [
+                'nodes' => [[
+                    'id' => 'welcome_l',
+                    'type' => 'welcomeMessage',
+                    'data' => [
+                        'messageType' => 'text',
+                        'triggerKeyword' => 'offers',
+                        'welcomeMessage' => 'Line specific',
+                    ],
+                ]],
+                'edges' => [],
+            ],
+        ]);
+
+        $engine = app(ChatbotFlowEngine::class);
+        $engine->processInbound($conversation, Message::factory()->create([
+            'conversation_id' => $conversation->id,
+            'body' => 'offers',
+            'direction' => MessageDirection::Inbound,
+        ]));
+
+        $state = ChatbotFlowState::query()->first();
+        $this->assertNotNull($state);
+        $this->assertSame($lineBot->id, $state->chatbot_flow_id);
+    }
+
+    public function test_trigger_keyword_preempts_waiting_state_from_other_bot(): void
+    {
+        $waitingBot = ChatbotFlow::factory()->active()->create([
+            'name' => 'Waiting Bot',
+            'exported_data' => [
+                'nodes' => [[
+                    'id' => 'wait_welcome',
+                    'type' => 'welcomeMessage',
+                    'data' => [
+                        'messageType' => 'text',
+                        'triggerKeyword' => 'waitbot',
+                        'welcomeMessage' => 'Waiting bot',
+                    ],
+                ]],
+                'edges' => [],
+            ],
+        ]);
+
+        $targetBot = ChatbotFlow::factory()->active()->create([
+            'name' => 'Target Bot',
+            'exported_data' => [
+                'nodes' => [[
+                    'id' => 'target_welcome',
+                    'type' => 'welcomeMessage',
+                    'data' => [
+                        'messageType' => 'text',
+                        'triggerKeyword' => 'go',
+                        'welcomeMessage' => 'Target bot',
+                    ],
+                ]],
+                'edges' => [],
+            ],
+        ]);
+
+        $conversation = Conversation::factory()->create();
+
+        ChatbotFlowState::query()->create([
+            'conversation_id' => $conversation->id,
+            'chatbot_flow_id' => $waitingBot->id,
+            'current_node_id' => 'wait_welcome',
+            'variables' => [],
+            'status' => ChatbotFlowStateStatus::Waiting,
+            'expires_at' => now()->addHour(),
+        ]);
+
+        $engine = app(ChatbotFlowEngine::class);
+        $engine->processInbound($conversation, Message::factory()->create([
+            'conversation_id' => $conversation->id,
+            'body' => 'go',
+            'direction' => MessageDirection::Inbound,
+        ]));
+
+        $activeStates = ChatbotFlowState::query()
+            ->where('conversation_id', $conversation->id)
+            ->whereIn('status', [
+                ChatbotFlowStateStatus::Active->value,
+                ChatbotFlowStateStatus::Waiting->value,
+                ChatbotFlowStateStatus::Completed->value,
+            ])
+            ->get();
+
+        $this->assertTrue(
+            $activeStates->contains(fn ($s) => (int) $s->chatbot_flow_id === (int) $targetBot->id)
+        );
+        $this->assertSame(
+            ChatbotFlowStateStatus::Expired,
+            ChatbotFlowState::query()->where('chatbot_flow_id', $waitingBot->id)->first()?->status
+        );
+    }
+
+    public function test_exact_keyword_beats_shorter_whole_word_match(): void
+    {
+        ChatbotFlow::factory()->active()->create([
+            'name' => 'Short Keyword Bot',
+            'exported_data' => [
+                'nodes' => [[
+                    'id' => 'welcome_short',
+                    'type' => 'welcomeMessage',
+                    'data' => [
+                        'messageType' => 'text',
+                        'triggerKeyword' => 'help',
+                        'welcomeMessage' => 'Short',
+                    ],
+                ]],
+                'edges' => [],
+            ],
+        ]);
+
+        $exactBot = ChatbotFlow::factory()->active()->create([
+            'name' => 'Exact Phrase Bot',
+            'exported_data' => [
+                'nodes' => [[
+                    'id' => 'welcome_exact',
+                    'type' => 'welcomeMessage',
+                    'data' => [
+                        'messageType' => 'text',
+                        'triggerKeyword' => 'need help',
+                        'welcomeMessage' => 'Exact',
+                    ],
+                ]],
+                'edges' => [],
+            ],
+        ]);
+
+        $conversation = Conversation::factory()->create();
+        $engine = app(ChatbotFlowEngine::class);
+
+        $engine->processInbound($conversation, Message::factory()->create([
+            'conversation_id' => $conversation->id,
+            'body' => 'need help',
+            'direction' => MessageDirection::Inbound,
+        ]));
+
+        $state = ChatbotFlowState::query()->first();
+        $this->assertNotNull($state);
+        $this->assertSame($exactBot->id, $state->chatbot_flow_id);
     }
 
     public function test_react_button_handle_routes_by_reply_id(): void

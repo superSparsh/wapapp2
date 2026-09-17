@@ -9,7 +9,6 @@ use App\Domains\Chatbot\Enums\NodeProcessResult;
 use App\Domains\Chatbot\Support\FlowVariableResolver;
 use App\Domains\TriggerTemplate\Enums\TriggerFireResult;
 use App\Enums\ChatbotFlowStateStatus;
-use App\Enums\ChatbotFlowStatus;
 use App\Enums\MessageDirection;
 use App\Models\ChatbotFlow;
 use App\Models\ChatbotFlowState;
@@ -61,27 +60,34 @@ class ChatbotFlowEngine
             return TriggerFireResult::WalletBlocked;
         }
 
-        // 1. Check for "start" command → reset any existing states
+        // 1. "start" command → reset any existing states
         if ($this->isStartCommand($body)) {
             $this->resetConversationStates($conversation);
         }
 
-        // 2. Check for existing waiting state → process reply
+        // 2. Keyword trigger FIRST (legacy parity).
+        // A matching trigger word resets mid-flow state and starts that bot —
+        // otherwise an older waiting/active bot keeps stealing trigger messages.
+        $triggered = $this->matchAndTriggerFlow($conversation, $inboundMessage, $body);
+        if ($triggered !== TriggerFireResult::NoMatch) {
+            return $triggered;
+        }
+
+        // 3. No keyword match → continue waiting reply if any
         $waitingState = $this->findWaitingState($conversation);
 
         if ($waitingState !== null) {
             return $this->processReply($conversation, $inboundMessage, $waitingState, $body);
         }
 
-        // 3. Check for existing active state → continue flow
+        // 4. Or resume an active (non-waiting) state
         $activeState = $this->findActiveState($conversation);
 
         if ($activeState !== null) {
             return $this->continueFromState($conversation, $activeState);
         }
 
-        // 4. No active state → scan all active flows for keyword triggers
-        return $this->matchAndTriggerFlow($conversation, $inboundMessage, $body);
+        return TriggerFireResult::NoMatch;
     }
 
     /**
@@ -445,12 +451,15 @@ class ChatbotFlowEngine
     }
 
     /**
-     * Find a node in the flow that has a trigger keyword matching the user message.
+     * Find the best trigger match inside a flow.
      *
      * @param  array<string, array<string, mixed>>  $nodeMap
+     * @return array{node_id: string, keyword: string, exact: bool}|null
      */
-    private function findTriggeredNode(array $nodeMap, string $messageLower): ?string
+    private function findTriggeredMatch(array $nodeMap, string $messageLower): ?array
     {
+        $best = null;
+
         foreach ($nodeMap as $nodeId => $node) {
             $nodeType = (string) ($node['class'] ?? 'unknown');
 
@@ -458,7 +467,7 @@ class ChatbotFlowEngine
                 continue;
             }
 
-            $data = $node['data'] ?? [];
+            $data = is_array($node['data'] ?? null) ? $node['data'] : [];
             // Never use body/text as keyword — React stores the keyword separately.
             $triggerKeyword = (string) ($data['triggerKeyword'] ?? $data['keywords'] ?? '');
 
@@ -474,13 +483,37 @@ class ChatbotFlowEngine
                 if ($keyword === '') {
                     continue;
                 }
-                if ($this->messageMatchesKeyword($messageLower, $keyword)) {
-                    return $nodeId;
+
+                $exact = $messageLower === $keyword;
+                if (! $exact && ! $this->messageMatchesKeyword($messageLower, $keyword)) {
+                    continue;
+                }
+
+                $candidate = [
+                    'node_id' => (string) $nodeId,
+                    'keyword' => $keyword,
+                    'exact' => $exact,
+                ];
+
+                if ($best === null || $this->compareTriggerCandidates($candidate, $best) > 0) {
+                    $best = $candidate;
                 }
             }
         }
 
-        return null;
+        return $best;
+    }
+
+    /**
+     * @deprecated Use findTriggeredMatch(); kept for unit tests / reflection.
+     *
+     * @param  array<string, array<string, mixed>>  $nodeMap
+     */
+    private function findTriggeredNode(array $nodeMap, string $messageLower): ?string
+    {
+        $match = $this->findTriggeredMatch($nodeMap, $messageLower);
+
+        return $match['node_id'] ?? null;
     }
 
     private function messageMatchesKeyword(string $messageLower, string $keywordLower): bool
@@ -503,7 +536,8 @@ class ChatbotFlowEngine
     }
 
     /**
-     * Scan all active flows for a keyword match and start the matching flow.
+     * Scan active flows for this line and start the best keyword match.
+     * Legacy: newest updated bot wins on ties; trigger resets prior conversation state.
      */
     private function matchAndTriggerFlow(
         Conversation $conversation,
@@ -511,10 +545,21 @@ class ChatbotFlowEngine
         string $body,
     ): TriggerFireResult {
         $messageLower = mb_strtolower(trim($body));
+        $lineId = (int) ($conversation->whatsapp_line_id ?? 0);
 
         $flows = ChatbotFlow::query()
-            ->where('status', ChatbotFlowStatus::Active)
+            ->active()
+            ->when($lineId > 0, function ($query) use ($lineId): void {
+                $query->where(function ($inner) use ($lineId): void {
+                    $inner->whereNull('whatsapp_line_id')
+                        ->orWhere('whatsapp_line_id', $lineId);
+                });
+            })
+            ->orderByDesc('updated_at')
+            ->orderByDesc('id')
             ->get();
+
+        $best = null;
 
         foreach ($flows as $flow) {
             if (! $flow->hasFlowData()) {
@@ -522,16 +567,95 @@ class ChatbotFlowEngine
             }
 
             $nodeMap = $this->normalizer->normalize($flow);
-            $triggeredNodeId = $this->findTriggeredNode($nodeMap, $messageLower);
+            $match = $this->findTriggeredMatch($nodeMap, $messageLower);
 
-            if ($triggeredNodeId === null) {
+            if ($match === null) {
                 continue;
             }
 
-            return $this->startFlow($flow, $nodeMap, $conversation, $triggeredNodeId, $body);
+            $candidate = [
+                'flow' => $flow,
+                'node_map' => $nodeMap,
+                'node_id' => $match['node_id'],
+                'keyword' => $match['keyword'],
+                'exact' => $match['exact'],
+                'line_specific' => $flow->whatsapp_line_id !== null && (int) $flow->whatsapp_line_id === $lineId,
+            ];
+
+            if ($best === null || $this->compareFlowTriggerCandidates($candidate, $best) > 0) {
+                $best = $candidate;
+            }
         }
 
-        return TriggerFireResult::NoMatch;
+        if ($best === null) {
+            return TriggerFireResult::NoMatch;
+        }
+
+        Log::info('Chatbot keyword trigger matched', [
+            'conversation_id' => $conversation->id,
+            'line_id' => $lineId,
+            'flow_id' => $best['flow']->id,
+            'flow_name' => $best['flow']->name,
+            'node_id' => $best['node_id'],
+            'keyword' => $best['keyword'],
+            'exact' => $best['exact'],
+            'message' => $messageLower,
+        ]);
+
+        // Legacy resetConversationForStart — clear other bots mid-flight.
+        $this->resetConversationStates($conversation);
+
+        return $this->startFlow(
+            $best['flow'],
+            $best['node_map'],
+            $conversation,
+            $best['node_id'],
+            $body,
+        );
+    }
+
+    /**
+     * @param  array{keyword: string, exact: bool}  $a
+     * @param  array{keyword: string, exact: bool}  $b
+     */
+    private function compareTriggerCandidates(array $a, array $b): int
+    {
+        if ($a['exact'] !== $b['exact']) {
+            return $a['exact'] ? 1 : -1;
+        }
+
+        $lenCmp = mb_strlen($a['keyword']) <=> mb_strlen($b['keyword']);
+        if ($lenCmp !== 0) {
+            return $lenCmp;
+        }
+
+        return 0;
+    }
+
+    /**
+     * @param  array{flow: ChatbotFlow, keyword: string, exact: bool, line_specific: bool}  $a
+     * @param  array{flow: ChatbotFlow, keyword: string, exact: bool, line_specific: bool}  $b
+     */
+    private function compareFlowTriggerCandidates(array $a, array $b): int
+    {
+        $keywordCmp = $this->compareTriggerCandidates($a, $b);
+        if ($keywordCmp !== 0) {
+            return $keywordCmp;
+        }
+
+        // Line-assigned bot beats account-wide bot for the same keyword.
+        if ($a['line_specific'] !== $b['line_specific']) {
+            return $a['line_specific'] ? 1 : -1;
+        }
+
+        // Legacy: most recently updated bot wins.
+        $aUpdated = optional($a['flow']->updated_at)->getTimestamp() ?? 0;
+        $bUpdated = optional($b['flow']->updated_at)->getTimestamp() ?? 0;
+        if ($aUpdated !== $bUpdated) {
+            return $aUpdated <=> $bUpdated;
+        }
+
+        return $a['flow']->id <=> $b['flow']->id;
     }
 
     /**
