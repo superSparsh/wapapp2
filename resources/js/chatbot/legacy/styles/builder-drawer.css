@@ -146,15 +146,25 @@
   background: #eff6ff;
 }
 
-/* Keep Select / DatePicker menus above the drawer */
-.chatbot-builder-drawer-root {
+/* Drawer stack */
+.chatbot-builder-drawer-root,
+.chatbot-builder-drawer-root .ant-drawer-mask,
+.chatbot-builder-drawer-root .ant-drawer-wrap {
   z-index: 1100 !important;
 }
 
-body:has(.chatbot-builder-drawer-root) .ant-select-dropdown,
-body:has(.chatbot-builder-drawer-root) .ant-picker-dropdown,
-body:has(.chatbot-builder-drawer-root) .ant-cascader-dropdown,
+/*
+ * Select / DatePicker / Cascader menus must sit ABOVE the drawer.
+ * Body class is toggled by BuilderDrawer while any builder drawer is open.
+ */
+body.chatbot-builder-drawer-open .ant-select-dropdown,
+body.chatbot-builder-drawer-open .ant-select-dropdown.ant-select-dropdown-placement-bottomLeft,
+body.chatbot-builder-drawer-open .ant-select-dropdown.ant-select-dropdown-placement-topLeft,
+body.chatbot-builder-drawer-open .ant-picker-dropdown,
+body.chatbot-builder-drawer-open .ant-cascader-dropdown,
+body.chatbot-builder-drawer-open .ant-dropdown,
 .chatbot-builder-select-dropdown,
 .ant-select-dropdown.chatbot-builder-select-dropdown {
-  z-index: 2200 !important;
+  z-index: 10050 !important;
+  pointer-events: auto !important;
 }
