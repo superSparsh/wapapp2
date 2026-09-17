@@ -949,4 +949,92 @@ class ChatbotInteractiveFlowTest extends TestCase
 
         $this->assertSame(1, ChatbotFlowState::query()->count());
     }
+
+    public function test_unmatched_text_on_interactive_wait_does_not_auto_advance(): void
+    {
+        $sent = [];
+        $this->mock(InboxOutboundService::class, function ($mock) use (&$sent): void {
+            $mock->shouldReceive('sendText')->andReturnUsing(function ($conversation, string $body) use (&$sent) {
+                $sent[] = $body;
+
+                return new Message([
+                    'id' => count($sent),
+                    'body' => $body,
+                    'direction' => MessageDirection::Outbound,
+                    'message_type' => MessageType::Text,
+                ]);
+            });
+            $mock->shouldReceive('sendInteractive')->andReturnUsing(function ($conversation, array $content) use (&$sent) {
+                $sent[] = (string) ($content['body']['text'] ?? 'interactive');
+
+                return new Message([
+                    'id' => 900 + count($sent),
+                    'body' => $sent[count($sent) - 1],
+                    'direction' => MessageDirection::Outbound,
+                    'message_type' => MessageType::Interactive,
+                ]);
+            });
+            $mock->shouldReceive('sendMedia')->andReturn(new Message([
+                'id' => 997,
+                'body' => 'media',
+                'direction' => MessageDirection::Outbound,
+                'message_type' => MessageType::Image,
+            ]));
+            $mock->shouldReceive('sendTypingIndicator')->andReturn(true);
+        });
+
+        $flow = ChatbotFlow::factory()->active()->create([
+            'exported_data' => [
+                'nodes' => [
+                    [
+                        'id' => 'interactive_1',
+                        'type' => 'interactiveMessage',
+                        'data' => [
+                            'interactiveType' => 'button',
+                            'bodyText' => 'Choose',
+                            'buttons' => [
+                                ['id' => 'a', 'title' => 'Alpha'],
+                            ],
+                        ],
+                    ],
+                    [
+                        'id' => 'wrong_next',
+                        'type' => 'welcomeMessage',
+                        'data' => ['messageType' => 'text', 'welcomeMessage' => 'SHOULD NOT SEND'],
+                    ],
+                ],
+                'edges' => [
+                    ['source' => 'interactive_1', 'target' => 'wrong_next', 'sourceHandle' => 'default'],
+                ],
+            ],
+        ]);
+
+        $conversation = Conversation::factory()->create();
+        ChatbotFlowState::query()->create([
+            'conversation_id' => $conversation->id,
+            'chatbot_flow_id' => $flow->id,
+            'current_node_id' => 'interactive_1',
+            'variables' => [
+                '_interactive_options' => [
+                    ['id' => 'a', 'title' => 'Alpha'],
+                ],
+            ],
+            'status' => ChatbotFlowStateStatus::Waiting,
+            'expires_at' => now()->addHour(),
+        ]);
+
+        $engine = app(ChatbotFlowEngine::class);
+        $result = $engine->processInbound($conversation, Message::factory()->create([
+            'conversation_id' => $conversation->id,
+            'body' => 'pikaboo',
+            'direction' => MessageDirection::Inbound,
+        ]));
+
+        $this->assertSame('no_match', $result->value);
+        $this->assertNotContains('SHOULD NOT SEND', $sent);
+
+        $state = ChatbotFlowState::query()->first();
+        $this->assertSame(ChatbotFlowStateStatus::Waiting, $state->status);
+        $this->assertSame('interactive_1', $state->current_node_id);
+    }
 }

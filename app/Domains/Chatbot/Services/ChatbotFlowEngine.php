@@ -204,8 +204,27 @@ class ChatbotFlowEngine
         // Find the next node based on the reply
         $nextNodeId = $this->resolveNextNodeFromReply($currentNode, $replyBody, $variables, $replyId);
 
+        if ($nextNodeId === null && $this->nodeRequiresMatchedReply($currentNode, $variables)) {
+            // Waiting on interactive / QR — do NOT default-continue on random text
+            // (that ate "pikaboo" and jumped into a broken WhatsApp Flow send).
+            $state->forceFill([
+                'status' => ChatbotFlowStateStatus::Waiting,
+                'current_node_id' => $currentNodeId,
+            ])->save();
+            $this->refreshExpiry($state);
+
+            Log::info('Chatbot waiting reply unmatched; staying on node', [
+                'conversation_id' => $conversation->id,
+                'flow_id' => $flow->id,
+                'node_id' => $currentNodeId,
+                'reply' => $replyBody,
+            ]);
+
+            return TriggerFireResult::NoMatch;
+        }
+
         if ($nextNodeId === null) {
-            // No matching branch → use default output
+            // Free-text wait nodes may continue via default/output_1
             $nextNodeId = $this->defaultNextNodeId($currentNode);
         }
 
@@ -223,6 +242,45 @@ class ChatbotFlowEngine
         $this->markConversationRead($conversation);
 
         return $result;
+    }
+
+    /**
+     * Interactive / quick-reply waits require an explicit branch match.
+     *
+     * @param  array<string, mixed>  $node
+     * @param  array<string, mixed>  $variables
+     */
+    private function nodeRequiresMatchedReply(array $node, array $variables): bool
+    {
+        $nodeClass = (string) ($node['class'] ?? $node['type'] ?? '');
+        $data = is_array($node['data'] ?? null) ? $node['data'] : [];
+        $interactiveType = strtolower((string) ($data['interactiveType'] ?? $data['interactive_type'] ?? $data['type'] ?? ''));
+
+        if (in_array($nodeClass, ['interactiveMessage', 'carouselTemplate', 'whatsappFlowTemplate'], true)) {
+            return true;
+        }
+
+        if (in_array($interactiveType, ['button', 'list', 'flow'], true)) {
+            return true;
+        }
+
+        if (! empty($variables['_interactive_options']) || ! empty($variables['_quick_replies'])) {
+            return true;
+        }
+
+        foreach (array_keys($node['outputs'] ?? []) as $handle) {
+            $handle = (string) $handle;
+            if (
+                str_starts_with($handle, 'reply-')
+                || str_starts_with($handle, 'button-')
+                || str_starts_with($handle, 'interactive-')
+                || str_starts_with($handle, 'carousel-')
+            ) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -625,6 +683,13 @@ class ChatbotFlowEngine
         }
 
         if ($best === null) {
+            Log::info('Chatbot keyword trigger no match', [
+                'conversation_id' => $conversation->id,
+                'line_id' => $lineId,
+                'message' => $messageLower,
+                'active_flows_scanned' => $flows->count(),
+            ]);
+
             return TriggerFireResult::NoMatch;
         }
 
