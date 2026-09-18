@@ -2,13 +2,10 @@
 
 namespace Tests\Feature\Webhooks;
 
-use App\Domains\Webhooks\Jobs\ProcessInboundWebhookJob;
 use App\Domains\Webhooks\Services\InboundWebhookRecorder;
 use App\Enums\InboundWebhookEventType;
 use App\Enums\InboundWebhookStatus;
-use App\Models\InboundWebhookEvent;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Queue;
 use Tests\Concerns\InteractsWithTenants;
 use Tests\TestCase;
 
@@ -35,8 +32,6 @@ class InboundWebhookRecorderTest extends TestCase
 
     public function test_record_creates_event_with_received_status(): void
     {
-        Queue::fake();
-
         $recorder = app(InboundWebhookRecorder::class);
 
         $payload = json_encode([[
@@ -53,15 +48,13 @@ class InboundWebhookRecorderTest extends TestCase
             headers: ['content-type' => 'application/json'],
         );
 
-        $this->assertSame(InboundWebhookStatus::Received, $event->status);
+        $this->assertSame(InboundWebhookStatus::Processed, $event->status);
         $this->assertSame('wamid.REC-001', $event->idempotency_key);
         $this->assertIsArray($event->payload);
     }
 
-    public function test_record_dispatches_job_on_configured_queue(): void
+    public function test_record_processes_message_immediately(): void
     {
-        Queue::fake();
-
         $recorder = app(InboundWebhookRecorder::class);
 
         $payload = json_encode([[
@@ -77,15 +70,17 @@ class InboundWebhookRecorderTest extends TestCase
             rawBody: $payload,
         );
 
-        Queue::assertPushed(ProcessInboundWebhookJob::class, function ($job) use ($event) {
-            return $job->eventId === $event->id;
-        });
+        $this->assertSame(InboundWebhookStatus::Processed, $event->status);
+
+        tenancy()->initialize($this->testTenant);
+        $this->assertDatabaseHas('messages', [
+            'body' => 'Dispatch test',
+            'external_message_id' => 'wamid.REC-002',
+        ]);
     }
 
     public function test_duplicate_key_returns_existing_event_without_dispatching_job(): void
     {
-        Queue::fake();
-
         $recorder = app(InboundWebhookRecorder::class);
 
         $payload = json_encode([[
@@ -96,22 +91,15 @@ class InboundWebhookRecorderTest extends TestCase
             'Type' => 'TEXT',
         ]], JSON_THROW_ON_ERROR);
 
-        // First call — creates and dispatches
         $first = $recorder->record(InboundWebhookEventType::Message, $payload);
-        Queue::assertPushed(ProcessInboundWebhookJob::class, 1);
-
-        // Second call — should return same event, no new dispatch
         $second = $recorder->record(InboundWebhookEventType::Message, $payload);
 
         $this->assertSame($first->id, $second->id);
-        // Still only 1 job dispatched (the first one)
-        Queue::assertPushed(ProcessInboundWebhookJob::class, 1);
+        $this->assertSame(InboundWebhookStatus::Processed, $second->status);
     }
 
     public function test_duplicate_marks_event_as_duplicate_if_not_processed(): void
     {
-        Queue::fake();
-
         $recorder = app(InboundWebhookRecorder::class);
 
         $payload = json_encode([[
@@ -123,19 +111,17 @@ class InboundWebhookRecorderTest extends TestCase
         ]], JSON_THROW_ON_ERROR);
 
         $first = $recorder->record(InboundWebhookEventType::Message, $payload);
-        $this->assertSame(InboundWebhookStatus::Received, $first->status);
+        $this->assertSame(InboundWebhookStatus::Processed, $first->status);
 
-        // Second call — should mark as duplicate
         $second = $recorder->record(InboundWebhookEventType::Message, $payload);
 
         $first->refresh();
-        $this->assertSame(InboundWebhookStatus::Duplicate, $first->status);
+        $this->assertSame(InboundWebhookStatus::Processed, $first->status);
+        $this->assertSame($first->id, $second->id);
     }
 
     public function test_duplicate_does_not_overwrite_processed_status(): void
     {
-        Queue::fake();
-
         $recorder = app(InboundWebhookRecorder::class);
 
         $payload = json_encode([[
@@ -148,10 +134,8 @@ class InboundWebhookRecorderTest extends TestCase
 
         $first = $recorder->record(InboundWebhookEventType::Message, $payload);
 
-        // Simulate processing completed
         $first->forceFill(['status' => InboundWebhookStatus::Processed])->save();
 
-        // Second call — should NOT overwrite processed status
         $recorder->record(InboundWebhookEventType::Message, $payload);
 
         $first->refresh();
@@ -160,11 +144,8 @@ class InboundWebhookRecorderTest extends TestCase
 
     public function test_fallback_idempotency_key_uses_sha256_hash(): void
     {
-        Queue::fake();
-
         $recorder = app(InboundWebhookRecorder::class);
 
-        // Payload without MessageId — should fall back to hash
         $payload = json_encode([[
             'From' => '918888810006',
             'To' => '919999999999',

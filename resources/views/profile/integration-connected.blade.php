@@ -3,7 +3,7 @@
     <div class="flex flex-col gap-1">
       <h1 class="text-2xl font-bold leading-[1.5] text-text-primary">Modify Phone Business Profile</h1>
       <p class="max-w-[854px] text-sm font-normal leading-[1.4] text-text-subtle opacity-50">
-        Update your WABA business profile for {{ $line->display_name }}.
+        Update your WABA business profile for {{ $line->displayLabel() }}.
       </p>
     </div>
   </div>

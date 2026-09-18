@@ -6,7 +6,7 @@
         <p class="text-sm font-normal leading-[1.4] text-text-subtle/50">
           Total {{ number_format($metrics['total']) }} Messages
           @if ($campaign->whatsappLine)
-            From {{ $campaign->whatsappLine->displayPhone() }}
+            From {{ $campaign->whatsappLine->displayLabel() }}
           @endif
         </p>
       </div>

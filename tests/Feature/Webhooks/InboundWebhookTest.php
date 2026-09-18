@@ -2,7 +2,6 @@
 
 namespace Tests\Feature\Webhooks;
 
-use App\Domains\Webhooks\Jobs\ProcessInboundWebhookJob;
 use App\Domains\Webhooks\Services\WhatsappLineRegistryService;
 use App\Enums\InboundWebhookStatus;
 use App\Enums\MessageStatus;
@@ -11,7 +10,6 @@ use App\Models\Conversation;
 use App\Models\InboundWebhookEvent;
 use App\Models\Message;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Queue;
 use Tests\Concerns\InteractsWithTenants;
 use Tests\TestCase;
 
@@ -38,8 +36,6 @@ class InboundWebhookTest extends TestCase
 
     public function test_message_webhook_records_event_and_processes_into_inbox(): void
     {
-        Queue::fake();
-
         $payload = json_encode([[
             'MessageId' => 'wamid.TEST-INBOUND-001',
             'From' => '918888888801',
@@ -58,10 +54,7 @@ class InboundWebhookTest extends TestCase
 
         $event = InboundWebhookEvent::query()->first();
         $this->assertNotNull($event);
-        $this->assertSame(InboundWebhookStatus::Received, $event->status);
-
-        $job = new ProcessInboundWebhookJob((int) $event->id);
-        $this->app->call([$job, 'handle']);
+        $this->assertSame(InboundWebhookStatus::Processed, $event->status);
 
         tenancy()->initialize($this->testTenant);
 
@@ -95,7 +88,7 @@ class InboundWebhookTest extends TestCase
         )->assertOk();
 
         $event = InboundWebhookEvent::query()->firstOrFail();
-        $this->app->call([new ProcessInboundWebhookJob((int) $event->id), 'handle']);
+        $this->assertSame(InboundWebhookStatus::Processed, $event->status);
 
         tenancy()->initialize($this->testTenant);
 
@@ -130,7 +123,7 @@ class InboundWebhookTest extends TestCase
         )->assertOk();
 
         $event = InboundWebhookEvent::query()->firstOrFail();
-        $this->app->call([new ProcessInboundWebhookJob((int) $event->id), 'handle']);
+        $this->assertSame(InboundWebhookStatus::Processed, $event->status);
 
         tenancy()->initialize($this->testTenant);
 
@@ -152,7 +145,7 @@ class InboundWebhookTest extends TestCase
 
         $this->call('POST', route('webhooks.alibaba.message'), server: ['CONTENT_TYPE' => 'application/json'], content: $payload);
         $event = InboundWebhookEvent::query()->firstOrFail();
-        $this->app->call([new ProcessInboundWebhookJob((int) $event->id), 'handle']);
+        $this->assertSame(InboundWebhookStatus::Processed, $event->status);
 
         $this->call('POST', route('webhooks.alibaba.message'), server: ['CONTENT_TYPE' => 'application/json'], content: $payload);
 
@@ -160,6 +153,86 @@ class InboundWebhookTest extends TestCase
 
         tenancy()->initialize($this->testTenant);
         $this->assertSame(1, Message::query()->where('external_message_id', 'wamid.TEST-INBOUND-DUP')->count());
+    }
+
+    public function test_inbound_message_lands_on_existing_ten_digit_conversation(): void
+    {
+        tenancy()->initialize($this->testTenant);
+
+        $contact = Contact::factory()->create([
+            'phone' => '7018107871',
+            'name' => 'Imported User',
+        ]);
+        $conversation = Conversation::factory()->create([
+            'whatsapp_line_id' => $this->testLine->id,
+            'contact_id' => $contact->id,
+            'contact_phone' => '7018107871',
+            'line_phone' => $this->testLine->phone,
+            'contact_name' => 'Imported User',
+            'last_message_at' => now()->subDay(),
+        ]);
+
+        tenancy()->end();
+
+        $payload = json_encode([[
+            'MessageId' => 'wamid.TEST-VARIANT-001',
+            'From' => '917018107871',
+            'To' => '919999999999',
+            'Name' => 'Imported User',
+            'Message' => 'Hello from imported chat',
+            'Type' => 'TEXT',
+        ]], JSON_THROW_ON_ERROR);
+
+        $this->call(
+            'POST',
+            route('webhooks.alibaba.message'),
+            server: ['CONTENT_TYPE' => 'application/json'],
+            content: $payload,
+        )->assertOk();
+
+        tenancy()->initialize($this->testTenant);
+
+        $this->assertSame(1, Conversation::query()->count());
+        $this->assertDatabaseHas('messages', [
+            'conversation_id' => $conversation->id,
+            'body' => 'Hello from imported chat',
+            'external_message_id' => 'wamid.TEST-VARIANT-001',
+        ]);
+
+        $conversation->refresh();
+        $this->assertSame('917018107871', $conversation->contact_phone);
+    }
+
+    public function test_inbound_resolves_when_from_and_to_are_swapped(): void
+    {
+        $payload = json_encode([[
+            'MessageId' => 'wamid.TEST-SWAP-001',
+            'From' => '919999999999',
+            'To' => '918888888809',
+            'Name' => 'Swapped User',
+            'Message' => 'Hello swapped',
+            'Type' => 'TEXT',
+        ]], JSON_THROW_ON_ERROR);
+
+        $this->call(
+            'POST',
+            route('webhooks.alibaba.message'),
+            server: ['CONTENT_TYPE' => 'application/json'],
+            content: $payload,
+        )->assertOk();
+
+        $event = InboundWebhookEvent::query()->firstOrFail();
+        $this->assertSame(InboundWebhookStatus::Processed, $event->status);
+
+        tenancy()->initialize($this->testTenant);
+
+        $this->assertDatabaseHas('messages', [
+            'body' => 'Hello swapped',
+            'external_message_id' => 'wamid.TEST-SWAP-001',
+        ]);
+        $this->assertDatabaseHas('conversations', [
+            'contact_phone' => '918888888809',
+        ]);
     }
 
     public function test_status_webhook_updates_delivery_timestamps(): void
@@ -196,8 +269,7 @@ class InboundWebhookTest extends TestCase
 
         $this->call('POST', route('webhooks.alibaba.status'), server: ['CONTENT_TYPE' => 'application/json'], content: $payload);
         $event = InboundWebhookEvent::query()->latest('id')->firstOrFail();
-
-        $this->app->call([new ProcessInboundWebhookJob((int) $event->id), 'handle']);
+        $this->assertSame(InboundWebhookStatus::Processed, $event->status);
 
         tenancy()->initialize($this->testTenant);
 

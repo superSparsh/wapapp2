@@ -55,6 +55,7 @@ class AdminImpersonationService
                 'admin_id' => (int) $admin->id,
                 'tenant_id' => (string) $tenant->id,
                 'admin_name' => (string) $admin->name,
+                'admin_email' => strtolower((string) $admin->email),
             ],
         ]);
 

@@ -155,7 +155,7 @@
                 @endforelse
               @else
                 @forelse ($templates as $template)
-                  <tr class="relative border-t border-divider bg-elevated" data-template-row data-template-uuid="{{ $template['uuid'] }}">
+                  <tr class="relative border-t border-divider bg-elevated" data-template-row data-template-uuid="{{ $template['uuid'] }}" data-template-status="{{ $template['status'] }}" data-template-name="{{ $template['name'] }}">
                     <td class="p-2">
                       <input type="checkbox" class="size-4 rounded border-border template-row-checkbox" value="{{ $template['uuid'] }}" aria-label="Select {{ $template['name'] }}">
                     </td>

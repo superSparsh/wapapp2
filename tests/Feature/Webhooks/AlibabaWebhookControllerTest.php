@@ -110,8 +110,6 @@ class AlibabaWebhookControllerTest extends TestCase
 
     public function test_message_endpoint_records_event_in_central_db(): void
     {
-        Queue::fake();
-
         $payload = json_encode([[
             'MessageId' => 'wamid.CTRL-002',
             'From' => '918888800002',
@@ -133,7 +131,7 @@ class AlibabaWebhookControllerTest extends TestCase
 
         $this->assertNotNull($event);
         $this->assertSame(InboundWebhookEventType::Message, $event->event_type);
-        $this->assertSame(InboundWebhookStatus::Received, $event->status);
+        $this->assertSame(InboundWebhookStatus::Processed, $event->status);
     }
 
     public function test_status_endpoint_records_event_in_central_db(): void

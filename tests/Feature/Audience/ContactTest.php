@@ -53,7 +53,10 @@ class ContactTest extends TestCase
             ->assertOk()
             ->assertViewIs('audience.subscribers')
             ->assertSee('Add New Subscribers')
-            ->assertSee('New subscriber');
+            ->assertSee('New subscriber')
+            ->assertSee('India (+91)')
+            ->assertSee('Afghanistan (+93)')
+            ->assertSee('United Arab Emirates (+971)');
     }
 
     public function test_subscribers_index_shows_contacts(): void
@@ -184,6 +187,23 @@ class ContactTest extends TestCase
         $contact = Contact::where('phone', '919876543210')->first();
         $this->assertEquals(ContactStatus::Subscribed, $contact->status);
         $this->assertEquals(ContactOptInStatus::OptedIn, $contact->opt_in_status);
+    }
+
+    public function test_store_prefixes_phone_with_legacy_country_dial_code(): void
+    {
+        $this->actingAsTenantUser()
+            ->post(route('audience.subscribers.store'), [
+                'country_code' => '+91',
+                'phone' => '9876543210',
+                'name' => 'Dial Code Contact',
+            ])
+            ->assertRedirect(route('audience.subscribers'));
+
+        $this->assertDatabaseHas('contacts', [
+            'phone' => '919876543210',
+            'country_code' => '+91',
+            'name' => 'Dial Code Contact',
+        ]);
     }
 
     // ─── Update ──────────────────────────────────────────────────────────────

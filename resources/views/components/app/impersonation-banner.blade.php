@@ -1,4 +1,4 @@
-@if (! empty($isAdminImpersonating) && ! empty($canAccessAdminView))
+@if (! empty($isAdminImpersonating) && ! empty($canAccessAdminView) && empty($isAdminOwnCustomer))
   <div class="flex items-center justify-between gap-4 border-b border-amber-500/30 bg-amber-50 px-4 py-2 text-sm text-amber-900">
     <span>
       Admin view as customer
@@ -12,7 +12,7 @@
     </form>
   </div>
 @elseif (! empty($isAdminImpersonating))
-  {{-- Regular login-as: no Admin View assign — keep a minimal return only --}}
+  {{-- Own customer or regular login-as without Admin View: keep a way back, without the Super banner --}}
   <div class="flex items-center justify-end gap-4 border-b border-border-light bg-elevated px-4 py-1.5 text-xs text-text-muted">
     <form method="post" action="{{ route('admin.impersonation.stop') }}">
       @csrf

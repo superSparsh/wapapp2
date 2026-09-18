@@ -155,7 +155,6 @@
                 'hidden' => $inboxBadge === '',
               ])
               data-inbox-nav-badge
-              @if (! $mobile) data-sidebar-badge @endif
             >{{ $inboxBadge }}</span>
           @elseif (! empty($item['badge']))
             <span class="flex size-5 shrink-0 items-center justify-center rounded-full bg-green-50 text-[10px] font-bold leading-[1.5] text-green-500" @if (! $mobile) data-sidebar-badge @endif>{{ $item['badge'] }}</span>

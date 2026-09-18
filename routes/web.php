@@ -369,6 +369,7 @@ Route::middleware(['tenancy.session', 'auth:web,team', '2fa', 'team.redirect-das
 
         Route::prefix('api')->name('api.')->group(function () {
             Route::get('/threads', [InboxController::class, 'threads'])->name('threads');
+            Route::get('/unread-count', [InboxController::class, 'unreadCount'])->name('unread-count');
             Route::get('/templates', [InboxController::class, 'templates'])->name('templates');
             Route::get('/interactive-messages', [InboxController::class, 'interactiveMessages'])->name('interactive-messages');
             Route::post('/contacts', [InboxController::class, 'storeContact'])->name('contacts.store');

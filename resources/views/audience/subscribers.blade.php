@@ -214,14 +214,7 @@
                 <label for="subscriber_country_code" class="mb-2 block text-sm font-semibold leading-[1.4] text-text-primary">
                   Country Code
                 </label>
-                <div class="relative">
-                  <select id="subscriber_country_code" name="country_code" class="w-full appearance-none rounded-[12px] border border-border bg-elevated px-[14px] py-[14px] pr-10 text-sm font-medium leading-[1.4] text-text-muted focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500">
-                    @foreach (($phoneCodes ?? config('account.phone_codes', [])) as $iso => $code)
-                      <option value="{{ $code }}" @selected($iso === 'IN')>{{ ($countries[$iso] ?? $iso) }} (+{{ $code }})</option>
-                    @endforeach
-                  </select>
-                  <x-icons.nav-icon name="arrow-down" class="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2" />
-                </div>
+                <x-ui.country-code-select id="subscriber_country_code" name="country_code" />
               </div>
 
               <div class="min-w-0 flex-1">

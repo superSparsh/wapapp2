@@ -114,6 +114,45 @@ class InboxQueryService
     }
 
     /**
+     * @return array{unread_total: int, latest: ?array<string, mixed>}
+     */
+    public function unreadSnapshot(): array
+    {
+        $query = Conversation::query()->where('unread_count', '>', 0);
+        $this->applyTeamMemberScope($query);
+
+        $latestConversation = (clone $query)
+            ->with(['latestMessage' => fn ($builder) => $builder->select(
+                'messages.id',
+                'messages.conversation_id',
+                'messages.body',
+                'messages.created_at',
+            )])
+            ->orderByDesc('last_message_at')
+            ->orderByDesc('id')
+            ->first();
+
+        $latest = null;
+
+        if ($latestConversation !== null) {
+            $phone = $this->settingsService->shouldMaskPhone($latestConversation->contact_phone);
+
+            $latest = [
+                'uuid' => $latestConversation->uuid,
+                'name' => InboxPresenter::threadTitle($latestConversation->contact_name, $phone),
+                'phone' => $phone,
+                'preview' => InboxPresenter::preview($latestConversation->latestMessage?->body),
+                'unread' => (int) $latestConversation->unread_count,
+            ];
+        }
+
+        return [
+            'unread_total' => (int) $query->sum('unread_count'),
+            'latest' => $latest,
+        ];
+    }
+
+    /**
      * @return array<int, int>
      */
     public function unreadConversationIds(

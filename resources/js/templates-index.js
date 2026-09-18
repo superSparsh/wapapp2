@@ -31,6 +31,40 @@ function applyStatusChip(chip, label, variant) {
     chip.className = `fd-status-chip inline-flex items-center rounded px-2 py-1 ${STATUS_VARIANT_CLASSES[variant] || STATUS_VARIANT_CLASSES.default}`;
 }
 
+function toastTypeForStatus(status, variant, statusKey) {
+    const key = String(statusKey || status || '').toLowerCase();
+
+    if (variant === 'fd-approved' || key === 'approved') {
+        return 'success';
+    }
+
+    if (variant === 'fd-error' || key === 'rejected' || key.includes('error')) {
+        return 'error';
+    }
+
+    if (key.includes('pending')) {
+        return 'info';
+    }
+
+    return 'info';
+}
+
+function notifyTemplateStatusChange(name, status, variant, statusKey) {
+    const templateName = String(name || 'Template').trim() || 'Template';
+    const statusLabel = String(status || '').trim();
+
+    if (!statusLabel) {
+        return;
+    }
+
+    showToast({
+        type: toastTypeForStatus(statusLabel, variant, statusKey),
+        title: templateName,
+        message: `Status updated to ${statusLabel}.`,
+        duration: 6000,
+    });
+}
+
 function initStatusPolling(root) {
     const statusesUrl = root.dataset.statusesUrl;
     if (!statusesUrl) {
@@ -71,7 +105,28 @@ function initStatusPolling(root) {
                 }
 
                 const chip = row.querySelector('[data-template-status-chip]');
+                const previousStatus = (row.dataset.templateStatus || chip?.textContent || '').trim();
+                const nextStatus = String(item.status || '').trim();
+                const templateName =
+                    item.name ||
+                    row.dataset.templateName ||
+                    row.querySelector('.fd-table-name')?.textContent ||
+                    'Template';
+
                 applyStatusChip(chip, item.status, item.status_variant);
+                row.dataset.templateStatus = nextStatus;
+                if (item.name) {
+                    row.dataset.templateName = item.name;
+                }
+
+                if (previousStatus && nextStatus && previousStatus !== nextStatus) {
+                    notifyTemplateStatusChange(
+                        templateName,
+                        nextStatus,
+                        item.status_variant,
+                        item.status_key,
+                    );
+                }
 
                 const rejectionWrap = row.querySelector('[data-template-rejection-wrap]');
                 const rejectionTitle = row.querySelector('[data-template-rejection-title]');

@@ -19,9 +19,12 @@ class SidebarComposer
     {
         $unread = 0;
 
-        if (tenancy()->initialized) {
-            $line = $this->inboxQueryService->resolveDefaultLine();
-            $unread = $this->inboxQueryService->totalUnreadCount($line);
+        try {
+            if (tenancy()->initialized) {
+                $unread = $this->inboxQueryService->totalUnreadCount();
+            }
+        } catch (\Throwable) {
+            $unread = 0;
         }
 
         $member = TeamActor::teamMember();
@@ -30,7 +33,7 @@ class SidebarComposer
         $navItems = collect($items)
             ->map(function (array $item) use ($unread): array {
                 if (($item['route'] ?? '') === 'inbox.index' && $unread > 0) {
-                    $item['badge'] = $unread > 99 ? '99+' : $unread;
+                    $item['badge'] = $unread > 99 ? '99+' : (string) $unread;
                 }
 
                 return $item;

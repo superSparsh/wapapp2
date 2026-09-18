@@ -48,8 +48,6 @@ class ContactController extends Controller
             'mailListId' => $mailList?->uuid,
             'mailList' => $mailList,
             'mailLists' => MailList::query()->orderBy('name')->get(['id', 'uuid', 'name']),
-            'phoneCodes' => config('account.phone_codes', []),
-            'countries' => config('account.countries', []),
         ]);
     }
 

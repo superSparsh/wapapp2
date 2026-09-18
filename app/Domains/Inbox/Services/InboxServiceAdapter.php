@@ -72,6 +72,10 @@ class InboxServiceAdapter
                     'assignee' => $filters['assignee'],
                 ]);
 
+                if (! isset($payload['unread_total'])) {
+                    $payload['unread_total'] = $this->localQueryService->totalUnreadCount();
+                }
+
                 return response()->json($payload);
             } catch (\Throwable $e) {
                 $this->logFallback('threads', $e);
@@ -90,9 +94,28 @@ class InboxServiceAdapter
             scope: $filters['scope'],
             assigneeFilter: $filters['assignee_filter'],
         );
-        $payload['unread_total'] = $this->localQueryService->totalUnreadCount($line);
+        $payload['unread_total'] = $this->localQueryService->totalUnreadCount();
 
         return response()->json($payload);
+    }
+
+    public function unreadCount(): JsonResponse
+    {
+        if ($this->isMicroserviceEnabled()) {
+            try {
+                $snapshot = $this->localQueryService->unreadSnapshot();
+                $snapshot['unread_total'] = $this->client->getUnreadCount();
+
+                return response()->json($snapshot);
+            } catch (\Throwable $e) {
+                $this->logFallback('unreadCount', $e);
+                if (! $this->shouldFallback()) {
+                    throw $e;
+                }
+            }
+        }
+
+        return response()->json($this->localQueryService->unreadSnapshot());
     }
 
     public function messages(Request $request, Conversation $conversation): JsonResponse

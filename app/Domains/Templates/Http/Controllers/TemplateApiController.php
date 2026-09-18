@@ -39,7 +39,7 @@ class TemplateApiController extends Controller
 
         $items = Template::query()
             ->whereIn('uuid', $uuids)
-            ->get(['uuid', 'status', 'rejection_reason'])
+            ->get(['uuid', 'name', 'status', 'rejection_reason'])
             ->map(function (Template $template): array {
                 $isRejected = $template->status->value === 'rejected';
                 $error = $isRejected
@@ -48,7 +48,9 @@ class TemplateApiController extends Controller
 
                 return [
                     'uuid' => $template->uuid,
+                    'name' => (string) $template->name,
                     'status' => $template->status->label(),
+                    'status_key' => $template->status->value,
                     'status_variant' => $template->status->chipVariant(),
                     'error' => $isRejected,
                     'rejection_title' => $error['title'] ?? null,

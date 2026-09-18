@@ -84,7 +84,7 @@ class InboxService
             'assignableAgents' => $this->assignmentService->assignableAgents(),
             'activeLine' => $line,
             'availableLines' => $this->availableLines(),
-            'unreadTotal' => $this->queryService->totalUnreadCount($line),
+            'unreadTotal' => $this->queryService->totalUnreadCount(),
             'inboxPhoneMaskingEnabled' => $this->settingsService->isPhoneMaskingEnabled(),
             'isTeamInbox' => $this->accessService->isTeamMember(),
             'walletBalance' => $walletBalance,
@@ -171,7 +171,7 @@ class InboxService
         return $query->get()
             ->map(fn (WhatsappLine $line): array => [
                 'uuid' => $line->uuid,
-                'label' => filled($line->display_name) ? (string) $line->display_name : $line->displayPhone(),
+                'label' => $line->displayLabel(),
                 'phone' => (string) $line->phone,
                 'is_default' => (bool) $line->is_default,
             ])

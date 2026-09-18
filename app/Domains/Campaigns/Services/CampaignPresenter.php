@@ -7,6 +7,7 @@ namespace App\Domains\Campaigns\Services;
 use App\Domains\Templates\Enums\TemplateStatus;
 use App\Domains\Templates\Services\TemplatePreviewService;
 use App\Domains\Templates\Services\TemplateRegistryService;
+use App\Enums\CampaignStatus;
 use App\Models\Campaign;
 use App\Models\MailList;
 use App\Models\Template;
@@ -28,12 +29,12 @@ class CampaignPresenter
     public function indexCard(Campaign $campaign): array
     {
         $statusVariant = match ($campaign->status) {
-            \App\Enums\CampaignStatus::Draft => 'new',
-            \App\Enums\CampaignStatus::Scheduled => 'fd-draft',
-            \App\Enums\CampaignStatus::Sending => 'sending',
-            \App\Enums\CampaignStatus::Completed => 'fd-approved',
-            \App\Enums\CampaignStatus::Paused => 'paused',
-            \App\Enums\CampaignStatus::Cancelled => 'cancelled',
+            CampaignStatus::Draft => 'new',
+            CampaignStatus::Scheduled => 'fd-draft',
+            CampaignStatus::Sending => 'sending',
+            CampaignStatus::Completed => 'fd-approved',
+            CampaignStatus::Paused => 'paused',
+            CampaignStatus::Cancelled => 'cancelled',
             default => 'default',
         };
 
@@ -43,7 +44,7 @@ class CampaignPresenter
         return [
             'name' => $campaign->name,
             'audience' => $campaign->audience?->name ?? 'No audience',
-            'whatsapp_line' => $campaign->whatsappLine?->displayPhone() ?? 'N/A',
+            'whatsapp_line' => $campaign->whatsappLine?->displayLabel() ?? 'N/A',
             'status_label' => $campaign->status?->label() ?? 'Unknown',
             'status_variant' => $statusVariant,
             'recipients' => $total,
@@ -69,7 +70,7 @@ class CampaignPresenter
             'recipients_count' => $campaign->total_recipients,
             'audience_name' => $campaign->audience?->name ?? 'Not selected',
             'template_name' => $campaign->template?->name ?? 'Not selected',
-            'whatsapp_line' => $campaign->whatsappLine?->displayPhone() ?? 'Not selected',
+            'whatsapp_line' => $campaign->whatsappLine?->displayLabel() ?? 'Not selected',
         ];
     }
 
@@ -174,8 +175,8 @@ class CampaignPresenter
                 $draft = $draftId > 0
                     ? Campaign::query()
                         ->whereIn('status', [
-                            \App\Enums\CampaignStatus::Draft,
-                            \App\Enums\CampaignStatus::Scheduled,
+                            CampaignStatus::Draft,
+                            CampaignStatus::Scheduled,
                         ])
                         ->find($draftId)
                     : null;

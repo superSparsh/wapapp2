@@ -56,6 +56,11 @@ class InboxController extends Controller
         return $adapter->threads($request);
     }
 
+    public function unreadCount(InboxServiceAdapter $adapter): JsonResponse
+    {
+        return $adapter->unreadCount();
+    }
+
     public function messages(
         Request $request,
         Conversation $conversation,

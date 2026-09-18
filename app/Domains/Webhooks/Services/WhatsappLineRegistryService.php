@@ -50,15 +50,13 @@ class WhatsappLineRegistryService
             return null;
         }
 
-        $registry = WhatsappLineRegistry::query()->where('phone', $normalized)->first();
+        $registry = null;
 
-        if ($registry === null) {
-            foreach (PhoneNormalizer::lookupVariants($phone) as $variant) {
-                $registry = WhatsappLineRegistry::query()->where('phone', $variant)->first();
+        foreach (PhoneNormalizer::lookupVariants($phone) as $variant) {
+            $registry = WhatsappLineRegistry::query()->where('phone', $variant)->first();
 
-                if ($registry !== null) {
-                    break;
-                }
+            if ($registry !== null) {
+                break;
             }
         }
 

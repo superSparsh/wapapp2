@@ -11,12 +11,7 @@
           <label for="add_contact_country_code" class="mb-2 block text-sm font-semibold leading-[1.4] text-text-primary">
             Country Code <span class="text-red-500">*</span>
           </label>
-          <x-ui.select id="add_contact_country_code" name="country_code" required>
-            <option value="91" selected>India (+91)</option>
-            <option value="1">USA (+1)</option>
-            <option value="44">UK (+44)</option>
-            <option value="971">UAE (+971)</option>
-          </x-ui.select>
+          <x-ui.country-code-select id="add_contact_country_code" name="country_code" required />
         </div>
 
         <div class="min-w-0 flex-1">

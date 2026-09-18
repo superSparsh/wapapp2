@@ -90,6 +90,17 @@ class WhatsappLineRegistryServiceTest extends TestCase
         $this->assertSame((int) $this->testLine->id, $result['line_id']);
     }
 
+    public function test_resolve_by_business_phone_matches_last_ten_digits(): void
+    {
+        $service = app(WhatsappLineRegistryService::class);
+
+        $result = $service->resolveByBusinessPhone('9999999999');
+
+        $this->assertNotNull($result);
+        $this->assertSame($this->testTenant->id, $result['tenant']->id);
+        $this->assertSame((int) $this->testLine->id, $result['line_id']);
+    }
+
     public function test_resolve_by_business_phone_returns_null_for_unknown(): void
     {
         $service = app(WhatsappLineRegistryService::class);

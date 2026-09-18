@@ -33,7 +33,7 @@
           </div>
           <div>
             <p class="text-xs text-text-subtle">WhatsApp Line</p>
-            <p class="text-sm font-medium text-text-primary">{{ $campaign->whatsappLine?->displayPhone() ?? 'Not set' }}</p>
+            <p class="text-sm font-medium text-text-primary">{{ $campaign->whatsappLine?->displayLabel() ?? 'Not set' }}</p>
           </div>
           <div>
             <p class="text-xs text-text-subtle">Template</p>

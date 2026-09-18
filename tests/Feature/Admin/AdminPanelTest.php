@@ -4,12 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Admin;
 
-use App\Models\Admin;
-use App\Models\Plan;
-use App\Models\Tenant;
-use App\Models\TenantUserAccess;
 use App\Enums\TenantStatus;
 use App\Enums\TenantUserAccountType;
+use App\Models\Admin;
+use App\Models\Plan;
+use App\Models\TenantUserAccess;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\InteractsWithTenants;
 use Tests\TestCase;
@@ -196,6 +195,56 @@ class AdminPanelTest extends TestCase
             ->assertSee('Admin view as customer')
             ->assertSee('Return to admin')
             ->assertSee(route('admin.impersonation.stop'), false);
+    }
+
+    public function test_admin_own_customer_does_not_show_view_as_customer_banner(): void
+    {
+        $this->admin->forceFill(['email' => $this->testUser->email])->save();
+
+        TenantUserAccess::query()->updateOrCreate(
+            ['email' => strtolower($this->testUser->email)],
+            [
+                'tenant_id' => $this->testTenant->id,
+                'account_type' => TenantUserAccountType::Owner,
+                'is_active' => true,
+                'phone' => $this->testUser->phone,
+            ],
+        );
+
+        config(['admin.view_emails' => [strtolower($this->testUser->email)]]);
+
+        $this->actingAs($this->admin, 'admin')
+            ->post(route('admin.customers.login-as', $this->testTenant))
+            ->assertRedirect(route('dashboard'));
+
+        $this->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('Admin Area')
+            ->assertDontSee('Admin view as customer');
+    }
+
+    public function test_customer_view_into_linked_account_does_not_show_view_as_customer_banner(): void
+    {
+        TenantUserAccess::query()->updateOrCreate(
+            ['email' => strtolower($this->admin->email)],
+            [
+                'tenant_id' => $this->testTenant->id,
+                'account_type' => TenantUserAccountType::Owner,
+                'is_active' => true,
+                'phone' => $this->testUser->phone,
+            ],
+        );
+
+        config(['admin.view_emails' => [strtolower($this->testUser->email)]]);
+
+        $this->actingAs($this->admin, 'admin')
+            ->get(route('admin.customer-view'))
+            ->assertRedirect(route('dashboard'));
+
+        $this->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('Admin Area')
+            ->assertDontSee('Admin view as customer');
     }
 
     public function test_admin_can_manage_plans(): void

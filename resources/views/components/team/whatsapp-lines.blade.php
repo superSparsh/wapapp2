@@ -31,7 +31,7 @@
           >
           <span class="min-w-0 flex-1">
             <span class="block truncate text-sm font-medium text-text-primary">{{ $line->display_name ?: 'WhatsApp line' }}</span>
-            <span class="block truncate text-xs text-text-subtle opacity-70">{{ $line->phone }}</span>
+            <span class="block truncate text-xs text-text-subtle opacity-70">{{ $line->displayPhone() }}</span>
           </span>
         </label>
       @endforeach

@@ -2,12 +2,15 @@
 
 namespace Tests\Feature\Webhooks;
 
-use App\Domains\Webhooks\Handlers\DeliveryStatusHandler;
-use App\Domains\Webhooks\Handlers\InboundMessageHandler;
 use App\Domains\Webhooks\Jobs\ProcessInboundWebhookJob;
+use App\Domains\Webhooks\Services\WhatsappLineRegistryService;
 use App\Enums\InboundWebhookEventType;
 use App\Enums\InboundWebhookStatus;
+use App\Enums\MessageStatus;
+use App\Models\Contact;
+use App\Models\Conversation;
 use App\Models\InboundWebhookEvent;
+use App\Models\Message;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\InteractsWithTenants;
 use Tests\TestCase;
@@ -57,7 +60,7 @@ class ProcessInboundWebhookJobTest extends TestCase
         $event = $this->createEvent();
 
         $job = new ProcessInboundWebhookJob((int) $event->id);
-        $job->handle(app(InboundMessageHandler::class), app(DeliveryStatusHandler::class));
+        $this->app->call([$job, 'handle']);
 
         $event->refresh();
         $this->assertSame(InboundWebhookStatus::Processed, $event->status);
@@ -75,7 +78,7 @@ class ProcessInboundWebhookJobTest extends TestCase
         $originalRetryCount = $event->retry_count;
 
         $job = new ProcessInboundWebhookJob((int) $event->id);
-        $job->handle(app(InboundMessageHandler::class), app(DeliveryStatusHandler::class));
+        $this->app->call([$job, 'handle']);
 
         $event->refresh();
         // Should not increment retry_count or change status
@@ -90,7 +93,7 @@ class ProcessInboundWebhookJobTest extends TestCase
         ]);
 
         $job = new ProcessInboundWebhookJob((int) $event->id);
-        $job->handle(app(InboundMessageHandler::class), app(DeliveryStatusHandler::class));
+        $this->app->call([$job, 'handle']);
 
         $event->refresh();
         $this->assertSame(InboundWebhookStatus::Duplicate, $event->status);
@@ -112,7 +115,7 @@ class ProcessInboundWebhookJobTest extends TestCase
         $job = new ProcessInboundWebhookJob((int) $event->id);
 
         try {
-            $job->handle(app(InboundMessageHandler::class), app(DeliveryStatusHandler::class));
+            $this->app->call([$job, 'handle']);
         } catch (\Throwable) {
             // Expected — handler throws RuntimeException
         }
@@ -128,7 +131,7 @@ class ProcessInboundWebhookJobTest extends TestCase
         $this->assertSame(0, $event->retry_count);
 
         $job = new ProcessInboundWebhookJob((int) $event->id);
-        $job->handle(app(InboundMessageHandler::class), app(DeliveryStatusHandler::class));
+        $this->app->call([$job, 'handle']);
 
         $event->refresh();
         $this->assertSame(1, $event->retry_count);
@@ -139,7 +142,7 @@ class ProcessInboundWebhookJobTest extends TestCase
         $job = new ProcessInboundWebhookJob(999999);
 
         // Should not throw — just return silently
-        $job->handle(app(InboundMessageHandler::class), app(DeliveryStatusHandler::class));
+        $this->app->call([$job, 'handle']);
 
         $this->assertTrue(true); // Reached here without exception
     }
@@ -151,7 +154,7 @@ class ProcessInboundWebhookJobTest extends TestCase
         ]);
 
         $job = new ProcessInboundWebhookJob((int) $event->id);
-        $job->handle(app(InboundMessageHandler::class), app(DeliveryStatusHandler::class));
+        $this->app->call([$job, 'handle']);
 
         $event->refresh();
         $this->assertSame(InboundWebhookStatus::Processed, $event->status);
@@ -168,24 +171,24 @@ class ProcessInboundWebhookJobTest extends TestCase
         // First create a message in tenant DB for the status handler to update
         tenancy()->initialize($this->testTenant);
 
-        $contact = \App\Models\Contact::factory()->create(['phone' => '918888820099']);
-        $conversation = \App\Models\Conversation::factory()->create([
+        $contact = Contact::factory()->create(['phone' => '918888820099']);
+        $conversation = Conversation::factory()->create([
             'whatsapp_line_id' => $this->testLine->id,
             'contact_id' => $contact->id,
             'contact_phone' => $contact->phone,
             'line_phone' => $this->testLine->phone,
             'last_message_at' => now(),
         ]);
-        $message = \App\Models\Message::query()->create([
+        $message = Message::query()->create([
             'conversation_id' => $conversation->id,
             'body' => 'Status job test',
             'direction' => 'outbound',
             'message_type' => 'text',
-            'status' => \App\Enums\MessageStatus::Queued,
+            'status' => MessageStatus::Queued,
             'external_message_id' => 'wamid.JOB-STATUS-ROUTE',
         ]);
 
-        app(\App\Domains\Webhooks\Services\WhatsappLineRegistryService::class)
+        app(WhatsappLineRegistryService::class)
             ->indexMessage($this->testTenant->id, 'wamid.JOB-STATUS-ROUTE', $message->id);
 
         tenancy()->end();
@@ -203,7 +206,7 @@ class ProcessInboundWebhookJobTest extends TestCase
         ]);
 
         $job = new ProcessInboundWebhookJob((int) $event->id);
-        $job->handle(app(InboundMessageHandler::class), app(DeliveryStatusHandler::class));
+        $this->app->call([$job, 'handle']);
 
         $event->refresh();
         $this->assertSame(InboundWebhookStatus::Processed, $event->status);
@@ -211,7 +214,7 @@ class ProcessInboundWebhookJobTest extends TestCase
         // Verify message status was updated
         tenancy()->initialize($this->testTenant);
         $message->refresh();
-        $this->assertSame(\App\Enums\MessageStatus::Sent, $message->status);
+        $this->assertSame(MessageStatus::Sent, $message->status);
         $this->assertNotNull($message->sent_at);
     }
 }

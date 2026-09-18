@@ -10,6 +10,7 @@ use App\Enums\InboundWebhookEventType;
 use App\Enums\InboundWebhookStatus;
 use App\Models\InboundWebhookEvent;
 use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class InboundWebhookRecorder
@@ -59,8 +60,28 @@ class InboundWebhookRecorder
             return $event;
         }
 
-        ProcessInboundWebhookJob::dispatch($event->id)
-            ->onQueue((string) config('webhooks.queue', 'default'));
+        try {
+            dispatch_sync(new ProcessInboundWebhookJob($event->id));
+        } catch (\Throwable $exception) {
+            Log::warning('Inbound webhook sync processing failed; queued retry remains', [
+                'event_id' => $event->id,
+                'error' => $exception->getMessage(),
+            ]);
+        }
+
+        $event = $event->refresh();
+
+        if (! in_array($event->status, [InboundWebhookStatus::Processed, InboundWebhookStatus::Duplicate], true)) {
+            try {
+                ProcessInboundWebhookJob::dispatch($event->id)
+                    ->onQueue((string) config('webhooks.queue', 'default'));
+            } catch (\Throwable $exception) {
+                Log::warning('Inbound webhook queued retry failed', [
+                    'event_id' => $event->id,
+                    'error' => $exception->getMessage(),
+                ]);
+            }
+        }
 
         return $event;
     }

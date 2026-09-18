@@ -5,6 +5,7 @@ namespace Tests\Feature\Templates;
 use App\Domains\Inbox\Services\InboxOutboundService;
 use App\Domains\Templates\Enums\TemplateSource;
 use App\Domains\Templates\Enums\TemplateStatus;
+use App\Domains\Templates\Services\TemplateRegistryService;
 use App\Domains\Templates\Support\TemplateCatalogCache;
 use App\Models\TeamMember;
 use App\Models\Template;
@@ -41,7 +42,7 @@ class TemplateCatalogTest extends TestCase
         });
 
         // CAMS catalog sync is explicit only (no auto-sync on page load).
-        app(\App\Domains\Templates\Services\TemplateRegistryService::class)->refresh();
+        app(TemplateRegistryService::class)->refresh();
     }
 
     protected function tearDown(): void
@@ -126,5 +127,21 @@ class TemplateCatalogTest extends TestCase
         $this->actingAsTeamMember($member)
             ->get(route('templates.index'))
             ->assertForbidden();
+    }
+
+    public function test_statuses_api_returns_template_name_and_status(): void
+    {
+        $template = Template::factory()->create([
+            'name' => 'Welcome Offer',
+            'status' => TemplateStatus::PendingReview,
+        ]);
+
+        $this->actingAsTenantUser()
+            ->getJson(route('templates.api.statuses', ['uuids' => [$template->uuid]]))
+            ->assertOk()
+            ->assertJsonPath('items.0.uuid', $template->uuid)
+            ->assertJsonPath('items.0.name', 'Welcome Offer')
+            ->assertJsonPath('items.0.status', 'Pending review')
+            ->assertJsonPath('items.0.status_key', 'pending_review');
     }
 }

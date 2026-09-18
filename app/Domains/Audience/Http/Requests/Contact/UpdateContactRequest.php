@@ -21,7 +21,7 @@ class UpdateContactRequest extends FormRequest
             'phone' => ['sometimes', 'required', 'string', 'max:20', 'regex:/^\+?[0-9]{7,20}$/'],
             'name' => ['nullable', 'string', 'max:150'],
             'email' => ['nullable', 'email', 'max:191'],
-            'country_code' => ['nullable', 'string', 'max:3'],
+            'country_code' => ['nullable', 'string', 'max:8'],
             'mail_list_id' => PublicId::uuidExistsRules(MailList::class),
             'source' => ['nullable', 'string', 'max:64'],
             'tags' => ['nullable', 'array'],

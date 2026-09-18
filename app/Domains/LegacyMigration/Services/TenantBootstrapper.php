@@ -105,9 +105,12 @@ class TenantBootstrapper
                 }
             }
 
-            $plan = Plan::query()->where('is_active', true)->orderBy('sort_order')->first();
+            $plan = app(LegacyPlanImportService::class)->resolvePlanForLegacyCustomer($customer->id);
             if ($plan === null) {
-                $plan = app(\App\Domains\LegacyMigration\Services\LegacyPlanImportService::class)->ensureDefaultPlan();
+                $plan = Plan::query()->where('is_active', true)->orderBy('sort_order')->first();
+            }
+            if ($plan === null) {
+                $plan = app(LegacyPlanImportService::class)->ensureDefaultPlan();
             }
 
             $slug = $this->slugService->generateUnique($customer->displayName());
@@ -189,10 +192,17 @@ class TenantBootstrapper
         $settings['legacy_customer_id'] = $customer->id;
         $settings['legacy_customer_uid'] = $customer->uid;
 
-        $tenant->forceFill([
+        $attributes = [
             'settings' => $settings,
             'company_name' => $tenant->company_name ?: ($customer->companyName ?: $customer->displayName()),
             'phone' => PhoneNormalizer::normalize($customer->phone) ?: $tenant->phone,
-        ])->save();
+        ];
+
+        $plan = app(LegacyPlanImportService::class)->resolvePlanForLegacyCustomer($customer->id);
+        if ($plan !== null) {
+            $attributes['plan_id'] = $plan->id;
+        }
+
+        $tenant->forceFill($attributes)->save();
     }
 }

@@ -8,6 +8,7 @@ use App\Domains\Account\Services\NotificationService;
 use App\Domains\Admin\Support\AdminSession;
 use App\Domains\Admin\Support\AdminViewAccess;
 use App\Domains\Team\Services\TeamImpersonationService;
+use App\Models\TenantUserAccess;
 use App\Support\CurrentAccount;
 use Illuminate\View\View;
 
@@ -21,6 +22,19 @@ class HeaderComposer
     public function compose(View $view): void
     {
         $adminImpersonation = AdminSession::impersonation();
+        $adminEmail = strtolower(trim((string) ($adminImpersonation['admin_email'] ?? '')));
+        $currentEmail = strtolower(trim((string) CurrentAccount::email()));
+        $impersonatedTenantId = (string) ($adminImpersonation['tenant_id'] ?? '');
+        $isAdminOwnCustomer = $adminImpersonation !== null
+            && $adminEmail !== ''
+            && (
+                ($currentEmail !== '' && $adminEmail === $currentEmail)
+                || ($impersonatedTenantId !== '' && TenantUserAccess::query()
+                    ->whereRaw('LOWER(email) = ?', [$adminEmail])
+                    ->where('tenant_id', $impersonatedTenantId)
+                    ->where('is_active', true)
+                    ->exists())
+            );
 
         $view->with([
             'currentAccountName' => CurrentAccount::displayName(),
@@ -33,6 +47,7 @@ class HeaderComposer
             'isAdminImpersonating' => $adminImpersonation !== null,
             'adminImpersonatorName' => $adminImpersonation['admin_name'] ?? null,
             'canAccessAdminView' => AdminViewAccess::canAccess(),
+            'isAdminOwnCustomer' => $isAdminOwnCustomer,
         ]);
     }
 }

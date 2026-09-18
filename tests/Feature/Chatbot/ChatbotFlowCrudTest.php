@@ -3,7 +3,7 @@
 namespace Tests\Feature\Chatbot;
 
 use App\Models\ChatbotFlow;
-use Database\Factories\ChatbotFlowFactory;
+use App\Models\WhatsappLine;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\InteractsWithTenants;
 use Tests\TestCase;
@@ -39,7 +39,7 @@ class ChatbotFlowCrudTest extends TestCase
             ->get(route('chatbot.create'))
             ->assertOk()
             ->assertSee('Create Chatbot Flow')
-            ->assertSee('Test Line');
+            ->assertSee('Test Line (+91 99999 99999)');
     }
 
     public function test_store_creates_flow(): void
@@ -58,7 +58,7 @@ class ChatbotFlowCrudTest extends TestCase
 
     public function test_store_requires_whatsapp_line_when_multiple_lines_exist(): void
     {
-        \App\Models\WhatsappLine::factory()->create();
+        WhatsappLine::factory()->create();
 
         $this->actingAsTenantUser()
             ->post(route('chatbot.store'), ['name' => 'Multi Line Bot'])

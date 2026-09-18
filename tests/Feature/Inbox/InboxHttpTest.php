@@ -73,9 +73,16 @@ class InboxHttpTest extends TestCase
             ->assertSee('Last 1 Year')
             ->assertSee('Send opt-in')
             ->assertSee('Add New Contact')
+            ->assertSee('India (+91)')
+            ->assertSee('Afghanistan (+93)')
             ->assertSee('Inbox User')
             ->assertSee('Inbound hello')
-            ->assertViewHas('availableLines')
+            ->assertViewHas('availableLines', function (array $lines): bool {
+                $line = collect($lines)->firstWhere('uuid', $this->testLine->uuid);
+
+                return is_array($line)
+                    && $line['label'] === 'Test Line (+91 99999 99999)';
+            })
             ->assertViewHas('walletBalance')
             ->assertViewHas('walletBlocked', false)
             ->assertViewHas('threadsCursor')
@@ -179,5 +186,50 @@ class InboxHttpTest extends TestCase
 
         $this->assertMatchesRegularExpression('/data-inbox-nav-badge[^>]*>\s*1\s*</', $html);
         $this->assertStringContainsString('Hello badge', $html);
+    }
+
+    public function test_inbox_sidebar_badge_shows_on_other_pages(): void
+    {
+        $contact = Contact::factory()->create(['name' => 'Unread Nav', 'phone' => '918888888812']);
+        $conversation = Conversation::factory()->create([
+            'whatsapp_line_id' => $this->testLine->id,
+            'contact_id' => $contact->id,
+            'contact_phone' => $contact->phone,
+            'line_phone' => $this->testLine->phone,
+            'contact_name' => $contact->name,
+            'last_message_at' => now(),
+        ]);
+
+        $this->messageService->recordInbound($conversation, 'Hello dashboard badge');
+
+        $html = $this->actingAsTenantUser()
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertMatchesRegularExpression('/data-inbox-nav-badge[^>]*>\s*1\s*</', $html);
+        $this->assertStringContainsString('data-inbox-unread-url', $html);
+    }
+
+    public function test_unread_count_api_returns_total(): void
+    {
+        $contact = Contact::factory()->create(['name' => 'Unread API', 'phone' => '918888888813']);
+        $conversation = Conversation::factory()->create([
+            'whatsapp_line_id' => $this->testLine->id,
+            'contact_id' => $contact->id,
+            'contact_phone' => $contact->phone,
+            'line_phone' => $this->testLine->phone,
+            'contact_name' => $contact->name,
+            'last_message_at' => now(),
+        ]);
+
+        $this->messageService->recordInbound($conversation, 'Count me');
+
+        $this->actingAsTenantUser()
+            ->getJson(route('inbox.api.unread-count'))
+            ->assertOk()
+            ->assertJsonPath('unread_total', 1)
+            ->assertJsonPath('latest.preview', 'Count me')
+            ->assertJsonPath('latest.name', 'Unread API');
     }
 }

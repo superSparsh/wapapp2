@@ -33,6 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initInboxMessageMenu();
     initCommerceOrderModal();
     initInboxNotifications();
+    initInboxNavBadge();
     try {
         initInboxRealtime();
     } catch {
@@ -730,6 +731,9 @@ function inboxBaseUrl() {
 
 const INBOX_NOTIFY_KEY = 'inbox.web_notifications';
 const inboxUnreadSeen = new Map();
+let inboxUnreadWatermark = null;
+let lastInboxNotifyKey = '';
+let lastInboxNotifyAt = 0;
 
 function threadDisplayName(thread) {
     return String(thread?.name || thread?.phone || 'Unknown');
@@ -767,6 +771,7 @@ function inboxNotificationsWanted() {
 function inboxCanNotify() {
     return (
         inboxNotificationsWanted() &&
+        window.isSecureContext &&
         typeof Notification !== 'undefined' &&
         Notification.permission === 'granted'
     );
@@ -789,24 +794,36 @@ function setInboxNotifyUi(enabled) {
 
 function showInboxWebNotification(thread, message) {
     if (!inboxCanNotify()) {
-        return;
+        return false;
     }
 
     const openUuid = inboxSelectedConversationUuid();
     if (openUuid && thread?.uuid === openUuid && document.visibilityState === 'visible') {
-        return;
+        return false;
     }
 
-    const title = threadDisplayName(thread);
+    const title = threadDisplayName(thread) || 'WapApp Inbox';
     const body =
         String(message?.body || thread?.preview || 'New WhatsApp message').trim() ||
         'New WhatsApp message';
+    const key = `${thread?.uuid || 'inbox'}:${body}`;
+    const now = Date.now();
+
+    if (key === lastInboxNotifyKey && now - lastInboxNotifyAt < 5000) {
+        return false;
+    }
+
+    lastInboxNotifyKey = key;
+    lastInboxNotifyAt = now;
+
+    const icon = document.body?.dataset.inboxNotifyIcon || '/images/logo.png';
 
     try {
         const notification = new Notification(title, {
             body,
             tag: thread?.uuid || 'inbox',
             renotify: true,
+            icon,
         });
 
         notification.onclick = () => {
@@ -817,9 +834,37 @@ function showInboxWebNotification(thread, message) {
             }
             notification.close();
         };
+
+        if (thread?.uuid && inboxUnreadWatermark !== null) {
+            inboxUnreadWatermark += 1;
+        }
+
+        return true;
     } catch {
-        // Some browsers throw if the document is not allowed to notify yet.
+        return false;
     }
+}
+
+function applyInboxUnreadSnapshot(data, { notify = true } = {}) {
+    const total = Number(data?.unread_total || 0);
+
+    if (typeof data?.unread_total === 'number') {
+        setInboxNavBadge(total);
+    }
+
+    if (inboxUnreadWatermark === null) {
+        inboxUnreadWatermark = total;
+
+        return;
+    }
+
+    if (notify && total > inboxUnreadWatermark) {
+        showInboxWebNotification(data.latest || {}, {
+            body: data.latest?.preview,
+        });
+    }
+
+    inboxUnreadWatermark = total;
 }
 
 function inboxUnreadTotalFromDom() {
@@ -858,7 +903,40 @@ function setInboxNavBadge(count) {
 }
 
 function syncInboxNavBadge() {
-    setInboxNavBadge(inboxUnreadTotalFromDom());
+    // Visible thread chips can be a partial list (lookback / pagination).
+    // Never shrink a server-rendered or API-backed menu badge from that sum.
+}
+
+function initInboxNavBadge() {
+    if (!document.querySelector('[data-inbox-nav-badge]')) {
+        return;
+    }
+
+    const url = document.body?.dataset.inboxUnreadUrl;
+    if (!url) {
+        return;
+    }
+
+    const refresh = async () => {
+        try {
+            const response = await fetch(url, {
+                headers: { Accept: 'application/json' },
+                credentials: 'same-origin',
+            });
+
+            if (!response.ok) {
+                return;
+            }
+
+            const data = await response.json();
+            applyInboxUnreadSnapshot(data);
+        } catch {
+            // Ignore transient poll errors.
+        }
+    };
+
+    refresh();
+    window.setInterval(refresh, 4000);
 }
 
 function maybeRefreshOpenChat(thread) {
@@ -884,8 +962,6 @@ function rememberThreadUnread(thread) {
     if (next > prev) {
         showInboxWebNotification(thread);
     }
-
-    syncInboxNavBadge();
 }
 
 function buildThreadRowHtml(thread, selectedUuid = null) {
@@ -997,8 +1073,6 @@ function upsertThreadRow(thread) {
 
     if (thread.unread !== undefined) {
         rememberThreadUnread(thread);
-    } else {
-        syncInboxNavBadge();
     }
 
     maybeRefreshOpenChat(thread);
@@ -1767,7 +1841,9 @@ function initInboxChat() {
 
     const refreshMessages = async () => {
         try {
-            const response = await fetch(messagesUrl, {
+            const params = new URLSearchParams(window.location.search);
+            params.delete('cursor');
+            const response = await fetch(`${messagesUrl}?${params.toString()}`, {
                 headers: { Accept: 'application/json' },
                 credentials: 'same-origin',
             });
@@ -2957,20 +3033,41 @@ function setToggleSwitchActive(toggle, active) {
     }
 }
 
+function initInboxEchoNotifications() {
+    if (inboxRoot()) {
+        return;
+    }
+
+    const tenantId = document.body?.dataset.inboxTenantId;
+    const realtimeEnabled = document.body?.dataset.inboxRealtimeEnabled === '1';
+
+    if (!realtimeEnabled || !tenantId || !window.Echo) {
+        return;
+    }
+
+    subscribeInboxEcho(`inbox.${tenantId}`, {
+        '.message.created': (payload) => {
+            if (payload?.thread) {
+                showInboxWebNotification(payload.thread, payload.message);
+            }
+        },
+    });
+}
+
 function initInboxNotifications() {
     seedInboxUnreadFromDom();
-
-    const root = inboxRoot();
-    const fromList = inboxUnreadTotalFromDom();
-    const fromPage = Number(root?.dataset.unreadTotal || 0);
-    setInboxNavBadge(fromList > 0 ? fromList : fromPage);
+    initInboxEchoNotifications();
 
     const sync = () => {
         setInboxNotifyUi(inboxCanNotify());
     };
 
-    const requestFromGesture = async () => {
-        if (typeof Notification === 'undefined') {
+    const requestFromGesture = async (event) => {
+        if (event.target?.closest?.('[data-inbox-notify-toggle]')) {
+            return;
+        }
+
+        if (!window.isSecureContext || typeof Notification === 'undefined') {
             return;
         }
 
@@ -2990,14 +3087,15 @@ function initInboxNotifications() {
         sync();
     };
 
-    root?.addEventListener('click', requestFromGesture, { once: true, capture: true });
+    document.addEventListener('click', requestFromGesture, { once: true, capture: true });
 
     const toggle = document.querySelector('[data-inbox-notify-toggle]');
     if (!toggle) {
+        sync();
         return;
     }
 
-    if (typeof Notification === 'undefined') {
+    if (!window.isSecureContext || typeof Notification === 'undefined') {
         toggle.hidden = true;
         return;
     }
@@ -3035,6 +3133,18 @@ function initInboxNotifications() {
 
         window.localStorage.setItem(INBOX_NOTIFY_KEY, '1');
         sync();
+
+        const shown = showInboxWebNotification(
+            { name: 'WapApp Inbox', uuid: '' },
+            { body: 'Notifications are on. You will be alerted for new WhatsApp messages.' },
+        );
+
+        if (!shown) {
+            showAppAlert(
+                'Browser permission is granted. Keep this tab open in the background to receive new WhatsApp alerts.',
+                'Notifications on',
+            );
+        }
     });
 }
 

@@ -52,7 +52,7 @@
                 <option value="">-- Choose WhatsApp number --</option>
                 @foreach ($whatsappLines as $line)
                   <option value="{{ $line->uuid }}" @selected((string) old('whatsapp_line_id') === (string) $line->uuid)>
-                    {{ $line->display_name ?: $line->phone }}
+                    {{ $line->displayLabel() }}
                   </option>
                 @endforeach
               </select>
@@ -60,7 +60,7 @@
             @elseif (($whatsappLines ?? collect())->isNotEmpty())
               <input type="hidden" name="whatsapp_line_id" value="{{ $whatsappLines->first()->uuid }}">
               <div class="rounded-lg border border-divider bg-surface px-4 py-3 text-sm font-medium text-text-body">
-                {{ $whatsappLines->first()->display_name ?: $whatsappLines->first()->phone }}
+                {{ $whatsappLines->first()->displayLabel() }}
               </div>
               <p class="text-xs text-text-muted">Only one WhatsApp number is connected — this chatbot will use it automatically.</p>
             @else

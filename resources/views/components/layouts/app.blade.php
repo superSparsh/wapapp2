@@ -27,7 +27,15 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @stack('head-scripts')
 </head>
-<body class="h-screen overflow-hidden bg-surface font-display text-text-primary antialiased">
+<body
+    class="h-screen overflow-hidden bg-surface font-display text-text-primary antialiased"
+    @if (tenancy()->initialized)
+      data-inbox-unread-url="{{ route('inbox.api.unread-count') }}"
+      data-inbox-tenant-id="{{ tenant('id') }}"
+      data-inbox-realtime-enabled="{{ ! empty($reverbEnabled) ? '1' : '0' }}"
+      data-inbox-notify-icon="{{ asset('images/logo.png') }}"
+    @endif
+>
     <div class="flex h-screen">
         <div class="relative hidden h-screen shrink-0 overflow-visible lg:block">
             <x-app.sidebar :active="$active ?? ''" :mobile="false" />

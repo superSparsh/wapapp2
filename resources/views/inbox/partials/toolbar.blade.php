@@ -139,7 +139,7 @@
       data-inbox-notify-toggle
       class="fd-btn inline-flex h-9 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-border bg-elevated px-2.5 text-xs font-medium text-text-body transition hover:bg-surface"
       aria-pressed="false"
-      title="Desktop notifications for new chats"
+      title="Browser notifications for new WhatsApp messages"
     >
       <x-icons.nav-icon name="bell" class="size-3.5" />
       <span data-inbox-notify-label>Notifications</span>

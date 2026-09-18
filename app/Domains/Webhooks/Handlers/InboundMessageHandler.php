@@ -41,12 +41,36 @@ class InboundMessageHandler
     public function handle(InboundWebhookEvent $event): void
     {
         $items = $this->parser->parsePayload($event->payload);
-        $item = $this->parser->firstItem($items);
+        $processed = 0;
+        $lastError = null;
 
-        if ($item === null) {
-            throw new \RuntimeException('Inbound message payload is empty.');
+        foreach ($items as $candidate) {
+            if (! is_array($candidate) || ! $this->isInboundMessageItem($candidate)) {
+                continue;
+            }
+
+            try {
+                $this->processItem($event, $candidate);
+                $processed++;
+            } catch (\Throwable $exception) {
+                $lastError = $exception;
+                Log::warning('Inbound message item failed', [
+                    'event_id' => $event->id,
+                    'error' => $exception->getMessage(),
+                ]);
+            }
         }
 
+        if ($processed === 0) {
+            throw $lastError ?? new \RuntimeException('Inbound message payload is empty.');
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $item
+     */
+    private function processItem(InboundWebhookEvent $event, array $item): void
+    {
         $from = (string) ($item['From'] ?? $item['from'] ?? '');
         $to = (string) ($item['To'] ?? $item['to'] ?? '');
         $messageId = (string) ($item['MessageId'] ?? $item['messageId'] ?? $item['id'] ?? '');
@@ -58,18 +82,26 @@ class InboundMessageHandler
         }
 
         $resolved = $this->registryService->resolveByBusinessPhone($to);
+        $contactPhone = $from;
+
+        if ($resolved === null) {
+            $resolved = $this->registryService->resolveByBusinessPhone($from);
+            $contactPhone = $to;
+        }
 
         if ($resolved === null) {
             throw new \RuntimeException('No tenant registry entry found for business phone '.$to);
         }
 
+        $wasInitialized = tenancy()->initialized;
+        $previousTenant = $wasInitialized ? tenant() : null;
         tenancy()->initialize($resolved['tenant']);
 
         try {
             $line = WhatsappLine::query()->findOrFail($resolved['line_id']);
             $conversation = $this->conversationService->findOrCreateConversation(
                 line: $line,
-                contactPhone: $from,
+                contactPhone: $contactPhone,
                 contactName: isset($item['Name']) && (string) $item['Name'] !== ''
                     ? (string) $item['Name']
                     : (isset($item['name']) ? (string) $item['name'] : null),
@@ -149,7 +181,7 @@ class InboundMessageHandler
                 try {
                     app(InboxServiceClientInterface::class)->recordInbound(
                         lineId: (int) $line->id,
-                        contactPhone: $from,
+                        contactPhone: $contactPhone,
                         body: $body,
                         contactName: isset($item['Name']) ? (string) $item['Name'] : null,
                         externalMessageId: $messageId,
@@ -169,7 +201,11 @@ class InboundMessageHandler
                 'whatsapp_line_id' => $line->id,
             ])->save();
         } finally {
-            tenancy()->end();
+            if (! $wasInitialized) {
+                tenancy()->end();
+            } elseif ($previousTenant !== null && (string) $previousTenant->id !== (string) $resolved['tenant']->id) {
+                tenancy()->initialize($previousTenant);
+            }
         }
     }
 
@@ -399,6 +435,16 @@ class InboundMessageHandler
         $start = $value[0] ?? '';
 
         return $start === '{' || $start === '[';
+    }
+
+    private function isInboundMessageItem(array $item): bool
+    {
+        $from = (string) ($item['From'] ?? $item['from'] ?? '');
+        $to = (string) ($item['To'] ?? $item['to'] ?? '');
+        $messageId = (string) ($item['MessageId'] ?? $item['messageId'] ?? $item['id'] ?? '');
+        $status = trim((string) ($item['Status'] ?? $item['status'] ?? ''));
+
+        return $from !== '' && $to !== '' && $messageId !== '' && $status === '';
     }
 
     private function mapMessageType(string $type): MessageType

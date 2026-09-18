@@ -116,7 +116,7 @@
         whatsappLines: @json(
           ($whatsappLines ?? collect())->map(fn ($line) => [
             'uuid' => $line->uuid,
-            'label' => $line->display_name ?: $line->phone,
+            'label' => $line->displayLabel(),
           ])->values()
         ),
         showWhatsappLinePicker: @json($showWhatsappLinePicker ?? false),

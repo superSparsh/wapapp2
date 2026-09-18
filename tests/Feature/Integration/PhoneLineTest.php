@@ -86,8 +86,8 @@ class PhoneLineTest extends TestCase
 
         $this->actingAsTenantUser()
             ->post(route('profile.phone-lines.password'), [
-                'line'                  => $line->uuid,
-                'password'              => 'MySecret88',
+                'line' => $line->uuid,
+                'password' => 'MySecret88',
                 'password_confirmation' => 'MySecret88',
             ])
             ->assertRedirect(route('profile.phone-lines.index'))
@@ -104,8 +104,8 @@ class PhoneLineTest extends TestCase
 
         $this->actingAsTenantUser()
             ->post(route('profile.phone-lines.password'), [
-                'line'                  => $line->uuid,
-                'password'              => 'MySecret88',
+                'line' => $line->uuid,
+                'password' => 'MySecret88',
                 'password_confirmation' => 'WrongConfirm',
             ])
             ->assertSessionHasErrors('password');
@@ -117,8 +117,8 @@ class PhoneLineTest extends TestCase
 
         $this->actingAsTenantUser()
             ->post(route('profile.phone-lines.password'), [
-                'line'                  => $line->uuid,
-                'password'              => 'short',
+                'line' => $line->uuid,
+                'password' => 'short',
                 'password_confirmation' => 'short',
             ])
             ->assertSessionHasErrors('password');
@@ -128,8 +128,8 @@ class PhoneLineTest extends TestCase
     {
         $this->actingAsTenantUser()
             ->post(route('profile.phone-lines.password'), [
-                'line'                  => $this->testLine->uuid,
-                'password'              => 'MySecret88',
+                'line' => $this->testLine->uuid,
+                'password' => 'MySecret88',
                 'password_confirmation' => 'MySecret88',
             ])
             ->assertRedirect(route('profile.phone-lines.index'))
@@ -144,7 +144,7 @@ class PhoneLineTest extends TestCase
 
         $this->actingAsTenantUser()
             ->post(route('profile.phone-lines.login-as'), [
-                'line'     => $line->uuid,
+                'line' => $line->uuid,
                 'password' => 'password123',
             ])
             ->assertRedirect(route('dashboard'))
@@ -160,7 +160,7 @@ class PhoneLineTest extends TestCase
 
         $this->actingAsTenantUser()
             ->post(route('profile.phone-lines.login-as'), [
-                'line'     => $line->uuid,
+                'line' => $line->uuid,
                 'password' => 'wrongpassword',
             ])
             ->assertRedirect(route('profile.phone-lines.index'))
@@ -175,7 +175,7 @@ class PhoneLineTest extends TestCase
 
         $this->actingAsTenantUser()
             ->post(route('profile.phone-lines.login-as'), [
-                'line'     => $line->uuid,
+                'line' => $line->uuid,
                 'password' => 'password123',
             ])
             ->assertRedirect(route('profile.phone-lines.index'))
@@ -188,7 +188,7 @@ class PhoneLineTest extends TestCase
 
         $this->actingAsTenantUser()
             ->post(route('profile.phone-lines.login-as'), [
-                'line'     => $line->uuid,
+                'line' => $line->uuid,
                 'password' => 'password123',
             ])
             ->assertRedirect(route('profile.phone-lines.index'))
@@ -205,7 +205,7 @@ class PhoneLineTest extends TestCase
 
         // First lock the session
         session([
-            PhoneLineService::SESSION_LOCKED  => true,
+            PhoneLineService::SESSION_LOCKED => true,
             PhoneLineService::SESSION_LINE_ID => $line->id,
         ]);
 
@@ -288,7 +288,7 @@ class PhoneLineTest extends TestCase
         WhatsappLine::factory()->count(3)->create();
 
         $service = app(PhoneLineService::class);
-        $lines   = $service->secondaryLines();
+        $lines = $service->secondaryLines();
 
         // 3 secondary + testLine (default) = 4 total; secondary only = 3
         $this->assertCount(3, $lines);
@@ -361,8 +361,22 @@ class PhoneLineTest extends TestCase
 
     public function test_whatsapp_line_display_phone_formats_indian_number(): void
     {
-        $line = WhatsappLine::factory()->make(['phone' => '919876543210']);
+        $line = WhatsappLine::factory()->make([
+            'phone' => '919876543210',
+            'display_name' => null,
+        ]);
         $this->assertSame('+91 98765 43210', $line->displayPhone());
+        $this->assertSame('+91 98765 43210', $line->displayLabel());
+    }
+
+    public function test_whatsapp_line_display_label_includes_name_and_number(): void
+    {
+        $line = WhatsappLine::factory()->make([
+            'phone' => '919876543210',
+            'display_name' => 'Acme Support',
+        ]);
+
+        $this->assertSame('Acme Support (+91 98765 43210)', $line->displayLabel());
     }
 
     // ─── Line Login page (public) ─────────────────────────────────────────────
@@ -378,11 +392,11 @@ class PhoneLineTest extends TestCase
     {
         $line = WhatsappLine::factory()->connected()->withPassword('linepass99')->create([
             'is_default' => false,
-            'phone'      => '919876543210',
+            'phone' => '919876543210',
         ]);
 
         $this->post(route('line.login.submit'), [
-            'phone'    => '919876543210',
+            'phone' => '919876543210',
             'password' => 'linepass99',
         ])->assertRedirect(route('dashboard'));
 
@@ -393,11 +407,11 @@ class PhoneLineTest extends TestCase
     {
         WhatsappLine::factory()->connected()->withPassword('linepass99')->create([
             'is_default' => false,
-            'phone'      => '919876543210',
+            'phone' => '919876543210',
         ]);
 
         $this->post(route('line.login.submit'), [
-            'phone'    => '919876543210',
+            'phone' => '919876543210',
             'password' => 'wrongpass',
         ])->assertSessionHasErrors('phone');
 
@@ -407,7 +421,7 @@ class PhoneLineTest extends TestCase
     public function test_line_login_fails_with_unknown_phone(): void
     {
         $this->post(route('line.login.submit'), [
-            'phone'    => '9900000000',
+            'phone' => '9900000000',
             'password' => 'anypass',
         ])->assertSessionHasErrors('phone');
     }
@@ -416,11 +430,11 @@ class PhoneLineTest extends TestCase
     {
         WhatsappLine::factory()->connected()->create([
             'is_default' => false,
-            'phone'      => '919876543210',
+            'phone' => '919876543210',
         ]);
 
         $this->post(route('line.login.submit'), [
-            'phone'    => '919876543210',
+            'phone' => '919876543210',
             'password' => 'somepass',
         ])->assertSessionHasErrors('phone');
     }

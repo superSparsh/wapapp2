@@ -81,6 +81,21 @@ class WhatsappLine extends TenantModel
         return '+'.$digits;
     }
 
+    /**
+     * Name plus phone so pickers never hide the WhatsApp number.
+     */
+    public function displayLabel(): string
+    {
+        $phone = $this->displayPhone();
+        $name = trim((string) $this->display_name);
+
+        if ($name === '' || strcasecmp($name, $phone) === 0 || $name === (string) $this->phone) {
+            return $phone;
+        }
+
+        return $name.' ('.$phone.')';
+    }
+
     // ─── Relationships ────────────────────────────────────────────────────────
 
     public function conversations(): HasMany

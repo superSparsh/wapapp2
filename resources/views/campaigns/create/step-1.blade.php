@@ -41,7 +41,7 @@
               || (string) old('whatsapp_line_id', $wizardData['whatsapp_line_id'] ?? '') === (string) $line->id
             )
           >
-            +{{ ltrim((string) $line->phone, '+') }}@if (filled($line->display_name)) — {{ $line->display_name }}@endif
+            {{ $line->displayLabel() }}
           </option>
         @endforeach
       </select>

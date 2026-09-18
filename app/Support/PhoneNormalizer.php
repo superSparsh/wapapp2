@@ -24,16 +24,27 @@ final class PhoneNormalizer
     /** @return array<int, string> */
     public static function lookupVariants(?string $phone): array
     {
-        $normalized = self::normalize($phone);
+        $digits = preg_replace('/\D+/', '', (string) $phone) ?? '';
 
-        if ($normalized === null) {
+        if ($digits === '') {
             return [];
         }
 
-        $variants = [$normalized];
+        $normalized = self::normalize($phone);
+        $variants = array_values(array_filter([
+            $normalized,
+            $digits,
+        ]));
 
-        if (str_starts_with($normalized, '91') && strlen($normalized) === 12) {
-            $variants[] = substr($normalized, 2);
+        if (strlen($digits) >= 10) {
+            $last10 = substr($digits, -10);
+            $variants[] = $last10;
+            $variants[] = '91'.$last10;
+        }
+
+        if (str_starts_with($digits, '0') && strlen($digits) === 11) {
+            $variants[] = substr($digits, 1);
+            $variants[] = '91'.substr($digits, 1);
         }
 
         return array_values(array_unique($variants));

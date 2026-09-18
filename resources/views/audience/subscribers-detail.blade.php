@@ -43,8 +43,13 @@
             <input name="email" type="email" value="{{ old('email', $contact->email) }}" class="w-full rounded-xl border border-border bg-elevated px-3 py-3 text-sm">
           </div>
           <div>
-            <label class="mb-1 block text-sm font-semibold text-text-primary">Country code</label>
-            <input name="country_code" type="text" value="{{ old('country_code', $contact->country_code) }}" class="w-full rounded-xl border border-border bg-elevated px-3 py-3 text-sm">
+            <label for="detail_country_code" class="mb-1 block text-sm font-semibold text-text-primary">Country code</label>
+            <x-ui.country-code-select
+              id="detail_country_code"
+              name="country_code"
+              :selected="old('country_code', $contact->country_code)"
+              class="rounded-xl px-3 py-3"
+            />
           </div>
           <div>
             <label class="mb-1 block text-sm font-semibold text-text-primary">Tags (comma separated)</label>
