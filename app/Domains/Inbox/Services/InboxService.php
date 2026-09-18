@@ -88,6 +88,7 @@ class InboxService
             'isTeamInbox' => $this->accessService->isTeamMember(),
             'walletBalance' => $walletBalance,
             'walletBlocked' => $walletBalance <= $walletMin,
+            'aiForAll' => (bool) session('inbox.ai_for_all', false),
         ];
     }
 
@@ -197,7 +198,7 @@ class InboxService
         return [
             'search' => $request->string('q')->trim()->toString() ?: null,
             'unread_only' => $request->boolean('unread') || $scope === 'unread',
-            'lookback_days' => $lookback > 0 ? $lookback : (int) config('inbox.default_lookback_days', 7),
+            'lookback_days' => $this->normalizeLookbackDays($lookback),
             'cursor' => $request->string('cursor')->trim()->toString() ?: null,
             'scope' => $scope,
             'assignee' => $assignee ?: null,
@@ -230,7 +231,7 @@ class InboxService
                 ['value' => 'unread', 'label' => 'Unread Only'],
                 ['value' => 'mine', 'label' => 'Assigned to Me'],
             ],
-            'lookback_days' => config('inbox.allowed_lookback_days', [1, 3, 7, 30, 90]),
+            'lookback_days' => config('inbox.allowed_lookback_days', [1, 3, 7, 90, 180, 365]),
             'assignees' => $assignees,
         ];
     }
@@ -261,6 +262,17 @@ class InboxService
             'stopped' => $stopped,
             'stop_label' => $stopped ? 'Marked STOP — unsubscribed' : null,
         ];
+    }
+
+    private function normalizeLookbackDays(int $lookbackDays): int
+    {
+        $allowed = config('inbox.allowed_lookback_days', [1, 3, 7, 90, 180, 365]);
+
+        if (! in_array($lookbackDays, $allowed, true)) {
+            return (int) config('inbox.default_lookback_days', 7);
+        }
+
+        return $lookbackDays;
     }
 
     private function findAccessibleLineByUuid(string $uuid): ?WhatsappLine

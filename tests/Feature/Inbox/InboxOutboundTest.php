@@ -5,6 +5,7 @@ namespace Tests\Feature\Inbox;
 use App\Domains\Inbox\Contracts\OutboundMessageGateway;
 use App\Domains\Inbox\Jobs\SendOutboundMessageJob;
 use App\Domains\Inbox\Services\InboxMessageService;
+use App\Enums\MessageDirection;
 use App\Enums\MessageStatus;
 use App\Enums\MessageType;
 use App\Models\Contact;
@@ -156,7 +157,7 @@ class InboxOutboundTest extends TestCase
         $message = Message::query()->create([
             'conversation_id' => $conversation->id,
             'body' => 'CAMS hello',
-            'direction' => \App\Enums\MessageDirection::Outbound,
+            'direction' => MessageDirection::Outbound,
             'message_type' => MessageType::Text,
             'status' => MessageStatus::Queued,
         ]);
@@ -179,6 +180,64 @@ class InboxOutboundTest extends TestCase
             ->assertJsonPath('within_window', true);
     }
 
+    public function test_interactive_composer_sends_button_message(): void
+    {
+        $conversation = $this->createConversation();
+        $this->openServiceWindow($conversation);
+
+        $this->actingAsTenantUser()
+            ->postJson(route('inbox.api.send-interactive-compose', $conversation), [
+                'type' => 'button',
+                'body' => 'Need help?',
+                'footer' => 'Tap one',
+                'buttons' => [
+                    ['title' => 'Yes'],
+                    ['title' => 'No'],
+                ],
+            ])
+            ->assertCreated()
+            ->assertJsonPath('message.message_type', MessageType::Interactive->value)
+            ->assertJsonPath('message.body', 'Need help?');
+
+        Queue::assertPushed(SendOutboundMessageJob::class);
+    }
+
+    public function test_interactive_composer_sends_website_button(): void
+    {
+        $conversation = $this->createConversation();
+        $this->openServiceWindow($conversation);
+
+        $this->actingAsTenantUser()
+            ->postJson(route('inbox.api.send-interactive-compose', $conversation), [
+                'type' => 'cta_url',
+                'body' => 'See our website',
+                'button_text' => 'Open',
+                'url' => 'https://wapapp.test',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('message.message_type', MessageType::Interactive->value);
+    }
+
+    public function test_export_all_supports_date_range_and_skip_phones(): void
+    {
+        $keep = $this->createConversation();
+        $skip = $this->createConversation();
+        $this->openServiceWindow($keep, 'Keep this chat');
+        $this->openServiceWindow($skip, 'Skip this chat');
+
+        $response = $this->actingAsTenantUser()
+            ->get(route('inbox.api.export-all', [
+                'from' => now()->toDateString(),
+                'to' => now()->toDateString(),
+                'skip_phones' => $skip->contact_phone,
+            ]));
+
+        $response->assertOk();
+        $csv = $response->streamedContent();
+        $this->assertStringContainsString('Keep this chat', $csv);
+        $this->assertStringNotContainsString('Skip this chat', $csv);
+    }
+
     private function createConversation(): Conversation
     {
         $contact = Contact::factory()->create();
@@ -198,10 +257,22 @@ class InboxOutboundTest extends TestCase
         $message = Message::query()->create([
             'conversation_id' => $conversation->id,
             'body' => 'Old hello',
-            'direction' => \App\Enums\MessageDirection::Inbound,
+            'direction' => MessageDirection::Inbound,
             'message_type' => MessageType::Text,
             'status' => MessageStatus::Delivered,
         ]);
         $message->forceFill(['created_at' => now()->subHours(30)])->save();
+    }
+
+    private function openServiceWindow(Conversation $conversation, string $body = 'Recent hello'): void
+    {
+        Message::query()->create([
+            'conversation_id' => $conversation->id,
+            'body' => $body,
+            'direction' => MessageDirection::Inbound,
+            'message_type' => MessageType::Text,
+            'status' => MessageStatus::Delivered,
+            'created_at' => now()->subHour(),
+        ]);
     }
 }

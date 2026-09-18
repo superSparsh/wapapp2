@@ -112,4 +112,24 @@ class InteractiveMessagePayloadBuilderTest extends TestCase
         $this->assertSame('button', $content['type']);
         $this->assertArrayHasKey('action', $content);
     }
+
+    public function test_builds_cta_url_and_location_request_payloads(): void
+    {
+        $cta = app(InteractiveMessagePayloadBuilder::class)->fromFlat('cta_url', [
+            'body' => 'Visit us',
+            'button_text' => 'Shop Now',
+            'url' => 'https://example.com',
+        ]);
+
+        $this->assertSame('cta_url', $cta['type']);
+        $this->assertSame('Shop Now', $cta['action']['parameters']['display_text']);
+        $this->assertSame('https://example.com', $cta['action']['parameters']['url']);
+
+        $location = app(InteractiveMessagePayloadBuilder::class)->fromFlat('location_request_message', [
+            'body' => 'Share your location',
+        ]);
+
+        $this->assertSame('location_request_message', $location['type']);
+        $this->assertSame('send_location', $location['action']['name']);
+    }
 }

@@ -5,38 +5,52 @@ use App\Domains\AiBot\Http\Controllers\AiBotController;
 use App\Domains\AiBot\Http\Controllers\AiBusinessInfoController;
 use App\Domains\AiBot\Http\Controllers\AiProviderKeyController;
 use App\Domains\AiBot\Http\Controllers\OpenAiKeyController;
+use App\Domains\Audience\Http\Controllers\PublicEmbeddedFormController;
+use App\Domains\AutomationEvents\Http\Controllers\AutomationEventController;
 use App\Domains\Chatbot\Http\Controllers\ChatbotBuilderSupportController;
 use App\Domains\Chatbot\Http\Controllers\ChatbotFlowBuilderController;
 use App\Domains\Chatbot\Http\Controllers\ChatbotFlowController;
 use App\Domains\Commerce\Http\Controllers\CommerceController;
 use App\Domains\Dashboard\Http\Controllers\DashboardController;
+use App\Domains\Drip\Http\Controllers\DripAudienceController;
+use App\Domains\Drip\Http\Controllers\DripCampaignController;
+use App\Domains\Drip\Http\Controllers\DripDesignController;
+use App\Domains\Drip\Http\Controllers\DripFlowBuilderController;
+use App\Domains\Drip\Http\Controllers\DripInsightsController;
+use App\Domains\Drip\Http\Controllers\DripStatisticsController;
+use App\Domains\FormBuilder\Http\Controllers\FormApiController;
+use App\Domains\FormBuilder\Http\Controllers\FormBuilderController;
+use App\Domains\FormBuilder\Http\Controllers\PublicFormController;
+use App\Domains\HelpCenter\Http\Controllers\FaqController;
+use App\Domains\HelpCenter\Http\Controllers\TutorialController;
 use App\Domains\Inbox\Http\Controllers\InboxController;
+use App\Domains\Inbox\Services\InboxService;
+use App\Domains\Integration\Http\Controllers\LineLoginController;
 use App\Domains\Team\Http\Controllers\ManagerSettingsController;
 use App\Domains\Team\Http\Controllers\ManagerTeamController;
 use App\Domains\Team\Http\Controllers\TeamController;
-use App\Domains\Team\Http\Controllers\TeamImportController;
 use App\Domains\Team\Http\Controllers\TeamImpersonationController;
-use App\Domains\HelpCenter\Http\Controllers\FaqController;
-use App\Domains\HelpCenter\Http\Controllers\TutorialController;
-use App\Domains\Templates\Http\Controllers\TemplateApiController;
-use App\Domains\Templates\Http\Controllers\TemplateAiController;
-use App\Domains\Templates\Http\Controllers\TemplateBuilderController;
+use App\Domains\Team\Http\Controllers\TeamImportController;
 use App\Domains\Templates\Http\Controllers\InteractiveMessageController;
+use App\Domains\Templates\Http\Controllers\TemplateAiController;
+use App\Domains\Templates\Http\Controllers\TemplateApiController;
+use App\Domains\Templates\Http\Controllers\TemplateBuilderController;
 use App\Domains\Templates\Http\Controllers\TemplateController;
 use App\Domains\Templates\Http\Controllers\TemplateVariableController;
-use App\Domains\Templates\Services\TemplateRegistryService;
-use App\Models\Template;
-use App\Domains\TriggerTemplate\Http\Controllers\TriggerTemplateController;
-use App\Domains\FormBuilder\Http\Controllers\FormBuilderController;
-use App\Domains\FormBuilder\Http\Controllers\FormApiController;
-use App\Domains\FormBuilder\Http\Controllers\PublicFormController;
-use App\Domains\Integration\Http\Controllers\LineLoginController;
-use App\Domains\ThirdParty\Http\Controllers\ShopifyController;
 use App\Domains\ThirdParty\Http\Controllers\CalendlyController;
-use App\Domains\ThirdParty\Http\Controllers\GoogleCalendarController;
 use App\Domains\ThirdParty\Http\Controllers\GoogleCalendarBookingController;
+use App\Domains\ThirdParty\Http\Controllers\GoogleCalendarController;
+use App\Domains\ThirdParty\Http\Controllers\ShopifyController;
+use App\Domains\ThirdParty\Http\Controllers\WebsiteTrackingController;
+use App\Domains\ThirdParty\Http\Controllers\WooCommerceController;
+use App\Domains\TriggerTemplate\Http\Controllers\TriggerTemplateController;
+use App\Domains\Webhooks\Http\Controllers\WebhookDeliveryController;
+use App\Domains\Webhooks\Http\Controllers\WebhookSubscriptionController;
 use App\Http\Controllers\GlobalSearchController;
+use App\Models\Template;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use Stancl\Tenancy\Middleware\InitializeTenancyByPath;
 
 Route::get('/', function () {
     if (auth('web')->check() || auth('team')->check()) {
@@ -83,7 +97,7 @@ Route::middleware('web')->prefix('customer-readiness')->name('customer-readiness
 });
 
 // Public form routes (Form Builder — no auth — tenant resolved from path)
-Route::middleware([\Stancl\Tenancy\Middleware\InitializeTenancyByPath::class])
+Route::middleware([InitializeTenancyByPath::class])
     ->prefix('form/{tenant}')
     ->name('public.form.')
     ->group(function () {
@@ -93,14 +107,14 @@ Route::middleware([\Stancl\Tenancy\Middleware\InitializeTenancyByPath::class])
     });
 
 // Audience Embedded Form (list fields) — separate from Form Builder
-Route::middleware([\Stancl\Tenancy\Middleware\InitializeTenancyByPath::class])
+Route::middleware([InitializeTenancyByPath::class])
     ->prefix('lists/{tenant}/{list}')
     ->name('public.list.')
     ->group(function () {
-        Route::get('/embedded-form', [\App\Domains\Audience\Http\Controllers\PublicEmbeddedFormController::class, 'show'])->name('embedded-form');
-        Route::get('/embedded-form-preview', [\App\Domains\Audience\Http\Controllers\PublicEmbeddedFormController::class, 'preview'])->name('embedded-form.preview');
-        Route::post('/embedded-form-subscribe', [\App\Domains\Audience\Http\Controllers\PublicEmbeddedFormController::class, 'subscribe'])->name('embedded-form.subscribe');
-        Route::post('/embedded-form-subscribe-captcha', [\App\Domains\Audience\Http\Controllers\PublicEmbeddedFormController::class, 'subscribe'])->name('embedded-form.subscribe-captcha');
+        Route::get('/embedded-form', [PublicEmbeddedFormController::class, 'show'])->name('embedded-form');
+        Route::get('/embedded-form-preview', [PublicEmbeddedFormController::class, 'preview'])->name('embedded-form.preview');
+        Route::post('/embedded-form-subscribe', [PublicEmbeddedFormController::class, 'subscribe'])->name('embedded-form.subscribe');
+        Route::post('/embedded-form-subscribe-captcha', [PublicEmbeddedFormController::class, 'subscribe'])->name('embedded-form.subscribe-captcha');
     });
 
 Route::middleware(['tenancy.session', 'auth:web,team', '2fa', 'team.redirect-dashboard'])->group(function () {
@@ -164,35 +178,35 @@ Route::middleware(['tenancy.session', 'auth:web,team', '2fa', 'team.redirect-das
             Route::redirect('/chatbot/builder', '/automation/chatbot')->name('chatbot.builder');
 
             Route::prefix('drip')->name('drip.')->group(function () {
-                Route::get('/', [\App\Domains\Drip\Http\Controllers\DripCampaignController::class, 'index'])->name('index');
-                Route::get('/create', [\App\Domains\Drip\Http\Controllers\DripCampaignController::class, 'create'])->name('create');
-                Route::post('/', [\App\Domains\Drip\Http\Controllers\DripCampaignController::class, 'store'])->name('store');
-                Route::get('/{campaign}', [\App\Domains\Drip\Http\Controllers\DripCampaignController::class, 'show'])->name('show');
-                Route::delete('/{campaign}', [\App\Domains\Drip\Http\Controllers\DripCampaignController::class, 'destroy'])->name('destroy');
-                Route::patch('/{campaign}/toggle', [\App\Domains\Drip\Http\Controllers\DripCampaignController::class, 'toggle'])->name('toggle');
-                Route::post('/{campaign}/duplicate', [\App\Domains\Drip\Http\Controllers\DripCampaignController::class, 'duplicate'])->name('duplicate');
+                Route::get('/', [DripCampaignController::class, 'index'])->name('index');
+                Route::get('/create', [DripCampaignController::class, 'create'])->name('create');
+                Route::post('/', [DripCampaignController::class, 'store'])->name('store');
+                Route::get('/{campaign}', [DripCampaignController::class, 'show'])->name('show');
+                Route::delete('/{campaign}', [DripCampaignController::class, 'destroy'])->name('destroy');
+                Route::patch('/{campaign}/toggle', [DripCampaignController::class, 'toggle'])->name('toggle');
+                Route::post('/{campaign}/duplicate', [DripCampaignController::class, 'duplicate'])->name('duplicate');
 
-                Route::get('/{campaign}/design', [\App\Domains\Drip\Http\Controllers\DripDesignController::class, 'edit'])->name('design');
-                Route::put('/{campaign}/design', [\App\Domains\Drip\Http\Controllers\DripDesignController::class, 'update'])->name('design.update');
+                Route::get('/{campaign}/design', [DripDesignController::class, 'edit'])->name('design');
+                Route::put('/{campaign}/design', [DripDesignController::class, 'update'])->name('design.update');
 
-                Route::get('/{campaign}/statistics', [\App\Domains\Drip\Http\Controllers\DripStatisticsController::class, 'overview'])->name('statistics');
-                Route::get('/{campaign}/statistics/detail', [\App\Domains\Drip\Http\Controllers\DripStatisticsController::class, 'detail'])->name('statistics.detail');
-                Route::get('/{campaign}/statistics/export', [\App\Domains\Drip\Http\Controllers\DripStatisticsController::class, 'export'])->name('statistics.export');
+                Route::get('/{campaign}/statistics', [DripStatisticsController::class, 'overview'])->name('statistics');
+                Route::get('/{campaign}/statistics/detail', [DripStatisticsController::class, 'detail'])->name('statistics.detail');
+                Route::get('/{campaign}/statistics/export', [DripStatisticsController::class, 'export'])->name('statistics.export');
 
-                Route::get('/{campaign}/insights', [\App\Domains\Drip\Http\Controllers\DripInsightsController::class, 'show'])->name('insights');
+                Route::get('/{campaign}/insights', [DripInsightsController::class, 'show'])->name('insights');
 
-                Route::get('/{campaign}/audience', [\App\Domains\Drip\Http\Controllers\DripAudienceController::class, 'contacts'])->name('audience');
-                Route::get('/{campaign}/audience/empty', [\App\Domains\Drip\Http\Controllers\DripAudienceController::class, 'timeline'])->name('audience-empty');
-                Route::post('/{campaign}/audience/trigger', [\App\Domains\Drip\Http\Controllers\DripAudienceController::class, 'trigger'])->name('audience.trigger');
+                Route::get('/{campaign}/audience', [DripAudienceController::class, 'contacts'])->name('audience');
+                Route::get('/{campaign}/audience/empty', [DripAudienceController::class, 'timeline'])->name('audience-empty');
+                Route::post('/{campaign}/audience/trigger', [DripAudienceController::class, 'trigger'])->name('audience.trigger');
 
-                Route::get('/{campaign}/flow/data', [\App\Domains\Drip\Http\Controllers\DripFlowBuilderController::class, 'getData'])->name('flow.data');
-                Route::post('/{campaign}/flow/data', [\App\Domains\Drip\Http\Controllers\DripFlowBuilderController::class, 'saveData'])->name('flow.save');
+                Route::get('/{campaign}/flow/data', [DripFlowBuilderController::class, 'getData'])->name('flow.data');
+                Route::post('/{campaign}/flow/data', [DripFlowBuilderController::class, 'saveData'])->name('flow.save');
             });
 
             Route::prefix('events')->name('events.')->group(function () {
-                Route::get('/', [\App\Domains\AutomationEvents\Http\Controllers\AutomationEventController::class, 'index'])->name('index');
-                Route::post('/', [\App\Domains\AutomationEvents\Http\Controllers\AutomationEventController::class, 'store'])->name('store');
-                Route::delete('/{automationEvent}', [\App\Domains\AutomationEvents\Http\Controllers\AutomationEventController::class, 'destroy'])->name('destroy');
+                Route::get('/', [AutomationEventController::class, 'index'])->name('index');
+                Route::post('/', [AutomationEventController::class, 'store'])->name('store');
+                Route::delete('/{automationEvent}', [AutomationEventController::class, 'destroy'])->name('destroy');
             });
 
             Route::redirect('/flows', '/whatsapp-flows')->name('flows');
@@ -258,18 +272,18 @@ Route::middleware(['tenancy.session', 'auth:web,team', '2fa', 'team.redirect-das
         });
 
         Route::prefix('webhooks')->name('webhooks.')->group(function () {
-            Route::get('/', [\App\Domains\Webhooks\Http\Controllers\WebhookSubscriptionController::class, 'index'])->name('index');
-            Route::post('/', [\App\Domains\Webhooks\Http\Controllers\WebhookSubscriptionController::class, 'store'])->name('store');
-            Route::put('/{webhookSubscription}', [\App\Domains\Webhooks\Http\Controllers\WebhookSubscriptionController::class, 'update'])->name('update');
-            Route::delete('/{webhookSubscription}', [\App\Domains\Webhooks\Http\Controllers\WebhookSubscriptionController::class, 'destroy'])->name('destroy');
-            Route::post('/{webhookSubscription}/toggle', [\App\Domains\Webhooks\Http\Controllers\WebhookSubscriptionController::class, 'toggleStatus'])->name('toggle');
-            Route::post('/{webhookSubscription}/regenerate-secret', [\App\Domains\Webhooks\Http\Controllers\WebhookSubscriptionController::class, 'regenerateSecret'])->name('regenerate-secret');
-            Route::post('/{webhookSubscription}/test', [\App\Domains\Webhooks\Http\Controllers\WebhookSubscriptionController::class, 'testDelivery'])->name('test');
+            Route::get('/', [WebhookSubscriptionController::class, 'index'])->name('index');
+            Route::post('/', [WebhookSubscriptionController::class, 'store'])->name('store');
+            Route::put('/{webhookSubscription}', [WebhookSubscriptionController::class, 'update'])->name('update');
+            Route::delete('/{webhookSubscription}', [WebhookSubscriptionController::class, 'destroy'])->name('destroy');
+            Route::post('/{webhookSubscription}/toggle', [WebhookSubscriptionController::class, 'toggleStatus'])->name('toggle');
+            Route::post('/{webhookSubscription}/regenerate-secret', [WebhookSubscriptionController::class, 'regenerateSecret'])->name('regenerate-secret');
+            Route::post('/{webhookSubscription}/test', [WebhookSubscriptionController::class, 'testDelivery'])->name('test');
 
-            Route::get('/logs', [\App\Domains\Webhooks\Http\Controllers\WebhookDeliveryController::class, 'index'])->name('logs');
-            Route::get('/logs/{webhookDelivery}', [\App\Domains\Webhooks\Http\Controllers\WebhookDeliveryController::class, 'show'])->name('logs.detail');
-            Route::post('/logs/{webhookDelivery}/retry', [\App\Domains\Webhooks\Http\Controllers\WebhookDeliveryController::class, 'retry'])->name('logs.retry');
-            Route::delete('/logs/{webhookDelivery}', [\App\Domains\Webhooks\Http\Controllers\WebhookDeliveryController::class, 'destroy'])->name('logs.destroy');
+            Route::get('/logs', [WebhookDeliveryController::class, 'index'])->name('logs');
+            Route::get('/logs/{webhookDelivery}', [WebhookDeliveryController::class, 'show'])->name('logs.detail');
+            Route::post('/logs/{webhookDelivery}/retry', [WebhookDeliveryController::class, 'retry'])->name('logs.retry');
+            Route::delete('/logs/{webhookDelivery}', [WebhookDeliveryController::class, 'destroy'])->name('logs.destroy');
         });
 
         Route::prefix('commerce')->name('commerce.')->group(function () {
@@ -320,13 +334,13 @@ Route::middleware(['tenancy.session', 'auth:web,team', '2fa', 'team.redirect-das
             Route::delete('/google-calendar/booking-links/{id}', [GoogleCalendarController::class, 'deleteBookingLink'])->name('google-calendar.booking.delete');
 
             // WooCommerce
-            Route::get('/woocommerce', [\App\Domains\ThirdParty\Http\Controllers\WooCommerceController::class, 'index'])->name('woocommerce');
-            Route::post('/woocommerce', [\App\Domains\ThirdParty\Http\Controllers\WooCommerceController::class, 'store'])->name('woocommerce.store');
-            Route::delete('/woocommerce/{wooCommerceStore}', [\App\Domains\ThirdParty\Http\Controllers\WooCommerceController::class, 'destroy'])->name('woocommerce.destroy');
+            Route::get('/woocommerce', [WooCommerceController::class, 'index'])->name('woocommerce');
+            Route::post('/woocommerce', [WooCommerceController::class, 'store'])->name('woocommerce.store');
+            Route::delete('/woocommerce/{wooCommerceStore}', [WooCommerceController::class, 'destroy'])->name('woocommerce.destroy');
 
             // Website tracking
-            Route::get('/websites', [\App\Domains\ThirdParty\Http\Controllers\WebsiteTrackingController::class, 'index'])->name('websites');
-            Route::post('/websites', [\App\Domains\ThirdParty\Http\Controllers\WebsiteTrackingController::class, 'store'])->name('websites.store');
+            Route::get('/websites', [WebsiteTrackingController::class, 'index'])->name('websites');
+            Route::post('/websites', [WebsiteTrackingController::class, 'store'])->name('websites.store');
         });
 
         Route::prefix('form-builder')->name('form-builder.')->group(function () {
@@ -372,6 +386,7 @@ Route::middleware(['tenancy.session', 'auth:web,team', '2fa', 'team.redirect-das
             Route::post('/conversations/{conversation}/contact', [InboxController::class, 'sendContact'])->name('send-contact');
             Route::post('/conversations/{conversation}/flow', [InboxController::class, 'sendFlow'])->name('send-flow');
             Route::post('/conversations/{conversation}/interactive', [InboxController::class, 'sendInteractive'])->name('send-interactive');
+            Route::post('/conversations/{conversation}/interactive/compose', [InboxController::class, 'sendInteractiveComposer'])->name('send-interactive-compose');
             Route::post('/conversations/{conversation}/payment', [InboxController::class, 'requestPayment'])->name('request-payment');
             Route::post('/conversations/{conversation}/opt-in', [InboxController::class, 'resendOptIn'])->name('resend-opt-in');
             Route::post('/conversations/{conversation}/read', [InboxController::class, 'markRead'])->name('read');
@@ -383,7 +398,7 @@ Route::middleware(['tenancy.session', 'auth:web,team', '2fa', 'team.redirect-das
             ->name('modals.ask-for-address');
         Route::get('/modals/send-contact', fn () => redirect()->route('inbox.index', ['modal' => 'send-contact']))
             ->name('modals.send-contact');
-        Route::get('/empty', function (\Illuminate\Http\Request $request, \App\Domains\Inbox\Services\InboxService $inboxService) {
+        Route::get('/empty', function (Request $request, InboxService $inboxService) {
             return view('inbox.empty', $inboxService->indexPayload($request));
         })->name('empty');
         Route::get('/{conversation}', [InboxController::class, 'show'])->name('show');

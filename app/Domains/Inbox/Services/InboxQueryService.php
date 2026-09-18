@@ -10,6 +10,7 @@ use App\Models\Conversation;
 use App\Models\WhatsappLine;
 use App\Support\PhoneNormalizer;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Carbon;
 
 class InboxQueryService
 {
@@ -17,6 +18,7 @@ class InboxQueryService
         private readonly InboxSettingsService $settingsService,
         private readonly InboxAccessService $accessService,
     ) {}
+
     /**
      * @return array{
      *     items: array<int, array<string, mixed>>,
@@ -252,7 +254,7 @@ class InboxQueryService
     private function normalizeLookbackDays(?int $lookbackDays): int
     {
         $lookbackDays ??= (int) config('inbox.default_lookback_days', 7);
-        $allowed = config('inbox.allowed_lookback_days', [1, 3, 7, 30, 90]);
+        $allowed = config('inbox.allowed_lookback_days', [1, 3, 7, 90, 180, 365]);
 
         if (! in_array($lookbackDays, $allowed, true)) {
             return (int) config('inbox.default_lookback_days', 7);
@@ -263,7 +265,7 @@ class InboxQueryService
 
     private function baseThreadQuery(
         WhatsappLine $line,
-        \Illuminate\Support\Carbon $since,
+        Carbon $since,
         ?string $search,
         bool $unreadOnly,
         ?string $scope,

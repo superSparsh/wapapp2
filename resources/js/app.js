@@ -36,6 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initInboxChat();
     initInboxOutboundModals();
     initInboxTeamFeatures();
+    initInboxExportModal();
     initInboxAddContact();
     initInboxSearch();
     initInboxMaximize();
@@ -535,7 +536,7 @@ function initInboxMessageMenu() {
         }
     });
 
-    menu.querySelectorAll('[data-open-modal]').forEach((item) => {
+    menu.querySelectorAll('[data-open-modal], [data-inbox-menu-action]').forEach((item) => {
         item.addEventListener('click', () => closeMenu());
     });
 
@@ -1611,42 +1612,44 @@ function initInboxChat() {
         });
     }
 
-    const optInButton = chat.querySelector('[data-inbox-resend-opt-in]');
+    const optInButtons = chat.querySelectorAll('[data-inbox-resend-opt-in]');
     const optInUrl = chat.dataset.optInUrl;
 
-    if (optInButton && optInUrl) {
-        optInButton.addEventListener('click', async () => {
-            optInButton.setAttribute('disabled', 'disabled');
+    if (optInButtons.length && optInUrl) {
+        optInButtons.forEach((optInButton) => {
+            optInButton.addEventListener('click', async () => {
+                optInButton.setAttribute('disabled', 'disabled');
 
-            try {
-                const response = await fetch(optInUrl, {
-                    method: 'POST',
-                    headers: {
-                        Accept: 'application/json',
-                        'X-CSRF-TOKEN': csrf,
-                    },
-                    credentials: 'same-origin',
-                });
+                try {
+                    const response = await fetch(optInUrl, {
+                        method: 'POST',
+                        headers: {
+                            Accept: 'application/json',
+                            'X-CSRF-TOKEN': csrf,
+                        },
+                        credentials: 'same-origin',
+                    });
 
-                if (!response.ok) {
-                    const error = await response.json().catch(() => ({}));
-                    showAppAlert(error.message || 'Unable to send opt-in.', 'Opt-in failed');
+                    if (!response.ok) {
+                        const error = await response.json().catch(() => ({}));
+                        showAppAlert(error.message || 'Unable to send opt-in.', 'Opt-in failed');
 
-                    return;
+                        return;
+                    }
+
+                    const data = await response.json();
+                    appendMessage({
+                        body: data.message?.body ?? 'Opt-in template sent.',
+                        is_outbound: true,
+                        message_type: data.message?.message_type ?? 'template',
+                    });
+                    showAppAlert('Opt-in template sent.', 'Sent');
+                } catch {
+                    showAppAlert('Unable to send opt-in.', 'Opt-in failed');
+                } finally {
+                    optInButton.removeAttribute('disabled');
                 }
-
-                const data = await response.json();
-                appendMessage({
-                    body: data.message?.body ?? 'Opt-in template sent.',
-                    is_outbound: true,
-                    message_type: data.message?.message_type ?? 'template',
-                });
-                showAppAlert('Opt-in template sent.', 'Sent');
-            } catch {
-                showAppAlert('Unable to send opt-in.', 'Opt-in failed');
-            } finally {
-                optInButton.removeAttribute('disabled');
-            }
+            });
         });
     }
 }
@@ -1739,7 +1742,7 @@ function initInboxOutboundModals() {
     };
 
     const showFormError = (form, message) => {
-        const errorEl = form.querySelector('[data-inbox-media-error], [data-inbox-template-error], [data-inbox-flow-error], [data-inbox-interactive-error], [data-inbox-location-error], [data-inbox-sticker-error], [data-inbox-contact-error], [data-inbox-payment-error], [data-inbox-reaction-error]');
+        const errorEl = form.querySelector('[data-inbox-media-error], [data-inbox-template-error], [data-inbox-flow-error], [data-inbox-interactive-error], [data-inbox-location-error], [data-inbox-sticker-error], [data-inbox-contact-error], [data-inbox-payment-error], [data-inbox-reaction-error], [data-inbox-compose-error]');
         if (!errorEl) return;
 
         errorEl.textContent = message;
@@ -2149,6 +2152,91 @@ function initInboxOutboundModals() {
         });
     }
 
+    const nestedFormToObject = (form) => {
+        const payload = {};
+
+        const setPath = (target, path, value) => {
+            const keys = path.replace(/\]/g, '').split('[');
+            let current = target;
+
+            keys.forEach((key, index) => {
+                if (index === keys.length - 1) {
+                    current[key] = value;
+                    return;
+                }
+
+                const nextIsIndex = /^\d+$/.test(keys[index + 1] ?? '');
+                if (!current[key] || typeof current[key] !== 'object') {
+                    current[key] = nextIsIndex ? [] : {};
+                }
+                current = current[key];
+            });
+        };
+
+        new FormData(form).forEach((value, key) => {
+            if (key.includes('[')) {
+                setPath(payload, key, String(value ?? '').trim());
+                return;
+            }
+
+            payload[key] = String(value ?? '').trim();
+        });
+
+        if (Array.isArray(payload.buttons)) {
+            payload.buttons = payload.buttons.filter((button) => button?.title);
+        }
+
+        if (Array.isArray(payload.sections)) {
+            payload.sections = payload.sections
+                .map((section) => ({
+                    title: section?.title || '',
+                    rows: Array.isArray(section?.rows)
+                        ? section.rows.filter((row) => row?.title)
+                        : [],
+                }))
+                .filter((section) => section.rows.length > 0);
+        }
+
+        const retailerText = payload.product_retailer_ids_text || '';
+        if (retailerText) {
+            payload.product_retailer_ids = retailerText
+                .split(/[\n,]+/)
+                .map((id) => id.trim())
+                .filter(Boolean)
+                .slice(0, 10);
+        }
+        delete payload.product_retailer_ids_text;
+
+        return payload;
+    };
+
+    const composeUrl = chat.dataset.interactiveComposeUrl;
+    document.querySelectorAll('[data-inbox-compose-form]').forEach((composeForm) => {
+        if (!composeUrl) {
+            return;
+        }
+
+        composeForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            showFormError(composeForm, '');
+
+            if (!assertWithinWindow()) {
+                return;
+            }
+
+            const payload = nestedFormToObject(composeForm);
+
+            try {
+                const data = await postJsonMessage(composeUrl, payload);
+                appendMessage(data.message);
+                composeForm.reset();
+                closeModal(composeForm);
+            } catch (error) {
+                showFormError(composeForm, error.message || 'Unable to send interactive message.');
+            }
+        });
+    });
+
     const locationForm = document.querySelector('[data-inbox-location-form]');
     if (locationForm && locationUrl) {
         locationForm.addEventListener('submit', async (event) => {
@@ -2417,11 +2505,15 @@ function initInboxTeamFeatures() {
     const chat = document.querySelector('[data-inbox-chat]');
     const aiToggle = chat?.querySelector('[data-inbox-ai-toggle]');
     const aiStatus = chat?.querySelector('[data-inbox-ai-status]');
+    const aiMode = chat?.querySelector('[data-inbox-ai-mode]');
     const responseTypeUrl = chat?.dataset.responseTypeUrl;
 
     const setAiStatusLabel = (enabled) => {
         if (aiStatus) {
-            aiStatus.textContent = enabled ? 'AI enabled' : 'Human reply';
+            aiStatus.textContent = enabled ? 'AI reply' : 'Human reply';
+        }
+        if (aiMode) {
+            aiMode.textContent = enabled ? 'AI' : 'Human';
         }
     };
 
@@ -2487,12 +2579,108 @@ function initInboxTeamFeatures() {
 
                 if (!response.ok) {
                     setToggleSwitchActive(aiToggleAll, previous);
+                } else if (aiToggle) {
+                    setToggleSwitchActive(aiToggle, next);
+                    setAiStatusLabel(next);
                 }
             } catch {
                 setToggleSwitchActive(aiToggleAll, previous);
             }
         });
     }
+}
+
+function initInboxExportModal() {
+    const form = document.querySelector('[data-inbox-export-form]');
+    const root = document.querySelector('[data-inbox-root]');
+    const chat = document.querySelector('[data-inbox-chat]');
+    const errorEl = form?.querySelector('[data-inbox-export-error]');
+
+    if (!form || !root) {
+        return;
+    }
+
+    const showError = (message) => {
+        if (!errorEl) {
+            return;
+        }
+        errorEl.textContent = message;
+        errorEl.classList.toggle('hidden', !message);
+    };
+
+    const formatDate = (date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+
+        return `${year}-${month}-${day}`;
+    };
+
+    form.querySelectorAll('[data-export-preset]').forEach((button) => {
+        button.addEventListener('click', () => {
+            const preset = button.dataset.exportPreset;
+            const to = new Date();
+            const from = new Date();
+
+            if (preset === 'today') {
+                from.setTime(to.getTime());
+            } else if (preset === '7d') {
+                from.setDate(to.getDate() - 6);
+            } else if (preset === '30d') {
+                from.setDate(to.getDate() - 29);
+            } else if (preset === 'month') {
+                from.setDate(1);
+            }
+
+            const fromInput = form.querySelector('[name="from"]');
+            const toInput = form.querySelector('[name="to"]');
+            if (fromInput) fromInput.value = formatDate(from);
+            if (toInput) toInput.value = formatDate(to);
+        });
+    });
+
+    form.addEventListener('submit', (event) => {
+        event.preventDefault();
+        showError('');
+
+        const scope = form.querySelector('[name="export_scope"]:checked')?.value || 'all';
+        if (scope === 'current') {
+            const exportUrl = chat?.dataset.exportUrl;
+            if (!exportUrl) {
+                showError('Open a chat first to export only that conversation.');
+                return;
+            }
+
+            window.location.href = exportUrl;
+            return;
+        }
+
+        const exportAllUrl = root.dataset.exportAllUrl;
+        if (!exportAllUrl) {
+            showError('Export is unavailable.');
+            return;
+        }
+
+        const params = new URLSearchParams(window.location.search);
+        const from = form.querySelector('[name="from"]')?.value;
+        const to = form.querySelector('[name="to"]')?.value;
+        const skip = form.querySelector('[name="skip_phones"]')?.value?.trim();
+
+        if (!from || !to) {
+            showError('Choose a from and to date.');
+            return;
+        }
+
+        params.set('from', from);
+        params.set('to', to);
+        if (skip) {
+            params.set('skip_phones', skip);
+        } else {
+            params.delete('skip_phones');
+        }
+
+        window.location.href = `${exportAllUrl}?${params.toString()}`;
+    });
 }
 
 function initInboxAddContact() {

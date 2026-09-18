@@ -291,7 +291,7 @@ class InboxMessageService
     private function normalizeLookbackDays(?int $lookbackDays): int
     {
         $lookbackDays ??= (int) config('inbox.default_lookback_days', 7);
-        $allowed = config('inbox.allowed_lookback_days', [1, 3, 7, 30, 90]);
+        $allowed = config('inbox.allowed_lookback_days', [1, 3, 7, 90, 180, 365]);
 
         if (! in_array($lookbackDays, $allowed, true)) {
             return (int) config('inbox.default_lookback_days', 7);

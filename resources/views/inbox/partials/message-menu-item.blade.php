@@ -1,6 +1,11 @@
 <button
   type="button"
-  @if ($item['modal']) data-open-modal="{{ $item['modal'] }}" @endif
+  @if (! empty($item['action']) && $item['action'] === 'opt-in')
+    data-inbox-resend-opt-in
+    data-inbox-menu-action="opt-in"
+  @elseif ($item['modal'])
+    data-open-modal="{{ $item['modal'] }}"
+  @endif
   @if (! empty($item['requires_window'])) data-inbox-requires-window @endif
   @class([
     'fd-filter-label flex h-12 w-full items-center gap-3 rounded-lg border border-border bg-elevated p-2 text-left transition-colors hover:border-green-500 disabled:cursor-not-allowed disabled:opacity-50',

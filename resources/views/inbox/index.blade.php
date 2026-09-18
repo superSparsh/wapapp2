@@ -9,6 +9,7 @@
     data-add-contact-url="{{ route('inbox.api.contacts.store') }}"
     data-threads-url="{{ route('inbox.api.threads') }}"
     data-inbox-base-url="{{ url('/inbox') }}"
+    data-export-all-url="{{ route('inbox.api.export-all') }}"
     data-wallet-blocked="{{ ! empty($walletBlocked) ? '1' : '0' }}"
     data-threads-cursor="{{ $threadsCursor ?? '' }}"
     data-threads-has-more="{{ ! empty($threadsHasMore) ? '1' : '0' }}"
@@ -22,6 +23,7 @@
         'selectedConversation' => $selectedConversation ?? null,
         'availableLines' => $availableLines ?? [],
         'activeLine' => $activeLine ?? null,
+        'aiForAll' => $aiForAll ?? false,
       ])
     </div>
 

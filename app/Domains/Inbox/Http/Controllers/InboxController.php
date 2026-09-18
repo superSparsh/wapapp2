@@ -4,8 +4,13 @@ declare(strict_types=1);
 
 namespace App\Domains\Inbox\Http\Controllers;
 
+use App\Domains\Audience\Services\OptInMessageService;
+use App\Domains\Commerce\Jobs\SendPaymentLinkJob;
+use App\Domains\Commerce\Services\CommercePaymentService;
 use App\Domains\Inbox\Http\Requests\AssignInboxConversationRequest;
 use App\Domains\Inbox\Http\Requests\SendInboxContactRequest;
+use App\Domains\Inbox\Http\Requests\SendInboxFlowRequest;
+use App\Domains\Inbox\Http\Requests\SendInboxInteractiveComposerRequest;
 use App\Domains\Inbox\Http\Requests\SendInboxLocationRequest;
 use App\Domains\Inbox\Http\Requests\SendInboxMediaRequest;
 use App\Domains\Inbox\Http\Requests\SendInboxMessageRequest;
@@ -15,11 +20,14 @@ use App\Domains\Inbox\Http\Requests\StoreInboxContactRequest;
 use App\Domains\Inbox\Http\Requests\ToggleInboxResponseTypeRequest;
 use App\Domains\Inbox\Services\InboxService;
 use App\Domains\Inbox\Services\InboxServiceAdapter;
+use App\Domains\Templates\Services\InteractiveMessageService;
 use App\Domains\Templates\Services\TemplateRegistryService;
 use App\Http\Controllers\Controller;
 use App\Models\Conversation;
+use App\Models\InteractiveMessage;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -105,7 +113,7 @@ class InboxController extends Controller
     }
 
     public function sendFlow(
-        \App\Domains\Inbox\Http\Requests\SendInboxFlowRequest $request,
+        SendInboxFlowRequest $request,
         Conversation $conversation,
         InboxServiceAdapter $adapter,
     ): JsonResponse {
@@ -114,17 +122,17 @@ class InboxController extends Controller
 
     public function interactiveMessages(
         InboxService $inboxService,
-        \App\Domains\Templates\Services\InteractiveMessageService $interactiveMessageService,
+        InteractiveMessageService $interactiveMessageService,
     ): JsonResponse {
         $inboxService->requireDefaultLine();
 
         $items = $interactiveMessageService->list()
-            ->map(fn (\App\Models\InteractiveMessage $message): array => [
+            ->map(fn (InteractiveMessage $message): array => [
                 'id' => $message->id,
                 'uuid' => $message->uuid,
                 'name' => $message->name,
                 'type' => $message->type,
-                'preview' => \Illuminate\Support\Str::limit(
+                'preview' => Str::limit(
                     (string) ($message->normalizedContent()['body'] ?? ''),
                     80,
                 ),
@@ -147,11 +155,19 @@ class InboxController extends Controller
         return $adapter->sendInteractiveMessage($conversation, (string) $validated['interactive_message_id']);
     }
 
+    public function sendInteractiveComposer(
+        SendInboxInteractiveComposerRequest $request,
+        Conversation $conversation,
+        InboxServiceAdapter $adapter,
+    ): JsonResponse {
+        return $adapter->sendInteractiveComposer($request, $conversation);
+    }
+
     public function requestPayment(
         Request $request,
         Conversation $conversation,
         InboxService $inboxService,
-        \App\Domains\Commerce\Services\CommercePaymentService $paymentService,
+        CommercePaymentService $paymentService,
     ): JsonResponse {
         $inboxService->authorizeConversation($conversation);
 
@@ -169,7 +185,7 @@ class InboxController extends Controller
                 'description' => $validated['description'],
             ]);
 
-            \App\Domains\Commerce\Jobs\SendPaymentLinkJob::dispatch($payment, (string) tenant('id'));
+            SendPaymentLinkJob::dispatch($payment, (string) tenant('id'));
 
             return response()->json([
                 'ok' => true,
@@ -196,7 +212,7 @@ class InboxController extends Controller
     public function resendOptIn(
         Conversation $conversation,
         InboxService $inboxService,
-        \App\Domains\Audience\Services\OptInMessageService $optInMessageService,
+        OptInMessageService $optInMessageService,
     ): JsonResponse {
         $inboxService->authorizeConversation($conversation);
 

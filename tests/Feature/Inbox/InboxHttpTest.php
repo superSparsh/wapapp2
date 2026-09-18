@@ -3,8 +3,12 @@
 namespace Tests\Feature\Inbox;
 
 use App\Domains\Inbox\Services\InboxMessageService;
+use App\Enums\MessageDirection;
+use App\Enums\MessageStatus;
+use App\Enums\MessageType;
 use App\Models\Contact;
 use App\Models\Conversation;
+use App\Models\Message;
 use App\Models\WalletAccount;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\InteractsWithTenants;
@@ -52,11 +56,23 @@ class InboxHttpTest extends TestCase
             'last_message_at' => now(),
         ]);
 
-        $this->messageService->recordInbound($conversation, 'Inbound hello');
+        Message::query()->create([
+            'conversation_id' => $conversation->id,
+            'body' => 'Inbound hello',
+            'direction' => MessageDirection::Inbound,
+            'message_type' => MessageType::Text,
+            'status' => MessageStatus::Delivered,
+            'created_at' => now()->subHour(),
+        ]);
 
         $this->actingAsTenantUser()
             ->get(route('inbox.show', $conversation))
             ->assertOk()
+            ->assertSee('Export by date')
+            ->assertSee('Last 3 Months')
+            ->assertSee('Last 1 Year')
+            ->assertSee('Send opt-in')
+            ->assertSee('Add New Contact')
             ->assertSee('Inbox User')
             ->assertSee('Inbound hello')
             ->assertViewHas('availableLines')

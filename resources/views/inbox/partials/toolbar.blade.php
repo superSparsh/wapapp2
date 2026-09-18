@@ -22,6 +22,8 @@
   $currentScope = $filters['scope'] ?? 'all';
   $currentAssignee = $filters['assignee'] ?? 'all';
   $currentDays = (int) ($filters['lookback_days'] ?? config('inbox.default_lookback_days', 7));
+  $lookbackLabels = config('inbox.lookback_labels', []);
+  $aiForAll = (bool) ($aiForAll ?? false);
 
   $scopeHidden = array_filter([
     'q' => $filters['search'] ?? null,
@@ -52,7 +54,7 @@
   ], fn ($value) => $value !== null && $value !== '');
 @endphp
 
-<div class="flex w-full flex-nowrap items-center gap-2 lg:gap-3">
+<div class="flex w-full flex-col gap-3 xl:flex-row xl:flex-nowrap xl:items-center">
   <div @class([
     'grid min-w-0 flex-1 grid-cols-1 gap-2',
     'sm:grid-cols-4' => $showLineFilter,
@@ -95,7 +97,7 @@
       'action' => $formAction,
       'options' => collect($filterOptions['lookback_days'])->map(fn (int $days) => [
         'value' => $days,
-        'label' => 'Last '.$days.' day'.((int) $days === 1 ? '' : 's'),
+        'label' => $lookbackLabels[$days] ?? ('Last '.$days.' day'.((int) $days === 1 ? '' : 's')),
       ])->all(),
       'selected' => $currentDays,
       'hidden' => $daysHidden,
@@ -103,7 +105,7 @@
     ])
   </div>
 
-  <div class="flex shrink-0 items-center gap-2 lg:gap-3">
+  <div class="flex shrink-0 flex-wrap items-center gap-2 lg:gap-3">
     <button
       type="button"
       data-inbox-mark-all-read
@@ -115,21 +117,21 @@
       <span class="sm:hidden">Read All</span>
     </button>
 
-    <a
-      href="{{ route('inbox.api.export-all', $baseQuery) }}"
-      data-inbox-export-all
+    <button
+      type="button"
+      data-open-modal="export-by-date"
       class="fd-btn inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-border bg-elevated px-3 py-3 text-sm font-medium text-text-body transition hover:bg-surface lg:px-4"
     >
       <x-icons.nav-icon name="document-text" class="size-4" />
-      <span class="hidden sm:inline">Export All</span>
+      <span class="hidden sm:inline">Export by date</span>
       <span class="sm:hidden">Export</span>
-    </a>
+    </button>
 
     <div class="fd-btn inline-flex shrink-0 items-center justify-center gap-2.5 whitespace-nowrap rounded-lg border border-border bg-elevated px-3 py-3 text-sm font-medium text-text-body lg:px-4">
       <span class="hidden sm:inline">AI for All</span>
       <span class="sm:hidden">AI</span>
       <x-ui.toggle-switch
-        :active="false"
+        :active="$aiForAll"
         data-inbox-ai-toggle-all
         aria-label="Enable AI for all conversations"
       />

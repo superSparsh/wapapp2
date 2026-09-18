@@ -7,6 +7,8 @@ namespace App\Domains\Inbox\Services;
 use App\Domains\Inbox\Contracts\InboxServiceClientInterface;
 use App\Domains\Inbox\Http\Requests\AssignInboxConversationRequest;
 use App\Domains\Inbox\Http\Requests\SendInboxContactRequest;
+use App\Domains\Inbox\Http\Requests\SendInboxFlowRequest;
+use App\Domains\Inbox\Http\Requests\SendInboxInteractiveComposerRequest;
 use App\Domains\Inbox\Http\Requests\SendInboxLocationRequest;
 use App\Domains\Inbox\Http\Requests\SendInboxMediaRequest;
 use App\Domains\Inbox\Http\Requests\SendInboxMessageRequest;
@@ -14,14 +16,15 @@ use App\Domains\Inbox\Http\Requests\SendInboxStickerRequest;
 use App\Domains\Inbox\Http\Requests\SendInboxTemplateRequest;
 use App\Domains\Inbox\Http\Requests\StoreInboxContactRequest;
 use App\Domains\Inbox\Http\Requests\ToggleInboxResponseTypeRequest;
-use App\Domains\Inbox\Support\InboxActor;
+use App\Domains\Templates\Support\InteractiveMessagePayloadBuilder;
+use App\Domains\WhatsappFlow\Services\WhatsappFlowInteractiveService;
 use App\Enums\ConversationResponseType;
-use App\Models\Contact;
 use App\Models\Conversation;
+use App\Models\InteractiveMessage;
 use App\Models\Message;
 use App\Models\TeamMember;
 use App\Models\User;
-use App\Models\WhatsappLine;
+use App\Models\WhatsappFlow;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -274,12 +277,12 @@ class InboxServiceAdapter
     }
 
     public function sendFlow(
-        \App\Domains\Inbox\Http\Requests\SendInboxFlowRequest $request,
+        SendInboxFlowRequest $request,
         Conversation $conversation,
     ): JsonResponse {
         $this->localInboxService->authorizeConversation($conversation);
 
-        $flow = \App\Models\WhatsappFlow::query()->findOrFail((int) $request->validated('flow_id'));
+        $flow = WhatsappFlow::query()->findOrFail((int) $request->validated('flow_id'));
 
         if (! $flow->isActive() || blank($flow->meta_flow_id)) {
             return response()->json([
@@ -287,7 +290,7 @@ class InboxServiceAdapter
             ], 422);
         }
 
-        $interactive = app(\App\Domains\WhatsappFlow\Services\WhatsappFlowInteractiveService::class)
+        $interactive = app(WhatsappFlowInteractiveService::class)
             ->buildFlowInteractiveContent(
                 $flow,
                 (string) $request->validated('body'),
@@ -308,7 +311,7 @@ class InboxServiceAdapter
     {
         $this->localInboxService->authorizeConversation($conversation);
 
-        $messageModel = \App\Models\InteractiveMessage::query()
+        $messageModel = InteractiveMessage::query()
             ->where(function ($query) use ($interactiveMessageId): void {
                 $query->where('uuid', $interactiveMessageId);
                 if (is_numeric($interactiveMessageId)) {
@@ -321,7 +324,7 @@ class InboxServiceAdapter
             return response()->json(['message' => 'Free template message not found.'], 404);
         }
 
-        $interactive = app(\App\Domains\Templates\Support\InteractiveMessagePayloadBuilder::class)
+        $interactive = app(InteractiveMessagePayloadBuilder::class)
             ->forMessage($messageModel);
 
         if (($interactive['type'] ?? '') === 'button' && empty($interactive['action']['buttons'] ?? [])) {
@@ -336,6 +339,57 @@ class InboxServiceAdapter
             $conversation,
             $interactive,
             previewBody: (string) ($interactive['body']['text'] ?? $messageModel->name),
+            enforceWindow: true,
+        );
+
+        return response()->json($this->messagePayload($message), 201);
+    }
+
+    public function sendInteractiveComposer(
+        SendInboxInteractiveComposerRequest $request,
+        Conversation $conversation,
+    ): JsonResponse {
+        $this->localInboxService->authorizeConversation($conversation);
+
+        $validated = $request->validated();
+        $type = (string) $validated['type'];
+        $headerText = trim((string) ($validated['header'] ?? $validated['header_text'] ?? ''));
+
+        $flat = [
+            'body' => (string) ($validated['body'] ?? ''),
+            'footer' => (string) ($validated['footer'] ?? ''),
+            'header' => $headerText !== '' ? ['type' => 'text', 'text' => $headerText] : ['type' => 'none', 'text' => ''],
+            'buttons' => $validated['buttons'] ?? [],
+            'list_button_text' => (string) ($validated['list_button_text'] ?? $validated['button_text'] ?? 'View options'),
+            'list_sections' => $validated['sections'] ?? [],
+            'catalog_id' => (string) ($validated['catalog_id'] ?? ''),
+            'product_retailer_id' => (string) ($validated['product_retailer_id'] ?? ''),
+            'product_retailer_ids' => $validated['product_retailer_ids'] ?? [],
+            'section_title' => (string) ($validated['section_title'] ?? ''),
+            'button_text' => (string) ($validated['button_text'] ?? ''),
+            'url' => (string) ($validated['url'] ?? ''),
+            'country' => (string) ($validated['country'] ?? 'IN'),
+        ];
+
+        $interactive = app(InteractiveMessagePayloadBuilder::class)
+            ->fromFlat($type, $flat);
+
+        if ($type === 'button' && empty($interactive['action']['buttons'] ?? [])) {
+            return response()->json(['message' => 'Add at least one reply button.'], 422);
+        }
+
+        if ($type === 'list' && empty($interactive['action']['sections'] ?? [])) {
+            return response()->json(['message' => 'Add at least one list option.'], 422);
+        }
+
+        if ($type === 'cta_url' && blank($interactive['action']['parameters']['url'] ?? null)) {
+            return response()->json(['message' => 'Enter a valid website URL.'], 422);
+        }
+
+        $message = $this->localOutboundService->sendInteractive(
+            $conversation,
+            $interactive,
+            previewBody: (string) ($interactive['body']['text'] ?? $type),
             enforceWindow: true,
         );
 
@@ -485,6 +539,7 @@ class InboxServiceAdapter
         $line = $this->localInboxService->resolveActiveLine($request);
         $filters = $this->localInboxService->filtersFromRequest($request);
         $aiEnabled = $request->boolean('ai_enabled');
+        session(['inbox.ai_for_all' => $aiEnabled]);
 
         if ($this->isMicroserviceEnabled()) {
             try {
@@ -610,7 +665,11 @@ class InboxServiceAdapter
         $line = $this->localInboxService->resolveActiveLine($request);
         $filters = $this->localInboxService->filtersFromRequest($request);
 
-        if ($this->isMicroserviceEnabled()) {
+        $from = $request->filled('from') ? $request->date('from') : null;
+        $to = $request->filled('to') ? $request->date('to') : null;
+        $excludePhones = $this->parseSkipPhones($request->input('skip_phones'));
+
+        if ($this->isMicroserviceEnabled() && $from === null && $to === null && $excludePhones === []) {
             try {
                 return $this->client->exportAll((int) $line->id, [
                     'search' => $filters['search'],
@@ -634,6 +693,9 @@ class InboxServiceAdapter
             lookbackDays: $filters['lookback_days'],
             scope: $filters['scope'],
             assigneeFilter: $filters['assignee_filter'],
+            from: $from,
+            to: $to,
+            excludePhones: $excludePhones,
         );
     }
 
@@ -643,6 +705,23 @@ class InboxServiceAdapter
             'operation' => $operation,
             'error' => $e->getMessage(),
         ]);
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function parseSkipPhones(mixed $raw): array
+    {
+        if (is_array($raw)) {
+            return array_values(array_filter(array_map('strval', $raw)));
+        }
+
+        $text = trim((string) $raw);
+        if ($text === '') {
+            return [];
+        }
+
+        return preg_split('/[\s,;]+/', $text, -1, PREG_SPLIT_NO_EMPTY) ?: [];
     }
 
     /**

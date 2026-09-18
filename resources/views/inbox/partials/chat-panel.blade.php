@@ -40,6 +40,7 @@
     data-assign-url="{{ route('inbox.api.assign', $conversation) }}"
     data-export-url="{{ route('inbox.api.export', $conversation) }}"
     data-response-type-url="{{ route('inbox.api.response-type', $conversation) }}"
+    data-interactive-compose-url="{{ route('inbox.api.send-interactive-compose', $conversation) }}"
   @endif
 >
   <img
@@ -70,11 +71,11 @@
       @endif
     </div>
     @if ($conversation)
-      <div class="hidden shrink-0 items-center gap-2.5 rounded-lg bg-white/10 px-3 py-2 lg:flex">
-        <div class="flex min-w-0 flex-col">
-          <span class="text-xs font-semibold leading-tight text-white">AI Reply</span>
+      <div class="flex shrink-0 items-center gap-1.5 rounded-lg bg-white/10 px-2 py-1.5 sm:gap-2.5 sm:px-3 sm:py-2">
+        <div class="hidden min-w-0 flex-col sm:flex">
+          <span class="text-[10px] font-semibold leading-tight text-white sm:text-xs" data-inbox-ai-mode>{{ ! empty($contact['ai_enabled']) ? 'AI' : 'Human' }}</span>
           <span class="text-[10px] leading-tight text-white/75" data-inbox-ai-status>
-            {{ ! empty($contact['ai_enabled']) ? 'AI enabled' : 'Human reply' }}
+            {{ ! empty($contact['ai_enabled']) ? 'AI reply' : 'Human reply' }}
           </span>
         </div>
         <x-ui.toggle-switch
@@ -86,19 +87,19 @@
       <a
         href="{{ route('inbox.api.export', $conversation) }}"
         data-inbox-export-chat
-        class="hidden shrink-0 items-center gap-1.5 rounded-lg bg-white/10 px-3 py-2 text-xs font-medium text-white transition hover:bg-white/20 lg:inline-flex"
+        class="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-white/10 px-2 py-1.5 text-xs font-medium text-white transition hover:bg-white/20 sm:px-3 sm:py-2"
       >
         <x-icons.nav-icon name="document-text" class="size-3.5" />
-        Export Chat
+        <span class="hidden sm:inline">Export Chat</span>
       </a>
     @endif
     @if ($conversation && $assignableAgents->isNotEmpty())
-      <label class="hidden shrink-0 lg:block">
+      <label class="hidden min-w-0 shrink-0 sm:block">
         <span class="sr-only">Assign agent</span>
         <x-ui.select
           data-inbox-assignee
           variant="header"
-          class="max-w-[160px]"
+          class="max-w-[120px] sm:max-w-[160px]"
         >
           <option value="unassigned" @selected(empty($contact['assignee']))>Unassigned</option>
           @foreach ($assignableAgents as $agent)

@@ -130,6 +130,18 @@ final class InteractiveMessagePayloadBuilder
         }
 
         $header = is_array($content['header'] ?? null) ? $content['header'] : null;
+        if ($header === null && filled($content['header_text'] ?? $content['headerText'] ?? null)) {
+            $header = [
+                'type' => 'text',
+                'text' => (string) ($content['header_text'] ?? $content['headerText']),
+            ];
+        } elseif (is_string($content['header'] ?? null) && trim((string) $content['header']) !== '') {
+            $header = [
+                'type' => 'text',
+                'text' => (string) $content['header'],
+            ];
+        }
+
         if (is_array($header)) {
             $headerType = strtolower((string) ($header['type'] ?? 'none'));
             if ($headerType === 'text' && filled($header['text'] ?? null)) {
@@ -143,6 +155,11 @@ final class InteractiveMessagePayloadBuilder
         $payload['action'] = match ($type) {
             'list' => $this->listAction($content),
             'product' => $this->productAction($content),
+            'product_list' => $this->productListAction($content),
+            'catalog_message' => $this->catalogAction($content),
+            'cta_url' => $this->ctaUrlAction($content),
+            'location_request_message' => ['name' => 'send_location'],
+            'address_message' => $this->addressAction($content),
             'flow' => $this->flowAction($content, $bodyText !== '' ? $bodyText : 'Tap below to continue'),
             default => $this->buttonAction($content),
         };
@@ -328,6 +345,81 @@ final class InteractiveMessagePayloadBuilder
         return [
             'catalog_id' => (string) ($content['catalog_id'] ?? ''),
             'product_retailer_id' => (string) ($content['product_retailer_id'] ?? ''),
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $content
+     * @return array{catalog_id: string, sections: list<array{title: string, product_items: list<array{product_retailer_id: string}>}>}
+     */
+    private function productListAction(array $content): array
+    {
+        $ids = $content['product_retailer_ids'] ?? [];
+        if (! is_array($ids) || $ids === []) {
+            $ids = array_filter([(string) ($content['product_retailer_id'] ?? '')]);
+        }
+
+        $items = [];
+        foreach (array_values($ids) as $id) {
+            $retailerId = trim((string) $id);
+            if ($retailerId === '') {
+                continue;
+            }
+            $items[] = ['product_retailer_id' => $retailerId];
+        }
+
+        return [
+            'catalog_id' => (string) ($content['catalog_id'] ?? ''),
+            'sections' => [[
+                'title' => Str::limit((string) ($content['section_title'] ?? $content['header_text'] ?? 'Products'), 24, '') ?: 'Products',
+                'product_items' => $items,
+            ]],
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $content
+     * @return array{name: string, parameters?: array{thumbnail_product_retailer_id: string}}
+     */
+    private function catalogAction(array $content): array
+    {
+        $action = ['name' => 'catalog_message'];
+        $thumbnail = trim((string) ($content['product_retailer_id'] ?? $content['thumbnail_product_retailer_id'] ?? ''));
+        if ($thumbnail !== '') {
+            $action['parameters'] = ['thumbnail_product_retailer_id' => $thumbnail];
+        }
+
+        return $action;
+    }
+
+    /**
+     * @param  array<string, mixed>  $content
+     * @return array{name: string, parameters: array{display_text: string, url: string}}
+     */
+    private function ctaUrlAction(array $content): array
+    {
+        return [
+            'name' => 'cta_url',
+            'parameters' => [
+                'display_text' => Str::limit((string) ($content['button_text'] ?? $content['display_text'] ?? 'Open'), 20, '') ?: 'Open',
+                'url' => (string) ($content['url'] ?? ''),
+            ],
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $content
+     * @return array{name: string, parameters: array{country: string}}
+     */
+    private function addressAction(array $content): array
+    {
+        $country = strtoupper(trim((string) ($content['country'] ?? 'IN')));
+
+        return [
+            'name' => 'address_message',
+            'parameters' => [
+                'country' => $country !== '' ? $country : 'IN',
+            ],
         ];
     }
 

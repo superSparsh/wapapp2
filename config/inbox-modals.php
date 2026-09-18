@@ -15,6 +15,8 @@ return [
         'single-product' => 'share-one-product',
         'single-product-alt' => 'share-one-product-alt',
         'website-button' => 'website-button',
+        'share-store' => 'share-store',
+        'export-by-date' => 'export-by-date',
         'ask-questions' => 'ask-few-questions',
         'ask-location' => 'ask-for-location',
         'ask-for-address' => 'ask-for-address',
@@ -77,6 +79,16 @@ return [
         'title' => 'Share One Product',
         'subtitle' => 'Select product details to share.',
         'has_preview' => true,
+    ],
+    'share-store' => [
+        'title' => 'Share Your Store',
+        'subtitle' => 'Send your full catalog so the customer can explore everything.',
+        'has_preview' => false,
+    ],
+    'export-by-date' => [
+        'title' => 'Export chats by date',
+        'subtitle' => 'Download a CSV for a date range, or just the open chat.',
+        'has_preview' => false,
     ],
     'website-button' => [
         'title' => 'Website Button',

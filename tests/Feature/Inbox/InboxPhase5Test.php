@@ -127,6 +127,22 @@ class InboxPhase5Test extends TestCase
         );
     }
 
+    public function test_toggle_all_response_type_persists_toolbar_state(): void
+    {
+        $this->createConversation();
+
+        $this->actingAsTenantUser()
+            ->postJson(route('inbox.api.response-type-all'), [
+                'ai_enabled' => true,
+            ])
+            ->assertOk();
+
+        $this->actingAsTenantUser()
+            ->get(route('inbox.index'))
+            ->assertOk()
+            ->assertViewHas('aiForAll', true);
+    }
+
     private function createTeamMember(): TeamMember
     {
         return TeamMember::query()->create([

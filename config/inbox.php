@@ -11,7 +11,16 @@ return [
 
     'default_lookback_days' => (int) env('INBOX_DEFAULT_LOOKBACK_DAYS', 7),
 
-    'allowed_lookback_days' => [1, 3, 7, 30, 90],
+    'allowed_lookback_days' => [1, 3, 7, 90, 180, 365],
+
+    'lookback_labels' => [
+        1 => 'Last 1 Day',
+        3 => 'Last 3 Days',
+        7 => 'Last 7 Days',
+        90 => 'Last 3 Months',
+        180 => 'Last 6 Months',
+        365 => 'Last 1 Year',
+    ],
 
     'poll_interval_ms' => (int) env('INBOX_POLL_INTERVAL_MS', 30000),
 

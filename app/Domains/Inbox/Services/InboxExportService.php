@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace App\Domains\Inbox\Services;
 
+use App\Domains\Inbox\Support\InboxActor;
 use App\Enums\MessageDirection;
 use App\Models\Conversation;
 use App\Models\Message;
 use App\Models\WhatsappLine;
+use App\Support\PhoneNormalizer;
+use Carbon\CarbonInterface;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class InboxExportService
@@ -31,6 +34,9 @@ class InboxExportService
         });
     }
 
+    /**
+     * @param  array<int, string>  $excludePhones
+     */
     public function exportFilteredThreads(
         WhatsappLine $line,
         ?string $search = null,
@@ -39,19 +45,36 @@ class InboxExportService
         ?string $scope = null,
         ?array $assigneeFilter = null,
         ?InboxQueryService $queryService = null,
+        ?CarbonInterface $from = null,
+        ?CarbonInterface $to = null,
+        array $excludePhones = [],
     ): StreamedResponse {
         $queryService ??= app(InboxQueryService::class);
         $lookbackDays = $lookbackDays ?? (int) config('inbox.default_lookback_days', 7);
-        $since = now()->subDays($lookbackDays);
         $maxConversations = (int) config('inbox.export_max_conversations', 500);
+        $excluded = $this->normalizedPhoneList($excludePhones);
 
         $conversations = Conversation::query()
             ->where('whatsapp_line_id', $line->id)
-            ->where('last_message_at', '>=', $since)
+            ->when(
+                $from !== null || $to !== null,
+                function ($query) use ($from, $to): void {
+                    if ($from !== null) {
+                        $query->where('last_message_at', '>=', $from->copy()->startOfDay());
+                    }
+                    if ($to !== null) {
+                        $query->where('last_message_at', '<=', $to->copy()->endOfDay());
+                    }
+                },
+                fn ($query) => $query->where('last_message_at', '>=', now()->subDays($lookbackDays)),
+            )
+            ->when($excluded !== [], function ($query) use ($excluded): void {
+                $query->whereNotIn('contact_phone', $excluded);
+            })
             ->when($unreadOnly || $scope === 'unread', fn ($query) => $query->where('unread_count', '>', 0))
             ->when($scope === 'mine', function ($query): void {
-                $userId = \App\Domains\Inbox\Support\InboxActor::userId();
-                $teamMemberId = \App\Domains\Inbox\Support\InboxActor::teamMemberId();
+                $userId = InboxActor::userId();
+                $teamMemberId = InboxActor::teamMemberId();
 
                 $query->where(function ($builder) use ($userId, $teamMemberId): void {
                     if ($userId !== null && $teamMemberId !== null) {
@@ -141,9 +164,9 @@ class InboxExportService
         fputcsv($handle, []);
     }
 
-  /**
-   * @param  callable(resource): void  $writer
-   */
+    /**
+     * @param  callable(resource): void  $writer
+     */
     private function streamCsv(string $fileName, callable $writer): StreamedResponse
     {
         return response()->streamDownload(function () use ($writer): void {
@@ -165,5 +188,25 @@ class InboxExportService
         $value = preg_replace('/[^a-zA-Z0-9_-]+/', '-', strtolower($value)) ?? 'contact';
 
         return trim($value, '-') ?: 'contact';
+    }
+
+    /**
+     * @param  array<int, string>  $phones
+     * @return array<int, string>
+     */
+    private function normalizedPhoneList(array $phones): array
+    {
+        $normalized = [];
+
+        foreach ($phones as $phone) {
+            $value = PhoneNormalizer::normalize((string) $phone)
+                ?? (preg_replace('/\D+/', '', (string) $phone) ?: '');
+
+            if ($value !== '') {
+                $normalized[] = $value;
+            }
+        }
+
+        return array_values(array_unique($normalized));
     }
 }
