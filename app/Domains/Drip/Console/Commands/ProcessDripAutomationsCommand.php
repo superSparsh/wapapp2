@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Drip\Console\Commands;
 
+use App\Domains\Admin\Support\RespectsMaintenanceModules;
 use App\Domains\Drip\Services\DripTriggerDispatcher;
 use App\Domains\Drip\Support\DripTriggerCatalog;
 use App\Models\Contact;
@@ -15,6 +16,7 @@ use Illuminate\Support\Carbon;
 class ProcessDripAutomationsCommand extends Command
 {
     use IteratesTenants;
+    use RespectsMaintenanceModules;
 
     protected $signature = 'drip:process-due {--tenants=* : Tenant IDs to process}';
 
@@ -22,6 +24,10 @@ class ProcessDripAutomationsCommand extends Command
 
     public function handle(DripTriggerDispatcher $dispatcher): int
     {
+        if ($this->skipForMaintenance('drip', 'Drip:')) {
+            return self::SUCCESS;
+        }
+
         $processed = 0;
 
         $this->foreachTenant(function () use ($dispatcher, &$processed): void {

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Inbox\Jobs;
 
+use App\Domains\Admin\Services\MaintenanceModeService;
 use App\Domains\Inbox\Contracts\OutboundMessageGateway;
 use App\Models\Message;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -17,8 +18,12 @@ class SendOutboundMessageJob implements ShouldQueue
         public readonly int $messageId,
     ) {}
 
-    public function handle(OutboundMessageGateway $gateway): void
+    public function handle(OutboundMessageGateway $gateway, MaintenanceModeService $maintenance): void
     {
+        if (! $maintenance->moduleEnabled('outbound_messages')) {
+            return;
+        }
+
         $message = Message::query()->find($this->messageId);
 
         if ($message === null) {

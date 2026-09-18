@@ -7,6 +7,7 @@ namespace App\Domains\Admin\Http\Controllers;
 use App\Domains\Admin\Support\AdminListQuery;
 use App\Http\Controllers\Controller;
 use App\Models\CountryPricing;
+use App\Models\CountryPricingLog;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -23,7 +24,7 @@ class CountryPricingController extends Controller
         );
 
         $query = CountryPricing::query();
-        AdminListQuery::applySearch($query, $parsed['q'], ['country_name', 'country_code']);
+        AdminListQuery::applySearch($query, $parsed['q'], ['country_name', 'country_code', 'dial_code']);
         AdminListQuery::applySort(
             $query,
             $parsed['sort'],
@@ -54,7 +55,10 @@ class CountryPricingController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        CountryPricing::query()->create($this->validated($request));
+        $data = $this->validated($request);
+        $data['admin_id'] = auth('admin')->id();
+
+        CountryPricing::query()->create($data);
 
         return redirect()->route('admin.pricing.index')->with('status', 'Country pricing saved.');
     }
@@ -66,17 +70,19 @@ class CountryPricingController extends Controller
 
     public function update(Request $request, CountryPricing $pricing): RedirectResponse
     {
-        $pricing->update($this->validated($request, $pricing));
+        $data = $this->validated($request, $pricing);
+        $this->logPriceChanges($pricing, $data);
+        $pricing->update($data);
 
         return redirect()->route('admin.pricing.index')->with('status', 'Country pricing updated.');
     }
 
     public function toggle(CountryPricing $pricing): RedirectResponse
     {
-        $pricing->is_active = ! $pricing->is_active;
+        $pricing->status = $pricing->isActive() ? 0 : 1;
         $pricing->save();
 
-        return back()->with('status', 'Pricing row '.($pricing->is_active ? 'activated' : 'deactivated').'.');
+        return back()->with('status', 'Pricing row '.($pricing->isActive() ? 'activated' : 'deactivated').'.');
     }
 
     public function import(Request $request): RedirectResponse
@@ -94,16 +100,26 @@ class CountryPricingController extends Controller
             if (! is_array($row) || blank($row['country_code'] ?? null)) {
                 continue;
             }
+
+            $code = strtoupper((string) $row['country_code']);
             CountryPricing::query()->updateOrCreate(
-                ['country_code' => strtoupper((string) $row['country_code'])],
+                ['country_code' => $code],
                 [
-                    'country_name' => (string) ($row['country_name'] ?? $row['country_code']),
-                    'marketing_rate' => (float) ($row['marketing_rate'] ?? 0),
-                    'utility_rate' => (float) ($row['utility_rate'] ?? 0),
-                    'authentication_rate' => (float) ($row['authentication_rate'] ?? 0),
-                    'service_rate' => (float) ($row['service_rate'] ?? 0),
-                    'currency' => strtoupper((string) ($row['currency'] ?? 'USD')),
-                    'is_active' => true,
+                    'admin_id' => auth('admin')->id(),
+                    'country_name' => (string) ($row['country_name'] ?? $code),
+                    'dial_code' => $row['dial_code'] ?? null,
+                    'marketing_price' => $this->nullableFloat($row['marketing_price'] ?? $row['marketing_rate'] ?? null),
+                    'utility_price' => $this->nullableFloat($row['utility_price'] ?? $row['utility_rate'] ?? null),
+                    'auth_price' => $this->nullableFloat($row['auth_price'] ?? $row['authentication_rate'] ?? null),
+                    'auth_international_price' => $this->nullableFloat($row['auth_international_price'] ?? null),
+                    'service_price' => $this->nullableFloat($row['service_price'] ?? $row['service_rate'] ?? null),
+                    'tekpro_marketing_price' => $this->nullableFloat($row['tekpro_marketing_price'] ?? null),
+                    'tekpro_utility_price' => $this->nullableFloat($row['tekpro_utility_price'] ?? null),
+                    'tekpro_auth_price' => $this->nullableFloat($row['tekpro_auth_price'] ?? null),
+                    'tekpro_auth_international_price' => $this->nullableFloat($row['tekpro_auth_international_price'] ?? null),
+                    'tekpro_service_price' => $this->nullableFloat($row['tekpro_service_price'] ?? null),
+                    'currency' => (string) ($row['currency'] ?? '₹'),
+                    'status' => 1,
                 ],
             );
             $count++;
@@ -120,10 +136,13 @@ class CountryPricingController extends Controller
     {
         $data = $request->validate([
             'country_code' => [
-                'required',
+                'nullable',
                 'string',
-                'max:8',
+                'max:255',
                 function (string $attribute, mixed $value, \Closure $fail) use ($existing): void {
+                    if ($value === null || $value === '') {
+                        return;
+                    }
                     $query = CountryPricing::query()->where('country_code', strtoupper((string) $value));
                     if ($existing !== null) {
                         $query->whereKeyNot($existing->id);
@@ -133,18 +152,77 @@ class CountryPricingController extends Controller
                     }
                 },
             ],
-            'country_name' => ['required', 'string', 'max:191'],
-            'marketing_rate' => ['required', 'numeric', 'min:0'],
-            'utility_rate' => ['required', 'numeric', 'min:0'],
-            'authentication_rate' => ['required', 'numeric', 'min:0'],
-            'service_rate' => ['required', 'numeric', 'min:0'],
-            'currency' => ['required', 'string', 'size:3'],
-            'is_active' => ['sometimes', 'boolean'],
+            'country_name' => ['required', 'string', 'max:255'],
+            'dial_code' => ['nullable', 'string', 'max:255'],
+            'region_codes' => ['nullable', 'string'],
+            'marketing_price' => ['nullable', 'numeric', 'min:0'],
+            'utility_price' => ['nullable', 'numeric', 'min:0'],
+            'auth_price' => ['nullable', 'numeric', 'min:0'],
+            'auth_international_price' => ['nullable', 'numeric', 'min:0'],
+            'service_price' => ['nullable', 'numeric', 'min:0'],
+            'tekpro_marketing_price' => ['nullable', 'numeric', 'min:0'],
+            'tekpro_utility_price' => ['nullable', 'numeric', 'min:0'],
+            'tekpro_auth_price' => ['nullable', 'numeric', 'min:0'],
+            'tekpro_auth_international_price' => ['nullable', 'numeric', 'min:0'],
+            'tekpro_service_price' => ['nullable', 'numeric', 'min:0'],
+            'currency' => ['required', 'string', 'max:10'],
+            'status' => ['sometimes', 'boolean'],
         ]);
-        $data['country_code'] = strtoupper($data['country_code']);
-        $data['currency'] = strtoupper($data['currency']);
-        $data['is_active'] = $request->boolean('is_active', true);
+
+        if (filled($data['country_code'] ?? null)) {
+            $data['country_code'] = strtoupper((string) $data['country_code']);
+        } else {
+            $data['country_code'] = null;
+        }
+
+        $regionRaw = trim((string) ($data['region_codes'] ?? ''));
+        $data['region_codes'] = $regionRaw === ''
+            ? null
+            : array_values(array_filter(array_map('trim', explode(',', $regionRaw))));
+
+        $data['status'] = $request->boolean('status', true) ? 1 : 0;
 
         return $data;
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function logPriceChanges(CountryPricing $pricing, array $data): void
+    {
+        $adminId = auth('admin')->id();
+        if ($adminId === null || blank($pricing->country_code)) {
+            return;
+        }
+
+        foreach (CountryPricing::priceFields() as $column => $conversation) {
+            if (! array_key_exists($column, $data)) {
+                continue;
+            }
+
+            $old = $pricing->{$column};
+            $new = $data[$column];
+
+            if ((string) $old === (string) $new) {
+                continue;
+            }
+
+            CountryPricingLog::query()->create([
+                'country_code' => (string) $pricing->country_code,
+                'conversation' => $conversation,
+                'old_price' => $old,
+                'new_price' => $new,
+                'updated_by' => $adminId,
+            ]);
+        }
+    }
+
+    private function nullableFloat(mixed $value): ?float
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        return (float) $value;
     }
 }

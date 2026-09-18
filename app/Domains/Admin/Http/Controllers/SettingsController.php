@@ -32,6 +32,9 @@ class SettingsController extends Controller
             'mailer_from_name' => ['nullable', 'string', 'max:191'],
             'payment_razorpay_enabled' => ['nullable', 'in:0,1'],
             'payment_primary_gateway' => ['nullable', 'string', 'max:64'],
+            'wallet_balance_unit' => ['nullable', 'in:inr,usd'],
+            'wallet_conversion_price' => ['nullable', 'numeric', 'min:0'],
+            'wallet_display_currency_default' => ['nullable', 'in:INR,USD'],
         ]);
 
         $this->settings->save([
@@ -41,6 +44,11 @@ class SettingsController extends Controller
             'mailer.from_name' => $validated['mailer_from_name'] ?? null,
             'payment.razorpay_enabled' => $validated['payment_razorpay_enabled'] ?? '0',
             'payment.primary_gateway' => $validated['payment_primary_gateway'] ?? null,
+            'wallet.balance_unit' => $validated['wallet_balance_unit'] ?? 'inr',
+            'wallet.conversion_price' => isset($validated['wallet_conversion_price'])
+                ? (string) $validated['wallet_conversion_price']
+                : null,
+            'wallet.display_currency_default' => $validated['wallet_display_currency_default'] ?? 'INR',
         ]);
 
         return back()->with('status', 'Settings saved.');

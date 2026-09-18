@@ -60,6 +60,34 @@
       </div>
     </section>
 
+    <section class="rounded-[20px] border border-border bg-elevated p-5">
+      <h2 class="text-lg font-bold">Wallet</h2>
+      <p class="mt-1 text-sm text-text-subtle">Defaults for balance storage unit and INR↔USD conversion (legacy parity).</p>
+      <div class="mt-4 grid gap-4 sm:grid-cols-2">
+        <label class="flex flex-col gap-1.5 text-sm">
+          <span class="font-semibold">Wallet balance unit</span>
+          @php $balanceUnit = old('wallet_balance_unit', $settings['wallet.balance_unit'] ?? config('services.wallet_balance_unit', 'inr')); @endphp
+          <select name="wallet_balance_unit" class="rounded-lg border border-border px-3 py-2">
+            <option value="inr" @selected($balanceUnit === 'inr')>INR</option>
+            <option value="usd" @selected($balanceUnit === 'usd')>USD</option>
+          </select>
+          <span class="text-xs text-text-subtle">Applies to how new wallet transaction amounts are interpreted.</span>
+        </label>
+        <label class="flex flex-col gap-1.5 text-sm">
+          <span class="font-semibold">Conversion price (INR per 1 USD)</span>
+          <input type="number" step="0.0001" min="0" name="wallet_conversion_price" value="{{ old('wallet_conversion_price', $settings['wallet.conversion_price'] ?? '83.17') }}" class="rounded-lg border border-border px-3 py-2">
+        </label>
+        <label class="flex flex-col gap-1.5 text-sm">
+          <span class="font-semibold">Default display currency</span>
+          @php $displayDefault = old('wallet_display_currency_default', $settings['wallet.display_currency_default'] ?? config('services.wallet_display_currency_default', 'INR')); @endphp
+          <select name="wallet_display_currency_default" class="rounded-lg border border-border px-3 py-2">
+            <option value="INR" @selected(strtoupper((string) $displayDefault) === 'INR')>INR</option>
+            <option value="USD" @selected(strtoupper((string) $displayDefault) === 'USD')>USD</option>
+          </select>
+        </label>
+      </div>
+    </section>
+
     <button class="rounded-lg bg-green-500 px-4 py-2 text-sm font-semibold text-white">Save settings</button>
   </form>
 </x-admin.layout>

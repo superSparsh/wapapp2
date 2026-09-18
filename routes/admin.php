@@ -9,7 +9,9 @@ use App\Domains\Admin\Http\Controllers\AnnouncementController;
 use App\Domains\Admin\Http\Controllers\Auth\AdminLoginController;
 use App\Domains\Admin\Http\Controllers\BillingAuditController;
 use App\Domains\Admin\Http\Controllers\CloudBillController;
+use App\Domains\Admin\Http\Controllers\AdminFaqController;
 use App\Domains\Admin\Http\Controllers\CountryPricingController;
+use App\Domains\Admin\Http\Controllers\CountryPricingLogController;
 use App\Domains\Admin\Http\Controllers\CurrencyController;
 use App\Domains\Admin\Http\Controllers\CustomerController;
 use App\Domains\Admin\Http\Controllers\CustomerSubmissionController;
@@ -21,6 +23,7 @@ use App\Domains\Admin\Http\Controllers\FormTemplateController;
 use App\Domains\Admin\Http\Controllers\ImpersonationController;
 use App\Domains\Admin\Http\Controllers\InvoiceTemplateController;
 use App\Domains\Admin\Http\Controllers\LanguageController;
+use App\Domains\Admin\Http\Controllers\MaintenanceModeController;
 use App\Domains\Admin\Http\Controllers\MessagePerformanceController;
 use App\Domains\Admin\Http\Controllers\OAuthSettingsController;
 use App\Domains\Admin\Http\Controllers\PageLayoutController;
@@ -69,6 +72,8 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::post('/customers/{tenant}/toggle-status', [CustomerController::class, 'toggleStatus'])->name('customers.toggle-status');
         Route::post('/customers/{tenant}/assign-plan', [CustomerController::class, 'assignPlan'])->name('customers.assign-plan');
         Route::post('/customers/{tenant}/extend-validity', [CustomerController::class, 'extendValidity'])->name('customers.extend-validity');
+        Route::patch('/customers/{tenant}/settings', [CustomerController::class, 'updateSettings'])->name('customers.settings');
+        Route::post('/customers/{tenant}/wallet-display-currency', [CustomerController::class, 'setWalletDisplayCurrency'])->name('customers.wallet-display-currency');
         Route::post('/customers/{tenant}/login-as', [CustomerController::class, 'loginAs'])->name('customers.login-as');
 
         Route::get('/retention', [RetentionController::class, 'index'])->name('retention.index');
@@ -102,6 +107,8 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
 
         Route::get('/settings', [SettingsController::class, 'index'])->name('settings.index');
         Route::put('/settings', [SettingsController::class, 'update'])->name('settings.update');
+        Route::get('/maintenance', [MaintenanceModeController::class, 'edit'])->name('maintenance.edit');
+        Route::put('/maintenance', [MaintenanceModeController::class, 'update'])->name('maintenance.update');
 
         Route::get('/announcements', [AnnouncementController::class, 'index'])->name('announcements.index');
         Route::get('/announcements/create', [AnnouncementController::class, 'create'])->name('announcements.create');
@@ -115,9 +122,18 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::get('/pricing/create', [CountryPricingController::class, 'create'])->name('pricing.create');
         Route::post('/pricing', [CountryPricingController::class, 'store'])->name('pricing.store');
         Route::post('/pricing/import', [CountryPricingController::class, 'import'])->name('pricing.import');
+        Route::get('/pricing/logs', [CountryPricingLogController::class, 'index'])->name('pricing.logs');
         Route::get('/pricing/{pricing}/edit', [CountryPricingController::class, 'edit'])->name('pricing.edit');
         Route::put('/pricing/{pricing}', [CountryPricingController::class, 'update'])->name('pricing.update');
         Route::post('/pricing/{pricing}/toggle', [CountryPricingController::class, 'toggle'])->name('pricing.toggle');
+
+        Route::get('/faqs', [AdminFaqController::class, 'index'])->name('faqs.index');
+        Route::get('/faqs/create', [AdminFaqController::class, 'create'])->name('faqs.create');
+        Route::post('/faqs', [AdminFaqController::class, 'store'])->name('faqs.store');
+        Route::get('/faqs/{faq}/edit', [AdminFaqController::class, 'edit'])->name('faqs.edit');
+        Route::put('/faqs/{faq}', [AdminFaqController::class, 'update'])->name('faqs.update');
+        Route::post('/faqs/{faq}/toggle', [AdminFaqController::class, 'toggle'])->name('faqs.toggle');
+        Route::delete('/faqs/{faq}', [AdminFaqController::class, 'destroy'])->name('faqs.destroy');
 
         Route::get('/currencies', [CurrencyController::class, 'index'])->name('currencies.index');
         Route::get('/currencies/create', [CurrencyController::class, 'create'])->name('currencies.create');

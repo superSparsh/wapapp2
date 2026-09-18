@@ -19,7 +19,7 @@ class SyncMetaPricingCommand extends Command
 
     public function handle(): int
     {
-        $active = CountryPricing::query()->where('is_active', true)->count();
+        $active = CountryPricing::query()->where('status', 1)->count();
         $this->info("Central country pricing rows (active): {$active}");
 
         $this->foreachTenant(function ($tenant) use ($active): void {

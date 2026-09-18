@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Domains\Admin\Services;
 
 use App\Models\PlatformSetting;
-use Illuminate\Support\Collection;
 
 class PlatformSettingsService
 {
@@ -31,7 +30,21 @@ class PlatformSettingsService
         'payment.razorpay_secret',
         'payment.razorpay_webhook_secret',
         'payment.offline_instructions',
+        'wallet.balance_unit',
+        'wallet.conversion_price',
+        'wallet.display_currency_default',
     ];
+
+    public function get(string $key, ?string $default = null): ?string
+    {
+        $row = PlatformSetting::query()->where('key', $key)->value('value');
+
+        if ($row === null || $row === '') {
+            return $default;
+        }
+
+        return (string) $row;
+    }
 
     /**
      * @return array<string, string|null>

@@ -20,6 +20,13 @@
     </div>
   </div>
 
+  @if (session('status'))
+    <div class="mx-4 mb-2 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">{{ session('status') }}</div>
+  @endif
+  @if (session('error'))
+    <div class="mx-4 mb-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">{{ session('error') }}</div>
+  @endif
+
   <section class="grid gap-4 p-4 pt-0 xl:grid-cols-3">
     <div class="rounded-[20px] border border-border bg-elevated p-5 xl:col-span-2">
       <h2 class="text-lg font-bold text-text-primary">Account</h2>
@@ -68,6 +75,37 @@
           <button type="submit" class="rounded-lg border border-border px-3 py-2 text-xs font-semibold hover:bg-surface">Add days</button>
         </form>
       </div>
+    </div>
+  </section>
+
+  <section class="grid gap-4 p-4 pt-0 xl:grid-cols-2">
+    <div class="rounded-[20px] border border-border bg-elevated p-5">
+      <h2 class="text-lg font-bold text-text-primary">Wallet display currency</h2>
+      <p class="mt-1 text-sm text-text-subtle">Admin “view as” currency for this customer (does not change stored balance).</p>
+      @php
+        $walletDisplay = strtoupper((string) data_get($settings, 'wallet_display_currency', config('services.wallet_display_currency_default', 'INR')));
+      @endphp
+      <form method="POST" action="{{ route('admin.customers.wallet-display-currency', $tenant) }}" class="mt-4 flex flex-wrap items-center gap-2">
+        @csrf
+        <button type="submit" name="currency" value="INR" class="rounded-lg px-3 py-2 text-xs font-semibold {{ $walletDisplay === 'INR' ? 'bg-green-500 text-white' : 'border border-border hover:bg-surface' }}">INR</button>
+        <button type="submit" name="currency" value="USD" class="rounded-lg px-3 py-2 text-xs font-semibold {{ $walletDisplay === 'USD' ? 'bg-green-500 text-white' : 'border border-border hover:bg-surface' }}">USD</button>
+        <span class="text-xs text-text-subtle">Active: <strong>{{ $walletDisplay }}</strong></span>
+      </form>
+    </div>
+
+    <div class="rounded-[20px] border border-border bg-elevated p-5">
+      <h2 class="text-lg font-bold text-text-primary">Inbox settings</h2>
+      <p class="mt-1 text-sm text-text-subtle">Mask contact phone numbers in the customer inbox UI.</p>
+      <form method="POST" action="{{ route('admin.customers.settings', $tenant) }}" class="mt-4">
+        @csrf
+        @method('PATCH')
+        <input type="hidden" name="inbox_phone_masking_enabled" value="0">
+        <label class="flex items-center gap-2 text-sm">
+          <input type="checkbox" name="inbox_phone_masking_enabled" value="1" class="rounded border-border" @checked((bool) data_get($settings, 'inbox_phone_masking_enabled', false))>
+          <span class="font-semibold">Enable inbox phone masking</span>
+        </label>
+        <button type="submit" class="mt-4 rounded-lg bg-green-500 px-3 py-2 text-xs font-semibold text-white">Save inbox settings</button>
+      </form>
     </div>
   </section>
 

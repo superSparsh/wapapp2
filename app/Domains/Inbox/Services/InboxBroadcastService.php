@@ -140,6 +140,10 @@ class InboxBroadcastService
             return false;
         }
 
+        if (! app(\App\Domains\Admin\Services\MaintenanceModeService::class)->moduleEnabled('reverb_realtime')) {
+            return false;
+        }
+
         $connection = (string) config('broadcasting.default', 'null');
 
         // Only websocket-capable drivers deliver live inbox events to Echo.

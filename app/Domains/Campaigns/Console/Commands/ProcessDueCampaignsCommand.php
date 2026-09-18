@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Campaigns\Console\Commands;
 
+use App\Domains\Admin\Support\RespectsMaintenanceModules;
 use App\Domains\Campaigns\Contracts\CampaignServiceClientInterface;
 use App\Domains\Campaigns\Services\CampaignSendService;
 use App\Enums\CampaignStatus;
@@ -15,6 +16,7 @@ use Illuminate\Support\Facades\Log;
 class ProcessDueCampaignsCommand extends Command
 {
     use IteratesTenants;
+    use RespectsMaintenanceModules;
 
     protected $signature = 'campaigns:process-due {--tenants=* : Tenant IDs to process}';
 
@@ -24,6 +26,10 @@ class ProcessDueCampaignsCommand extends Command
         CampaignSendService $sendService,
         CampaignServiceClientInterface $campaignClient,
     ): int {
+        if ($this->skipForMaintenance('campaigns', 'Campaigns:')) {
+            return self::SUCCESS;
+        }
+
         $useMicroservice = (bool) config('campaign-service.enabled', false);
         $total = 0;
 

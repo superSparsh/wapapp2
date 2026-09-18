@@ -30,16 +30,38 @@ return new class extends Migration
 
         Schema::create('country_pricing', function (Blueprint $table): void {
             $table->id();
-            $table->publicUuid();
-            $table->string('country_code', 8)->unique();
+            $table->unsignedInteger('admin_id')->nullable();
             $table->string('country_name');
-            $table->decimal('marketing_rate', 12, 4)->default(0);
-            $table->decimal('utility_rate', 12, 4)->default(0);
-            $table->decimal('authentication_rate', 12, 4)->default(0);
-            $table->decimal('service_rate', 12, 4)->default(0);
-            $table->string('currency', 3)->default('USD');
-            $table->boolean('is_active')->default(true)->index();
+            $table->string('country_code')->nullable()->unique();
+            $table->string('dial_code')->nullable();
+            $table->json('region_codes')->nullable();
+            $table->string('currency', 10)->default('₹');
+            $table->decimal('marketing_price', 10, 4)->nullable();
+            $table->decimal('utility_price', 10, 4)->nullable();
+            $table->decimal('auth_price', 10, 4)->nullable();
+            $table->decimal('auth_international_price', 10, 4)->nullable();
+            $table->decimal('service_price', 10, 4)->nullable();
+            $table->double('tekpro_marketing_price', 10, 4)->nullable();
+            $table->double('tekpro_utility_price', 10, 4)->nullable();
+            $table->double('tekpro_auth_price', 10, 4)->nullable();
+            $table->double('tekpro_auth_international_price', 10, 4)->nullable();
+            $table->double('tekpro_service_price', 10, 4)->nullable();
+            $table->tinyInteger('status')->default(1)->index();
             $table->timestamps();
+        });
+
+        Schema::create('country_pricing_logs', function (Blueprint $table): void {
+            $table->id();
+            $table->string('country_code');
+            $table->string('conversation');
+            $table->decimal('old_price', 10, 4)->nullable();
+            $table->decimal('new_price', 10, 4)->nullable();
+            $table->unsignedBigInteger('updated_by');
+            $table->timestamp('created_at')->useCurrent();
+            $table->timestamp('updated_at')->useCurrent()->useCurrentOnUpdate();
+
+            $table->index('country_code');
+            $table->index('updated_by');
         });
 
         Schema::create('cloud_bill_uploads', function (Blueprint $table): void {
@@ -61,6 +83,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::dropIfExists('cloud_bill_uploads');
+        Schema::dropIfExists('country_pricing_logs');
         Schema::dropIfExists('country_pricing');
         Schema::dropIfExists('announcements');
         Schema::dropIfExists('platform_settings');

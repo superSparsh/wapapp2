@@ -117,7 +117,11 @@ class InboundMessageHandler
             if (! $keywordHandled) {
                 // Chatbot keyword flows take priority over free trigger-templates
                 // so the same word does not send template + wrong "next" chatbot message.
-                $chatbotResult = $this->chatbotFlowEngine->processInbound($conversation->refresh(), $message);
+                $chatbotResult = \App\Domains\TriggerTemplate\Enums\TriggerFireResult::NoMatch;
+
+                if (app(\App\Domains\Admin\Services\MaintenanceModeService::class)->moduleEnabled('chatbot')) {
+                    $chatbotResult = $this->chatbotFlowEngine->processInbound($conversation->refresh(), $message);
+                }
 
                 if ($chatbotResult === \App\Domains\TriggerTemplate\Enums\TriggerFireResult::NoMatch) {
                     $this->triggerTemplateEngine->process($conversation->refresh(), $message);

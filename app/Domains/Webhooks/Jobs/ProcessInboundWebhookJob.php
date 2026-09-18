@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Webhooks\Jobs;
 
+use App\Domains\Admin\Services\MaintenanceModeService;
 use App\Domains\Webhooks\Handlers\DeliveryStatusHandler;
 use App\Domains\Webhooks\Handlers\InboundMessageHandler;
 use App\Domains\Webhooks\Handlers\TemplateAuditWebhookHandler;
@@ -30,7 +31,12 @@ class ProcessInboundWebhookJob implements ShouldQueue
         DeliveryStatusHandler $statusHandler,
         TemplateAuditWebhookHandler $templateAuditHandler,
         AlibabaWebhookParser $parser,
+        MaintenanceModeService $maintenance,
     ): void {
+        if (! $maintenance->moduleEnabled('inbound_webhooks')) {
+            return;
+        }
+
         $event = InboundWebhookEvent::query()->find($this->eventId);
 
         if ($event === null) {

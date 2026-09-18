@@ -133,12 +133,25 @@ class AdminModulesTest extends TestCase
                 'mailer_from_name' => 'WapApp',
                 'payment_razorpay_enabled' => '1',
                 'payment_primary_gateway' => 'razorpay',
+                'wallet_balance_unit' => 'usd',
+                'wallet_conversion_price' => '84.5',
+                'wallet_display_currency_default' => 'USD',
             ])
             ->assertRedirect();
 
         $this->assertDatabaseHas('platform_settings', [
             'key' => 'general.app_name',
             'value' => 'WapApp Admin',
+        ], config('tenancy.database.central_connection'));
+
+        $this->assertDatabaseHas('platform_settings', [
+            'key' => 'wallet.balance_unit',
+            'value' => 'usd',
+        ], config('tenancy.database.central_connection'));
+
+        $this->assertDatabaseHas('platform_settings', [
+            'key' => 'wallet.conversion_price',
+            'value' => '84.5',
         ], config('tenancy.database.central_connection'));
 
         $this->actingAs($this->admin, 'admin')
@@ -169,18 +182,20 @@ class AdminModulesTest extends TestCase
             ->post(route('admin.pricing.store'), [
                 'country_code' => 'IN',
                 'country_name' => 'India',
-                'marketing_rate' => 0.8,
-                'utility_rate' => 0.4,
-                'authentication_rate' => 0.3,
-                'service_rate' => 0.2,
-                'currency' => 'USD',
-                'is_active' => '1',
+                'dial_code' => '+91',
+                'marketing_price' => 0.8,
+                'utility_price' => 0.4,
+                'auth_price' => 0.3,
+                'service_price' => 0.2,
+                'currency' => '₹',
+                'status' => '1',
             ])
             ->assertRedirect(route('admin.pricing.index'));
 
         $this->assertDatabaseHas('country_pricing', [
             'country_code' => 'IN',
             'country_name' => 'India',
+            'status' => 1,
         ], config('tenancy.database.central_connection'));
 
         $plan = tenancy()->central(fn () => Plan::query()->create([
@@ -258,5 +273,64 @@ class AdminModulesTest extends TestCase
             ->get(route('admin.message-performance.index', ['tenant' => $this->testTenant->id]))
             ->assertOk()
             ->assertSee('919999999999');
+    }
+
+    public function test_customer_inbox_masking_and_wallet_display_currency(): void
+    {
+        $this->actingAs($this->admin, 'admin')
+            ->get(route('admin.customers.show', $this->testTenant))
+            ->assertOk()
+            ->assertSee('Inbox settings')
+            ->assertSee('Wallet display currency');
+
+        $this->actingAs($this->admin, 'admin')
+            ->patch(route('admin.customers.settings', $this->testTenant), [
+                'inbox_phone_masking_enabled' => '1',
+            ])
+            ->assertRedirect();
+
+        $this->testTenant->refresh();
+        $this->assertTrue((bool) ($this->testTenant->settings['inbox_phone_masking_enabled'] ?? false));
+
+        $this->actingAs($this->admin, 'admin')
+            ->post(route('admin.customers.wallet-display-currency', $this->testTenant), [
+                'currency' => 'USD',
+            ])
+            ->assertRedirect();
+
+        $this->testTenant->refresh();
+        $this->assertSame('USD', $this->testTenant->settings['wallet_display_currency'] ?? null);
+    }
+
+    public function test_faq_admin_and_pricing_logs_pages(): void
+    {
+        $this->actingAs($this->admin, 'admin')
+            ->post(route('admin.faqs.store'), [
+                'heading' => 'How do wallets work?',
+                'description' => 'Wallet credits fund WhatsApp conversations.',
+                'sort_order' => 1,
+                'is_active' => '1',
+            ])
+            ->assertRedirect(route('admin.faqs.index'));
+
+        $this->assertDatabaseHas('faqs', [
+            'heading' => 'How do wallets work?',
+            'is_active' => 1,
+        ], config('tenancy.database.central_connection'));
+
+        $this->actingAs($this->admin, 'admin')
+            ->get(route('admin.faqs.index'))
+            ->assertOk()
+            ->assertSee('How do wallets work?');
+
+        $this->actingAs($this->admin, 'admin')
+            ->get(route('admin.pricing.logs'))
+            ->assertOk()
+            ->assertSee('Pricing change logs');
+
+        $this->actingAs($this->admin, 'admin')
+            ->get(route('admin.pricing.index'))
+            ->assertOk()
+            ->assertSee('Pricing change logs');
     }
 }

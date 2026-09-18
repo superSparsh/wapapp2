@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Templates\Console\Commands;
 
+use App\Domains\Admin\Support\RespectsMaintenanceModules;
 use App\Domains\Templates\Enums\TemplateStatus;
 use App\Domains\Templates\Jobs\SubmitTemplateJob;
 use App\Models\Template;
@@ -13,6 +14,7 @@ use Illuminate\Console\Command;
 class SubmitPendingTemplates extends Command
 {
     use IteratesTenants;
+    use RespectsMaintenanceModules;
 
     protected $signature = 'templates:submit-pending {--tenants=* : Tenant IDs to process}';
 
@@ -20,6 +22,10 @@ class SubmitPendingTemplates extends Command
 
     public function handle(): int
     {
+        if ($this->skipForMaintenance('templates_sync', 'Templates:')) {
+            return self::SUCCESS;
+        }
+
         $count = 0;
 
         $this->foreachTenant(function () use (&$count): void {

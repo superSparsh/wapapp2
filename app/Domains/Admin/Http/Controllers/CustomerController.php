@@ -126,6 +126,31 @@ class CustomerController extends Controller
         return back()->with('status', 'Validity extended by '.$validated['days'].' day(s).');
     }
 
+    public function updateSettings(Request $request, Tenant $tenant): RedirectResponse
+    {
+        $request->validate([
+            'inbox_phone_masking_enabled' => ['nullable', 'boolean'],
+        ]);
+
+        $this->customers->updateInboxSettings(
+            $tenant,
+            $request->boolean('inbox_phone_masking_enabled'),
+        );
+
+        return back()->with('status', 'Customer inbox settings updated.');
+    }
+
+    public function setWalletDisplayCurrency(Request $request, Tenant $tenant): RedirectResponse
+    {
+        $validated = $request->validate([
+            'currency' => ['required', 'in:USD,INR,usd,inr'],
+        ]);
+
+        $this->customers->setWalletDisplayCurrency($tenant, (string) $validated['currency']);
+
+        return back()->with('status', 'Wallet display currency set to '.strtoupper($validated['currency']).'.');
+    }
+
     public function loginAs(Tenant $tenant): RedirectResponse
     {
         /** @var Admin $admin */

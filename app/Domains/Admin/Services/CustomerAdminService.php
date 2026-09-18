@@ -150,4 +150,25 @@ class CustomerAdminService
 
         return $tenant->fresh() ?? $tenant;
     }
+
+    public function updateInboxSettings(Tenant $tenant, bool $inboxPhoneMaskingEnabled): Tenant
+    {
+        $settings = is_array($tenant->settings) ? $tenant->settings : [];
+        $settings['inbox_phone_masking_enabled'] = $inboxPhoneMaskingEnabled;
+        $tenant->settings = $settings;
+        $tenant->save();
+
+        return $tenant->fresh() ?? $tenant;
+    }
+
+    public function setWalletDisplayCurrency(Tenant $tenant, string $currency): Tenant
+    {
+        $normalized = strtoupper($currency);
+        $settings = is_array($tenant->settings) ? $tenant->settings : [];
+        $settings['wallet_display_currency'] = $normalized;
+        $tenant->settings = $settings;
+        $tenant->save();
+
+        return $tenant->fresh() ?? $tenant;
+    }
 }

@@ -31,10 +31,14 @@ class EmailVerificationController extends Controller
 
         $user = User::query()->where('email', $email)->first();
 
+        if ($user?->hasVerifiedEmail()) {
+            return redirect()->route('dashboard');
+        }
+
         return view('auth.signup.email', [
             'email' => $email,
             'otpSent' => request()->boolean('sent'),
-            'verified' => $user?->hasVerifiedEmail() ?? false,
+            'verified' => false,
         ]);
     }
 

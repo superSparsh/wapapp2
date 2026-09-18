@@ -82,6 +82,10 @@ return Application::configure(basePath: dirname(__DIR__))
             InitializeTenancyFromSession::class,
         );
 
+        $middleware->api(append: [
+            \App\Domains\Admin\Http\Middleware\EnsureCustomerSiteAvailable::class,
+        ]);
+
         $middleware->web(
             remove: [
                 \Illuminate\Session\Middleware\AuthenticateSession::class,
@@ -89,6 +93,7 @@ return Application::configure(basePath: dirname(__DIR__))
             append: [
                 InitializeTenancyFromSession::class,
                 \Illuminate\Session\Middleware\AuthenticateSession::class,
+                \App\Domains\Admin\Http\Middleware\EnsureCustomerSiteAvailable::class,
             ],
         );
 
@@ -103,6 +108,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'team.redirect-dashboard' => RedirectTeamMemberDashboard::class,
             'admin.active' => \App\Domains\Admin\Http\Middleware\EnsureAdminIsActive::class,
             'guest' => \App\Domains\Auth\Http\Middleware\RedirectIfAuthenticated::class,
+            'maintenance.customer' => \App\Domains\Admin\Http\Middleware\EnsureCustomerSiteAvailable::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

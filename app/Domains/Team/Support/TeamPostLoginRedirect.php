@@ -6,12 +6,19 @@ namespace App\Domains\Team\Support;
 
 use App\Domains\Team\Services\TeamRedirectService;
 use App\Models\TeamMember;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
 
 final class TeamPostLoginRedirect
 {
     public static function intended(): RedirectResponse
     {
+        $webUser = TeamActor::user();
+
+        if ($webUser instanceof MustVerifyEmail && ! $webUser->hasVerifiedEmail()) {
+            return redirect()->route('signup.email');
+        }
+
         $member = TeamActor::teamMember();
 
         if ($member instanceof TeamMember) {

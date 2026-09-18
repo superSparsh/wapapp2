@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Webhooks\Commands;
 
+use App\Domains\Admin\Support\RespectsMaintenanceModules;
 use App\Domains\Webhooks\Jobs\DispatchOutboundWebhookJob;
 use App\Enums\WebhookDeliveryStatus;
 use App\Models\WebhookDelivery;
@@ -11,12 +12,17 @@ use Illuminate\Console\Command;
 
 class RetryFailedDeliveriesCommand extends Command
 {
+    use RespectsMaintenanceModules;
     protected $signature = 'webhooks:retry-failed {--limit=50 : Maximum deliveries to retry per run}';
 
     protected $description = 'Dispatch retry jobs for failed webhook deliveries past their next_retry_at time';
 
     public function handle(): int
     {
+        if ($this->skipForMaintenance('outbound_webhooks', 'Webhooks:')) {
+            return self::SUCCESS;
+        }
+
         $limit = (int) $this->option('limit');
 
         $deliveries = WebhookDelivery::query()
