@@ -8,6 +8,7 @@ use App\Domains\Billing\Services\WalletService;
 use App\Domains\Inbox\Jobs\SendOutboundMessageJob;
 use App\Domains\Templates\Services\TemplatePreviewService;
 use App\Domains\Templates\Services\TemplateRegistryService;
+use App\Domains\Templates\Support\CamsTemplateIdentity;
 use App\Domains\WhatsApp\Services\AlibabaCamsClient;
 use App\Enums\MessageDirection;
 use App\Enums\MessageStatus;
@@ -158,8 +159,29 @@ class InboxOutboundService
         abort_if($templateCode === '', 422, 'Template code is required.');
 
         $conversation->loadMissing('whatsappLine');
-        $display = $this->resolveTemplateDisplay(
+        $template = app(TemplateRegistryService::class)->findForSend(
             $templateCode,
+            $conversation->whatsappLine,
+        );
+
+        $providerCode = $template?->whatsappCode();
+        if ($providerCode === null && CamsTemplateIdentity::isProviderCode($templateCode)) {
+            $providerCode = $templateCode;
+        }
+
+        abort_if(
+            $providerCode === null,
+            422,
+            'This template is not approved on WhatsApp yet. Refresh templates and select an approved TemplateCode.',
+        );
+
+        $templateParams = $this->flattenTemplateParams($templateParams);
+        $resolvedLanguage = CamsTemplateIdentity::language(
+            $language ?? $template?->language ?? config('whatsapp.alibaba.default_language', 'en_GB'),
+        );
+
+        $display = $this->resolveTemplateDisplay(
+            $providerCode,
             $templateParams,
             $conversation->whatsappLine,
         );
@@ -169,11 +191,11 @@ class InboxOutboundService
             body: $display['body'],
             messageType: MessageType::Template,
             metadata: [
-                'template_code' => $templateCode,
-                'template_name' => $display['name'],
+                'template_code' => $providerCode,
+                'template_name' => $display['name'] ?? $template?->name,
                 'template_params' => $templateParams,
                 'template_buttons' => $display['buttons'],
-                'language' => $language ?? config('whatsapp.alibaba.default_language', 'en_GB'),
+                'language' => $resolvedLanguage,
             ],
             sendImmediately: $sendImmediately,
         );
@@ -453,6 +475,40 @@ class InboxOutboundService
             'document' => MessageType::Document,
             default => MessageType::Image,
         };
+    }
+
+    /**
+     * CAMS TemplateParams must be a flat string map (not nested body/header objects).
+     *
+     * @param  array<string, mixed>  $templateParams
+     * @return array<string, string>
+     */
+    private function flattenTemplateParams(array $templateParams): array
+    {
+        $flat = [];
+
+        foreach ($templateParams as $key => $value) {
+            if (is_array($value)) {
+                $isAssoc = Arr::isAssoc($value);
+                if ($isAssoc && in_array((string) $key, ['body', 'header', 'footer', 'buttons'], true)) {
+                    foreach ($value as $innerKey => $innerValue) {
+                        if (is_scalar($innerValue) || $innerValue === null) {
+                            $flat[(string) $innerKey] = trim((string) $innerValue);
+                        }
+                    }
+
+                    continue;
+                }
+
+                continue;
+            }
+
+            if (is_scalar($value) || $value === null) {
+                $flat[(string) $key] = trim((string) $value);
+            }
+        }
+
+        return $flat;
     }
 
     private function assertWalletAllowsSend(): void

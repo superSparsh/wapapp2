@@ -8,6 +8,7 @@ use App\Domains\Inbox\Services\InboxConversationService;
 use App\Domains\Inbox\Services\InboxOutboundService;
 use App\Domains\Templates\Services\OptInTemplateService;
 use App\Domains\Templates\Support\CamsTemplateIdentity;
+use App\Enums\MessageStatus;
 use App\Models\Contact;
 use App\Models\WhatsappLine;
 use Illuminate\Support\Facades\Log;
@@ -57,10 +58,21 @@ class OptInMessageService
             return false;
         }
 
-        $template = $this->templateService->ensureTemplate();
-        $templateCode = CamsTemplateIdentity::code($template->code, $template->name);
-        if ($templateCode === null) {
-            Log::warning('Opt-in send skipped: template code missing', ['template_id' => $template->id]);
+        $template = $this->templateService->ensureTemplate($line);
+        $templateCode = $template->whatsappCode()
+            ?? CamsTemplateIdentity::code($template->code, $template->name);
+
+        if ($templateCode === null || ! CamsTemplateIdentity::isProviderCode($templateCode)) {
+            Log::warning('Opt-in send skipped: WhatsApp TemplateCode missing', [
+                'template_id' => $template->id,
+                'template_code' => $template->code,
+                'line_id' => $line->id,
+            ]);
+
+            $contact->forceFill([
+                'opt_in_message_delivery_status' => self::DELIVERY_FAILED,
+                'opt_in_message_delivery_error' => 'Opt-in template is not approved on WhatsApp yet. Submit/sync the opt-in template first.',
+            ])->save();
 
             return false;
         }
@@ -72,17 +84,32 @@ class OptInMessageService
                 $contact->name,
             );
 
+            // CAMS TemplateParams are a flat map (same as campaigns / inbox UI).
             $message = $this->outboundService->sendTemplate(
                 conversation: $conversation,
                 templateCode: $templateCode,
                 templateParams: [
-                    'body' => [
-                        'full_name' => $contact->name ?: $contact->phone,
-                    ],
+                    'full_name' => $contact->name ?: $contact->phone,
                 ],
                 language: CamsTemplateIdentity::language($template->language),
                 sendImmediately: true,
             );
+
+            $message->refresh();
+
+            if ($message->status === MessageStatus::Failed) {
+                $reason = (string) ($message->failed_reason ?: 'WhatsApp provider rejected the opt-in template.');
+
+                $contact->forceFill([
+                    'send_opt_in_message' => 'yes',
+                    'opt_in_message_sent' => true,
+                    'opt_in_message_sent_at' => now(),
+                    'opt_in_message_delivery_status' => self::DELIVERY_FAILED,
+                    'opt_in_message_delivery_error' => $reason,
+                ])->save();
+
+                return false;
+            }
 
             $contact->forceFill([
                 'send_opt_in_message' => 'yes',

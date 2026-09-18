@@ -1206,6 +1206,27 @@ function messageDisplayBody(message) {
     return '';
 }
 
+function inboxApiErrorMessage(payload, fallback) {
+    if (!payload || typeof payload !== 'object') {
+        return fallback;
+    }
+
+    if (typeof payload.message === 'string' && payload.message.trim() !== '') {
+        return payload.message;
+    }
+
+    if (payload.errors && typeof payload.errors === 'object') {
+        const first = Object.values(payload.errors)
+            .flat()
+            .find((value) => typeof value === 'string' && value.trim() !== '');
+        if (first) {
+            return first;
+        }
+    }
+
+    return fallback;
+}
+
 function fillMessageBubble(bubble, message) {
     const body = messageDisplayBody(message);
     const messageType = String(message.message_type || 'text');
@@ -2088,7 +2109,7 @@ function initInboxChat() {
 
                     if (!response.ok) {
                         const error = await response.json().catch(() => ({}));
-                        showAppAlert(error.message || 'Unable to send opt-in.', 'Opt-in failed');
+                        showAppAlert(inboxApiErrorMessage(error, 'Unable to send opt-in.'), 'Opt-in failed');
 
                         return;
                     }
@@ -2205,6 +2226,8 @@ function initInboxOutboundModals() {
         errorEl.classList.toggle('hidden', !message);
     };
 
+    const extractApiError = (payload, fallback) => inboxApiErrorMessage(payload, fallback);
+
     const mediaForm = document.querySelector('[data-inbox-media-form]');
     if (mediaForm && mediaUrl) {
         mediaForm.addEventListener('submit', async (event) => {
@@ -2230,7 +2253,7 @@ function initInboxOutboundModals() {
 
                 if (!response.ok) {
                     const error = await response.json().catch(() => ({}));
-                    showFormError(mediaForm, error.message || 'Unable to send media.');
+                    showFormError(mediaForm, extractApiError(error, 'Unable to send media.'));
 
                     return;
                 }
@@ -2578,7 +2601,7 @@ function initInboxOutboundModals() {
 
                 if (!response.ok) {
                     const error = await response.json().catch(() => ({}));
-                    showFormError(templateForm, error.message || 'Unable to send template.');
+                    showFormError(templateForm, extractApiError(error, 'Unable to send template.'));
 
                     return;
                 }

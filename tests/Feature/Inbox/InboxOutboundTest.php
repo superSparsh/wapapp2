@@ -96,7 +96,7 @@ class InboxOutboundTest extends TestCase
 
         $this->actingAsTenantUser()
             ->postJson(route('inbox.api.send-template', $conversation), [
-                'template_code' => 'welcome_template',
+                'template_code' => '935757998997286999',
             ])
             ->assertCreated()
             ->assertJsonPath('message.message_type', MessageType::Template->value);
@@ -109,7 +109,7 @@ class InboxOutboundTest extends TestCase
 
         $this->actingAsTenantUser()
             ->postJson(route('inbox.api.send-template', $conversation), [
-                'template_code' => 'welcome_template',
+                'template_code' => '935757998997286998',
             ])
             ->assertCreated()
             ->assertJsonPath('message.message_type', MessageType::Template->value);
@@ -117,8 +117,22 @@ class InboxOutboundTest extends TestCase
         $this->assertDatabaseHas('messages', [
             'conversation_id' => $conversation->id,
             'message_type' => MessageType::Template->value,
-            'body' => 'welcome_template',
+            'body' => '935757998997286998',
         ]);
+    }
+
+    public function test_template_send_rejects_local_non_provider_code(): void
+    {
+        $conversation = $this->createConversation();
+
+        $this->actingAsTenantUser()
+            ->postJson(route('inbox.api.send-template', $conversation), [
+                'template_code' => 'welcome_template',
+            ])
+            ->assertStatus(422)
+            ->assertJsonFragment([
+                'message' => 'This template is not approved on WhatsApp yet. Refresh templates and select an approved TemplateCode.',
+            ]);
     }
 
     public function test_template_send_stores_preview_body_instead_of_provider_code(): void

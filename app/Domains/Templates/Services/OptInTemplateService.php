@@ -8,6 +8,7 @@ use App\Domains\Templates\Enums\TemplateStatus;
 use App\Domains\Templates\Support\VariableActorContext;
 use App\Models\Template;
 use App\Models\Variable;
+use App\Models\WhatsappLine;
 
 class OptInTemplateService
 {
@@ -47,16 +48,34 @@ class OptInTemplateService
     /**
      * Ensure the opt-in template exists for the current tenant.
      */
-    public function ensureTemplate(): Template
+    public function ensureTemplate(?WhatsappLine $line = null): Template
     {
         $useV3 = $this->usesV3();
         $name = $useV3 ? self::TEMPLATE_NAME_V3 : self::TEMPLATE_NAME;
-        $lineId = $this->actorContext->whatsappLineId();
+        $lineId = $line?->id ?? $this->actorContext->whatsappLineId();
 
-        $template = Template::query()
+        $candidates = Template::query()
             ->where('name', $name)
-            ->when($lineId, fn ($q) => $q->where('whatsapp_line_id', $lineId))
-            ->first();
+            ->when($lineId, function ($q) use ($lineId): void {
+                $q->where(function ($inner) use ($lineId): void {
+                    $inner->where('whatsapp_line_id', $lineId)->orWhereNull('whatsapp_line_id');
+                });
+            })
+            ->orderByDesc('id')
+            ->get();
+
+        // Prefer a WhatsApp-approved provider TemplateCode on this line.
+        $approvedProvider = $candidates->first(
+            static fn (Template $row): bool => $row->status === TemplateStatus::Approved
+                && $row->whatsappCode() !== null,
+        );
+        if ($approvedProvider instanceof Template) {
+            return $approvedProvider;
+        }
+
+        $template = $candidates->first(
+            static fn (Template $row): bool => $lineId === null || (int) $row->whatsapp_line_id === (int) $lineId,
+        ) ?? $candidates->first();
 
         $desired = $this->desiredContent($useV3);
         $bodyText = $desired['body'];

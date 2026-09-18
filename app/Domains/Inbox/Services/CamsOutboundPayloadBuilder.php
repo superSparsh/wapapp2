@@ -68,16 +68,36 @@ class CamsOutboundPayloadBuilder
     {
         $metadata = $message->metadata ?? [];
         $templateCode = (string) ($metadata['template_code'] ?? '');
-        $templateParams = $metadata['template_params'] ?? [];
+        $templateParams = is_array($metadata['template_params'] ?? null)
+            ? $metadata['template_params']
+            : [];
         $language = CamsTemplateIdentity::language(
             (string) ($metadata['language'] ?? $payload['Language'] ?? ''),
         );
+
+        // Defensive: flatten nested body/header maps if any caller still sends them.
+        $flatParams = [];
+        foreach ($templateParams as $key => $value) {
+            if (is_array($value) && in_array((string) $key, ['body', 'header', 'footer', 'buttons'], true)) {
+                foreach ($value as $innerKey => $innerValue) {
+                    if (is_scalar($innerValue) || $innerValue === null) {
+                        $flatParams[(string) $innerKey] = trim((string) $innerValue);
+                    }
+                }
+
+                continue;
+            }
+
+            if (is_scalar($value) || $value === null) {
+                $flatParams[(string) $key] = trim((string) $value);
+            }
+        }
 
         return array_merge($payload, [
             'Type' => 'template',
             'Language' => $language,
             'TemplateCode' => $templateCode,
-            'TemplateParams' => json_encode((object) $templateParams, JSON_THROW_ON_ERROR),
+            'TemplateParams' => json_encode((object) $flatParams, JSON_THROW_ON_ERROR),
         ]);
     }
 

@@ -234,7 +234,13 @@ class InboxController extends Controller
         );
 
         if (! $sent) {
-            return response()->json(['message' => 'Unable to send opt-in template.'], 422);
+            $reason = trim((string) ($contact->fresh()?->opt_in_message_delivery_error ?? ''));
+
+            return response()->json([
+                'message' => $reason !== ''
+                    ? $reason
+                    : 'Unable to send opt-in template. Ensure it is approved on WhatsApp and try again.',
+            ], 422);
         }
 
         return response()->json([

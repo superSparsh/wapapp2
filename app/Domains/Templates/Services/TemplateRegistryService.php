@@ -7,6 +7,7 @@ namespace App\Domains\Templates\Services;
 use App\Domains\Inbox\Services\InboxOutboundService;
 use App\Domains\Templates\Enums\TemplateSource;
 use App\Domains\Templates\Enums\TemplateStatus;
+use App\Domains\Templates\Support\CamsTemplateIdentity;
 use App\Domains\Templates\Support\TemplateCatalogCache;
 use App\Domains\Templates\Support\TemplateCategoryCatalog;
 use App\Domains\Templates\Support\VariableActorContext;
@@ -72,9 +73,10 @@ class TemplateRegistryService
                     $previewService->variablesForTemplate($template),
                 ));
                 $preview = $previewService->forTemplate($template, [], true);
+                $sendCode = $template->whatsappCode() ?? (string) $template->code;
 
                 return [
-                    'code' => (string) $template->code,
+                    'code' => $sendCode,
                     'name' => $template->name,
                     'language' => $template->language,
                     'category' => $template->category,

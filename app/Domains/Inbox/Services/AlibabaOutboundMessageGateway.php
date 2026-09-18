@@ -5,12 +5,17 @@ declare(strict_types=1);
 namespace App\Domains\Inbox\Services;
 
 use App\Domains\WhatsApp\Services\AlibabaCamsClient;
+use App\Domains\WhatsApp\Services\CamsTemplateMediaUploader;
 use App\Domains\Webhooks\Services\WhatsappLineRegistryService;
 use App\Enums\MessageStatus;
-use App\Models\Conversation;
+use App\Enums\MessageType;
 use App\Models\Message;
+use App\Models\WhatsappLine;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+use RuntimeException;
 
 class AlibabaOutboundMessageGateway implements \App\Domains\Inbox\Contracts\OutboundMessageGateway
 {
@@ -18,6 +23,7 @@ class AlibabaOutboundMessageGateway implements \App\Domains\Inbox\Contracts\Outb
         private readonly AlibabaCamsClient $client,
         private readonly CamsOutboundPayloadBuilder $payloadBuilder,
         private readonly WhatsappLineRegistryService $registryService,
+        private readonly CamsTemplateMediaUploader $mediaUploader,
     ) {}
 
     public function send(Message $message): void
@@ -38,7 +44,8 @@ class AlibabaOutboundMessageGateway implements \App\Domains\Inbox\Contracts\Outb
         }
 
         try {
-            $payload = $this->payloadBuilder->build($message, $conversation, $line);
+            $this->ensureOutboundMediaIsHosted($message, $line);
+            $payload = $this->payloadBuilder->build($message->refresh(), $conversation, $line);
 
             Log::info('CAMS outbound send attempt', [
                 'message_id' => $message->id,
@@ -96,6 +103,77 @@ class AlibabaOutboundMessageGateway implements \App\Domains\Inbox\Contracts\Outb
 
             throw $exception;
         }
+    }
+
+    /**
+     * CAMS cannot fetch local /storage URLs — upload to Alibaba OSS first.
+     */
+    private function ensureOutboundMediaIsHosted(Message $message, WhatsappLine $line): void
+    {
+        if (! in_array($message->message_type, [
+            MessageType::Image,
+            MessageType::Video,
+            MessageType::Audio,
+            MessageType::Document,
+            MessageType::Sticker,
+        ], true)) {
+            return;
+        }
+
+        $metadata = is_array($message->metadata) ? $message->metadata : [];
+        $mediaUrl = trim((string) ($metadata['media_url'] ?? ''));
+
+        if ($this->mediaUploader->isProviderHostedUrl($mediaUrl)) {
+            return;
+        }
+
+        $custSpaceId = trim((string) ($line->alibaba_cust_space_id ?? ''));
+        if ($custSpaceId === '') {
+            throw new RuntimeException('WhatsApp CustSpaceId is missing; cannot upload media for delivery.');
+        }
+
+        $mediaPath = trim((string) ($metadata['media_path'] ?? ''));
+        $fileName = (string) ($metadata['file_name'] ?? 'media.bin');
+        $mime = (string) ($metadata['file_type'] ?? 'application/octet-stream');
+        $contents = null;
+
+        if ($mediaPath !== '') {
+            $disk = Storage::disk((string) config('whatsapp.media.disk', 'public'));
+            if ($disk->exists($mediaPath)) {
+                $raw = $disk->get($mediaPath);
+                if (is_string($raw) && $raw !== '') {
+                    $contents = $raw;
+                    $mime = (string) ($disk->mimeType($mediaPath) ?: $mime);
+                    $fileName = $fileName !== '' ? $fileName : basename($mediaPath);
+                }
+            }
+        }
+
+        if ($contents === null && preg_match('#^https?://#i', $mediaUrl) === 1) {
+            $response = Http::timeout(60)
+                ->withHeaders(['User-Agent' => 'wapapp-inbox-media/1.0'])
+                ->get($mediaUrl);
+
+            if (! $response->successful()) {
+                throw new RuntimeException('Unable to download media for WhatsApp upload (HTTP '.$response->status().').');
+            }
+
+            $contents = $response->body();
+            $mime = (string) ($response->header('Content-Type') ?: $mime);
+            if ($fileName === '' || $fileName === 'media.bin') {
+                $fileName = basename((string) (parse_url($mediaUrl, PHP_URL_PATH) ?: 'media.bin'));
+            }
+        }
+
+        if (! is_string($contents) || $contents === '') {
+            throw new RuntimeException('Media file is missing; cannot deliver to WhatsApp.');
+        }
+
+        $hostedUrl = $this->mediaUploader->uploadBytes($contents, $fileName, $mime, $custSpaceId);
+
+        $metadata['media_url_local'] = $mediaUrl !== '' ? $mediaUrl : ($metadata['media_url_local'] ?? null);
+        $metadata['media_url'] = $hostedUrl;
+        $message->forceFill(['metadata' => $metadata])->save();
     }
 
     private function markFailed(Message $message, string $reason): void
