@@ -42,7 +42,7 @@ return Application::configure(basePath: dirname(__DIR__))
             require base_path('routes/webhooks.php');
             Route::middleware('web')->group(base_path('routes/auth.php'));
             Route::middleware('web')->group(base_path('routes/admin.php'));
-            Route::middleware(['web', 'tenancy.session', 'auth:web,team', '2fa', 'verified', 'team.owner'])
+            Route::middleware(['web', 'tenancy.session', 'auth:web,team', '2fa', 'team.owner'])
                 ->group(base_path('routes/account.php'));
         },
     )

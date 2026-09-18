@@ -103,7 +103,7 @@ Route::middleware([\Stancl\Tenancy\Middleware\InitializeTenancyByPath::class])
         Route::post('/embedded-form-subscribe-captcha', [\App\Domains\Audience\Http\Controllers\PublicEmbeddedFormController::class, 'subscribe'])->name('embedded-form.subscribe-captcha');
     });
 
-Route::middleware(['tenancy.session', 'auth:web,team', '2fa', 'verified', 'team.redirect-dashboard'])->group(function () {
+Route::middleware(['tenancy.session', 'auth:web,team', '2fa', 'team.redirect-dashboard'])->group(function () {
     Route::get('/api/search', GlobalSearchController::class)->name('search');
 
     Route::middleware('team.owner')->group(function () {

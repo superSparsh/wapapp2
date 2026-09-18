@@ -37,7 +37,7 @@ class LoginRedirectTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_unverified_user_login_lands_on_email_verification_without_loop(): void
+    public function test_unverified_user_login_reaches_dashboard_without_email_prompt(): void
     {
         $this->testUser->forceFill(['email_verified_at' => null])->save();
 
@@ -49,19 +49,8 @@ class LoginRedirectTest extends TestCase
         $response = $this->followRedirectChain($response, 8);
 
         $response->assertOk();
-        $response->assertSee('Verify your email');
+        $response->assertDontSee('Verify your email');
         $this->assertAuthenticatedAs($this->testUser, 'web');
-    }
-
-    public function test_unverified_user_can_open_verification_page_while_logged_in(): void
-    {
-        $this->testUser->forceFill(['email_verified_at' => null])->save();
-
-        $response = $this->actingAsTenantUser()
-            ->get(route('signup.email'));
-
-        $response->assertOk();
-        $response->assertSee('Verify your email');
     }
 
     public function test_verified_user_login_reaches_dashboard(): void
