@@ -7,12 +7,13 @@ return [
     | Opt-in template V3 (Utility wording) rollout
     |--------------------------------------------------------------------------
     |
-    | Legacy parity: OPT_IN_V2_GLOBAL / OPT_IN_V2_CUSTOMER_IDS control whether
-    | tenants use opt_in_message_v3 (Utility) vs legacy opt_in_message (Marketing).
+    | Legacy parity: original Marketing template `opt_in_message` (Yes/No/STOP)
+    | is the only one used for sends. V3 (`opt_in_message_v3`) stays unused
+    | unless explicitly enabled — legacy hard-disabled that rollout.
     |
     */
 
-    'v2_global' => (bool) env('OPT_IN_V2_GLOBAL', true),
+    'v2_global' => (bool) env('OPT_IN_V2_GLOBAL', false),
 
     'v2_customer_ids' => array_values(array_filter(array_map(
         static fn ($id) => (int) trim((string) $id),

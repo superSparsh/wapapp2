@@ -8,6 +8,7 @@ use App\Domains\Admin\Services\MaintenanceModeService;
 use App\Domains\Inbox\Support\InboxPresenter;
 use App\Enums\MessageDirection;
 use App\Events\Inbox\InboxMessageCreated;
+use App\Events\Inbox\InboxMessageStatusUpdated;
 use App\Events\Inbox\InboxThreadUpdated;
 use App\Models\Conversation;
 use App\Models\Message;
@@ -53,6 +54,30 @@ class InboxBroadcastService
             conversationUuid: $conversation->uuid,
             message: $this->messagePayload($message),
             thread: $thread,
+        ));
+    }
+
+    public function messageStatusUpdated(Message $message): void
+    {
+        if (! $this->shouldBroadcast()) {
+            return;
+        }
+
+        $tenantId = $this->tenantId();
+        if ($tenantId === null) {
+            return;
+        }
+
+        $message->loadMissing('conversation');
+        $conversation = $message->conversation;
+        if ($conversation === null) {
+            return;
+        }
+
+        broadcast(new InboxMessageStatusUpdated(
+            tenantId: $tenantId,
+            conversationUuid: $conversation->uuid,
+            message: $this->messagePayload($message),
         ));
     }
 
@@ -133,6 +158,11 @@ class InboxBroadcastService
                 ? $metadata['template_buttons']
                 : [],
             'interactive' => isset($metadata['interactive']) && is_array($metadata['interactive']) ? $metadata['interactive'] : null,
+            'sent_at' => $message->sent_at?->toIso8601String(),
+            'delivered_at' => $message->delivered_at?->toIso8601String(),
+            'read_at' => $message->read_at?->toIso8601String(),
+            'failed_at' => $message->failed_at?->toIso8601String(),
+            'failed_reason' => $message->failed_reason,
         ];
     }
 

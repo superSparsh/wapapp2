@@ -281,6 +281,29 @@
           @else
             {{ $body !== '' ? $body : '['.$messageType.']' }}
           @endif
+          <div class="mt-1 flex items-center justify-end gap-1 text-[10px] leading-none text-text-body/55">
+            <span data-message-time>{{ $message['time'] ?? '' }}</span>
+            @if ($isOutbound)
+              @php $status = strtolower((string) ($message['status'] ?? 'queued')); @endphp
+              <span
+                class="inline-flex items-center"
+                data-message-status="{{ $status }}"
+                title="{{ $status === 'failed' ? ($message['failed_reason'] ?? 'Failed') : ucfirst($status) }}"
+              >
+                @if ($status === 'failed')
+                  <span class="font-semibold text-red-500">Failed</span>
+                @elseif ($status === 'read')
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 15" width="14" height="14" aria-label="read" class="text-[#53bdeb]">
+                    <path fill="currentColor" d="M15.01 3.316l-.478-.372a.365.365 0 0 0-.51.063L8.666 9.879a.32.32 0 0 1-.484.033l-.358-.325a.319.319 0 0 0-.484.032l-.378.483a.418.418 0 0 0 .036.541l1.32 1.266c.143.14.361.125.484-.033l6.272-8.048a.366.366 0 0 0-.064-.512zm-4.1 0l-.478-.372a.365.365 0 0 0-.51.063L4.566 9.879a.32.32 0 0 1-.484.033L1.891 7.769a.366.366 0 0 0-.515.006l-.423.433a.364.364 0 0 0 .006.514l3.258 3.185c.143.14.361.125.484-.033l6.272-8.048a.365.365 0 0 0-.063-.51z"/>
+                  </svg>
+                @elseif (in_array($status, ['delivered', 'sent', 'queued', 'pending'], true))
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 15" width="14" height="14" aria-label="{{ $status }}" class="text-text-body/50">
+                    <path fill="currentColor" d="M15.01 3.316l-.478-.372a.365.365 0 0 0-.51.063L8.666 9.879a.32.32 0 0 1-.484.033l-.358-.325a.319.319 0 0 0-.484.032l-.378.483a.418.418 0 0 0 .036.541l1.32 1.266c.143.14.361.125.484-.033l6.272-8.048a.366.366 0 0 0-.064-.512zm-4.1 0l-.478-.372a.365.365 0 0 0-.51.063L4.566 9.879a.32.32 0 0 1-.484.033L1.891 7.769a.366.366 0 0 0-.515.006l-.423.433a.364.364 0 0 0 .006.514l3.258 3.185c.143.14.361.125.484-.033l6.272-8.048a.365.365 0 0 0-.063-.51z"/>
+                  </svg>
+                @endif
+              </span>
+            @endif
+          </div>
         </div>
       </div>
     @endforeach

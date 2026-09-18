@@ -50,6 +50,7 @@ class InboxOutboundService
         UploadedFile $file,
         string $mediaType,
         ?string $caption = null,
+        bool $sendImmediately = false,
     ): Message {
         $this->windowService->assertWithinServiceWindow($conversation);
 
@@ -66,6 +67,7 @@ class InboxOutboundService
                 'file_name' => $stored['original_name'],
                 'file_type' => $stored['mime'],
             ],
+            sendImmediately: $sendImmediately,
         );
     }
 
@@ -100,8 +102,11 @@ class InboxOutboundService
         );
     }
 
-    public function sendSticker(Conversation $conversation, UploadedFile $file): Message
-    {
+    public function sendSticker(
+        Conversation $conversation,
+        UploadedFile $file,
+        bool $sendImmediately = false,
+    ): Message {
         $this->windowService->assertWithinServiceWindow($conversation);
 
         $stored = $this->mediaService->store($file);
@@ -116,6 +121,7 @@ class InboxOutboundService
                 'file_name' => $stored['original_name'],
                 'file_type' => $stored['mime'],
             ],
+            sendImmediately: $sendImmediately,
         );
     }
 

@@ -201,7 +201,30 @@ class TemplateRegistryService
             }
         }
 
-        return $query->orderByDesc('id')->first();
+        $byCode = $query->orderByDesc('id')->first();
+        if ($byCode instanceof Template) {
+            return $byCode;
+        }
+
+        // Provider TemplateCode may live in payload.meta.archived_code after soft archive.
+        if (CamsTemplateIdentity::isProviderCode($code)) {
+            $archived = Template::query()
+                ->where('payload->meta->archived_code', $code)
+                ->when(
+                    $line instanceof WhatsappLine,
+                    fn ($builder) => $builder->where(function ($inner) use ($line): void {
+                        $inner->where('whatsapp_line_id', $line->id)->orWhereNull('whatsapp_line_id');
+                    }),
+                )
+                ->orderByDesc('id')
+                ->first();
+
+            if ($archived instanceof Template) {
+                return $archived;
+            }
+        }
+
+        return null;
     }
 
     public function refresh(?WhatsappLine $line = null): int

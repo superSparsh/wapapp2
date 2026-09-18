@@ -34,7 +34,14 @@ class DeliveryStatusHandler
         }
 
         $messageId = (string) ($item['MessageId'] ?? $item['messageId'] ?? '');
-        $status = (string) ($item['Status'] ?? $item['status'] ?? '');
+        $rawStatus = (string) ($item['Status'] ?? $item['status'] ?? '');
+        $status = match (strtolower(trim($rawStatus))) {
+            'sent' => 'Sent',
+            'delivered' => 'Delivered',
+            'read' => 'Read',
+            'failed', 'undelivered' => 'Failed',
+            default => $rawStatus,
+        };
 
         if ($messageId === '' || $status === '') {
             throw new \RuntimeException('Status payload is missing MessageId or Status.');
@@ -69,6 +76,16 @@ class DeliveryStatusHandler
                 $updates = $this->messageUpdates($status, $message, $item, $now);
                 if ($updates !== []) {
                     $message->forceFill($updates)->save();
+
+                    try {
+                        app(\App\Domains\Inbox\Services\InboxBroadcastService::class)
+                            ->messageStatusUpdated($message->refresh());
+                    } catch (\Throwable $e) {
+                        Log::warning('Inbox message status broadcast failed', [
+                            'message_id' => $message->id,
+                            'error' => $e->getMessage(),
+                        ]);
+                    }
                 }
 
                 $this->syncOptInContactDelivery($message, $status, $item, $now);

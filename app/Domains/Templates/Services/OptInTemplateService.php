@@ -30,14 +30,9 @@ class OptInTemplateService
 
     public function usesV3(): bool
     {
-        if (config('opt_in.v2_global')) {
-            return true;
-        }
-
-        $tenantId = (int) (tenant('id') ?? 0);
-        $ids = config('opt_in.v2_customer_ids', []);
-
-        return $tenantId > 0 && is_array($ids) && in_array($tenantId, array_map('intval', $ids), true);
+        // Legacy parity: always send original Marketing `opt_in_message`.
+        // V3 Utility template is kept for old rows only — never used for sends.
+        return false;
     }
 
     public function activeTemplateName(): string

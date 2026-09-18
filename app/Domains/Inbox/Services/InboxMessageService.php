@@ -39,7 +39,21 @@ class InboxMessageService
         $since = now()->subDays($lookbackDays);
 
         $query = Message::query()
-            ->select(['id', 'uuid', 'body', 'direction', 'status', 'message_type', 'metadata', 'created_at'])
+            ->select([
+                'id',
+                'uuid',
+                'body',
+                'direction',
+                'status',
+                'message_type',
+                'metadata',
+                'created_at',
+                'sent_at',
+                'delivered_at',
+                'read_at',
+                'failed_at',
+                'failed_reason',
+            ])
             ->where('conversation_id', $conversation->id)
             ->where('created_at', '>=', $since)
             ->when($beforeId !== null, fn ($builder) => $builder->where('id', '<', $beforeId))
@@ -117,6 +131,11 @@ class InboxMessageService
                 : [],
             'interactive' => $interactive,
             'interactive_preview' => $this->interactivePreview($interactive, (string) ($message->body ?? '')),
+            'sent_at' => $message->sent_at?->toIso8601String(),
+            'delivered_at' => $message->delivered_at?->toIso8601String(),
+            'read_at' => $message->read_at?->toIso8601String(),
+            'failed_at' => $message->failed_at?->toIso8601String(),
+            'failed_reason' => $message->failed_reason,
         ];
     }
 

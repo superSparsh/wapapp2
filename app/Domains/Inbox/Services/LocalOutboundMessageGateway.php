@@ -25,5 +25,11 @@ class LocalOutboundMessageGateway implements OutboundMessageGateway
             'sent_at' => now(),
             'external_message_id' => $message->external_message_id ?? 'local_'.$message->uuid,
         ])->save();
+
+        try {
+            app(InboxBroadcastService::class)->messageStatusUpdated($message->refresh());
+        } catch (\Throwable) {
+            // Best-effort realtime status.
+        }
     }
 }

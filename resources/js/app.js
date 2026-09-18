@@ -1227,6 +1227,91 @@ function inboxApiErrorMessage(payload, fallback) {
     return fallback;
 }
 
+const INBOX_DOUBLE_CHECK_PATH =
+    'M15.01 3.316l-.478-.372a.365.365 0 0 0-.51.063L8.666 9.879a.32.32 0 0 1-.484.033l-.358-.325a.319.319 0 0 0-.484.032l-.378.483a.418.418 0 0 0 .036.541l1.32 1.266c.143.14.361.125.484-.033l6.272-8.048a.366.366 0 0 0-.064-.512zm-4.1 0l-.478-.372a.365.365 0 0 0-.51.063L4.566 9.879a.32.32 0 0 1-.484.033L1.891 7.769a.366.366 0 0 0-.515.006l-.423.433a.364.364 0 0 0 .006.514l3.258 3.185c.143.14.361.125.484-.033l6.272-8.048a.365.365 0 0 0-.063-.51z';
+
+function inboxMessageStatusIcon(status) {
+    const normalized = String(status || 'queued').toLowerCase();
+    const wrap = document.createElement('span');
+    wrap.className = 'inline-flex items-center';
+    wrap.dataset.messageStatus = normalized;
+    wrap.title = normalized === 'failed' ? 'Failed' : normalized.charAt(0).toUpperCase() + normalized.slice(1);
+
+    if (normalized === 'failed') {
+        const label = document.createElement('span');
+        label.className = 'font-semibold text-red-500';
+        label.textContent = 'Failed';
+        wrap.appendChild(label);
+        return wrap;
+    }
+
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('viewBox', '0 0 16 15');
+    svg.setAttribute('width', '14');
+    svg.setAttribute('height', '14');
+    svg.setAttribute('aria-label', normalized);
+    svg.classList.add(normalized === 'read' ? 'text-[#53bdeb]' : 'text-text-body/50');
+
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('fill', 'currentColor');
+    path.setAttribute('d', INBOX_DOUBLE_CHECK_PATH);
+    svg.appendChild(path);
+    wrap.appendChild(svg);
+
+    return wrap;
+}
+
+function appendInboxMessageMeta(bubble, message) {
+    const footer = document.createElement('div');
+    footer.className =
+        'mt-1 flex items-center justify-end gap-1 text-[10px] leading-none text-text-body/55';
+
+    const time = document.createElement('span');
+    time.dataset.messageTime = '';
+    time.textContent = String(message.time || '').trim();
+    footer.appendChild(time);
+
+    if (message.is_outbound) {
+        footer.appendChild(inboxMessageStatusIcon(message.status));
+    }
+
+    bubble.appendChild(footer);
+}
+
+function updateInboxMessageStatus(message) {
+    if (!message?.uuid) {
+        return;
+    }
+
+    const row = document.querySelector(`[data-inbox-messages] [data-message-uuid="${String(message.uuid).replace(/"/g, '')}"]`);
+    if (!row) {
+        return;
+    }
+
+    const bubble = row.querySelector(':scope > div') || row.lastElementChild;
+    if (!bubble) {
+        return;
+    }
+
+    let statusEl = bubble.querySelector('[data-message-status]');
+    const next = inboxMessageStatusIcon(message.status);
+
+    if (message.failed_reason && String(message.status || '').toLowerCase() === 'failed') {
+        next.title = String(message.failed_reason);
+    }
+
+    if (statusEl) {
+        statusEl.replaceWith(next);
+    } else if (message.is_outbound !== false) {
+        let footer = bubble.querySelector('[data-message-time]')?.parentElement;
+        if (!footer) {
+            appendInboxMessageMeta(bubble, message);
+            return;
+        }
+        footer.appendChild(next);
+    }
+}
+
 function fillMessageBubble(bubble, message) {
     const body = messageDisplayBody(message);
     const messageType = String(message.message_type || 'text');
@@ -1252,6 +1337,7 @@ function fillMessageBubble(bubble, message) {
         if (body !== '') {
             appendText(body);
         }
+        appendInboxMessageMeta(bubble, message);
         return;
     }
 
@@ -1264,6 +1350,7 @@ function fillMessageBubble(bubble, message) {
         if (body !== '') {
             appendText(body);
         }
+        appendInboxMessageMeta(bubble, message);
         return;
     }
 
@@ -1273,6 +1360,7 @@ function fillMessageBubble(bubble, message) {
         audio.controls = true;
         audio.className = 'w-full';
         bubble.appendChild(audio);
+        appendInboxMessageMeta(bubble, message);
         return;
     }
 
@@ -1287,6 +1375,7 @@ function fillMessageBubble(bubble, message) {
         if (body !== '') {
             appendText(body, 'mt-1');
         }
+        appendInboxMessageMeta(bubble, message);
         return;
     }
 
@@ -1298,6 +1387,7 @@ function fillMessageBubble(bubble, message) {
         link.className = 'font-semibold text-green-700 underline';
         link.textContent = `View location (${message.latitude}, ${message.longitude})`;
         bubble.appendChild(link);
+        appendInboxMessageMeta(bubble, message);
         return;
     }
 
@@ -1344,6 +1434,7 @@ function fillMessageBubble(bubble, message) {
         });
 
         bubble.appendChild(wrap);
+        appendInboxMessageMeta(bubble, message);
         return;
     }
 
@@ -1377,6 +1468,7 @@ function fillMessageBubble(bubble, message) {
             caption.className = 'mt-1 text-[10px] font-semibold uppercase tracking-wide text-green-700';
             caption.textContent = templateName ? `Template · ${templateName}` : 'Template';
             bubble.appendChild(caption);
+            appendInboxMessageMeta(bubble, message);
             return;
         }
 
@@ -1394,6 +1486,7 @@ function fillMessageBubble(bubble, message) {
         chip.appendChild(code);
 
         bubble.appendChild(chip);
+        appendInboxMessageMeta(bubble, message);
         return;
     }
 
@@ -1425,10 +1518,12 @@ function fillMessageBubble(bubble, message) {
         }
 
         bubble.appendChild(wrap);
+        appendInboxMessageMeta(bubble, message);
         return;
     }
 
     bubble.textContent = displayBody;
+    appendInboxMessageMeta(bubble, message);
 }
 
 /**
@@ -1495,6 +1590,9 @@ function initInboxRealtime() {
                 } else if (isOpenChat) {
                     maybeRefreshOpenChat(thread);
                 }
+            },
+            '.message.status_updated': (payload) => {
+                updateInboxMessageStatus(payload.message || {});
             },
         });
     }
@@ -1829,6 +1927,8 @@ function initInboxChat() {
                         body: message.body,
                         message_type: message.message_type,
                         is_outbound: message.is_outbound ?? message.direction === 'outbound',
+                        status: message.status,
+                        time: message.time,
                         media_url: message.media_url,
                         file_name: message.file_name,
                         latitude: message.latitude,
@@ -1839,6 +1939,7 @@ function initInboxChat() {
                         template_buttons: message.template_buttons,
                         interactive: message.interactive,
                         interactive_preview: message.interactive_preview,
+                        failed_reason: message.failed_reason,
                     }),
                 );
             });
@@ -1940,6 +2041,8 @@ function initInboxChat() {
                     body: message.body,
                     message_type: message.message_type,
                     is_outbound: isOutbound,
+                    status: message.status,
+                    time: message.time,
                     media_url: message.media_url,
                     file_name: message.file_name,
                     latitude: message.latitude,
@@ -1950,7 +2053,13 @@ function initInboxChat() {
                     template_buttons: message.template_buttons,
                     interactive: message.interactive,
                     interactive_preview: message.interactive_preview,
+                    failed_reason: message.failed_reason,
                 });
+
+                // Poll catch-up: if the row already existed, still refresh ticks.
+                if (before && isOutbound) {
+                    updateInboxMessageStatus(message);
+                }
 
                 if (!before && message.uuid && seenMessageUuids.has(message.uuid) && !isOutbound) {
                     appendedInbound = true;
@@ -2014,10 +2123,13 @@ function initInboxChat() {
                 uuid: data.message?.uuid,
                 body: data.message?.body ?? body,
                 is_outbound: true,
+                status: data.message?.status ?? 'queued',
+                time: data.message?.time,
                 message_type: data.message?.message_type ?? 'text',
                 contacts: data.message?.contacts,
                 template_code: data.message?.template_code,
                 interactive: data.message?.interactive,
+                failed_reason: data.message?.failed_reason,
             });
             input.value = '';
             refreshMessages().catch(() => {});
@@ -2052,6 +2164,13 @@ function initInboxChat() {
                 }
 
                 serviceWindow.refresh();
+            },
+            '.message.status_updated': (payload) => {
+                if (payload.conversation_uuid !== conversationUuid) {
+                    return;
+                }
+
+                updateInboxMessageStatus(payload.message || {});
             },
         });
     }

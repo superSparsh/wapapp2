@@ -73,6 +73,12 @@ class AlibabaOutboundMessageGateway implements \App\Domains\Inbox\Contracts\Outb
 
                 $this->markFailed($message, $reason.$debug);
 
+                try {
+                    app(InboxBroadcastService::class)->messageStatusUpdated($message->refresh());
+                } catch (\Throwable) {
+                    // Best-effort.
+                }
+
                 return;
             }
 
@@ -85,6 +91,12 @@ class AlibabaOutboundMessageGateway implements \App\Domains\Inbox\Contracts\Outb
                 'external_message_id' => $externalId !== '' ? $externalId : ('local_'.$message->uuid),
                 'failed_reason' => null,
             ])->save();
+
+            try {
+                app(InboxBroadcastService::class)->messageStatusUpdated($message->refresh());
+            } catch (\Throwable) {
+                // Best-effort realtime status.
+            }
 
             if ($externalId !== '' && tenancy()->initialized) {
                 $tenantId = tenant('id');
@@ -101,7 +113,13 @@ class AlibabaOutboundMessageGateway implements \App\Domains\Inbox\Contracts\Outb
 
             $this->markFailed($message, $exception->getMessage());
 
-            throw $exception;
+            try {
+                app(InboxBroadcastService::class)->messageStatusUpdated($message->refresh());
+            } catch (\Throwable) {
+                // Best-effort.
+            }
+
+            // Do not rethrow: sync inbox sends rely on Failed status → 422 with reason.
         }
     }
 

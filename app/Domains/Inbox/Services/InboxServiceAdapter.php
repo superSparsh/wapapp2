@@ -19,6 +19,7 @@ use App\Domains\Inbox\Http\Requests\ToggleInboxResponseTypeRequest;
 use App\Domains\Templates\Support\InteractiveMessagePayloadBuilder;
 use App\Domains\WhatsappFlow\Services\WhatsappFlowInteractiveService;
 use App\Enums\ConversationResponseType;
+use App\Enums\MessageStatus;
 use App\Models\Conversation;
 use App\Models\InteractiveMessage;
 use App\Models\Message;
@@ -195,7 +196,16 @@ class InboxServiceAdapter
             file: $request->file('file'),
             mediaType: $request->validated('media_type'),
             caption: $request->validated('caption'),
+            sendImmediately: true,
         );
+
+        $message->refresh();
+
+        if ($message->status === MessageStatus::Failed) {
+            return response()->json([
+                'message' => (string) ($message->failed_reason ?: 'Unable to send media via WhatsApp.'),
+            ], 422);
+        }
 
         return response()->json($this->messagePayload($message), 201);
     }
@@ -227,7 +237,16 @@ class InboxServiceAdapter
             templateCode: $request->validated('template_code'),
             templateParams: $request->validated('template_params') ?? [],
             language: $request->validated('language'),
+            sendImmediately: true,
         );
+
+        $message->refresh();
+
+        if ($message->status === MessageStatus::Failed) {
+            return response()->json([
+                'message' => (string) ($message->failed_reason ?: 'Unable to send template via WhatsApp.'),
+            ], 422);
+        }
 
         return response()->json($this->messagePayload($message), 201);
     }
@@ -285,7 +304,16 @@ class InboxServiceAdapter
         $message = $this->localOutboundService->sendSticker(
             conversation: $conversation,
             file: $request->file('file'),
+            sendImmediately: true,
         );
+
+        $message->refresh();
+
+        if ($message->status === MessageStatus::Failed) {
+            return response()->json([
+                'message' => (string) ($message->failed_reason ?: 'Unable to send sticker via WhatsApp.'),
+            ], 422);
+        }
 
         return response()->json($this->messagePayload($message), 201);
     }
@@ -772,6 +800,7 @@ class InboxServiceAdapter
                 'direction' => $message->direction->value,
                 'status' => $message->status->value,
                 'message_type' => $message->message_type->value,
+                'time' => \App\Domains\Inbox\Support\InboxPresenter::relativeTime($message->created_at),
                 'is_outbound' => true,
                 'media_url' => is_array($message->metadata) ? ($message->metadata['media_url'] ?? null) : null,
                 'file_name' => is_array($message->metadata) ? ($message->metadata['file_name'] ?? null) : null,
@@ -782,6 +811,11 @@ class InboxServiceAdapter
                 'template_name' => is_array($message->metadata) ? ($message->metadata['template_name'] ?? null) : null,
                 'template_buttons' => is_array($message->metadata) ? ($message->metadata['template_buttons'] ?? []) : [],
                 'interactive' => is_array($message->metadata) ? ($message->metadata['interactive'] ?? null) : null,
+                'sent_at' => $message->sent_at?->toIso8601String(),
+                'delivered_at' => $message->delivered_at?->toIso8601String(),
+                'read_at' => $message->read_at?->toIso8601String(),
+                'failed_at' => $message->failed_at?->toIso8601String(),
+                'failed_reason' => $message->failed_reason,
             ],
         ];
     }
