@@ -6,6 +6,7 @@ namespace App\Domains\FormBuilder\Http\Controllers;
 
 use App\Domains\FormBuilder\Http\Requests\FormSubmissionRequest;
 use App\Domains\FormBuilder\Services\FormSubmissionService;
+use App\Domains\FormBuilder\Support\FormFieldNormalizer;
 use App\Http\Controllers\Controller;
 use App\Models\SignupForm;
 use Illuminate\Http\JsonResponse;
@@ -32,7 +33,9 @@ class PublicFormController extends Controller
 
         return view('form-builder.public', [
             'form' => $form,
-            'fields' => $fields,
+            'fields' => FormFieldNormalizer::normalizeList(
+                is_array($form->fields) ? $form->fields : []
+            ),
             'redirectUrl' => $form->redirect_url,
         ]);
     }
