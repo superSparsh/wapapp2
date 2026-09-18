@@ -11,7 +11,7 @@ use Illuminate\Support\Str;
 return new class extends Migration
 {
     /** @var list<string> */
-    private array $tables = ['plans', 'announcements', 'country_pricing', 'cloud_bill_uploads'];
+    private array $tables = ['plans', 'announcements', 'cloud_bill_uploads'];
 
     public function up(): void
     {

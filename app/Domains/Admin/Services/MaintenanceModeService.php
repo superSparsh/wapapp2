@@ -78,7 +78,7 @@ class MaintenanceModeService
 
     public function state(): array
     {
-        return Cache::remember(self::CACHE_KEY, self::CACHE_TTL_SECONDS, function (): array {
+        return tenancy()->central(fn (): array => Cache::remember(self::CACHE_KEY, self::CACHE_TTL_SECONDS, function (): array {
             $stored = PlatformSetting::query()
                 ->where('key', 'like', 'maintenance.%')
                 ->pluck('value', 'key');
@@ -98,7 +98,7 @@ class MaintenanceModeService
                 'until' => filled($stored['maintenance.until'] ?? null) ? (string) $stored['maintenance.until'] : null,
                 'modules' => $modules,
             ];
-        });
+        }));
     }
 
     public function enabled(): bool
@@ -178,11 +178,11 @@ class MaintenanceModeService
             );
         }
 
-        Cache::forget(self::CACHE_KEY);
+        tenancy()->central(fn () => Cache::forget(self::CACHE_KEY));
     }
 
     public function refresh(): void
     {
-        Cache::forget(self::CACHE_KEY);
+        tenancy()->central(fn () => Cache::forget(self::CACHE_KEY));
     }
 }

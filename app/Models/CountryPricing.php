@@ -4,20 +4,17 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use App\Models\Concerns\HasPublicUuid;
 use App\Models\Concerns\UsesCentralConnection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class CountryPricing extends Model
 {
-    use HasPublicUuid;
     use UsesCentralConnection;
 
     protected $table = 'country_pricing';
 
     protected $fillable = [
-        'uuid',
         'admin_id',
         'country_name',
         'country_code',

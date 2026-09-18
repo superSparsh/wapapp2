@@ -120,6 +120,21 @@ return new class extends Migration
         } catch (\Throwable) {
             // ignore on non-MySQL
         }
+
+        // Legacy country_pricing has no uuid; drop if a prior migration added it.
+        if (Schema::hasColumn('country_pricing', 'uuid')) {
+            try {
+                Schema::table('country_pricing', function (Blueprint $table): void {
+                    $table->dropUnique(['uuid']);
+                });
+            } catch (\Throwable) {
+                // Unique index may already be absent (SQLite / renamed).
+            }
+
+            Schema::table('country_pricing', function (Blueprint $table): void {
+                $table->dropColumn('uuid');
+            });
+        }
     }
 
     private function renameIfExists(string $from, string $to): void
