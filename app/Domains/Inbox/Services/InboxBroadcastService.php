@@ -93,6 +93,26 @@ class InboxBroadcastService
     private function messagePayload(Message $message): array
     {
         $metadata = is_array($message->metadata) ? $message->metadata : [];
+        $mediaUrl = isset($metadata['media_url']) ? (string) $metadata['media_url'] : null;
+        $fileName = isset($metadata['file_name']) ? (string) $metadata['file_name'] : null;
+
+        if (($mediaUrl === null || $mediaUrl === '') && is_array($metadata['raw_message'] ?? null)) {
+            $raw = $metadata['raw_message'];
+            foreach (['link', 'url', 'media_url'] as $key) {
+                if (isset($raw[$key]) && is_string($raw[$key]) && trim($raw[$key]) !== '') {
+                    $mediaUrl = trim($raw[$key]);
+                    break;
+                }
+            }
+            if ($fileName === null || $fileName === '') {
+                foreach (['fileName', 'filename', 'file_name'] as $key) {
+                    if (isset($raw[$key]) && is_string($raw[$key]) && trim($raw[$key]) !== '') {
+                        $fileName = trim($raw[$key]);
+                        break;
+                    }
+                }
+            }
+        }
 
         return [
             'uuid' => $message->uuid,
@@ -102,8 +122,8 @@ class InboxBroadcastService
             'message_type' => $message->message_type->value,
             'time' => InboxPresenter::relativeTime($message->created_at),
             'is_outbound' => $message->direction === MessageDirection::Outbound,
-            'media_url' => isset($metadata['media_url']) ? (string) $metadata['media_url'] : null,
-            'file_name' => isset($metadata['file_name']) ? (string) $metadata['file_name'] : null,
+            'media_url' => $mediaUrl !== '' ? $mediaUrl : null,
+            'file_name' => $fileName !== '' ? $fileName : null,
             'latitude' => isset($metadata['latitude']) ? (float) $metadata['latitude'] : null,
             'longitude' => isset($metadata['longitude']) ? (float) $metadata['longitude'] : null,
             'contacts' => isset($metadata['contacts']) && is_array($metadata['contacts']) ? $metadata['contacts'] : null,

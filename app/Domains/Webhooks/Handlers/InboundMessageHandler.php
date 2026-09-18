@@ -188,6 +188,7 @@ class InboundMessageHandler
                         messageType: $messageType->value,
                         linePhone: $line->phone,
                         contactId: (int) $conversation->contact_id,
+                        metadata: $parsedReply['metadata'] !== [] ? $parsedReply['metadata'] : null,
                     );
                 } catch (\Throwable $e) {
                     Log::warning('Failed forwarding inbound message to inbox microservice', [
@@ -212,6 +213,7 @@ class InboundMessageHandler
     /**
      * Parse inbound Message field into a readable body + chatbot metadata.
      * Legacy parity: button_reply / list_reply titles drive routing; ids are stored separately.
+     * Media types store CAMS `link` / `fileName` as metadata.media_url for inbox bubbles.
      *
      * @param  array<string, mixed>  $item
      * @return array{body: string, is_interactive: bool, metadata: array<string, mixed>}
@@ -249,19 +251,24 @@ class InboundMessageHandler
                 }
             }
             if ($decoded === null) {
+                $mediaMeta = $this->extractRichMediaMetadata($type, null, $trimmed);
+
                 return [
-                    'body' => $trimmed,
+                    'body' => $mediaMeta['caption'] !== '' ? $mediaMeta['caption'] : $trimmed,
                     'is_interactive' => false,
-                    'metadata' => [],
+                    'metadata' => $mediaMeta['metadata'],
                 ];
             }
         } else {
             $itemText = $this->extractReadableText($item);
+            $mediaMeta = $this->extractRichMediaMetadata($type, is_array($item) ? $item : null, $itemText);
 
             return [
-                'body' => $itemText ?? ('['.$type.' message]'),
+                'body' => $mediaMeta['caption'] !== ''
+                    ? $mediaMeta['caption']
+                    : ($itemText ?? ('['.$type.' message]')),
                 'is_interactive' => false,
-                'metadata' => [],
+                'metadata' => $mediaMeta['metadata'],
             ];
         }
 
@@ -353,12 +360,19 @@ class InboundMessageHandler
             ];
         }
 
-        $readable = $this->extractReadableText($decoded);
-        if ($readable !== null) {
+        $mediaMeta = $this->extractRichMediaMetadata($type, $decoded, null);
+        $readable = $mediaMeta['caption'] !== ''
+            ? $mediaMeta['caption']
+            : $this->extractReadableText($decoded);
+
+        if ($readable !== null || $mediaMeta['metadata'] !== []) {
             return [
-                'body' => $readable,
+                'body' => $readable ?? ('['.$type.' message]'),
                 'is_interactive' => false,
-                'metadata' => ['raw_message' => $decoded],
+                'metadata' => array_filter(array_merge(
+                    ['raw_message' => $decoded],
+                    $mediaMeta['metadata'],
+                ), fn ($v) => $v !== null && $v !== []),
             ];
         }
 
@@ -384,6 +398,127 @@ class InboundMessageHandler
             'is_interactive' => false,
             'metadata' => is_array($decoded) ? ['raw_message' => $decoded] : [],
         ];
+    }
+
+    /**
+     * Promote CAMS / Cloud API media, location, and contact fields into inbox metadata.
+     *
+     * @return array{caption: string, metadata: array<string, mixed>}
+     */
+    private function extractRichMediaMetadata(string $type, ?array $decoded, ?string $plainBody): array
+    {
+        $type = strtoupper($type);
+        $metadata = [];
+        $caption = '';
+
+        $mediaTypes = ['IMAGE', 'VIDEO', 'AUDIO', 'DOCUMENT', 'STICKER'];
+        $locationTypes = ['LOCATION'];
+        $contactTypes = ['CONTACT', 'CONTACTS'];
+
+        if (in_array($type, $mediaTypes, true)) {
+            $link = $this->firstNonEmptyString(
+                $decoded['link'] ?? null,
+                $decoded['url'] ?? null,
+                $decoded['media_url'] ?? null,
+                is_array($decoded['image'] ?? null) ? ($decoded['image']['link'] ?? $decoded['image']['url'] ?? null) : null,
+                is_array($decoded['video'] ?? null) ? ($decoded['video']['link'] ?? $decoded['video']['url'] ?? null) : null,
+                is_array($decoded['audio'] ?? null) ? ($decoded['audio']['link'] ?? $decoded['audio']['url'] ?? null) : null,
+                is_array($decoded['document'] ?? null) ? ($decoded['document']['link'] ?? $decoded['document']['url'] ?? null) : null,
+                is_array($decoded['sticker'] ?? null) ? ($decoded['sticker']['link'] ?? $decoded['sticker']['url'] ?? null) : null,
+            );
+
+            if ($link === null && is_string($plainBody) && $this->looksLikeHttpUrl($plainBody)) {
+                $link = $plainBody;
+            }
+
+            if ($link !== null) {
+                $metadata['media_url'] = $link;
+            }
+
+            $fileName = $this->firstNonEmptyString(
+                $decoded['fileName'] ?? null,
+                $decoded['filename'] ?? null,
+                $decoded['file_name'] ?? null,
+                is_array($decoded['document'] ?? null) ? ($decoded['document']['filename'] ?? $decoded['document']['fileName'] ?? null) : null,
+            );
+            if ($fileName !== null) {
+                $metadata['file_name'] = $fileName;
+            }
+
+            $fileType = $this->firstNonEmptyString(
+                $decoded['fileType'] ?? null,
+                $decoded['mime_type'] ?? null,
+                $decoded['file_type'] ?? null,
+                is_array($decoded['document'] ?? null) ? ($decoded['document']['mime_type'] ?? null) : null,
+            );
+            if ($fileType !== null) {
+                $metadata['file_type'] = $fileType;
+            }
+
+            $caption = (string) ($this->firstNonEmptyString(
+                $decoded['text'] ?? null,
+                $decoded['caption'] ?? null,
+                is_array($decoded['image'] ?? null) ? ($decoded['image']['caption'] ?? null) : null,
+                is_array($decoded['video'] ?? null) ? ($decoded['video']['caption'] ?? null) : null,
+                is_array($decoded['document'] ?? null) ? ($decoded['document']['caption'] ?? null) : null,
+            ) ?? '');
+
+            // Plain body that is only the media URL should not become the caption.
+            if ($caption === '' && is_string($plainBody) && ! $this->looksLikeHttpUrl($plainBody)) {
+                $caption = $plainBody;
+            }
+        }
+
+        if (in_array($type, $locationTypes, true) && is_array($decoded)) {
+            $lat = $decoded['latitude'] ?? $decoded['lat']
+                ?? (is_array($decoded['location'] ?? null) ? ($decoded['location']['latitude'] ?? null) : null);
+            $lng = $decoded['longitude'] ?? $decoded['lng'] ?? $decoded['long']
+                ?? (is_array($decoded['location'] ?? null) ? ($decoded['location']['longitude'] ?? null) : null);
+
+            if (is_numeric($lat) && is_numeric($lng)) {
+                $metadata['latitude'] = (float) $lat;
+                $metadata['longitude'] = (float) $lng;
+                $caption = sprintf('%s, %s', $lat, $lng);
+            }
+        }
+
+        if (in_array($type, $contactTypes, true) && is_array($decoded)) {
+            $contacts = $decoded['contacts'] ?? null;
+            if (! is_array($contacts) && isset($decoded['name'])) {
+                $contacts = [$decoded];
+            }
+            if (is_array($contacts) && $contacts !== []) {
+                $metadata['contacts'] = $contacts;
+                $first = $contacts[0] ?? null;
+                if (is_array($first)) {
+                    $caption = (string) ($this->firstNonEmptyString(
+                        is_array($first['name'] ?? null) ? ($first['name']['formatted_name'] ?? $first['name']['first_name'] ?? null) : null,
+                        is_string($first['name'] ?? null) ? $first['name'] : null,
+                    ) ?? 'Contact');
+                }
+            }
+        }
+
+        return [
+            'caption' => $caption,
+            'metadata' => $metadata,
+        ];
+    }
+
+    private function firstNonEmptyString(mixed ...$candidates): ?string
+    {
+        foreach ($candidates as $candidate) {
+            if (is_string($candidate) && trim($candidate) !== '') {
+                return trim($candidate);
+            }
+        }
+
+        return null;
+    }
+
+    private function looksLikeHttpUrl(string $value): bool
+    {
+        return (bool) preg_match('#^https?://#i', trim($value));
     }
 
     /**
@@ -456,7 +591,7 @@ class InboundMessageHandler
             'DOCUMENT' => MessageType::Document,
             'INTERACTIVE', 'REPLY' => MessageType::Interactive,
             'LOCATION' => MessageType::Location,
-            'CONTACT' => MessageType::Contact,
+            'CONTACT', 'CONTACTS' => MessageType::Contact,
             'STICKER' => MessageType::Sticker,
             'ORDER' => MessageType::Order,
             default => MessageType::Text,

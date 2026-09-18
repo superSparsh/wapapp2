@@ -58,16 +58,20 @@ function shouldIgnoreLink(anchor) {
 
 /**
  * Show immediately so full-page navigations paint the loader before unload.
- * If another handler preventDefaults (AJAX/modals), hide on the next microtask.
+ * If another handler preventDefaults (AJAX/modals), hide as soon as we can detect it.
  */
 function showUnlessCancelled(event, label) {
     showPageLoader(label);
 
-    queueMicrotask(() => {
+    const hideIfPrevented = () => {
         if (event.defaultPrevented) {
             hidePageLoader();
         }
-    });
+    };
+
+    queueMicrotask(hideIfPrevented);
+    // Backup: some async/capture orderings resolve preventDefault after the microtask.
+    window.setTimeout(hideIfPrevented, 0);
 }
 
 export function initPageLoader() {
@@ -90,6 +94,16 @@ export function initPageLoader() {
         const form = event.target;
         if (!(form instanceof HTMLFormElement)) return;
         if (form.dataset.noLoader !== undefined || form.closest('[data-no-loader]')) return;
+
+        // Inbox / modal forms are handled via fetch — never leave the full-page loader up.
+        if (
+            form.closest('[data-modal]')
+            || form.closest('[data-inbox-chat]')
+            || form.closest('[data-inbox-root]')
+            || form.matches('[data-inbox-send-form], [data-inbox-template-form], [data-inbox-media-form], [data-inbox-flow-form], [data-inbox-interactive-form], [data-inbox-location-form], [data-inbox-sticker-form], [data-inbox-contact-form], [data-inbox-payment-form], [data-inbox-compose-form], [data-inbox-reaction-form], [data-inbox-add-contact-form]')
+        ) {
+            return;
+        }
 
         // Confirm dialog intercepts the first submit; don't cover the modal with a loader.
         if (form.dataset.confirm && form.dataset.confirmBypass !== 'true') return;

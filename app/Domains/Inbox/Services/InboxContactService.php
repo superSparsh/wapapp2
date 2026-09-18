@@ -39,7 +39,7 @@ class InboxContactService
 
         abort_if($existing !== null, 422, 'Contact already exists.');
 
-        return DB::transaction(function () use ($line, $name, $normalizedPhone, $responseType): Conversation {
+        $conversation = DB::transaction(function () use ($line, $name, $normalizedPhone, $responseType): Conversation {
             $conversation = $this->conversationService->findOrCreateConversation(
                 line: $line,
                 contactPhone: $normalizedPhone,
@@ -65,10 +65,12 @@ class InboxContactService
                 'sent_at' => now(),
             ]);
 
-            $conversation = $conversation->refresh();
-            $this->broadcastService->threadUpdated($conversation);
-
-            return $conversation;
+            return $conversation->refresh();
         });
+
+        // Broadcast after commit — shouldBroadcast() may enter tenancy()->central().
+        $this->broadcastService->threadUpdated($conversation);
+
+        return $conversation;
     }
 }

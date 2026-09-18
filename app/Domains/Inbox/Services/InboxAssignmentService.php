@@ -43,14 +43,12 @@ class InboxAssignmentService
 
     public function assign(Conversation $conversation, ?string $assigneeKey): Conversation
     {
-        return DB::transaction(function () use ($conversation, $assigneeKey): Conversation {
+        $updated = DB::transaction(function () use ($conversation, $assigneeKey): Conversation {
             if ($assigneeKey === null || $assigneeKey === '' || $assigneeKey === 'unassigned') {
                 $conversation->forceFill([
                     'assigned_user_id' => null,
                     'assigned_team_member_id' => null,
                 ])->save();
-
-                app(InboxBroadcastService::class)->threadUpdated($conversation->refresh());
 
                 return $conversation->refresh();
             }
@@ -68,8 +66,6 @@ class InboxAssignmentService
                     'assigned_team_member_id' => null,
                 ])->save();
 
-                app(InboxBroadcastService::class)->threadUpdated($conversation->refresh());
-
                 return $conversation->refresh();
             }
 
@@ -80,13 +76,16 @@ class InboxAssignmentService
                     'assigned_team_member_id' => $member->id,
                 ])->save();
 
-                app(InboxBroadcastService::class)->threadUpdated($conversation->refresh());
-
                 return $conversation->refresh();
             }
 
             abort(422, 'Invalid assignee type.');
         });
+
+        // Broadcast after commit — shouldBroadcast() may enter tenancy()->central().
+        app(InboxBroadcastService::class)->threadUpdated($updated);
+
+        return $updated;
     }
 
     public function resolveAssigneeFilter(?string $assigneeKey): ?array

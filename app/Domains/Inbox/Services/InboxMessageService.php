@@ -74,6 +74,28 @@ class InboxMessageService
             ? $metadata['interactive']
             : null;
 
+        $mediaUrl = isset($metadata['media_url']) ? (string) $metadata['media_url'] : null;
+        $fileName = isset($metadata['file_name']) ? (string) $metadata['file_name'] : null;
+
+        // Backfill from raw webhook payload when older inbound media lacked media_url.
+        if (($mediaUrl === null || $mediaUrl === '') && is_array($metadata['raw_message'] ?? null)) {
+            $raw = $metadata['raw_message'];
+            foreach (['link', 'url', 'media_url'] as $key) {
+                if (isset($raw[$key]) && is_string($raw[$key]) && trim($raw[$key]) !== '') {
+                    $mediaUrl = trim($raw[$key]);
+                    break;
+                }
+            }
+            if ($fileName === null || $fileName === '') {
+                foreach (['fileName', 'filename', 'file_name'] as $key) {
+                    if (isset($raw[$key]) && is_string($raw[$key]) && trim($raw[$key]) !== '') {
+                        $fileName = trim($raw[$key]);
+                        break;
+                    }
+                }
+            }
+        }
+
         return [
             'id' => (int) $message->id,
             'uuid' => $message->uuid,
@@ -83,8 +105,8 @@ class InboxMessageService
             'message_type' => $messageType,
             'time' => InboxPresenter::relativeTime($message->created_at),
             'is_outbound' => $message->direction === MessageDirection::Outbound,
-            'media_url' => isset($metadata['media_url']) ? (string) $metadata['media_url'] : null,
-            'file_name' => isset($metadata['file_name']) ? (string) $metadata['file_name'] : null,
+            'media_url' => $mediaUrl !== '' ? $mediaUrl : null,
+            'file_name' => $fileName !== '' ? $fileName : null,
             'latitude' => isset($metadata['latitude']) ? (float) $metadata['latitude'] : null,
             'longitude' => isset($metadata['longitude']) ? (float) $metadata['longitude'] : null,
             'contacts' => isset($metadata['contacts']) && is_array($metadata['contacts']) ? $metadata['contacts'] : null,
@@ -167,7 +189,7 @@ class InboxMessageService
 
         abort_if($body === '', 422, 'Message body is required.');
 
-        return DB::transaction(function () use ($conversation, $body): Message {
+        $message = DB::transaction(function () use ($conversation, $body): Message {
             $now = now();
 
             $message = Message::query()->create([
@@ -183,15 +205,19 @@ class InboxMessageService
                 'replied_at' => $now,
             ])->save();
 
-            SendOutboundMessageJob::dispatch($message->id);
-
             return $message->refresh();
         });
+
+        SendOutboundMessageJob::dispatch($message->id);
+
+        return $message;
     }
 
     public function markRead(Conversation $conversation): void
     {
-        DB::transaction(function () use ($conversation): void {
+        $shouldBroadcast = false;
+
+        DB::transaction(function () use ($conversation, &$shouldBroadcast): void {
             Message::query()
                 ->where('conversation_id', $conversation->id)
                 ->where('direction', MessageDirection::Inbound)
@@ -203,9 +229,15 @@ class InboxMessageService
 
             if ($conversation->unread_count > 0) {
                 $conversation->forceFill(['unread_count' => 0])->save();
-                app(InboxBroadcastService::class)->threadUpdated($conversation->refresh());
+                $shouldBroadcast = true;
             }
         });
+
+        // Broadcast after the tenant transaction commits. shouldBroadcast() may call
+        // tenancy()->central(), which would otherwise discard the unread clear.
+        if ($shouldBroadcast) {
+            app(InboxBroadcastService::class)->threadUpdated($conversation->refresh());
+        }
     }
 
     /**

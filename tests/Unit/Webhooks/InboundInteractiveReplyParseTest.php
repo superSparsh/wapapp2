@@ -122,4 +122,60 @@ class InboundInteractiveReplyParseTest extends TestCase
         $this->assertFalse($result['is_interactive']);
         $this->assertSame('Hello from object', $result['body']);
     }
+
+    public function test_image_message_extracts_media_url_and_caption(): void
+    {
+        $result = $this->parse([
+            'Type' => 'IMAGE',
+            'Message' => json_encode([
+                'link' => 'https://cdn.example.com/photo.jpg',
+                'text' => 'Look at this',
+            ], JSON_THROW_ON_ERROR),
+        ]);
+
+        $this->assertFalse($result['is_interactive']);
+        $this->assertSame('Look at this', $result['body']);
+        $this->assertSame('https://cdn.example.com/photo.jpg', $result['metadata']['media_url']);
+    }
+
+    public function test_document_message_extracts_link_and_filename(): void
+    {
+        $result = $this->parse([
+            'Type' => 'DOCUMENT',
+            'Message' => json_encode([
+                'link' => 'https://cdn.example.com/invoice.pdf',
+                'fileName' => 'invoice.pdf',
+                'fileType' => 'application/pdf',
+            ], JSON_THROW_ON_ERROR),
+        ]);
+
+        $this->assertSame('https://cdn.example.com/invoice.pdf', $result['metadata']['media_url']);
+        $this->assertSame('invoice.pdf', $result['metadata']['file_name']);
+        $this->assertSame('application/pdf', $result['metadata']['file_type']);
+    }
+
+    public function test_plain_image_url_becomes_media_url(): void
+    {
+        $result = $this->parse([
+            'Type' => 'IMAGE',
+            'Message' => 'https://cdn.example.com/legacy-style.jpg',
+        ]);
+
+        $this->assertSame('https://cdn.example.com/legacy-style.jpg', $result['metadata']['media_url']);
+        $this->assertSame('https://cdn.example.com/legacy-style.jpg', $result['body']);
+    }
+
+    public function test_location_message_extracts_coordinates(): void
+    {
+        $result = $this->parse([
+            'Type' => 'LOCATION',
+            'Message' => json_encode([
+                'latitude' => '28.6139',
+                'longitude' => '77.2090',
+            ], JSON_THROW_ON_ERROR),
+        ]);
+
+        $this->assertSame(28.6139, $result['metadata']['latitude']);
+        $this->assertSame(77.2090, $result['metadata']['longitude']);
+    }
 }

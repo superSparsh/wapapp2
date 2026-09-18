@@ -80,9 +80,9 @@
               <div class="flex items-center justify-between gap-2">
                 <p class="fd-table-cell truncate text-xs opacity-50" data-thread-preview>{{ $thread['preview'] }}</p>
                 @if (! empty($thread['unread']))
-                  <span class="fd-status-chip flex size-4 shrink-0 items-center justify-center rounded-full bg-green-500 text-white" data-thread-unread>{{ $thread['unread'] }}</span>
+                  <span class="fd-status-chip flex h-4 min-w-4 shrink-0 items-center justify-center rounded-full bg-green-500 px-1 text-white" data-thread-unread>{{ $thread['unread'] }}</span>
                 @else
-                  <span class="fd-status-chip hidden size-4 shrink-0 items-center justify-center rounded-full bg-green-500 text-white" data-thread-unread></span>
+                  <span class="fd-status-chip hidden h-4 min-w-4 shrink-0 items-center justify-center rounded-full bg-green-500 px-1 text-white" data-thread-unread></span>
                 @endif
               </div>
             </div>

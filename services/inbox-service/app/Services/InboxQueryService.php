@@ -102,7 +102,8 @@ class InboxQueryService
 
         $this->applyTeamMemberScope($query);
 
-        return (int) $query->sum('unread_count');
+        // Nav badge = chats with unread inbound messages (not message sum).
+        return (int) $query->count();
     }
 
     /**

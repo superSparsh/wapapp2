@@ -232,4 +232,88 @@ class InboxHttpTest extends TestCase
             ->assertJsonPath('latest.preview', 'Count me')
             ->assertJsonPath('latest.name', 'Unread API');
     }
+
+    public function test_unread_total_counts_chats_not_messages(): void
+    {
+        $contactA = Contact::factory()->create(['name' => 'Chat A', 'phone' => '918888888821']);
+        $contactB = Contact::factory()->create(['name' => 'Chat B', 'phone' => '918888888822']);
+
+        $conversationA = Conversation::factory()->create([
+            'whatsapp_line_id' => $this->testLine->id,
+            'contact_id' => $contactA->id,
+            'contact_phone' => $contactA->phone,
+            'line_phone' => $this->testLine->phone,
+            'contact_name' => $contactA->name,
+            'unread_count' => 3,
+            'last_message_at' => now(),
+        ]);
+        $conversationB = Conversation::factory()->create([
+            'whatsapp_line_id' => $this->testLine->id,
+            'contact_id' => $contactB->id,
+            'contact_phone' => $contactB->phone,
+            'line_phone' => $this->testLine->phone,
+            'contact_name' => $contactB->name,
+            'unread_count' => 1,
+            'last_message_at' => now()->subSecond(),
+        ]);
+
+        $this->messageService->recordInbound($conversationA, 'A latest');
+        $this->messageService->recordInbound($conversationB, 'B1');
+
+        // Nav badge = chats with unread, not sum of message unread_counts (3+1+…).
+        $this->assertGreaterThan(0, $conversationA->fresh()->unread_count);
+        $this->assertGreaterThan(0, $conversationB->fresh()->unread_count);
+
+        $this->actingAsTenantUser()
+            ->getJson(route('inbox.api.unread-count'))
+            ->assertOk()
+            ->assertJsonPath('unread_total', 2);
+
+        $this->actingAsTenantUser()
+            ->getJson(route('inbox.api.threads'))
+            ->assertOk()
+            ->assertJsonPath('unread_total', 2);
+
+        $this->actingAsTenantUser()
+            ->postJson(route('inbox.api.read', $conversationA))
+            ->assertOk();
+
+        $this->assertSame(0, $conversationA->fresh()->unread_count);
+
+        $this->actingAsTenantUser()
+            ->getJson(route('inbox.api.unread-count'))
+            ->assertOk()
+            ->assertJsonPath('unread_total', 1);
+    }
+
+    public function test_opening_conversation_clears_thread_unread_badge(): void
+    {
+        $contact = Contact::factory()->create(['name' => 'Open Clear', 'phone' => '918888888823']);
+        $conversation = Conversation::factory()->create([
+            'whatsapp_line_id' => $this->testLine->id,
+            'contact_id' => $contact->id,
+            'contact_phone' => $contact->phone,
+            'line_phone' => $this->testLine->phone,
+            'contact_name' => $contact->name,
+            'last_message_at' => now(),
+        ]);
+
+        $this->messageService->recordInbound($conversation, 'See me');
+        $this->messageService->recordInbound($conversation->fresh(), 'And me');
+
+        $html = $this->actingAsTenantUser()
+            ->get(route('inbox.show', $conversation))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertSame(0, $conversation->fresh()->unread_count);
+        $this->assertMatchesRegularExpression(
+            '/data-thread-uuid="'.$conversation->uuid.'"[^>]*>[\s\S]*?data-thread-unread[^>]*><\/span>/',
+            $html,
+        );
+        $this->assertDoesNotMatchRegularExpression(
+            '/data-thread-uuid="'.$conversation->uuid.'"[^>]*>[\s\S]*?data-thread-unread[^>]*>\s*[1-9]/',
+            $html,
+        );
+    }
 }

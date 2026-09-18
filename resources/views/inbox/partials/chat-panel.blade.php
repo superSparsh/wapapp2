@@ -291,7 +291,6 @@
       data-inbox-window-banner
       class="hidden rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-900"
       role="status"
-      style="white-space: pre-line"
     >
       <span data-inbox-window-banner-text>
         Session expired. Send an approved template message to reach this contact again.
@@ -302,7 +301,7 @@ Sending a template alone does not start that window — the customer still needs
       </span>
     </div>
 
-    <form data-inbox-send-form data-inbox-composer class="relative">
+    <form data-inbox-send-form data-inbox-composer data-no-loader class="relative">
       <div class="flex items-center gap-3.5 rounded-lg bg-elevated p-3.5">
         <div class="relative z-50 shrink-0" data-inbox-menu-anchor>
           <button

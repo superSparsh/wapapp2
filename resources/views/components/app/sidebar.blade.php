@@ -149,7 +149,7 @@
             @php $inboxBadge = (string) ($item['badge'] ?? ''); @endphp
             <span
               @class([
-                'flex size-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold leading-[1.5]',
+                'flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full px-1 text-[10px] font-bold leading-[1.5]',
                 'bg-white text-green-700' => $isParentActive,
                 'bg-green-500 text-white' => ! $isParentActive,
                 'hidden' => $inboxBadge === '',

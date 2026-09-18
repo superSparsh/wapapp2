@@ -1,7 +1,7 @@
 @php $modal = config('inbox-modals.send-templates'); @endphp
 <x-inbox.modal id="send-templates" :title="$modal['title']" :subtitle="$modal['subtitle']" :open="$open ?? false">
     <x-inbox.modal-form>
-        <form class="flex flex-col gap-6" data-inbox-template-form>
+        <form class="flex flex-col gap-6" data-inbox-template-form data-no-loader>
             <div class="flex flex-col gap-2">
                 <x-form.label for="template_code">Select Template <span class="text-red-500">*</span></x-form.label>
                 <select

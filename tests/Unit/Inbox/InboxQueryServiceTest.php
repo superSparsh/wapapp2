@@ -124,4 +124,25 @@ class InboxQueryServiceTest extends TestCase
                 ->count()
         );
     }
+
+    public function test_total_unread_counts_chats_not_message_sum(): void
+    {
+        $contact = Contact::factory()->create(['phone' => '918888888804']);
+        $conversation = Conversation::factory()->create([
+            'whatsapp_line_id' => $this->testLine->id,
+            'contact_id' => $contact->id,
+            'contact_phone' => $contact->phone,
+            'line_phone' => $this->testLine->phone,
+            'contact_name' => $contact->name,
+            'last_message_at' => now(),
+        ]);
+
+        $this->messageService->recordInbound($conversation, 'One');
+        $this->messageService->recordInbound($conversation->fresh(), 'Two');
+        $this->messageService->recordInbound($conversation->fresh(), 'Three');
+
+        $this->assertSame(3, $conversation->fresh()->unread_count);
+        $this->assertSame(1, $this->queryService->totalUnreadCount($this->testLine));
+        $this->assertSame(1, $this->queryService->unreadSnapshot()['unread_total']);
+    }
 }

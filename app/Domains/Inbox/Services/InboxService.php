@@ -55,6 +55,15 @@ class InboxService
             $this->messageService->markRead($selected);
             $selected->refresh();
 
+            // Threads were loaded before markRead — keep open chat badge cleared.
+            $threads['items'] = array_map(static function (array $thread) use ($selected): array {
+                if (($thread['uuid'] ?? null) === $selected->uuid) {
+                    $thread['unread'] = 0;
+                }
+
+                return $thread;
+            }, $threads['items']);
+
             $paginatedMessages = $this->messageService->paginateMessages(
                 conversation: $selected,
                 lookbackDays: $filters['lookback_days'],

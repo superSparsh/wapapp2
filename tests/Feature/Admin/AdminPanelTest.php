@@ -220,7 +220,8 @@ class AdminPanelTest extends TestCase
         $this->get(route('dashboard'))
             ->assertOk()
             ->assertSee('Admin Area')
-            ->assertDontSee('Admin view as customer');
+            ->assertDontSee('Admin view as customer')
+            ->assertDontSee('Return to admin');
     }
 
     public function test_customer_view_into_linked_account_does_not_show_view_as_customer_banner(): void
@@ -244,7 +245,8 @@ class AdminPanelTest extends TestCase
         $this->get(route('dashboard'))
             ->assertOk()
             ->assertSee('Admin Area')
-            ->assertDontSee('Admin view as customer');
+            ->assertDontSee('Admin view as customer')
+            ->assertDontSee('Return to admin');
     }
 
     public function test_admin_can_manage_plans(): void

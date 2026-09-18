@@ -11,8 +11,8 @@
       <button type="submit" class="font-semibold text-amber-900 underline">Return to admin</button>
     </form>
   </div>
-@elseif (! empty($isAdminImpersonating))
-  {{-- Own customer or regular login-as without Admin View: keep a way back, without the Super banner --}}
+@elseif (! empty($isAdminImpersonating) && empty($isAdminOwnCustomer))
+  {{-- Regular login-as (not the admin's own customer account): keep a way back --}}
   <div class="flex items-center justify-end gap-4 border-b border-border-light bg-elevated px-4 py-1.5 text-xs text-text-muted">
     <form method="post" action="{{ route('admin.impersonation.stop') }}">
       @csrf

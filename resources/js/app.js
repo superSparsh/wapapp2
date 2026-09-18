@@ -868,7 +868,8 @@ function applyInboxUnreadSnapshot(data, { notify = true } = {}) {
 }
 
 function inboxUnreadTotalFromDom() {
-    let total = 0;
+    // Nav badge = chats with unread inbound, not sum of message counts.
+    let chats = 0;
 
     document.querySelectorAll('[data-inbox-thread-list] [data-thread-unread]').forEach((el) => {
         if (el.classList.contains('hidden')) {
@@ -877,11 +878,23 @@ function inboxUnreadTotalFromDom() {
 
         const count = Number(el.textContent || 0);
         if (Number.isFinite(count) && count > 0) {
-            total += count;
+            chats += 1;
         }
     });
 
-    return total;
+    return chats;
+}
+
+function inboxUnreadChatCountFromSeen() {
+    let chats = 0;
+
+    inboxUnreadSeen.forEach((count) => {
+        if (Number(count) > 0) {
+            chats += 1;
+        }
+    });
+
+    return chats;
 }
 
 function setInboxNavBadge(count) {
@@ -956,11 +969,35 @@ function rememberThreadUnread(thread) {
     }
 
     const next = Number(thread.unread || 0);
-    const prev = inboxUnreadSeen.has(thread.uuid) ? inboxUnreadSeen.get(thread.uuid) : 0;
+    const prev = inboxUnreadSeen.has(thread.uuid) ? Number(inboxUnreadSeen.get(thread.uuid) || 0) : 0;
     inboxUnreadSeen.set(thread.uuid, next);
 
-    if (next > prev) {
-        showInboxWebNotification(thread);
+    const wasUnread = prev > 0;
+    const isUnread = next > 0;
+
+    // Nav badge tracks chats, not messages: ±1 when a chat crosses unread/read.
+    if (wasUnread !== isUnread) {
+        const root = inboxRoot();
+        const current = Number(root?.dataset.unreadTotal || 0);
+        setInboxNavBadge(Math.max(0, current + (isUnread ? 1 : -1)));
+    }
+}
+
+function refreshInboxNavBadgeFromThreads() {
+    // Prefer chat count from the seen map when available; never inflate past a
+    // higher server/API total (thread list can be a partial page).
+    if (inboxUnreadSeen.size === 0) {
+        setInboxNavBadge(inboxUnreadTotalFromDom());
+
+        return;
+    }
+
+    const chats = inboxUnreadChatCountFromSeen();
+    const root = inboxRoot();
+    const current = Number(root?.dataset.unreadTotal || 0);
+
+    if (chats <= current) {
+        setInboxNavBadge(chats);
     }
 }
 
@@ -997,7 +1034,7 @@ function buildThreadRowHtml(thread, selectedUuid = null) {
                     <p class="${phoneClass} truncate text-[11px] leading-tight text-text-body/55" data-thread-phone>${escapeHtml(phone)}</p>
                     <div class="flex items-center justify-between gap-2">
                         <p class="fd-table-cell truncate text-xs opacity-50" data-thread-preview>${escapeHtml(thread.preview || '')}</p>
-                        <span class="fd-status-chip ${unreadClass} size-4 shrink-0 items-center justify-center rounded-full bg-green-500 text-white" data-thread-unread>${unreadCount > 0 ? unreadCount : ''}</span>
+                        <span class="fd-status-chip ${unreadClass} h-4 min-w-4 shrink-0 items-center justify-center rounded-full bg-green-500 px-1 text-white" data-thread-unread>${unreadCount > 0 ? unreadCount : ''}</span>
                     </div>
                 </div>
             </div>
@@ -1010,6 +1047,12 @@ function upsertThreadRow(thread) {
         return;
     }
 
+    // WhatsApp parity: the open chat is considered read — never keep a badge on it.
+    const openUuid = inboxSelectedConversationUuid();
+    if (openUuid && thread.uuid === openUuid) {
+        thread = { ...thread, unread: 0 };
+    }
+
     const list = document.querySelector('[data-inbox-thread-list]');
     if (!list) {
         return;
@@ -1020,7 +1063,7 @@ function upsertThreadRow(thread) {
         empty.remove();
     }
 
-    const selectedUuid = inboxSelectedConversationUuid();
+    const selectedUuid = openUuid;
     let row = list.querySelector(`[data-thread-uuid="${thread.uuid}"]`);
 
     if (!row) {
@@ -1406,19 +1449,30 @@ function initInboxRealtime() {
                 upsertThreadRow(payload.thread);
             },
             '.message.created': (payload) => {
-                upsertThreadRow(payload.thread);
-                showInboxWebNotification(payload.thread, payload.message);
-
+                const message = payload.message || {};
+                const isOutbound = Boolean(message.is_outbound);
                 const chat = document.querySelector('[data-inbox-chat]');
                 const openUuid = chat?.dataset.conversationUuid;
-                if (
-                    openUuid &&
-                    payload.conversation_uuid === openUuid &&
-                    typeof window.__inboxAppendMessage === 'function'
-                ) {
-                    window.__inboxAppendMessage(payload.message);
-                } else if (openUuid && payload.conversation_uuid === openUuid) {
-                    maybeRefreshOpenChat(payload.thread);
+                const isOpenChat = openUuid && payload.conversation_uuid === openUuid;
+
+                // Outbound (messages we send) never contribute to unread badges.
+                const thread = {
+                    ...(payload.thread || {}),
+                    unread: isOutbound || isOpenChat
+                        ? 0
+                        : Number(payload.thread?.unread || 0),
+                };
+
+                upsertThreadRow(thread);
+
+                if (!isOutbound && !isOpenChat) {
+                    showInboxWebNotification(thread, message);
+                }
+
+                if (isOpenChat && typeof window.__inboxAppendMessage === 'function') {
+                    window.__inboxAppendMessage(message);
+                } else if (isOpenChat) {
+                    maybeRefreshOpenChat(thread);
                 }
             },
         });
@@ -1817,6 +1871,14 @@ function initInboxChat() {
             return;
         }
 
+        const openUuid = chat.dataset.conversationUuid;
+        if (openUuid) {
+            upsertThreadRow({
+                uuid: openUuid,
+                unread: 0,
+            });
+        }
+
         try {
             await fetch(readUrl, {
                 method: 'POST',
@@ -1826,14 +1888,6 @@ function initInboxChat() {
                 },
                 credentials: 'same-origin',
             });
-
-            const openUuid = chat.dataset.conversationUuid;
-            if (openUuid) {
-                upsertThreadRow({
-                    uuid: openUuid,
-                    unread: 0,
-                });
-            }
         } catch {
             // Ignore mark-read failures; live append still works.
         }
@@ -1945,7 +1999,9 @@ function initInboxChat() {
                 interactive: data.message?.interactive,
             });
             input.value = '';
-            await refreshMessages();
+            refreshMessages().catch(() => {});
+        } catch {
+            showAppAlert('Unable to send message. Please try again.', 'Unable to send');
         } finally {
             button?.removeAttribute('disabled');
         }
@@ -1955,12 +2011,26 @@ function initInboxChat() {
     if (realtimeEnabled && tenantId && conversationUuid && window.Echo) {
         subscribeInboxEcho(`inbox.${tenantId}.conversation.${conversationUuid}`, {
             '.message.created': (payload) => {
-                if (payload.conversation_uuid === conversationUuid) {
-                    window.__inboxAppendMessage?.(payload.message);
-                    upsertThreadRow(payload.thread);
-                    showInboxWebNotification(payload.thread, payload.message);
-                    serviceWindow.refresh();
+                if (payload.conversation_uuid !== conversationUuid) {
+                    return;
                 }
+
+                const message = payload.message || {};
+                const isOutbound = Boolean(message.is_outbound);
+
+                window.__inboxAppendMessage?.(message);
+                // Open conversation stays read; outbound never adds unread.
+                upsertThreadRow({
+                    ...(payload.thread || {}),
+                    uuid: conversationUuid,
+                    unread: 0,
+                });
+
+                if (!isOutbound) {
+                    markConversationRead();
+                }
+
+                serviceWindow.refresh();
             },
         });
     }
@@ -1972,6 +2042,9 @@ function initInboxChat() {
             await serviceWindow.refresh();
         }, pollInterval);
     }
+
+    // Open chat is read (WhatsApp-style) — clear badge even if SSR already marked read.
+    markConversationRead();
 
     const assigneeSelect = chat.querySelector('[data-inbox-assignee]');
     const assignUrl = chat.dataset.assignUrl;
@@ -2457,10 +2530,16 @@ function initInboxOutboundModals() {
         applyInboxTemplatePreview(null);
     }
 
-    if (templateForm && templateUrl) {
+    if (templateForm) {
         templateForm.addEventListener('submit', async (event) => {
             event.preventDefault();
             showFormError(templateForm, '');
+
+            if (!templateUrl) {
+                showFormError(templateForm, 'Open a conversation before sending a template.');
+
+                return;
+            }
 
             const templateCode = templateSelect?.value;
             if (!templateCode) {
@@ -2478,6 +2557,8 @@ function initInboxOutboundModals() {
             }
 
             const language = templateSelect.selectedOptions?.[0]?.dataset.language || undefined;
+            const submitButton = templateForm.querySelector('[type="submit"]');
+            submitButton?.setAttribute('disabled', 'disabled');
 
             try {
                 const response = await fetch(templateUrl, {
@@ -2507,6 +2588,8 @@ function initInboxOutboundModals() {
                 closeModal(templateForm);
             } catch {
                 showFormError(templateForm, 'Unable to send template.');
+            } finally {
+                submitButton?.removeAttribute('disabled');
             }
         });
     }
