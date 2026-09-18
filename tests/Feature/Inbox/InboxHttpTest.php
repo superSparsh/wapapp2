@@ -129,6 +129,31 @@ class InboxHttpTest extends TestCase
             ->getJson(route('inbox.api.threads'))
             ->assertOk()
             ->assertJsonPath('items.0.name', 'API Thread')
+            ->assertJsonPath('items.0.phone', $contact->phone)
             ->assertJsonPath('items.0.preview', 'API preview');
+    }
+
+    public function test_user_can_delete_a_conversation(): void
+    {
+        $contact = Contact::factory()->create(['name' => 'Delete Me', 'phone' => '918888888800']);
+        $conversation = Conversation::factory()->create([
+            'whatsapp_line_id' => $this->testLine->id,
+            'contact_id' => $contact->id,
+            'contact_phone' => $contact->phone,
+            'line_phone' => $this->testLine->phone,
+            'contact_name' => $contact->name,
+            'last_message_at' => now(),
+        ]);
+
+        $this->messageService->recordInbound($conversation, 'Please delete');
+
+        $this->actingAsTenantUser()
+            ->deleteJson(route('inbox.api.destroy', $conversation))
+            ->assertOk()
+            ->assertJsonPath('ok', true);
+
+        $this->assertDatabaseMissing('conversations', ['id' => $conversation->id]);
+        $this->assertDatabaseMissing('messages', ['conversation_id' => $conversation->id]);
+        $this->assertDatabaseHas('contacts', ['id' => $contact->id]);
     }
 }

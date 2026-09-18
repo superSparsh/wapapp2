@@ -10,6 +10,20 @@
     <title>{{ $title ?? config('app.name', 'WapApp') }}</title>
     <x-layouts.theme-boot />
     @fonts
+    @php
+      $reverbHost = (string) config('broadcasting.connections.reverb.options.host', '');
+      $reverbInvalid = in_array($reverbHost, ['', '0.0.0.0', '127.0.0.1', 'localhost', '::1'], true);
+      $reverbEnabled = in_array((string) config('broadcasting.default'), ['reverb', 'pusher', 'ably'], true);
+    @endphp
+    <script>
+      window.__REVERB__ = {
+        enabled: @json($reverbEnabled),
+        key: @json((string) config('broadcasting.connections.reverb.key')),
+        host: @json($reverbInvalid ? request()->getHost() : $reverbHost),
+        port: {{ request()->secure() ? 443 : (int) (config('broadcasting.connections.reverb.options.port') ?: 80) }},
+        scheme: @json(request()->secure() ? 'https' : 'http'),
+      };
+    </script>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @stack('head-scripts')
 </head>

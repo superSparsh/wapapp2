@@ -419,6 +419,16 @@ class InboxServiceAdapter
         return response()->json(['ok' => true]);
     }
 
+    public function destroy(Conversation $conversation): JsonResponse
+    {
+        $this->localInboxService->deleteConversation($conversation);
+
+        return response()->json([
+            'ok' => true,
+            'redirect' => route('inbox.index'),
+        ]);
+    }
+
     public function markAllRead(Request $request): JsonResponse
     {
         $line = $this->localInboxService->resolveActiveLine($request);

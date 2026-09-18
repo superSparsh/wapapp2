@@ -12,6 +12,7 @@
   $walletBlocked = (bool) ($walletBlocked ?? false);
   $messagesHasMore = (bool) ($messagesHasMore ?? false);
   $messagesOldestId = $messagesOldestId ?? null;
+  $activeLine = $activeLine ?? null;
 @endphp
 
 <div
@@ -33,7 +34,7 @@
     data-contact-url="{{ route('inbox.api.send-contact', $conversation) }}"
     data-payment-url="{{ route('inbox.api.request-payment', $conversation) }}"
     data-opt-in-url="{{ route('inbox.api.resend-opt-in', $conversation) }}"
-    data-templates-url="{{ route('inbox.api.templates') }}"
+    data-templates-url="{{ route('inbox.api.templates', array_filter(['line' => $activeLine->uuid ?? null])) }}"
     data-window-url="{{ route('inbox.api.window', $conversation) }}"
     data-window-hours="{{ config('whatsapp.service_window_hours', 24) }}"
     data-read-url="{{ route('inbox.api.read', $conversation) }}"
@@ -41,6 +42,7 @@
     data-export-url="{{ route('inbox.api.export', $conversation) }}"
     data-response-type-url="{{ route('inbox.api.response-type', $conversation) }}"
     data-interactive-compose-url="{{ route('inbox.api.send-interactive-compose', $conversation) }}"
+    data-delete-url="{{ route('inbox.api.destroy', $conversation) }}"
   @endif
 >
   <img
@@ -65,7 +67,9 @@
           </span>
         @endif
       </div>
-      <p class="fd-table-cell truncate text-sm text-white">{{ $contact['phone'] }}</p>
+      @if (! empty($contact['phone']) && $contact['phone'] !== $contact['name'])
+        <p class="fd-table-cell truncate text-sm text-white">{{ $contact['phone'] }}</p>
+      @endif
       @if (! empty($contact['stopped']))
         <p class="mt-0.5 text-[11px] font-medium text-white/90">{{ $contact['stop_label'] ?? 'This contact marked STOP and is unsubscribed' }}</p>
       @endif
@@ -92,6 +96,16 @@
         <x-icons.nav-icon name="document-text" class="size-3.5" />
         <span class="hidden sm:inline">Export Chat</span>
       </a>
+      <button
+        type="button"
+        data-inbox-delete-chat
+        data-delete-url="{{ route('inbox.api.destroy', $conversation) }}"
+        class="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-white/10 px-2 py-1.5 text-xs font-medium text-white transition hover:bg-red-500/80 sm:px-3 sm:py-2"
+        title="Delete this chat"
+      >
+        <x-icons.nav-icon name="trash" class="size-3.5 brightness-0 invert" />
+        <span class="hidden sm:inline">Delete</span>
+      </button>
     @endif
     @if ($conversation && $assignableAgents->isNotEmpty())
       <label class="hidden min-w-0 shrink-0 sm:block">

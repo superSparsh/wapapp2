@@ -9,6 +9,7 @@ use App\Domains\Inbox\Support\InboxPresenter;
 use App\Models\Conversation;
 use App\Models\WhatsappLine;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class InboxService
 {
@@ -95,6 +96,16 @@ class InboxService
     public function authorizeConversation(Conversation $conversation): void
     {
         $this->accessService->assertCanAccessConversation($conversation);
+    }
+
+    public function deleteConversation(Conversation $conversation): void
+    {
+        $this->authorizeConversation($conversation);
+
+        DB::transaction(function () use ($conversation): void {
+            $conversation->messages()->delete();
+            $conversation->forceDelete();
+        });
     }
 
     public function requireDefaultLine(): WhatsappLine
@@ -252,11 +263,13 @@ class InboxService
         $conversation->loadMissing('contact');
         $stopped = $conversation->contact?->hasStoppedMessaging() ?? false;
 
+        $phone = $this->settingsService->shouldMaskPhone($conversation->contact_phone);
+
         return [
             'uuid' => $conversation->uuid,
             'initials' => InboxPresenter::initials($conversation->contact_name, $conversation->contact_phone),
-            'name' => $conversation->contact_name ?: 'Unknown',
-            'phone' => $this->settingsService->shouldMaskPhone($conversation->contact_phone),
+            'name' => InboxPresenter::threadTitle($conversation->contact_name, $phone),
+            'phone' => $phone,
             'assignee' => $assigneeKey,
             'ai_enabled' => $conversation->response_type?->isAi() ?? false,
             'stopped' => $stopped,

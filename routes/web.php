@@ -391,6 +391,7 @@ Route::middleware(['tenancy.session', 'auth:web,team', '2fa', 'team.redirect-das
             Route::post('/conversations/{conversation}/opt-in', [InboxController::class, 'resendOptIn'])->name('resend-opt-in');
             Route::post('/conversations/{conversation}/read', [InboxController::class, 'markRead'])->name('read');
             Route::post('/conversations/{conversation}/assign', [InboxController::class, 'assign'])->name('assign');
+            Route::delete('/conversations/{conversation}', [InboxController::class, 'destroy'])->name('destroy');
             Route::post('/mark-all-read', [InboxController::class, 'markAllRead'])->name('mark-all-read');
         });
 

@@ -75,12 +75,14 @@ class InboxQueryService
             $contact = $conversation->contact;
             $stopped = $contact?->hasStoppedMessaging() ?? false;
 
+            $phone = $this->settingsService->shouldMaskPhone($conversation->contact_phone);
+
             return [
                 'uuid' => $conversation->uuid,
                 'no' => str_pad((string) ($index + 1), 2, '0', STR_PAD_LEFT),
                 'initials' => InboxPresenter::initials($conversation->contact_name, $conversation->contact_phone),
-                'name' => $conversation->contact_name ?: $this->settingsService->shouldMaskPhone($conversation->contact_phone),
-                'phone' => $this->settingsService->shouldMaskPhone($conversation->contact_phone),
+                'name' => InboxPresenter::threadTitle($conversation->contact_name, $phone),
+                'phone' => $phone,
                 'time' => InboxPresenter::relativeTime($conversation->last_message_at),
                 'preview' => $preview,
                 'unread' => (int) $conversation->unread_count,

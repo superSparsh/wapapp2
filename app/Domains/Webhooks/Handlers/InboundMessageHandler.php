@@ -4,16 +4,19 @@ declare(strict_types=1);
 
 namespace App\Domains\Webhooks\Handlers;
 
+use App\Domains\Admin\Services\MaintenanceModeService;
 use App\Domains\Audience\Services\StopKeywordService;
 use App\Domains\Chatbot\Services\ChatbotFlowEngine;
 use App\Domains\Commerce\Services\CommerceOrderIngestService;
+use App\Domains\Inbox\Contracts\InboxServiceClientInterface;
 use App\Domains\Inbox\Services\InboxConversationService;
 use App\Domains\Inbox\Services\InboxMessageService;
+use App\Domains\TriggerTemplate\Enums\TriggerFireResult;
 use App\Domains\TriggerTemplate\Services\TriggerTemplateEngine;
-use App\Domains\WhatsappFlow\Services\WhatsappFlowInboundService;
 use App\Domains\Webhooks\Listeners\NewLeadWebhookListener;
 use App\Domains\Webhooks\Parsers\AlibabaWebhookParser;
 use App\Domains\Webhooks\Services\WhatsappLineRegistryService;
+use App\Domains\WhatsappFlow\Services\WhatsappFlowInboundService;
 use App\Enums\MessageType;
 use App\Models\InboundWebhookEvent;
 use App\Models\Message;
@@ -117,13 +120,13 @@ class InboundMessageHandler
             if (! $keywordHandled) {
                 // Chatbot keyword flows take priority over free trigger-templates
                 // so the same word does not send template + wrong "next" chatbot message.
-                $chatbotResult = \App\Domains\TriggerTemplate\Enums\TriggerFireResult::NoMatch;
+                $chatbotResult = TriggerFireResult::NoMatch;
 
-                if (app(\App\Domains\Admin\Services\MaintenanceModeService::class)->moduleEnabled('chatbot')) {
+                if (app(MaintenanceModeService::class)->moduleEnabled('chatbot')) {
                     $chatbotResult = $this->chatbotFlowEngine->processInbound($conversation->refresh(), $message);
                 }
 
-                if ($chatbotResult === \App\Domains\TriggerTemplate\Enums\TriggerFireResult::NoMatch) {
+                if ($chatbotResult === TriggerFireResult::NoMatch) {
                     $this->triggerTemplateEngine->process($conversation->refresh(), $message);
                 }
 
@@ -142,7 +145,7 @@ class InboundMessageHandler
 
             if (config('inbox-service.enabled')) {
                 try {
-                    app(\App\Domains\Inbox\Contracts\InboxServiceClientInterface::class)->recordInbound(
+                    app(InboxServiceClientInterface::class)->recordInbound(
                         lineId: (int) $line->id,
                         contactPhone: $from,
                         body: $body,
@@ -215,8 +218,10 @@ class InboundMessageHandler
                 ];
             }
         } else {
+            $itemText = $this->extractReadableText($item);
+
             return [
-                'body' => '['.$type.' message]',
+                'body' => $itemText ?? ('['.$type.' message]'),
                 'is_interactive' => false,
                 'metadata' => [],
             ];
@@ -310,15 +315,16 @@ class InboundMessageHandler
             ];
         }
 
-        if (isset($decoded['text']) && is_string($decoded['text']) && trim($decoded['text']) !== '') {
+        $readable = $this->extractReadableText($decoded);
+        if ($readable !== null) {
             return [
-                'body' => trim($decoded['text']),
+                'body' => $readable,
                 'is_interactive' => false,
                 'metadata' => ['raw_message' => $decoded],
             ];
         }
 
-        if (is_string($message) && trim($message) !== '') {
+        if (is_string($message) && trim($message) !== '' && ! $this->looksLikeJsonObject(trim($message))) {
             return [
                 'body' => trim($message),
                 'is_interactive' => false,
@@ -326,11 +332,71 @@ class InboundMessageHandler
             ];
         }
 
+        $itemText = $this->extractReadableText($item);
+        if ($itemText !== null) {
+            return [
+                'body' => $itemText,
+                'is_interactive' => false,
+                'metadata' => is_array($decoded) ? ['raw_message' => $decoded] : [],
+            ];
+        }
+
         return [
             'body' => '['.$type.' message]',
             'is_interactive' => false,
-            'metadata' => [],
+            'metadata' => is_array($decoded) ? ['raw_message' => $decoded] : [],
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>|mixed  $payload
+     */
+    private function extractReadableText(mixed $payload): ?string
+    {
+        if (is_string($payload)) {
+            $trimmed = trim($payload);
+
+            return $trimmed !== '' && ! $this->looksLikeJsonObject($trimmed) ? $trimmed : null;
+        }
+
+        if (! is_array($payload)) {
+            return null;
+        }
+
+        if (isset($payload['text']) && is_string($payload['text']) && trim($payload['text']) !== '') {
+            return trim($payload['text']);
+        }
+
+        if (isset($payload['text']) && is_array($payload['text'])) {
+            foreach (['body', 'text', 'message'] as $key) {
+                $inner = $payload['text'][$key] ?? null;
+                if (is_string($inner) && trim($inner) !== '') {
+                    return trim($inner);
+                }
+            }
+        }
+
+        foreach (['body', 'Body', 'message', 'Message', 'caption', 'Caption'] as $key) {
+            $value = $payload[$key] ?? null;
+            if (is_string($value) && trim($value) !== '' && ! $this->looksLikeJsonObject(trim($value))) {
+                return trim($value);
+            }
+            if (is_array($value)) {
+                $nested = $this->extractReadableText($value);
+                if ($nested !== null) {
+                    return $nested;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private function looksLikeJsonObject(string $value): bool
+    {
+        $start = $value[0] ?? '';
+
+        return $start === '{' || $start === '[';
     }
 
     private function mapMessageType(string $type): MessageType

@@ -90,4 +90,36 @@ class InboundInteractiveReplyParseTest extends TestCase
         $this->assertFalse($result['is_interactive']);
         $this->assertSame('hi there', $result['body']);
     }
+
+    public function test_nested_cloud_api_text_body_is_extracted(): void
+    {
+        $result = $this->parse([
+            'Type' => 'TEXT',
+            'Message' => json_encode([
+                'type' => 'text',
+                'text' => [
+                    'body' => 'Need pricing',
+                ],
+            ], JSON_THROW_ON_ERROR),
+        ]);
+
+        $this->assertFalse($result['is_interactive']);
+        $this->assertSame('Need pricing', $result['body']);
+    }
+
+    public function test_message_object_payload_extracts_text_body(): void
+    {
+        $result = $this->parse([
+            'Type' => 'TEXT',
+            'From' => '918888800001',
+            'Message' => [
+                'text' => [
+                    'body' => 'Hello from object',
+                ],
+            ],
+        ]);
+
+        $this->assertFalse($result['is_interactive']);
+        $this->assertSame('Hello from object', $result['body']);
+    }
 }

@@ -64,7 +64,7 @@
             <div class="fd-btn-sm flex size-8 shrink-0 items-center justify-center rounded-2xl bg-green-50 text-green-500">{{ $thread['initials'] }}</div>
             <div class="min-w-0 flex-1">
               <div class="flex items-center justify-between gap-2">
-                <span class="fd-table-name truncate">{{ $thread['name'] }}</span>
+                <span class="fd-table-name truncate" data-thread-name>{{ $thread['name'] }}</span>
                 <div class="flex shrink-0 items-center gap-1.5">
                   @if (! empty($thread['stopped']))
                     <span class="rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-700" title="This contact marked STOP and is unsubscribed">STOP</span>
@@ -72,6 +72,11 @@
                   <span class="fd-status-chip text-text-body/60" data-thread-time>{{ $thread['time'] }}</span>
                 </div>
               </div>
+              @if (! empty($thread['phone']) && ($thread['phone'] !== $thread['name']))
+                <p class="truncate text-[11px] leading-tight text-text-body/55" data-thread-phone>{{ $thread['phone'] }}</p>
+              @else
+                <p class="hidden truncate text-[11px] leading-tight text-text-body/55" data-thread-phone></p>
+              @endif
               <div class="flex items-center justify-between gap-2">
                 <p class="fd-table-cell truncate text-xs opacity-50" data-thread-preview>{{ $thread['preview'] }}</p>
                 @if (! empty($thread['unread']))

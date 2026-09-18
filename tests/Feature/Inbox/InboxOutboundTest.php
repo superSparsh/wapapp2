@@ -11,6 +11,7 @@ use App\Enums\MessageType;
 use App\Models\Contact;
 use App\Models\Conversation;
 use App\Models\Message;
+use App\Models\Template;
 use App\Models\WalletAccount;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -116,6 +117,31 @@ class InboxOutboundTest extends TestCase
             'message_type' => MessageType::Template->value,
             'body' => 'welcome_template',
         ]);
+    }
+
+    public function test_templates_api_lists_approved_templates_with_preview(): void
+    {
+        Template::factory()->create([
+            'name' => 'Inbox Welcome',
+            'code' => 'inbox_welcome',
+            'whatsapp_line_id' => null,
+            'payload' => array_merge(Template::defaultPayload(), [
+                'body' => ['text' => 'Hi $(name)'],
+                'buttons' => [['text' => 'Open', 'type' => 'url']],
+            ]),
+        ]);
+
+        Template::factory()->draft()->create(['name' => 'Not Listed']);
+
+        $this->createConversation();
+
+        $this->actingAsTenantUser()
+            ->getJson(route('inbox.api.templates'))
+            ->assertOk()
+            ->assertJsonPath('items.0.code', 'inbox_welcome')
+            ->assertJsonPath('items.0.preview.body', 'Hi $(name)')
+            ->assertJsonPath('items.0.preview.buttons.0.text', 'Open')
+            ->assertJsonMissing(['code' => null]);
     }
 
     public function test_media_send_queues_outbound_message(): void

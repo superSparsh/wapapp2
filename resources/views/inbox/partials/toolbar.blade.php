@@ -54,9 +54,9 @@
   ], fn ($value) => $value !== null && $value !== '');
 @endphp
 
-<div class="flex w-full flex-col gap-3 xl:flex-row xl:flex-nowrap xl:items-center">
+<div class="flex w-full flex-col gap-2">
   <div @class([
-    'grid min-w-0 flex-1 grid-cols-1 gap-2',
+    'grid min-w-0 grid-cols-1 gap-2',
     'sm:grid-cols-4' => $showLineFilter,
     'sm:grid-cols-3' => ! $showLineFilter,
   ])>
@@ -105,31 +105,28 @@
     ])
   </div>
 
-  <div class="flex shrink-0 flex-wrap items-center gap-2 lg:gap-3">
+  <div class="flex flex-wrap items-center gap-2">
     <button
       type="button"
       data-inbox-mark-all-read
       data-mark-all-url="{{ route('inbox.api.mark-all-read') }}?{{ http_build_query($baseQuery) }}"
-      class="fd-btn inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-green-500 bg-transparent px-3 py-3 text-sm font-medium text-green-600 transition hover:bg-green-50 lg:px-4"
+      class="fd-btn inline-flex h-9 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-green-500 bg-transparent px-2.5 text-xs font-medium text-green-600 transition hover:bg-green-50"
     >
-      <x-icons.nav-icon name="refresh" class="size-4" />
-      <span class="hidden sm:inline">Mark All Read</span>
-      <span class="sm:hidden">Read All</span>
+      <x-icons.nav-icon name="refresh" class="size-3.5" />
+      Mark all read
     </button>
 
     <button
       type="button"
       data-open-modal="export-by-date"
-      class="fd-btn inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-border bg-elevated px-3 py-3 text-sm font-medium text-text-body transition hover:bg-surface lg:px-4"
+      class="fd-btn inline-flex h-9 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-border bg-elevated px-2.5 text-xs font-medium text-text-body transition hover:bg-surface"
     >
-      <x-icons.nav-icon name="document-text" class="size-4" />
-      <span class="hidden sm:inline">Export by date</span>
-      <span class="sm:hidden">Export</span>
+      <x-icons.nav-icon name="document-text" class="size-3.5" />
+      Export by date
     </button>
 
-    <div class="fd-btn inline-flex shrink-0 items-center justify-center gap-2.5 whitespace-nowrap rounded-lg border border-border bg-elevated px-3 py-3 text-sm font-medium text-text-body lg:px-4">
-      <span class="hidden sm:inline">AI for All</span>
-      <span class="sm:hidden">AI</span>
+    <div class="fd-btn inline-flex h-9 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-border bg-elevated px-2.5 text-xs font-medium text-text-body">
+      AI for all
       <x-ui.toggle-switch
         :active="$aiForAll"
         data-inbox-ai-toggle-all
@@ -139,12 +136,13 @@
 
     <button
       type="button"
-      data-open-modal="add-contact"
-      class="fd-btn inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-green-500 px-3 py-3 text-sm font-medium text-primary-2 transition hover:opacity-90 lg:px-4"
+      data-inbox-notify-toggle
+      class="fd-btn inline-flex h-9 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-border bg-elevated px-2.5 text-xs font-medium text-text-body transition hover:bg-surface"
+      aria-pressed="false"
+      title="Desktop notifications for new chats"
     >
-      <x-icons.nav-icon name="add" class="size-5" />
-      <span class="hidden sm:inline">Add New Contact</span>
-      <span class="sm:hidden">Add</span>
+      <x-icons.nav-icon name="bell" class="size-3.5" />
+      <span data-inbox-notify-label>Notifications</span>
     </button>
   </div>
 </div>

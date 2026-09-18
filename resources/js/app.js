@@ -1,7 +1,7 @@
 import './echo.js';
 import './form-validation.js';
 import { initThemedSelects, initThemedSelectObserver } from './themed-select.js';
-import { initConfirmDialog, showAppAlert } from './confirm-dialog.js';
+import { initConfirmDialog, showAppAlert, showAppConfirm } from './confirm-dialog.js';
 import { initToast } from './toast.js';
 import { initTemplateBuilder } from './template-builder.js';
 import { initTemplatesIndex } from './templates-index.js';
@@ -32,8 +32,10 @@ document.addEventListener('DOMContentLoaded', () => {
     initInboxModals();
     initInboxMessageMenu();
     initCommerceOrderModal();
+    initInboxNotifications();
     initInboxRealtime();
     initInboxChat();
+    initInboxDeleteChat();
     initInboxOutboundModals();
     initInboxTeamFeatures();
     initInboxExportModal();
@@ -718,6 +720,115 @@ function inboxBaseUrl() {
     return inboxRoot()?.dataset.inboxBaseUrl || '/inbox';
 }
 
+const INBOX_NOTIFY_KEY = 'inbox.web_notifications';
+const inboxUnreadSeen = new Map();
+let inboxNotifyReadyAt = Date.now() + 2500;
+
+function threadDisplayName(thread) {
+    return String(thread?.name || thread?.phone || 'Unknown');
+}
+
+function threadPhoneSubtitle(thread) {
+    const name = String(thread?.name || '').trim();
+    const phone = String(thread?.phone || '').trim();
+
+    if (phone === '' || phone === name) {
+        return '';
+    }
+
+    return phone;
+}
+
+function seedInboxUnreadFromDom() {
+    document.querySelectorAll('[data-thread-uuid]').forEach((row) => {
+        const uuid = row.dataset.threadUuid;
+        if (!uuid || inboxUnreadSeen.has(uuid)) {
+            return;
+        }
+
+        const unreadEl = row.querySelector('[data-thread-unread]');
+        const hidden = unreadEl?.classList.contains('hidden');
+        const count = hidden ? 0 : Number(unreadEl?.textContent || 0);
+        inboxUnreadSeen.set(uuid, Number.isFinite(count) ? count : 0);
+    });
+}
+
+function inboxNotificationsWanted() {
+    return window.localStorage.getItem(INBOX_NOTIFY_KEY) === '1';
+}
+
+function inboxCanNotify() {
+    return (
+        inboxNotificationsWanted() &&
+        typeof Notification !== 'undefined' &&
+        Notification.permission === 'granted'
+    );
+}
+
+function setInboxNotifyUi(enabled) {
+    const btn = document.querySelector('[data-inbox-notify-toggle]');
+    const label = document.querySelector('[data-inbox-notify-label]');
+
+    if (btn) {
+        btn.setAttribute('aria-pressed', enabled ? 'true' : 'false');
+        btn.classList.toggle('border-green-500', enabled);
+        btn.classList.toggle('text-green-600', enabled);
+    }
+
+    if (label) {
+        label.textContent = enabled ? 'Notifications on' : 'Notifications';
+    }
+}
+
+function showInboxWebNotification(thread, message) {
+    if (!inboxCanNotify() || Date.now() < inboxNotifyReadyAt) {
+        return;
+    }
+
+    const openUuid = inboxSelectedConversationUuid();
+    if (openUuid && thread?.uuid === openUuid && document.visibilityState === 'visible') {
+        return;
+    }
+
+    const title = threadDisplayName(thread);
+    const body =
+        String(message?.body || thread?.preview || 'New WhatsApp message').trim() ||
+        'New WhatsApp message';
+
+    try {
+        const notification = new Notification(title, {
+            body,
+            tag: thread?.uuid || 'inbox',
+            renotify: true,
+        });
+
+        notification.onclick = () => {
+            window.focus();
+            if (thread?.uuid) {
+                const params = window.location.search || '';
+                window.location.href = `${inboxBaseUrl()}/${encodeURIComponent(thread.uuid)}${params}`;
+            }
+            notification.close();
+        };
+    } catch {
+        // Some browsers throw if the document is not allowed to notify yet.
+    }
+}
+
+function rememberThreadUnread(thread) {
+    if (!thread?.uuid) {
+        return;
+    }
+
+    const next = Number(thread.unread || 0);
+    const prev = inboxUnreadSeen.has(thread.uuid) ? inboxUnreadSeen.get(thread.uuid) : 0;
+    inboxUnreadSeen.set(thread.uuid, next);
+
+    if (next > prev) {
+        showInboxWebNotification(thread);
+    }
+}
+
 function buildThreadRowHtml(thread, selectedUuid = null) {
     const isSelected = thread.uuid === selectedUuid;
     const rowClass = isSelected ? 'bg-green-50' : 'bg-elevated hover:bg-surface';
@@ -729,6 +840,8 @@ function buildThreadRowHtml(thread, selectedUuid = null) {
     const stopBadge = thread.stopped
         ? '<span class="rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-700" title="This contact marked STOP and is unsubscribed">STOP</span>'
         : '';
+    const phone = threadPhoneSubtitle(thread);
+    const phoneClass = phone ? '' : 'hidden';
 
     return `
         <a
@@ -740,12 +853,13 @@ function buildThreadRowHtml(thread, selectedUuid = null) {
                 <div class="fd-btn-sm flex size-8 shrink-0 items-center justify-center rounded-2xl bg-green-50 text-green-500">${escapeHtml(thread.initials || '?')}</div>
                 <div class="min-w-0 flex-1">
                     <div class="flex items-center justify-between gap-2">
-                        <span class="fd-table-name truncate">${escapeHtml(thread.name || thread.phone || 'Unknown')}</span>
+                        <span class="fd-table-name truncate" data-thread-name>${escapeHtml(threadDisplayName(thread))}</span>
                         <div class="flex shrink-0 items-center gap-1.5">
                             ${stopBadge}
                             <span class="fd-status-chip text-text-body/60" data-thread-time>${escapeHtml(thread.time || '')}</span>
                         </div>
                     </div>
+                    <p class="${phoneClass} truncate text-[11px] leading-tight text-text-body/55" data-thread-phone>${escapeHtml(phone)}</p>
                     <div class="flex items-center justify-between gap-2">
                         <p class="fd-table-cell truncate text-xs opacity-50" data-thread-preview>${escapeHtml(thread.preview || '')}</p>
                         <span class="fd-status-chip ${unreadClass} size-4 shrink-0 items-center justify-center rounded-full bg-green-500 text-white" data-thread-unread>${unreadCount > 0 ? unreadCount : ''}</span>
@@ -781,10 +895,17 @@ function upsertThreadRow(thread) {
         const preview = row.querySelector('[data-thread-preview]');
         const time = row.querySelector('[data-thread-time]');
         const unread = row.querySelector('[data-thread-unread]');
-        const name = row.querySelector('.fd-table-name');
+        const name = row.querySelector('[data-thread-name]') || row.querySelector('.fd-table-name');
+        const phoneEl = row.querySelector('[data-thread-phone]');
 
         if (name && thread.name) {
             name.textContent = thread.name;
+        }
+
+        if (phoneEl && thread.phone !== undefined) {
+            const subtitle = threadPhoneSubtitle(thread);
+            phoneEl.textContent = subtitle;
+            phoneEl.classList.toggle('hidden', subtitle === '');
         }
 
         if (preview && thread.preview !== undefined) {
@@ -813,6 +934,10 @@ function upsertThreadRow(thread) {
         if (list.firstElementChild !== row) {
             list.insertBefore(row, list.firstElementChild);
         }
+    }
+
+    if (thread.unread !== undefined) {
+        rememberThreadUnread(thread);
     }
 
     return row;
@@ -876,8 +1001,33 @@ function interactiveButtonLabels(interactive) {
     return [...new Set(labels)];
 }
 
+function messageDisplayBody(message) {
+    if (!message || typeof message !== 'object') {
+        return '';
+    }
+
+    const direct = String(message.body || '').trim();
+    if (direct !== '') {
+        return direct;
+    }
+
+    const text = message.text;
+    if (typeof text === 'string' && text.trim() !== '') {
+        return text.trim();
+    }
+
+    if (text && typeof text === 'object') {
+        const nested = String(text.body || text.text || '').trim();
+        if (nested !== '') {
+            return nested;
+        }
+    }
+
+    return '';
+}
+
 function fillMessageBubble(bubble, message) {
-    const body = String(message.body || '').trim();
+    const body = messageDisplayBody(message);
     const messageType = String(message.message_type || 'text');
     const mediaUrl = message.media_url || null;
     const fileName = message.file_name || null;
@@ -1053,6 +1203,8 @@ function fillMessageBubble(bubble, message) {
  * Runs even when no conversation is open so new chats appear live.
  */
 function initInboxRealtime() {
+    seedInboxUnreadFromDom();
+
     const root = inboxRoot();
     if (!root) {
         return;
@@ -1792,6 +1944,8 @@ function initInboxOutboundModals() {
     const templateForm = document.querySelector('[data-inbox-template-form]');
     const templateSelect = document.querySelector('[data-inbox-template-select]');
     const templateParamsEl = document.querySelector('[data-inbox-template-params]');
+    const templatePreviewRoot = document.querySelector('[data-inbox-template-preview]');
+    let selectedTemplatePreview = null;
 
     const templateVariableName = (variable) => {
         if (typeof variable === 'string') {
@@ -1799,6 +1953,139 @@ function initInboxOutboundModals() {
         }
 
         return typeof variable?.name === 'string' ? variable.name.trim() : '';
+    };
+
+    const escapePreviewHtml = (value) => String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+
+    const formatPreviewWhatsApp = (text) => {
+        let html = escapePreviewHtml(text || '');
+        html = html.replace(/```([^`]+)```/g, '<code class="wa-mono">$1</code>');
+        html = html.replace(/\*([^*\n]+)\*/g, '<strong>$1</strong>');
+        html = html.replace(/\^([^\^\n]+)\^/g, '<strong>$1</strong>');
+        html = html.replace(/(?<![A-Za-z0-9])_([^_\n]+)_(?![A-Za-z0-9])/g, '<em>$1</em>');
+        html = html.replace(/~([^~\n]+)~/g, '<del>$1</del>');
+
+        return html.replace(/\n/g, '<br>');
+    };
+
+    const substitutePreviewPlaceholders = (text, values) => String(text || '').replace(
+        /\$\(([a-zA-Z0-9_]+)\)|\{\{([a-zA-Z0-9_]+)\}\}/g,
+        (match, dollarName, braceName) => {
+            const name = dollarName || braceName;
+            const value = values?.[name];
+            if (value === undefined || value === null || String(value).trim() === '') {
+                return `$(${name})`;
+            }
+
+            return String(value);
+        },
+    );
+
+    const previewButtonIcon = (type) => {
+        if (type === 'phone') {
+            return '/images/inbox/modals/call.svg';
+        }
+        if (type === 'flow') {
+            return '/images/templates/flow.svg';
+        }
+        if (type === 'quick_reply') {
+            return '/images/templates/quick-reply.svg';
+        }
+
+        return '/images/inbox/modals/export.svg';
+    };
+
+    const applyInboxTemplatePreview = (preview, params = {}) => {
+        if (!templatePreviewRoot) {
+            return;
+        }
+
+        const data = preview && typeof preview === 'object' ? preview : null;
+        const headerType = data?.header_type || 'none';
+        const headerImageEl = templatePreviewRoot.querySelector('[data-preview-header-image]');
+        const headerVideoEl = templatePreviewRoot.querySelector('[data-preview-header-video]');
+        const headerTextEl = templatePreviewRoot.querySelector('[data-preview-header-text]');
+        const bodyEl = templatePreviewRoot.querySelector('[data-preview-body]');
+        const footerEl = templatePreviewRoot.querySelector('[data-preview-footer]');
+        const buttonsEl = templatePreviewRoot.querySelector('[data-preview-buttons]');
+        const dividerEl = templatePreviewRoot.querySelector('[data-preview-divider]');
+
+        const resolvedBody = data
+            ? substitutePreviewPlaceholders(data.body || '', params)
+            : 'Select a template to preview the message.';
+        const resolvedFooter = data ? substitutePreviewPlaceholders(data.footer || '', params) : '';
+        const resolvedHeaderText = data ? substitutePreviewPlaceholders(data.header_text || '', params) : '';
+
+        const showImage = headerType === 'image' && !!data?.header_image;
+        const showVideo = headerType === 'video' && !!(data?.header_video || data?.header_image);
+        const showHeaderText = (headerType === 'text' || headerType === 'location') && resolvedHeaderText.trim() !== '';
+
+        if (headerImageEl) {
+            headerImageEl.classList.toggle('hidden', !showImage);
+            if (showImage) {
+                headerImageEl.src = data.header_image;
+            }
+        }
+
+        if (headerVideoEl) {
+            headerVideoEl.classList.toggle('hidden', !showVideo);
+            if (showVideo) {
+                headerVideoEl.src = data.header_video || data.header_image || '';
+            }
+        }
+
+        if (headerTextEl) {
+            headerTextEl.classList.toggle('hidden', !showHeaderText);
+            headerTextEl.textContent = resolvedHeaderText;
+        }
+
+        if (bodyEl) {
+            bodyEl.innerHTML = formatPreviewWhatsApp(resolvedBody);
+        }
+
+        if (footerEl) {
+            const footerValue = resolvedFooter.trim();
+            footerEl.classList.toggle('hidden', footerValue === '');
+            footerEl.textContent = footerValue;
+        }
+
+        const buttons = Array.isArray(data?.buttons) ? data.buttons : [];
+        if (dividerEl) {
+            dividerEl.classList.toggle('hidden', buttons.length === 0);
+        }
+
+        if (buttonsEl) {
+            buttonsEl.replaceChildren();
+            buttons.forEach((button) => {
+                const text = String(button?.text || '').trim();
+                if (!text) {
+                    return;
+                }
+
+                const row = document.createElement('div');
+                row.className = 'flex w-full items-center justify-center gap-2 py-1';
+
+                const icon = document.createElement('img');
+                icon.src = previewButtonIcon(button?.type);
+                icon.alt = '';
+                icon.className = 'size-4 shrink-0';
+                icon.width = 16;
+                icon.height = 16;
+
+                const label = document.createElement('span');
+                label.className = 'text-base font-medium leading-[1.4] text-link-green';
+                label.style.fontFamily = 'var(--font-display)';
+                label.textContent = text;
+
+                row.appendChild(icon);
+                row.appendChild(label);
+                buttonsEl.appendChild(row);
+            });
+        }
     };
 
     const collectTemplateParams = () => {
@@ -1858,6 +2145,9 @@ function initInboxOutboundModals() {
             input.maxLength = 1024;
             input.placeholder = `Value for ${name}`;
             input.className = 'w-full rounded-xl border border-border bg-elevated px-3.5 py-3.5 text-sm focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500';
+            input.addEventListener('input', () => {
+                applyInboxTemplatePreview(selectedTemplatePreview, collectTemplateParams());
+            });
 
             wrap.appendChild(label);
             wrap.appendChild(input);
@@ -1868,6 +2158,7 @@ function initInboxOutboundModals() {
     const syncTemplateParamsFromSelect = () => {
         const option = templateSelect?.selectedOptions?.[0];
         let variables = [];
+        selectedTemplatePreview = null;
 
         try {
             variables = JSON.parse(option?.dataset.variables || '[]');
@@ -1875,7 +2166,14 @@ function initInboxOutboundModals() {
             variables = [];
         }
 
+        try {
+            selectedTemplatePreview = JSON.parse(option?.dataset.preview || 'null');
+        } catch {
+            selectedTemplatePreview = null;
+        }
+
         renderTemplateParams(variables);
+        applyInboxTemplatePreview(selectedTemplatePreview, collectTemplateParams());
     };
 
     if (templateSelect && templatesUrl) {
@@ -1894,6 +2192,7 @@ function initInboxOutboundModals() {
                     option.textContent = 'No templates available';
                     templateSelect.appendChild(option);
                     renderTemplateParams([]);
+                    applyInboxTemplatePreview(null);
 
                     return;
                 }
@@ -1909,6 +2208,7 @@ function initInboxOutboundModals() {
                     option.textContent = template.name || template.code;
                     option.dataset.language = template.language || '';
                     option.dataset.variables = JSON.stringify(template.variables || []);
+                    option.dataset.preview = JSON.stringify(template.preview || null);
                     templateSelect.appendChild(option);
                 });
 
@@ -1917,9 +2217,13 @@ function initInboxOutboundModals() {
             .catch(() => {
                 templateSelect.innerHTML = '<option value="">No templates available</option>';
                 renderTemplateParams([]);
+                applyInboxTemplatePreview(null);
             });
 
         templateSelect.addEventListener('change', syncTemplateParamsFromSelect);
+    } else if (templateSelect) {
+        templateSelect.innerHTML = '<option value="">Open a conversation to load templates</option>';
+        applyInboxTemplatePreview(null);
     }
 
     if (templateForm && templateUrl) {
@@ -2496,6 +2800,102 @@ function setToggleSwitchActive(toggle, active) {
         knob.classList.toggle('left-[24px]', active);
         knob.classList.toggle('left-[2px]', !active);
     }
+}
+
+function initInboxNotifications() {
+    seedInboxUnreadFromDom();
+
+    const toggle = document.querySelector('[data-inbox-notify-toggle]');
+    if (!toggle) {
+        return;
+    }
+
+    if (typeof Notification === 'undefined') {
+        toggle.hidden = true;
+        return;
+    }
+
+    const sync = () => {
+        const enabled = inboxNotificationsWanted() && Notification.permission === 'granted';
+        setInboxNotifyUi(enabled);
+    };
+
+    sync();
+
+    toggle.addEventListener('click', async () => {
+        if (inboxNotificationsWanted() && Notification.permission === 'granted') {
+            window.localStorage.setItem(INBOX_NOTIFY_KEY, '0');
+            sync();
+            return;
+        }
+
+        if (Notification.permission === 'denied') {
+            showAppAlert(
+                'Notifications are blocked in this browser. Allow them for this site in the browser settings, then try again.',
+                'Notifications blocked',
+            );
+            return;
+        }
+
+        const permission =
+            Notification.permission === 'granted'
+                ? 'granted'
+                : await Notification.requestPermission();
+
+        if (permission !== 'granted') {
+            window.localStorage.setItem(INBOX_NOTIFY_KEY, '0');
+            sync();
+            return;
+        }
+
+        window.localStorage.setItem(INBOX_NOTIFY_KEY, '1');
+        sync();
+    });
+}
+
+function initInboxDeleteChat() {
+    const button = document.querySelector('[data-inbox-delete-chat]');
+    const chat = document.querySelector('[data-inbox-chat]');
+    const csrf = document.querySelector('meta[name="csrf-token"]')?.content;
+    const deleteUrl = button?.dataset.deleteUrl || chat?.dataset.deleteUrl;
+
+    if (!button || !deleteUrl || !csrf) {
+        return;
+    }
+
+    button.addEventListener('click', async () => {
+        const confirmed = await showAppConfirm({
+            title: 'Delete this chat?',
+            message: 'This conversation and its messages will be removed from inbox. The contact is not deleted.',
+            variant: 'danger',
+            confirmLabel: 'Delete chat',
+        });
+
+        if (!confirmed) {
+            return;
+        }
+
+        try {
+            const response = await fetch(deleteUrl, {
+                method: 'DELETE',
+                headers: {
+                    Accept: 'application/json',
+                    'X-CSRF-TOKEN': csrf,
+                },
+                credentials: 'same-origin',
+            });
+            const data = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                showAppAlert(data.message || 'Unable to delete this chat.', 'Delete failed');
+                return;
+            }
+
+            window.location.href = data.redirect || inboxBaseUrl();
+        } catch {
+            showAppAlert('Unable to delete this chat.', 'Delete failed');
+        }
+    });
 }
 
 function initInboxTeamFeatures() {

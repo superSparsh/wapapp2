@@ -244,10 +244,10 @@ class InboxController extends Controller
 
     public function templates(Request $request, InboxService $inboxService, TemplateRegistryService $registry): JsonResponse
     {
-        $inboxService->requireDefaultLine();
+        $line = $inboxService->resolveActiveLine($request);
 
         return response()->json([
-            'items' => $registry->options(),
+            'items' => $registry->options($line),
         ]);
     }
 
@@ -314,6 +314,13 @@ class InboxController extends Controller
         InboxServiceAdapter $adapter,
     ): JsonResponse {
         return $adapter->assign($request, $conversation);
+    }
+
+    public function destroy(
+        Conversation $conversation,
+        InboxServiceAdapter $adapter,
+    ): JsonResponse {
+        return $adapter->destroy($conversation);
     }
 
     /**

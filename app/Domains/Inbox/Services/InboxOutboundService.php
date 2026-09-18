@@ -364,7 +364,15 @@ class InboxOutboundService
             return $message->refresh();
         });
 
-        app(InboxBroadcastService::class)->messageCreated($conversation->refresh(), $message);
+        try {
+            app(InboxBroadcastService::class)->messageCreated($conversation->refresh(), $message);
+        } catch (\Throwable $e) {
+            Log::warning('Inbox outbound broadcast failed', [
+                'conversation_id' => $conversation->id,
+                'message_id' => $message->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
 
         if ($sendImmediately) {
             SendOutboundMessageJob::dispatchSync($message->id);

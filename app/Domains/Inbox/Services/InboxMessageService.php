@@ -13,6 +13,7 @@ use App\Models\Conversation;
 use App\Models\Message;
 use App\Models\WhatsappLine;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class InboxMessageService
 {
@@ -254,7 +255,7 @@ class InboxMessageService
         ?string $externalMessageId = null,
         MessageType $messageType = MessageType::Text,
     ): Message {
-        return DB::transaction(function () use ($conversation, $body, $externalMessageId, $messageType): Message {
+        $message = DB::transaction(function () use ($conversation, $body, $externalMessageId, $messageType): Message {
             if ($externalMessageId !== null && $externalMessageId !== '') {
                 $existing = Message::query()
                     ->where('external_message_id', $externalMessageId)
@@ -267,7 +268,7 @@ class InboxMessageService
 
             $now = now();
 
-            $message = Message::query()->create([
+            $created = Message::query()->create([
                 'conversation_id' => $conversation->id,
                 'body' => $body,
                 'direction' => MessageDirection::Inbound,
@@ -282,10 +283,20 @@ class InboxMessageService
                 'unread_count' => $conversation->unread_count + 1,
             ])->save();
 
-            app(InboxBroadcastService::class)->messageCreated($conversation->refresh(), $message);
-
-            return $message;
+            return $created;
         });
+
+        try {
+            app(InboxBroadcastService::class)->messageCreated($conversation->refresh(), $message);
+        } catch (\Throwable $e) {
+            Log::warning('Inbox inbound broadcast failed', [
+                'conversation_id' => $conversation->id,
+                'message_id' => $message->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        return $message;
     }
 
     private function normalizeLookbackDays(?int $lookbackDays): int

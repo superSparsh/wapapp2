@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Inbox\Support;
 
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 
 final class InboxPresenter
@@ -33,7 +34,7 @@ final class InboxPresenter
             return '';
         }
 
-        return \Illuminate\Support\Carbon::instance($at)->diffForHumans(short: true);
+        return Carbon::instance($at)->diffForHumans(short: true);
     }
 
     public static function preview(?string $body, int $limit = 80): string
@@ -47,18 +48,43 @@ final class InboxPresenter
         return Str::limit($body, $limit);
     }
 
+    public static function threadTitle(?string $name, ?string $phone): string
+    {
+        $name = trim((string) $name);
+
+        if ($name !== '') {
+            return $name;
+        }
+
+        $phone = trim((string) $phone);
+
+        return $phone !== '' ? $phone : 'Unknown';
+    }
+
+    public static function threadPhoneSubtitle(?string $name, ?string $phone): ?string
+    {
+        $name = trim((string) $name);
+        $phone = trim((string) $phone);
+
+        if ($phone === '' || $name === '' || $name === $phone) {
+            return null;
+        }
+
+        return $phone;
+    }
+
     public static function encodeCursor(?\DateTimeInterface $at, int $id): ?string
     {
         if ($at === null) {
             return null;
         }
 
-        return \Illuminate\Support\Carbon::instance($at)->getTimestamp().'|'.$id;
+        return Carbon::instance($at)->getTimestamp().'|'.$id;
     }
 
-  /**
-   * @return array{0: ?\Illuminate\Support\Carbon, 1: ?int}
-   */
+    /**
+     * @return array{0: ?Carbon, 1: ?int}
+     */
     public static function decodeCursor(?string $cursor): array
     {
         if ($cursor === null || $cursor === '') {
@@ -75,6 +101,6 @@ final class InboxPresenter
             return [null, null];
         }
 
-        return [\Illuminate\Support\Carbon::createFromTimestamp((int) $timestamp), (int) $id];
+        return [Carbon::createFromTimestamp((int) $timestamp), (int) $id];
     }
 }

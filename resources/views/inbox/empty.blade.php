@@ -14,8 +14,19 @@
     data-threads-cursor="{{ $threadsCursor ?? '' }}"
     data-threads-has-more="{{ ! empty($threadsHasMore) ? '1' : '0' }}"
   >
-    <div class="flex shrink-0 flex-col gap-4 p-4 pb-3">
-      <x-ui.page-header title="Inbox" />
+    <div class="flex shrink-0 flex-col gap-3 p-4 pb-2">
+      <x-ui.page-header title="Inbox" size="sm">
+        <x-slot:actions>
+          <button
+            type="button"
+            data-open-modal="add-contact"
+            class="fd-btn inline-flex items-center gap-2 whitespace-nowrap rounded-lg bg-green-500 px-3 py-2 text-sm font-medium text-primary-2 transition hover:opacity-90"
+          >
+            <x-icons.nav-icon name="add" class="size-5" />
+            Add New Contact
+          </button>
+        </x-slot:actions>
+      </x-ui.page-header>
       @include('inbox.partials.toolbar', [
         'filters' => $filters ?? [],
         'filterOptions' => $filterOptions ?? [],

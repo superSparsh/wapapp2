@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Inbox\Services;
 
+use App\Domains\Admin\Services\MaintenanceModeService;
 use App\Domains\Inbox\Support\InboxPresenter;
 use App\Enums\MessageDirection;
 use App\Events\Inbox\InboxMessageCreated;
@@ -41,7 +42,11 @@ class InboxBroadcastService
             'contact:id,phone,status,opt_in_status,metadata',
         ]);
 
+        $conversation->unsetRelation('latestMessage');
+        $conversation->setRelation('latestMessage', $message);
+
         $thread = $this->threadPayload($conversation);
+        $thread['preview'] = InboxPresenter::preview($message->body) ?: ($thread['preview'] ?? '');
 
         broadcast(new InboxMessageCreated(
             tenantId: $tenantId,
@@ -120,11 +125,13 @@ class InboxBroadcastService
             $assigneeKey = 'member:'.$conversation->assignedTeamMember->uuid;
         }
 
+        $phone = $this->settingsService->shouldMaskPhone($conversation->contact_phone);
+
         return [
             'uuid' => $conversation->uuid,
             'initials' => InboxPresenter::initials($conversation->contact_name, $conversation->contact_phone),
-            'name' => $conversation->contact_name ?: $this->settingsService->shouldMaskPhone($conversation->contact_phone),
-            'phone' => $this->settingsService->shouldMaskPhone($conversation->contact_phone),
+            'name' => InboxPresenter::threadTitle($conversation->contact_name, $phone),
+            'phone' => $phone,
             'time' => InboxPresenter::relativeTime($conversation->last_message_at),
             'preview' => InboxPresenter::preview($conversation->latestMessage?->body),
             'unread' => (int) $conversation->unread_count,
@@ -140,7 +147,7 @@ class InboxBroadcastService
             return false;
         }
 
-        if (! app(\App\Domains\Admin\Services\MaintenanceModeService::class)->moduleEnabled('reverb_realtime')) {
+        if (! app(MaintenanceModeService::class)->moduleEnabled('reverb_realtime')) {
             return false;
         }
 
