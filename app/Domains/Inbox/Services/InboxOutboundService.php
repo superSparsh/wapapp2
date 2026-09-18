@@ -6,12 +6,15 @@ namespace App\Domains\Inbox\Services;
 
 use App\Domains\Billing\Services\WalletService;
 use App\Domains\Inbox\Jobs\SendOutboundMessageJob;
+use App\Domains\Templates\Services\TemplatePreviewService;
+use App\Domains\Templates\Services\TemplateRegistryService;
 use App\Domains\WhatsApp\Services\AlibabaCamsClient;
 use App\Enums\MessageDirection;
 use App\Enums\MessageStatus;
 use App\Enums\MessageType;
 use App\Models\Conversation;
 use App\Models\Message;
+use App\Models\Template;
 use App\Models\WhatsappLine;
 use App\Support\PhoneNormalizer;
 use Illuminate\Http\UploadedFile;
@@ -154,13 +157,22 @@ class InboxOutboundService
         $templateCode = trim($templateCode);
         abort_if($templateCode === '', 422, 'Template code is required.');
 
+        $conversation->loadMissing('whatsappLine');
+        $display = $this->resolveTemplateDisplay(
+            $templateCode,
+            $templateParams,
+            $conversation->whatsappLine,
+        );
+
         return $this->createOutboundMessage(
             conversation: $conversation,
-            body: $templateCode,
+            body: $display['body'],
             messageType: MessageType::Template,
             metadata: [
                 'template_code' => $templateCode,
+                'template_name' => $display['name'],
                 'template_params' => $templateParams,
+                'template_buttons' => $display['buttons'],
                 'language' => $language ?? config('whatsapp.alibaba.default_language', 'en_GB'),
             ],
             sendImmediately: $sendImmediately,
@@ -384,6 +396,53 @@ class InboxOutboundService
             ->onQueue((string) config('whatsapp.outbound_queue', 'default'));
 
         return $message->refresh();
+    }
+
+    /**
+     * @param  array<string, mixed>  $templateParams
+     * @return array{body: string, name: ?string, buttons: list<array{text: string, type: string}>}
+     */
+    private function resolveTemplateDisplay(string $templateCode, array $templateParams, ?WhatsappLine $line): array
+    {
+        $template = app(TemplateRegistryService::class)->findForSend($templateCode, $line);
+
+        if (! $template instanceof Template) {
+            return [
+                'body' => $templateCode,
+                'name' => null,
+                'buttons' => [],
+            ];
+        }
+
+        $preview = app(TemplatePreviewService::class)->forTemplate($template, $templateParams, false);
+
+        $body = trim((string) ($preview['body'] ?? ''));
+        if ($body === '') {
+            $body = trim((string) ($template->body_preview ?: $template->name ?: $templateCode));
+        }
+
+        $buttons = [];
+        foreach (is_array($preview['buttons'] ?? null) ? $preview['buttons'] : [] as $button) {
+            if (! is_array($button)) {
+                continue;
+            }
+
+            $text = trim((string) ($button['text'] ?? ''));
+            if ($text === '') {
+                continue;
+            }
+
+            $buttons[] = [
+                'text' => $text,
+                'type' => (string) ($button['type'] ?? 'url'),
+            ];
+        }
+
+        return [
+            'body' => $body,
+            'name' => trim((string) $template->name) !== '' ? (string) $template->name : null,
+            'buttons' => $buttons,
+        ];
     }
 
     private function resolveMediaMessageType(string $mediaType): MessageType

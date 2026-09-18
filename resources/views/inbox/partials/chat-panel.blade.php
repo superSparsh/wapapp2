@@ -236,10 +236,31 @@
               @endforeach
             </div>
           @elseif ($messageType === 'template')
-            <div class="inline-flex items-center gap-2 rounded-full border border-green-300 bg-white/70 px-3 py-1 text-[11px] font-semibold text-green-800">
-              <span>Template</span>
-              <span class="font-medium text-text-body">{{ $templateCode !== '' ? $templateCode : ($body !== '' ? $body : 'message') }}</span>
-            </div>
+            @php
+              $templateName = trim((string) ($message['template_name'] ?? ''));
+              $templateButtons = is_array($message['template_buttons'] ?? null) ? $message['template_buttons'] : [];
+              $isProviderCodeBody = $body !== '' && ($body === $templateCode || preg_match('/^[0-9]{10,}$/', $body));
+            @endphp
+            @if ($body !== '' && ! $isProviderCodeBody)
+              <div>{{ $body }}</div>
+              @if ($templateButtons !== [])
+                <div class="mt-1 flex flex-wrap gap-1.5">
+                  @foreach ($templateButtons as $templateButton)
+                    <span class="rounded border border-green-300 bg-white/80 px-2 py-1 text-[11px] font-medium text-green-800">
+                      {{ is_array($templateButton) ? ($templateButton['text'] ?? '') : $templateButton }}
+                    </span>
+                  @endforeach
+                </div>
+              @endif
+              <div class="mt-1 text-[10px] font-semibold uppercase tracking-wide text-green-700">
+                {{ $templateName !== '' ? 'Template · '.$templateName : 'Template' }}
+              </div>
+            @else
+              <div class="inline-flex items-center gap-2 rounded-full border border-green-300 bg-white/70 px-3 py-1 text-[11px] font-semibold text-green-800">
+                <span>Template</span>
+                <span class="font-medium text-text-body">{{ $templateName !== '' ? $templateName : ($templateCode !== '' ? $templateCode : ($body !== '' ? $body : 'message')) }}</span>
+              </div>
+            @endif
           @elseif ($messageType === 'interactive')
             @php
               $interactiveBody = trim((string) ($interactivePreview['body'] ?? $body));

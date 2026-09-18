@@ -43,21 +43,25 @@ function resolveReverbConfig() {
 const reverb = resolveReverbConfig();
 
 if (reverb.enabled && reverb.key) {
-    window.Echo = new Echo({
-        broadcaster: 'reverb',
-        key: reverb.key,
-        wsHost: reverb.host,
-        wsPort: reverb.port,
-        wssPort: reverb.port,
-        forceTLS: reverb.forceTLS,
-        enabledTransports: ['ws', 'wss'],
-        authEndpoint: '/broadcasting/auth',
-        auth: {
-            headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+    try {
+        window.Echo = new Echo({
+            broadcaster: 'reverb',
+            key: reverb.key,
+            wsHost: reverb.host,
+            wsPort: reverb.port,
+            wssPort: reverb.port,
+            forceTLS: reverb.forceTLS,
+            enabledTransports: ['ws', 'wss'],
+            authEndpoint: '/broadcasting/auth',
+            auth: {
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+                },
             },
-        },
-    });
+        });
+    } catch {
+        window.Echo = undefined;
+    }
 }
 
 export default window.Echo;

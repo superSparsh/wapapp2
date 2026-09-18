@@ -756,6 +756,8 @@ class InboxServiceAdapter
                 'longitude' => is_array($message->metadata) ? ($message->metadata['longitude'] ?? null) : null,
                 'contacts' => is_array($message->metadata) ? ($message->metadata['contacts'] ?? null) : null,
                 'template_code' => is_array($message->metadata) ? ($message->metadata['template_code'] ?? null) : null,
+                'template_name' => is_array($message->metadata) ? ($message->metadata['template_name'] ?? null) : null,
+                'template_buttons' => is_array($message->metadata) ? ($message->metadata['template_buttons'] ?? []) : [],
                 'interactive' => is_array($message->metadata) ? ($message->metadata['interactive'] ?? null) : null,
             ],
         ];

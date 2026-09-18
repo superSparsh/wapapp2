@@ -178,6 +178,30 @@ class TemplateRegistryService
             ->first();
     }
 
+    public function findForSend(string $code, ?WhatsappLine $line = null): ?Template
+    {
+        $code = trim($code);
+        if ($code === '') {
+            return null;
+        }
+
+        $query = Template::query()->where('code', $code);
+
+        if ($line instanceof WhatsappLine) {
+            $onLine = (clone $query)->where('whatsapp_line_id', $line->id)->first();
+            if ($onLine instanceof Template) {
+                return $onLine;
+            }
+
+            $unassigned = (clone $query)->whereNull('whatsapp_line_id')->first();
+            if ($unassigned instanceof Template) {
+                return $unassigned;
+            }
+        }
+
+        return $query->orderByDesc('id')->first();
+    }
+
     public function refresh(?WhatsappLine $line = null): int
     {
         TemplateCatalogCache::flush();

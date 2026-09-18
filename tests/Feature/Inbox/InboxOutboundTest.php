@@ -121,6 +121,37 @@ class InboxOutboundTest extends TestCase
         ]);
     }
 
+    public function test_template_send_stores_preview_body_instead_of_provider_code(): void
+    {
+        Template::factory()->create([
+            'name' => 'Welcome Offer',
+            'code' => '935757998997286912',
+            'whatsapp_line_id' => $this->testLine->id,
+            'payload' => array_merge(Template::defaultPayload(), [
+                'body' => ['text' => 'Hello $(name), welcome back.'],
+                'buttons' => [['text' => 'Shop Now', 'type' => 'url']],
+            ]),
+        ]);
+
+        $conversation = $this->createConversation();
+
+        $this->actingAsTenantUser()
+            ->postJson(route('inbox.api.send-template', $conversation), [
+                'template_code' => '935757998997286912',
+                'template_params' => ['name' => 'Sparsh'],
+            ])
+            ->assertCreated()
+            ->assertJsonPath('message.body', 'Hello Sparsh, welcome back.')
+            ->assertJsonPath('message.template_name', 'Welcome Offer')
+            ->assertJsonPath('message.template_buttons.0.text', 'Shop Now');
+
+        $this->assertDatabaseHas('messages', [
+            'conversation_id' => $conversation->id,
+            'message_type' => MessageType::Template->value,
+            'body' => 'Hello Sparsh, welcome back.',
+        ]);
+    }
+
     public function test_templates_api_lists_approved_templates_with_preview(): void
     {
         Template::factory()->create([

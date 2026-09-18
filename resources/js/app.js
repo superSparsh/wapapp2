@@ -33,8 +33,16 @@ document.addEventListener('DOMContentLoaded', () => {
     initInboxMessageMenu();
     initCommerceOrderModal();
     initInboxNotifications();
-    initInboxRealtime();
-    initInboxChat();
+    try {
+        initInboxRealtime();
+    } catch {
+        // Polling still starts from initInboxChat.
+    }
+    try {
+        initInboxChat();
+    } catch {
+        // Outbound modals still initialize below.
+    }
     initInboxDeleteChat();
     initInboxOutboundModals();
     initInboxTeamFeatures();
@@ -1202,6 +1210,38 @@ function fillMessageBubble(bubble, message) {
     }
 
     if (messageType === 'template') {
+        const templateCode = String(message.template_code || '').trim();
+        const templateName = String(message.template_name || '').trim();
+        const buttons = Array.isArray(message.template_buttons) ? message.template_buttons : [];
+        const isProviderCodeBody = body !== '' && (body === templateCode || /^[0-9]{10,}$/.test(body));
+
+        if (body !== '' && !isProviderCodeBody) {
+            appendText(body);
+
+            if (buttons.length > 0) {
+                const row = document.createElement('div');
+                row.className = 'mt-1 flex flex-wrap gap-1.5';
+                buttons.forEach((button) => {
+                    const label = String(button?.text || button || '').trim();
+                    if (!label) {
+                        return;
+                    }
+
+                    const chip = document.createElement('span');
+                    chip.className = 'rounded border border-green-300 bg-white/80 px-2 py-1 text-[11px] font-medium text-green-800';
+                    chip.textContent = label;
+                    row.appendChild(chip);
+                });
+                bubble.appendChild(row);
+            }
+
+            const caption = document.createElement('div');
+            caption.className = 'mt-1 text-[10px] font-semibold uppercase tracking-wide text-green-700';
+            caption.textContent = templateName ? `Template · ${templateName}` : 'Template';
+            bubble.appendChild(caption);
+            return;
+        }
+
         const chip = document.createElement('div');
         chip.className =
             'inline-flex items-center gap-2 rounded-full border border-green-300 bg-white/70 px-3 py-1 text-[11px] font-semibold text-green-800';
@@ -1212,7 +1252,7 @@ function fillMessageBubble(bubble, message) {
 
         const code = document.createElement('span');
         code.className = 'font-medium text-text-body';
-        code.textContent = message.template_code || body || 'message';
+        code.textContent = templateName || templateCode || body || 'message';
         chip.appendChild(code);
 
         bubble.appendChild(chip);
@@ -1257,6 +1297,21 @@ function fillMessageBubble(bubble, message) {
  * Tenant-wide Echo subscription + list polling.
  * Runs even when no conversation is open so new chats appear live.
  */
+function subscribeInboxEcho(channelName, bindings) {
+    if (!window.Echo || !channelName) {
+        return;
+    }
+
+    try {
+        const channel = window.Echo.private(channelName);
+        Object.entries(bindings).forEach(([eventName, handler]) => {
+            channel.listen(eventName, handler);
+        });
+    } catch {
+        // Websocket subscribe must never block polling.
+    }
+}
+
 function initInboxRealtime() {
     seedInboxUnreadFromDom();
 
@@ -1272,11 +1327,11 @@ function initInboxRealtime() {
     const listPollMs = Math.min(Number(root.dataset.pollInterval || 30000), 4000);
 
     if (realtimeEnabled && tenantId && window.Echo) {
-        window.Echo.private(`inbox.${tenantId}`)
-            .listen('.thread.updated', (payload) => {
+        subscribeInboxEcho(`inbox.${tenantId}`, {
+            '.thread.updated': (payload) => {
                 upsertThreadRow(payload.thread);
-            })
-            .listen('.message.created', (payload) => {
+            },
+            '.message.created': (payload) => {
                 upsertThreadRow(payload.thread);
                 showInboxWebNotification(payload.thread, payload.message);
 
@@ -1291,7 +1346,8 @@ function initInboxRealtime() {
                 } else if (openUuid && payload.conversation_uuid === openUuid) {
                     maybeRefreshOpenChat(payload.thread);
                 }
-            });
+            },
+        });
     }
 
     if (!threadsUrl || listPollMs <= 0) {
@@ -1630,6 +1686,8 @@ function initInboxChat() {
                         longitude: message.longitude,
                         contacts: message.contacts,
                         template_code: message.template_code,
+                        template_name: message.template_name,
+                        template_buttons: message.template_buttons,
                         interactive: message.interactive,
                         interactive_preview: message.interactive_preview,
                     }),
@@ -1663,6 +1721,11 @@ function initInboxChat() {
 
     window.__inboxAppendMessage = (message) => {
         if (!message) {
+            return;
+        }
+
+        if (!messageDisplayBody(message) && String(message.message_type || 'text') === 'text') {
+            refreshMessages();
             return;
         }
 
@@ -1732,6 +1795,8 @@ function initInboxChat() {
                     longitude: message.longitude,
                     contacts: message.contacts,
                     template_code: message.template_code,
+                    template_name: message.template_name,
+                    template_buttons: message.template_buttons,
                     interactive: message.interactive,
                     interactive_preview: message.interactive_preview,
                 });
@@ -1804,9 +1869,7 @@ function initInboxChat() {
                 interactive: data.message?.interactive,
             });
             input.value = '';
-            if (!realtimeEnabled) {
-                await refreshMessages();
-            }
+            await refreshMessages();
         } finally {
             button?.removeAttribute('disabled');
         }
@@ -1814,15 +1877,16 @@ function initInboxChat() {
 
     // Conversation-scoped Echo (tenant channel is handled in initInboxRealtime).
     if (realtimeEnabled && tenantId && conversationUuid && window.Echo) {
-        window.Echo.private(`inbox.${tenantId}.conversation.${conversationUuid}`)
-            .listen('.message.created', (payload) => {
+        subscribeInboxEcho(`inbox.${tenantId}.conversation.${conversationUuid}`, {
+            '.message.created': (payload) => {
                 if (payload.conversation_uuid === conversationUuid) {
                     window.__inboxAppendMessage?.(payload.message);
                     upsertThreadRow(payload.thread);
                     showInboxWebNotification(payload.thread, payload.message);
                     serviceWindow.refresh();
                 }
-            });
+            },
+        });
     }
 
     if (pollInterval > 0) {

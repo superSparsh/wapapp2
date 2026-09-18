@@ -89,6 +89,10 @@ class InboxMessageService
             'longitude' => isset($metadata['longitude']) ? (float) $metadata['longitude'] : null,
             'contacts' => isset($metadata['contacts']) && is_array($metadata['contacts']) ? $metadata['contacts'] : null,
             'template_code' => isset($metadata['template_code']) ? (string) $metadata['template_code'] : null,
+            'template_name' => isset($metadata['template_name']) ? (string) $metadata['template_name'] : null,
+            'template_buttons' => isset($metadata['template_buttons']) && is_array($metadata['template_buttons'])
+                ? $metadata['template_buttons']
+                : [],
             'interactive' => $interactive,
             'interactive_preview' => $this->interactivePreview($interactive, (string) ($message->body ?? '')),
         ];

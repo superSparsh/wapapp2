@@ -6,11 +6,11 @@ namespace App\Events\Inbox;
 
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PrivateChannel;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class InboxMessageCreated implements ShouldBroadcastNow
+class InboxMessageCreated implements ShouldBroadcast
 {
     use Dispatchable;
     use InteractsWithSockets;
