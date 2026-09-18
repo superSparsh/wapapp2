@@ -130,7 +130,8 @@ class InboxHttpTest extends TestCase
             ->assertOk()
             ->assertJsonPath('items.0.name', 'API Thread')
             ->assertJsonPath('items.0.phone', $contact->phone)
-            ->assertJsonPath('items.0.preview', 'API preview');
+            ->assertJsonPath('items.0.preview', 'API preview')
+            ->assertJsonPath('unread_total', 1);
     }
 
     public function test_user_can_delete_a_conversation(): void

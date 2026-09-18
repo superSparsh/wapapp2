@@ -12,7 +12,7 @@ class AlibabaWebhookParserTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->parser = new AlibabaWebhookParser();
+        $this->parser = new AlibabaWebhookParser;
     }
 
     public function test_parse_payload_with_array_of_items(): void
@@ -124,5 +124,73 @@ class AlibabaWebhookParserTest extends TestCase
         $this->assertSame(['MessageId' => 'first'], $this->parser->firstItem($items));
 
         $this->assertNull($this->parser->firstItem([]));
+    }
+
+    public function test_parse_payload_normalizes_camel_case_fields(): void
+    {
+        $result = $this->parser->parsePayload([
+            [
+                'messageId' => 'wamid.camel-1',
+                'from' => '918888888801',
+                'to' => '919999999999',
+                'name' => 'Camel User',
+                'type' => 'text',
+                'message' => 'Hello camel',
+            ],
+        ]);
+
+        $this->assertCount(1, $result);
+        $this->assertSame('wamid.camel-1', $result[0]['MessageId']);
+        $this->assertSame('918888888801', $result[0]['From']);
+        $this->assertSame('919999999999', $result[0]['To']);
+        $this->assertSame('Camel User', $result[0]['Name']);
+        $this->assertSame('Hello camel', $result[0]['Message']);
+    }
+
+    public function test_parse_payload_unwraps_code_data_envelope(): void
+    {
+        $result = $this->parser->parsePayload([
+            'code' => 0,
+            'data' => [
+                [
+                    'MessageId' => 'wamid.wrap-1',
+                    'From' => '918888888801',
+                    'To' => '919999999999',
+                    'Message' => 'Wrapped hello',
+                ],
+            ],
+        ]);
+
+        $this->assertCount(1, $result);
+        $this->assertSame('wamid.wrap-1', $result[0]['MessageId']);
+        $this->assertSame('Wrapped hello', $result[0]['Message']);
+    }
+
+    public function test_parse_payload_unwraps_cloud_api_entry_changes(): void
+    {
+        $result = $this->parser->parsePayload([
+            'object' => 'whatsapp_business_account',
+            'entry' => [[
+                'changes' => [[
+                    'value' => [
+                        'metadata' => ['display_phone_number' => '919999999999'],
+                        'contacts' => [['profile' => ['name' => 'Cloud User']]],
+                        'messages' => [[
+                            'from' => '918888888801',
+                            'id' => 'wamid.cloud-1',
+                            'type' => 'text',
+                            'text' => ['body' => 'Hi from cloud'],
+                        ]],
+                    ],
+                ]],
+            ]],
+        ]);
+
+        $this->assertCount(1, $result);
+        $this->assertSame('wamid.cloud-1', $result[0]['MessageId']);
+        $this->assertSame('918888888801', $result[0]['From']);
+        $this->assertSame('919999999999', $result[0]['To']);
+        $this->assertSame('Cloud User', $result[0]['Name']);
+        $this->assertSame(['body' => 'Hi from cloud'], $result[0]['Message']);
     }
 }

@@ -14,6 +14,7 @@ use App\Models\Template;
 use App\Models\WhatsappLine;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class TemplateRegistryService
 {
@@ -23,30 +24,54 @@ class TemplateRegistryService
     ) {}
 
     /**
-     * @return list<array{code: string, name: string, language: string, category: string, variables: list<array{name: string}>}>
+     * @return list<array{
+     *     code: string,
+     *     name: string,
+     *     language: string,
+     *     category: string,
+     *     variables: list<array{name: string}>,
+     *     preview: array<string, mixed>
+     * }>
      */
     public function options(?WhatsappLine $line = null): array
     {
         $line ??= $this->defaultLine();
 
-        if (! $line instanceof WhatsappLine) {
-            return [];
-        }
-
         // Resolved lazily to avoid a constructor cycle with TemplatePreviewService.
         $previewService = app(TemplatePreviewService::class);
 
-        return Template::query()
-            ->where('whatsapp_line_id', $line->id)
+        $query = Template::query()
             ->where('status', TemplateStatus::Approved)
+            ->whereNotNull('code')
+            ->where('code', '!=', '')
             ->with('variables')
-            ->orderBy('name')
-            ->get()
+            ->orderBy('name');
+
+        $templates = (clone $query)
+            ->when(
+                $line instanceof WhatsappLine,
+                function ($builder) use ($line): void {
+                    $builder->where(function ($inner) use ($line): void {
+                        $inner->where('whatsapp_line_id', $line->id)
+                            ->orWhereNull('whatsapp_line_id');
+                    });
+                },
+            )
+            ->get();
+
+        // Legacy import often stores approved templates on another line, or with a null line.
+        // Inbox should still list them the way the Templates page does.
+        if ($templates->isEmpty()) {
+            $templates = $query->get();
+        }
+
+        return $templates
             ->map(function (Template $template) use ($previewService): array {
                 $variables = array_values(array_map(
                     static fn (array $variable): array => ['name' => (string) $variable['name']],
                     $previewService->variablesForTemplate($template),
                 ));
+                $preview = $previewService->forTemplate($template, [], true);
 
                 return [
                     'code' => (string) $template->code,
@@ -54,6 +79,15 @@ class TemplateRegistryService
                     'language' => $template->language,
                     'category' => $template->category,
                     'variables' => $variables,
+                    'preview' => [
+                        'body' => (string) ($preview['raw_body'] ?? $preview['body'] ?? ''),
+                        'footer' => (string) ($preview['footer'] ?? ''),
+                        'header_type' => (string) ($preview['header_type'] ?? 'none'),
+                        'header_text' => (string) ($preview['header_text'] ?? ''),
+                        'header_image' => $preview['header_image'] ?? null,
+                        'header_video' => $preview['header_video'] ?? null,
+                        'buttons' => is_array($preview['buttons'] ?? null) ? $preview['buttons'] : [],
+                    ],
                 ];
             })
             ->filter(fn (array $row): bool => $row['code'] !== '')
@@ -183,7 +217,7 @@ class TemplateRegistryService
                         'source' => TemplateSource::Cams,
                         'synced_at' => now(),
                         'rejection_reason' => $status === TemplateStatus::Rejected
-                            ? \Illuminate\Support\Str::limit((string) ($item['reason'] ?? ''), 500)
+                            ? Str::limit((string) ($item['reason'] ?? ''), 500)
                             : null,
                         'body_preview' => (string) ($item['body'] ?? $item['name'] ?? $code),
                     ],

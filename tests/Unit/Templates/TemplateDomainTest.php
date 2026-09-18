@@ -3,6 +3,7 @@
 namespace Tests\Unit\Templates;
 
 use App\Domains\Inbox\Services\InboxOutboundService;
+use App\Domains\Templates\Enums\TemplateSource;
 use App\Domains\Templates\Services\BuiltinVariableCatalog;
 use App\Domains\Templates\Services\TemplatePreviewService;
 use App\Domains\Templates\Services\TemplateRegistryService;
@@ -73,13 +74,31 @@ class TemplateDomainTest extends TestCase
         $this->assertCount(0, $registry->listForTable());
     }
 
+    public function test_options_include_approved_templates_without_a_line(): void
+    {
+        Template::factory()->create([
+            'name' => 'Imported Welcome',
+            'code' => 'imported_welcome',
+            'whatsapp_line_id' => null,
+            'payload' => array_merge(Template::defaultPayload(), [
+                'body' => ['text' => 'Hello $(name)'],
+            ]),
+        ]);
+
+        $options = app(TemplateRegistryService::class)->options($this->testLine);
+
+        $this->assertCount(1, $options);
+        $this->assertSame('imported_welcome', $options[0]['code']);
+        $this->assertSame('Hello $(name)', $options[0]['preview']['body']);
+    }
+
     public function test_prune_cams_duplicates_keeps_local_legacy_rows(): void
     {
         Template::factory()->create([
             'name' => 'Welcome',
             'code' => 'welcome_legacy',
             'language' => 'en',
-            'source' => \App\Domains\Templates\Enums\TemplateSource::Local,
+            'source' => TemplateSource::Local,
             'whatsapp_line_id' => $this->testLine->id,
         ]);
 
@@ -87,7 +106,7 @@ class TemplateDomainTest extends TestCase
             'name' => 'Welcome',
             'code' => 'CAMS_CODE_XYZ',
             'language' => 'en_GB',
-            'source' => \App\Domains\Templates\Enums\TemplateSource::Cams,
+            'source' => TemplateSource::Cams,
             'whatsapp_line_id' => $this->testLine->id,
         ]);
 

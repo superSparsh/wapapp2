@@ -81,7 +81,7 @@ class InboxServiceAdapter
             }
         }
 
-        return response()->json($this->localQueryService->paginateThreads(
+        $payload = $this->localQueryService->paginateThreads(
             line: $line,
             search: $filters['search'],
             unreadOnly: $filters['unread_only'],
@@ -89,7 +89,10 @@ class InboxServiceAdapter
             cursor: $filters['cursor'],
             scope: $filters['scope'],
             assigneeFilter: $filters['assignee_filter'],
-        ));
+        );
+        $payload['unread_total'] = $this->localQueryService->totalUnreadCount($line);
+
+        return response()->json($payload);
     }
 
     public function messages(Request $request, Conversation $conversation): JsonResponse

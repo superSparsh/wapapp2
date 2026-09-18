@@ -19,5 +19,5 @@
             <x-inbox.modal-actions submit="Send Template" />
         </form>
     </x-inbox.modal-form>
-    <x-inbox.phone-preview />
+    <x-inbox.phone-preview :live-template="true" />
 </x-inbox.modal>

@@ -8,11 +8,13 @@ use App\Domains\Inbox\Services\InboxMessageService;
 use App\Enums\MessageDirection;
 use App\Enums\MessageStatus;
 use App\Enums\MessageType;
+use App\Enums\RecordStatus;
 use App\Models\Contact;
 use App\Models\Conversation;
 use App\Models\Message;
 use App\Models\Template;
 use App\Models\WalletAccount;
+use App\Models\WhatsappLine;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
@@ -142,6 +144,31 @@ class InboxOutboundTest extends TestCase
             ->assertJsonPath('items.0.preview.body', 'Hi $(name)')
             ->assertJsonPath('items.0.preview.buttons.0.text', 'Open')
             ->assertJsonMissing(['code' => null]);
+    }
+
+    public function test_templates_api_includes_unassigned_and_falls_back_to_other_lines(): void
+    {
+        Template::factory()->create([
+            'name' => 'Other Line Template',
+            'code' => 'other_line_welcome',
+            'whatsapp_line_id' => WhatsappLine::query()->create([
+                'phone' => '918888800099',
+                'display_name' => 'Second Line',
+                'status' => RecordStatus::Active,
+                'is_default' => false,
+            ])->id,
+            'payload' => array_merge(Template::defaultPayload(), [
+                'body' => ['text' => 'From another line'],
+            ]),
+        ]);
+
+        $this->createConversation();
+
+        $this->actingAsTenantUser()
+            ->getJson(route('inbox.api.templates'))
+            ->assertOk()
+            ->assertJsonPath('items.0.code', 'other_line_welcome')
+            ->assertJsonPath('items.0.preview.body', 'From another line');
     }
 
     public function test_media_send_queues_outbound_message(): void

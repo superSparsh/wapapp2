@@ -47,9 +47,9 @@ class InboundMessageHandler
             throw new \RuntimeException('Inbound message payload is empty.');
         }
 
-        $from = (string) ($item['From'] ?? '');
-        $to = (string) ($item['To'] ?? '');
-        $messageId = (string) ($item['MessageId'] ?? '');
+        $from = (string) ($item['From'] ?? $item['from'] ?? '');
+        $to = (string) ($item['To'] ?? $item['to'] ?? '');
+        $messageId = (string) ($item['MessageId'] ?? $item['messageId'] ?? $item['id'] ?? '');
         $parsedReply = $this->parseInboundMessage($item);
         $body = $parsedReply['body'];
 
@@ -70,7 +70,9 @@ class InboundMessageHandler
             $conversation = $this->conversationService->findOrCreateConversation(
                 line: $line,
                 contactPhone: $from,
-                contactName: isset($item['Name']) ? (string) $item['Name'] : null,
+                contactName: isset($item['Name']) && (string) $item['Name'] !== ''
+                    ? (string) $item['Name']
+                    : (isset($item['name']) ? (string) $item['name'] : null),
             );
 
             if (Message::query()->where('external_message_id', $messageId)->exists()) {
@@ -180,8 +182,8 @@ class InboundMessageHandler
      */
     private function parseInboundMessage(array $item): array
     {
-        $type = strtoupper((string) ($item['Type'] ?? 'MESSAGE'));
-        $message = $item['Message'] ?? null;
+        $type = strtoupper((string) ($item['Type'] ?? $item['type'] ?? 'MESSAGE'));
+        $message = $item['Message'] ?? $item['message'] ?? $item['text'] ?? $item['body'] ?? null;
 
         if ($type === 'ORDER') {
             $messageData = is_string($message) ? json_decode($message, true) : (is_array($message) ? $message : null);

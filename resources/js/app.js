@@ -1268,10 +1268,8 @@ function initInboxRealtime() {
     const tenantId = root.dataset.tenantId;
     const realtimeEnabled = root.dataset.realtimeEnabled === '1';
     const threadsUrl = root.dataset.threadsUrl;
-    const echoReady = Boolean(window.Echo);
-    const listPollMs = echoReady && realtimeEnabled
-        ? Number(root.dataset.realtimeFallbackPoll || 15000)
-        : Math.min(Number(root.dataset.pollInterval || 30000), 4000);
+    // Poll stays fast even if Echo exists but the websocket never connects.
+    const listPollMs = Math.min(Number(root.dataset.pollInterval || 30000), 4000);
 
     if (realtimeEnabled && tenantId && window.Echo) {
         window.Echo.private(`inbox.${tenantId}`)
@@ -1310,8 +1308,7 @@ function initInboxRealtime() {
             return;
         }
 
-        // Keep appended pages intact; Echo upserts handle live updates.
-        if (threadsAppended || loadingMoreThreads) {
+        if (loadingMoreThreads) {
             return;
         }
 
@@ -1334,6 +1331,35 @@ function initInboxRealtime() {
                 return;
             }
 
+            const applyUnreadTotal = () => {
+                if (typeof data.unread_total === 'number') {
+                    setInboxNavBadge(data.unread_total);
+                } else {
+                    syncInboxNavBadge();
+                }
+            };
+
+            if (threadsAppended) {
+                const selectedUuid = inboxSelectedConversationUuid();
+                [...threads].reverse().forEach((thread) => {
+                    if (!thread?.uuid) {
+                        return;
+                    }
+
+                    const existing = list.querySelector(`[data-thread-uuid="${thread.uuid}"]`);
+                    if (existing) {
+                        upsertThreadRow(thread);
+                        list.insertBefore(existing, list.firstChild);
+                    } else {
+                        list.insertAdjacentHTML('afterbegin', buildThreadRowHtml(thread, selectedUuid));
+                        rememberThreadUnread(thread);
+                        maybeRefreshOpenChat(thread);
+                    }
+                });
+                applyUnreadTotal();
+                return;
+            }
+
             setThreadsCursorState({
                 cursor: data.next_cursor || '',
                 hasMore: Boolean(data.has_more),
@@ -1344,6 +1370,7 @@ function initInboxRealtime() {
                 if (!list.querySelector('[data-thread-uuid]')) {
                     list.innerHTML = '<div class="p-6 text-center text-sm text-text-body/70" data-inbox-thread-empty>No conversations yet.</div>';
                 }
+                applyUnreadTotal();
                 return;
             }
 
@@ -1381,7 +1408,7 @@ function initInboxRealtime() {
 
             list.innerHTML = '';
             list.appendChild(frag);
-            syncInboxNavBadge();
+            applyUnreadTotal();
         } catch {
             // Ignore transient poll errors.
         }
@@ -1480,10 +1507,7 @@ function initInboxChat() {
     const realtimeEnabled = root?.dataset.realtimeEnabled === '1';
     const tenantId = root?.dataset.tenantId;
     const conversationUuid = chat.dataset.conversationUuid;
-    const echoReady = Boolean(window.Echo);
-    const pollInterval = echoReady && realtimeEnabled
-        ? 8000
-        : 3000;
+    const pollInterval = 3000;
     let loadingOlderMessages = false;
 
     // Seed uuids already rendered by Blade so Echo/poll don't duplicate them.
@@ -1888,7 +1912,7 @@ function initInboxOutboundModals() {
     const stickerUrl = chat.dataset.stickerUrl;
     const contactUrl = chat.dataset.contactUrl;
     const sendUrl = chat.dataset.sendUrl;
-    const templatesUrl = chat.dataset.templatesUrl;
+    const templatesUrl = chat.dataset.templatesUrl || inboxRoot()?.dataset.templatesUrl;
     const messagesEl = chat.querySelector('[data-inbox-messages]');
 
     if (!csrf) return;

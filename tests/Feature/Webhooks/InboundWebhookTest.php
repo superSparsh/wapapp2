@@ -2,9 +2,8 @@
 
 namespace Tests\Feature\Webhooks;
 
-use App\Domains\Webhooks\Handlers\DeliveryStatusHandler;
-use App\Domains\Webhooks\Handlers\InboundMessageHandler;
 use App\Domains\Webhooks\Jobs\ProcessInboundWebhookJob;
+use App\Domains\Webhooks\Services\WhatsappLineRegistryService;
 use App\Enums\InboundWebhookStatus;
 use App\Enums\MessageStatus;
 use App\Models\Contact;
@@ -77,6 +76,70 @@ class InboundWebhookTest extends TestCase
         $this->assertSame(1, $conversation->unread_count);
     }
 
+    public function test_camel_case_message_webhook_processes_into_inbox(): void
+    {
+        $payload = json_encode([[
+            'messageId' => 'wamid.TEST-CAMEL-001',
+            'from' => '918888888804',
+            'to' => '919999999999',
+            'name' => 'Camel User',
+            'message' => 'Hello camel case',
+            'type' => 'text',
+        ]], JSON_THROW_ON_ERROR);
+
+        $this->call(
+            'POST',
+            route('webhooks.alibaba.message'),
+            server: ['CONTENT_TYPE' => 'application/json'],
+            content: $payload,
+        )->assertOk();
+
+        $event = InboundWebhookEvent::query()->firstOrFail();
+        $this->app->call([new ProcessInboundWebhookJob((int) $event->id), 'handle']);
+
+        tenancy()->initialize($this->testTenant);
+
+        $this->assertDatabaseHas('messages', [
+            'body' => 'Hello camel case',
+            'external_message_id' => 'wamid.TEST-CAMEL-001',
+        ]);
+
+        $conversation = Conversation::query()->first();
+        $this->assertNotNull($conversation);
+        $this->assertSame(1, $conversation->unread_count);
+    }
+
+    public function test_wrapped_data_envelope_message_webhook_processes_into_inbox(): void
+    {
+        $payload = json_encode([
+            'code' => 0,
+            'data' => [[
+                'MessageId' => 'wamid.TEST-WRAP-001',
+                'From' => '918888888805',
+                'To' => '919999999999',
+                'Message' => ['text' => ['body' => 'Hello wrapped']],
+                'Type' => 'TEXT',
+            ]],
+        ], JSON_THROW_ON_ERROR);
+
+        $this->call(
+            'POST',
+            route('webhooks.alibaba.message'),
+            server: ['CONTENT_TYPE' => 'application/json'],
+            content: $payload,
+        )->assertOk();
+
+        $event = InboundWebhookEvent::query()->firstOrFail();
+        $this->app->call([new ProcessInboundWebhookJob((int) $event->id), 'handle']);
+
+        tenancy()->initialize($this->testTenant);
+
+        $this->assertDatabaseHas('messages', [
+            'body' => 'Hello wrapped',
+            'external_message_id' => 'wamid.TEST-WRAP-001',
+        ]);
+    }
+
     public function test_duplicate_message_webhook_is_idempotent(): void
     {
         $payload = json_encode([[
@@ -121,7 +184,7 @@ class InboundWebhookTest extends TestCase
             'external_message_id' => 'wamid.TEST-STATUS-001',
         ]);
 
-        app(\App\Domains\Webhooks\Services\WhatsappLineRegistryService::class)
+        app(WhatsappLineRegistryService::class)
             ->indexMessage($this->testTenant->id, 'wamid.TEST-STATUS-001', $message->id);
 
         tenancy()->end();

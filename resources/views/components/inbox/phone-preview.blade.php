@@ -1,6 +1,7 @@
 @props([
     'title' => 'Template Preview',
     'subtitle' => 'Template preview message look like',
+    'liveTemplate' => false,
 ])
 
 <aside class="hidden w-full shrink-0 flex-col gap-4 overflow-y-auto px-2 py-4 lg:flex lg:w-[441px]">
@@ -35,6 +36,50 @@
                 <div class="relative z-10 flex min-h-full flex-col p-3 pt-[100px]">
                     @if (isset($preview) && ! $preview->isEmpty())
                         {{ $preview }}
+                    @elseif ($liveTemplate)
+                        <div
+                            class="mx-auto w-full max-w-[354px] rounded-br-[12px] rounded-tl-[12px] rounded-tr-[12px] border border-border bg-elevated p-2"
+                            data-inbox-template-preview
+                        >
+                            <img
+                                data-preview-header-image
+                                src=""
+                                alt=""
+                                class="hidden aspect-[1600/800] w-full rounded object-cover"
+                                width="338"
+                                height="169"
+                            >
+                            <video
+                                data-preview-header-video
+                                src=""
+                                class="hidden max-h-40 w-full rounded object-cover"
+                                controls
+                                playsinline
+                            ></video>
+                            <p
+                                data-preview-header-text
+                                class="hidden w-full text-base font-semibold leading-[1.4] text-text-body"
+                                style="font-family: var(--font-display)"
+                            ></p>
+                            <p
+                                data-preview-body
+                                class="mt-3 whitespace-pre-wrap text-base font-normal leading-[1.4] text-text-body"
+                                style="font-family: var(--font-display)"
+                            >Select a template to preview the message.</p>
+                            <p
+                                data-preview-footer
+                                class="mt-2 hidden w-full text-xs font-normal leading-[1.4] text-text-subtle"
+                            ></p>
+                            <img
+                                data-preview-divider
+                                src="{{ asset('images/inbox/modals/vector-divider.svg') }}"
+                                alt=""
+                                class="my-3 hidden w-full"
+                                width="338"
+                                height="1"
+                            >
+                            <div data-preview-buttons class="flex w-full flex-col"></div>
+                        </div>
                     @else
                         <div class="mx-auto w-full max-w-[354px] rounded-br-[12px] rounded-tl-[12px] rounded-tr-[12px] border border-border bg-elevated p-2">
                             <img
