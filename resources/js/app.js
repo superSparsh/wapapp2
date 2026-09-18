@@ -722,7 +722,6 @@ function inboxBaseUrl() {
 
 const INBOX_NOTIFY_KEY = 'inbox.web_notifications';
 const inboxUnreadSeen = new Map();
-let inboxNotifyReadyAt = Date.now() + 2500;
 
 function threadDisplayName(thread) {
     return String(thread?.name || thread?.phone || 'Unknown');
@@ -754,7 +753,7 @@ function seedInboxUnreadFromDom() {
 }
 
 function inboxNotificationsWanted() {
-    return window.localStorage.getItem(INBOX_NOTIFY_KEY) === '1';
+    return window.localStorage.getItem(INBOX_NOTIFY_KEY) !== '0';
 }
 
 function inboxCanNotify() {
@@ -781,7 +780,7 @@ function setInboxNotifyUi(enabled) {
 }
 
 function showInboxWebNotification(thread, message) {
-    if (!inboxCanNotify() || Date.now() < inboxNotifyReadyAt) {
+    if (!inboxCanNotify()) {
         return;
     }
 
@@ -815,6 +814,56 @@ function showInboxWebNotification(thread, message) {
     }
 }
 
+function inboxUnreadTotalFromDom() {
+    let total = 0;
+
+    document.querySelectorAll('[data-inbox-thread-list] [data-thread-unread]').forEach((el) => {
+        if (el.classList.contains('hidden')) {
+            return;
+        }
+
+        const count = Number(el.textContent || 0);
+        if (Number.isFinite(count) && count > 0) {
+            total += count;
+        }
+    });
+
+    return total;
+}
+
+function setInboxNavBadge(count) {
+    const next = Number(count || 0);
+    const label = next > 99 ? '99+' : next > 0 ? String(next) : '';
+
+    document.querySelectorAll('[data-inbox-nav-badge]').forEach((el) => {
+        el.textContent = label;
+        el.classList.toggle('hidden', label === '');
+    });
+
+    const root = inboxRoot();
+    if (root) {
+        root.dataset.unreadTotal = String(Math.max(0, next));
+    }
+
+    const baseTitle = document.title.replace(/^\(\d+\+?\)\s+/, '');
+    document.title = next > 0 ? `(${next > 99 ? '99+' : next}) ${baseTitle}` : baseTitle;
+}
+
+function syncInboxNavBadge() {
+    setInboxNavBadge(inboxUnreadTotalFromDom());
+}
+
+function maybeRefreshOpenChat(thread) {
+    const chat = document.querySelector('[data-inbox-chat]');
+    if (!chat || !thread?.uuid || chat.dataset.conversationUuid !== thread.uuid) {
+        return;
+    }
+
+    if (typeof window.__inboxRefreshMessages === 'function') {
+        window.__inboxRefreshMessages();
+    }
+}
+
 function rememberThreadUnread(thread) {
     if (!thread?.uuid) {
         return;
@@ -827,6 +876,8 @@ function rememberThreadUnread(thread) {
     if (next > prev) {
         showInboxWebNotification(thread);
     }
+
+    syncInboxNavBadge();
 }
 
 function buildThreadRowHtml(thread, selectedUuid = null) {
@@ -938,7 +989,11 @@ function upsertThreadRow(thread) {
 
     if (thread.unread !== undefined) {
         rememberThreadUnread(thread);
+    } else {
+        syncInboxNavBadge();
     }
+
+    maybeRefreshOpenChat(thread);
 
     return row;
 }
@@ -1213,9 +1268,10 @@ function initInboxRealtime() {
     const tenantId = root.dataset.tenantId;
     const realtimeEnabled = root.dataset.realtimeEnabled === '1';
     const threadsUrl = root.dataset.threadsUrl;
-    const listPollMs = realtimeEnabled
+    const echoReady = Boolean(window.Echo);
+    const listPollMs = echoReady && realtimeEnabled
         ? Number(root.dataset.realtimeFallbackPoll || 15000)
-        : Number(root.dataset.pollInterval || 30000);
+        : Math.min(Number(root.dataset.pollInterval || 30000), 4000);
 
     if (realtimeEnabled && tenantId && window.Echo) {
         window.Echo.private(`inbox.${tenantId}`)
@@ -1224,6 +1280,7 @@ function initInboxRealtime() {
             })
             .listen('.message.created', (payload) => {
                 upsertThreadRow(payload.thread);
+                showInboxWebNotification(payload.thread, payload.message);
 
                 const chat = document.querySelector('[data-inbox-chat]');
                 const openUuid = chat?.dataset.conversationUuid;
@@ -1233,6 +1290,8 @@ function initInboxRealtime() {
                     typeof window.__inboxAppendMessage === 'function'
                 ) {
                     window.__inboxAppendMessage(payload.message);
+                } else if (openUuid && payload.conversation_uuid === openUuid) {
+                    maybeRefreshOpenChat(payload.thread);
                 }
             });
     }
@@ -1315,11 +1374,14 @@ function initInboxRealtime() {
                     if (wrap.firstElementChild) {
                         frag.appendChild(wrap.firstElementChild);
                     }
+                    rememberThreadUnread(thread);
+                    maybeRefreshOpenChat(thread);
                 }
             });
 
             list.innerHTML = '';
             list.appendChild(frag);
+            syncInboxNavBadge();
         } catch {
             // Ignore transient poll errors.
         }
@@ -1418,9 +1480,10 @@ function initInboxChat() {
     const realtimeEnabled = root?.dataset.realtimeEnabled === '1';
     const tenantId = root?.dataset.tenantId;
     const conversationUuid = chat.dataset.conversationUuid;
-    const pollInterval = realtimeEnabled
-        ? Number(root?.dataset.realtimeFallbackPoll || 15000)
-        : Number(root?.dataset.pollInterval || 30000);
+    const echoReady = Boolean(window.Echo);
+    const pollInterval = echoReady && realtimeEnabled
+        ? 8000
+        : 3000;
     let loadingOlderMessages = false;
 
     // Seed uuids already rendered by Blade so Echo/poll don't duplicate them.
@@ -1662,6 +1725,8 @@ function initInboxChat() {
         }
     };
 
+    window.__inboxRefreshMessages = refreshMessages;
+
     form.addEventListener('submit', async (event) => {
         event.preventDefault();
 
@@ -1730,12 +1795,14 @@ function initInboxChat() {
                 if (payload.conversation_uuid === conversationUuid) {
                     window.__inboxAppendMessage?.(payload.message);
                     upsertThreadRow(payload.thread);
+                    showInboxWebNotification(payload.thread, payload.message);
                     serviceWindow.refresh();
                 }
             });
     }
 
     if (pollInterval > 0) {
+        refreshMessages();
         window.setInterval(async () => {
             await refreshMessages();
             await serviceWindow.refresh();
@@ -2805,6 +2872,38 @@ function setToggleSwitchActive(toggle, active) {
 function initInboxNotifications() {
     seedInboxUnreadFromDom();
 
+    const root = inboxRoot();
+    const fromList = inboxUnreadTotalFromDom();
+    const fromPage = Number(root?.dataset.unreadTotal || 0);
+    setInboxNavBadge(fromList > 0 ? fromList : fromPage);
+
+    const sync = () => {
+        setInboxNotifyUi(inboxCanNotify());
+    };
+
+    const requestFromGesture = async () => {
+        if (typeof Notification === 'undefined') {
+            return;
+        }
+
+        if (Notification.permission !== 'default') {
+            sync();
+            return;
+        }
+
+        if (window.localStorage.getItem(INBOX_NOTIFY_KEY) === '0') {
+            return;
+        }
+
+        const permission = await Notification.requestPermission();
+        if (permission === 'granted') {
+            window.localStorage.setItem(INBOX_NOTIFY_KEY, '1');
+        }
+        sync();
+    };
+
+    root?.addEventListener('click', requestFromGesture, { once: true, capture: true });
+
     const toggle = document.querySelector('[data-inbox-notify-toggle]');
     if (!toggle) {
         return;
@@ -2815,15 +2914,13 @@ function initInboxNotifications() {
         return;
     }
 
-    const sync = () => {
-        const enabled = inboxNotificationsWanted() && Notification.permission === 'granted';
-        setInboxNotifyUi(enabled);
-    };
-
     sync();
 
-    toggle.addEventListener('click', async () => {
-        if (inboxNotificationsWanted() && Notification.permission === 'granted') {
+    toggle.addEventListener('click', async (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+
+        if (inboxCanNotify()) {
             window.localStorage.setItem(INBOX_NOTIFY_KEY, '0');
             sync();
             return;

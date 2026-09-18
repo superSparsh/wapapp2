@@ -33,10 +33,10 @@ class WhatsappLine extends TenantModel
     protected function casts(): array
     {
         return [
-            'status'    => RecordStatus::class,
+            'status' => RecordStatus::class,
             'is_default' => 'boolean',
-            'profile'   => 'array',
-            'metadata'  => 'array',
+            'profile' => 'array',
+            'metadata' => 'array',
         ];
     }
 
@@ -60,11 +60,11 @@ class WhatsappLine extends TenantModel
     }
 
     /**
-     * Whether the line is actively connected (has a WABA ID).
+     * Whether the line is actively connected (WABA or CAMS customer space).
      */
     public function isConnected(): bool
     {
-        return filled($this->waba_id);
+        return filled($this->waba_id) || filled($this->alibaba_cust_space_id);
     }
 
     /**
@@ -75,10 +75,10 @@ class WhatsappLine extends TenantModel
         $digits = preg_replace('/\D/', '', (string) $this->phone) ?? '';
 
         if (strlen($digits) === 12 && str_starts_with($digits, '91')) {
-            return '+91 ' . substr($digits, 2, 5) . ' ' . substr($digits, 7);
+            return '+91 '.substr($digits, 2, 5).' '.substr($digits, 7);
         }
 
-        return '+' . $digits;
+        return '+'.$digits;
     }
 
     // ─── Relationships ────────────────────────────────────────────────────────

@@ -88,6 +88,122 @@ class LineProfileSyncTest extends TestCase
         $this->assertSame('Acme Corp', $line->metadata['business_name'] ?? null);
     }
 
+    public function test_sync_from_provider_works_with_cust_space_and_empty_waba(): void
+    {
+        config([
+            'whatsapp.alibaba.access_key_id' => 'test-key',
+            'whatsapp.alibaba.access_key_secret' => 'test-secret',
+            'whatsapp.alibaba.endpoint' => 'cams.test.local',
+        ]);
+
+        $line = WhatsappLine::factory()->defaultLine()->create([
+            'phone' => '919876543210',
+            'waba_id' => null,
+            'alibaba_cust_space_id' => 'SPACE1',
+            'quality_rating' => 'YELLOW',
+            'messaging_limit_tier' => 'TIER_1K',
+        ]);
+
+        Http::fake([
+            'https://cams.test.local/*' => Http::sequence()
+                ->push([
+                    'Code' => 'OK',
+                    'PhoneNumbers' => [[
+                        'phoneNumber' => '919876543210',
+                        'qualityRating' => 'GREEN',
+                        'messagingLimitTier' => 'TIER_10K',
+                        'verifiedName' => 'Acme Biz',
+                        'status' => 'CONNECTED',
+                        'wabaId' => 'WABA999',
+                    ]],
+                ], 200)
+                ->push(['Code' => 'OK'], 200)
+                ->push([
+                    'Code' => 'OK',
+                    'Data' => [
+                        'businessId' => 'BID1',
+                        'businessName' => 'Acme Corp',
+                        'verificationStatus' => 'verified',
+                        'vertical' => 'OTHER',
+                    ],
+                ], 200),
+        ]);
+
+        app(LineProfileService::class)->syncFromProvider($line);
+
+        $line->refresh();
+        $this->assertSame('WABA999', $line->waba_id);
+        $this->assertSame('GREEN', $line->quality_rating);
+        $this->assertSame('TIER_10K', $line->messaging_limit_tier);
+        $this->assertSame('Acme Corp', $line->metadata['business_name'] ?? null);
+        Http::assertNotSent(function ($request) {
+            $haystack = $request->url().' '.(string) $request->body();
+
+            return str_contains($haystack, 'ChatappBindWaba');
+        });
+    }
+
+    public function test_sync_from_provider_uses_sibling_line_waba(): void
+    {
+        config([
+            'whatsapp.alibaba.access_key_id' => 'test-key',
+            'whatsapp.alibaba.access_key_secret' => 'test-secret',
+            'whatsapp.alibaba.endpoint' => 'cams.test.local',
+        ]);
+
+        $line = WhatsappLine::factory()->defaultLine()->create([
+            'phone' => '919876543210',
+            'waba_id' => null,
+            'alibaba_cust_space_id' => null,
+        ]);
+        WhatsappLine::factory()->create([
+            'phone' => '919876543211',
+            'waba_id' => 'WABA123',
+            'alibaba_cust_space_id' => 'SPACE1',
+            'is_default' => false,
+        ]);
+
+        Http::fake([
+            'https://cams.test.local/*' => Http::response([
+                'Code' => 'OK',
+                'Data' => ['CustSpaceId' => 'SPACE1'],
+                'PhoneNumbers' => [[
+                    'phoneNumber' => '919876543210',
+                    'qualityRating' => 'GREEN',
+                    'messagingLimitTier' => 'TIER_10K',
+                    'verifiedName' => 'Acme Biz',
+                    'status' => 'CONNECTED',
+                ]],
+            ], 200),
+        ]);
+
+        app(LineProfileService::class)->syncFromProvider($line);
+
+        $line->refresh();
+        $this->assertSame('WABA123', $line->waba_id);
+        $this->assertSame('SPACE1', $line->alibaba_cust_space_id);
+        $this->assertSame('GREEN', $line->quality_rating);
+    }
+
+    public function test_sync_still_fails_when_waba_and_cust_space_are_missing(): void
+    {
+        config([
+            'whatsapp.alibaba.access_key_id' => 'test-key',
+            'whatsapp.alibaba.access_key_secret' => 'test-secret',
+            'whatsapp.alibaba.endpoint' => 'cams.test.local',
+        ]);
+
+        $line = WhatsappLine::factory()->defaultLine()->create([
+            'waba_id' => null,
+            'alibaba_cust_space_id' => null,
+        ]);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('No WABA ID on the WhatsApp line. Connect WhatsApp Business first.');
+
+        app(LineProfileService::class)->syncFromProvider($line);
+    }
+
     public function test_sync_fails_when_cams_not_configured(): void
     {
         config([

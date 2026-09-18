@@ -4,11 +4,15 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Dashboard;
 
+use App\Domains\Account\Services\NotificationService;
 use App\Domains\Audience\Enums\ContactStatus;
+use App\Domains\Billing\Services\WalletService;
 use App\Enums\CampaignRecipientStatus;
 use App\Enums\CampaignStatus;
 use App\Enums\SubscriptionStatus;
 use App\Enums\WalletTransactionType;
+use App\Models\AccountPreference;
+use App\Models\ActivityLog;
 use App\Models\Campaign;
 use App\Models\CampaignRecipient;
 use App\Models\Contact;
@@ -17,6 +21,7 @@ use App\Models\Subscription;
 use App\Models\Template;
 use App\Models\WalletTransaction;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
 use Tests\Concerns\InteractsWithTenants;
 use Tests\TestCase;
 
@@ -132,6 +137,76 @@ class DashboardTest extends TestCase
             ->assertSee('Sort by : All time');
     }
 
+    public function test_wallet_history_balance_after_walks_back_from_live_balance(): void
+    {
+        app(WalletService::class)->account()->update(['balance' => 400]);
+
+        WalletTransaction::query()->create([
+            'type' => WalletTransactionType::Credit,
+            'amount' => 500,
+            'currency' => 'INR',
+            'balance_after' => 12.34,
+            'description' => 'Wallet top up',
+            'created_at' => now()->subHour(),
+        ]);
+        WalletTransaction::query()->create([
+            'type' => WalletTransactionType::Debit,
+            'amount' => 100,
+            'currency' => 'INR',
+            'balance_after' => -999,
+            'description' => 'Campaign send deduction',
+            'created_at' => now(),
+        ]);
+
+        $rows = app(WalletService::class)
+            ->paginateTransactions(period: 'all')
+            ->getCollection();
+
+        $this->assertCount(2, $rows);
+        $this->assertSame('Campaign send deduction', $rows[0]->description);
+        $this->assertSame(400.0, (float) $rows[0]->display_balance_after);
+        $this->assertSame('Wallet top up', $rows[1]->description);
+        $this->assertSame(500.0, (float) $rows[1]->display_balance_after);
+
+        $this->actingAsTenantUser()
+            ->get(route('dashboard.wallet', ['period' => 'all']))
+            ->assertOk()
+            ->assertSee('₹ 400.00')
+            ->assertSee('₹ 500.00')
+            ->assertDontSee('₹ 999.00')
+            ->assertDontSee('₹ 12.34');
+    }
+
+    public function test_wallet_history_balance_after_stays_correct_on_page_two(): void
+    {
+        config(['billing.wallet.history_per_page' => 1]);
+        app(WalletService::class)->account()->update(['balance' => 400]);
+
+        WalletTransaction::query()->create([
+            'type' => WalletTransactionType::Credit,
+            'amount' => 500,
+            'currency' => 'INR',
+            'balance_after' => 0,
+            'description' => 'Wallet top up',
+            'created_at' => now()->subHour(),
+        ]);
+        WalletTransaction::query()->create([
+            'type' => WalletTransactionType::Debit,
+            'amount' => 100,
+            'currency' => 'INR',
+            'balance_after' => 0,
+            'description' => 'Campaign send deduction',
+            'created_at' => now(),
+        ]);
+
+        $this->actingAsTenantUser()
+            ->get(route('dashboard.wallet', ['period' => 'all', 'page' => 2]))
+            ->assertOk()
+            ->assertSee('Wallet top up')
+            ->assertSee('₹ 500.00')
+            ->assertDontSee('Campaign send deduction');
+    }
+
     public function test_mark_all_notifications_read_endpoint(): void
     {
         $this->actingAsTenantUser()
@@ -142,8 +217,8 @@ class DashboardTest extends TestCase
 
     public function test_bell_notifications_only_include_unread_after_mark_read(): void
     {
-        \App\Models\ActivityLog::query()->create([
-            'uid' => (string) \Illuminate\Support\Str::uuid(),
+        ActivityLog::query()->create([
+            'uid' => (string) Str::uuid(),
             'scope' => 'tenant',
             'actor_type' => 'user',
             'action' => 'campaign.created',
@@ -155,8 +230,8 @@ class DashboardTest extends TestCase
             ->postJson(route('notifications.read'))
             ->assertOk();
 
-        \App\Models\ActivityLog::query()->create([
-            'uid' => (string) \Illuminate\Support\Str::uuid(),
+        ActivityLog::query()->create([
+            'uid' => (string) Str::uuid(),
             'scope' => 'tenant',
             'actor_type' => 'user',
             'action' => 'campaign.created',
@@ -164,7 +239,7 @@ class DashboardTest extends TestCase
             'created_at' => now()->addSecond(),
         ]);
 
-        $service = app(\App\Domains\Account\Services\NotificationService::class);
+        $service = app(NotificationService::class);
 
         $this->assertSame(1, $service->unreadCount());
         $this->assertCount(1, $service->recent());
@@ -173,8 +248,8 @@ class DashboardTest extends TestCase
 
     public function test_notification_read_state_survives_session_flush_like_login(): void
     {
-        \App\Models\ActivityLog::query()->create([
-            'uid' => (string) \Illuminate\Support\Str::uuid(),
+        ActivityLog::query()->create([
+            'uid' => (string) Str::uuid(),
             'scope' => 'tenant',
             'actor_type' => 'user',
             'action' => 'campaign.created',
@@ -190,11 +265,11 @@ class DashboardTest extends TestCase
         session()->flush();
         $this->actingAsTenantUser();
 
-        $service = app(\App\Domains\Account\Services\NotificationService::class);
+        $service = app(NotificationService::class);
 
         $this->assertSame(0, $service->unreadCount());
         $this->assertCount(0, $service->recent());
-        $this->assertNotNull(\App\Models\AccountPreference::current()->notifications_read_at);
+        $this->assertNotNull(AccountPreference::current()->notifications_read_at);
     }
 
     public function test_credits_endpoint_returns_period_payload(): void

@@ -120,6 +120,81 @@ class LegacyCustomerMigrationTest extends TestCase
         $this->assertSame(0, LegacyCustomerMigration::query()->where('status', 'completed')->count());
     }
 
+    public function test_migrates_waba_id_from_legacy_business_infos(): void
+    {
+        $this->seedLegacyCustomer(20, 'waba@example.com', withExtras: true);
+
+        DB::connection('legacy')->table('business_infos')->insert([
+            [
+                'customer_id' => 20,
+                'waba_id' => 'WABA-LEGACY-20',
+                'cust_space_id' => 'SPACE-LEGACY-20',
+                'business_name' => 'Legacy Biz',
+                'created_at' => now()->subDay(),
+                'updated_at' => now()->subDay(),
+            ],
+            [
+                'customer_id' => 20,
+                'waba_id' => '',
+                'cust_space_id' => '',
+                'business_name' => null,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ]);
+
+        $result = app(CustomerMigrationOrchestrator::class)->migrate(
+            'waba@example.com',
+            new MigrationOptions(dryRun: false, force: false),
+        );
+
+        $tenant = Tenant::query()->findOrFail($result['tenant_id']);
+        tenancy()->initialize($tenant);
+
+        $line = WhatsappLine::query()->first();
+        $this->assertNotNull($line);
+        $this->assertSame('WABA-LEGACY-20', $line->waba_id);
+        $this->assertSame('SPACE-LEGACY-20', $line->alibaba_cust_space_id);
+        $this->assertSame('Legacy Biz', $line->metadata['business_name'] ?? null);
+        $this->assertTrue($line->isConnected());
+
+        tenancy()->end();
+    }
+
+    public function test_force_reimport_copies_waba_onto_existing_line(): void
+    {
+        $this->seedLegacyCustomer(21, 'refill@example.com', withExtras: true);
+
+        $first = app(CustomerMigrationOrchestrator::class)->migrate(
+            'refill@example.com',
+            new MigrationOptions(dryRun: false, force: false),
+        );
+
+        $tenant = Tenant::query()->findOrFail($first['tenant_id']);
+        tenancy()->initialize($tenant);
+        $this->assertTrue(blank(WhatsappLine::query()->value('waba_id')));
+        tenancy()->end();
+
+        DB::connection('legacy')->table('business_infos')->insert([
+            'customer_id' => 21,
+            'waba_id' => 'WABA-REFILL-21',
+            'cust_space_id' => 'SPACE-REFILL-21',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        app(CustomerMigrationOrchestrator::class)->migrate(
+            'refill@example.com',
+            new MigrationOptions(dryRun: false, force: true),
+        );
+
+        tenancy()->initialize($tenant);
+        $line = WhatsappLine::query()->first();
+        $this->assertSame('WABA-REFILL-21', $line?->waba_id);
+        $this->assertSame('SPACE-REFILL-21', $line?->alibaba_cust_space_id);
+        tenancy()->end();
+    }
+
     private function seedPlan(): void
     {
         Plan::query()->create([
@@ -172,6 +247,21 @@ class LegacyCustomerMigrationTest extends TestCase
             $table->string('quality_rating')->nullable();
             $table->string('message_limiter')->nullable();
             $table->string('verification_status')->nullable();
+            $table->timestamps();
+        });
+
+        $schema->create('business_infos', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('customer_id')->nullable();
+            $table->unsignedBigInteger('user_id')->nullable();
+            $table->text('waba_id')->nullable();
+            $table->text('cust_space_id')->nullable();
+            $table->text('waba_response')->nullable();
+            $table->text('cust_response')->nullable();
+            $table->string('business_id')->nullable();
+            $table->string('business_name')->nullable();
+            $table->string('status')->nullable();
+            $table->string('vertical')->nullable();
             $table->timestamps();
         });
 

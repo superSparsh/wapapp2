@@ -145,7 +145,19 @@
         >
           <x-icons.sidebar-icon :name="$item['icon']" :active="$isParentActive" class="size-5 shrink-0" />
           <span class="min-w-0 flex-1 whitespace-nowrap" @if (! $mobile) data-sidebar-label @endif>{{ $item['label'] }}</span>
-          @if (! empty($item['badge']))
+          @if (($item['route'] ?? '') === 'inbox.index')
+            @php $inboxBadge = (string) ($item['badge'] ?? ''); @endphp
+            <span
+              @class([
+                'flex size-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold leading-[1.5]',
+                'bg-white text-green-700' => $isParentActive,
+                'bg-green-500 text-white' => ! $isParentActive,
+                'hidden' => $inboxBadge === '',
+              ])
+              data-inbox-nav-badge
+              @if (! $mobile) data-sidebar-badge @endif
+            >{{ $inboxBadge }}</span>
+          @elseif (! empty($item['badge']))
             <span class="flex size-5 shrink-0 items-center justify-center rounded-full bg-green-50 text-[10px] font-bold leading-[1.5] text-green-500" @if (! $mobile) data-sidebar-badge @endif>{{ $item['badge'] }}</span>
           @endif
         </a>

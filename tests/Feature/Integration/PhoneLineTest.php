@@ -350,6 +350,15 @@ class PhoneLineTest extends TestCase
         $this->assertFalse($line->isConnected());
     }
 
+    public function test_whatsapp_line_is_connected_true_when_cust_space_set(): void
+    {
+        $line = WhatsappLine::factory()->create([
+            'waba_id' => null,
+            'alibaba_cust_space_id' => 'SPACE1',
+        ]);
+        $this->assertTrue($line->isConnected());
+    }
+
     public function test_whatsapp_line_display_phone_formats_indian_number(): void
     {
         $line = WhatsappLine::factory()->make(['phone' => '919876543210']);

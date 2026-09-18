@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Domains\Billing\Services;
 
+use App\Domains\Dashboard\Services\DashboardService;
 use App\Enums\RazorpayOrderPurpose;
 use App\Enums\RazorpayOrderStatus;
 use App\Enums\WalletTransactionType;
-use App\Domains\Dashboard\Services\DashboardService;
 use App\Models\RazorpayOrder;
 use App\Models\WalletAccount;
 use App\Models\WalletTransaction;
@@ -54,7 +54,7 @@ class WalletService
         }
         $search = trim((string) $search);
 
-        return WalletTransaction::query()
+        $paginator = WalletTransaction::query()
             ->select([
                 'id',
                 'uuid',
@@ -80,6 +80,43 @@ class WalletService
             ->latest('id')
             ->paginate($perPage)
             ->withQueryString();
+
+        $this->attachDisplayBalanceAfter($paginator);
+
+        return $paginator;
+    }
+
+    /**
+     * Remaining wallet after each row, walked back from the live balance.
+     * Stored balance_after can be wrong for migrated ledgers (rebuilt from 0).
+     */
+    private function attachDisplayBalanceAfter(LengthAwarePaginator $paginator): void
+    {
+        $items = $paginator->getCollection();
+        if ($items->isEmpty()) {
+            return;
+        }
+
+        $current = $this->balance();
+        $ids = $items->pluck('id')->map(fn ($id): int => (int) $id)->all();
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $connection = (new WalletTransaction)->getConnection();
+
+        $nets = collect($connection->select(
+            "SELECT t.id AS id, COALESCE((
+                SELECT SUM(CASE WHEN n.type = 'credit' THEN ABS(n.amount) ELSE -ABS(n.amount) END)
+                FROM wallet_transactions AS n
+                WHERE n.id > t.id
+            ), 0) AS newer_net
+            FROM wallet_transactions AS t
+            WHERE t.id IN ({$placeholders})",
+            $ids,
+        ))->keyBy(fn (object $row): int => (int) $row->id);
+
+        foreach ($items as $transaction) {
+            $newerNet = (float) ($nets[(int) $transaction->id]->newer_net ?? 0);
+            $transaction->setAttribute('display_balance_after', round($current - $newerNet, 2));
+        }
     }
 
     /** @return Collection<int, WalletTransaction> */

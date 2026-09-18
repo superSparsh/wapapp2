@@ -68,7 +68,7 @@
                 :display-name="$whatsappLine->display_name"
                 :quality="$whatsappLine->quality_rating"
                 :limit="$whatsappLine->messaging_limit_tier"
-                :connected="filled($whatsappLine->waba_id)"
+                :connected="$whatsappLine->isConnected()"
                 :is-default="(bool) $whatsappLine->is_default"
                 :href="route('profile.integration.connected', $whatsappLine)"
                 class="max-w-none"

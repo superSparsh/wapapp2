@@ -13,6 +13,7 @@
     data-wallet-blocked="{{ ! empty($walletBlocked) ? '1' : '0' }}"
     data-threads-cursor="{{ $threadsCursor ?? '' }}"
     data-threads-has-more="{{ ! empty($threadsHasMore) ? '1' : '0' }}"
+    data-unread-total="{{ (int) ($unreadTotal ?? 0) }}"
   >
     <div class="flex shrink-0 flex-col gap-3 p-4 pb-2">
       <x-ui.page-header title="Inbox" size="sm">

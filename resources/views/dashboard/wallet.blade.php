@@ -86,7 +86,7 @@
                     ?: ($meta['legacy_category'] ?? null)
                     ?: ($meta['legacy_type'] ?? null)
                     ?: ($isCredit ? 'Wallet credit' : 'Wallet withdrawal');
-                  $balanceAfter = abs((float) $transaction->balance_after);
+                  $balanceAfter = (float) ($transaction->display_balance_after ?? $transaction->balance_after);
                   $detailPayload = [
                     'description' => $description,
                     'type' => $type?->label() ?? '—',

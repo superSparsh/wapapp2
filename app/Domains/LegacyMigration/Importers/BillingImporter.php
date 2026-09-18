@@ -63,7 +63,6 @@ final class BillingImporter implements LegacyImporter
             return;
         }
 
-        $running = 0.0;
         $rows = $this->legacy->db()->table('wallet_transactions')
             ->where('customer_id', $customer->id)
             ->orderBy('id')
@@ -75,15 +74,11 @@ final class BillingImporter implements LegacyImporter
             $type = $this->mapType($row->type ?? null, (float) ($row->amount ?? 0));
             $description = $this->buildDescription($row);
 
-            $running = $type === WalletTransactionType::Credit
-                ? $running + $amount
-                : $running - $amount;
-
             $attributes = [
                 'type' => $type,
                 'amount' => $amount,
                 'currency' => 'INR',
-                'balance_after' => $running,
+                'balance_after' => 0,
                 'description' => $description,
                 'reference_type' => 'legacy_wallet_transaction',
                 'reference_id' => $legacyId,
@@ -124,6 +119,21 @@ final class BillingImporter implements LegacyImporter
 
         if ($customer->walletAmount !== null) {
             $wallet->forceFill(['balance' => (float) $customer->walletAmount])->save();
+        }
+
+        $this->recomputeBalanceAfter((float) ($wallet->fresh()?->balance ?? 0));
+    }
+
+    private function recomputeBalanceAfter(float $currentBalance): void
+    {
+        $running = $currentBalance;
+
+        foreach (WalletTransaction::query()->orderByDesc('id')->cursor() as $transaction) {
+            $amount = abs((float) $transaction->amount);
+            $transaction->forceFill(['balance_after' => round($running, 2)])->save();
+            $running = $transaction->type === WalletTransactionType::Credit
+                ? $running - $amount
+                : $running + $amount;
         }
     }
 

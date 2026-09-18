@@ -47,7 +47,7 @@ class LineProfileService
                 ?? $line?->display_name
                 ?? tenant('company_name'),
             'phone' => $line?->phone,
-            'verified' => filled($line?->waba_id),
+            'verified' => $line?->isConnected() ?? false,
             'quality_rating' => $line?->quality_rating,
             'messaging_limit_tier' => $line?->messaging_limit_tier,
             'profile' => $profile,
@@ -104,20 +104,52 @@ class LineProfileService
             throw new RuntimeException('WhatsApp provider (Alibaba CAMS) is not configured.');
         }
 
-        $wabaId = trim((string) ($line->waba_id ?? ''));
-        if ($wabaId === '') {
+        $wabaId = $this->resolveWabaId($line);
+        $custSpaceId = $this->resolveCustSpaceId($line);
+
+        if ($wabaId !== '') {
+            if (trim((string) ($line->waba_id ?? '')) === '') {
+                $line->forceFill(['waba_id' => $wabaId])->save();
+            }
+
+            $custSpaceId = $this->refreshCustSpaceId($line, $wabaId);
+        }
+
+        if ($custSpaceId === '') {
             throw new RuntimeException('No WABA ID on the WhatsApp line. Connect WhatsApp Business first.');
         }
 
-        $custSpaceId = $this->refreshCustSpaceId($line, $wabaId);
+        if (trim((string) ($line->alibaba_cust_space_id ?? '')) === '') {
+            $line->forceFill(['alibaba_cust_space_id' => $custSpaceId])->save();
+        }
+
         $phoneNumbers = $this->fetchSyncedPhoneNumbers($custSpaceId);
+
+        if ($wabaId === '') {
+            $wabaId = $this->wabaIdFromPhoneNumbers($phoneNumbers);
+            if ($wabaId !== '') {
+                $line->forceFill(['waba_id' => $wabaId])->save();
+            }
+        }
+
         $this->upsertLinesFromPhoneNumbers($phoneNumbers, $wabaId, $custSpaceId);
 
-        foreach (WhatsappLine::query()->where('waba_id', $wabaId)->get() as $syncedLine) {
+        $webhookLines = WhatsappLine::query()
+            ->where(function ($query) use ($wabaId, $custSpaceId): void {
+                $query->where('alibaba_cust_space_id', $custSpaceId);
+                if ($wabaId !== '') {
+                    $query->orWhere('waba_id', $wabaId);
+                }
+            })
+            ->get();
+
+        foreach ($webhookLines as $syncedLine) {
             $this->registerPhoneWebhook($custSpaceId, (string) $syncedLine->phone);
         }
 
-        $this->applyBusinessInfo($custSpaceId, $wabaId);
+        if ($wabaId !== '') {
+            $this->applyBusinessInfo($custSpaceId, $wabaId);
+        }
 
         $this->activityLogService->log('integration.sync.completed', [
             'subject_type' => WhatsappLine::class,
@@ -300,9 +332,76 @@ class LineProfileService
         }
     }
 
+    private function resolveWabaId(WhatsappLine $line): string
+    {
+        $candidates = array_merge(
+            [$line->waba_id],
+            WhatsappLine::query()->orderByDesc('is_default')->pluck('waba_id')->all(),
+        );
+
+        foreach ($candidates as $value) {
+            $id = trim((string) $value);
+            if ($id !== '') {
+                return $id;
+            }
+        }
+
+        $metadata = is_array($line->metadata) ? $line->metadata : [];
+        foreach (['waba_id', 'WabaId', 'wabaId'] as $key) {
+            $id = trim((string) ($metadata[$key] ?? ''));
+            if ($id !== '') {
+                return $id;
+            }
+        }
+
+        return '';
+    }
+
+    private function resolveCustSpaceId(WhatsappLine $line): string
+    {
+        $candidates = array_merge(
+            [$line->alibaba_cust_space_id],
+            WhatsappLine::query()->orderByDesc('is_default')->pluck('alibaba_cust_space_id')->all(),
+        );
+
+        foreach ($candidates as $value) {
+            $id = trim((string) $value);
+            if ($id !== '') {
+                return $id;
+            }
+        }
+
+        $metadata = is_array($line->metadata) ? $line->metadata : [];
+        foreach (['alibaba_cust_space_id', 'cust_space_id', 'CustSpaceId', 'custSpaceId'] as $key) {
+            $id = trim((string) ($metadata[$key] ?? ''));
+            if ($id !== '') {
+                return $id;
+            }
+        }
+
+        return '';
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $phoneNumbers
+     */
+    private function wabaIdFromPhoneNumbers(array $phoneNumbers): string
+    {
+        foreach ($phoneNumbers as $item) {
+            foreach (['wabaId', 'WabaId', 'waba_id'] as $key) {
+                $id = trim((string) (Arr::get($item, $key) ?? ''));
+                if ($id !== '') {
+                    return $id;
+                }
+            }
+        }
+
+        return '';
+    }
+
     private function refreshCustSpaceId(WhatsappLine $line, string $wabaId): string
     {
-        $existing = trim((string) ($line->alibaba_cust_space_id ?? ''));
+        $existing = $this->resolveCustSpaceId($line);
 
         $response = $this->camsClient->chatappBindWaba([
             'WabaId' => $wabaId,
@@ -401,12 +500,15 @@ class LineProfileService
                 ?? WhatsappLine::query()->where('phone', '+'.$phone)->first();
 
             $attributes = [
-                'waba_id' => $wabaId,
                 'alibaba_cust_space_id' => $custSpaceId,
                 'quality_rating' => is_scalar($quality) ? (string) $quality : null,
                 'messaging_limit_tier' => is_scalar($tier) ? (string) $tier : null,
                 'status' => RecordStatus::Active,
             ];
+
+            if ($wabaId !== '') {
+                $attributes['waba_id'] = $wabaId;
+            }
 
             if (is_string($verifiedName) && $verifiedName !== '') {
                 $attributes['display_name'] = $verifiedName;

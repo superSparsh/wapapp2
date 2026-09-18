@@ -156,4 +156,27 @@ class InboxHttpTest extends TestCase
         $this->assertDatabaseMissing('messages', ['conversation_id' => $conversation->id]);
         $this->assertDatabaseHas('contacts', ['id' => $contact->id]);
     }
+
+    public function test_inbox_sidebar_shows_unread_badge(): void
+    {
+        $contact = Contact::factory()->create(['name' => 'Unread Nav', 'phone' => '918888888811']);
+        $conversation = Conversation::factory()->create([
+            'whatsapp_line_id' => $this->testLine->id,
+            'contact_id' => $contact->id,
+            'contact_phone' => $contact->phone,
+            'line_phone' => $this->testLine->phone,
+            'contact_name' => $contact->name,
+            'last_message_at' => now(),
+        ]);
+
+        $this->messageService->recordInbound($conversation, 'Hello badge');
+
+        $html = $this->actingAsTenantUser()
+            ->get(route('inbox.index'))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertMatchesRegularExpression('/data-inbox-nav-badge[^>]*>\s*1\s*</', $html);
+        $this->assertStringContainsString('Hello badge', $html);
+    }
 }

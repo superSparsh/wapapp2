@@ -44,6 +44,11 @@ final class WhatsappLineImporter implements LegacyImporter
             ->get();
 
         $defaultAssigned = WhatsappLine::query()->where('is_default', true)->exists();
+        $credentials = $this->legacyWabaCredentials($customer->id);
+
+        if ($credentials['waba_id'] === '' && $credentials['cust_space_id'] === '') {
+            $report->warn("No WABA ID / customer space found in legacy business_infos for customer #{$customer->id}.");
+        }
 
         foreach ($rows as $row) {
             $phone = PhoneNormalizer::normalize((string) $row->phone);
@@ -78,6 +83,29 @@ final class WhatsappLineImporter implements LegacyImporter
                 ],
             ];
 
+            $rowWabaId = trim((string) data_get($row, 'waba_id', ''));
+            $rowCustSpaceId = trim((string) (
+                data_get($row, 'cust_space_id')
+                ?: data_get($row, 'alibaba_cust_space_id')
+                ?: ''
+            ));
+            if ($rowWabaId !== '') {
+                $attributes['waba_id'] = $rowWabaId;
+            } elseif ($credentials['waba_id'] !== '') {
+                $attributes['waba_id'] = $credentials['waba_id'];
+            }
+            if ($rowCustSpaceId !== '') {
+                $attributes['alibaba_cust_space_id'] = $rowCustSpaceId;
+            } elseif ($credentials['cust_space_id'] !== '') {
+                $attributes['alibaba_cust_space_id'] = $credentials['cust_space_id'];
+            }
+
+            foreach (['business_name', 'business_id', 'business_verification_status', 'vertical'] as $metaKey) {
+                if ($credentials[$metaKey] !== '') {
+                    $attributes['metadata'][$metaKey] = $credentials[$metaKey];
+                }
+            }
+
             $profile = $this->legacyProfile((int) $row->id, $customer->id);
             if ($profile !== null) {
                 $attributes['profile'] = $profile;
@@ -92,6 +120,132 @@ final class WhatsappLineImporter implements LegacyImporter
             $this->registry->syncLine($tenant->id, (int) $line->id, $phone);
             $report->bump($this->key(), $line->wasRecentlyCreated ? 'created' : 'updated');
         }
+    }
+
+    /**
+     * @return array{
+     *     waba_id: string,
+     *     cust_space_id: string,
+     *     business_name: string,
+     *     business_id: string,
+     *     business_verification_status: string,
+     *     vertical: string
+     * }
+     */
+    private function legacyWabaCredentials(int $customerId): array
+    {
+        $found = [
+            'waba_id' => '',
+            'cust_space_id' => '',
+            'business_name' => '',
+            'business_id' => '',
+            'business_verification_status' => '',
+            'vertical' => '',
+        ];
+
+        if (! $this->legacy->tableExists('business_infos')) {
+            return $found;
+        }
+
+        $hasCustomerId = $this->legacy->hasColumn('business_infos', 'customer_id');
+        $hasUserId = $this->legacy->hasColumn('business_infos', 'user_id');
+        if (! $hasCustomerId && ! $hasUserId) {
+            return $found;
+        }
+
+        $query = $this->legacy->db()->table('business_infos');
+        $query->where(function ($nested) use ($customerId, $hasCustomerId, $hasUserId): void {
+            if ($hasCustomerId) {
+                $nested->where('customer_id', $customerId);
+            }
+
+            if ($hasUserId && $this->legacy->tableExists('users')) {
+                $userIds = $this->legacy->db()->table('users')->where('customer_id', $customerId)->pluck('id');
+                if ($userIds->isNotEmpty()) {
+                    $nested->orWhereIn('user_id', $userIds->all());
+                }
+            }
+        });
+
+        if ($this->legacy->hasColumn('business_infos', 'id')) {
+            $query->orderByDesc('id');
+        }
+
+        foreach ($query->get() as $business) {
+            $this->mergeCredential($found, 'waba_id', data_get($business, 'waba_id'));
+            $this->mergeCredential($found, 'cust_space_id', data_get($business, 'cust_space_id') ?: data_get($business, 'alibaba_cust_space_id'));
+            $this->mergeCredential($found, 'business_name', data_get($business, 'business_name'));
+            $this->mergeCredential($found, 'business_id', data_get($business, 'business_id'));
+            $this->mergeCredential($found, 'business_verification_status', data_get($business, 'status'));
+            $this->mergeCredential($found, 'vertical', data_get($business, 'vertical'));
+
+            $fromWabaResponse = $this->idsFromJsonBlob(data_get($business, 'waba_response'));
+            $this->mergeCredential($found, 'waba_id', $fromWabaResponse['waba_id']);
+            $this->mergeCredential($found, 'cust_space_id', $fromWabaResponse['cust_space_id']);
+
+            $fromCustResponse = $this->idsFromJsonBlob(data_get($business, 'cust_response'));
+            $this->mergeCredential($found, 'waba_id', $fromCustResponse['waba_id']);
+            $this->mergeCredential($found, 'cust_space_id', $fromCustResponse['cust_space_id']);
+        }
+
+        if ($this->legacy->tableExists('customers')) {
+            $customer = $this->legacy->db()->table('customers')->where('id', $customerId)->first();
+            if ($customer !== null) {
+                $this->mergeCredential($found, 'waba_id', data_get($customer, 'waba_id'));
+                $this->mergeCredential($found, 'cust_space_id', data_get($customer, 'cust_space_id'));
+            }
+        }
+
+        return $found;
+    }
+
+    /**
+     * @param  array<string, string>  $found
+     */
+    private function mergeCredential(array &$found, string $key, mixed $value): void
+    {
+        if ($found[$key] !== '') {
+            return;
+        }
+
+        $id = trim((string) ($value ?? ''));
+        if ($id !== '' && ! in_array(strtolower($id), ['null', '0', 'false'], true)) {
+            $found[$key] = $id;
+        }
+    }
+
+    /**
+     * @return array{waba_id: string, cust_space_id: string}
+     */
+    private function idsFromJsonBlob(mixed $raw): array
+    {
+        $ids = ['waba_id' => '', 'cust_space_id' => ''];
+        if (! is_string($raw) || $raw === '' || ! str_starts_with(ltrim($raw), '{')) {
+            return $ids;
+        }
+
+        $decoded = json_decode($raw, true);
+        if (! is_array($decoded)) {
+            return $ids;
+        }
+
+        foreach (['wabaId', 'WabaId', 'waba_id', 'data.wabaId', 'data.WabaId', 'Data.WabaId', 'body.data.wabaId'] as $path) {
+            $value = trim((string) (data_get($decoded, $path) ?? ''));
+            if ($value !== '') {
+                $ids['waba_id'] = $value;
+                break;
+            }
+        }
+
+        foreach (['custSpaceId', 'CustSpaceId', 'cust_space_id', 'data.custSpaceId', 'data.CustSpaceId', 'Data.CustSpaceId', 'body.data.custSpaceId'] as $path) {
+            $value = trim((string) (data_get($decoded, $path) ?? ''));
+            if ($value !== '') {
+                $ids['cust_space_id'] = $value;
+                break;
+            }
+        }
+
+        return $ids;
     }
 
     /**
