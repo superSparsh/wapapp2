@@ -163,11 +163,13 @@ class InboundMessageHandler
                 }
 
                 if ($chatbotResult === TriggerFireResult::NoMatch) {
-                    $this->triggerTemplateEngine->process($conversation->refresh(), $message);
+                    $triggerResult = $this->triggerTemplateEngine->process($conversation->refresh(), $message);
+                } else {
+                    $triggerResult = TriggerFireResult::NoMatch;
                 }
 
-                // AI auto-reply (OpenAI key / business info) — only when chatbot did not consume the turn.
-                if ($chatbotResult === TriggerFireResult::NoMatch) {
+                // AI only when chatbot and trigger-template did not consume the turn (legacy parity).
+                if ($chatbotResult === TriggerFireResult::NoMatch && $triggerResult !== TriggerFireResult::Fired) {
                     try {
                         $this->aiInboundReplyService->handle($conversation->refresh(), $message);
                     } catch (\Throwable $e) {

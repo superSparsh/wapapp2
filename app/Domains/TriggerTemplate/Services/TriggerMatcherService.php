@@ -68,8 +68,18 @@ class TriggerMatcherService
             return true;
         }
 
+        // Keyword appears as a whole word/token inside the inbound message.
         $pattern = '/(?:^|[^\p{L}\p{N}])'.preg_quote($keywordLower, '/').'(?:[^\p{L}\p{N}]|$)/ui';
+        if (preg_match($pattern, $messageLower) === 1) {
+            return true;
+        }
 
-        return (bool) preg_match($pattern, $messageLower);
+        // Legacy parity: TriggerVariablesRepository used
+        // variable_name LIKE '%'.$message.'%' — short replies match longer trigger names.
+        if (mb_strlen($messageLower) >= 2 && str_contains($keywordLower, $messageLower)) {
+            return true;
+        }
+
+        return false;
     }
 }

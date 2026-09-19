@@ -25,7 +25,7 @@ class StoreTriggerVariableRequest extends FormRequest
                 'string',
                 'max:191',
                 'regex:/^[a-zA-Z0-9_]+$/',
-                Rule::unique('trigger_variables', 'variable_name'),
+                Rule::unique('trigger_variables', 'variable_name')->whereNull('deleted_at'),
             ],
             'template_code' => ['required', 'string', 'max:255'],
             'template_name' => ['required', 'string', 'max:255'],

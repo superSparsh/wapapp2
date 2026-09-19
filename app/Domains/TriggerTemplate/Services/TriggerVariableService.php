@@ -21,14 +21,30 @@ class TriggerVariableService
      */
     public function create(array $data): TriggerVariable
     {
-        return DB::transaction(fn (): TriggerVariable => TriggerVariable::query()->create([
-            'variable_name' => $data['variable_name'],
-            'template_code' => $data['template_code'],
-            'template_name' => $data['template_name'],
-            'whatsapp_line_id' => $data['whatsapp_line_id'] ?? null,
-            'list_id' => $data['list_id'] ?? null,
-            'list_name' => $data['list_name'] ?? null,
-        ]));
+        return DB::transaction(function () use ($data): TriggerVariable {
+            $attributes = [
+                'variable_name' => $data['variable_name'],
+                'template_code' => $data['template_code'],
+                'template_name' => $data['template_name'],
+                'whatsapp_line_id' => $data['whatsapp_line_id'] ?? null,
+                'list_id' => $data['list_id'] ?? null,
+                'list_name' => $data['list_name'] ?? null,
+            ];
+
+            // Soft-deleted rows still occupy the unique variable_name index — restore/reuse.
+            $trashed = TriggerVariable::onlyTrashed()
+                ->where('variable_name', $data['variable_name'])
+                ->first();
+
+            if ($trashed instanceof TriggerVariable) {
+                $trashed->restore();
+                $trashed->forceFill($attributes)->save();
+
+                return $trashed->refresh();
+            }
+
+            return TriggerVariable::query()->create($attributes);
+        });
     }
 
     public function delete(TriggerVariable $triggerVariable): void

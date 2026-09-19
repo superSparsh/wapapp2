@@ -108,4 +108,16 @@ class TriggerMatcherServiceTest extends TestCase
 
         $this->assertNull($this->matcher->match(collect([$trigger]), '   ', false));
     }
+
+    public function test_legacy_short_message_matches_longer_trigger_name(): void
+    {
+        $trigger = TriggerVariable::factory()->create([
+            'variable_name' => 'pricing_info',
+        ]);
+
+        $match = $this->matcher->match(collect([$trigger]), 'pricing', false);
+
+        $this->assertNotNull($match);
+        $this->assertSame('pricing_info', $match->variable_name);
+    }
 }

@@ -8,6 +8,7 @@ use App\Domains\LegacyMigration\DTO\LegacyCustomerSnapshot;
 use App\Domains\LegacyMigration\Support\LegacyConnection;
 use App\Domains\LegacyMigration\Support\MigrationIdMap;
 use App\Domains\LegacyMigration\Support\MigrationReport;
+use App\Models\Template;
 use App\Models\Tenant;
 use App\Models\TriggerVariable;
 
@@ -49,10 +50,20 @@ final class TriggerVariableImporter implements LegacyImporter
                 continue;
             }
 
-            $templateCode = (string) ($row->template_code ?? $row->template_name ?? $row->wa_template ?? '');
-            $templateName = (string) ($row->template_name ?? $templateCode);
+            [$templateCode, $templateName] = $this->resolveTemplate($row, $ids, $report, $variableName);
+            if ($templateCode === '') {
+                $report->warn(sprintf(
+                    'Skipped trigger_variables#%d (%s): could not resolve WhatsApp template_code.',
+                    $legacyId,
+                    $variableName,
+                ));
+                $report->bump($this->key(), 'skipped');
+
+                continue;
+            }
+
             $listId = null;
-            $listName = (string) ($row->list_name ?? '');
+            $listName = trim((string) ($row->list_name ?? ''));
             foreach (['mail_list_id', 'list_id'] as $column) {
                 if (isset($row->{$column}) && filled($row->{$column})) {
                     $listId = $ids->getInt('list', (int) $row->{$column});
@@ -75,10 +86,10 @@ final class TriggerVariableImporter implements LegacyImporter
                 continue;
             }
 
-            $existing = TriggerVariable::query()->where('variable_name', $variableName)->first();
+            $existing = TriggerVariable::withTrashed()->where('variable_name', $variableName)->first();
             $attributes = [
                 'variable_name' => $variableName,
-                'template_code' => $templateCode !== '' ? $templateCode : $variableName,
+                'template_code' => $templateCode,
                 'template_name' => $templateName !== '' ? $templateName : $variableName,
                 'whatsapp_line_id' => $lineId,
                 'list_id' => $listId,
@@ -86,6 +97,9 @@ final class TriggerVariableImporter implements LegacyImporter
             ];
 
             if ($existing !== null) {
+                if ($existing->trashed()) {
+                    $existing->restore();
+                }
                 $existing->forceFill($attributes)->save();
                 $trigger = $existing;
                 $report->bump($this->key(), 'updated');
@@ -96,5 +110,55 @@ final class TriggerVariableImporter implements LegacyImporter
 
             $ids->put('trigger_variable', $legacyId, $trigger->id);
         }
+    }
+
+    /**
+     * Legacy stores campaign_id = new_templates.id (not template_code).
+     *
+     * @return array{0: string, 1: string}
+     */
+    private function resolveTemplate(object $row, MigrationIdMap $ids, MigrationReport $report, string $variableName): array
+    {
+        $templateCode = '';
+        $templateName = trim((string) ($row->campaign_name ?? $row->template_name ?? ''));
+
+        $campaignId = null;
+        foreach (['campaign_id', 'template_id'] as $column) {
+            if (isset($row->{$column}) && filled($row->{$column})) {
+                $campaignId = (int) $row->{$column};
+                break;
+            }
+        }
+
+        if ($campaignId !== null && $campaignId > 0) {
+            $newId = $ids->getInt('template', $campaignId);
+            if ($newId) {
+                $template = Template::query()->find($newId);
+                if ($template instanceof Template && filled($template->code)) {
+                    return [(string) $template->code, (string) ($template->name ?: $templateName)];
+                }
+            }
+
+            if ($this->legacy->tableExists('new_templates')) {
+                $legacyTpl = $this->legacy->db()->table('new_templates')
+                    ->where('id', $campaignId)
+                    ->first();
+
+                if ($legacyTpl !== null) {
+                    $code = trim((string) ($legacyTpl->template_code ?? ''));
+                    $name = trim((string) ($legacyTpl->template_name ?? $templateName));
+                    if ($code !== '') {
+                        return [$code, $name !== '' ? $name : $variableName];
+                    }
+                }
+            }
+        }
+
+        $direct = trim((string) ($row->template_code ?? $row->wa_template ?? ''));
+        if ($direct !== '') {
+            return [$direct, $templateName !== '' ? $templateName : $variableName];
+        }
+
+        return ['', $templateName];
     }
 }

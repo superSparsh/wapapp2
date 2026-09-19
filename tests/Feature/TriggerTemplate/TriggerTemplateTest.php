@@ -7,7 +7,9 @@ use App\Domains\TriggerTemplate\Enums\TriggerFireResult;
 use App\Domains\TriggerTemplate\Services\TriggerTemplateEngine;
 use App\Models\Contact;
 use App\Models\Conversation;
+use App\Models\MailList;
 use App\Models\TeamMember;
+use App\Models\Template;
 use App\Models\TriggerVariable;
 use App\Models\WalletAccount;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -112,9 +114,11 @@ class TriggerTemplateTest extends TestCase
             'currency' => 'INR',
         ]);
 
+        $templateCode = $this->seedApprovedTemplate();
+
         TriggerVariable::factory()->create([
             'variable_name' => 'hello',
-            'template_code' => 'welcome_template',
+            'template_code' => $templateCode,
             'template_name' => 'Welcome',
         ]);
 
@@ -140,9 +144,11 @@ class TriggerTemplateTest extends TestCase
             'currency' => 'INR',
         ]);
 
+        $templateCode = $this->seedApprovedTemplate();
+
         TriggerVariable::factory()->create([
             'variable_name' => 'hello',
-            'template_code' => 'welcome_template',
+            'template_code' => $templateCode,
         ]);
 
         $conversation = $this->conversation();
@@ -164,8 +170,10 @@ class TriggerTemplateTest extends TestCase
             'currency' => 'INR',
         ]);
 
+        $templateCode = $this->seedApprovedTemplate();
+
         TriggerVariable::factory()->anyMessage()->create([
-            'template_code' => 'welcome_template',
+            'template_code' => $templateCode,
         ]);
 
         $conversation = $this->conversation();
@@ -182,6 +190,98 @@ class TriggerTemplateTest extends TestCase
         $secondResult = $engine->process($conversation->refresh(), $second);
         $this->assertSame(TriggerFireResult::NoMatch, $secondResult);
         Queue::assertNothingPushed();
+    }
+
+    public function test_engine_enrolls_contact_in_mail_list_when_configured(): void
+    {
+        Queue::fake();
+
+        WalletAccount::query()->create([
+            'balance' => 500,
+            'currency' => 'INR',
+        ]);
+
+        $list = MailList::factory()->create(['name' => 'Trigger Leads']);
+        $templateCode = $this->seedApprovedTemplate();
+
+        TriggerVariable::factory()->create([
+            'variable_name' => 'hello',
+            'template_code' => $templateCode,
+            'list_id' => $list->id,
+            'list_name' => $list->name,
+        ]);
+
+        $conversation = $this->conversation();
+        $message = app(\App\Domains\Inbox\Services\InboxMessageService::class)
+            ->recordInbound($conversation, 'hello');
+
+        $result = app(TriggerTemplateEngine::class)->process($conversation->refresh(), $message);
+
+        $this->assertSame(TriggerFireResult::Fired, $result);
+        $this->assertDatabaseHas('contacts', [
+            'mail_list_id' => $list->id,
+            'phone' => $conversation->contact_phone,
+            'source' => 'trigger_template',
+        ]);
+    }
+
+    public function test_engine_returns_send_failed_when_template_missing(): void
+    {
+        Queue::fake();
+
+        WalletAccount::query()->create([
+            'balance' => 500,
+            'currency' => 'INR',
+        ]);
+
+        TriggerVariable::factory()->create([
+            'variable_name' => 'hello',
+            'template_code' => 'not_a_provider_code',
+        ]);
+
+        $conversation = $this->conversation();
+        $message = app(\App\Domains\Inbox\Services\InboxMessageService::class)
+            ->recordInbound($conversation, 'hello');
+
+        $result = app(TriggerTemplateEngine::class)->process($conversation->refresh(), $message);
+
+        $this->assertSame(TriggerFireResult::SendFailed, $result);
+        Queue::assertNothingPushed();
+    }
+
+    public function test_soft_deleted_trigger_name_can_be_reused(): void
+    {
+        $trigger = TriggerVariable::factory()->create(['variable_name' => 'pricing']);
+        $trigger->delete();
+
+        $this->actingAsTenantUser()
+            ->post(route('trigger-template.store'), [
+                'variable_name' => 'pricing',
+                'template_code' => '935757998997286999',
+                'template_name' => 'Pricing Again',
+            ])
+            ->assertRedirect(route('trigger-template.index'))
+            ->assertSessionHas('status');
+
+        $this->assertDatabaseHas('trigger_variables', [
+            'variable_name' => 'pricing',
+            'template_name' => 'Pricing Again',
+            'deleted_at' => null,
+        ]);
+    }
+
+    private function seedApprovedTemplate(string $code = '935757998997286912'): string
+    {
+        Template::factory()->create([
+            'name' => 'Welcome',
+            'code' => $code,
+            'whatsapp_line_id' => $this->testLine->id,
+            'payload' => array_merge(Template::defaultPayload(), [
+                'body' => ['text' => 'Hello, thanks for messaging us.'],
+            ]),
+        ]);
+
+        return $code;
     }
 
     private function conversation(): Conversation
