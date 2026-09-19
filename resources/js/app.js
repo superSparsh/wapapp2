@@ -801,24 +801,33 @@ function showInboxWebNotification(thread, message, { force = false } = {}) {
     }
 
     const openUuid = inboxSelectedConversationUuid();
+    // Skip only when this exact chat is open AND the tab is visibly focused.
     if (
         !force &&
         openUuid &&
         thread?.uuid &&
         thread.uuid === openUuid &&
-        document.visibilityState === 'visible'
+        document.visibilityState === 'visible' &&
+        document.hasFocus()
     ) {
         return false;
     }
 
     const title = threadDisplayName(thread) || 'WapApp Inbox';
     const body =
-        String(message?.body || thread?.preview || 'New WhatsApp message').trim() ||
-        'New WhatsApp message';
+        String(
+            message?.body ||
+                message?.interactive_preview?.body ||
+                thread?.preview ||
+                (message?.message_type && message.message_type !== 'text'
+                    ? `[${message.message_type}]`
+                    : '') ||
+                'New WhatsApp message',
+        ).trim() || 'New WhatsApp message';
     const key = `${thread?.uuid || 'inbox'}:${body}`;
     const now = Date.now();
 
-    if (!force && key === lastInboxNotifyKey && now - lastInboxNotifyAt < 5000) {
+    if (!force && key === lastInboxNotifyKey && now - lastInboxNotifyAt < 4000) {
         return false;
     }
 
@@ -833,6 +842,7 @@ function showInboxWebNotification(thread, message, { force = false } = {}) {
             tag: force ? `inbox-test-${now}` : thread?.uuid || 'inbox',
             renotify: true,
             icon,
+            badge: icon,
             requireInteraction: false,
         });
 
@@ -1007,7 +1017,13 @@ function rememberThreadUnread(thread, { notify = false } = {}) {
     // Echo-down fallback: notify when this thread's unread count rises.
     if (notify && next > prev && next > 0) {
         const openUuid = inboxSelectedConversationUuid();
-        if (!openUuid || thread.uuid !== openUuid || document.visibilityState !== 'visible') {
+        const isFocusedOpenChat =
+            openUuid &&
+            thread.uuid === openUuid &&
+            document.visibilityState === 'visible' &&
+            document.hasFocus();
+
+        if (!isFocusedOpenChat) {
             showInboxWebNotification(thread, { body: thread.preview });
         }
     }
@@ -1075,14 +1091,19 @@ function buildThreadRowHtml(thread, selectedUuid = null) {
     `;
 }
 
-function upsertThreadRow(thread) {
+function upsertThreadRow(thread, { notify = true } = {}) {
     if (!thread?.uuid) {
         return;
     }
 
-    // WhatsApp parity: the open chat is considered read — never keep a badge on it.
+    // WhatsApp parity: only clear unread while the agent is actually looking at this chat.
     const openUuid = inboxSelectedConversationUuid();
-    if (openUuid && thread.uuid === openUuid) {
+    if (
+        openUuid &&
+        thread.uuid === openUuid &&
+        document.visibilityState === 'visible' &&
+        document.hasFocus()
+    ) {
         thread = { ...thread, unread: 0 };
     }
 
@@ -1172,7 +1193,7 @@ function upsertThreadRow(thread) {
     }
 
     if (thread.unread !== undefined) {
-        rememberThreadUnread(thread, { notify: true });
+        rememberThreadUnread(thread, { notify });
     }
 
     maybeRefreshOpenChat(thread);
@@ -1737,18 +1758,24 @@ function initInboxRealtime() {
                 const chat = document.querySelector('[data-inbox-chat]');
                 const openUuid = chat?.dataset.conversationUuid;
                 const isOpenChat = openUuid && payload.conversation_uuid === openUuid;
+                const viewingOpenChat =
+                    isOpenChat &&
+                    document.visibilityState === 'visible' &&
+                    document.hasFocus();
 
-                // Outbound (messages we send) never contribute to unread badges.
+                // Outbound never adds unread. Open+focused chat is treated as read.
                 const thread = {
                     ...(payload.thread || {}),
-                    unread: isOutbound || isOpenChat
+                    unread: isOutbound || viewingOpenChat
                         ? 0
                         : Number(payload.thread?.unread || 0),
                 };
 
-                upsertThreadRow(thread);
+                // Suppress badge-based notify here — showInboxWebNotification below
+                // has the real message body and correct open-chat/focus checks.
+                upsertThreadRow(thread, { notify: false });
 
-                if (!isOutbound && !isOpenChat) {
+                if (!isOutbound) {
                     showInboxWebNotification(thread, message);
                 }
 
@@ -1822,7 +1849,7 @@ function initInboxRealtime() {
                         list.insertBefore(existing, list.firstChild);
                     } else {
                         list.insertAdjacentHTML('afterbegin', buildThreadRowHtml(thread, selectedUuid));
-                        rememberThreadUnread(thread);
+                        rememberThreadUnread(thread, { notify: true });
                         maybeRefreshOpenChat(thread);
                     }
                 });
@@ -1871,7 +1898,7 @@ function initInboxRealtime() {
                     if (wrap.firstElementChild) {
                         frag.appendChild(wrap.firstElementChild);
                     }
-                    rememberThreadUnread(thread);
+                    rememberThreadUnread(thread, { notify: true });
                     maybeRefreshOpenChat(thread);
                 }
             });
@@ -2303,11 +2330,24 @@ function initInboxChat() {
 
                 if (!before && message.uuid && seenMessageUuids.has(message.uuid) && !isOutbound) {
                     appendedInbound = true;
+                    showInboxWebNotification(
+                        {
+                            uuid: conversationUuid,
+                            name:
+                                chat.querySelector('.fd-card-title')?.textContent?.trim() ||
+                                threadDisplayName({ uuid: conversationUuid }),
+                            preview: message.body,
+                        },
+                        message,
+                    );
                 }
             });
 
             if (appendedInbound) {
-                await markConversationRead();
+                // Only mark read when the agent is actually viewing this tab.
+                if (document.visibilityState === 'visible' && document.hasFocus()) {
+                    await markConversationRead();
+                }
             }
         } catch {
             // Ignore transient poll errors.
@@ -2436,17 +2476,36 @@ function initInboxChat() {
 
                 const message = payload.message || {};
                 const isOutbound = Boolean(message.is_outbound);
+                const viewing =
+                    document.visibilityState === 'visible' && document.hasFocus();
 
                 window.__inboxAppendMessage?.(message);
-                // Open conversation stays read; outbound never adds unread.
-                upsertThreadRow({
-                    ...(payload.thread || {}),
-                    uuid: conversationUuid,
-                    unread: 0,
-                });
+
+                upsertThreadRow(
+                    {
+                        ...(payload.thread || {}),
+                        uuid: conversationUuid,
+                        unread: isOutbound || viewing ? 0 : Number(payload.thread?.unread || 1),
+                    },
+                    { notify: false },
+                );
 
                 if (!isOutbound) {
-                    markConversationRead();
+                    showInboxWebNotification(
+                        {
+                            ...(payload.thread || {}),
+                            uuid: conversationUuid,
+                            name:
+                                payload.thread?.name ||
+                                chat.querySelector('.fd-card-title')?.textContent?.trim() ||
+                                'WapApp Inbox',
+                        },
+                        message,
+                    );
+
+                    if (viewing) {
+                        markConversationRead();
+                    }
                 }
 
                 serviceWindow.refresh();
@@ -3681,6 +3740,17 @@ function initInboxNotifications() {
         setInboxNotifyUi(inboxCanNotify());
     };
 
+    // If the browser already granted permission, keep notifications enabled unless
+    // the user explicitly turned them off.
+    if (
+        window.isSecureContext &&
+        typeof Notification !== 'undefined' &&
+        Notification.permission === 'granted' &&
+        window.localStorage.getItem(INBOX_NOTIFY_KEY) !== '0'
+    ) {
+        window.localStorage.setItem(INBOX_NOTIFY_KEY, '1');
+    }
+
     const requestFromGesture = async (event) => {
         if (event.target?.closest?.('[data-inbox-notify-toggle]')) {
             return;
@@ -3747,6 +3817,10 @@ function initInboxNotifications() {
         if (permission !== 'granted') {
             window.localStorage.setItem(INBOX_NOTIFY_KEY, '0');
             sync();
+            showAppAlert(
+                'Browser permission was not granted. Click Notifications again and choose Allow.',
+                'Notifications off',
+            );
             return;
         }
 
@@ -3761,7 +3835,7 @@ function initInboxNotifications() {
 
         if (!shown) {
             showAppAlert(
-                'Browser permission is granted, but the OS blocked the test alert. Keep this tab open — new WhatsApp messages will still try to notify you.',
+                'Browser permission is granted, but the OS blocked the test alert. Check macOS/Windows notification settings for this browser, and keep at least one WapApp tab open.',
                 'Notifications on',
             );
         } else {
