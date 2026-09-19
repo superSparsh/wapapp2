@@ -69,6 +69,7 @@
                     <option
                       value="{{ $template['code'] }}"
                       data-name="{{ $template['name'] }}"
+                      data-preview="{{ e(json_encode($template['preview'] ?? ['body' => $template['body'] ?? ''], JSON_UNESCAPED_UNICODE)) }}"
                       @selected(old('template_code') === $template['code'])
                     >
                       {{ $template['name'] }}
@@ -150,13 +151,46 @@
 
         <div class="w-full shrink-0 lg:w-[320px]">
           <x-templates.phone-preview title="Template Preview" size="compact">
-            <div class="flex min-h-full flex-col p-2 pt-14">
-              <div
-                id="template-preview-text"
-                class="w-full rounded-lg border border-border bg-elevated p-3.5 text-xs font-normal leading-[1.4] text-text-muted"
+            <div
+              id="trigger-template-preview"
+              class="mx-auto flex w-full max-w-full flex-col gap-3 rounded-br-[12px] rounded-tl-[12px] rounded-tr-[12px] border border-solid border-border bg-elevated p-2"
+            >
+              <img
+                data-preview-header-image
+                src=""
+                alt=""
+                class="hidden aspect-[1600/800] w-full rounded object-cover"
+                width="338"
+                height="169"
               >
-                <p>Select a template to preview its name here.</p>
-              </div>
+              <video
+                data-preview-header-video
+                src=""
+                class="hidden max-h-40 w-full rounded object-cover"
+                controls
+                playsinline
+              ></video>
+              <p
+                data-preview-header-text
+                class="hidden w-full text-sm font-semibold leading-[1.4] text-text-body"
+              ></p>
+              <div
+                data-preview-body
+                class="wa-preview-body w-full text-sm font-normal leading-[1.4] text-text-body"
+              >Select a template to preview the message.</div>
+              <p
+                data-preview-footer
+                class="hidden w-full text-xs font-normal leading-[1.4] text-text-subtle"
+              ></p>
+              <img
+                data-preview-divider
+                src="{{ asset('images/templates/message-divider.svg') }}"
+                alt=""
+                class="hidden w-full"
+                width="338"
+                height="1"
+              >
+              <div data-preview-buttons class="flex w-full flex-col"></div>
             </div>
           </x-templates.phone-preview>
         </div>
@@ -195,17 +229,114 @@
   (() => {
     const select = document.getElementById('template_code');
     const nameInput = document.getElementById('template_name');
-    const preview = document.getElementById('template-preview-text');
+    const previewRoot = document.getElementById('trigger-template-preview');
 
-    if (!select || !nameInput || !preview) {
+    if (!select || !nameInput || !previewRoot) {
       return;
     }
+
+    const escapeHtml = (value) => String(value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+
+    const formatWhatsApp = (text) => {
+      let html = escapeHtml(text || '');
+      html = html.replace(/```([^`]+)```/g, '<code class="wa-mono">$1</code>');
+      html = html.replace(/\*([^*\n]+)\*/g, '<strong>$1</strong>');
+      html = html.replace(/\^([^\^\n]+)\^/g, '<strong>$1</strong>');
+      html = html.replace(/(?<![A-Za-z0-9])_([^_\n]+)_(?![A-Za-z0-9])/g, '<em>$1</em>');
+      html = html.replace(/~([^~\n]+)~/g, '<del>$1</del>');
+
+      return html.replace(/\n/g, '<br>');
+    };
+
+    const buttonIcon = (type) => {
+      if (type === 'phone') return @json(asset('images/templates/call.svg'));
+      if (type === 'flow') return @json(asset('images/templates/flow.svg'));
+      if (type === 'quick_reply') return @json(asset('images/templates/quick-reply.svg'));
+
+      return @json(asset('images/templates/export.svg'));
+    };
+
+    const applyPreview = (data) => {
+      const headerType = data?.header_type || 'none';
+      const headerImage = previewRoot.querySelector('[data-preview-header-image]');
+      const headerVideo = previewRoot.querySelector('[data-preview-header-video]');
+      const headerText = previewRoot.querySelector('[data-preview-header-text]');
+      const body = previewRoot.querySelector('[data-preview-body]');
+      const footer = previewRoot.querySelector('[data-preview-footer]');
+      const buttons = previewRoot.querySelector('[data-preview-buttons]');
+      const divider = previewRoot.querySelector('[data-preview-divider]');
+
+      const showImage = headerType === 'image' && !!data?.header_image;
+      const showVideo = headerType === 'video' && !!(data?.header_video || data?.header_image);
+      const showHeaderText = (headerType === 'text' || headerType === 'location')
+        && !!(data?.header_text || '').trim();
+
+      if (headerImage) {
+        headerImage.classList.toggle('hidden', !showImage);
+        if (showImage) headerImage.src = data.header_image;
+      }
+
+      if (headerVideo) {
+        headerVideo.classList.toggle('hidden', !showVideo);
+        if (showVideo) headerVideo.src = data.header_video || data.header_image || '';
+      }
+
+      if (headerText) {
+        headerText.classList.toggle('hidden', !showHeaderText);
+        headerText.textContent = data?.header_text || '';
+      }
+
+      if (body) {
+        const rawBody = (data?.body || '').trim();
+        body.innerHTML = rawBody
+          ? formatWhatsApp(rawBody)
+          : escapeHtml('Select a template to preview the message.');
+      }
+
+      if (footer) {
+        const footerValue = (data?.footer || '').trim();
+        footer.classList.toggle('hidden', footerValue === '');
+        footer.textContent = footerValue;
+      }
+
+      const buttonItems = Array.isArray(data?.buttons) ? data.buttons : [];
+      if (divider) divider.classList.toggle('hidden', buttonItems.length === 0);
+
+      if (buttons) {
+        buttons.innerHTML = buttonItems.map((button) => {
+          const text = escapeHtml(button?.text || 'Button');
+          const icon = buttonIcon(button?.type || 'url');
+
+          return `<div class="flex w-full items-center justify-center gap-2 py-1">
+            <img src="${icon}" alt="" class="size-4 shrink-0" width="16" height="16">
+            <span class="text-sm font-medium leading-[1.4] whitespace-nowrap text-link-green">${text}</span>
+          </div>`;
+        }).join('');
+      }
+    };
 
     const sync = () => {
       const option = select.options[select.selectedIndex];
       const name = option?.dataset?.name || option?.textContent?.trim() || '';
       nameInput.value = name;
-      preview.innerHTML = name ? `<p>${name}</p>` : '<p>Select a template to preview its name here.</p>';
+
+      if (!option || !option.value) {
+        applyPreview(null);
+        return;
+      }
+
+      let preview = null;
+      try {
+        preview = JSON.parse(option.dataset.preview || '{}');
+      } catch (_error) {
+        preview = { body: name };
+      }
+
+      applyPreview(preview && typeof preview === 'object' ? preview : { body: name });
     };
 
     select.addEventListener('change', sync);

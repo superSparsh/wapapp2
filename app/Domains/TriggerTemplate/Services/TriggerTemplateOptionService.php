@@ -19,7 +19,13 @@ class TriggerTemplateOptionService
     /**
      * Approved templates without body/header variables (legacy UI warning parity).
      *
-     * @return array<int, array{code: string, name: string, language: string, category: string}>
+     * @return array<int, array{
+     *     code: string,
+     *     name: string,
+     *     language: string,
+     *     category: string,
+     *     preview: array<string, mixed>
+     * }>
      */
     public function templates(): array
     {

@@ -57,16 +57,31 @@ class TriggerPresenter
     }
 
     /**
-     * @param  array<int, array{code: string, name: string, language?: string, category?: string}>  $templates
-     * @return array<int, array{code: string, name: string}>
+     * @param  array<int, array{code: string, name: string, language?: string, category?: string, preview?: array<string, mixed>}>  $templates
+     * @return array<int, array{code: string, name: string, body: string, preview: array{body: string, footer: string, header_type: string, header_text: string, header_image: ?string, header_video: ?string, buttons: array<int, mixed>}}>
      */
     public function templateOptions(array $templates): array
     {
         return collect($templates)
-            ->map(fn (array $template): array => [
-                'code' => (string) ($template['code'] ?? ''),
-                'name' => (string) ($template['name'] ?? $template['code'] ?? ''),
-            ])
+            ->map(function (array $template): array {
+                $preview = is_array($template['preview'] ?? null) ? $template['preview'] : [];
+                $body = trim((string) ($preview['body'] ?? $template['body_preview'] ?? ''));
+
+                return [
+                    'code' => (string) ($template['code'] ?? ''),
+                    'name' => (string) ($template['name'] ?? $template['code'] ?? ''),
+                    'body' => $body,
+                    'preview' => [
+                        'body' => $body,
+                        'footer' => (string) ($preview['footer'] ?? ''),
+                        'header_type' => (string) ($preview['header_type'] ?? 'none'),
+                        'header_text' => (string) ($preview['header_text'] ?? ''),
+                        'header_image' => $preview['header_image'] ?? null,
+                        'header_video' => $preview['header_video'] ?? null,
+                        'buttons' => is_array($preview['buttons'] ?? null) ? $preview['buttons'] : [],
+                    ],
+                ];
+            })
             ->filter(fn (array $template): bool => $template['code'] !== '')
             ->values()
             ->all();
