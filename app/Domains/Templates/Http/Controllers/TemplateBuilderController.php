@@ -277,10 +277,16 @@ class TemplateBuilderController extends Controller
                     ->values()
                     ->all();
 
+                $useUrl = filter_var($card['use_url'] ?? false, FILTER_VALIDATE_BOOLEAN);
+                $mediaPath = trim((string) ($card['media_path'] ?? ''));
+                $mediaUrl = trim((string) ($card['media_url'] ?? ''));
+
                 return [
                     'header' => (string) ($card['header'] ?? 'IMAGE'),
                     'body' => (string) ($card['body'] ?? ''),
-                    'media_url' => (string) ($card['media_url'] ?? ''),
+                    'media_path' => $useUrl ? null : ($mediaPath !== '' ? $mediaPath : null),
+                    'media_url' => $useUrl ? $mediaUrl : ($mediaPath === '' ? $mediaUrl : ''),
+                    'use_url' => $useUrl,
                     'buttons' => $buttons,
                 ];
             })
@@ -301,6 +307,61 @@ class TemplateBuilderController extends Controller
         }
 
         return redirect()->route($this->builderFlow->nextRouteAfterCarousel(), $template);
+    }
+
+    public function uploadCarouselMedia(
+        Request $request,
+        Template $template,
+        TemplateMediaService $mediaService,
+    ): JsonResponse {
+        abort_unless($this->builderFlow->canUseCarousel(), 403);
+
+        $file = $request->file('carousel_media') ?? $request->file('header_media');
+        if ($file === null) {
+            return response()->json([
+                'message' => 'Please choose a file to upload.',
+                'errors' => ['carousel_media' => ['Please choose a file to upload.']],
+            ], 422);
+        }
+
+        $mime = (string) ($file->getMimeType() ?? '');
+        $mediaType = match (true) {
+            str_starts_with($mime, 'image/') => 'image',
+            str_starts_with($mime, 'video/') => 'video',
+            default => null,
+        };
+
+        $limits = [
+            'image' => ['mimes:jpeg,jpg,png', 'max:'.(int) (config('templates.header_image_max', 5242880) / 1024)],
+            'video' => ['mimes:mp4,3gp', 'max:'.(int) (config('templates.header_video_max', 16777216) / 1024)],
+        ];
+
+        $typeRules = $mediaType && isset($limits[$mediaType])
+            ? $limits[$mediaType]
+            : ['mimes:jpeg,jpg,png,mp4,3gp', 'max:16384'];
+
+        $field = $request->hasFile('carousel_media') ? 'carousel_media' : 'header_media';
+        $request->validate([
+            $field => array_merge(['required', 'file'], $typeRules),
+        ], [
+            "{$field}.required" => 'Please choose a file to upload.',
+            "{$field}.mimes" => 'Only image (.jpg/.png) or video (.mp4/.3gp) files are supported.',
+            "{$field}.max" => 'The file is too large for this media type.',
+        ]);
+
+        $stored = $mediaService->storeHeaderMedia($file);
+        $mime = $stored['mime'];
+        $headerFormat = match (true) {
+            str_starts_with($mime, 'video/') => 'VIDEO',
+            default => 'IMAGE',
+        };
+
+        return response()->json([
+            'path' => $stored['path'],
+            'url' => $stored['url'],
+            'type' => $headerFormat,
+            'message' => 'Media uploaded successfully.',
+        ]);
     }
 
     public function footer(Template $template, TemplatePreviewService $previewService): View|RedirectResponse

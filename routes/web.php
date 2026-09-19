@@ -460,6 +460,7 @@ Route::middleware(['tenancy.session', 'auth:web,team', '2fa', 'team.redirect-das
             Route::post('/lto', [TemplateBuilderController::class, 'saveLto'])->name('builder.lto.save');
             Route::get('/carousel', [TemplateBuilderController::class, 'carousel'])->name('builder.carousel');
             Route::post('/carousel', [TemplateBuilderController::class, 'saveCarousel'])->name('builder.carousel.save');
+            Route::post('/carousel/media', [TemplateBuilderController::class, 'uploadCarouselMedia'])->name('builder.carousel.media');
             Route::get('/submit', [TemplateBuilderController::class, 'submit'])->name('builder.submit');
             Route::post('/submit', [TemplateBuilderController::class, 'saveSubmit'])->name('builder.submit.save');
         });

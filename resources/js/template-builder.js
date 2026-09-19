@@ -1,9 +1,13 @@
+import { showToast } from './toast.js';
+
 const BODY_CHAR_LIMIT = Number(document.getElementById('builder-body-form')?.dataset.bodyLimit) || 1024;
 const BUTTON_TEXT_LIMIT = Number(document.getElementById('template-buttons-root')?.dataset.buttonTextLimit) || 20;
 const BUTTON_URL_LIMIT = 2000;
 const MAX_BUTTONS = Number(document.getElementById('template-buttons-root')?.dataset.maxButtons) || 10;
 const MAX_URL_BUTTONS = Number(document.getElementById('template-buttons-root')?.dataset.maxUrlButtons) || 2;
 const MAX_PHONE_BUTTONS = Number(document.getElementById('template-buttons-root')?.dataset.maxPhoneButtons) || 1;
+const CAROUSEL_CARD_BODY_LIMIT = 150;
+const CAROUSEL_BUTTON_TEXT_LIMIT = 25;
 const DEFAULT_UNSUBSCRIBE_URL = `${window.location.origin}/unsubscribe-list/$(unsub)`;
 const COMMON_EMOJIS = ['😀', '😊', '👍', '🎉', '❤️', '🔥', '✅', '🙏', '💬', '📞'];
 
@@ -354,7 +358,15 @@ function collectCarouselState(root) {
             cardEl.querySelector('select[name*="[header]"]')?.value ||
             cardEl.querySelector('[name*="[header]"]')?.value ||
             'IMAGE';
-        const mediaUrl = cardEl.querySelector('[name*="[media_url]"]')?.value?.trim() || '';
+        const useUrl = Boolean(cardEl.querySelector('[data-carousel-use-url]')?.checked);
+        const mediaPath = cardEl.querySelector('[data-carousel-media-path]')?.value?.trim() || '';
+        const mediaUrl = cardEl.querySelector('[data-carousel-media-url]')?.value?.trim() || '';
+        const previewUrl =
+            cardEl.dataset.previewUrl ||
+            cardEl.querySelector('[data-carousel-media-image]:not(.hidden)')?.getAttribute('src') ||
+            cardEl.querySelector('[data-carousel-media-video]:not(.hidden)')?.getAttribute('src') ||
+            mediaUrl ||
+            '';
         const body = cardEl.querySelector('textarea[name*="[body]"]')?.value || '';
         const buttons = Array.from(cardEl.querySelectorAll('[data-carousel-button]'))
             .map((buttonEl) => ({
@@ -366,7 +378,8 @@ function collectCarouselState(root) {
 
         return {
             header,
-            media_url: mediaUrl,
+            media_path: mediaPath,
+            media_url: useUrl ? mediaUrl : previewUrl || mediaUrl,
             body,
             buttons,
         };
@@ -1753,10 +1766,218 @@ function initCarouselBuilder(scheduleUpdate) {
 
     const minCards = Number(form.dataset.carouselMin || 2);
     const maxCards = Number(form.dataset.carouselMax || 10);
+    const uploadUrl = form.dataset.carouselUploadUrl || '';
     let cards = JSON.parse(root.dataset.savedCards || '[]');
+    if (!Array.isArray(cards) || cards.length === 0) {
+        cards = [
+            { header: 'IMAGE', body: '', media_url: '', media_path: '', media_preview_url: '', use_url: false, buttons: [{ text: '', type: 'QUICK_REPLY', url: '' }, { text: '', type: 'QUICK_REPLY', url: '' }] },
+            { header: 'IMAGE', body: '', media_url: '', media_path: '', media_preview_url: '', use_url: false, buttons: [{ text: '', type: 'QUICK_REPLY', url: '' }, { text: '', type: 'QUICK_REPLY', url: '' }] },
+        ];
+    }
+
+    // Keep guidelines modal on document.body so it is never clipped.
+    const guidelinesModal = document.getElementById('modal-carousel-guidelines');
+    if (guidelinesModal && guidelinesModal.parentElement !== document.body) {
+        document.body.appendChild(guidelinesModal);
+    }
 
     const notifyPreview = () => {
         scheduleUpdate?.();
+    };
+
+    const cardElements = () => [...root.querySelectorAll('[data-carousel-card]')];
+
+    const syncCardFromDom = (cardEl, index) => {
+        if (!cardEl || index < 0) {
+            return;
+        }
+
+        const useUrl = Boolean(cardEl.querySelector('[data-carousel-use-url]')?.checked);
+        cards[index] = {
+            header: cardEl.querySelector('[data-carousel-header-type]')?.value || 'IMAGE',
+            body: cardEl.querySelector('textarea[name*="[body]"]')?.value || '',
+            media_path: cardEl.querySelector('[data-carousel-media-path]')?.value || '',
+            media_url: cardEl.querySelector('[data-carousel-media-url]')?.value || '',
+            media_preview_url:
+                cardEl.querySelector('[data-carousel-media-image]:not(.hidden)')?.src ||
+                cardEl.querySelector('[data-carousel-media-video]:not(.hidden)')?.src ||
+                cardEl.dataset.previewUrl ||
+                '',
+            use_url: useUrl,
+            buttons: [0, 1].map((buttonIndex) => {
+                const buttonEl = cardEl.querySelectorAll('[data-carousel-button]')[buttonIndex];
+                return {
+                    type: buttonEl?.querySelector('[data-carousel-button-type]')?.value || 'QUICK_REPLY',
+                    text: buttonEl?.querySelector('input[name*="[text]"]')?.value || '',
+                    url: buttonEl?.querySelector('input[name*="[url]"]')?.value || '',
+                };
+            }),
+        };
+    };
+
+    const syncAllFromDom = () => {
+        cardElements().forEach((cardEl, index) => syncCardFromDom(cardEl, index));
+    };
+
+    const markInvalid = (el, message) => {
+        if (!el) {
+            return;
+        }
+        el.classList.add('border-red-500');
+        el.setAttribute('aria-invalid', 'true');
+        if (window.WapAppFormValidation?.showFieldError) {
+            window.WapAppFormValidation.showFieldError(el, message);
+        }
+    };
+
+    const clearInvalid = (scope = form) => {
+        scope.querySelectorAll('.border-red-500, [aria-invalid="true"]').forEach((el) => {
+            el.classList.remove('border-red-500');
+            el.removeAttribute('aria-invalid');
+            window.WapAppFormValidation?.clearFieldError?.(el);
+        });
+        scope.querySelectorAll('[data-carousel-upload-error]').forEach((el) => {
+            el.textContent = '';
+            el.classList.add('hidden');
+        });
+    };
+
+    const activeButtonsFromCard = (card) =>
+        (card.buttons || []).filter((button) => String(button?.text || '').trim() !== '');
+
+    const validateCarousel = () => {
+        syncAllFromDom();
+        clearInvalid();
+        const errors = [];
+        let referenceHeader = null;
+        let referenceTypes = null;
+        let referenceCount = null;
+        const quickReplyTexts = new Set();
+
+        cards.forEach((card, index) => {
+            const cardEl = cardElements()[index];
+            const cardTitle = `Card ${index + 1}`;
+            const body = String(card.body || '').trim();
+            const useUrl = Boolean(card.use_url);
+            const mediaPath = String(card.media_path || '').trim();
+            const mediaUrl = String(card.media_url || '').trim();
+            const header = String(card.header || 'IMAGE').toUpperCase();
+            const activeButtons = activeButtonsFromCard(card);
+            const buttonEls = [...(cardEl?.querySelectorAll('[data-carousel-button]') || [])];
+            const activeButtonEls = buttonEls.filter((el) =>
+                Boolean(el.querySelector('input[name*="[text]"]')?.value?.trim()),
+            );
+
+            if (!header) {
+                errors.push(`${cardTitle}: Header type is required.`);
+                markInvalid(cardEl?.querySelector('[data-carousel-header-type]'), 'Header type is required.');
+            }
+
+            if (useUrl) {
+                if (!mediaUrl) {
+                    errors.push(`${cardTitle}: Header media is required.`);
+                    markInvalid(cardEl?.querySelector('[data-carousel-media-url]'), 'Media URL is required.');
+                }
+            } else if (!mediaPath) {
+                errors.push(`${cardTitle}: Header media is required.`);
+                const zone = cardEl?.querySelector('[data-carousel-upload]');
+                const errorEl = zone?.querySelector('[data-carousel-upload-error]');
+                if (errorEl) {
+                    errorEl.textContent = 'Please upload media for this card.';
+                    errorEl.classList.remove('hidden');
+                }
+                cardEl?.querySelector('[data-carousel-upload] label')?.classList.add('border-red-500');
+            }
+
+            if (!body) {
+                errors.push(`${cardTitle}: Body text is required.`);
+                markInvalid(cardEl?.querySelector('textarea[name*="[body]"]'), 'Body text is required.');
+            } else if (body.length > CAROUSEL_CARD_BODY_LIMIT) {
+                errors.push(`${cardTitle}: Body text exceeds ${CAROUSEL_CARD_BODY_LIMIT} characters.`);
+                markInvalid(
+                    cardEl?.querySelector('textarea[name*="[body]"]'),
+                    `Max ${CAROUSEL_CARD_BODY_LIMIT} characters.`,
+                );
+            }
+
+            if (activeButtons.length === 0) {
+                errors.push(`${cardTitle}: At least one button is required.`);
+                markInvalid(
+                    cardEl?.querySelector('[data-carousel-button] input[name*="[text]"]'),
+                    'At least one button is required.',
+                );
+            }
+
+            if (activeButtons.length > 2) {
+                errors.push(`${cardTitle}: No more than 2 buttons allowed.`);
+            }
+
+            const types = activeButtons.map((button) => String(button.type || 'QUICK_REPLY').toUpperCase());
+
+            activeButtons.forEach((button, buttonIndex) => {
+                const text = String(button.text || '').trim();
+                const type = String(button.type || 'QUICK_REPLY').toUpperCase();
+                const value = String(button.url || '').trim();
+                const buttonEl = activeButtonEls[buttonIndex];
+                const textInput = buttonEl?.querySelector('input[name*="[text]"]');
+                const urlInput = buttonEl?.querySelector('input[name*="[url]"]');
+
+                if (text.length > CAROUSEL_BUTTON_TEXT_LIMIT) {
+                    errors.push(
+                        `${cardTitle}: Button text "${text}" exceeds ${CAROUSEL_BUTTON_TEXT_LIMIT} character limit.`,
+                    );
+                    markInvalid(textInput, `Max ${CAROUSEL_BUTTON_TEXT_LIMIT} characters.`);
+                }
+
+                if ((type === 'URL' || type === 'PHONE_NUMBER') && !value) {
+                    const fieldLabel = type === 'PHONE_NUMBER' ? 'phone number' : 'website URL';
+                    errors.push(`${cardTitle}: Button "${text}" needs a ${fieldLabel}.`);
+                    markInvalid(urlInput, `Enter a ${fieldLabel}.`);
+                }
+
+                if (type === 'QUICK_REPLY' && text) {
+                    const key = text.toLowerCase();
+                    if (quickReplyTexts.has(key)) {
+                        errors.push(
+                            `${cardTitle}: Quick reply button text "${text}" is already used in another card.`,
+                        );
+                        markInvalid(textInput, 'Quick reply text must be unique across cards.');
+                    } else {
+                        quickReplyTexts.add(key);
+                    }
+                }
+            });
+
+            if (referenceHeader === null) {
+                referenceHeader = header;
+            } else if (header !== referenceHeader) {
+                errors.push(`${cardTitle}: Header type must match other cards (${referenceHeader}).`);
+                markInvalid(cardEl?.querySelector('[data-carousel-header-type]'), `Must be ${referenceHeader}.`);
+            }
+
+            if (referenceCount === null && activeButtons.length) {
+                referenceCount = activeButtons.length;
+                referenceTypes = [...types];
+            } else if (referenceCount !== null) {
+                if (activeButtons.length !== referenceCount) {
+                    errors.push(`${cardTitle}: Button count does not match the first card.`);
+                }
+                const mismatchType = types.some((type, i) => type !== referenceTypes[i]);
+                if (mismatchType) {
+                    errors.push(`${cardTitle}: Button types do not match the first card.`);
+                }
+            }
+        });
+
+        if (cards.length < minCards) {
+            errors.push(`Carousel needs at least ${minCards} cards.`);
+        }
+
+        if (cards.length > maxCards) {
+            errors.push(`Carousel can have at most ${maxCards} cards.`);
+        }
+
+        return errors;
     };
 
     const buttonFields = (card, index, buttonIndex) => {
@@ -1776,7 +1997,7 @@ function initCarouselBuilder(scheduleUpdate) {
             </div>
             <div>
               <label class="text-xs font-medium text-text-subtle">Button text</label>
-              <input name="cards[${index}][buttons][${buttonIndex}][text]" value="${escapeHtml(button.text || '')}" maxlength="25" class="fd-input mt-1 w-full rounded-xl border border-border p-2.5" placeholder="Learn more">
+              <input name="cards[${index}][buttons][${buttonIndex}][text]" value="${escapeHtml(button.text || '')}" maxlength="${CAROUSEL_BUTTON_TEXT_LIMIT}" class="fd-input mt-1 w-full rounded-xl border border-border p-2.5" placeholder="Learn more">
             </div>
             <div class="${showUrl ? '' : 'hidden'}" data-carousel-button-url-wrap>
               <label class="text-xs font-medium text-text-subtle">${type === 'PHONE_NUMBER' ? 'Phone number' : 'Website URL'}</label>
@@ -1785,35 +2006,85 @@ function initCarouselBuilder(scheduleUpdate) {
           </div>`;
     };
 
-    const renderCard = (card, index) => `
-      <div class="flex flex-col gap-3 rounded-lg border border-divider p-4" data-carousel-card>
+    const mediaFields = (card, index) => {
+        const useUrl = Boolean(card.use_url);
+        const previewUrl = card.media_preview_url || (!useUrl ? '' : card.media_url) || '';
+        const isVideo = String(card.header || 'IMAGE').toUpperCase() === 'VIDEO';
+        const accept = isVideo ? 'video/mp4,video/3gpp' : 'image/png,image/jpeg';
+        const hint = isVideo ? 'Only .mp4 or .3gp (max 16 MB)' : 'Only .png or .jpg (max 5 MB)';
+        const maxBytes = isVideo ? 16777216 : 5242880;
+        const hasPreview = Boolean(previewUrl);
+
+        return `
+          <div class="flex flex-col gap-3">
+            <label class="text-sm font-medium">Media <span class="text-[red]">*</span></label>
+            <input type="hidden" name="cards[${index}][media_path]" value="${escapeHtml(card.media_path || '')}" data-carousel-media-path>
+            <div class="${useUrl ? '' : 'hidden'}" data-carousel-url-wrap>
+              <input type="url" name="cards[${index}][media_url]" value="${escapeHtml(card.media_url || '')}" class="fd-input w-full rounded-xl border border-border p-3" placeholder="${isVideo ? 'https://example.com/video.mp4' : 'https://example.com/image.jpg'}" data-carousel-media-url ${useUrl ? '' : 'disabled'}>
+            </div>
+            <div class="${useUrl ? 'hidden' : ''}" data-carousel-file-wrap>
+              <div class="flex flex-col gap-3" data-carousel-upload data-max-bytes="${maxBytes}">
+                <label for="carousel_media_${index}" class="flex h-[88px] cursor-pointer flex-col items-center justify-center rounded-md border border-dashed border-divider px-6 py-3 transition-colors hover:border-green-500">
+                  <img src="/images/templates/upload-frame.svg" alt="" class="size-6" aria-hidden="true">
+                  <p class="mt-2 text-center text-xs text-text-body">
+                    <span class="font-medium">Drag &amp; Drop or</span>
+                    <span class="font-medium text-green-500"> choose</span>
+                    <span class="font-medium"> file to upload</span>
+                  </p>
+                  <p class="mt-1 text-center text-[10px] font-medium text-text-body opacity-50">${hint}</p>
+                </label>
+                <input type="file" id="carousel_media_${index}" accept="${accept}" class="sr-only" data-carousel-media-input>
+                <div data-carousel-media-preview class="${hasPreview ? '' : 'hidden'}">
+                  <img src="${isVideo || !hasPreview ? '' : escapeHtml(previewUrl)}" alt="" class="max-h-40 w-full rounded-lg object-cover ${isVideo || !hasPreview ? 'hidden' : ''}" data-carousel-media-image>
+                  <video src="${isVideo && hasPreview ? escapeHtml(previewUrl) : ''}" class="max-h-40 w-full rounded-lg ${isVideo && hasPreview ? '' : 'hidden'}" controls data-carousel-media-video></video>
+                  <p class="mt-1 text-xs text-text-subtle" data-carousel-media-name></p>
+                </div>
+                <p class="hidden text-xs text-red-500" data-carousel-upload-error></p>
+              </div>
+            </div>
+            <label class="flex items-center gap-2 text-sm text-text-muted">
+              <input type="checkbox" name="cards[${index}][use_url]" value="1" data-carousel-use-url ${useUrl ? 'checked' : ''}>
+              Use URL instead of uploading a file
+            </label>
+          </div>`;
+    };
+
+    const canRemove = () => cards.length > minCards;
+
+    const renderCard = (card, index) => {
+        const removeDisabled = !canRemove();
+        return `
+      <div class="flex flex-col gap-3 rounded-lg border border-divider p-4" data-carousel-card data-preview-url="${escapeHtml(card.media_preview_url || '')}">
         <div class="flex items-center justify-between">
           <p class="text-sm font-semibold text-text-body">Card ${index + 1}</p>
-          <button type="button" data-carousel-remove class="text-sm text-red-600">Remove</button>
-        </div>
-        <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
-          <div>
-            <label class="text-sm font-medium">Header type</label>
-            <select name="cards[${index}][header]" class="fd-input mt-1 w-full rounded-xl border border-border p-3" data-carousel-header-type>
-              <option value="IMAGE" ${(card.header || 'IMAGE') === 'IMAGE' ? 'selected' : ''}>Image</option>
-              <option value="VIDEO" ${card.header === 'VIDEO' ? 'selected' : ''}>Video</option>
-            </select>
-          </div>
-          <div>
-            <label class="text-sm font-medium">Media URL <span class="text-[red]">*</span></label>
-            <input name="cards[${index}][media_url]" value="${escapeHtml(card.media_url || '')}" required class="fd-input mt-1 w-full rounded-xl border border-border p-3" placeholder="https://example.com/image.jpg">
-          </div>
+          <button
+            type="button"
+            data-carousel-remove
+            class="text-sm font-medium ${removeDisabled ? 'cursor-not-allowed text-text-subtle opacity-50' : 'text-red-600 hover:underline'}"
+            ${removeDisabled ? 'disabled aria-disabled="true"' : ''}
+            title="${removeDisabled ? `Minimum ${minCards} cards required` : 'Remove this card'}"
+          >Remove</button>
         </div>
         <div>
+          <label class="text-sm font-medium">Header type</label>
+          <select name="cards[${index}][header]" class="fd-input mt-1 w-full max-w-xs rounded-xl border border-border p-3" data-carousel-header-type>
+            <option value="IMAGE" ${(card.header || 'IMAGE') === 'IMAGE' ? 'selected' : ''}>Image</option>
+            <option value="VIDEO" ${card.header === 'VIDEO' ? 'selected' : ''}>Video</option>
+          </select>
+        </div>
+        ${mediaFields(card, index)}
+        <div>
           <label class="text-sm font-medium">Card body <span class="text-[red]">*</span></label>
-          <textarea name="cards[${index}][body]" maxlength="160" rows="3" required class="fd-input mt-1 w-full rounded-xl border border-border p-3">${escapeHtml(card.body || '')}</textarea>
+          <textarea name="cards[${index}][body]" maxlength="${CAROUSEL_CARD_BODY_LIMIT}" rows="3" required class="fd-input mt-1 w-full rounded-xl border border-border p-3">${escapeHtml(card.body || '')}</textarea>
+          <p class="mt-1 text-[10px] text-text-subtle">Max ${CAROUSEL_CARD_BODY_LIMIT} characters</p>
         </div>
         <div class="flex flex-col gap-2">
-          <p class="text-sm font-medium text-text-body">Buttons (up to 2)</p>
+          <p class="text-sm font-medium text-text-body">Buttons (1–2, same types/order on every card)</p>
           ${buttonFields(card, index, 0)}
           ${buttonFields(card, index, 1)}
         </div>
       </div>`;
+    };
 
     const paint = () => {
         root.innerHTML = cards.map((card, index) => renderCard(card, index)).join('');
@@ -1821,14 +2092,150 @@ function initCarouselBuilder(scheduleUpdate) {
         notifyPreview();
     };
 
+    const showUploadError = (zone, message) => {
+        const errorEl = zone?.querySelector('[data-carousel-upload-error]');
+        if (!errorEl) {
+            return;
+        }
+        errorEl.textContent = message || '';
+        errorEl.classList.toggle('hidden', !message);
+    };
+
+    const uploadCardMedia = async (cardEl, file) => {
+        const zone = cardEl.querySelector('[data-carousel-upload]');
+        const pathInput = cardEl.querySelector('[data-carousel-media-path]');
+        const previewWrap = cardEl.querySelector('[data-carousel-media-preview]');
+        const imageEl = cardEl.querySelector('[data-carousel-media-image]');
+        const videoEl = cardEl.querySelector('[data-carousel-media-video]');
+        const nameEl = cardEl.querySelector('[data-carousel-media-name]');
+        const headerSelect = cardEl.querySelector('[data-carousel-header-type]');
+        const maxBytes = Number(zone?.dataset.maxBytes || 0);
+
+        showUploadError(zone, '');
+
+        if (maxBytes > 0 && file.size > maxBytes) {
+            const mb = Math.round(maxBytes / (1024 * 1024));
+            showUploadError(zone, `File is too large. Max allowed is ${mb} MB.`);
+            return;
+        }
+
+        const objectUrl = URL.createObjectURL(file);
+        const isVideo = file.type.startsWith('video/');
+        previewWrap?.classList.remove('hidden');
+        if (nameEl) {
+            nameEl.textContent = file.name;
+        }
+        if (isVideo) {
+            imageEl?.classList.add('hidden');
+            if (videoEl) {
+                videoEl.classList.remove('hidden');
+                videoEl.src = objectUrl;
+            }
+            if (headerSelect) {
+                headerSelect.value = 'VIDEO';
+            }
+        } else {
+            videoEl?.classList.add('hidden');
+            if (imageEl) {
+                imageEl.classList.remove('hidden');
+                imageEl.src = objectUrl;
+            }
+            if (headerSelect) {
+                headerSelect.value = 'IMAGE';
+            }
+        }
+        cardEl.dataset.previewUrl = objectUrl;
+        notifyPreview();
+
+        if (!uploadUrl) {
+            return;
+        }
+
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+        const body = new FormData();
+        body.append('carousel_media', file);
+        body.append('_token', csrfToken);
+
+        try {
+            const response = await fetch(uploadUrl, {
+                method: 'POST',
+                headers: {
+                    Accept: 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                credentials: 'same-origin',
+                body,
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                const message =
+                    data.message ||
+                    data.errors?.carousel_media?.[0] ||
+                    data.errors?.header_media?.[0] ||
+                    'Unable to upload media.';
+                showUploadError(zone, message);
+                return;
+            }
+
+            if (pathInput) {
+                pathInput.value = data.path || '';
+            }
+            if (data.url) {
+                cardEl.dataset.previewUrl = data.url;
+                if (isVideo && videoEl) {
+                    videoEl.src = data.url;
+                } else if (imageEl) {
+                    imageEl.src = data.url;
+                }
+            }
+            if (data.type && headerSelect) {
+                headerSelect.value = data.type;
+            }
+            const index = cardElements().indexOf(cardEl);
+            if (index >= 0) {
+                syncCardFromDom(cardEl, index);
+            }
+            notifyPreview();
+        } catch {
+            showUploadError(zone, 'Network error while uploading. Please try again.');
+        }
+    };
+
+    const removeCardAt = (index) => {
+        syncAllFromDom();
+        if (!canRemove()) {
+            showToast({
+                type: 'warning',
+                title: 'Cannot remove',
+                message: `Carousel needs at least ${minCards} cards.`,
+            });
+            return;
+        }
+        if (index < 0 || index >= cards.length) {
+            return;
+        }
+        cards.splice(index, 1);
+        paint();
+    };
+
     document.getElementById('add-carousel-card')?.addEventListener('click', () => {
+        syncAllFromDom();
         if (cards.length >= maxCards) {
+            showToast({
+                type: 'warning',
+                title: 'Card limit',
+                message: `You can add at most ${maxCards} cards.`,
+            });
             return;
         }
         cards.push({
-            header: 'IMAGE',
+            header: cards[0]?.header || 'IMAGE',
             body: '',
             media_url: '',
+            media_path: '',
+            media_preview_url: '',
+            use_url: false,
             buttons: [
                 { text: '', type: 'QUICK_REPLY', url: '' },
                 { text: '', type: 'QUICK_REPLY', url: '' },
@@ -1837,20 +2244,23 @@ function initCarouselBuilder(scheduleUpdate) {
         paint();
     });
 
-    root.addEventListener('click', (event) => {
+    // Delegate on form so Remove always works (root innerHTML is replaced on paint).
+    form.addEventListener('click', (event) => {
         const remove = event.target.closest('[data-carousel-remove]');
-        if (!remove || cards.length <= minCards) {
+        if (!remove || !form.contains(remove)) {
             return;
         }
+        event.preventDefault();
+        event.stopPropagation();
         const cardEl = remove.closest('[data-carousel-card]');
-        const index = [...root.querySelectorAll('[data-carousel-card]')].indexOf(cardEl);
-        if (index >= 0) {
-            cards.splice(index, 1);
-            paint();
-        }
+        const index = cardElements().indexOf(cardEl);
+        removeCardAt(index);
     });
 
     root.addEventListener('change', (event) => {
+        const cardEl = event.target.closest('[data-carousel-card]');
+        const index = cardEl ? cardElements().indexOf(cardEl) : -1;
+
         const typeSelect = event.target.closest('[data-carousel-button-type]');
         if (typeSelect) {
             const wrap = typeSelect.closest('[data-carousel-button]')?.querySelector('[data-carousel-button-url-wrap]');
@@ -1866,10 +2276,72 @@ function initCarouselBuilder(scheduleUpdate) {
             }
         }
 
+        const useUrlToggle = event.target.closest('[data-carousel-use-url]');
+        if (useUrlToggle && cardEl) {
+            const useUrl = useUrlToggle.checked;
+            cardEl.querySelector('[data-carousel-url-wrap]')?.classList.toggle('hidden', !useUrl);
+            cardEl.querySelector('[data-carousel-file-wrap]')?.classList.toggle('hidden', useUrl);
+            const urlInput = cardEl.querySelector('[data-carousel-media-url]');
+            if (urlInput) {
+                urlInput.disabled = !useUrl;
+            }
+            if (useUrl) {
+                const pathInput = cardEl.querySelector('[data-carousel-media-path]');
+                if (pathInput) {
+                    pathInput.value = '';
+                }
+            }
+        }
+
+        const headerType = event.target.closest('[data-carousel-header-type]');
+        if (headerType && cardEl && index >= 0) {
+            syncCardFromDom(cardEl, index);
+            paint();
+            return;
+        }
+
+        const fileInput = event.target.closest('[data-carousel-media-input]');
+        if (fileInput instanceof HTMLInputElement && cardEl && fileInput.files?.[0]) {
+            uploadCardMedia(cardEl, fileInput.files[0]);
+        }
+
+        if (index >= 0) {
+            syncCardFromDom(cardEl, index);
+        }
         notifyPreview();
     });
 
-    root.addEventListener('input', notifyPreview);
+    root.addEventListener('input', (event) => {
+        const cardEl = event.target.closest('[data-carousel-card]');
+        const index = cardEl ? cardElements().indexOf(cardEl) : -1;
+        if (index >= 0) {
+            syncCardFromDom(cardEl, index);
+        }
+        notifyPreview();
+    });
+
+    form.addEventListener(
+        'submit',
+        (event) => {
+            const errors = validateCarousel();
+            if (errors.length === 0) {
+                return;
+            }
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            showToast({
+                type: 'error',
+                title: 'Fix carousel errors',
+                message: errors.slice(0, 4).join(' '),
+            });
+            form.querySelector('.border-red-500, [aria-invalid="true"], [data-carousel-upload-error]:not(.hidden)')?.scrollIntoView({
+                behavior: 'smooth',
+                block: 'center',
+            });
+        },
+        true,
+    );
+
     form.querySelector('[name="carousel_body"]')?.addEventListener('input', notifyPreview);
 
     paint();

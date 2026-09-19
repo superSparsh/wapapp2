@@ -47,4 +47,5 @@ return [
     // Carousel card limits
     'carousel_min_cards' => 2,
     'carousel_max_cards' => 10,
+    'carousel_card_body_limit' => (int) env('TEMPLATE_CAROUSEL_CARD_BODY_LIMIT', 150),
 ];

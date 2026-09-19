@@ -122,13 +122,20 @@ class TemplatePreviewService
             $carouselCards = collect($carousel['cards'] ?? [])
                 ->filter(fn ($card) => is_array($card))
                 ->map(function (array $card): array {
-                    $media = $this->resolveMediaUrl(
-                        isset($card['media_url']) ? (string) $card['media_url'] : (
-                            isset($card['header_media']) ? (string) $card['header_media'] : (
-                                isset($card['url']) ? (string) $card['url'] : null
-                            )
-                        ),
-                    );
+                    $mediaPath = trim((string) ($card['media_path'] ?? ''));
+                    $media = null;
+                    if ($mediaPath !== '') {
+                        $media = $this->mediaService->previewUrl($mediaPath);
+                    }
+                    if ($media === null) {
+                        $media = $this->resolveMediaUrl(
+                            isset($card['media_url']) ? (string) $card['media_url'] : (
+                                isset($card['header_media']) ? (string) $card['header_media'] : (
+                                    isset($card['url']) ? (string) $card['url'] : null
+                                )
+                            ),
+                        );
+                    }
 
                     $cardButtons = collect($card['buttons'] ?? [])
                         ->filter(fn ($btn) => is_array($btn) && filled($btn['text'] ?? $btn['title'] ?? null))
@@ -142,6 +149,7 @@ class TemplatePreviewService
 
                     return [
                         'header' => strtoupper((string) ($card['header'] ?? $card['header_type'] ?? 'IMAGE')),
+                        'media_path' => $mediaPath !== '' ? $mediaPath : null,
                         'media_url' => $media,
                         'body' => (string) ($card['body'] ?? $card['body_text'] ?? ''),
                         'buttons' => $cardButtons,
