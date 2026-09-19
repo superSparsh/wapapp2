@@ -1,3 +1,5 @@
-country_code,whatsapp_number,FIRST_NAME,LAST_NAME,email
-91,9876543210,John,Doe,john@example.com
-91,9123456780,Jane,Smith,jane@example.com
+phone_number,FIRST_NAME,LAST_NAME,existing_customer,send_opt_in_message
+9882394135,Marry,Anna,yes,yes
+9882394136,Jame,Bonce,yes,no
+9882394137,Luna,Pham,no,yes
+9882394138,Nghi,Lace,yes,no

@@ -1,5 +1,6 @@
 @props([
     'mailListId' => null,
+    'mailListName' => null,
     'mailLists' => null,
 ])
 
@@ -12,26 +13,25 @@
     <div class="flex items-start justify-end gap-4">
       <div class="min-w-0 flex-1">
         <h2 id="modal-title-import-subscribers" class="text-2xl font-bold leading-[1.5] text-text-primary">Import subscribers</h2>
+        <p class="mt-1 hidden text-sm text-text-muted" data-import-list-label></p>
       </div>
       <button type="button" data-modal-close aria-label="Close" class="flex size-6 shrink-0 items-center justify-center rounded hover:bg-muted-surface">
         <img src="{{ asset('images/inbox/modals/close-square.svg') }}" alt="" class="size-6" width="24" height="24">
       </button>
     </div>
 
-    <form method="POST" action="{{ route('audience.subscribers.import.store') }}" enctype="multipart/form-data" class="space-y-4">
+    <form method="POST" action="{{ route('audience.subscribers.import.store') }}" enctype="multipart/form-data" class="space-y-4" data-import-subscribers-form>
       @csrf
-      @if ($mailListId)
-        <input type="hidden" name="mail_list_id" value="{{ $mailListId }}" data-import-list-input>
-      @elseif ($lists->isNotEmpty())
-        <div>
+      <input type="hidden" name="mail_list_id" value="{{ $mailListId ?? '' }}" data-import-list-input required>
+
+      @if (! $mailListId && $lists->isNotEmpty())
+        <div data-import-list-select-wrap>
           <label for="import_mail_list_id" class="mb-2 block text-sm font-semibold leading-[1.4] text-text-primary">
             List <span class="text-red-500">*</span>
           </label>
           <select
             id="import_mail_list_id"
-            name="mail_list_id"
-            required
-            data-import-list-input
+            data-import-list-select
             class="w-full appearance-none rounded-[12px] border border-border bg-elevated px-[14px] py-[14px] text-sm font-medium leading-[1.4] text-text-muted focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
           >
             <option value="">Select a list</option>
@@ -40,8 +40,6 @@
             @endforeach
           </select>
         </div>
-      @else
-        <input type="hidden" name="mail_list_id" value="" data-import-list-input>
       @endif
 
       <div class="rounded-[12px] border border-border-light bg-muted-surface p-4">
@@ -74,7 +72,7 @@
       <label class="flex items-center gap-2 text-sm font-medium text-text-body">
         <input type="hidden" name="send_opt_in_message" value="no">
         <input type="checkbox" name="send_opt_in_message" value="yes" class="size-4 rounded border-border">
-        Send WhatsApp opt-in message to imported contacts
+        Send WhatsApp opt-in message to all imported contacts (overrides CSV <code>send_opt_in_message</code> column)
       </label>
 
       <div class="flex justify-end">
@@ -88,11 +86,23 @@
         <div class="min-w-0 flex-1">
           <p class="text-sm font-bold leading-[1.4] text-text-body">File Upload Guidelines</p>
           <ul class="mt-[10px] list-disc space-y-3 pl-5 text-sm font-normal leading-[1.4] text-text-muted">
-            <li>CSV only, max 100MB. Include a header row.</li>
-            <li>Required columns: <code>country_code</code>, <code>whatsapp_number</code> (or <code>phone</code>). Optional: <code>FIRST_NAME</code>, <code>LAST_NAME</code>, <code>email</code>.</li>
+            <li><strong>File Size Limit:</strong> Maximum upload size is <strong>100MB</strong>.</li>
+            <li><strong>File Type:</strong> CSV only. The first row must be a <strong>header row</strong> with exact column names.</li>
+            <li><strong>Required columns:</strong>
+              <code>phone_number</code>,
+              <code>FIRST_NAME</code>,
+              <code>LAST_NAME</code>,
+              <code>existing_customer</code>,
+              <code>send_opt_in_message</code>.
+              (Matched case-insensitively; use the sample file spelling.)
+            </li>
+            <li><strong>Opt-in fields</strong> (<code>existing_customer</code> / <code>send_opt_in_message</code>):
+              Use <code>yes</code> or <code>no</code> (also accepted: y/n, true/false, 1/0).
+              Empty cells default to <strong>existing_customer = yes</strong> and <strong>send_opt_in_message = no</strong>.
+            </li>
             <li>
-              Sample file:
-              <a href="{{ asset('files/csv_import_example.csv') }}" target="_blank" class="underline">Sample.csv</a>
+              <strong>Sample Input File:</strong>
+              <a href="{{ asset('files/csv_import_example.csv') }}" download class="font-semibold underline">Sample.csv</a>
             </li>
           </ul>
         </div>
@@ -103,18 +113,65 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-  const zone = document.querySelector('#modal-import-subscribers [data-dropzone]');
-  const listInput = document.querySelector('#modal-import-subscribers [data-import-list-input]');
+  const modal = document.getElementById('modal-import-subscribers');
+  if (!modal) return;
+
+  const listInput = modal.querySelector('[data-import-list-input]');
+  const listLabel = modal.querySelector('[data-import-list-label]');
+  const listSelect = modal.querySelector('[data-import-list-select]');
+  const listSelectWrap = modal.querySelector('[data-import-list-select-wrap]');
+  const defaultListId = @json($mailListId);
+  const defaultListName = @json($mailListName);
+
+  const setTargetList = (listId, listName) => {
+    if (listInput && listId) {
+      listInput.value = listId;
+    }
+    if (listLabel) {
+      if (listName) {
+        listLabel.textContent = 'List: ' + listName;
+        listLabel.classList.remove('hidden');
+      } else if (listId) {
+        listLabel.textContent = '';
+        listLabel.classList.add('hidden');
+      }
+    }
+    if (listSelectWrap && listId) {
+      listSelectWrap.classList.add('hidden');
+    } else if (listSelectWrap && !defaultListId) {
+      listSelectWrap.classList.remove('hidden');
+    }
+    if (listSelect && listId) {
+      listSelect.value = listId;
+    }
+  };
+
+  if (defaultListId) {
+    setTargetList(defaultListId, defaultListName);
+  }
 
   document.querySelectorAll('[data-open-modal="import-subscribers"]').forEach((btn) => {
     btn.addEventListener('click', () => {
-      const listId = btn.getAttribute('data-mail-list-id');
-      if (listId && listInput) {
-        listInput.value = listId;
-      }
+      const listId = btn.getAttribute('data-mail-list-id') || defaultListId || '';
+      const listName = btn.getAttribute('data-mail-list-name') || defaultListName || '';
+      setTargetList(listId, listName);
     });
   });
 
+  listSelect?.addEventListener('change', () => {
+    const option = listSelect.options[listSelect.selectedIndex];
+    setTargetList(listSelect.value, option ? option.textContent : '');
+  });
+
+  const form = modal.querySelector('[data-import-subscribers-form]');
+  form?.addEventListener('submit', (e) => {
+    if (!listInput?.value) {
+      e.preventDefault();
+      alert('Please select a list before importing.');
+    }
+  });
+
+  const zone = modal.querySelector('[data-dropzone]');
   if (!zone) return;
   const input = zone.querySelector('[data-dropzone-input]');
   const content = zone.querySelector('[data-dropzone-content]');

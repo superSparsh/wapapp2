@@ -13,5 +13,5 @@
       'title' => $displayName,
   ]) }}
   aria-hidden="true"
-  style="margin-top: 1px; margin-left: 6px; background: #377e6b; font-size: 14px; width: 161px;"
+  style="margin-top: 5%; margin-left: 6px; background: #377e6b; font-size: 14px; width: 161px;"
 >{{ $displayName }}</span>

@@ -45,7 +45,7 @@
             <img src="{{ asset('images/icons/sidebar/dbfd6f4cd73e6e1ecbcca79a8be160d3f18f5172.svg') }}" alt="" class="size-5" width="20" height="20">
             Add New Subscribers
           </button>
-          <button type="button" data-open-modal="import-subscribers" @if($mailListId) data-mail-list-id="{{ $mailListId }}" @endif class="fd-btn inline-flex items-center justify-center rounded-lg border border-green-500 bg-green-100 px-4 py-3 text-sm font-semibold text-green-500 transition-colors hover:bg-green-50/80">
+          <button type="button" data-open-modal="import-subscribers" @if($mailListId) data-mail-list-id="{{ $mailListId }}" data-mail-list-name="{{ $mailList?->name }}" @endif class="fd-btn inline-flex items-center justify-center rounded-lg border border-green-500 bg-green-100 px-4 py-3 text-sm font-semibold text-green-500 transition-colors hover:bg-green-50/80">
             <img src="{{ asset('images/automation/refresh.svg') }}" alt="" class="size-4" width="16" height="16">
             Import
           </button>
@@ -252,7 +252,7 @@
     </div>
   </div>
 
-  <x-audience.import-subscribers-modal :mail-list-id="$mailListId" :mail-lists="$mailLists ?? []" />
+  <x-audience.import-subscribers-modal :mail-list-id="$mailListId" :mail-list-name="$mailList?->name" :mail-lists="$mailLists ?? []" />
   <x-audience.export-subscribers-modal />
 
   <script>

@@ -369,7 +369,7 @@ class ContactTest extends TestCase
     {
         Storage::fake('local');
         $list = MailList::factory()->create();
-        $csvContent = "phone,name,email\n919876543210,Test User,test@example.com\n";
+        $csvContent = "phone_number,FIRST_NAME,LAST_NAME,existing_customer,send_opt_in_message\n919876543210,Test,User,yes,no\n";
         $file = UploadedFile::fake()->createWithContent('contacts.csv', $csvContent, 'text/csv');
 
         $this->actingAsTenantUser()
@@ -379,6 +379,40 @@ class ContactTest extends TestCase
             ])
             ->assertRedirect(route('audience.subscribers', ['list' => $list->uuid]))
             ->assertSessionHas('status');
+
+        $this->assertDatabaseHas('contacts', [
+            'phone' => '919876543210',
+            'mail_list_id' => $list->id,
+        ]);
+    }
+
+    public function test_import_allows_same_phone_on_another_list(): void
+    {
+        Storage::fake('local');
+        $listA = MailList::factory()->create();
+        $listB = MailList::factory()->create();
+
+        Contact::factory()->create([
+            'phone' => '917018107871',
+            'mail_list_id' => $listA->id,
+        ]);
+
+        $csvContent = "phone_number,FIRST_NAME,LAST_NAME,existing_customer,send_opt_in_message\n7018107871,Pet,Parent,yes,no\n";
+        $file = UploadedFile::fake()->createWithContent('contacts.csv', $csvContent, 'text/csv');
+
+        $this->actingAsTenantUser()
+            ->post(route('audience.subscribers.import.store'), [
+                'file' => $file,
+                'mail_list_id' => $listB->uuid,
+            ])
+            ->assertRedirect(route('audience.subscribers', ['list' => $listB->uuid]))
+            ->assertSessionHas('status');
+
+        $this->assertSame(2, Contact::query()->where('phone', '917018107871')->count());
+        $this->assertDatabaseHas('contacts', [
+            'phone' => '917018107871',
+            'mail_list_id' => $listB->id,
+        ]);
     }
 
     public function test_import_rejects_invalid_file_type(): void
