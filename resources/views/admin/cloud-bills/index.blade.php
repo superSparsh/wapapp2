@@ -6,12 +6,7 @@
     </div>
     <a href="{{ route('admin.cloud-bills.create') }}" class="rounded-lg bg-green-500 px-3 py-2 text-xs font-semibold text-white">Upload bill</a>
   </div>
-
-  @if (session('status'))
-    <div class="mx-4 mb-4 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">{{ session('status') }}</div>
-  @endif
-
-  <x-admin.filter-bar
+<x-admin.filter-bar
     :action="route('admin.cloud-bills.index')"
     :search="$filters['q'] ?? ''"
     search-placeholder="Search file, period, status…"

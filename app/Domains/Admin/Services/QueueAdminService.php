@@ -182,6 +182,7 @@ class QueueAdminService
                     'attempts' => $job->attempts,
                     'available_at' => \format_ist($job->available_at),
                     'created_at' => \format_ist($job->created_at),
+                    'created_at_ts' => is_numeric($job->created_at) ? (int) $job->created_at : null,
                 ];
             });
     }
@@ -215,10 +216,46 @@ class QueueAdminService
                     'connection' => $job->connection,
                     'display_name' => $displayName,
                     'module' => $module ?? $this->resolver->fromDisplayName($displayName),
-                    'exception' => \Illuminate\Support\Str::limit((string) $job->exception, 280),
+                    'exception' => (string) $job->exception,
                     'failed_at' => \format_ist($job->failed_at),
+                    'failed_at_ts' => $job->failed_at
+                        ? \Illuminate\Support\Carbon::parse($job->failed_at)->getTimestamp()
+                        : null,
                 ];
             });
+    }
+
+    /**
+     * Delete failed jobs matching module filter (payload fragments).
+     */
+    public function flushFailedForModule(string $module): int
+    {
+        if (! Schema::connection($this->dbConnection())->hasTable('failed_jobs')) {
+            return 0;
+        }
+
+        $query = DB::connection($this->dbConnection())->table('failed_jobs');
+        $this->applyModuleFilter($query, $module);
+
+        return $query->delete();
+    }
+
+    public function clearFailedOlderThan(int $days = 30, ?string $module = null): int
+    {
+        if (! Schema::connection($this->dbConnection())->hasTable('failed_jobs')) {
+            return 0;
+        }
+
+        $cutoff = now()->subDays(max(1, $days));
+        $query = DB::connection($this->dbConnection())
+            ->table('failed_jobs')
+            ->where('failed_at', '<', $cutoff);
+
+        if ($module !== null && $module !== '') {
+            $this->applyModuleFilter($query, $module);
+        }
+
+        return $query->delete();
     }
 
     /**

@@ -13,14 +13,19 @@
       <form method="POST" action="{{ route('admin.errors.clear', $module) }}" data-confirm="Clear errors older than 30 days for this module?" data-confirm-variant="danger">
         @csrf
         <input type="hidden" name="days" value="30">
-        <button type="submit" class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-100">
+        <button type="submit" class="rounded-lg border border-border px-3 py-2 text-xs font-semibold hover:bg-surface">
           Clear &gt;30 days
+        </button>
+      </form>
+      <form method="POST" action="{{ route('admin.errors.destroy-all', $module) }}" data-confirm="Delete ALL errors for this module? This cannot be undone." data-confirm-variant="danger">
+        @csrf
+        <button type="submit" class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-100">
+          Delete all
         </button>
       </form>
     </div>
   </div>
-
-  <div class="flex flex-wrap items-center gap-2 px-4 pb-3">
+<div class="flex flex-wrap items-center gap-2 px-4 pb-3">
     @foreach (['all' => 'All', 'exception' => 'Exception', 'api' => 'API', 'job' => 'Job'] as $key => $label)
       <a
         href="{{ route('admin.errors.show', array_filter([
@@ -70,30 +75,63 @@
   </x-admin.filter-bar>
 
   <section class="p-4 pt-0">
-    <x-ui.data-table :headers="['When', 'Type', 'Source', 'Message', 'Tenant']" :paginator="$logs">
+    <x-ui.data-table :headers="['When', 'Type', 'Source', 'Message', 'Tenant', '']" :paginator="$logs">
       @forelse ($logs as $log)
-        <tr class="bg-elevated align-top">
-          <td class="fd-table-cell p-2 align-middle text-xs text-text-subtle whitespace-nowrap">{{ format_ist($log->occurred_at) }}</td>
+        @php
+          $isNewestSort = ($filters['sort'] ?? 'occurred_at') === 'occurred_at' && ($filters['direction'] ?? 'desc') === 'desc';
+          $isLatest = $loop->first && $isNewestSort && $logs->currentPage() === 1;
+          $isRecent = $log->occurred_at && $log->occurred_at->greaterThan(now()->subHour());
+        @endphp
+        <tr @class([
+          'align-top',
+          'bg-green-50 ring-1 ring-inset ring-green-200' => $isLatest,
+          'bg-amber-50/80' => ! $isLatest && $isRecent,
+          'bg-elevated' => ! $isLatest && ! $isRecent,
+        ])>
+          <td class="fd-table-cell p-2 align-middle text-xs text-text-subtle whitespace-nowrap">
+            <div class="flex flex-col gap-1">
+              <span>{{ format_ist($log->occurred_at) }}</span>
+              @if ($isLatest)
+                <span class="inline-flex w-fit rounded bg-green-600 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">Latest</span>
+              @elseif ($isRecent)
+                <span class="inline-flex w-fit rounded bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">New</span>
+              @endif
+            </div>
+          </td>
           <td class="fd-table-cell p-2 align-middle">
             <span class="rounded bg-surface px-2 py-0.5 text-xs font-semibold uppercase text-text-primary">
               {{ $log->type instanceof \App\Enums\PlatformErrorType ? $log->type->value : $log->type }}
             </span>
           </td>
           <td class="fd-table-cell p-2 align-middle font-mono text-xs text-text-subtle break-all">{{ $log->source ?? '—' }}</td>
-          <td class="fd-table-cell p-2 align-middle text-sm text-text-primary">
-            <div>{{ \Illuminate\Support\Str::limit($log->message, 180) }}</div>
+          <td class="fd-table-cell max-w-xl p-2 align-middle text-sm text-text-primary">
+            <pre class="max-h-80 overflow-auto whitespace-pre-wrap break-words rounded bg-surface p-2 text-[11px] leading-relaxed text-text-primary">{{ $log->message }}</pre>
             @if (! empty($log->context))
               <details class="mt-1">
                 <summary class="cursor-pointer text-xs text-green-600">Context</summary>
-                <pre class="mt-1 max-h-40 overflow-auto rounded bg-surface p-2 text-[11px] text-text-subtle">{{ json_encode($log->context, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) }}</pre>
+                <pre class="mt-1 max-h-40 overflow-auto whitespace-pre-wrap break-words rounded bg-surface p-2 text-[11px] text-text-subtle">{{ json_encode($log->context, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) }}</pre>
               </details>
             @endif
           </td>
           <td class="fd-table-cell p-2 align-middle font-mono text-xs text-text-subtle">{{ $log->tenant_id ?? '—' }}</td>
+          <td class="w-[48px] p-2 align-middle">
+            <form
+              method="POST"
+              action="{{ route('admin.errors.destroy', [$module, $log]) }}"
+              data-confirm="Delete this error?"
+              data-confirm-variant="danger"
+            >
+              @csrf
+              @method('DELETE')
+              <button type="submit" class="flex size-5 items-center justify-center" aria-label="Delete" title="Delete">
+                <img src="{{ asset('images/campaigns/trash.svg') }}" alt="" class="size-5" width="20" height="20">
+              </button>
+            </form>
+          </td>
         </tr>
       @empty
         <tr>
-          <td colspan="5" class="p-6 text-center text-sm text-text-subtle">No errors for this module{{ $type !== 'all' ? " ({$type})" : '' }}.</td>
+          <td colspan="6" class="p-6 text-center text-sm text-text-subtle">No errors for this module{{ $type !== 'all' ? " ({$type})" : '' }}.</td>
         </tr>
       @endforelse
     </x-ui.data-table>

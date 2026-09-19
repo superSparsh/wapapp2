@@ -7,11 +7,7 @@
   <form method="POST" action="{{ route('admin.settings.update') }}" class="mx-4 mb-8 max-w-3xl space-y-4">
     @csrf
     @method('PUT')
-
-    @if (session('status'))
-      <div class="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">{{ session('status') }}</div>
-    @endif
-    @if ($errors->any())
+@if ($errors->any())
       <div class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">{{ $errors->first() }}</div>
     @endif
 

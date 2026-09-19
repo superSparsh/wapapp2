@@ -92,4 +92,20 @@ return [
 
     /** Default UI currency when session has no wallet_display_currency yet (USD or INR). */
     'wallet_display_currency_default' => env('WALLET_DISPLAY_CURRENCY_DEFAULT', 'INR'),
+
+    /*
+    | Zoho Books — wallet recharge invoices (legacy Razorpay → paid Zoho invoice flow).
+    */
+    'zoho' => [
+        'client_id' => env('ZOHO_CLIENT_ID'),
+        'client_secret' => env('ZOHO_CLIENT_SECRET'),
+        'organization_id' => env('ZOHO_ORGANIZATION_ID'),
+        'invoice_refresh_token' => env('ZOHO_REFRESH_TOKEN_INVOICE', env('ZOHO_REFRESH_TOKEN')),
+        'books_api_base' => env('ZOHO_BOOKS_API_BASE', 'https://www.zohoapis.com/books/v3'),
+        'accounts_host' => env('ZOHO_BOOKS_ACCOUNTS_HOST', 'https://accounts.zoho.com'),
+        'wallet_line_name' => env('ZOHO_WALLET_LINE_NAME', 'Wallet credit (prepaid)'),
+        'wallet_line_tax_id' => env('ZOHO_WALLET_LINE_TAX_ID'),
+        'wallet_invoice_currency_id' => env('ZOHO_WALLET_INVOICE_CURRENCY_ID'),
+        'wallet_razorpay_payment_mode' => env('ZOHO_WALLET_RAZORPAY_PAYMENT_MODE', 'razorpay'),
+    ],
 ];

@@ -17,12 +17,14 @@ use App\Domains\Billing\Console\Commands\ReconcileZohoWalletCommand;
 use App\Domains\Billing\Console\Commands\SyncRazorpaySubscriptionsCommand;
 use App\Domains\Campaigns\Console\Commands\ProcessDueCampaignsCommand;
 use App\Domains\Drip\Console\Commands\ProcessDripAutomationsCommand;
+use App\Domains\LegacyMigration\Console\ImportLegacyCountryPricingCommand;
 use App\Domains\LegacyMigration\Console\ImportLegacyPlansCommand;
 use App\Domains\LegacyMigration\Console\ImportLegacySettingsCommand;
 use App\Domains\LegacyMigration\Console\LegacyDoctorCommand;
 use App\Domains\LegacyMigration\Console\ListLegacyCustomersCommand;
 use App\Domains\LegacyMigration\Console\MigrateLegacyCustomerCommand;
 use App\Domains\LegacyMigration\Console\SyncDailyLegacyCommand;
+use App\Domains\Operations\Console\Commands\DiscoverMetaPricingCsvUrlCommand;
 use App\Domains\Operations\Console\Commands\ProcessInboundResponsesCommand;
 use App\Domains\Operations\Console\Commands\ScheduleIntegrationSyncCommand;
 use App\Domains\Operations\Console\Commands\SyncFreeUicQuotaCommand;
@@ -157,6 +159,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ScheduleIntegrationSyncCommand::class,
         WhatsAppHealthSnapshotCommand::class,
         SyncMetaPricingCommand::class,
+        DiscoverMetaPricingCsvUrlCommand::class,
         SyncFreeUicQuotaCommand::class,
         VerifyListContactsCommand::class,
         BackfillNonWhatsAppNumbersCommand::class,
@@ -172,5 +175,6 @@ return Application::configure(basePath: dirname(__DIR__))
         LegacyDoctorCommand::class,
         ImportLegacyPlansCommand::class,
         ImportLegacySettingsCommand::class,
+        ImportLegacyCountryPricingCommand::class,
     ])
     ->create();

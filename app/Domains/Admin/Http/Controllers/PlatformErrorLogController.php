@@ -8,6 +8,7 @@ use App\Domains\Admin\Services\PlatformErrorLogService;
 use App\Domains\Admin\Support\AdminListQuery;
 use App\Domains\Admin\Support\ErrorModuleResolver;
 use App\Http\Controllers\Controller;
+use App\Models\PlatformErrorLog;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -87,5 +88,35 @@ class PlatformErrorLogController extends Controller
         return redirect()
             ->route('admin.errors.show', ['module' => $module])
             ->with('status', "Cleared {$deleted} error(s) older than {$days} days.");
+    }
+
+    public function destroyAll(string $module): RedirectResponse
+    {
+        if (! $this->resolver->isValidModule($module)) {
+            throw new NotFoundHttpException('Unknown error module.');
+        }
+
+        $deleted = $this->errors->destroyAll($module);
+
+        return redirect()
+            ->route('admin.errors.show', ['module' => $module])
+            ->with('status', "Deleted {$deleted} error(s) for this module.");
+    }
+
+    public function destroy(string $module, PlatformErrorLog $log): RedirectResponse
+    {
+        if (! $this->resolver->isValidModule($module)) {
+            throw new NotFoundHttpException('Unknown error module.');
+        }
+
+        if ((string) $log->module !== $module) {
+            throw new NotFoundHttpException('Error log does not belong to this module.');
+        }
+
+        $this->errors->destroy($log);
+
+        return redirect()
+            ->route('admin.errors.show', ['module' => $module])
+            ->with('status', 'Error deleted.');
     }
 }

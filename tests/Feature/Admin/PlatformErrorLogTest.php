@@ -295,4 +295,94 @@ class PlatformErrorLogTest extends TestCase
             ->assertSee('App\\Jobs\\MailJob')
             ->assertDontSee('App\\Jobs\\OtherJob');
     }
+
+    public function test_admin_can_delete_all_and_single_module_errors(): void
+    {
+        $keepOther = PlatformErrorLog::query()->create([
+            'module' => 'campaigns',
+            'type' => PlatformErrorType::Api,
+            'tenant_id' => null,
+            'source' => 'Other',
+            'message' => 'Keep me',
+            'context' => [],
+            'occurred_at' => now(),
+        ]);
+
+        $target = PlatformErrorLog::query()->create([
+            'module' => 'inbox',
+            'type' => PlatformErrorType::Exception,
+            'tenant_id' => null,
+            'source' => 'Outbound',
+            'message' => 'FullUniqueErrorMessageThatShouldNotBeTruncatedInTheMiddleOfDisplay',
+            'context' => [],
+            'occurred_at' => now(),
+        ]);
+
+        $this->actingAs($this->admin, 'admin')
+            ->get(route('admin.errors.show', ['module' => 'inbox']))
+            ->assertOk()
+            ->assertSee('FullUniqueErrorMessageThatShouldNotBeTruncatedInTheMiddleOfDisplay', false);
+
+        $this->actingAs($this->admin, 'admin')
+            ->delete(route('admin.errors.destroy', ['module' => 'inbox', 'log' => $target->id]))
+            ->assertRedirect(route('admin.errors.show', ['module' => 'inbox']));
+
+        $this->assertDatabaseMissing('platform_error_logs', ['id' => $target->id], config('tenancy.database.central_connection'));
+
+        PlatformErrorLog::query()->create([
+            'module' => 'inbox',
+            'type' => PlatformErrorType::Job,
+            'tenant_id' => null,
+            'source' => 'Job',
+            'message' => 'Another inbox error',
+            'context' => [],
+            'occurred_at' => now(),
+        ]);
+
+        $this->actingAs($this->admin, 'admin')
+            ->post(route('admin.errors.destroy-all', ['module' => 'inbox']))
+            ->assertRedirect(route('admin.errors.show', ['module' => 'inbox']));
+
+        $this->assertSame(0, PlatformErrorLog::query()->where('module', 'inbox')->count());
+        $this->assertDatabaseHas('platform_error_logs', ['id' => $keepOther->id], config('tenancy.database.central_connection'));
+    }
+
+    public function test_admin_can_flush_failed_jobs_for_module(): void
+    {
+        $central = config('tenancy.database.central_connection');
+        $campaignUuid = (string) Str::uuid();
+        $inboxUuid = (string) Str::uuid();
+
+        DB::connection($central)->table('failed_jobs')->insert([
+            [
+                'uuid' => $campaignUuid,
+                'connection' => 'database',
+                'queue' => 'default',
+                'payload' => json_encode([
+                    'displayName' => SendCampaignRecipientJob::class,
+                    'data' => ['commandName' => SendCampaignRecipientJob::class],
+                ]),
+                'exception' => "Campaign failed\nstack line two",
+                'failed_at' => now(),
+            ],
+            [
+                'uuid' => $inboxUuid,
+                'connection' => 'database',
+                'queue' => 'default',
+                'payload' => json_encode([
+                    'displayName' => SendOutboundMessageJob::class,
+                    'data' => ['commandName' => SendOutboundMessageJob::class],
+                ]),
+                'exception' => 'Inbox failed',
+                'failed_at' => now(),
+            ],
+        ]);
+
+        $this->actingAs($this->admin, 'admin')
+            ->post(route('admin.queues.flush-module'), ['module' => 'campaigns'])
+            ->assertRedirect();
+
+        $this->assertDatabaseMissing('failed_jobs', ['uuid' => $campaignUuid], $central);
+        $this->assertDatabaseHas('failed_jobs', ['uuid' => $inboxUuid], $central);
+    }
 }

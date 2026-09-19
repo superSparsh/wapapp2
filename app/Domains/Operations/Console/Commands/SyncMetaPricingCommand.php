@@ -4,32 +4,70 @@ declare(strict_types=1);
 
 namespace App\Domains\Operations\Console\Commands;
 
-use App\Models\CountryPricing;
-use App\Support\Console\Concerns\IteratesTenants;
+use App\Domains\Operations\Services\MetaPricing\MetaPricingSyncMessageFormatter;
+use App\Domains\Operations\Services\MetaPricing\MetaWhatsAppUsdPricingSyncService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class SyncMetaPricingCommand extends Command
 {
-    use IteratesTenants;
+    protected $signature = 'operations:sync-meta-pricing
+                            {--discover : Only resolve/print the Meta USD CSV URL}';
 
-    protected $signature = 'operations:sync-meta-pricing {--tenants=* : Tenant IDs to process}';
+    protected $description = 'Download Meta official USD WhatsApp rates and sync central country_pricing';
 
-    protected $description = 'Sync Meta WhatsApp conversation pricing data from central country_pricing.';
-
-    public function handle(): int
+    public function handle(MetaWhatsAppUsdPricingSyncService $sync): int
     {
-        $active = CountryPricing::query()->where('status', 1)->count();
-        $this->info("Central country pricing rows (active): {$active}");
+        if ($this->option('discover')) {
+            return $this->discoverOnly($sync);
+        }
 
-        $this->foreachTenant(function ($tenant) use ($active): void {
-            Log::info('SyncMetaPricingCommand: central pricing available for tenant billing sync', [
-                'tenant_id' => $tenant->id,
-                'active_country_pricing_rows' => $active,
+        $this->info('Syncing Meta USD WhatsApp pricing…');
+
+        try {
+            $results = $sync->sync();
+            $message = MetaPricingSyncMessageFormatter::oneLine($results, (int) ($results['plans_synced'] ?? 0));
+            $this->info($message);
+            Log::info('[operations:sync-meta-pricing] '.$message, [
+                'batch_id' => $results['batch_id'] ?? null,
+                'csv_url' => $results['csv_url'] ?? null,
+                'updated' => count($results['updated'] ?? []),
+                'skipped' => count($results['skipped'] ?? []),
             ]);
-        });
 
-        $this->info('Meta pricing sync completed (central CountryPricing source).');
+            return self::SUCCESS;
+        } catch (Throwable $e) {
+            $this->error($e->getMessage());
+            Log::error('[operations:sync-meta-pricing] failed: '.$e->getMessage());
+
+            return self::FAILURE;
+        }
+    }
+
+    private function discoverOnly(MetaWhatsAppUsdPricingSyncService $sync): int
+    {
+        $configured = config('services.whatsapp_meta_pricing.usd_csv_url');
+        if (! empty($configured)) {
+            $this->info('Configured in .env (META_USD_PRICING_CSV_URL):');
+            $this->line((string) $configured);
+
+            return self::SUCCESS;
+        }
+
+        $this->info('Discovering from Meta developer docs…');
+        $url = $sync->discoverUsdRatesCsvUrl();
+
+        if (empty($url)) {
+            $this->error('Could not discover CSV URL.');
+            $this->line('Open https://developers.facebook.com/docs/whatsapp/pricing → "USD rates",');
+            $this->line('copy the CSV link, and set META_USD_PRICING_CSV_URL in .env.');
+
+            return self::FAILURE;
+        }
+
+        $this->info('Discovered URL:');
+        $this->line('META_USD_PRICING_CSV_URL='.$url);
 
         return self::SUCCESS;
     }

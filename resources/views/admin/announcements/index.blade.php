@@ -6,12 +6,7 @@
     </div>
     <a href="{{ route('admin.announcements.create') }}" class="rounded-lg bg-green-500 px-3 py-2 text-xs font-semibold text-white">New announcement</a>
   </div>
-
-  @if (session('status'))
-    <div class="mx-4 mb-4 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">{{ session('status') }}</div>
-  @endif
-
-  <x-admin.filter-bar
+<x-admin.filter-bar
     :action="route('admin.announcements.index')"
     :search="$filters['q'] ?? ''"
     search-placeholder="Search title or body…"

@@ -5,12 +5,15 @@ declare(strict_types=1);
 namespace App\Domains\Admin\Http\Controllers;
 
 use App\Domains\Admin\Support\AdminListQuery;
+use App\Domains\Operations\Services\MetaPricing\MetaPricingSyncMessageFormatter;
+use App\Domains\Operations\Services\MetaPricing\MetaWhatsAppUsdPricingSyncService;
 use App\Http\Controllers\Controller;
 use App\Models\CountryPricing;
 use App\Models\CountryPricingLog;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
+use Throwable;
 
 class CountryPricingController extends Controller
 {
@@ -127,6 +130,22 @@ class CountryPricingController extends Controller
         fclose($handle);
 
         return back()->with('status', "Imported {$count} pricing row(s).");
+    }
+
+    public function syncMeta(MetaWhatsAppUsdPricingSyncService $sync): RedirectResponse
+    {
+        try {
+            $adminId = auth('admin')->id();
+            $results = $sync->sync(
+                updatedBy: $adminId !== null ? (int) $adminId : null,
+                source: 'auto_fetch',
+            );
+            $formatted = MetaPricingSyncMessageFormatter::format($results);
+
+            return back()->with('status', $formatted['message'].' '.$formatted['detail']);
+        } catch (Throwable $e) {
+            return back()->with('error', 'Meta pricing sync failed: '.$e->getMessage());
+        }
     }
 
     /**

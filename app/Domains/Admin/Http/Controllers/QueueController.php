@@ -74,4 +74,27 @@ class QueueController extends Controller
 
         return back()->with('status', 'All failed jobs flushed.');
     }
+
+    public function flushModule(Request $request): RedirectResponse
+    {
+        $module = (string) $request->input('module', '');
+        abort_if($module === '', 422, 'Module is required.');
+
+        $deleted = $this->queues->flushFailedForModule($module);
+
+        return back()->with('status', "Deleted {$deleted} failed job(s) for this module.");
+    }
+
+    public function clearOlder(Request $request): RedirectResponse
+    {
+        $days = max(1, (int) $request->integer('days', 30));
+        $module = $request->input('module');
+        $module = is_string($module) && $module !== '' ? $module : null;
+
+        $deleted = $this->queues->clearFailedOlderThan($days, $module);
+
+        $scope = $module ? ' for this module' : '';
+
+        return back()->with('status', "Deleted {$deleted} failed job(s) older than {$days} days{$scope}.");
+    }
 }

@@ -122,6 +122,7 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::get('/pricing/create', [CountryPricingController::class, 'create'])->name('pricing.create');
         Route::post('/pricing', [CountryPricingController::class, 'store'])->name('pricing.store');
         Route::post('/pricing/import', [CountryPricingController::class, 'import'])->name('pricing.import');
+        Route::post('/pricing/sync-meta', [CountryPricingController::class, 'syncMeta'])->name('pricing.sync-meta');
         Route::get('/pricing/logs', [CountryPricingLogController::class, 'index'])->name('pricing.logs');
         Route::get('/pricing/{pricing}/edit', [CountryPricingController::class, 'edit'])->name('pricing.edit');
         Route::put('/pricing/{pricing}', [CountryPricingController::class, 'update'])->name('pricing.update');
@@ -175,12 +176,16 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::get('/queues', [QueueController::class, 'index'])->name('queues.index');
         Route::post('/queues/failed/retry-all', [QueueController::class, 'retryAll'])->name('queues.retry-all');
         Route::post('/queues/failed/flush', [QueueController::class, 'flush'])->name('queues.flush');
+        Route::post('/queues/failed/flush-module', [QueueController::class, 'flushModule'])->name('queues.flush-module');
+        Route::post('/queues/failed/clear-older', [QueueController::class, 'clearOlder'])->name('queues.clear-older');
         Route::post('/queues/failed/{uuid}/retry', [QueueController::class, 'retry'])->name('queues.retry');
         Route::post('/queues/failed/{uuid}/forget', [QueueController::class, 'forget'])->name('queues.forget');
 
         Route::get('/errors', [PlatformErrorLogController::class, 'index'])->name('errors.index');
         Route::get('/errors/{module}', [PlatformErrorLogController::class, 'show'])->name('errors.show');
         Route::post('/errors/{module}/clear', [PlatformErrorLogController::class, 'clear'])->name('errors.clear');
+        Route::post('/errors/{module}/destroy-all', [PlatformErrorLogController::class, 'destroyAll'])->name('errors.destroy-all');
+        Route::delete('/errors/{module}/{log}', [PlatformErrorLogController::class, 'destroy'])->name('errors.destroy');
 
         Route::get('/admins', [AdminUserController::class, 'index'])->name('admins.index');
         Route::get('/admins/create', [AdminUserController::class, 'create'])->name('admins.create');

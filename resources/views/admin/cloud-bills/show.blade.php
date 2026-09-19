@@ -12,12 +12,7 @@
       </form>
     </div>
   </div>
-
-  @if (session('status'))
-    <div class="mx-4 mb-4 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">{{ session('status') }}</div>
-  @endif
-
-  <form method="POST" action="{{ route('admin.cloud-bills.update', $bill) }}" class="mx-4 mb-8 max-w-xl rounded-[20px] border border-border bg-elevated p-5">
+<form method="POST" action="{{ route('admin.cloud-bills.update', $bill) }}" class="mx-4 mb-8 max-w-xl rounded-[20px] border border-border bg-elevated p-5">
     @csrf
     @method('PUT')
     <h2 class="text-lg font-bold">Rate / status</h2>

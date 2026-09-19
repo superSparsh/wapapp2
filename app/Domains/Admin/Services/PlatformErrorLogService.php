@@ -147,6 +147,22 @@ class PlatformErrorLogService
             ->delete();
     }
 
+    public function destroyAll(string $module): int
+    {
+        if (! $this->tableReady()) {
+            return 0;
+        }
+
+        return PlatformErrorLog::query()
+            ->where('module', $module)
+            ->delete();
+    }
+
+    public function destroy(PlatformErrorLog $log): bool
+    {
+        return (bool) $log->delete();
+    }
+
     private function tableReady(): bool
     {
         try {

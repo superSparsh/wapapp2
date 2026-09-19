@@ -5,14 +5,16 @@
       <p class="text-sm text-text-subtle opacity-70">Per-country conversation rates (Meta + Tekpro).</p>
     </div>
     <div class="flex flex-wrap gap-2">
+      <form method="POST" action="{{ route('admin.pricing.sync-meta') }}">
+        @csrf
+        <button type="submit" class="rounded-lg border border-border px-3 py-2 text-xs font-semibold hover:bg-surface">
+          Auto Fetch Meta USD
+        </button>
+      </form>
       <a href="{{ route('admin.pricing.logs') }}" class="rounded-lg border border-border px-3 py-2 text-xs font-semibold hover:bg-surface">Pricing change logs</a>
       <a href="{{ route('admin.pricing.create') }}" class="rounded-lg bg-green-500 px-3 py-2 text-xs font-semibold text-white">Add country</a>
     </div>
   </div>
-
-  @if (session('status'))
-    <div class="mx-4 mb-4 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">{{ session('status') }}</div>
-  @endif
 
   <form method="POST" action="{{ route('admin.pricing.import') }}" enctype="multipart/form-data" class="mx-4 mb-4 flex flex-wrap items-end gap-3 rounded-[20px] border border-border bg-elevated p-4">
     @csrf

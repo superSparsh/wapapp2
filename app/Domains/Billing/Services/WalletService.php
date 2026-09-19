@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Billing\Services;
 
+use App\Domains\Billing\Jobs\ProcessWalletRazorpayZohoInvoiceJob;
 use App\Domains\Dashboard\Services\DashboardService;
 use App\Enums\RazorpayOrderPurpose;
 use App\Enums\RazorpayOrderStatus;
@@ -13,6 +14,7 @@ use App\Models\WalletAccount;
 use App\Models\WalletTransaction;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 class WalletService
@@ -180,7 +182,7 @@ class WalletService
 
     public function completeRecharge(RazorpayOrder $order, string $paymentId): WalletTransaction
     {
-        return DB::transaction(function () use ($order, $paymentId): WalletTransaction {
+        $transaction = DB::transaction(function () use ($order, $paymentId): WalletTransaction {
             $this->razorpayService->markOrderPaid($order, $paymentId);
 
             $wallet = $this->account();
@@ -199,5 +201,20 @@ class WalletService
                 'created_at' => now(),
             ]);
         });
+
+        $tenantId = tenant('id');
+        if ($tenantId) {
+            $userId = Auth::id();
+            DB::afterCommit(function () use ($tenantId, $order, $paymentId, $userId): void {
+                ProcessWalletRazorpayZohoInvoiceJob::dispatch(
+                    (string) $tenantId,
+                    (int) $order->id,
+                    $paymentId,
+                    $userId !== null ? (int) $userId : null,
+                );
+            });
+        }
+
+        return $transaction;
     }
 }
