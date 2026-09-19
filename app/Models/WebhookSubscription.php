@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\WebhookSubscriptionStatus;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class WebhookSubscription extends TenantModel
 {
+    use HasFactory;
+
     protected $fillable = [
         'whatsapp_line_id',
         'url',

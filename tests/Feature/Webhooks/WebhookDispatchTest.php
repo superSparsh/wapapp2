@@ -107,57 +107,17 @@ class WebhookDispatchTest extends TestCase
         $this->assertNotNull($delivery->error_message);
     }
 
-    public function test_only_active_subscriptions_receive_webhooks(): void
-    {
-        tenancy()->initialize($this->testTenant);
-
-        Queue::fake();
-
-        $activeSub = WebhookSubscription::factory()->active()->create();
-        $inactiveSub = WebhookSubscription::factory()->inactive()->create();
-
-        $contact = Contact::factory()->create(['phone' => '918888888888']);
-        $conversation = Conversation::factory()->create([
-            'whatsapp_line_id' => $this->testLine->id,
-            'contact_id' => $contact->id,
-            'contact_phone' => $contact->phone,
-            'contact_name' => 'Test',
-            'last_message_at' => now(),
-        ]);
-        $message = Message::query()->create([
-            'conversation_id' => $conversation->id,
-            'body' => 'Hello',
-            'direction' => 'inbound',
-            'message_type' => 'text',
-            'status' => \App\Enums\MessageStatus::Delivered,
-        ]);
-
-        $listener = app(NewLeadWebhookListener::class);
-        $listener->handle($message, $conversation);
-
-        // Only active subscription should have job dispatched
-        Queue::assertPushed(DispatchOutboundWebhookJob::class, function ($job) use ($activeSub) {
-            return $job->subscriptionId === $activeSub->id;
-        });
-
-        Queue::assertNotPushed(DispatchOutboundWebhookJob::class, function ($job) use ($inactiveSub) {
-            return $job->subscriptionId === $inactiveSub->id;
-        });
-    }
-
     public function test_new_lead_listener_dispatches_to_matching_subscriptions(): void
     {
         tenancy()->initialize($this->testTenant);
 
         Queue::fake();
 
-        // Create 2 active subscriptions with new_lead event
+        // Create 2 active subscriptions with new_lead event (bound to line / null = default)
         WebhookSubscription::factory()->count(2)->active()->create([
             'events' => ['new_lead'],
+            'whatsapp_line_id' => $this->testLine->id,
         ]);
-
-        // Create 1 active subscription without new_lead event (should be skipped)
-        // Currently only new_lead exists, so we'll just verify count
 
         $contact = Contact::factory()->create(['phone' => '917777777777', 'name' => 'Lead User']);
         $conversation = Conversation::factory()->create([
@@ -165,6 +125,7 @@ class WebhookDispatchTest extends TestCase
             'contact_id' => $contact->id,
             'contact_phone' => $contact->phone,
             'contact_name' => 'Lead User',
+            'line_phone' => $this->testLine->phone,
             'last_message_at' => now(),
         ]);
         $message = Message::query()->create([
@@ -180,13 +141,103 @@ class WebhookDispatchTest extends TestCase
 
         Queue::assertPushed(DispatchOutboundWebhookJob::class, 2);
 
-        // Verify payload structure
+        // Verify payload structure (legacy-enriched)
         Queue::assertPushed(DispatchOutboundWebhookJob::class, function ($job) use ($message) {
             return $job->eventType === 'new_lead'
                 && $job->payload['event'] === 'new_lead'
                 && $job->payload['data']['name'] === 'Lead User'
-                && $job->payload['data']['phone'] === '917777777777'
-                && $job->payload['data']['message'] === 'I am interested';
+                && $job->payload['data']['phone'] === '7777777777'
+                && $job->payload['data']['phone_e164'] === '917777777777'
+                && $job->payload['data']['country_code'] === '+91'
+                && $job->payload['data']['message'] === 'I am interested'
+                && isset($job->payload['data']['business_line_id'])
+                && isset($job->payload['data']['business_line']);
+        });
+    }
+
+    public function test_new_lead_listener_skips_repeat_inbound_on_same_conversation(): void
+    {
+        tenancy()->initialize($this->testTenant);
+
+        Queue::fake();
+
+        WebhookSubscription::factory()->active()->create([
+            'events' => ['new_lead'],
+            'whatsapp_line_id' => $this->testLine->id,
+        ]);
+
+        $contact = Contact::factory()->create(['phone' => '916666666666']);
+        $conversation = Conversation::factory()->create([
+            'whatsapp_line_id' => $this->testLine->id,
+            'contact_id' => $contact->id,
+            'contact_phone' => $contact->phone,
+            'line_phone' => $this->testLine->phone,
+        ]);
+
+        $first = Message::query()->create([
+            'conversation_id' => $conversation->id,
+            'body' => 'First',
+            'direction' => 'inbound',
+            'message_type' => 'text',
+            'status' => \App\Enums\MessageStatus::Delivered,
+        ]);
+
+        $listener = app(NewLeadWebhookListener::class);
+        $listener->handle($first, $conversation);
+        Queue::assertPushed(DispatchOutboundWebhookJob::class, 1);
+
+        $second = Message::query()->create([
+            'conversation_id' => $conversation->id,
+            'body' => 'Second',
+            'direction' => 'inbound',
+            'message_type' => 'text',
+            'status' => \App\Enums\MessageStatus::Delivered,
+        ]);
+
+        Queue::fake();
+        $listener->handle($second, $conversation);
+        Queue::assertNothingPushed();
+    }
+
+    public function test_only_active_subscriptions_receive_webhooks(): void
+    {
+        tenancy()->initialize($this->testTenant);
+
+        Queue::fake();
+
+        $activeSub = WebhookSubscription::factory()->active()->create([
+            'whatsapp_line_id' => $this->testLine->id,
+        ]);
+        $inactiveSub = WebhookSubscription::factory()->inactive()->create([
+            'whatsapp_line_id' => $this->testLine->id,
+        ]);
+
+        $contact = Contact::factory()->create(['phone' => '918888888888']);
+        $conversation = Conversation::factory()->create([
+            'whatsapp_line_id' => $this->testLine->id,
+            'contact_id' => $contact->id,
+            'contact_phone' => $contact->phone,
+            'contact_name' => 'Test',
+            'line_phone' => $this->testLine->phone,
+            'last_message_at' => now(),
+        ]);
+        $message = Message::query()->create([
+            'conversation_id' => $conversation->id,
+            'body' => 'Hello',
+            'direction' => 'inbound',
+            'message_type' => 'text',
+            'status' => \App\Enums\MessageStatus::Delivered,
+        ]);
+
+        $listener = app(NewLeadWebhookListener::class);
+        $listener->handle($message, $conversation);
+
+        Queue::assertPushed(DispatchOutboundWebhookJob::class, function ($job) use ($activeSub) {
+            return $job->subscriptionId === $activeSub->id;
+        });
+
+        Queue::assertNotPushed(DispatchOutboundWebhookJob::class, function ($job) use ($inactiveSub) {
+            return $job->subscriptionId === $inactiveSub->id;
         });
     }
 

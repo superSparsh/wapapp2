@@ -32,7 +32,7 @@
           rows="3"
           maxlength="{{ (int) config('templates.body_limit', 1024) }}"
           class="fd-input mt-2 w-full rounded-xl border border-border p-3"
-          placeholder="Hi {{name}}, check these offers"
+          placeholder="Hi @{{name}}, check these offers"
         >{{ $introBody }}</textarea>
         <x-ui.field-error field="carousel_body" />
       </div>

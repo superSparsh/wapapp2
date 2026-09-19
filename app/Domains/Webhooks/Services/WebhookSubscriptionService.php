@@ -15,6 +15,7 @@ class WebhookSubscriptionService
 {
     public function __construct(
         private readonly WebhookDeliveryService $deliveryService,
+        private readonly NewLeadWebhookPayloadBuilder $payloadBuilder,
     ) {}
     /**
      * Paginated subscriptions with delivery counts.
@@ -108,16 +109,6 @@ class WebhookSubscriptionService
      */
     private function buildTestPayload(): array
     {
-        return [
-            'event' => 'new_lead',
-            'data' => [
-                'id' => (string) now()->timestamp,
-                'name' => 'Test User',
-                'phone' => '919999999999',
-                'message' => 'This is a test webhook payload',
-                'created_at' => now()->toIso8601String(),
-            ],
-            'timestamp' => now()->timestamp,
-        ];
+        return $this->payloadBuilder->sample();
     }
 }

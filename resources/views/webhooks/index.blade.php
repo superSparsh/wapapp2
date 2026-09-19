@@ -6,6 +6,50 @@
 }
 TXT;
 
+  $samplePayload = <<<'TXT'
+{
+    "event": "new_lead",
+    "data": {
+        "id": "lead_123",
+        "name": "John Doe",
+        "phone": "9876543210",
+        "country_code": "+91",
+        "phone_e164": "919876543210",
+        "message": "test external webhook",
+        "original_timestamp": 1749812359000,
+        "created_at": "2025-06-13T10:59:20+00:00",
+        "to": "919876543210",
+        "received_on": "919876543210",
+        "business_phone": "9876543210",
+        "business_country_code": "+91",
+        "business_line_id": 42,
+        "business_line_name": "My Business",
+        "business_line": {
+            "id": 42,
+            "phone": "9876543210",
+            "country_code": "+91",
+            "phone_e164": "919876543210",
+            "verified_name": "My Business",
+            "is_default": true
+        }
+    },
+    "timestamp": 1711017600
+}
+TXT;
+
+  $signatureExample = <<<'TXT'
+// PHP Example
+$signature = $request->header('X-Webhook-Signature');
+$payload = $request->getContent();
+$secretKey = 'your-stored-secret-key';
+
+$expectedSignature = hash_hmac('sha256', $payload, $secretKey);
+
+if (!hash_equals($expectedSignature, $signature)) {
+    return response()->json(['error' => 'Invalid signature'], 401);
+}
+TXT;
+
   $guideList = [
     'Your webhook endpoint must be configured to:',
     [
@@ -14,6 +58,10 @@ TXT;
       'Return a 200 OK response within 10 seconds',
     ],
   ];
+
+  $activeLineLabel = filled($activeLine?->display_name ?? null)
+    ? $activeLine->display_name.' ('.$activeLine->phone.')'
+    : ($activeLine?->phone ?? 'default number');
 @endphp
 
 <x-layouts.app title="Webhook List - WapApp" active="webhooks.index">
@@ -56,6 +104,31 @@ TXT;
                   <li>{{ $item }}</li>
                 @endforeach
               </ol>
+            </div>
+            <div class="flex flex-col gap-2">
+              <p class="text-sm font-semibold leading-[1.4] text-text-primary">Request Headers:</p>
+              <ul class="list-disc pl-[21px] text-sm font-medium leading-[1.4] text-text-muted">
+                <li><code>Content-Type: application/json</code></li>
+                <li><code>X-Webhook-Signature: [signature]</code></li>
+                <li><code>X-Webhook-Event: new_lead</code></li>
+              </ul>
+            </div>
+            <div class="flex flex-col gap-2">
+              <p class="text-sm font-semibold leading-[1.4] text-text-primary">Sample Payload:</p>
+              <div class="rounded-xl border border-solid border-border bg-elevated p-3.5">
+                <pre class="whitespace-pre-wrap text-sm font-medium leading-[1.4] text-text-muted">{{ $samplePayload }}</pre>
+              </div>
+            </div>
+            <p class="text-sm font-medium leading-[1.4] text-text-muted">
+              <strong>New lead per line:</strong> A lead is tracked per sender phone + your business number.
+              Webhooks fire only for the line they were created on. Active line for new webhooks:
+              <strong>{{ $activeLineLabel }}</strong>. Switch number before adding a webhook to bind it to that line; otherwise it uses your default number.
+            </p>
+            <div class="flex flex-col gap-2">
+              <p class="text-sm font-semibold leading-[1.4] text-text-primary">Signature Verification:</p>
+              <div class="rounded-xl border border-solid border-border bg-elevated p-3.5">
+                <pre class="whitespace-pre-wrap text-sm font-medium leading-[1.4] text-text-muted">{{ $signatureExample }}</pre>
+              </div>
             </div>
             <div class="flex flex-col gap-2">
               <p class="text-sm font-semibold leading-[1.4] text-text-primary">Example Response Format:</p>
@@ -219,15 +292,27 @@ TXT;
                         <div class="flex flex-col gap-1">
                           <div class="flex items-center gap-1">
                             <div class="flex min-w-0 flex-1 items-center justify-center overflow-hidden rounded border border-solid border-border p-1">
-                              <span class="secret-display min-w-0 flex-1 truncate text-xs font-medium leading-[1.4] text-[#939393]">
-                                {{ str_repeat('•', 12) . substr($sub->secret_key, -4) }}
-                              </span>
+                              <input
+                                type="text"
+                                readonly
+                                class="secret-display min-w-0 flex-1 truncate border-0 bg-transparent text-xs font-medium leading-[1.4] text-[#939393] focus:outline-none"
+                                value="{{ $sub->secret_key }}"
+                              >
                             </div>
+                            <button
+                              type="button"
+                              aria-label="Copy secret key"
+                              class="copy-secret-btn flex shrink-0 items-center justify-center rounded bg-[rgba(0,128,0,0.1)] px-2 py-1 text-[10px] font-semibold text-[green]"
+                              data-secret="{{ $sub->secret_key }}"
+                              title="Copy"
+                            >
+                              Copy
+                            </button>
                             <button
                               type="button"
                               aria-label="Regenerate secret key"
                               class="regen-secret-btn flex shrink-0 items-center justify-center rounded bg-[rgba(0,128,0,0.1)] p-1"
-                              data-url="{{ route('webhooks.regenerate-secret', $sub->id) }}"
+                              data-url="{{ route('webhooks.regenerate-secret', $sub) }}"
                             >
                               <img src="{{ asset('images/webhooks/refresh-circle.svg') }}" alt="" class="size-5" width="20" height="20">
                             </button>
@@ -241,7 +326,7 @@ TXT;
                         <button
                           type="button"
                           class="toggle-status-btn inline-flex items-center justify-center rounded px-2 py-1 text-[10px] font-medium leading-[1.2] whitespace-nowrap transition-colors cursor-pointer {{ $sub->status === \App\Enums\WebhookSubscriptionStatus::Active ? 'bg-[rgba(0,128,0,0.1)] text-[green]' : 'bg-[rgba(255,0,0,0.1)] text-[red]' }}"
-                          data-url="{{ route('webhooks.toggle', $sub->id) }}"
+                          data-url="{{ route('webhooks.toggle', $sub) }}"
                         >
                           {{ $sub->status === \App\Enums\WebhookSubscriptionStatus::Active ? 'Active' : 'Inactive' }}
                         </button>
@@ -255,13 +340,22 @@ TXT;
                         {{ $sub->last_triggered_at ? $sub->last_triggered_at->format('Y-m-d H:i') : 'Never' }}
                       </td>
                       <td class="p-2">
-                        <form action="{{ route('webhooks.destroy', $sub->id) }}" method="POST" onsubmit="return confirm('Delete this webhook?')">
-                          @csrf
-                          @method('DELETE')
-                          <button type="submit" aria-label="Delete webhook">
-                            <img src="{{ asset('images/webhooks/trash.svg') }}" alt="" class="size-5" width="20" height="20">
+                        <div class="flex items-center gap-2">
+                          <button
+                            type="button"
+                            class="test-row-btn fd-btn-sm rounded bg-green-500 px-2 py-1 text-[11px] font-semibold text-primary-2"
+                            data-url="{{ route('webhooks.test', $sub) }}"
+                          >
+                            Test
                           </button>
-                        </form>
+                          <form action="{{ route('webhooks.destroy', $sub) }}" method="POST" onsubmit="return confirm('Delete this webhook?')">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit" aria-label="Delete webhook">
+                              <img src="{{ asset('images/webhooks/trash.svg') }}" alt="" class="size-5" width="20" height="20">
+                            </button>
+                          </form>
+                        </div>
                       </td>
                     </tr>
                   @endforeach
@@ -303,7 +397,58 @@ TXT;
           var row = btn.closest('tr');
           var display = row.querySelector('.secret-display');
           var key = data.secret_key;
-          display.textContent = '••••••••••••' + key.slice(-4);
+          if (display) {
+            if (display.tagName === 'INPUT') {
+              display.value = key;
+            } else {
+              display.textContent = key;
+            }
+          }
+          var copyBtn = row.querySelector('.copy-secret-btn');
+          if (copyBtn) copyBtn.dataset.secret = key;
+        });
+    });
+
+    // Copy secret
+    document.addEventListener('click', function (e) {
+      var btn = e.target.closest('.copy-secret-btn');
+      if (!btn) return;
+      var key = btn.dataset.secret || '';
+      if (!key) return;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(key).then(function () {
+          var prev = btn.getAttribute('title') || 'Copy';
+          btn.setAttribute('title', 'Copied!');
+          setTimeout(function () { btn.setAttribute('title', prev); }, 1500);
+        });
+      }
+    });
+
+    // Per-row Test
+    document.addEventListener('click', function (e) {
+      var btn = e.target.closest('.test-row-btn');
+      if (!btn) return;
+      var original = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = 'Testing...';
+      fetch(btn.dataset.url, {
+        method: 'POST',
+        headers: {
+          'X-CSRF-TOKEN': '{{ csrf_token() }}',
+          'Accept': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      })
+        .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
+        .then(function (result) {
+          alert((result.data && result.data.message) ? result.data.message : (result.ok ? 'Webhook test succeeded.' : 'Webhook test failed.'));
+        })
+        .catch(function (err) {
+          alert('Error testing webhook: ' + (err && err.message ? err.message : 'unknown error'));
+        })
+        .finally(function () {
+          btn.disabled = false;
+          btn.textContent = original || 'Test';
         });
     });
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Webhooks\Http\Controllers;
 
+use App\Domains\Integration\Services\PhoneLineService;
 use App\Domains\Webhooks\Http\Requests\StoreWebhookSubscriptionRequest;
 use App\Domains\Webhooks\Http\Requests\UpdateWebhookSubscriptionRequest;
 use App\Domains\Webhooks\Services\WebhookSubscriptionService;
@@ -20,6 +21,7 @@ class WebhookSubscriptionController extends Controller
 {
     public function __construct(
         private readonly WebhookSubscriptionService $service,
+        private readonly PhoneLineService $phoneLineService,
     ) {}
 
     /**
@@ -29,10 +31,14 @@ class WebhookSubscriptionController extends Controller
     {
         $subscriptions = $this->service->index($request->get('search'));
         $mailLists = MailList::query()->select(['id', 'uuid', 'name'])->orderBy('name')->get();
+        $activeLine = PhoneLineService::isLocked()
+            ? $this->phoneLineService->lockedLine()
+            : $this->phoneLineService->defaultLine();
 
         return view('webhooks.index', [
             'subscriptions' => $subscriptions,
             'mailLists' => $mailLists,
+            'activeLine' => $activeLine,
         ]);
     }
 
@@ -44,6 +50,12 @@ class WebhookSubscriptionController extends Controller
         $data = $request->validated();
         $list = PublicId::find(MailList::class, $data['audience_list_id'] ?? null);
         $data['audience_list_id'] = $list?->id;
+
+        // Legacy: bind webhook to locked line, else default line.
+        $line = PhoneLineService::isLocked()
+            ? $this->phoneLineService->lockedLine()
+            : $this->phoneLineService->defaultLine();
+        $data['whatsapp_line_id'] = $line?->id;
 
         $this->service->store($data);
 
@@ -108,10 +120,14 @@ class WebhookSubscriptionController extends Controller
         $delivery = $this->service->testDelivery($webhookSubscription);
 
         return response()->json([
+            'success' => $delivery->status === \App\Enums\WebhookDeliveryStatus::Sent,
             'status' => $delivery->status->value,
             'response_status' => $delivery->response_status,
             'duration_ms' => $delivery->duration_ms,
             'error_message' => $delivery->error_message,
+            'message' => $delivery->status === \App\Enums\WebhookDeliveryStatus::Sent
+                ? 'Webhook test succeeded (HTTP '.($delivery->response_status ?? 200).').'
+                : ($delivery->error_message ?: 'Webhook test failed.'),
         ]);
     }
 

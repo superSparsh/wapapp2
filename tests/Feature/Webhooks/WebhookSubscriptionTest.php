@@ -66,6 +66,7 @@ class WebhookSubscriptionTest extends TestCase
         $this->assertSame(WebhookSubscriptionStatus::Active, $sub->status);
         $this->assertNotEmpty($sub->secret_key);
         $this->assertSame(32, strlen($sub->secret_key));
+        $this->assertSame($this->testLine->id, $sub->whatsapp_line_id);
     }
 
     public function test_store_validates_url_format(): void

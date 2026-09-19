@@ -79,6 +79,7 @@ class ActivityLogService
     public function record(string $action, array $context = []): ActivityLog
     {
         $user = auth('web')->user() ?? auth('team')->user();
+        $request = request();
 
         return ActivityLog::query()->create([
             'uid' => Str::random(32),
@@ -90,11 +91,33 @@ class ActivityLogService
             'description' => $context['description'] ?? self::labelFor($action),
             'subject_type' => $context['subject_type'] ?? null,
             'subject_id' => $context['subject_id'] ?? null,
-            'ip_address' => $context['ip_address'] ?? null,
-            'user_agent' => $context['user_agent'] ?? null,
+            'ip_address' => $context['ip_address'] ?? $this->resolveClientIp($request),
+            'user_agent' => $context['user_agent'] ?? $this->resolveUserAgent($request),
             'metadata' => $context['metadata'] ?? null,
             'created_at' => now(),
         ]);
+    }
+
+    private function resolveClientIp(mixed $request): ?string
+    {
+        if (! $request instanceof Request) {
+            return null;
+        }
+
+        $ip = $request->ip();
+
+        return filled($ip) ? (string) $ip : null;
+    }
+
+    private function resolveUserAgent(mixed $request): ?string
+    {
+        if (! $request instanceof Request) {
+            return null;
+        }
+
+        $ua = $request->userAgent();
+
+        return filled($ua) ? (string) $ua : null;
     }
 
     public function paginate(?string $scope = null, int $perPage = 25): LengthAwarePaginator
