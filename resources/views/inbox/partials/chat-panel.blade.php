@@ -108,12 +108,13 @@
       </button>
     @endif
     @if ($conversation && $assignableAgents->isNotEmpty())
-      <label class="hidden min-w-0 shrink-0 sm:block">
+      <label class="min-w-0 shrink-0">
         <span class="sr-only">Assign agent</span>
         <x-ui.select
           data-inbox-assignee
           variant="header"
-          class="max-w-[120px] sm:max-w-[160px]"
+          class="max-w-[110px] sm:max-w-[160px]"
+          title="Assign agent"
         >
           <option value="unassigned" @selected(empty($contact['assignee']))>Unassigned</option>
           @foreach ($assignableAgents as $agent)

@@ -32,7 +32,7 @@
     @if (tenancy()->initialized)
       data-inbox-unread-url="{{ route('inbox.api.unread-count') }}"
       data-inbox-tenant-id="{{ tenant('id') }}"
-      data-inbox-realtime-enabled="{{ ! empty($reverbEnabled) ? '1' : '0' }}"
+      data-inbox-realtime-enabled="{{ (! empty($reverbEnabled) && (bool) config('inbox.realtime_enabled', true)) ? '1' : '0' }}"
       data-inbox-notify-icon="{{ asset('images/logo.png') }}"
     @endif
 >

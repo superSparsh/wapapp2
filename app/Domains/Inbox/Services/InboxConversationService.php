@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Domains\Inbox\Services;
 
 use App\Enums\ConversationStatus;
+use App\Enums\RecordStatus;
 use App\Models\Contact;
 use App\Models\Conversation;
+use App\Models\TeamMember;
 use App\Models\WhatsappLine;
 use App\Support\PhoneNormalizer;
 use Illuminate\Support\Facades\DB;
@@ -49,6 +51,8 @@ class InboxConversationService
                 ->first();
 
             if ($conversation === null) {
+                $autoAssignee = $this->nextAutoAssignee($line);
+
                 $conversation = Conversation::query()->create([
                     'whatsapp_line_id' => $line->id,
                     'contact_phone' => $normalizedPhone,
@@ -59,6 +63,7 @@ class InboxConversationService
                     'response_type' => 'human_response',
                     'unread_count' => 0,
                     'last_message_at' => now(),
+                    'assigned_team_member_id' => $autoAssignee?->id,
                 ]);
             } else {
                 $updates = [];
@@ -89,5 +94,47 @@ class InboxConversationService
 
             return $conversation;
         });
+    }
+
+    /**
+     * Legacy-style round-robin: pick an active team member with auto_assign_chats
+     * who can handle this WhatsApp line (or has no line restriction).
+     */
+    private function nextAutoAssignee(WhatsappLine $line): ?TeamMember
+    {
+        $candidates = TeamMember::query()
+            ->where('status', RecordStatus::Active)
+            ->where('auto_assign_chats', true)
+            ->orderBy('id')
+            ->get(['id', 'assigned_whatsapp_line_ids']);
+
+        if ($candidates->isEmpty()) {
+            return null;
+        }
+
+        $eligible = $candidates->filter(function (TeamMember $member) use ($line): bool {
+            $lineIds = $member->assigned_whatsapp_line_ids;
+            if (! is_array($lineIds) || $lineIds === []) {
+                return true;
+            }
+
+            return in_array($line->id, array_map('intval', $lineIds), true)
+                || in_array((string) $line->id, array_map('strval', $lineIds), true);
+        })->values();
+
+        if ($eligible->isEmpty()) {
+            return null;
+        }
+
+        $openCounts = Conversation::query()
+            ->whereIn('assigned_team_member_id', $eligible->pluck('id'))
+            ->where('status', ConversationStatus::Open)
+            ->selectRaw('assigned_team_member_id, COUNT(*) as open_count')
+            ->groupBy('assigned_team_member_id')
+            ->pluck('open_count', 'assigned_team_member_id');
+
+        return $eligible
+            ->sortBy(fn (TeamMember $member): int => (int) ($openCounts[$member->id] ?? 0))
+            ->first();
     }
 }

@@ -79,11 +79,16 @@
               @endif
               <div class="flex items-center justify-between gap-2">
                 <p class="fd-table-cell truncate text-xs opacity-50" data-thread-preview>{{ $thread['preview'] }}</p>
-                @if (! empty($thread['unread']))
-                  <span class="fd-status-chip flex h-4 min-w-4 shrink-0 items-center justify-center rounded-full bg-green-500 px-1 text-white" data-thread-unread>{{ $thread['unread'] }}</span>
-                @else
-                  <span class="fd-status-chip hidden h-4 min-w-4 shrink-0 items-center justify-center rounded-full bg-green-500 px-1 text-white" data-thread-unread></span>
-                @endif
+                <div class="flex shrink-0 items-center gap-1.5">
+                  @if (! empty($thread['assignee']))
+                    <span class="hidden max-w-[72px] truncate rounded bg-surface px-1.5 py-0.5 text-[10px] font-medium text-text-body/70 sm:inline" title="Assigned: {{ $thread['assignee'] }}" data-thread-assignee>{{ $thread['assignee'] }}</span>
+                  @endif
+                  @if (! empty($thread['unread']))
+                    <span class="fd-status-chip flex h-4 min-w-4 shrink-0 items-center justify-center rounded-full bg-green-500 px-1 text-white" data-thread-unread>{{ $thread['unread'] }}</span>
+                  @else
+                    <span class="fd-status-chip hidden h-4 min-w-4 shrink-0 items-center justify-center rounded-full bg-green-500 px-1 text-white" data-thread-unread></span>
+                  @endif
+                </div>
               </div>
             </div>
           </div>

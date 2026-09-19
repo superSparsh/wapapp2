@@ -14,6 +14,9 @@
                     <option value="">Loading templates...</option>
                 </select>
             </div>
+            <p class="text-xs text-text-muted">
+              Only templates approved on WhatsApp (with a TemplateCode) can be sent. Sync templates from the Templates page if the list is empty.
+            </p>
             <div class="flex flex-col gap-3 hidden" data-inbox-template-params></div>
             <p class="hidden text-xs text-red-500" data-inbox-template-error></p>
             <x-inbox.modal-actions submit="Send Template" />

@@ -258,7 +258,7 @@ class InboxController extends Controller
         $line = $inboxService->resolveActiveLine($request);
 
         return response()->json([
-            'items' => $registry->options($line),
+            'items' => $registry->options($line, sendableOnly: true),
         ]);
     }
 

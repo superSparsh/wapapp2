@@ -732,6 +732,7 @@ function inboxBaseUrl() {
 const INBOX_NOTIFY_KEY = 'inbox.web_notifications';
 const inboxUnreadSeen = new Map();
 let inboxUnreadWatermark = null;
+let inboxLatestFingerprint = null;
 let lastInboxNotifyKey = '';
 let lastInboxNotifyAt = 0;
 
@@ -792,13 +793,19 @@ function setInboxNotifyUi(enabled) {
     }
 }
 
-function showInboxWebNotification(thread, message) {
+function showInboxWebNotification(thread, message, { force = false } = {}) {
     if (!inboxCanNotify()) {
         return false;
     }
 
     const openUuid = inboxSelectedConversationUuid();
-    if (openUuid && thread?.uuid === openUuid && document.visibilityState === 'visible') {
+    if (
+        !force &&
+        openUuid &&
+        thread?.uuid &&
+        thread.uuid === openUuid &&
+        document.visibilityState === 'visible'
+    ) {
         return false;
     }
 
@@ -809,7 +816,7 @@ function showInboxWebNotification(thread, message) {
     const key = `${thread?.uuid || 'inbox'}:${body}`;
     const now = Date.now();
 
-    if (key === lastInboxNotifyKey && now - lastInboxNotifyAt < 5000) {
+    if (!force && key === lastInboxNotifyKey && now - lastInboxNotifyAt < 5000) {
         return false;
     }
 
@@ -821,9 +828,10 @@ function showInboxWebNotification(thread, message) {
     try {
         const notification = new Notification(title, {
             body,
-            tag: thread?.uuid || 'inbox',
+            tag: force ? `inbox-test-${now}` : thread?.uuid || 'inbox',
             renotify: true,
             icon,
+            requireInteraction: false,
         });
 
         notification.onclick = () => {
@@ -835,10 +843,6 @@ function showInboxWebNotification(thread, message) {
             notification.close();
         };
 
-        if (thread?.uuid && inboxUnreadWatermark !== null) {
-            inboxUnreadWatermark += 1;
-        }
-
         return true;
     } catch {
         return false;
@@ -847,6 +851,10 @@ function showInboxWebNotification(thread, message) {
 
 function applyInboxUnreadSnapshot(data, { notify = true } = {}) {
     const total = Number(data?.unread_total || 0);
+    const latest = data?.latest || null;
+    const fingerprint = latest
+        ? `${latest.uuid || ''}|${latest.unread || 0}|${latest.preview || ''}`
+        : '';
 
     if (typeof data?.unread_total === 'number') {
         setInboxNavBadge(total);
@@ -854,17 +862,29 @@ function applyInboxUnreadSnapshot(data, { notify = true } = {}) {
 
     if (inboxUnreadWatermark === null) {
         inboxUnreadWatermark = total;
+        inboxLatestFingerprint = fingerprint;
 
         return;
     }
 
-    if (notify && total > inboxUnreadWatermark) {
-        showInboxWebNotification(data.latest || {}, {
-            body: data.latest?.preview,
+    const totalIncreased = notify && total > inboxUnreadWatermark;
+    // Same chat got another inbound message → chat-count watermark stays flat.
+    const latestChanged =
+        notify &&
+        fingerprint !== '' &&
+        fingerprint !== inboxLatestFingerprint &&
+        Number(latest?.unread || 0) > 0;
+
+    if (totalIncreased || latestChanged) {
+        showInboxWebNotification(latest || {}, {
+            body: latest?.preview,
         });
     }
 
     inboxUnreadWatermark = total;
+    if (fingerprint !== '') {
+        inboxLatestFingerprint = fingerprint;
+    }
 }
 
 function inboxUnreadTotalFromDom() {
@@ -963,7 +983,7 @@ function maybeRefreshOpenChat(thread) {
     }
 }
 
-function rememberThreadUnread(thread) {
+function rememberThreadUnread(thread, { notify = false } = {}) {
     if (!thread?.uuid) {
         return;
     }
@@ -980,6 +1000,14 @@ function rememberThreadUnread(thread) {
         const root = inboxRoot();
         const current = Number(root?.dataset.unreadTotal || 0);
         setInboxNavBadge(Math.max(0, current + (isUnread ? 1 : -1)));
+    }
+
+    // Echo-down fallback: notify when this thread's unread count rises.
+    if (notify && next > prev && next > 0) {
+        const openUuid = inboxSelectedConversationUuid();
+        if (!openUuid || thread.uuid !== openUuid || document.visibilityState !== 'visible') {
+            showInboxWebNotification(thread, { body: thread.preview });
+        }
     }
 }
 
@@ -1034,7 +1062,10 @@ function buildThreadRowHtml(thread, selectedUuid = null) {
                     <p class="${phoneClass} truncate text-[11px] leading-tight text-text-body/55" data-thread-phone>${escapeHtml(phone)}</p>
                     <div class="flex items-center justify-between gap-2">
                         <p class="fd-table-cell truncate text-xs opacity-50" data-thread-preview>${escapeHtml(thread.preview || '')}</p>
-                        <span class="fd-status-chip ${unreadClass} h-4 min-w-4 shrink-0 items-center justify-center rounded-full bg-green-500 px-1 text-white" data-thread-unread>${unreadCount > 0 ? unreadCount : ''}</span>
+                        <div class="flex shrink-0 items-center gap-1.5">
+                            ${thread.assignee ? `<span class="hidden max-w-[72px] truncate rounded bg-surface px-1.5 py-0.5 text-[10px] font-medium text-text-body/70 sm:inline" data-thread-assignee title="Assigned: ${escapeHtml(thread.assignee)}">${escapeHtml(thread.assignee)}</span>` : ''}
+                            <span class="fd-status-chip ${unreadClass} h-4 min-w-4 shrink-0 items-center justify-center rounded-full bg-green-500 px-1 text-white" data-thread-unread>${unreadCount > 0 ? unreadCount : ''}</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1108,6 +1139,28 @@ function upsertThreadRow(thread) {
             }
         }
 
+        let assigneeEl = row.querySelector('[data-thread-assignee]');
+        if (thread.assignee) {
+            if (!assigneeEl) {
+                const unreadWrap = row.querySelector('[data-thread-unread]')?.parentElement;
+                if (unreadWrap) {
+                    assigneeEl = document.createElement('span');
+                    assigneeEl.dataset.threadAssignee = '';
+                    assigneeEl.className =
+                        'hidden max-w-[72px] truncate rounded bg-surface px-1.5 py-0.5 text-[10px] font-medium text-text-body/70 sm:inline';
+                    unreadWrap.insertBefore(assigneeEl, unreadWrap.firstChild);
+                }
+            }
+            if (assigneeEl) {
+                assigneeEl.textContent = thread.assignee;
+                assigneeEl.title = `Assigned: ${thread.assignee}`;
+                assigneeEl.classList.remove('hidden');
+                assigneeEl.classList.add('sm:inline');
+            }
+        } else if (assigneeEl) {
+            assigneeEl.remove();
+        }
+
         // Keep the freshest conversation at the top (legacy parity).
         if (list.firstElementChild !== row) {
             list.insertBefore(row, list.firstElementChild);
@@ -1115,7 +1168,7 @@ function upsertThreadRow(thread) {
     }
 
     if (thread.unread !== undefined) {
-        rememberThreadUnread(thread);
+        rememberThreadUnread(thread, { notify: true });
     }
 
     maybeRefreshOpenChat(thread);
@@ -1230,12 +1283,21 @@ function inboxApiErrorMessage(payload, fallback) {
 const INBOX_DOUBLE_CHECK_PATH =
     'M15.01 3.316l-.478-.372a.365.365 0 0 0-.51.063L8.666 9.879a.32.32 0 0 1-.484.033l-.358-.325a.319.319 0 0 0-.484.032l-.378.483a.418.418 0 0 0 .036.541l1.32 1.266c.143.14.361.125.484-.033l6.272-8.048a.366.366 0 0 0-.064-.512zm-4.1 0l-.478-.372a.365.365 0 0 0-.51.063L4.566 9.879a.32.32 0 0 1-.484.033L1.891 7.769a.366.366 0 0 0-.515.006l-.423.433a.364.364 0 0 0 .006.514l3.258 3.185c.143.14.361.125.484-.033l6.272-8.048a.365.365 0 0 0-.063-.51z';
 
-function inboxMessageStatusIcon(status) {
+function inboxMessageStatusIcon(status, failedReason = null) {
     const normalized = String(status || 'queued').toLowerCase();
     const wrap = document.createElement('span');
     wrap.className = 'inline-flex items-center';
     wrap.dataset.messageStatus = normalized;
-    wrap.title = normalized === 'failed' ? 'Failed' : normalized.charAt(0).toUpperCase() + normalized.slice(1);
+
+    const reason = String(failedReason || '').trim();
+    if (normalized === 'failed') {
+        wrap.title = reason || 'Failed';
+        if (reason) {
+            wrap.dataset.failedReason = reason;
+        }
+    } else {
+        wrap.title = normalized.charAt(0).toUpperCase() + normalized.slice(1);
+    }
 
     if (normalized === 'failed') {
         const label = document.createElement('span');
@@ -1272,7 +1334,7 @@ function appendInboxMessageMeta(bubble, message) {
     footer.appendChild(time);
 
     if (message.is_outbound) {
-        footer.appendChild(inboxMessageStatusIcon(message.status));
+        footer.appendChild(inboxMessageStatusIcon(message.status, message.failed_reason));
     }
 
     bubble.appendChild(footer);
@@ -1294,11 +1356,7 @@ function updateInboxMessageStatus(message) {
     }
 
     let statusEl = bubble.querySelector('[data-message-status]');
-    const next = inboxMessageStatusIcon(message.status);
-
-    if (message.failed_reason && String(message.status || '').toLowerCase() === 'failed') {
-        next.title = String(message.failed_reason);
-    }
+    const next = inboxMessageStatusIcon(message.status, message.failed_reason);
 
     if (statusEl) {
         statusEl.replaceWith(next);
@@ -2190,9 +2248,13 @@ function initInboxChat() {
     const assignUrl = chat.dataset.assignUrl;
 
     if (assigneeSelect && assignUrl) {
+        let previousAssignee = assigneeSelect.value;
+
         assigneeSelect.addEventListener('change', async () => {
+            const nextValue = assigneeSelect.value;
+
             try {
-                await fetch(assignUrl, {
+                const response = await fetch(assignUrl, {
                     method: 'POST',
                     headers: {
                         Accept: 'application/json',
@@ -2200,10 +2262,21 @@ function initInboxChat() {
                         'X-CSRF-TOKEN': csrf,
                     },
                     credentials: 'same-origin',
-                    body: JSON.stringify({ assignee: assigneeSelect.value }),
+                    body: JSON.stringify({ assignee: nextValue }),
                 });
+
+                if (!response.ok) {
+                    const error = await response.json().catch(() => ({}));
+                    assigneeSelect.value = previousAssignee;
+                    showAppAlert(inboxApiErrorMessage(error, 'Unable to assign agent.'), 'Assign failed');
+
+                    return;
+                }
+
+                previousAssignee = nextValue;
             } catch {
-                // Ignore transient errors.
+                assigneeSelect.value = previousAssignee;
+                showAppAlert('Unable to assign agent. Check your connection and try again.', 'Assign failed');
             }
         });
     }
@@ -2635,7 +2708,7 @@ function initInboxOutboundModals() {
                 if (items.length === 0) {
                     const option = document.createElement('option');
                     option.value = '';
-                    option.textContent = 'No templates available';
+                    option.textContent = 'No WhatsApp-approved templates — sync templates first';
                     templateSelect.appendChild(option);
                     renderTemplateParams([]);
                     applyInboxTemplatePreview(null);
@@ -3362,11 +3435,17 @@ function initInboxNotifications() {
         const shown = showInboxWebNotification(
             { name: 'WapApp Inbox', uuid: '' },
             { body: 'Notifications are on. You will be alerted for new WhatsApp messages.' },
+            { force: true },
         );
 
         if (!shown) {
             showAppAlert(
-                'Browser permission is granted. Keep this tab open in the background to receive new WhatsApp alerts.',
+                'Browser permission is granted, but the OS blocked the test alert. Keep this tab open — new WhatsApp messages will still try to notify you.',
+                'Notifications on',
+            );
+        } else {
+            showAppAlert(
+                'Notifications are on. Keep at least one WapApp tab open to receive desktop alerts for new WhatsApp messages.',
                 'Notifications on',
             );
         }

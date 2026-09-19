@@ -3,6 +3,7 @@
 namespace Tests\Feature\Inbox;
 
 use App\Domains\Inbox\Services\InboxAssignmentService;
+use App\Domains\Inbox\Services\InboxConversationService;
 use App\Domains\Inbox\Services\InboxMessageService;
 use App\Domains\Inbox\Services\InboxQueryService;
 use App\Enums\RecordStatus;
@@ -39,6 +40,24 @@ class InboxPhase2Test extends TestCase
     {
         $this->tearDownTenant();
         parent::tearDown();
+    }
+
+    public function test_new_conversation_auto_assigns_team_member_with_flag(): void
+    {
+        $member = TeamMember::factory()->create([
+            'parent_user_id' => $this->testUser->id,
+            'auto_assign_chats' => true,
+            'status' => RecordStatus::Active,
+            'assigned_whatsapp_line_ids' => [$this->testLine->id],
+        ]);
+
+        $conversation = app(InboxConversationService::class)->findOrCreateConversation(
+            $this->testLine,
+            '919988776655',
+            'Auto Assign Contact',
+        );
+
+        $this->assertSame($member->id, $conversation->assigned_team_member_id);
     }
 
     public function test_it_assigns_conversation_to_team_member(): void

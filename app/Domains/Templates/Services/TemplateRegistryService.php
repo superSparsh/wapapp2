@@ -34,7 +34,7 @@ class TemplateRegistryService
      *     preview: array<string, mixed>
      * }>
      */
-    public function options(?WhatsappLine $line = null): array
+    public function options(?WhatsappLine $line = null, bool $sendableOnly = false): array
     {
         $line ??= $this->defaultLine();
 
@@ -73,7 +73,8 @@ class TemplateRegistryService
                     $previewService->variablesForTemplate($template),
                 ));
                 $preview = $previewService->forTemplate($template, [], true);
-                $sendCode = $template->whatsappCode() ?? (string) $template->code;
+                $providerCode = $template->whatsappCode();
+                $sendCode = $providerCode ?? (string) $template->code;
 
                 return [
                     'code' => $sendCode,
@@ -81,6 +82,7 @@ class TemplateRegistryService
                     'language' => $template->language,
                     'category' => $template->category,
                     'variables' => $variables,
+                    'sendable' => $providerCode !== null || CamsTemplateIdentity::isProviderCode($sendCode),
                     'preview' => [
                         'body' => (string) ($preview['raw_body'] ?? $preview['body'] ?? ''),
                         'footer' => (string) ($preview['footer'] ?? ''),
@@ -93,6 +95,10 @@ class TemplateRegistryService
                 ];
             })
             ->filter(fn (array $row): bool => $row['code'] !== '')
+            ->when(
+                $sendableOnly,
+                fn ($rows) => $rows->filter(fn (array $row): bool => (bool) ($row['sendable'] ?? false)),
+            )
             ->values()
             ->all();
     }

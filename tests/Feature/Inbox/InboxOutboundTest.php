@@ -166,14 +166,23 @@ class InboxOutboundTest extends TestCase
         ]);
     }
 
-    public function test_templates_api_lists_approved_templates_with_preview(): void
+    public function test_templates_api_lists_only_sendable_provider_templates(): void
     {
         Template::factory()->create([
-            'name' => 'Inbox Welcome',
+            'name' => 'Local Only',
             'code' => 'inbox_welcome',
             'whatsapp_line_id' => null,
             'payload' => array_merge(Template::defaultPayload(), [
                 'body' => ['text' => 'Hi $(name)'],
+            ]),
+        ]);
+
+        Template::factory()->create([
+            'name' => 'CAMS Ready',
+            'code' => '935757998997286955',
+            'whatsapp_line_id' => $this->testLine->id,
+            'payload' => array_merge(Template::defaultPayload(), [
+                'body' => ['text' => 'Hello from CAMS'],
                 'buttons' => [['text' => 'Open', 'type' => 'url']],
             ]),
         ]);
@@ -185,17 +194,17 @@ class InboxOutboundTest extends TestCase
         $this->actingAsTenantUser()
             ->getJson(route('inbox.api.templates'))
             ->assertOk()
-            ->assertJsonPath('items.0.code', 'inbox_welcome')
-            ->assertJsonPath('items.0.preview.body', 'Hi $(name)')
+            ->assertJsonPath('items.0.code', '935757998997286955')
+            ->assertJsonPath('items.0.preview.body', 'Hello from CAMS')
             ->assertJsonPath('items.0.preview.buttons.0.text', 'Open')
-            ->assertJsonMissing(['code' => null]);
+            ->assertJsonMissing(['code' => 'inbox_welcome']);
     }
 
     public function test_templates_api_includes_unassigned_and_falls_back_to_other_lines(): void
     {
         Template::factory()->create([
             'name' => 'Other Line Template',
-            'code' => 'other_line_welcome',
+            'code' => '935757998997286966',
             'whatsapp_line_id' => WhatsappLine::query()->create([
                 'phone' => '918888800099',
                 'display_name' => 'Second Line',
@@ -212,7 +221,7 @@ class InboxOutboundTest extends TestCase
         $this->actingAsTenantUser()
             ->getJson(route('inbox.api.templates'))
             ->assertOk()
-            ->assertJsonPath('items.0.code', 'other_line_welcome')
+            ->assertJsonPath('items.0.code', '935757998997286966')
             ->assertJsonPath('items.0.preview.body', 'From another line');
     }
 
