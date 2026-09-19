@@ -37,6 +37,57 @@ final class InboxPresenter
         return Carbon::instance($at)->diffForHumans(short: true);
     }
 
+    /**
+     * Clock time inside a chat bubble (WhatsApp-style).
+     */
+    public static function clockTime(?\DateTimeInterface $at): string
+    {
+        if ($at === null) {
+            return '';
+        }
+
+        return Carbon::instance($at)->timezone(config('app.timezone'))->format('g:i A');
+    }
+
+    /**
+     * Day key for grouping messages (Y-m-d in app timezone).
+     */
+    public static function dateKey(?\DateTimeInterface $at): ?string
+    {
+        if ($at === null) {
+            return null;
+        }
+
+        return Carbon::instance($at)->timezone(config('app.timezone'))->toDateString();
+    }
+
+    /**
+     * WhatsApp-style day chip: Today / Yesterday / weekday / full date.
+     */
+    public static function dateLabel(?\DateTimeInterface $at): string
+    {
+        if ($at === null) {
+            return '';
+        }
+
+        $date = Carbon::instance($at)->timezone(config('app.timezone'))->startOfDay();
+        $today = now()->timezone(config('app.timezone'))->startOfDay();
+
+        if ($date->equalTo($today)) {
+            return 'Today';
+        }
+
+        if ($date->equalTo($today->copy()->subDay())) {
+            return 'Yesterday';
+        }
+
+        if ($date->greaterThan($today->copy()->subDays(6))) {
+            return $date->format('l');
+        }
+
+        return $date->format('j F Y');
+    }
+
     public static function preview(?string $body, int $limit = 80): string
     {
         $body = trim((string) $body);

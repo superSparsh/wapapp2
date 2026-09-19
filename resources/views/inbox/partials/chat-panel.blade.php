@@ -110,17 +110,18 @@
     @if ($conversation && $assignableAgents->isNotEmpty())
       <label class="min-w-0 shrink-0">
         <span class="sr-only">Assign agent</span>
-        <x-ui.select
+        {{-- Native select: themed custom dropdowns clip inside the chat header. --}}
+        <select
           data-inbox-assignee
-          variant="header"
-          class="max-w-[110px] sm:max-w-[160px]"
+          data-native-select="true"
+          class="max-w-[110px] rounded bg-green-600 px-2 py-1 text-xs text-white focus:outline-none sm:max-w-[160px]"
           title="Assign agent"
         >
           <option value="unassigned" @selected(empty($contact['assignee']))>Unassigned</option>
           @foreach ($assignableAgents as $agent)
             <option value="{{ $agent['key'] }}" @selected(($contact['assignee'] ?? null) === $agent['key'])>{{ $agent['label'] }}</option>
           @endforeach
-        </x-ui.select>
+        </select>
       </label>
     @endif
     <button
@@ -154,11 +155,12 @@
   </div>
 
   <div
-    class="relative z-0 flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto overscroll-contain p-4"
+    class="relative z-0 flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain p-4"
     data-inbox-messages
     data-oldest-id="{{ $messagesOldestId ?? '' }}"
     data-has-more="{{ $messagesHasMore ? '1' : '0' }}"
   >
+    @php $lastDateKey = null; @endphp
     @foreach ($messages as $message)
       @php
         $isOutbound = ! empty($message['is_outbound']);
@@ -171,11 +173,23 @@
         $interactivePreview = is_array($message['interactive_preview'] ?? null)
           ? $message['interactive_preview']
           : null;
+        $dateKey = $message['date_key'] ?? null;
+        $dateLabel = $message['date_label'] ?? null;
       @endphp
+      @if ($dateKey && $dateKey !== $lastDateKey)
+        <div class="flex justify-center py-1" data-inbox-date-sep="{{ $dateKey }}">
+          <span class="rounded-full bg-elevated/90 px-3 py-1 text-[11px] font-semibold text-text-body shadow-sm">
+            {{ $dateLabel }}
+          </span>
+        </div>
+        @php $lastDateKey = $dateKey; @endphp
+      @endif
       <div
         @class(['flex', 'justify-end' => $isOutbound, 'justify-start' => ! $isOutbound])
         @if (! empty($message['uuid'])) data-message-uuid="{{ $message['uuid'] }}" @endif
         @if (! empty($message['id'])) data-message-id="{{ $message['id'] }}" @endif
+        @if ($dateKey) data-date-key="{{ $dateKey }}" @endif
+        @if ($dateLabel) data-date-label="{{ $dateLabel }}" @endif
       >
         <div @class([
           'max-w-[640px] rounded-bl-[12px] rounded-br-[12px] rounded-tr-[12px] p-4 text-xs leading-[1.8] text-text-body',
@@ -183,12 +197,28 @@
           'bg-muted-surface' => ! $isOutbound,
         ]) style="font-family: 'Poppins', var(--font-sans)">
           @if (in_array($messageType, ['image', 'sticker'], true) && $mediaUrl)
-            <img src="{{ $mediaUrl }}" alt="{{ $fileName ?: 'Media' }}" class="mb-2 max-h-72 max-w-full rounded-lg object-contain">
+            <button
+              type="button"
+              data-inbox-media-open
+              data-media-type="image"
+              data-media-url="{{ $mediaUrl }}"
+              class="mb-2 block max-w-full cursor-zoom-in border-0 bg-transparent p-0 text-left"
+            >
+              <img src="{{ $mediaUrl }}" alt="{{ $fileName ?: 'Media' }}" class="pointer-events-none max-h-72 max-w-full rounded-lg object-contain">
+            </button>
             @if ($body !== '')
               <div>{{ $body }}</div>
             @endif
           @elseif ($messageType === 'video' && $mediaUrl)
-            <video src="{{ $mediaUrl }}" controls class="mb-2 max-h-72 max-w-full rounded-lg"></video>
+            <button
+              type="button"
+              data-inbox-media-open
+              data-media-type="video"
+              data-media-url="{{ $mediaUrl }}"
+              class="mb-2 block max-w-full cursor-zoom-in border-0 bg-transparent p-0 text-left"
+            >
+              <video src="{{ $mediaUrl }}" class="pointer-events-none max-h-72 max-w-full rounded-lg" muted preload="metadata"></video>
+            </button>
             @if ($body !== '')
               <div>{{ $body }}</div>
             @endif
@@ -285,11 +315,25 @@
           <div class="mt-1 flex items-center justify-end gap-1 text-[10px] leading-none text-text-body/55">
             <span data-message-time>{{ $message['time'] ?? '' }}</span>
             @if ($isOutbound)
-              @php $status = strtolower((string) ($message['status'] ?? 'queued')); @endphp
+              @php
+                $status = strtolower((string) ($message['status'] ?? 'queued'));
+                $failedReason = trim((string) ($message['failed_reason'] ?? ''));
+                if ($failedReason === '') {
+                  $failedReason = 'Message failed to send.';
+                }
+              @endphp
               <span
-                class="inline-flex items-center"
+                @class([
+                  'inline-flex items-center',
+                  'cursor-help' => $status === 'failed',
+                ])
                 data-message-status="{{ $status }}"
-                title="{{ $status === 'failed' ? ($message['failed_reason'] ?? 'Failed') : ucfirst($status) }}"
+                @if ($status === 'failed')
+                  data-failed-reason="{{ $failedReason }}"
+                  aria-label="{{ $failedReason }}"
+                @else
+                  title="{{ ucfirst($status) }}"
+                @endif
               >
                 @if ($status === 'failed')
                   <span class="font-semibold text-red-500">Failed</span>
@@ -378,4 +422,24 @@ Sending a template alone does not start that window — the customer still needs
   </div>
 
   @include('inbox.partials.message-menu', ['menuOpen' => $menuOpen])
+</div>
+
+{{-- Fullscreen media viewer (photo / video click) --}}
+<div
+  id="inbox-media-lightbox"
+  class="fixed inset-0 z-[200] hidden items-center justify-center bg-black/85 p-4"
+  data-inbox-media-lightbox
+  role="dialog"
+  aria-modal="true"
+  aria-label="Media preview"
+>
+  <button
+    type="button"
+    data-inbox-media-close
+    class="absolute top-4 right-4 rounded-full bg-white/15 px-3 py-1.5 text-sm font-semibold text-white hover:bg-white/25"
+  >
+    Close
+  </button>
+  <img data-inbox-lightbox-image src="" alt="" class="hidden max-h-[90vh] max-w-[90vw] rounded-lg object-contain">
+  <video data-inbox-lightbox-video src="" class="hidden max-h-[90vh] max-w-[90vw] rounded-lg" controls playsinline></video>
 </div>

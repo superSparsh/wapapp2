@@ -45,6 +45,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // Outbound modals still initialize below.
     }
     initInboxDeleteChat();
+    initInboxMediaLightbox();
+    initInboxFailedTooltips();
     initInboxOutboundModals();
     initInboxTeamFeatures();
     initInboxExportModal();
@@ -1140,25 +1142,27 @@ function upsertThreadRow(thread) {
         }
 
         let assigneeEl = row.querySelector('[data-thread-assignee]');
-        if (thread.assignee) {
-            if (!assigneeEl) {
-                const unreadWrap = row.querySelector('[data-thread-unread]')?.parentElement;
-                if (unreadWrap) {
-                    assigneeEl = document.createElement('span');
-                    assigneeEl.dataset.threadAssignee = '';
-                    assigneeEl.className =
-                        'hidden max-w-[72px] truncate rounded bg-surface px-1.5 py-0.5 text-[10px] font-medium text-text-body/70 sm:inline';
-                    unreadWrap.insertBefore(assigneeEl, unreadWrap.firstChild);
+        if (thread.assignee !== undefined) {
+            if (thread.assignee) {
+                if (!assigneeEl) {
+                    const unreadWrap = row.querySelector('[data-thread-unread]')?.parentElement;
+                    if (unreadWrap) {
+                        assigneeEl = document.createElement('span');
+                        assigneeEl.dataset.threadAssignee = '';
+                        assigneeEl.className =
+                            'hidden max-w-[72px] truncate rounded bg-surface px-1.5 py-0.5 text-[10px] font-medium text-text-body/70 sm:inline';
+                        unreadWrap.insertBefore(assigneeEl, unreadWrap.firstChild);
+                    }
                 }
+                if (assigneeEl) {
+                    assigneeEl.textContent = thread.assignee;
+                    assigneeEl.title = `Assigned: ${thread.assignee}`;
+                    assigneeEl.classList.remove('hidden');
+                    assigneeEl.classList.add('sm:inline');
+                }
+            } else if (assigneeEl) {
+                assigneeEl.remove();
             }
-            if (assigneeEl) {
-                assigneeEl.textContent = thread.assignee;
-                assigneeEl.title = `Assigned: ${thread.assignee}`;
-                assigneeEl.classList.remove('hidden');
-                assigneeEl.classList.add('sm:inline');
-            }
-        } else if (assigneeEl) {
-            assigneeEl.remove();
         }
 
         // Keep the freshest conversation at the top (legacy parity).
@@ -1291,10 +1295,9 @@ function inboxMessageStatusIcon(status, failedReason = null) {
 
     const reason = String(failedReason || '').trim();
     if (normalized === 'failed') {
-        wrap.title = reason || 'Failed';
-        if (reason) {
-            wrap.dataset.failedReason = reason;
-        }
+        wrap.classList.add('cursor-help');
+        wrap.dataset.failedReason = reason || 'Message failed to send.';
+        wrap.setAttribute('aria-label', wrap.dataset.failedReason);
     } else {
         wrap.title = normalized.charAt(0).toUpperCase() + normalized.slice(1);
     }
@@ -1321,6 +1324,94 @@ function inboxMessageStatusIcon(status, failedReason = null) {
     wrap.appendChild(svg);
 
     return wrap;
+}
+
+function ensureInboxFailedTooltip() {
+    let tip = document.querySelector('[data-inbox-failed-tooltip]');
+    if (tip) {
+        if (tip.parentElement !== document.body) {
+            document.body.appendChild(tip);
+        }
+
+        return tip;
+    }
+
+    tip = document.createElement('div');
+    tip.dataset.inboxFailedTooltip = '';
+    tip.className =
+        'pointer-events-none fixed z-[220] hidden max-w-xs rounded-md bg-gray-900 px-3 py-2 text-left text-xs leading-relaxed text-white shadow-lg';
+    tip.setAttribute('role', 'tooltip');
+    document.body.appendChild(tip);
+
+    return tip;
+}
+
+function positionInboxFailedTooltip(tip, anchor) {
+    const rect = anchor.getBoundingClientRect();
+    const pad = 8;
+    const tipRect = tip.getBoundingClientRect();
+    let left = rect.right - tipRect.width;
+    let top = rect.top - tipRect.height - pad;
+
+    if (left < pad) {
+        left = pad;
+    }
+    if (left + tipRect.width > window.innerWidth - pad) {
+        left = window.innerWidth - tipRect.width - pad;
+    }
+    if (top < pad) {
+        top = rect.bottom + pad;
+    }
+
+    tip.style.left = `${Math.round(left)}px`;
+    tip.style.top = `${Math.round(top)}px`;
+}
+
+function showInboxFailedTooltip(anchor) {
+    const reason = String(anchor.dataset.failedReason || '').trim() || 'Message failed to send.';
+    const tip = ensureInboxFailedTooltip();
+    tip.textContent = reason;
+    tip.classList.remove('hidden');
+    // Measure then place (needs visible for getBoundingClientRect).
+    positionInboxFailedTooltip(tip, anchor);
+}
+
+function hideInboxFailedTooltip() {
+    const tip = document.querySelector('[data-inbox-failed-tooltip]');
+    if (tip) {
+        tip.classList.add('hidden');
+        tip.textContent = '';
+    }
+}
+
+function initInboxFailedTooltips() {
+    ensureInboxFailedTooltip();
+
+    document.addEventListener('mouseover', (event) => {
+        const anchor = event.target.closest?.('[data-message-status="failed"]');
+        if (!anchor) {
+            return;
+        }
+
+        showInboxFailedTooltip(anchor);
+    });
+
+    document.addEventListener('mouseout', (event) => {
+        const anchor = event.target.closest?.('[data-message-status="failed"]');
+        if (!anchor) {
+            return;
+        }
+
+        const next = event.relatedTarget;
+        if (next && anchor.contains(next)) {
+            return;
+        }
+
+        hideInboxFailedTooltip();
+    });
+
+    document.addEventListener('scroll', hideInboxFailedTooltip, true);
+    window.addEventListener('resize', hideInboxFailedTooltip);
 }
 
 function appendInboxMessageMeta(bubble, message) {
@@ -1386,12 +1477,34 @@ function fillMessageBubble(bubble, message) {
         bubble.appendChild(textEl);
     };
 
+    const appendClickableMedia = (type) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.dataset.inboxMediaOpen = '';
+        btn.dataset.mediaType = type;
+        btn.dataset.mediaUrl = mediaUrl;
+        btn.className = 'mb-2 block max-w-full cursor-zoom-in border-0 bg-transparent p-0 text-left';
+
+        if (type === 'video') {
+            const video = document.createElement('video');
+            video.src = mediaUrl;
+            video.className = 'pointer-events-none max-h-72 max-w-full rounded-lg';
+            video.muted = true;
+            video.preload = 'metadata';
+            btn.appendChild(video);
+        } else {
+            const img = document.createElement('img');
+            img.src = mediaUrl;
+            img.alt = fileName || 'Media';
+            img.className = 'pointer-events-none max-h-72 max-w-full rounded-lg object-contain';
+            btn.appendChild(img);
+        }
+
+        bubble.appendChild(btn);
+    };
+
     if ((messageType === 'image' || messageType === 'sticker') && mediaUrl) {
-        const img = document.createElement('img');
-        img.src = mediaUrl;
-        img.alt = fileName || 'Media';
-        img.className = 'mb-2 max-h-72 max-w-full rounded-lg object-contain';
-        bubble.appendChild(img);
+        appendClickableMedia('image');
         if (body !== '') {
             appendText(body);
         }
@@ -1400,11 +1513,7 @@ function fillMessageBubble(bubble, message) {
     }
 
     if (messageType === 'video' && mediaUrl) {
-        const video = document.createElement('video');
-        video.src = mediaUrl;
-        video.controls = true;
-        video.className = 'mb-2 max-h-72 max-w-full rounded-lg';
-        bubble.appendChild(video);
+        appendClickableMedia('video');
         if (body !== '') {
             appendText(body);
         }
@@ -1853,6 +1962,9 @@ function initInboxChat() {
     const chat = document.querySelector('[data-inbox-chat]');
     if (!chat) return;
 
+    // Bind assign early — must not depend on composer/send URLs.
+    initInboxAssignee(chat);
+
     const form = chat.querySelector('[data-inbox-send-form]');
     const input = chat.querySelector('[data-inbox-message-input]');
     const messagesEl = chat.querySelector('[data-inbox-messages]');
@@ -1887,6 +1999,12 @@ function initInboxChat() {
         if (message.id != null) {
             row.dataset.messageId = String(message.id);
         }
+        if (message.date_key) {
+            row.dataset.dateKey = String(message.date_key);
+        }
+        if (message.date_label) {
+            row.dataset.dateLabel = String(message.date_label);
+        }
 
         const bubble = document.createElement('div');
         bubble.className = message.is_outbound
@@ -1897,6 +2015,58 @@ function initInboxChat() {
         row.appendChild(bubble);
 
         return row;
+    };
+
+    const createDateSeparator = (dateKey, dateLabel) => {
+        const sep = document.createElement('div');
+        sep.className = 'flex justify-center py-1';
+        sep.dataset.inboxDateSep = String(dateKey);
+        const chip = document.createElement('span');
+        chip.className = 'rounded-full bg-elevated/90 px-3 py-1 text-[11px] font-semibold text-text-body shadow-sm';
+        chip.textContent = dateLabel || dateKey;
+        sep.appendChild(chip);
+
+        return sep;
+    };
+
+    const rebuildDateSeparators = () => {
+        if (!messagesEl) {
+            return;
+        }
+
+        messagesEl.querySelectorAll('[data-inbox-date-sep]').forEach((el) => el.remove());
+
+        let lastKey = null;
+        messagesEl.querySelectorAll('[data-message-uuid], [data-message-id]').forEach((row) => {
+            const key = row.dataset.dateKey;
+            if (!key || key === lastKey) {
+                return;
+            }
+
+            messagesEl.insertBefore(createDateSeparator(key, row.dataset.dateLabel || key), row);
+            lastKey = key;
+        });
+    };
+
+    const scrollMessagesToLatest = () => {
+        if (!messagesEl) {
+            return;
+        }
+
+        const jump = () => {
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+        };
+
+        jump();
+        requestAnimationFrame(jump);
+        window.setTimeout(jump, 50);
+        window.setTimeout(jump, 250);
+
+        messagesEl.querySelectorAll('img').forEach((img) => {
+            if (!img.complete) {
+                img.addEventListener('load', jump, { once: true });
+            }
+        });
     };
 
     const appendMessage = (message, { scroll = true } = {}) => {
@@ -1910,10 +2080,16 @@ function initInboxChat() {
             seenMessageUuids.add(message.uuid);
         }
 
+        const lastRow = [...messagesEl.querySelectorAll('[data-message-uuid], [data-message-id]')].at(-1);
+        const lastKey = lastRow?.dataset.dateKey || null;
+        if (message.date_key && message.date_key !== lastKey) {
+            messagesEl.appendChild(createDateSeparator(message.date_key, message.date_label));
+        }
+
         messagesEl.appendChild(buildMessageRow(message));
 
         if (scroll) {
-            messagesEl.scrollTop = messagesEl.scrollHeight;
+            scrollMessagesToLatest();
         }
 
         return true;
@@ -1931,6 +2107,7 @@ function initInboxChat() {
         }
 
         messagesEl.insertBefore(buildMessageRow(message), messagesEl.firstChild);
+        rebuildDateSeparators();
 
         return true;
     };
@@ -1987,6 +2164,8 @@ function initInboxChat() {
                         is_outbound: message.is_outbound ?? message.direction === 'outbound',
                         status: message.status,
                         time: message.time,
+                        date_key: message.date_key,
+                        date_label: message.date_label,
                         media_url: message.media_url,
                         file_name: message.file_name,
                         latitude: message.latitude,
@@ -2004,6 +2183,7 @@ function initInboxChat() {
 
             if (frag.childNodes.length > 0) {
                 messagesEl.insertBefore(frag, messagesEl.firstChild);
+                rebuildDateSeparators();
             }
 
             if (data.oldest_id != null) {
@@ -2101,6 +2281,8 @@ function initInboxChat() {
                     is_outbound: isOutbound,
                     status: message.status,
                     time: message.time,
+                    date_key: message.date_key,
+                    date_label: message.date_label,
                     media_url: message.media_url,
                     file_name: message.file_name,
                     latitude: message.latitude,
@@ -2183,6 +2365,8 @@ function initInboxChat() {
                 is_outbound: true,
                 status: data.message?.status ?? 'queued',
                 time: data.message?.time,
+                date_key: data.message?.date_key,
+                date_label: data.message?.date_label,
                 message_type: data.message?.message_type ?? 'text',
                 contacts: data.message?.contacts,
                 template_code: data.message?.template_code,
@@ -2197,6 +2381,50 @@ function initInboxChat() {
             button?.removeAttribute('disabled');
         }
     });
+
+    const optInButtons = chat.querySelectorAll('[data-inbox-resend-opt-in]');
+    const optInUrl = chat.dataset.optInUrl;
+
+    if (optInButtons.length && optInUrl) {
+        optInButtons.forEach((optInButton) => {
+            optInButton.addEventListener('click', async () => {
+                optInButton.setAttribute('disabled', 'disabled');
+
+                try {
+                    const response = await fetch(optInUrl, {
+                        method: 'POST',
+                        headers: {
+                            Accept: 'application/json',
+                            'X-CSRF-TOKEN': csrf,
+                        },
+                        credentials: 'same-origin',
+                    });
+
+                    if (!response.ok) {
+                        const error = await response.json().catch(() => ({}));
+                        showAppAlert(inboxApiErrorMessage(error, 'Unable to send opt-in.'), 'Opt-in failed');
+
+                        return;
+                    }
+
+                    const data = await response.json();
+                    appendMessage({
+                        body: data.message?.body ?? 'Opt-in template sent.',
+                        is_outbound: true,
+                        message_type: data.message?.message_type ?? 'template',
+                        time: data.message?.time,
+                        date_key: data.message?.date_key,
+                        date_label: data.message?.date_label,
+                    });
+                    showAppAlert('Opt-in template sent.', 'Sent');
+                } catch {
+                    showAppAlert('Unable to send opt-in.', 'Opt-in failed');
+                } finally {
+                    optInButton.removeAttribute('disabled');
+                }
+            });
+        });
+    }
 
     // Conversation-scoped Echo (tenant channel is handled in initInboxRealtime).
     if (realtimeEnabled && tenantId && conversationUuid && window.Echo) {
@@ -2243,84 +2471,177 @@ function initInboxChat() {
 
     // Open chat is read (WhatsApp-style) — clear badge even if SSR already marked read.
     markConversationRead();
+    scrollMessagesToLatest();
+}
 
+function initInboxAssignee(chat) {
     const assigneeSelect = chat.querySelector('[data-inbox-assignee]');
     const assignUrl = chat.dataset.assignUrl;
+    const csrf = document.querySelector('meta[name="csrf-token"]')?.content;
 
-    if (assigneeSelect && assignUrl) {
-        let previousAssignee = assigneeSelect.value;
-
-        assigneeSelect.addEventListener('change', async () => {
-            const nextValue = assigneeSelect.value;
-
-            try {
-                const response = await fetch(assignUrl, {
-                    method: 'POST',
-                    headers: {
-                        Accept: 'application/json',
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': csrf,
-                    },
-                    credentials: 'same-origin',
-                    body: JSON.stringify({ assignee: nextValue }),
-                });
-
-                if (!response.ok) {
-                    const error = await response.json().catch(() => ({}));
-                    assigneeSelect.value = previousAssignee;
-                    showAppAlert(inboxApiErrorMessage(error, 'Unable to assign agent.'), 'Assign failed');
-
-                    return;
-                }
-
-                previousAssignee = nextValue;
-            } catch {
-                assigneeSelect.value = previousAssignee;
-                showAppAlert('Unable to assign agent. Check your connection and try again.', 'Assign failed');
-            }
-        });
+    if (!assigneeSelect || !assignUrl || !csrf || assigneeSelect.dataset.assignBound === '1') {
+        return;
     }
 
-    const optInButtons = chat.querySelectorAll('[data-inbox-resend-opt-in]');
-    const optInUrl = chat.dataset.optInUrl;
+    assigneeSelect.dataset.assignBound = '1';
+    let previousAssignee = assigneeSelect.value;
 
-    if (optInButtons.length && optInUrl) {
-        optInButtons.forEach((optInButton) => {
-            optInButton.addEventListener('click', async () => {
-                optInButton.setAttribute('disabled', 'disabled');
+    assigneeSelect.addEventListener('change', async () => {
+        const nextValue = assigneeSelect.value;
 
-                try {
-                    const response = await fetch(optInUrl, {
-                        method: 'POST',
-                        headers: {
-                            Accept: 'application/json',
-                            'X-CSRF-TOKEN': csrf,
-                        },
-                        credentials: 'same-origin',
-                    });
-
-                    if (!response.ok) {
-                        const error = await response.json().catch(() => ({}));
-                        showAppAlert(inboxApiErrorMessage(error, 'Unable to send opt-in.'), 'Opt-in failed');
-
-                        return;
-                    }
-
-                    const data = await response.json();
-                    appendMessage({
-                        body: data.message?.body ?? 'Opt-in template sent.',
-                        is_outbound: true,
-                        message_type: data.message?.message_type ?? 'template',
-                    });
-                    showAppAlert('Opt-in template sent.', 'Sent');
-                } catch {
-                    showAppAlert('Unable to send opt-in.', 'Opt-in failed');
-                } finally {
-                    optInButton.removeAttribute('disabled');
-                }
+        try {
+            const response = await fetch(assignUrl, {
+                method: 'POST',
+                headers: {
+                    Accept: 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrf,
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                credentials: 'same-origin',
+                body: JSON.stringify({ assignee: nextValue }),
             });
-        });
+
+            if (!response.ok) {
+                const error = await response.json().catch(() => ({}));
+                assigneeSelect.value = previousAssignee;
+                showAppAlert(inboxApiErrorMessage(error, 'Unable to assign agent.'), 'Assign failed');
+
+                return;
+            }
+
+            previousAssignee = nextValue;
+            const label =
+                nextValue === 'unassigned'
+                    ? 'Unassigned'
+                    : assigneeSelect.options[assigneeSelect.selectedIndex]?.textContent?.trim() || 'Agent';
+
+            const openUuid = chat.dataset.conversationUuid;
+            if (openUuid) {
+                upsertThreadRow({
+                    uuid: openUuid,
+                    assignee: nextValue === 'unassigned' ? null : label,
+                });
+            }
+
+            showAppAlert(`Chat assigned to ${label}.`, 'Assigned');
+        } catch {
+            assigneeSelect.value = previousAssignee;
+            showAppAlert('Unable to assign agent. Check your connection and try again.', 'Assign failed');
+        }
+    });
+}
+
+function ensureInboxMediaLightbox() {
+    let root = document.querySelector('[data-inbox-media-lightbox]');
+    if (root) {
+        if (root.parentElement !== document.body) {
+            document.body.appendChild(root);
+        }
+
+        return root;
     }
+
+    root = document.createElement('div');
+    root.id = 'inbox-media-lightbox';
+    root.dataset.inboxMediaLightbox = '';
+    root.className = 'fixed inset-0 z-[200] hidden items-center justify-center bg-black/85 p-4';
+    root.setAttribute('role', 'dialog');
+    root.setAttribute('aria-modal', 'true');
+    root.innerHTML = `
+      <button type="button" data-inbox-media-close class="absolute top-4 right-4 rounded-full bg-white/15 px-3 py-1.5 text-sm font-semibold text-white hover:bg-white/25">Close</button>
+      <img data-inbox-lightbox-image src="" alt="" class="hidden max-h-[90vh] max-w-[90vw] rounded-lg object-contain">
+      <video data-inbox-lightbox-video src="" class="hidden max-h-[90vh] max-w-[90vw] rounded-lg" controls playsinline></video>
+    `;
+    document.body.appendChild(root);
+
+    return root;
+}
+
+function openInboxMediaLightbox(type, url) {
+    if (!url) {
+        return;
+    }
+
+    const root = ensureInboxMediaLightbox();
+    const image = root.querySelector('[data-inbox-lightbox-image]');
+    const video = root.querySelector('[data-inbox-lightbox-video]');
+
+    if (image) {
+        image.classList.add('hidden');
+        image.removeAttribute('src');
+    }
+    if (video) {
+        video.classList.add('hidden');
+        video.pause?.();
+        video.removeAttribute('src');
+    }
+
+    if (type === 'video' && video) {
+        video.src = url;
+        video.classList.remove('hidden');
+        video.play?.().catch(() => {});
+    } else if (image) {
+        image.src = url;
+        image.classList.remove('hidden');
+    }
+
+    root.classList.remove('hidden');
+    root.classList.add('flex');
+}
+
+function closeInboxMediaLightbox() {
+    const root = document.querySelector('[data-inbox-media-lightbox]');
+    if (!root) {
+        return;
+    }
+
+    const video = root.querySelector('[data-inbox-lightbox-video]');
+    if (video) {
+        video.pause?.();
+        video.removeAttribute('src');
+        video.classList.add('hidden');
+    }
+
+    const image = root.querySelector('[data-inbox-lightbox-image]');
+    if (image) {
+        image.removeAttribute('src');
+        image.classList.add('hidden');
+    }
+
+    root.classList.add('hidden');
+    root.classList.remove('flex');
+}
+
+function initInboxMediaLightbox() {
+    ensureInboxMediaLightbox();
+
+    document.addEventListener('click', (event) => {
+        const openBtn = event.target.closest?.('[data-inbox-media-open]');
+        if (openBtn) {
+            event.preventDefault();
+            openInboxMediaLightbox(openBtn.dataset.mediaType || 'image', openBtn.dataset.mediaUrl);
+
+            return;
+        }
+
+        if (event.target.closest?.('[data-inbox-media-close]')) {
+            closeInboxMediaLightbox();
+
+            return;
+        }
+
+        const root = document.querySelector('[data-inbox-media-lightbox]');
+        if (root && !root.classList.contains('hidden') && event.target === root) {
+            closeInboxMediaLightbox();
+        }
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+            closeInboxMediaLightbox();
+        }
+    });
 }
 
 function initInboxOutboundModals() {
