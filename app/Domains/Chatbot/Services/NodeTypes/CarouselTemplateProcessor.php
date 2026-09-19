@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Domains\Chatbot\Services\NodeTypes;
 
 use App\Domains\Chatbot\Enums\NodeProcessResult;
+use App\Enums\ChatbotFlowStateStatus;
 use App\Models\ChatbotFlowState;
 use App\Models\Conversation;
+use App\Models\Template;
 
 class CarouselTemplateProcessor extends AbstractNodeProcessor
 {
@@ -19,38 +21,68 @@ class CarouselTemplateProcessor extends AbstractNodeProcessor
         $data = $this->nodeData($node);
         $variables = $state->variables ?? [];
 
-        $headerText = $this->resolveText((string) ($data['headerText'] ?? $data['text'] ?? ''), $variables);
-        $cards = $data['cards'] ?? $data['items'] ?? [];
+        $templateId = $data['templateId'] ?? $data['selectedTemplate']['id'] ?? null;
+        $templateCode = (string) (
+            $data['templateCode']
+            ?? $data['selectedTemplate']['template_code']
+            ?? $data['selectedTemplate']['code']
+            ?? ''
+        );
 
-        if ($headerText !== '') {
-            $this->sendText($conversation, $headerText);
+        if (($templateCode === '' || $templateCode === '0') && filled($templateId)) {
+            $template = Template::query()->find($templateId);
+            if ($template !== null) {
+                $templateCode = (string) ($template->whatsappCode() ?: $template->code ?: $template->name);
+            }
         }
 
-        // Format carousel cards as numbered list
-        if (is_array($cards) && $cards !== []) {
-            $lines = [];
+        $cards = $data['templateCards']
+            ?? $data['cards']
+            ?? $data['items']
+            ?? [];
 
-            foreach ($cards as $i => $card) {
-                $title = (string) ($card['title'] ?? '');
-                $subtitle = (string) ($card['subtitle'] ?? $card['description'] ?? '');
+        if (! is_array($cards)) {
+            $cards = [];
+        }
 
-                $entry = ($i + 1).'. '.$title;
-
-                if ($subtitle !== '') {
-                    $entry .= ' - '.$subtitle;
-                }
-
-                $lines[] = $entry;
+        // Legacy parity: send the approved WhatsApp carousel template (not a text list).
+        if ($templateCode !== '' && $templateCode !== '0') {
+            $params = $data['templateParams'] ?? [];
+            $this->sendTemplate($conversation, $templateCode, is_array($params) ? $params : []);
+        } else {
+            // Fallback when template is missing — keep a readable list so the flow can continue.
+            $headerText = $this->resolveText((string) ($data['headerText'] ?? $data['text'] ?? ''), $variables);
+            if ($headerText !== '') {
+                $this->sendText($conversation, $headerText);
             }
 
-            $this->sendText($conversation, implode("\n", $lines));
+            if ($cards !== []) {
+                $lines = [];
+                foreach ($cards as $i => $card) {
+                    if (! is_array($card)) {
+                        continue;
+                    }
+                    $title = (string) ($card['title'] ?? $card['body'] ?? $card['body_text'] ?? '');
+                    if ($title === '') {
+                        continue;
+                    }
+                    $lines[] = ($i + 1).'. '.$title;
+                }
+                if ($lines !== []) {
+                    $this->sendText($conversation, implode("\n", $lines));
+                }
+            }
         }
 
-        // Store card options for response matching
         $state->mergeVariables([
             '_carousel_cards' => $cards,
             '_carousel_node_id' => (string) ($node['id'] ?? ''),
+            '_wait_variable_name' => 'user_response',
         ]);
+        $state->forceFill([
+            'status' => ChatbotFlowStateStatus::Waiting,
+            'current_node_id' => (string) ($node['id'] ?? ''),
+        ])->save();
 
         return NodeProcessResult::WaitForResponse;
     }

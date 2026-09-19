@@ -236,17 +236,36 @@ const ReactFlowCarouselTemplateModule = ({
                 maxWidth: "200px",
                 flex: "0 0 auto",
               }}
+              cover={
+                (card.header_media || card.media_url || card.image_url) &&
+                String(card.header || card.title || "").toUpperCase() !== "VIDEO" ? (
+                  <img
+                    alt=""
+                    src={card.header_media || card.media_url || card.image_url}
+                    style={{ height: 100, objectFit: "cover" }}
+                  />
+                ) : undefined
+              }
               title={`Card ${cardIndex + 1}`}
             >
               <div style={{ fontSize: "12px" }}>
-                {card.header_media && (
+                {(card.header_media || card.media_url || card.image_url) &&
+                  String(card.header || card.title || "").toUpperCase() === "VIDEO" && (
+                    <div style={{ marginBottom: 8 }}>
+                      <video
+                        src={card.header_media || card.media_url || card.image_url}
+                        style={{ width: "100%", maxHeight: 90 }}
+                        muted
+                        playsInline
+                      />
+                    </div>
+                  )}
+                {(card.body_text || card.body) && (
                   <div style={{ marginBottom: 8 }}>
-                    <Text type="secondary">Media: {card.header_media}</Text>
-                  </div>
-                )}
-                {card.body_text && (
-                  <div style={{ marginBottom: 8 }}>
-                    <Text>{card.body_text.substring(0, 50)}...</Text>
+                    <Text>
+                      {String(card.body_text || card.body).substring(0, 80)}
+                      {String(card.body_text || card.body).length > 80 ? "…" : ""}
+                    </Text>
                   </div>
                 )}
                 {card.buttons && card.buttons.length > 0 && (
@@ -263,7 +282,9 @@ const ReactFlowCarouselTemplateModule = ({
                         }}
                       >
                         {getButtonTypeIcon(button.type)}
-                        <Text style={{ fontSize: "11px" }}>{button.text}</Text>
+                        <Text style={{ fontSize: "11px" }}>
+                          {button.text || button.title}
+                        </Text>
                       </div>
                     ))}
                   </div>

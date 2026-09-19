@@ -3093,14 +3093,18 @@ const InteractiveMessageNode = ({ data = {}, selected, id }) => {
 // Carousel Template Node
 const CarouselTemplateNode = ({ data, selected, id }) => {
   const templateCards = data.templateCards || [];
+  const isQuickReply = (btn) =>
+    String(btn?.type || "")
+      .toUpperCase()
+      .replace(/-/g, "_") === "QUICK_REPLY";
+  const buttonLabel = (btn) => btn?.text || btn?.title || "Reply";
   const totalButtons = templateCards.reduce(
     (total, card) => total + (card.buttons || []).length,
     0
   );
   const quickReplyButtons = templateCards.reduce(
     (total, card) =>
-      total +
-      (card.buttons || []).filter((btn) => btn.type === "QUICK_REPLY").length,
+      total + (card.buttons || []).filter((btn) => isQuickReply(btn)).length,
     0
   );
 
@@ -3210,14 +3214,14 @@ const CarouselTemplateNode = ({ data, selected, id }) => {
           >
             {templateCards.map((card, cardIndex) =>
               (card.buttons || [])
-                .filter((button) => button.type === "QUICK_REPLY") // Only show Quick Reply buttons
+                .filter((button) => isQuickReply(button))
                 .map((button, buttonIndex) => {
                   // Find the actual index of this Quick Reply button in the original buttons array
                   const originalButtonIndex = card.buttons.findIndex(
                     (btn, idx) =>
-                      btn.type === "QUICK_REPLY" &&
+                      isQuickReply(btn) &&
                       card.buttons
-                        .filter((b) => b.type === "QUICK_REPLY")
+                        .filter((b) => isQuickReply(b))
                         .indexOf(btn) === buttonIndex
                   );
 
@@ -3239,8 +3243,7 @@ const CarouselTemplateNode = ({ data, selected, id }) => {
                         cursor: "pointer",
                         boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
                       }}
-                      title={`Card ${cardIndex + 1}: ${button.text
-                        } (Quick Reply)`}
+                      title={`Card ${cardIndex + 1}: ${buttonLabel(button)} (Quick Reply)`}
                       onMouseEnter={(e) => {
                         e.currentTarget.style.transform = "translateX(2px)";
                         e.currentTarget.style.boxShadow =
@@ -3277,7 +3280,7 @@ const CarouselTemplateNode = ({ data, selected, id }) => {
                             lineHeight: "1.2",
                           }}
                         >
-                          {button.text}
+                          {buttonLabel(button)}
                         </span>
                       </div>
                       <Handle
@@ -4979,11 +4982,14 @@ const ChatBotFlowReactFlow = () => {
           const button = card?.buttons[buttonIndex];
 
           // Only process Quick Reply buttons
-          if (button && button.type === "QUICK_REPLY") {
+          const buttonType = String(button?.type || "")
+            .toUpperCase()
+            .replace(/-/g, "_");
+          if (button && buttonType === "QUICK_REPLY") {
             edgeData = {
-              label: button.text || "Carousel Quick Reply",
+              label: button.text || button.title || "Carousel Quick Reply",
               replyId: `carousel-${cardIndex}-${buttonIndex}`,
-              replyText: button.text || "",
+              replyText: button.text || button.title || "",
             };
           } else {
             // Skip non-Quick Reply buttons (URL, PHONE_NUMBER)

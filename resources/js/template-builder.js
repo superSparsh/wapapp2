@@ -166,19 +166,24 @@ function syncSampleRows(container, bodyText) {
 }
 
 function buttonIcon(type) {
-    if (type === 'phone') {
+    const normalized = String(type || '')
+        .trim()
+        .toLowerCase()
+        .replace(/-/g, '_');
+
+    if (normalized === 'phone' || normalized === 'phone_number') {
         return '/images/templates/call.svg';
     }
 
-    if (type === 'flow') {
+    if (normalized === 'flow') {
         return '/images/templates/flow.svg';
     }
 
-    if (type === 'quick_reply') {
+    if (normalized === 'quick_reply') {
         return '/images/templates/quick-reply.svg';
     }
 
-    if (type === 'unsubscribe') {
+    if (normalized === 'unsubscribe') {
         return '/images/templates/export.svg';
     }
 
@@ -195,15 +200,23 @@ class TemplateLivePreview {
         this.footer = root.querySelector('[data-preview-footer]');
         this.buttons = root.querySelector('[data-preview-buttons]');
         this.divider = root.querySelector('[data-preview-divider]');
+        this.carousel = root.querySelector('[data-preview-carousel]');
+        this.carouselTrack = root.querySelector('[data-preview-carousel-track]');
+        this.standard = root.querySelector('[data-preview-standard]');
     }
 
     render(state) {
-        const headerType = state.headerType || 'none';
+        const isCarousel = Boolean(state.isCarousel) || (state.carouselCards || []).length > 0;
+        const headerType = isCarousel ? 'none' : state.headerType || 'none';
         const showImage = headerType === 'image' && Boolean(state.headerImage);
         const showVideo = headerType === 'video' && Boolean(state.headerVideo);
         const showHeaderText =
             (headerType === 'text' || headerType === 'location') &&
             (Boolean(state.headerText) || headerType === 'location');
+
+        if (this.standard) {
+            this.standard.classList.toggle('hidden', isCarousel);
+        }
 
         if (this.headerImage) {
             this.headerImage.classList.toggle('hidden', !showImage);
@@ -238,18 +251,21 @@ class TemplateLivePreview {
             if (state.isOptOut && !footerText) {
                 footerText = 'Not interested? Tap Stop promotions';
             }
-            this.footer.classList.toggle('hidden', footerText === '');
+            this.footer.classList.toggle('hidden', footerText === '' || isCarousel);
             this.footer.textContent = footerText;
         }
 
         if (this.divider) {
-            const hasButtons = (state.buttons || []).length > 0;
+            const hasButtons = !isCarousel && (state.buttons || []).length > 0;
             this.divider.classList.toggle('hidden', !hasButtons);
         }
 
         if (this.buttons) {
-            const buttons = (state.buttons || []).filter((button) => button.text?.trim());
+            const buttons = isCarousel
+                ? []
+                : (state.buttons || []).filter((button) => button.text?.trim());
 
+            this.buttons.classList.toggle('hidden', isCarousel);
             this.buttons.innerHTML = buttons
                 .map(
                     (button) => `
@@ -261,7 +277,106 @@ class TemplateLivePreview {
                 )
                 .join('');
         }
+
+        this.renderCarousel(isCarousel ? state.carouselCards || [] : []);
     }
+
+    renderCarousel(cards) {
+        if (!this.carousel || !this.carouselTrack) {
+            return;
+        }
+
+        const list = Array.isArray(cards) ? cards : [];
+        this.carousel.classList.toggle('hidden', list.length === 0);
+
+        this.carouselTrack.innerHTML = list
+            .map((card) => {
+                const header = String(card.header || card.header_type || 'IMAGE').toUpperCase();
+                const media = card.media_url || card.header_media || card.url || '';
+                const body = applyWhatsAppFormatting(card.body || card.body_text || '') || 'Card body';
+                const buttons = (card.buttons || [])
+                    .filter((button) => (button.text || button.title || '').trim())
+                    .map((button) => {
+                        const text = button.text || button.title || 'Button';
+                        return `
+                          <div class="flex items-center justify-center gap-1.5 py-1">
+                            <img src="${buttonIcon(button.type)}" alt="" class="size-3.5 shrink-0" width="14" height="14">
+                            <span class="truncate text-[11px] font-medium text-link-green">${escapeHtml(text)}</span>
+                          </div>`;
+                    })
+                    .join('');
+
+                let mediaHtml = `<div class="flex aspect-video w-full items-center justify-center bg-muted-surface text-[11px] text-text-muted">${header === 'VIDEO' ? 'Video' : 'Image'}</div>`;
+                if (media && header === 'VIDEO') {
+                    mediaHtml = `<video src="${escapeHtml(media)}" class="aspect-video w-full object-cover" muted playsinline preload="metadata"></video>`;
+                } else if (media) {
+                    mediaHtml = `<img src="${escapeHtml(media)}" alt="" class="aspect-video w-full object-cover">`;
+                }
+
+                return `
+                  <div class="wa-carousel-card flex w-[200px] shrink-0 flex-col overflow-hidden rounded-lg border border-border bg-white">
+                    ${mediaHtml}
+                    <div class="flex flex-1 flex-col gap-2 p-2">
+                      <p class="wa-preview-body line-clamp-3 text-xs leading-[1.4] text-text-body">${body}</p>
+                      ${buttons ? `<div class="mt-auto flex flex-col border-t border-border/60 pt-1">${buttons}</div>` : ''}
+                    </div>
+                  </div>`;
+            })
+            .join('');
+    }
+}
+
+function collectCarouselState(root) {
+    const form = document.getElementById('carousel-builder-form');
+    const defaults = JSON.parse(root.dataset.previewDefaults || '{}');
+    const defaultCards = Array.isArray(defaults.carousel_cards) ? defaults.carousel_cards : [];
+    const defaultIsCarousel = Boolean(defaults.is_carousel) || defaultCards.length > 0;
+
+    if (!form && !defaultIsCarousel) {
+        return { isCarousel: false, body: null, cards: [] };
+    }
+
+    if (!form) {
+        return {
+            isCarousel: defaultIsCarousel,
+            body: defaults.body || '',
+            cards: defaultCards,
+        };
+    }
+
+    const intro =
+        form.querySelector('[name="carousel_body"]')?.value ??
+        defaults.body ??
+        '';
+
+    const cards = Array.from(form.querySelectorAll('[data-carousel-card]')).map((cardEl) => {
+        const header =
+            cardEl.querySelector('select[name*="[header]"]')?.value ||
+            cardEl.querySelector('[name*="[header]"]')?.value ||
+            'IMAGE';
+        const mediaUrl = cardEl.querySelector('[name*="[media_url]"]')?.value?.trim() || '';
+        const body = cardEl.querySelector('textarea[name*="[body]"]')?.value || '';
+        const buttons = Array.from(cardEl.querySelectorAll('[data-carousel-button]'))
+            .map((buttonEl) => ({
+                type: buttonEl.querySelector('[data-carousel-button-type]')?.value || 'QUICK_REPLY',
+                text: buttonEl.querySelector('input[name*="[text]"]')?.value?.trim() || '',
+                url: buttonEl.querySelector('input[name*="[url]"]')?.value?.trim() || '',
+            }))
+            .filter((button) => button.text !== '');
+
+        return {
+            header,
+            media_url: mediaUrl,
+            body,
+            buttons,
+        };
+    });
+
+    return {
+        isCarousel: true,
+        body: intro,
+        cards,
+    };
 }
 
 function collectPreviewState(root) {
@@ -279,6 +394,8 @@ function collectPreviewState(root) {
         })),
         buttons: defaults.buttons || [],
         isOptOut: defaults.is_opt_out || false,
+        isCarousel: Boolean(defaults.is_carousel),
+        carouselCards: defaults.carousel_cards || [],
     };
 
     const headerTypeInput = document.querySelector('input[name="header_type"]:checked');
@@ -321,6 +438,21 @@ function collectPreviewState(root) {
         state.buttons = collectButtonsState(buttonsRoot);
         state.buttonMode = document.getElementById('button_mode')?.value || 'call_to_action';
         state.isOptOut = document.getElementById('is_opt_out')?.checked || false;
+    }
+
+    const carousel = collectCarouselState(root);
+    if (carousel.isCarousel) {
+        state.isCarousel = true;
+        state.carouselCards = carousel.cards;
+        if (carousel.body !== null && carousel.body !== undefined) {
+            state.body = carousel.body;
+        }
+        state.headerType = 'none';
+        state.headerImage = null;
+        state.headerVideo = '';
+        state.headerText = '';
+        state.footer = '';
+        state.buttons = [];
     }
 
     return state;
@@ -1612,7 +1744,7 @@ function initAiSuggestions(root) {
     });
 }
 
-function initCarouselBuilder() {
+function initCarouselBuilder(scheduleUpdate) {
     const root = document.getElementById('carousel-cards-root');
     const form = document.getElementById('carousel-builder-form');
     if (!root || !form) {
@@ -1622,6 +1754,10 @@ function initCarouselBuilder() {
     const minCards = Number(form.dataset.carouselMin || 2);
     const maxCards = Number(form.dataset.carouselMax || 10);
     let cards = JSON.parse(root.dataset.savedCards || '[]');
+
+    const notifyPreview = () => {
+        scheduleUpdate?.();
+    };
 
     const buttonFields = (card, index, buttonIndex) => {
         const button = card.buttons?.[buttonIndex] || {};
@@ -1658,7 +1794,7 @@ function initCarouselBuilder() {
         <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
           <div>
             <label class="text-sm font-medium">Header type</label>
-            <select name="cards[${index}][header]" class="fd-input mt-1 w-full rounded-xl border border-border p-3">
+            <select name="cards[${index}][header]" class="fd-input mt-1 w-full rounded-xl border border-border p-3" data-carousel-header-type>
               <option value="IMAGE" ${(card.header || 'IMAGE') === 'IMAGE' ? 'selected' : ''}>Image</option>
               <option value="VIDEO" ${card.header === 'VIDEO' ? 'selected' : ''}>Video</option>
             </select>
@@ -1682,6 +1818,7 @@ function initCarouselBuilder() {
     const paint = () => {
         root.innerHTML = cards.map((card, index) => renderCard(card, index)).join('');
         document.getElementById('add-carousel-card')?.classList.toggle('hidden', cards.length >= maxCards);
+        notifyPreview();
     };
 
     document.getElementById('add-carousel-card')?.addEventListener('click', () => {
@@ -1715,21 +1852,25 @@ function initCarouselBuilder() {
 
     root.addEventListener('change', (event) => {
         const typeSelect = event.target.closest('[data-carousel-button-type]');
-        if (!typeSelect) {
-            return;
+        if (typeSelect) {
+            const wrap = typeSelect.closest('[data-carousel-button]')?.querySelector('[data-carousel-button-url-wrap]');
+            const showUrl = typeSelect.value === 'URL' || typeSelect.value === 'PHONE_NUMBER';
+            wrap?.classList.toggle('hidden', !showUrl);
+            const label = wrap?.querySelector('label');
+            const input = wrap?.querySelector('input');
+            if (label) {
+                label.textContent = typeSelect.value === 'PHONE_NUMBER' ? 'Phone number' : 'Website URL';
+            }
+            if (input) {
+                input.placeholder = typeSelect.value === 'PHONE_NUMBER' ? '+919876543210' : 'https://example.com';
+            }
         }
-        const wrap = typeSelect.closest('[data-carousel-button]')?.querySelector('[data-carousel-button-url-wrap]');
-        const showUrl = typeSelect.value === 'URL' || typeSelect.value === 'PHONE_NUMBER';
-        wrap?.classList.toggle('hidden', !showUrl);
-        const label = wrap?.querySelector('label');
-        const input = wrap?.querySelector('input');
-        if (label) {
-            label.textContent = typeSelect.value === 'PHONE_NUMBER' ? 'Phone number' : 'Website URL';
-        }
-        if (input) {
-            input.placeholder = typeSelect.value === 'PHONE_NUMBER' ? '+919876543210' : 'https://example.com';
-        }
+
+        notifyPreview();
     });
+
+    root.addEventListener('input', notifyPreview);
+    form.querySelector('[name="carousel_body"]')?.addEventListener('input', notifyPreview);
 
     paint();
 }
@@ -1794,7 +1935,7 @@ export function initTemplateBuilder() {
     initVariableModal(root);
     initUtilityPresets();
     initAiSuggestions(root);
-    initCarouselBuilder();
+    initCarouselBuilder(scheduleUpdate);
     initAuthApps();
 
     document.querySelector('textarea[name="footer_text"]')?.addEventListener('input', scheduleUpdate);

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Templates\Services;
 
+use App\Domains\Templates\Support\TemplateCategoryCatalog;
 use App\Domains\Templates\Support\TemplateVariableSyntax;
 use App\Models\Template;
 
@@ -102,10 +103,61 @@ class TemplatePreviewService
             $buttonMode = 'lto';
         }
 
-        // Carousel preview data
-        $carousel = $payload['carousel'] ?? [];
+        // Carousel preview data (legacy is_carousel_template parity)
+        $carousel = is_array($payload['carousel'] ?? null) ? $payload['carousel'] : [];
+        $isCarousel = (bool) ($carousel['enabled'] ?? false)
+            || TemplateCategoryCatalog::isCarousel((string) $template->category)
+            || TemplateCategoryCatalog::isCarouselSelection((string) $template->category);
+
+        $carouselCards = [];
+        if ($isCarousel) {
+            // Carousel templates don't use standard header/footer/buttons in WA.
+            $headerType = 'none';
+            $headerImage = null;
+            $headerVideo = null;
+            $headerDocument = null;
+            $footerText = '';
+            $buttons = [];
+
+            $carouselCards = collect($carousel['cards'] ?? [])
+                ->filter(fn ($card) => is_array($card))
+                ->map(function (array $card): array {
+                    $media = $this->resolveMediaUrl(
+                        isset($card['media_url']) ? (string) $card['media_url'] : (
+                            isset($card['header_media']) ? (string) $card['header_media'] : (
+                                isset($card['url']) ? (string) $card['url'] : null
+                            )
+                        ),
+                    );
+
+                    $cardButtons = collect($card['buttons'] ?? [])
+                        ->filter(fn ($btn) => is_array($btn) && filled($btn['text'] ?? $btn['title'] ?? null))
+                        ->map(fn (array $btn): array => [
+                            'text' => (string) ($btn['text'] ?? $btn['title'] ?? ''),
+                            'type' => (string) ($btn['type'] ?? 'QUICK_REPLY'),
+                            'url' => (string) ($btn['url'] ?? ''),
+                        ])
+                        ->values()
+                        ->all();
+
+                    return [
+                        'header' => strtoupper((string) ($card['header'] ?? $card['header_type'] ?? 'IMAGE')),
+                        'media_url' => $media,
+                        'body' => (string) ($card['body'] ?? $card['body_text'] ?? ''),
+                        'buttons' => $cardButtons,
+                    ];
+                })
+                ->values()
+                ->all();
+        }
 
         $rawBody = (string) ($payload['body']['text'] ?? '');
+        if ($isCarousel) {
+            $carouselIntro = trim((string) ($carousel['body'] ?? $carousel['intro'] ?? ''));
+            if ($carouselIntro !== '') {
+                $rawBody = $carouselIntro;
+            }
+        }
         if ($rawBody === '') {
             $rawBody = (string) ($template->body_preview ?: $template->name);
         }
@@ -143,7 +195,8 @@ class TemplatePreviewService
             'is_opt_out' => $isOptOut,
             'header_image' => $headerImage,
             'rejection_reason' => $template->rejection_reason,
-            'carousel_cards' => $carousel['cards'] ?? [],
+            'is_carousel' => $isCarousel,
+            'carousel_cards' => $carouselCards,
             'lto' => $lto,
             'auth' => $auth,
             'variables' => $variables,

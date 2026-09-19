@@ -34,10 +34,14 @@
     'button_mode' => $payload['button_mode'] ?? 'call_to_action',
     'is_opt_out' => $payload['is_opt_out'] ?? false,
     'rejection_reason' => $template?->rejection_reason,
+    'is_carousel' => (bool) ($payload['carousel']['enabled'] ?? false) || TemplateCategoryCatalog::isCarouselSelection((string) $displayCategory),
     'carousel_cards' => $payload['carousel']['cards'] ?? [],
     'lto' => $payload['lto'] ?? [],
     'auth' => $payload['auth'] ?? [],
   ];
+  if (! empty($previewDefaults['is_carousel']) && filled($payload['carousel']['body'] ?? null)) {
+      $previewDefaults['body'] = $payload['carousel']['body'];
+  }
 @endphp
 
 <x-layouts.app :title="$title . ' - WapApp'" active="templates.index" :suppress-validation-toasts="true">
