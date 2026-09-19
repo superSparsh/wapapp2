@@ -43,6 +43,40 @@ class TriggerTemplateOptionService
 
                 return ! $this->previewService->templateHasVariables($template);
             })
+            ->map(function (array $option): array {
+                $code = (string) $option['code'];
+                $template = $this->registry->findForSend($code);
+                $preview = is_array($option['preview'] ?? null) ? $option['preview'] : [];
+
+                // Prefer live preview from the template row so CAMS/synced bodies
+                // (often only on body_preview) are not lost if catalog preview is empty.
+                if ($template !== null) {
+                    $resolved = $this->previewService->forTemplate($template, [], true);
+                    $body = trim((string) ($resolved['raw_body'] ?? $resolved['body'] ?? ''));
+                    if ($body === '' || $body === (string) $template->name) {
+                        $payloadBody = trim((string) ($template->wizardPayload()['body']['text'] ?? ''));
+                        $storedPreview = trim((string) ($template->body_preview ?? ''));
+                        $body = $payloadBody !== '' ? $payloadBody
+                            : ($storedPreview !== '' && $storedPreview !== (string) $template->name ? $storedPreview : $body);
+                    }
+
+                    $preview = [
+                        'body' => $body,
+                        'footer' => (string) ($resolved['footer'] ?? $preview['footer'] ?? ''),
+                        'header_type' => (string) ($resolved['header_type'] ?? $preview['header_type'] ?? 'none'),
+                        'header_text' => (string) ($resolved['header_text'] ?? $preview['header_text'] ?? ''),
+                        'header_image' => $resolved['header_image'] ?? $preview['header_image'] ?? null,
+                        'header_video' => $resolved['header_video'] ?? $preview['header_video'] ?? null,
+                        'buttons' => is_array($resolved['buttons'] ?? null)
+                            ? $resolved['buttons']
+                            : (is_array($preview['buttons'] ?? null) ? $preview['buttons'] : []),
+                    ];
+                }
+
+                $option['preview'] = $preview;
+
+                return $option;
+            })
             ->values()
             ->all();
     }

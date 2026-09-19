@@ -5,6 +5,22 @@
   'mailListOptions' => [],
 ])
 
+@php
+  $previewMap = collect($templateOptions)
+    ->mapWithKeys(fn (array $template): array => [
+      (string) $template['code'] => $template['preview'] ?? [
+        'body' => (string) ($template['body'] ?? ''),
+        'footer' => '',
+        'header_type' => 'none',
+        'header_text' => '',
+        'header_image' => null,
+        'header_video' => null,
+        'buttons' => [],
+      ],
+    ])
+    ->all();
+@endphp
+
 <div
   id="modal-add-trigger"
   data-modal="add-trigger"
@@ -69,7 +85,6 @@
                     <option
                       value="{{ $template['code'] }}"
                       data-name="{{ $template['name'] }}"
-                      data-preview="{{ e(json_encode($template['preview'] ?? ['body' => $template['body'] ?? ''], JSON_UNESCAPED_UNICODE)) }}"
                       @selected(old('template_code') === $template['code'])
                     >
                       {{ $template['name'] }}
@@ -176,7 +191,7 @@
               ></p>
               <div
                 data-preview-body
-                class="wa-preview-body w-full text-sm font-normal leading-[1.4] text-text-body"
+                class="wa-preview-body w-full whitespace-pre-wrap text-sm font-normal leading-[1.4] text-text-body"
               >Select a template to preview the message.</div>
               <p
                 data-preview-footer
@@ -225,14 +240,24 @@
   </div>
 </div>
 
+<script type="application/json" id="trigger-template-preview-data">{!! json_encode($previewMap, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE) !!}</script>
+
 <script>
   (() => {
     const select = document.getElementById('template_code');
     const nameInput = document.getElementById('template_name');
     const previewRoot = document.getElementById('trigger-template-preview');
+    const previewDataEl = document.getElementById('trigger-template-preview-data');
 
     if (!select || !nameInput || !previewRoot) {
       return;
+    }
+
+    let previewMap = {};
+    try {
+      previewMap = JSON.parse(previewDataEl?.textContent || '{}');
+    } catch (_error) {
+      previewMap = {};
     }
 
     const escapeHtml = (value) => String(value)
@@ -322,21 +347,16 @@
     const sync = () => {
       const option = select.options[select.selectedIndex];
       const name = option?.dataset?.name || option?.textContent?.trim() || '';
+      const code = option?.value || '';
       nameInput.value = name;
 
-      if (!option || !option.value) {
+      if (!code) {
         applyPreview(null);
         return;
       }
 
-      let preview = null;
-      try {
-        preview = JSON.parse(option.dataset.preview || '{}');
-      } catch (_error) {
-        preview = { body: name };
-      }
-
-      applyPreview(preview && typeof preview === 'object' ? preview : { body: name });
+      const preview = previewMap[code];
+      applyPreview(preview && typeof preview === 'object' ? preview : null);
     };
 
     select.addEventListener('change', sync);
