@@ -137,8 +137,130 @@ class CustomerMigrationOrchestrator
     {
         $this->legacy->assertReady();
 
+        $limit = (int) config('legacy-migration.daily_sync.limit', 0);
+        $candidates = $this->resolver->listCandidates(limit: $limit > 0 ? $limit : 500);
+
+        return $this->migrateCandidateRows($candidates->all(), $options, $onCustomer);
+    }
+
+    /**
+     * Nightly / bulk sync: every known + new legacy customer (no volume ranking cap).
+     *
+     * @return list<array{
+     *     customer: ?LegacyCustomerSnapshot,
+     *     tenant_id: ?string,
+     *     created_tenant: bool,
+     *     reused_reason: ?string,
+     *     dry_run: bool,
+     *     report: array<string, mixed>,
+     *     error: ?string,
+     *     skipped: bool
+     * }>
+     */
+    public function syncAll(MigrationOptions $options, ?callable $onCustomer = null, ?int $limit = null): array
+    {
+        $this->legacy->assertReady();
+
+        $limit ??= config('legacy-migration.daily_sync.limit');
+        $limit = is_int($limit) && $limit > 0 ? $limit : null;
+
+        $customerIds = $this->resolver->listSyncCustomerIds($limit);
+        $staleMinutes = (int) config('legacy-migration.daily_sync.stale_running_minutes', 360);
         $results = [];
-        $candidates = $this->resolver->listCandidates(limit: 500);
+
+        foreach ($customerIds as $customerId) {
+            $meta = [
+                'id' => $customerId,
+                'email' => null,
+                'company' => null,
+            ];
+
+            if ($onCustomer !== null) {
+                $onCustomer($meta);
+            }
+
+            if ($this->shouldSkipActiveRun($customerId, $staleMinutes)) {
+                $results[] = [
+                    'customer' => null,
+                    'tenant_id' => null,
+                    'created_tenant' => false,
+                    'reused_reason' => null,
+                    'dry_run' => $options->dryRun,
+                    'report' => [],
+                    'error' => null,
+                    'skipped' => true,
+                    'skip_reason' => 'already_running',
+                ];
+
+                continue;
+            }
+
+            try {
+                $result = $this->migrate((string) $customerId, $options);
+                $results[] = [...$result, 'error' => null, 'skipped' => false];
+            } catch (Throwable $exception) {
+                $customer = null;
+                try {
+                    $customer = $this->resolver->resolve((string) $customerId);
+                } catch (Throwable) {
+                    //
+                }
+
+                $results[] = [
+                    'customer' => $customer,
+                    'tenant_id' => null,
+                    'created_tenant' => false,
+                    'reused_reason' => null,
+                    'dry_run' => $options->dryRun,
+                    'report' => [],
+                    'error' => $exception->getMessage(),
+                    'skipped' => false,
+                ];
+            } finally {
+                if (tenancy()->initialized) {
+                    tenancy()->end();
+                }
+            }
+        }
+
+        return $results;
+    }
+
+    private function shouldSkipActiveRun(int $legacyCustomerId, int $staleMinutes): bool
+    {
+        return (bool) tenancy()->central(function () use ($legacyCustomerId, $staleMinutes) {
+            $record = LegacyCustomerMigration::query()
+                ->where('legacy_customer_id', $legacyCustomerId)
+                ->first();
+
+            if ($record === null || $record->status !== 'running') {
+                return false;
+            }
+
+            $updatedAt = $record->updated_at ?? $record->started_at;
+            if ($updatedAt === null) {
+                return false;
+            }
+
+            return $updatedAt->greaterThan(now()->subMinutes(max(1, $staleMinutes)));
+        });
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $candidates
+     * @return list<array{
+     *     customer: LegacyCustomerSnapshot,
+     *     tenant_id: ?string,
+     *     created_tenant: bool,
+     *     reused_reason: ?string,
+     *     dry_run: bool,
+     *     report: array<string, mixed>,
+     *     error: ?string
+     * }>
+     */
+    private function migrateCandidateRows(array $candidates, MigrationOptions $options, ?callable $onCustomer = null): array
+    {
+        $results = [];
 
         foreach ($candidates as $candidate) {
             if ($onCustomer !== null) {

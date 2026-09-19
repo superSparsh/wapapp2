@@ -53,6 +53,34 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Daily midnight sync (legacy:sync-daily)
+    |--------------------------------------------------------------------------
+    |
+    | Idempotent full re-sync per customer (upsert + restored id_map).
+    | New legacy customers are discovered automatically and migrated.
+    | Overlap is blocked via the scheduler + an advisory lock.
+    |
+    */
+    'daily_sync' => [
+        'enabled' => (bool) env('LEGACY_DAILY_SYNC_ENABLED', true),
+        'at' => env('LEGACY_DAILY_SYNC_AT', '00:00'),
+        // Soft cap — null/0 = no cap (all customers). Useful for staging.
+        'limit' => env('LEGACY_DAILY_SYNC_LIMIT') !== null && env('LEGACY_DAILY_SYNC_LIMIT') !== ''
+            ? (int) env('LEGACY_DAILY_SYNC_LIMIT')
+            : null,
+        // Inbox is the heaviest module; keep on for true parity, skip if nights overrun.
+        'skip_inbox' => (bool) env('LEGACY_DAILY_SYNC_SKIP_INBOX', false),
+        'skip_billing' => (bool) env('LEGACY_DAILY_SYNC_SKIP_BILLING', false),
+        'import_plans' => (bool) env('LEGACY_DAILY_SYNC_IMPORT_PLANS', true),
+        'import_settings' => (bool) env('LEGACY_DAILY_SYNC_IMPORT_SETTINGS', true),
+        'assign_tenant_plans' => (bool) env('LEGACY_DAILY_SYNC_ASSIGN_PLANS', true),
+        // Skip a customer still marked "running" if updated within this many minutes.
+        'stale_running_minutes' => (int) env('LEGACY_DAILY_SYNC_STALE_RUNNING', 360),
+        'lock_seconds' => (int) env('LEGACY_DAILY_SYNC_LOCK_SECONDS', 82800), // 23h
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Modules (run order matters)
     |--------------------------------------------------------------------------
     |

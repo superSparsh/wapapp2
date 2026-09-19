@@ -22,6 +22,7 @@ use App\Domains\LegacyMigration\Console\ImportLegacySettingsCommand;
 use App\Domains\LegacyMigration\Console\LegacyDoctorCommand;
 use App\Domains\LegacyMigration\Console\ListLegacyCustomersCommand;
 use App\Domains\LegacyMigration\Console\MigrateLegacyCustomerCommand;
+use App\Domains\LegacyMigration\Console\SyncDailyLegacyCommand;
 use App\Domains\Operations\Console\Commands\ProcessInboundResponsesCommand;
 use App\Domains\Operations\Console\Commands\ScheduleIntegrationSyncCommand;
 use App\Domains\Operations\Console\Commands\SyncFreeUicQuotaCommand;
@@ -166,6 +167,7 @@ return Application::configure(basePath: dirname(__DIR__))
         CleanOldFlowSubmissions::class,
         ProcessShopifyWebhooksCommand::class,
         MigrateLegacyCustomerCommand::class,
+        SyncDailyLegacyCommand::class,
         ListLegacyCustomersCommand::class,
         LegacyDoctorCommand::class,
         ImportLegacyPlansCommand::class,

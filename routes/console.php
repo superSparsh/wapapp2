@@ -60,3 +60,12 @@ Schedule::command(SyncFreeUicQuotaCommand::class)->hourly();
 Schedule::command(VerifyListContactsCommand::class)->dailyAt('04:00');
 Schedule::command(CleanOldFlowSubmissions::class)->daily();
 Schedule::command(RetryFailedDeliveriesCommand::class)->everyFifteenMinutes();
+
+// Legacy → 2.0 nightly full sync (all modules, all customers, duplicate-safe upserts)
+if ((bool) config('legacy-migration.daily_sync.enabled', true)) {
+    Schedule::command('legacy:sync-daily')
+        ->dailyAt((string) config('legacy-migration.daily_sync.at', '00:00'))
+        ->withoutOverlapping((int) config('legacy-migration.daily_sync.lock_seconds', 82800))
+        ->onOneServer()
+        ->runInBackground();
+}

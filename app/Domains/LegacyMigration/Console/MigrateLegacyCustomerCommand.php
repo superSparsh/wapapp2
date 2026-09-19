@@ -19,6 +19,7 @@ class MigrateLegacyCustomerCommand extends Command
                             {--pilot : Auto-pick a mid-size customer for first pull}
                             {--dry-run : Preview counts without writing}
                             {--force : Re-sync even if already migrated}
+                            {--yes : Skip confirmation prompts (for --all / cron)}
                             {--skip-inbox : Skip inbox threads/messages}
                             {--skip-billing : Skip wallet/billing}
                             {--only=* : Limit to modules (owner,lines,lists,contacts,templates,interactive_messages,variables,forms,trigger_templates,team,campaigns,chatbots,drips,whatsapp_flows,ai,inbox,billing,integrations)}';
@@ -89,7 +90,7 @@ class MigrateLegacyCustomerCommand extends Command
 
     private function migrateAll(CustomerMigrationOrchestrator $orchestrator, MigrationOptions $options): int
     {
-        if (! $options->dryRun && ! $this->confirm('This will migrate ALL legacy customers. Continue?')) {
+        if (! $options->dryRun && ! $this->option('yes') && ! $this->confirm('This will migrate ALL legacy customers. Continue?')) {
             $this->warn('Cancelled.');
 
             return self::SUCCESS;

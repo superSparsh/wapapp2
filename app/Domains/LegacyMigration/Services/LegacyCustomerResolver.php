@@ -6,6 +6,7 @@ namespace App\Domains\LegacyMigration\Services;
 
 use App\Domains\LegacyMigration\DTO\LegacyCustomerSnapshot;
 use App\Domains\LegacyMigration\Support\LegacyConnection;
+use App\Models\LegacyCustomerMigration;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Schema;
 use RuntimeException;
@@ -112,6 +113,48 @@ class LegacyCustomerResolver
             ->sortByDesc('total_rows')
             ->take($limit)
             ->values();
+    }
+
+    /**
+     * Nightly sync queue: already-migrated customers first, then new legacy owners.
+     * Avoids per-customer volume counts so large fleets stay cheap to discover.
+     *
+     * @return Collection<int, int> legacy customer ids
+     */
+    public function listSyncCustomerIds(?int $limit = null): Collection
+    {
+        $knownIds = tenancy()->central(function () {
+            return LegacyCustomerMigration::query()
+                ->orderBy('legacy_customer_id')
+                ->pluck('legacy_customer_id')
+                ->map(fn ($id): int => (int) $id)
+                ->all();
+        });
+
+        $legacyIds = $this->legacy->db()->table('customers as c')
+            ->leftJoin('users as u', 'u.customer_id', '=', 'c.id')
+            ->whereNotNull('u.email')
+            ->where('u.email', '!=', '')
+            ->orderBy('c.id')
+            ->pluck('c.id')
+            ->map(fn ($id): int => (int) $id)
+            ->all();
+
+        // Known tenants first (stable re-sync), then brand-new legacy customers.
+        $ordered = [];
+        foreach (array_merge($knownIds, $legacyIds) as $id) {
+            if ($id > 0) {
+                $ordered[$id] = $id;
+            }
+        }
+
+        $ids = array_values($ordered);
+
+        if ($limit !== null && $limit > 0) {
+            $ids = array_slice($ids, 0, $limit);
+        }
+
+        return collect($ids);
     }
 
     /**
