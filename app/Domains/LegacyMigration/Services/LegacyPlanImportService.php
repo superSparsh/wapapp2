@@ -72,6 +72,8 @@ class LegacyPlanImportService
                     'legacy_credit_option' => $row->credit_option ?? null,
                     'ai_response' => (bool) ($row->ai_response ?? false),
                     'is_international_plan' => (bool) ($row->is_international_plan ?? false),
+                    'advance' => $this->isAdvancePlanName($name),
+                    'carousel_templates' => $this->isAdvancePlanName($name),
                     'source' => 'legacy_import',
                 ],
             ];
@@ -350,5 +352,16 @@ class LegacyPlanImportService
         $decoded = json_decode($raw, true);
 
         return json_last_error() === JSON_ERROR_NONE && is_array($decoded) ? $decoded : null;
+    }
+
+    /**
+     * Legacy Customer::hasAdvancePlan() checks plan name === "Ginger Advance".
+     */
+    private function isAdvancePlanName(string $name): bool
+    {
+        $normalized = strtolower(trim($name));
+
+        return $normalized === 'ginger advance'
+            || str_contains($normalized, 'advance');
     }
 }

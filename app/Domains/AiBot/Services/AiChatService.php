@@ -60,7 +60,9 @@ class AiChatService
             // Log token usage
             $this->tokenUsageService->log([
                 'ai_bot_id' => $bot->id,
-                'provider' => $config['provider'],
+                'provider' => is_string($config['provider'])
+                    ? $config['provider']
+                    : (string) ($config['provider']->value ?? $config['provider']),
                 'model' => $config['chat_model'],
                 'request_type' => 'chat',
                 'prompt_tokens' => $result['prompt_tokens'],

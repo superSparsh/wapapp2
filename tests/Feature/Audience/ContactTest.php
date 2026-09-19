@@ -369,7 +369,7 @@ class ContactTest extends TestCase
     {
         Storage::fake('local');
         $list = MailList::factory()->create();
-        $csvContent = "phone_number,FIRST_NAME,LAST_NAME,existing_customer,send_opt_in_message\n919876543210,Test,User,yes,no\n";
+        $csvContent = "country_code,phone_number,FIRST_NAME,LAST_NAME,existing_customer,send_opt_in_message\n91,919876543210,Test,User,yes,no\n";
         $file = UploadedFile::fake()->createWithContent('contacts.csv', $csvContent, 'text/csv');
 
         $this->actingAsTenantUser()
@@ -397,7 +397,7 @@ class ContactTest extends TestCase
             'mail_list_id' => $listA->id,
         ]);
 
-        $csvContent = "phone_number,FIRST_NAME,LAST_NAME,existing_customer,send_opt_in_message\n7018107871,Pet,Parent,yes,no\n";
+        $csvContent = "country_code,phone_number,FIRST_NAME,LAST_NAME,existing_customer,send_opt_in_message\n91,7018107871,Pet,Parent,yes,no\n";
         $file = UploadedFile::fake()->createWithContent('contacts.csv', $csvContent, 'text/csv');
 
         $this->actingAsTenantUser()

@@ -132,4 +132,62 @@ class TemplateDomainTest extends TestCase
         $this->assertSame('Hello customer', $preview['body']);
         $this->assertSame('Shop Now', $preview['buttons'][0]['text']);
     }
+
+    public function test_find_by_code_finds_legacy_template_on_other_or_null_line(): void
+    {
+        $otherLine = WhatsappLine::factory()->create([
+            'is_default' => false,
+        ]);
+
+        Template::factory()->create([
+            'name' => 'Legacy Promo',
+            'code' => 'LEGACY_PROMO_CODE',
+            'whatsapp_line_id' => $otherLine->id,
+            'payload' => array_merge(Template::defaultPayload(), [
+                'body' => ['text' => 'Promo body'],
+            ]),
+        ]);
+
+        Template::factory()->create([
+            'name' => 'Unassigned Welcome',
+            'code' => 'LEGACY_NULL_LINE',
+            'whatsapp_line_id' => null,
+            'payload' => array_merge(Template::defaultPayload(), [
+                'body' => ['text' => 'Welcome body'],
+            ]),
+        ]);
+
+        $registry = app(TemplateRegistryService::class);
+
+        // Default line is $this->testLine — still resolve templates on another / null line.
+        $this->assertNotNull($registry->findByCode('LEGACY_PROMO_CODE', $this->testLine));
+        $this->assertNotNull($registry->findByCode('LEGACY_NULL_LINE', $this->testLine));
+
+        $preview = app(TemplatePreviewService::class)->forCode('LEGACY_PROMO_CODE');
+        $this->assertSame('Promo body', $preview['body']);
+        $this->assertNotSame('Template preview unavailable.', $preview['body']);
+    }
+
+    public function test_preview_resolves_relative_legacy_media_url(): void
+    {
+        config(['legacy-migration.app_url' => 'https://legacy.example.test']);
+
+        $template = Template::factory()->create([
+            'whatsapp_line_id' => $this->testLine->id,
+            'payload' => array_merge(Template::defaultPayload(), [
+                'header' => [
+                    'type' => 'image',
+                    'text' => '',
+                    'media_path' => null,
+                    'media_url' => '/upload/images/promo.jpg',
+                    'use_url' => true,
+                ],
+                'body' => ['text' => 'With image'],
+            ]),
+        ]);
+
+        $preview = app(TemplatePreviewService::class)->forTemplate($template);
+
+        $this->assertSame('https://legacy.example.test/upload/images/promo.jpg', $preview['header_image']);
+    }
 }

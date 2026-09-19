@@ -34,6 +34,49 @@ class WebhookDeliveryService
     }
 
     /**
+     * Probe a URL without persisting a subscription/delivery (create-form Test Webhook).
+     *
+     * @param  array<string, mixed>  $payload
+     * @return array{success: bool, message: string, status?: int}
+     */
+    public function probeUrl(string $url, string $eventType, array $payload): array
+    {
+        $secret = Str::random(32);
+        $jsonBody = json_encode($payload, JSON_THROW_ON_ERROR);
+        $signature = hash_hmac('sha256', $jsonBody, $secret);
+
+        try {
+            $response = Http::timeout(config('webhooks.timeout', 10))
+                ->withHeaders([
+                    'Content-Type' => 'application/json',
+                    'X-Webhook-Signature' => $signature,
+                    'X-Webhook-Event' => $eventType,
+                    'X-Webhook-Delivery' => (string) Str::uuid(),
+                ])
+                ->post($url, $payload);
+
+            if ($response->successful()) {
+                return [
+                    'success' => true,
+                    'message' => 'Webhook test succeeded (HTTP '.$response->status().').',
+                    'status' => $response->status(),
+                ];
+            }
+
+            return [
+                'success' => false,
+                'message' => 'Webhook returned HTTP '.$response->status().'.',
+                'status' => $response->status(),
+            ];
+        } catch (\Throwable $e) {
+            return [
+                'success' => false,
+                'message' => 'Error testing webhook: '.$e->getMessage(),
+            ];
+        }
+    }
+
+    /**
      * Send a webhook payload to a subscription URL and record the delivery.
      *
      * @param  array<string, mixed>  $payload

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domains\Webhooks\Handlers;
 
 use App\Domains\Admin\Services\MaintenanceModeService;
+use App\Domains\AiBot\Services\AiInboundReplyService;
 use App\Domains\Audience\Services\StopKeywordService;
 use App\Domains\Chatbot\Services\ChatbotFlowEngine;
 use App\Domains\Commerce\Services\CommerceOrderIngestService;
@@ -36,6 +37,7 @@ class InboundMessageHandler
         private readonly WhatsappFlowInboundService $whatsappFlowInboundService,
         private readonly CommerceOrderIngestService $commerceOrderIngest,
         private readonly StopKeywordService $stopKeywordService,
+        private readonly AiInboundReplyService $aiInboundReplyService,
     ) {}
 
     public function handle(InboundWebhookEvent $event): void
@@ -162,6 +164,18 @@ class InboundMessageHandler
 
                 if ($chatbotResult === TriggerFireResult::NoMatch) {
                     $this->triggerTemplateEngine->process($conversation->refresh(), $message);
+                }
+
+                // AI auto-reply (OpenAI key / business info) — only when chatbot did not consume the turn.
+                if ($chatbotResult === TriggerFireResult::NoMatch) {
+                    try {
+                        $this->aiInboundReplyService->handle($conversation->refresh(), $message);
+                    } catch (\Throwable $e) {
+                        Log::warning('AI inbound reply hook failed', [
+                            'message_id' => $messageId,
+                            'error' => $e->getMessage(),
+                        ]);
+                    }
                 }
 
                 $this->newLeadWebhookListener->handle($message, $conversation->refresh());

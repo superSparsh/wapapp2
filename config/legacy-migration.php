@@ -15,6 +15,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Legacy app filesystem / public URL
+    |--------------------------------------------------------------------------
+    |
+    | Used to copy template header media and resolve relative /upload/... paths
+    | when importing templates from the old WapApp install.
+    |
+    */
+    'app_path' => env('LEGACY_APP_PATH', '/Applications/MAMP/htdocs/wapdev.tittu.in'),
+    'app_url' => env('LEGACY_APP_URL', env('LEGACY_URL', '')),
+
+    /*
+    |--------------------------------------------------------------------------
     | Default pilot selection
     |--------------------------------------------------------------------------
     |
@@ -64,6 +76,7 @@ return [
         'drips',
         'whatsapp_flows',
         'ai',
+        'ai_settings',
         'inbox',
         'billing',
         'integrations',

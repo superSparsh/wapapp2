@@ -274,6 +274,7 @@ Route::middleware(['tenancy.session', 'auth:web,team', '2fa', 'team.redirect-das
         Route::prefix('webhooks')->name('webhooks.')->group(function () {
             Route::get('/', [WebhookSubscriptionController::class, 'index'])->name('index');
             Route::post('/', [WebhookSubscriptionController::class, 'store'])->name('store');
+            Route::post('/test-url', [WebhookSubscriptionController::class, 'testUrl'])->name('test-url');
             Route::put('/{webhookSubscription}', [WebhookSubscriptionController::class, 'update'])->name('update');
             Route::delete('/{webhookSubscription}', [WebhookSubscriptionController::class, 'destroy'])->name('destroy');
             Route::post('/{webhookSubscription}/toggle', [WebhookSubscriptionController::class, 'toggleStatus'])->name('toggle');

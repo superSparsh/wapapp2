@@ -83,6 +83,8 @@ class AiBot extends TenantModel
         $providerKey = AiProviderKey::query()
             ->where('provider', $this->provider->value)
             ->where('is_active', true)
+            ->orderByDesc('is_validated')
+            ->orderByDesc('id')
             ->first();
 
         if ($providerKey !== null) {
@@ -96,12 +98,17 @@ class AiBot extends TenantModel
 
         $anyKey = AiProviderKey::query()
             ->where('is_active', true)
-            ->orderBy('id')
+            ->orderByDesc('is_validated')
+            ->orderByDesc('id')
             ->first();
 
         if ($anyKey !== null) {
+            $provider = $anyKey->provider instanceof AiProvider
+                ? $anyKey->provider->value
+                : (string) $anyKey->provider;
+
             return [
-                'provider' => $anyKey->provider,
+                'provider' => $provider,
                 'api_key' => $anyKey->api_key,
                 'chat_model' => $anyKey->chat_model ?? 'gpt-4o-mini',
                 'embedding_model' => $anyKey->embedding_model ?? 'text-embedding-3-small',

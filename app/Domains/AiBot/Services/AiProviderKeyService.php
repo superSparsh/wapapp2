@@ -20,7 +20,7 @@ class AiProviderKeyService
     public function create(array $data): AiProviderKey
     {
         return DB::transaction(function () use ($data): AiProviderKey {
-            return AiProviderKey::query()->create([
+            $key = AiProviderKey::query()->create([
                 'provider' => $data['provider'],
                 'api_key' => $data['api_key'],
                 'chat_model' => $data['chat_model'] ?? null,
@@ -29,6 +29,15 @@ class AiProviderKeyService
                 'is_active' => $data['is_active'] ?? true,
                 'is_validated' => false,
             ]);
+
+            // Best-effort validate on save (legacy uploadopenaikey tested the key).
+            try {
+                $this->validateKey($key);
+            } catch (\Throwable) {
+                // Keep the key; user can re-validate from UI.
+            }
+
+            return $key->refresh();
         });
     }
 

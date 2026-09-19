@@ -47,7 +47,10 @@ class TemplateCatalogPresenter
                     is_array($template->payload) ? $template->payload : []
                 ),
                 'category_variant' => match (strtoupper((string) (
-                    TemplateCategoryCatalog::isCarousel((string) $template->category)
+                    (
+                        TemplateCategoryCatalog::isCarousel((string) $template->category)
+                        || (bool) data_get($template->payload, 'carousel.enabled', false)
+                    )
                         ? TemplateCategoryCatalog::MARKETING
                         : $template->category
                 ))) {

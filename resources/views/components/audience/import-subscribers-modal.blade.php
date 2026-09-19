@@ -72,7 +72,7 @@
       <label class="flex items-center gap-2 text-sm font-medium text-text-body">
         <input type="hidden" name="send_opt_in_message" value="no">
         <input type="checkbox" name="send_opt_in_message" value="yes" class="size-4 rounded border-border">
-        Send WhatsApp opt-in message to all imported contacts (overrides CSV <code>send_opt_in_message</code> column)
+        Send a WhatsApp opt-in message to everyone in this upload
       </label>
 
       <div class="flex justify-end">
@@ -81,28 +81,92 @@
         </button>
       </div>
 
-      <div class="flex gap-3 rounded-[12px] bg-stat-blue/15 p-[14px]">
-        <x-icons.nav-icon name="info-circle" class="size-6 shrink-0" />
-        <div class="min-w-0 flex-1">
-          <p class="text-sm font-bold leading-[1.4] text-text-body">File Upload Guidelines</p>
-          <ul class="mt-[10px] list-disc space-y-3 pl-5 text-sm font-normal leading-[1.4] text-text-muted">
-            <li><strong>File Size Limit:</strong> Maximum upload size is <strong>100MB</strong>.</li>
-            <li><strong>File Type:</strong> CSV only. The first row must be a <strong>header row</strong> with exact column names.</li>
-            <li><strong>Required columns:</strong>
+      <div class="space-y-3 rounded-[12px] bg-stat-blue/15 p-[14px] text-sm leading-[1.5] text-text-body">
+        <div>
+          <h6 class="text-sm font-bold text-text-body">File Upload Guidelines</h6>
+          <ul class="mt-[10px] list-disc space-y-3 pl-5 font-normal text-text-muted">
+            <li>
+              <strong>File Size Limit:</strong> Please be aware that the maximum file size for uploads to our
+              server is <strong>100 megabytes (100MB)</strong>. Make sure that your input file does not exceed
+              this size.
+            </li>
+            <li>
+              <strong>File Type Requirement:</strong> We accept files in CSV (Comma-Separated Values) format
+              only. The first row must be a <strong>header row</strong> with exact column names.
+            </li>
+            <li>
+              <strong>Required columns (must all be present in the header row):</strong>
+              <code>country_code</code>,
               <code>phone_number</code>,
               <code>FIRST_NAME</code>,
               <code>LAST_NAME</code>,
               <code>existing_customer</code>,
               <code>send_opt_in_message</code>.
-              (Matched case-insensitively; use the sample file spelling.)
-            </li>
-            <li><strong>Opt-in fields</strong> (<code>existing_customer</code> / <code>send_opt_in_message</code>):
-              Use <code>yes</code> or <code>no</code> (also accepted: y/n, true/false, 1/0).
-              Empty cells default to <strong>existing_customer = yes</strong> and <strong>send_opt_in_message = no</strong>.
+              If any of these headers are missing, the import will fail with an error.
+              (Column names are matched case-insensitively; use the sample file spelling.)
             </li>
             <li>
-              <strong>Sample Input File:</strong>
-              <a href="{{ asset('files/csv_import_example.csv') }}" download class="font-semibold underline">Sample.csv</a>
+              <strong>Opt-in fields (<code>existing_customer</code> / <code>send_opt_in_message</code>):</strong>
+              Use <code>yes</code> or <code>no</code> (also accepted: y/n, true/false, 1/0).
+              If a cell is <strong>empty</strong>, we default to
+              <strong>existing_customer = yes</strong> and <strong>send_opt_in_message = no</strong>
+              (same behaviour as in import processing).
+            </li>
+            <li>
+              <strong>Sample Input File:</strong> Download a ready-to-use sample:
+              <a href="{{ asset('files/csv_import_example-new.csv') }}" download class="font-semibold text-text-primary underline">Sample.csv</a>.
+              It includes the required headers and example rows.
+            </li>
+          </ul>
+        </div>
+
+        <div class="border-t border-stat-blue/20 pt-3">
+          <h6 class="text-sm font-bold text-text-body">Instructions for Saving Excel as CSV</h6>
+          <p class="mt-2 font-normal text-text-muted">
+            Here are the instructions for saving an Excel file as a CSV for some well-known Operating Systems:
+          </p>
+          <ul class="mt-2 list-disc space-y-3 pl-5 font-normal text-text-muted">
+            <li>
+              <strong>For Windows:</strong>
+              <ul class="mt-1 list-disc space-y-1 pl-5">
+                <li>If you are using Microsoft Excel 2019, 2016, 2013, or 2010:</li>
+                <li>Click on the "File" menu at the top left.</li>
+                <li>Choose "Save As" from the menu.</li>
+                <li>Select the location on your computer where you want to save the file.</li>
+                <li>In the "Save As" dialog that appears, look for the dropdown menu labeled "Save as type."</li>
+                <li>From the dropdown menu, choose "CSV (Comma delimited) (*.csv)" as the file type.</li>
+              </ul>
+            </li>
+            <li>
+              <strong>For Mac:</strong>
+              <ul class="mt-1 list-disc space-y-1 pl-5">
+                <li>If you are using Microsoft Excel for Mac:</li>
+                <li>Click on the "File" menu in the upper left corner.</li>
+                <li>Choose "Save As" from the menu.</li>
+                <li>Select the location on your Mac where you want to save the file.</li>
+                <li>In the "Save As" dialog that appears, find the "File Format" dropdown.</li>
+                <li>From the "File Format" dropdown, select "Comma Separated Values (.csv)."</li>
+              </ul>
+            </li>
+            <li>
+              <strong>For Linux:</strong>
+              <ul class="mt-1 list-disc space-y-1 pl-5">
+                <li>Click on "File" in the menu bar.</li>
+                <li>Select "Save As" or "Export."</li>
+                <li>In the "Save As" dialog, choose a location to save the CSV file.</li>
+                <li>In the "File type" dropdown menu, select "Text CSV (*.csv)."</li>
+                <li>Click the "Save" button.</li>
+                <li>You will be presented with a CSV Export Options dialog. Ensure that the options are configured according to your needs and click "OK."</li>
+              </ul>
+            </li>
+            <li>
+              <strong>Excel Online (the web version of Microsoft Excel):</strong>
+              <ul class="mt-1 list-disc space-y-1 pl-5">
+                <li>Click "File" in the upper-left corner.</li>
+                <li>Choose "Save As" and then select "Download."</li>
+                <li>From the list of formats, pick "CSV."</li>
+                <li>Confirm your selection, and the Excel file will download as a CSV.</li>
+              </ul>
             </li>
           </ul>
         </div>

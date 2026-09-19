@@ -7,6 +7,7 @@ namespace App\Domains\LegacyMigration\Services;
 use App\Domains\LegacyMigration\DTO\LegacyCustomerSnapshot;
 use App\Domains\LegacyMigration\DTO\MigrationOptions;
 use App\Domains\LegacyMigration\Importers\AiBotImporter;
+use App\Domains\LegacyMigration\Importers\AiSettingsImporter;
 use App\Domains\LegacyMigration\Importers\BillingImporter;
 use App\Domains\LegacyMigration\Importers\CampaignImporter;
 use App\Domains\LegacyMigration\Importers\ChatbotFlowImporter;
@@ -57,6 +58,7 @@ class CustomerMigrationOrchestrator
         DripCampaignImporter $drips,
         WhatsappFlowImporter $whatsappFlows,
         AiBotImporter $ai,
+        AiSettingsImporter $aiSettings,
         InboxImporter $inbox,
         BillingImporter $billing,
         IntegrationImporter $integrations,
@@ -77,6 +79,7 @@ class CustomerMigrationOrchestrator
             $drips->key() => $drips,
             $whatsappFlows->key() => $whatsappFlows,
             $ai->key() => $ai,
+            $aiSettings->key() => $aiSettings,
             $inbox->key() => $inbox,
             $billing->key() => $billing,
             $integrations->key() => $integrations,

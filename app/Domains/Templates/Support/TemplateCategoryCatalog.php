@@ -90,7 +90,7 @@ final class TemplateCategoryCatalog
     }
 
     /**
-     * Listing chip: carousel templates show Marketing (legacy list parity).
+     * Listing chip: carousel templates show as Marketing (Carousel).
      *
      * @param  array<string, mixed>  $payload
      */
@@ -99,7 +99,7 @@ final class TemplateCategoryCatalog
         $stored = strtoupper(trim($storedCategory));
 
         if ($stored === self::CAROUSEL || (bool) data_get($payload, 'carousel.enabled', false)) {
-            return self::labels()[self::MARKETING];
+            return 'Marketing (Carousel)';
         }
 
         return self::label($stored);

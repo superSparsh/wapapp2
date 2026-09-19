@@ -12,8 +12,10 @@ use App\Domains\LegacyMigration\Support\MigrationReport;
 use App\Domains\Templates\Enums\TemplateSource;
 use App\Domains\Templates\Enums\TemplateStatus;
 use App\Domains\Templates\Services\TemplateRegistryService;
+use App\Domains\Templates\Support\TemplateCategoryCatalog;
 use App\Models\Template;
 use App\Models\Tenant;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 final class TemplateImporter implements LegacyImporter
@@ -64,9 +66,15 @@ final class TemplateImporter implements LegacyImporter
 
             $body = (string) ($row->actual_body ?? $row->body ?? '');
             $status = $this->mapStatus($row->status ?? null);
-            $category = LegacyTemplateCategoryMapper::fromLegacyRow($row);
+            $mappedCategory = LegacyTemplateCategoryMapper::fromLegacyRow($row);
+            $isCarousel = TemplateCategoryCatalog::isCarousel($mappedCategory)
+                || (int) ($row->is_carousel_template ?? 0) === 1;
+            // Builder parity: carousel is MARKETING + payload.carousel.enabled (never store CAROUSEL column).
+            $category = $isCarousel
+                ? TemplateCategoryCatalog::MARKETING
+                : TemplateCategoryCatalog::storedCategory($mappedCategory);
             $language = $this->mapLanguage($row->language ?? $row->lang ?? null);
-            $payload = $this->buildWizardPayload($row, $name, $body, $category, $language, $status, $code);
+            $payload = $this->buildWizardPayload($row, $name, $body, $category, $language, $status, $code, $isCarousel);
 
             if ($dryRun) {
                 $exists = $this->findExisting($legacyId, $code, $lineId, $name, $language) !== null;
@@ -154,10 +162,14 @@ final class TemplateImporter implements LegacyImporter
         string $language,
         TemplateStatus $status,
         string $code,
+        bool $isCarousel = false,
     ): array {
         $headerType = $this->mapHeaderType($row->header_type ?? null);
         $headerText = (string) ($row->header_desc ?? $row->header_text ?? '');
-        $headerMedia = filled($row->header_media ?? null) ? (string) $row->header_media : null;
+        $resolvedMedia = $this->resolveHeaderMedia(
+            filled($row->header_media ?? null) ? (string) $row->header_media : null,
+            $headerType,
+        );
         $footer = (string) ($row->footer_desc ?? $row->footer ?? '');
 
         $buttons = [];
@@ -187,7 +199,7 @@ final class TemplateImporter implements LegacyImporter
 
         $defaults = Template::defaultPayload();
 
-        return array_replace_recursive($defaults, [
+        $payload = array_replace_recursive($defaults, [
             'meta' => [
                 'name' => $name,
                 'category' => $category,
@@ -198,10 +210,12 @@ final class TemplateImporter implements LegacyImporter
             'header' => [
                 'type' => $headerType,
                 'text' => $headerType === 'text' ? $headerText : '',
-                'media_path' => null,
-                'media_url' => in_array($headerType, ['image', 'video', 'document'], true) ? $headerMedia : null,
-                'use_url' => filled($headerMedia),
-                'doc_name' => $headerType === 'document' ? basename((string) $headerMedia) : null,
+                'media_path' => $resolvedMedia['media_path'],
+                'media_url' => $resolvedMedia['media_url'],
+                'use_url' => filled($resolvedMedia['media_url']) && $resolvedMedia['media_path'] === null,
+                'doc_name' => $headerType === 'document'
+                    ? basename((string) ($resolvedMedia['media_url'] ?? $resolvedMedia['media_path'] ?? 'document'))
+                    : null,
             ],
             'body' => [
                 'text' => $body,
@@ -217,6 +231,87 @@ final class TemplateImporter implements LegacyImporter
             'legacy_template_code' => $code,
             'legacy_real_template_name' => $row->real_template_name ?? null,
         ]);
+
+        if ($isCarousel) {
+            $payload['carousel'] = array_replace_recursive(
+                is_array($payload['carousel'] ?? null) ? $payload['carousel'] : [],
+                ['enabled' => true],
+            );
+        }
+
+        return $payload;
+    }
+
+    /**
+     * Resolve legacy header_media (absolute URL or /upload/... path) into wizard fields.
+     *
+     * @return array{media_url: ?string, media_path: ?string}
+     */
+    private function resolveHeaderMedia(?string $raw, string $headerType): array
+    {
+        if ($raw === null || trim($raw) === '' || ! in_array($headerType, ['image', 'video', 'document'], true)) {
+            return ['media_url' => null, 'media_path' => null];
+        }
+
+        $raw = trim($raw);
+
+        if (preg_match('#^https?://#i', $raw) === 1) {
+            return ['media_url' => $raw, 'media_path' => null];
+        }
+
+        $relative = '/'.ltrim(str_replace('\\', '/', $raw), '/');
+        $copied = $this->copyLegacyPublicFile($relative);
+        if ($copied !== null) {
+            return ['media_url' => null, 'media_path' => $copied];
+        }
+
+        $base = rtrim((string) config('legacy-migration.app_url', ''), '/');
+        if ($base !== '') {
+            return ['media_url' => $base.$relative, 'media_path' => null];
+        }
+
+        // Keep relative path so preview can still try APP_URL / legacy base later.
+        return ['media_url' => $relative, 'media_path' => null];
+    }
+
+    private function copyLegacyPublicFile(string $relativePath): ?string
+    {
+        $appPath = rtrim((string) config('legacy-migration.app_path', ''), '/');
+        if ($appPath === '') {
+            return null;
+        }
+
+        $source = $appPath.'/public'.$relativePath;
+        if (! is_file($source) || ! is_readable($source)) {
+            // Some installs stored paths without a leading public segment already under public/.
+            $alt = $appPath.$relativePath;
+            if (! is_file($alt) || ! is_readable($alt)) {
+                return null;
+            }
+            $source = $alt;
+        }
+
+        $diskName = (string) config('templates.header_media_disk', 'public');
+        $disk = Storage::disk($diskName);
+        $extension = pathinfo($source, PATHINFO_EXTENSION);
+        $dest = 'templates/headers/legacy_'.Str::uuid()->toString().($extension !== '' ? '.'.$extension : '');
+
+        try {
+            $contents = file_get_contents($source);
+            if ($contents === false) {
+                return null;
+            }
+            $disk->put($dest, $contents);
+            try {
+                $disk->setVisibility($dest, 'public');
+            } catch (\Throwable) {
+                // ignore
+            }
+
+            return $dest;
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     private function mapHeaderType(mixed $raw): string

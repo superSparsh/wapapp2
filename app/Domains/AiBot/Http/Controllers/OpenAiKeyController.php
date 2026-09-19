@@ -257,7 +257,7 @@ class OpenAiKeyController extends Controller
 
     private function loadGlobalSettingsData(array &$data): void
     {
-        $data['autoResponseEnabled'] = (bool) AiSetting::get('ai_auto_response_enabled', false);
+        $data['autoResponseEnabled'] = AiSetting::getBool('ai_auto_response_enabled', false);
     }
 
     /**

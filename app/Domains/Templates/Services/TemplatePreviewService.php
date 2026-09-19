@@ -76,7 +76,9 @@ class TemplatePreviewService
         $headerDocument = null;
         $headerType = (string) ($payload['header']['type'] ?? 'none');
         $mediaPath = $payload['header']['media_path'] ?? null;
-        $mediaUrl = $payload['header']['media_url'] ?? null;
+        $mediaUrl = $this->resolveMediaUrl(
+            isset($payload['header']['media_url']) ? (string) $payload['header']['media_url'] : null,
+        );
 
         if ($headerType === 'image' && (filled($mediaPath) || filled($mediaUrl))) {
             $headerImage = filled($mediaUrl) ? $mediaUrl : ($mediaPath ? $this->mediaService->previewUrl((string) $mediaPath) : null);
@@ -224,5 +226,41 @@ class TemplatePreviewService
         }
 
         return $normalized;
+    }
+
+    /**
+     * Absolute URL for preview <img>/<video> src. Relative legacy paths
+     * (/upload/images/...) need a host — prefer LEGACY_APP_URL, else APP_URL.
+     */
+    private function resolveMediaUrl(?string $url): ?string
+    {
+        if ($url === null) {
+            return null;
+        }
+
+        $url = trim($url);
+        if ($url === '') {
+            return null;
+        }
+
+        if (preg_match('#^https?://#i', $url) === 1) {
+            return $url;
+        }
+
+        if (str_starts_with($url, '//')) {
+            return 'https:'.$url;
+        }
+
+        $path = '/'.ltrim(str_replace('\\', '/', $url), '/');
+        $legacyBase = rtrim((string) config('legacy-migration.app_url', ''), '/');
+        if ($legacyBase !== '') {
+            return $legacyBase.$path;
+        }
+
+        try {
+            return url($path);
+        } catch (\Throwable) {
+            return $path;
+        }
     }
 }

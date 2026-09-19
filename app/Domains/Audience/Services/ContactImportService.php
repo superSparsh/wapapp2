@@ -16,6 +16,7 @@ class ContactImportService
 {
     /** @var list<string> */
     public const REQUIRED_HEADERS = [
+        'country_code',
         'phone_number',
         'first_name',
         'last_name',

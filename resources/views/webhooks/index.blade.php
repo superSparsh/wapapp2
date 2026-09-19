@@ -88,11 +88,13 @@ TXT;
                   <button
                     type="button"
                     id="test-url-btn"
-                    class="fd-btn inline-flex shrink-0 items-center justify-center rounded bg-green-500 px-4 py-3 text-sm font-semibold leading-[1.5] text-primary-2 transition-opacity hover:opacity-90"
+                    disabled
+                    class="fd-btn inline-flex shrink-0 items-center justify-center rounded bg-green-500 px-4 py-3 text-sm font-semibold leading-[1.5] text-primary-2 opacity-50 cursor-not-allowed transition-opacity hover:opacity-90"
                   >
                     Test Webhook
                   </button>
                 </div>
+                <p id="test-url-result" class="hidden text-sm font-medium" aria-live="polite"></p>
                 @error('url') <p class="text-sm text-red-500">{{ $message }}</p> @enderror
                 <p class="text-sm font-medium leading-[1.4] text-text-muted">
                   The URL where we will send new lead notifications
@@ -329,13 +331,85 @@ TXT;
       });
     }
 
-    // Test webhook button
+    // Test webhook button (legacy: POST url without saving first)
     var testBtn = document.getElementById('test-url-btn');
+    var urlInput = document.getElementById('url');
+    var testResultEl = document.getElementById('test-url-result');
+
+    function syncTestBtnState() {
+      if (!testBtn || !urlInput) return;
+      var hasUrl = (urlInput.value || '').trim().length > 0;
+      testBtn.disabled = !hasUrl;
+      testBtn.classList.toggle('opacity-50', !hasUrl);
+      testBtn.classList.toggle('cursor-not-allowed', !hasUrl);
+    }
+
+    if (urlInput) {
+      urlInput.addEventListener('input', syncTestBtnState);
+      urlInput.addEventListener('change', syncTestBtnState);
+      syncTestBtnState();
+    }
+
     if (testBtn) {
       testBtn.addEventListener('click', function () {
-        var urlInput = document.getElementById('url');
-        if (!urlInput || !urlInput.value) { alert('Please enter a URL first.'); return; }
-        alert('Save the webhook first, then use the test feature from the table.');
+        var url = urlInput ? (urlInput.value || '').trim() : '';
+        if (!url) {
+            if (testResultEl) {
+            testResultEl.classList.remove('hidden');
+            testResultEl.textContent = 'Please enter a webhook URL first.';
+            testResultEl.className = 'text-sm font-medium text-red-500';
+          } else {
+            alert('Please enter a webhook URL first.');
+          }
+          return;
+        }
+
+        testBtn.disabled = true;
+        var original = testBtn.textContent;
+        testBtn.textContent = 'Testing...';
+        if (testResultEl) {
+          testResultEl.classList.remove('hidden');
+          testResultEl.textContent = 'Testing webhook...';
+          testResultEl.className = 'text-sm font-medium text-text-muted';
+        }
+
+        fetch('{{ route('webhooks.test-url') }}', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+            'X-Requested-With': 'XMLHttpRequest'
+          },
+          body: JSON.stringify({ url: url })
+        })
+          .then(function (res) { return res.json().then(function (data) { return { ok: res.ok, data: data }; }); })
+          .then(function (result) {
+            var msg = (result.data && result.data.message) ? result.data.message : (result.ok ? 'Webhook test succeeded.' : 'Webhook test failed.');
+            if (testResultEl) {
+              testResultEl.classList.remove('hidden');
+              testResultEl.textContent = msg;
+              testResultEl.className = result.ok
+                ? 'text-sm font-medium text-green-600'
+                : 'text-sm font-medium text-red-500';
+            } else {
+              alert(msg);
+            }
+          })
+          .catch(function (err) {
+            var msg = 'Error testing webhook: ' + (err && err.message ? err.message : 'unknown error');
+            if (testResultEl) {
+              testResultEl.classList.remove('hidden');
+              testResultEl.textContent = msg;
+              testResultEl.className = 'text-sm font-medium text-red-500';
+            } else {
+              alert(msg);
+            }
+          })
+          .finally(function () {
+            testBtn.textContent = original || 'Test Webhook';
+            syncTestBtnState();
+          });
       });
     }
   </script>

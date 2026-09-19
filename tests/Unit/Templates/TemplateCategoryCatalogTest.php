@@ -26,14 +26,14 @@ final class TemplateCategoryCatalogTest extends TestCase
         );
 
         $this->assertSame(
-            'Marketing',
+            'Marketing (Carousel)',
             TemplateCategoryCatalog::listLabel(TemplateCategoryCatalog::MARKETING, [
                 'carousel' => ['enabled' => true],
             ])
         );
 
         $this->assertSame(
-            'Marketing',
+            'Marketing (Carousel)',
             TemplateCategoryCatalog::listLabel(TemplateCategoryCatalog::CAROUSEL)
         );
 

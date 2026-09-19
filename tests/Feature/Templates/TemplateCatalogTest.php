@@ -86,17 +86,27 @@ class TemplateCatalogTest extends TestCase
             'source' => TemplateSource::Local,
         ]);
 
+        Template::factory()->create([
+            'code' => '123456789012345',
+            'name' => 'Imported Regular',
+            'whatsapp_line_id' => $this->testLine->id,
+            'status' => TemplateStatus::Approved,
+            'source' => TemplateSource::Local,
+        ]);
+
         $this->actingAsTenantUser()
             ->get(route('templates.index', ['type' => 'Regular']))
             ->assertOk()
             ->assertSee('Welcome Offer')
+            ->assertSee('Imported Regular')
             ->assertDontSee('Local Draft');
 
         $this->actingAsTenantUser()
             ->get(route('templates.index', ['type' => 'Draft']))
             ->assertOk()
             ->assertSee('Local Draft')
-            ->assertDontSee('Welcome Offer');
+            ->assertDontSee('Welcome Offer')
+            ->assertDontSee('Imported Regular');
     }
 
     public function test_refresh_resyncs_templates(): void

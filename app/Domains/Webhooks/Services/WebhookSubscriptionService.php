@@ -94,6 +94,16 @@ class WebhookSubscriptionService
     }
 
     /**
+     * Probe an arbitrary URL with a sample new_lead payload (no subscription required).
+     *
+     * @return array{success: bool, message: string, status?: int}
+     */
+    public function testUrl(string $url): array
+    {
+        return $this->deliveryService->probeUrl($url, 'new_lead', $this->buildTestPayload());
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function buildTestPayload(): array

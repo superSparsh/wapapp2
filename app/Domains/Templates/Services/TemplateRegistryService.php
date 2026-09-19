@@ -129,17 +129,95 @@ class TemplateRegistryService
 
         $category = trim((string) $category);
         if ($category !== '') {
-            $query->where('category', $category);
+            $this->scopeCategory($query, $category);
         }
 
         $type = trim((string) $type);
         if ($type === 'Regular') {
-            $query->where('source', TemplateSource::Cams);
+            $this->scopeRegularType($query);
         } elseif ($type === 'Draft') {
-            $query->where('source', TemplateSource::Local);
+            $this->scopeDraftType($query);
         }
 
         return $query->get();
+    }
+
+    /**
+     * Regular = CAMS-synced OR has a provider TemplateCode (matches listing chip).
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder<\App\Models\Template>  $query
+     */
+    private function scopeRegularType($query): void
+    {
+        $query->where(function ($builder): void {
+            $builder->where('source', TemplateSource::Cams)
+                ->orWhere(function ($inner): void {
+                    $this->scopeProviderCode($inner);
+                });
+        });
+    }
+
+    /**
+     * Draft = local source without a provider TemplateCode.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder<\App\Models\Template>  $query
+     */
+    private function scopeDraftType($query): void
+    {
+        $query->where('source', TemplateSource::Local)
+            ->where(function ($builder): void {
+                $builder->whereNull('code')
+                    ->orWhere('code', '')
+                    ->orWhere(function ($inner): void {
+                        $inner->whereNotNull('code')
+                            ->where('code', '!=', '')
+                            ->whereRaw('NOT ('.$this->providerCodeSql('code').')');
+                    });
+            });
+    }
+
+    /**
+     * Marketing filter includes carousel templates (stored as CAROUSEL or flag).
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder<\App\Models\Template>  $query
+     */
+    private function scopeCategory($query, string $category): void
+    {
+        $category = strtoupper($category);
+
+        if ($category === TemplateCategoryCatalog::MARKETING) {
+            $query->where(function ($builder): void {
+                $builder->where('category', TemplateCategoryCatalog::MARKETING)
+                    ->orWhere('category', TemplateCategoryCatalog::CAROUSEL)
+                    ->orWhere('payload->carousel->enabled', true);
+            });
+
+            return;
+        }
+
+        $query->where('category', $category);
+    }
+
+    /**
+     * @param  \Illuminate\Database\Eloquent\Builder<\App\Models\Template>  $query
+     */
+    private function scopeProviderCode($query): void
+    {
+        $query->whereNotNull('code')
+            ->where('code', '!=', '')
+            ->whereRaw($this->providerCodeSql('code'));
+    }
+
+    private function providerCodeSql(string $column): string
+    {
+        $driver = Template::query()->getConnection()->getDriverName();
+
+        // Alibaba TemplateCode: long numeric string (see CamsTemplateIdentity::isProviderCode).
+        if ($driver === 'sqlite') {
+            return "LENGTH(TRIM({$column})) >= 10 AND TRIM({$column}) GLOB '[0-9]*' AND INSTR(TRIM({$column}), ' ') = 0 AND INSTR(TRIM({$column}), '_legacy_') = 0";
+        }
+
+        return "TRIM({$column}) REGEXP '^[0-9]{10,}$'";
     }
 
     /** @return list<string> */
@@ -172,12 +250,10 @@ class TemplateRegistryService
 
     public function findByCode(string $code, ?WhatsappLine $line = null): ?Template
     {
-        $line ??= $this->defaultLine();
-
-        return Template::query()
-            ->where('code', $code)
-            ->when($line, fn ($query) => $query->where('whatsapp_line_id', $line->id))
-            ->first();
+        // Same fallbacks as send/preview: line match → unassigned → any code.
+        // Strict line-only lookup broke previews for legacy-imported templates
+        // stored on another line (or with a null line) while a default line exists.
+        return $this->findForSend($code, $line ?? $this->defaultLine());
     }
 
     public function findForSend(string $code, ?WhatsappLine $line = null): ?Template

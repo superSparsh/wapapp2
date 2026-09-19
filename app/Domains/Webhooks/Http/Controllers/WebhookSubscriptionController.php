@@ -114,4 +114,18 @@ class WebhookSubscriptionController extends Controller
             'error_message' => $delivery->error_message,
         ]);
     }
+
+    /**
+     * Test an unsaved webhook URL (legacy parity: webhook.test with { url }).
+     */
+    public function testUrl(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'url' => ['required', 'url', 'max:2048'],
+        ]);
+
+        $result = $this->service->testUrl($validated['url']);
+
+        return response()->json($result, ($result['success'] ?? false) ? 200 : 422);
+    }
 }

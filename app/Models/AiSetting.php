@@ -21,13 +21,35 @@ class AiSetting extends Model
     }
 
     /**
+     * Read a boolean setting safely (avoids PHP (bool)"0" === true).
+     */
+    public static function getBool(string $key, bool $default = false): bool
+    {
+        $value = static::get($key, $default);
+
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        if (is_int($value) || is_float($value)) {
+            return (bool) $value;
+        }
+
+        return filter_var((string) $value, FILTER_VALIDATE_BOOLEAN);
+    }
+
+    /**
      * Set a setting value, creating or updating the record.
      */
     public static function set(string $key, mixed $value): void
     {
+        if (is_bool($value)) {
+            $value = $value ? '1' : '0';
+        }
+
         static::query()->updateOrCreate(
             ['key' => $key],
-            ['value' => $value],
+            ['value' => is_scalar($value) || $value === null ? $value : json_encode($value)],
         );
     }
 }

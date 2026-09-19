@@ -675,13 +675,15 @@
                 Enable AI Response for All Customers
               </p>
               <div class="flex w-full items-center gap-2.5 p-2">
-                <input type="checkbox" name="ai_auto_response_enabled" value="1" id="ai_auto_response" class="peer sr-only" @checked($autoResponseEnabled)>
-                <label for="ai_auto_response" class="relative h-6 w-11 cursor-pointer rounded-full bg-gray-300 transition-colors peer-checked:bg-green-500">
-                  <span class="absolute left-0.5 top-0.5 size-5 rounded-full bg-white transition-transform peer-checked:translate-x-5"></span>
+                <label class="relative inline-flex cursor-pointer items-center gap-2.5">
+                  <input type="checkbox" name="ai_auto_response_enabled" value="1" id="ai_auto_response" class="peer sr-only" @checked($autoResponseEnabled)>
+                  <span class="relative h-6 w-11 shrink-0 rounded-full bg-gray-300 transition-colors peer-checked:bg-green-500 peer-checked:[&>span]:translate-x-5">
+                    <span class="absolute left-0.5 top-0.5 size-5 rounded-full bg-white transition-transform"></span>
+                  </span>
+                  <span class="min-w-0 flex-1 text-sm font-normal leading-[1.4] text-text-muted">
+                    {{ $autoResponseEnabled ? 'AI responses are enabled for inbound chats' : 'AI responses are disabled — turn on to auto-reply when a key and bot are set' }}
+                  </span>
                 </label>
-                <p class="min-w-0 flex-1 text-sm font-normal leading-[1.4] text-text-muted">
-                  {{ $autoResponseEnabled ? 'AI responses are enabled' : 'AI responses are disabled' }}
-                </p>
               </div>
             </div>
           </div>

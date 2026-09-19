@@ -195,6 +195,69 @@ class LegacyCustomerMigrationTest extends TestCase
         tenancy()->end();
     }
 
+    public function test_migrates_ai_keys_settings_and_knowledge_base(): void
+    {
+        $this->seedLegacyCustomer(30, 'ai@example.com', withExtras: true);
+
+        DB::connection('legacy')->table('customers')->where('id', 30)->update([
+            'openai_api_key' => 'sk-legacy-customer-fallback-key-30',
+            'ai_response' => 1,
+            'business_information' => json_encode([
+                'business_information' => 'We sell widgets and support WhatsApp commerce.',
+            ]),
+        ]);
+
+        DB::connection('legacy')->table('provider_api_keys')->insert([
+            'customer_id' => 30,
+            'provider' => 'openai',
+            'api_key' => 'sk-provider-key-from-legacy-30',
+            'chat_model' => 'gpt-4o-mini',
+            'embedding_model' => 'text-embedding-3-small',
+            'is_active' => 1,
+            'is_validated' => 0,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::connection('legacy')->table('ai_bots')->insert([
+            'customer_id' => 30,
+            'name' => 'Support Bot',
+            'type' => 'assistant',
+            'provider' => 'openai',
+            'chat_model' => 'gpt-4o-mini',
+            'status' => 'active',
+            'is_default' => 1,
+            'business_information' => 'Bot-specific FAQ text',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $result = app(CustomerMigrationOrchestrator::class)->migrate(
+            'ai@example.com',
+            new MigrationOptions(dryRun: false, force: false),
+        );
+
+        $tenant = Tenant::query()->findOrFail($result['tenant_id']);
+        tenancy()->initialize($tenant);
+
+        $this->assertTrue(\App\Models\AiSetting::getBool('ai_auto_response_enabled', false));
+        $this->assertDatabaseHas('ai_provider_keys', [
+            'provider' => 'openai',
+        ]);
+        $key = \App\Models\AiProviderKey::query()->where('provider', 'openai')->first();
+        $this->assertNotNull($key);
+        $this->assertSame('sk-provider-key-from-legacy-30', $key->api_key);
+
+        $this->assertTrue(
+            \App\Models\AiBusinessInfo::query()
+                ->where('title', 'Migrated business information')
+                ->where('content', 'We sell widgets and support WhatsApp commerce.')
+                ->exists()
+        );
+
+        tenancy()->end();
+    }
+
     private function seedPlan(): void
     {
         Plan::query()->create([
@@ -222,6 +285,9 @@ class LegacyCustomerMigrationTest extends TestCase
             $table->id();
             $table->string('uid')->nullable();
             $table->decimal('wallet_amount', 12, 2)->default(0);
+            $table->text('openai_api_key')->nullable();
+            $table->boolean('ai_response')->default(false);
+            $table->longText('business_information')->nullable();
             $table->timestamps();
         });
 
@@ -298,13 +364,47 @@ class LegacyCustomerMigrationTest extends TestCase
             $table->string('template_code')->nullable();
             $table->string('language')->nullable();
             $table->string('status')->nullable();
+            $table->string('header_type')->nullable();
+            $table->text('header_media')->nullable();
+            $table->text('header_desc')->nullable();
             $table->text('body')->nullable();
             $table->text('actual_body')->nullable();
             $table->string('team_member_name')->nullable();
             $table->timestamps();
         });
 
-        foreach (['automation_bots', 'automation2s', 'flows', 'team_members', 'new_campaigns', 'ai_bots', 'wallet_transactions', 'sub_replies', 'conversations'] as $table) {
+        $schema->create('provider_api_keys', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('customer_id');
+            $table->string('provider', 20);
+            $table->text('api_key');
+            $table->string('chat_model', 100)->nullable();
+            $table->string('embedding_model', 100)->nullable();
+            $table->integer('embedding_dimensions')->nullable();
+            $table->boolean('is_active')->default(true);
+            $table->boolean('is_validated')->default(false);
+            $table->timestamps();
+        });
+
+        $schema->create('ai_bots', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('customer_id')->nullable();
+            $table->string('name')->nullable();
+            $table->string('type')->nullable();
+            $table->text('system_prompt')->nullable();
+            $table->string('provider')->nullable();
+            $table->string('chat_model')->nullable();
+            $table->string('model_name')->nullable();
+            $table->string('embedding_model')->nullable();
+            $table->float('temperature')->nullable();
+            $table->longText('business_information')->nullable();
+            $table->string('status')->nullable();
+            $table->boolean('is_default')->default(false);
+            $table->unsignedBigInteger('new_contact_id')->nullable();
+            $table->timestamps();
+        });
+
+        foreach (['automation_bots', 'automation2s', 'flows', 'team_members', 'new_campaigns', 'wallet_transactions', 'sub_replies', 'conversations'] as $table) {
             if ($schema->hasTable($table)) {
                 continue;
             }

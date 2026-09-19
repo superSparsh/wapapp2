@@ -24,13 +24,30 @@ class TemplateBuilderFlow
             return false;
         }
 
-        $features = $plan->features ?? [];
+        $features = is_array($plan->features ?? null) ? $plan->features : [];
 
         if (! empty($features['carousel_templates']) || ! empty($features['advance'])) {
             return true;
         }
 
-        return in_array(strtolower((string) $plan->slug), ['advance', 'advanced'], true);
+        // Legacy parity: Customer::hasAdvancePlan() === plan name "Ginger Advance".
+        $name = strtolower(trim((string) $plan->name));
+        $slug = strtolower(trim((string) $plan->slug));
+
+        if ($name === 'ginger advance') {
+            return true;
+        }
+
+        if (in_array($slug, ['advance', 'advanced', 'ginger-advance', 'ginger-advanced'], true)) {
+            return true;
+        }
+
+        // Broader match for imported / renamed advance plans (e.g. "Ginger Advance Yearly").
+        if (str_contains($name, 'advance') || str_contains($slug, 'advance')) {
+            return true;
+        }
+
+        return false;
     }
 
     public function isAuthentication(Template $template): bool
