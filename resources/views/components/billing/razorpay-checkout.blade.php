@@ -10,12 +10,12 @@
 ])
 
 @php
-  $key = $razorpayKey ?? config('billing.razorpay.key');
+  $key = $razorpayKey ?? app(\App\Domains\Billing\Services\RazorpayService::class)->key();
 @endphp
 
 @if (! $razorpayConfigured || ! $key)
   <p class="rounded-lg bg-stat-orange/15 p-3 text-sm text-text-body">
-    Razorpay is not configured. Add <code>RAZORPAY_KEY</code> and <code>RAZORPAY_SECRET</code> to your <code>.env</code> file.
+    Razorpay is not configured. Ask your platform admin to enable it and add keys under <strong>Admin → Payment gateways</strong>.
   </p>
 @else
   <button

@@ -76,7 +76,7 @@ function initCreditsFilter(root) {
                 }
                 const used = credits[key] ?? 0;
                 const limit = credits[`${key}_limit`] ?? credits.sent_limit ?? 1000;
-                valueEl.textContent = `${used}/${limit}`;
+                valueEl.textContent = `${formatNumber(used)}/${formatNumber(limit)}`;
             });
         } catch (error) {
             console.warn('Credits refresh failed', error);

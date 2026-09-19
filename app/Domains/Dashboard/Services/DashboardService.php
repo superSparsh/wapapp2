@@ -9,9 +9,11 @@ use App\Domains\Billing\Services\SubscriptionService;
 use App\Domains\Billing\Services\WalletService;
 use App\Enums\CampaignRecipientStatus;
 use App\Enums\ContactOptInStatus;
+use App\Enums\MessageDirection;
 use App\Models\Campaign;
 use App\Models\CampaignRecipient;
 use App\Models\Contact;
+use App\Models\Message;
 use App\Models\User;
 use App\Models\WalletAccount;
 use App\Models\WhatsappLine;
@@ -162,17 +164,23 @@ class DashboardService
     /**
      * @return array{0: Carbon, 1: Carbon}
      */
-    public static function periodRange(string $period, ?int $maxDays = null): array
+    public static function periodRange(string $period, ?int $maxDays = null, ?string $timezone = null): array
     {
-        $end = now();
+        $tz = $timezone
+            ?: (function_exists('tenant') ? tenant('timezone') : null)
+            ?: config('app.timezone', 'Asia/Kolkata');
+
+        $end = Carbon::now($tz);
         $period = self::normalizePeriod($period);
 
         $start = match ($period) {
-            self::PERIOD_WEEKLY => now()->subDays(6)->startOfDay(),
-            self::PERIOD_MONTHLY => now()->subDays(29)->startOfDay(),
-            self::PERIOD_YEARLY => now()->subYear()->startOfDay(),
-            self::PERIOD_ALL => now()->subDays(max(1, $maxDays ?? (int) config('billing.wallet.history_max_days', 365)))->startOfDay(),
-            default => now()->startOfDay(),
+            self::PERIOD_WEEKLY => Carbon::now($tz)->subDays(6)->startOfDay(),
+            self::PERIOD_MONTHLY => Carbon::now($tz)->subDays(29)->startOfDay(),
+            self::PERIOD_YEARLY => Carbon::now($tz)->subYear()->startOfDay(),
+            self::PERIOD_ALL => Carbon::now($tz)
+                ->subDays(max(1, $maxDays ?? (int) config('billing.wallet.history_max_days', 365)))
+                ->startOfDay(),
+            default => Carbon::now($tz)->startOfDay(),
         };
 
         return [$start, $end];
@@ -224,49 +232,63 @@ class DashboardService
         ];
     }
 
-    /** @return array<string, int|string> */
+    /**
+     * Credits Used cards (legacy-aligned):
+     * - marketing / utility = successful campaign sends by template category
+     * - service = inbox conversations with outbound activity in the window
+     * - sent = marketing + utility (service excluded, same as legacy)
+     *
+     * @return array<string, int|string>
+     */
     private function creditsSummary(string $period): array
     {
         [$from, $to] = self::periodRange($period);
         $limit = $this->conversationLimitForPeriod($period);
 
+        $billableStatuses = [
+            CampaignRecipientStatus::Sent->value,
+            CampaignRecipientStatus::Delivered->value,
+            CampaignRecipientStatus::Read->value,
+            CampaignRecipientStatus::Response->value,
+        ];
+
         $row = CampaignRecipient::query()
             ->join('campaigns', 'campaigns.id', '=', 'campaign_recipients.campaign_id')
             ->leftJoin('templates', 'templates.id', '=', 'campaigns.template_id')
+            ->whereIn('campaign_recipients.status', $billableStatuses)
+            ->where(function ($query): void {
+                $query->whereNotNull('campaign_recipients.sent_at')
+                    ->orWhereNotNull('campaign_recipients.delivered_at');
+            })
             ->whereBetween(
-                DB::raw('COALESCE(campaign_recipients.sent_at, campaign_recipients.delivered_at, campaign_recipients.created_at)'),
+                DB::raw('COALESCE(campaign_recipients.sent_at, campaign_recipients.delivered_at)'),
                 [$from, $to],
             )
-            ->where('campaign_recipients.status', '!=', CampaignRecipientStatus::Pending->value)
             ->selectRaw("
-                COUNT(*) as sent,
-                SUM(CASE WHEN UPPER(COALESCE(templates.category, 'MARKETING')) = 'MARKETING' THEN 1 ELSE 0 END) as marketing,
+                SUM(CASE WHEN UPPER(COALESCE(templates.category, 'MARKETING')) IN ('MARKETING', 'CAROUSEL') THEN 1 ELSE 0 END) as marketing,
                 SUM(CASE WHEN UPPER(COALESCE(templates.category, '')) = 'UTILITY' THEN 1 ELSE 0 END) as utility,
-                SUM(CASE WHEN UPPER(COALESCE(templates.category, '')) IN ('AUTHENTICATION', 'SERVICE', 'LIMITED_TIME_OFFER') THEN 1 ELSE 0 END) as service
+                SUM(CASE WHEN UPPER(COALESCE(templates.category, '')) IN ('AUTHENTICATION', 'SERVICE', 'LIMITED_TIME_OFFER') THEN 1 ELSE 0 END) as auth_service
             ")
             ->first();
 
-        $sent = (int) ($row->sent ?? 0);
         $marketing = (int) ($row->marketing ?? 0);
         $utility = (int) ($row->utility ?? 0);
-        $service = (int) ($row->service ?? 0);
+        $authService = (int) ($row->auth_service ?? 0);
 
-        // Fallback when recipients are missing but campaign counters exist for the window.
-        if ($sent === 0) {
-            $campaignTotals = Campaign::query()
-                ->whereBetween(
-                    DB::raw('COALESCE(started_at, completed_at, scheduled_at, updated_at)'),
-                    [$from, $to],
-                )
-                ->selectRaw('
-                    COALESCE(SUM(total_delivered), 0) as delivered,
-                    COALESCE(SUM(total_recipients), 0) as recipients
-                ')
-                ->first();
+        // Legacy: service conversations come from inbox (outbound), not campaign marketing sends.
+        $serviceInbox = (int) Message::query()
+            ->where('direction', MessageDirection::Outbound)
+            ->whereBetween(
+                DB::raw('COALESCE(messages.sent_at, messages.created_at)'),
+                [$from, $to],
+            )
+            ->distinct()
+            ->count('conversation_id');
 
-            $sent = max((int) ($campaignTotals->delivered ?? 0), (int) ($campaignTotals->recipients ?? 0));
-            $marketing = $sent;
-        }
+        $service = max($serviceInbox, $authService);
+
+        // Legacy Sent card = marketing + utility only (service excluded).
+        $sent = $marketing + $utility;
 
         return [
             'period' => $period,
@@ -288,21 +310,45 @@ class DashboardService
             ->value('messaging_limit_tier')
             ?? WhatsappLine::query()->value('messaging_limit_tier');
 
-        $daily = match (strtoupper((string) $tier)) {
-            'TIER_50' => 50,
-            'TIER_250' => 250,
-            'TIER_1K', 'TIER_1000' => 1000,
-            'TIER_10K', 'TIER_10000' => 10000,
-            'TIER_100K', 'TIER_100000' => 100000,
-            'UNLIMITED' => 1000000,
-            default => 1000,
-        };
+        $daily = $this->parseMessagingTierDailyLimit($tier);
 
         return match (self::normalizePeriod($period)) {
             self::PERIOD_WEEKLY => $daily * 7,
             self::PERIOD_MONTHLY => $daily * 30,
             self::PERIOD_YEARLY, self::PERIOD_ALL => $daily * 365,
             default => $daily,
+        };
+    }
+
+    private function parseMessagingTierDailyLimit(mixed $tier): int
+    {
+        $raw = strtoupper(trim((string) $tier));
+
+        if ($raw === '' || $raw === 'UNKNOWN') {
+            return 1000;
+        }
+
+        return match ($raw) {
+            'TIER_50' => 50,
+            'TIER_250' => 250,
+            'TIER_1K', 'TIER_1000' => 1000,
+            'TIER_2K', 'TIER_2000' => 2000,
+            'TIER_10K', 'TIER_10000' => 10000,
+            'TIER_100K', 'TIER_100000' => 100000,
+            'UNLIMITED' => 1_000_000,
+            default => (static function () use ($raw): int {
+                if (preg_match('/(\d+)\s*K/i', $raw, $matches) === 1) {
+                    return (int) $matches[1] * 1000;
+                }
+                if (preg_match('/(\d+)/', $raw, $matches) === 1) {
+                    $n = (int) $matches[1];
+
+                    // Avoid legacy bug: TIER_50 → 50*1000.
+                    return $n >= 1000 ? $n : max(50, $n);
+                }
+
+                return 1000;
+            })(),
         };
     }
 

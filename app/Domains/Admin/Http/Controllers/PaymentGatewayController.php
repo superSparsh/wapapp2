@@ -33,13 +33,24 @@ class PaymentGatewayController extends Controller
             'payment_offline_instructions' => ['nullable', 'string'],
         ]);
 
-        $this->settings->save([
+        $payload = [
             'payment.razorpay_enabled' => $validated['payment_razorpay_enabled'] ?? '0',
             'payment.razorpay_key' => $validated['payment_razorpay_key'] ?? '',
-            'payment.razorpay_secret' => $validated['payment_razorpay_secret'] ?? '',
-            'payment.razorpay_webhook_secret' => $validated['payment_razorpay_webhook_secret'] ?? '',
             'payment.offline_instructions' => $validated['payment_offline_instructions'] ?? '',
-        ]);
+        ];
+
+        // Keep existing secrets when the fields are left blank on save.
+        $secret = trim((string) ($validated['payment_razorpay_secret'] ?? ''));
+        if ($secret !== '') {
+            $payload['payment.razorpay_secret'] = $secret;
+        }
+
+        $webhookSecret = trim((string) ($validated['payment_razorpay_webhook_secret'] ?? ''));
+        if ($webhookSecret !== '') {
+            $payload['payment.razorpay_webhook_secret'] = $webhookSecret;
+        }
+
+        $this->settings->save($payload);
 
         return back()->with('status', 'Payment gateway settings saved.');
     }

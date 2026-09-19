@@ -3,6 +3,16 @@
 declare(strict_types=1);
 
 return [
+    /*
+    |--------------------------------------------------------------------------
+    | Razorpay (deprecated env fallback)
+    |--------------------------------------------------------------------------
+    |
+    | Platform billing reads Razorpay credentials from Admin → Payment gateways
+    | (platform_settings: payment.razorpay_*). These env values are unused at
+    | runtime and kept only for reference / local docs.
+    |
+    */
     'razorpay' => [
         'key' => env('RAZORPAY_KEY'),
         'secret' => env('RAZORPAY_SECRET'),

@@ -77,7 +77,7 @@ class SubscriptionController extends Controller
             ->with('status', 'Billing information saved.');
     }
 
-    public function payment(SubscriptionService $subscriptionService, BillingAddressService $billingAddressService): View
+    public function payment(SubscriptionService $subscriptionService, BillingAddressService $billingAddressService, RazorpayService $razorpayService): View
     {
         $selectedPlan = $subscriptionService->checkoutPlan();
 
@@ -87,8 +87,8 @@ class SubscriptionController extends Controller
             'totals' => $selectedPlan
                 ? $subscriptionService->calculateTotals((float) $selectedPlan->price)
                 : null,
-            'razorpayKey' => config('billing.razorpay.key'),
-            'razorpayConfigured' => app(RazorpayService::class)->isConfigured(),
+            'razorpayKey' => $razorpayService->key(),
+            'razorpayConfigured' => $razorpayService->isConfigured(),
         ]);
     }
 
@@ -111,6 +111,7 @@ class SubscriptionController extends Controller
 
     public function checkoutSubscription(
         SubscriptionService $subscriptionService,
+        RazorpayService $razorpayService,
     ): JsonResponse|RedirectResponse {
         try {
             $order = $subscriptionService->createSubscriptionOrder();
@@ -127,7 +128,7 @@ class SubscriptionController extends Controller
                 'order_id' => $order->razorpay_order_id,
                 'amount' => (int) round($order->total_amount * 100),
                 'currency' => $order->currency,
-                'key' => config('billing.razorpay.key'),
+                'key' => $razorpayService->key(),
             ]);
         }
 
@@ -183,6 +184,7 @@ class SubscriptionController extends Controller
     public function walletRecharge(
         WalletRechargeRequest $request,
         WalletService $walletService,
+        RazorpayService $razorpayService,
     ): JsonResponse|RedirectResponse {
         session(['wallet.recharge_amount' => $request->validated('amount')]);
 
@@ -201,7 +203,7 @@ class SubscriptionController extends Controller
                 'order_id' => $order->razorpay_order_id,
                 'amount' => (int) round($order->total_amount * 100),
                 'currency' => $order->currency,
-                'key' => config('billing.razorpay.key'),
+                'key' => $razorpayService->key(),
             ]);
         }
 

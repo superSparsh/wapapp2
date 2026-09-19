@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace App\Domains\Billing\Models;
 
-use App\Models\TenantModel;
+use Illuminate\Database\Eloquent\Model;
 
-class WalletAutoRechargeSetting extends TenantModel
+/**
+ * Per-tenant singleton settings row (no soft deletes / public UUID).
+ */
+class WalletAutoRechargeSetting extends Model
 {
     protected $table = 'wallet_auto_recharge_settings';
 

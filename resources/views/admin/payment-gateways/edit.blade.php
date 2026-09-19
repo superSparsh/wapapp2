@@ -28,11 +28,11 @@
         </label>
         <label class="flex flex-col gap-1.5 text-sm">
           <span class="font-semibold">Secret</span>
-          <input name="payment_razorpay_secret" value="{{ old('payment_razorpay_secret', $settings['payment.razorpay_secret'] ?? '') }}" class="rounded-lg border border-border px-3 py-2">
+          <input name="payment_razorpay_secret" type="password" value="" autocomplete="new-password" placeholder="{{ filled($settings['payment.razorpay_secret'] ?? null) ? '•••••••• (leave blank to keep)' : 'Razorpay secret' }}" class="rounded-lg border border-border px-3 py-2">
         </label>
         <label class="flex flex-col gap-1.5 text-sm">
           <span class="font-semibold">Webhook secret</span>
-          <input name="payment_razorpay_webhook_secret" value="{{ old('payment_razorpay_webhook_secret', $settings['payment.razorpay_webhook_secret'] ?? '') }}" class="rounded-lg border border-border px-3 py-2">
+          <input name="payment_razorpay_webhook_secret" type="password" value="" autocomplete="new-password" placeholder="{{ filled($settings['payment.razorpay_webhook_secret'] ?? null) ? '•••••••• (leave blank to keep)' : 'Webhook secret' }}" class="rounded-lg border border-border px-3 py-2">
         </label>
       </div>
     </section>

@@ -40,9 +40,9 @@
   </div>
 
   <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-    <x-ui.credit-stat-card label="Sent" icon="send" data-credit-key="sent" :value="($credits['sent'] ?? 0).'/'.($credits['sent_limit'] ?? 1000)" />
-    <x-ui.credit-stat-card label="Marketing Conversations" icon="megaphone" data-credit-key="marketing" :value="($credits['marketing'] ?? 0).'/'.($credits['marketing_limit'] ?? 1000)" />
-    <x-ui.credit-stat-card label="Utility Conversations" icon="wrench" data-credit-key="utility" :value="($credits['utility'] ?? 0).'/'.($credits['utility_limit'] ?? 1000)" />
-    <x-ui.credit-stat-card label="Services Conversations" icon="headset" data-credit-key="service" :value="($credits['service'] ?? 0).'/'.($credits['service_limit'] ?? 1000)" />
+    <x-ui.credit-stat-card label="Sent" icon="send" data-credit-key="sent" :value="number_format((int) ($credits['sent'] ?? 0)).'/'.number_format((int) ($credits['sent_limit'] ?? 1000))" />
+    <x-ui.credit-stat-card label="Marketing Conversations" icon="megaphone" data-credit-key="marketing" :value="number_format((int) ($credits['marketing'] ?? 0)).'/'.number_format((int) ($credits['marketing_limit'] ?? 1000))" />
+    <x-ui.credit-stat-card label="Utility Conversations" icon="wrench" data-credit-key="utility" :value="number_format((int) ($credits['utility'] ?? 0)).'/'.number_format((int) ($credits['utility_limit'] ?? 1000))" />
+    <x-ui.credit-stat-card label="Services Conversations" icon="headset" data-credit-key="service" :value="number_format((int) ($credits['service'] ?? 0)).'/'.number_format((int) ($credits['service_limit'] ?? 1000))" />
   </div>
 </section>

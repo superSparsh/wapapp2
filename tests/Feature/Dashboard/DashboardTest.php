@@ -65,6 +65,52 @@ class DashboardTest extends TestCase
             ->assertSee('Sort by : Daily');
     }
 
+    public function test_daily_credits_exclude_failed_and_match_legacy_sent_formula(): void
+    {
+        $marketing = Template::factory()->create(['category' => 'MARKETING']);
+        $utility = Template::factory()->create(['category' => 'UTILITY']);
+
+        $marketingCampaign = Campaign::factory()->create([
+            'template_id' => $marketing->id,
+            'status' => CampaignStatus::Completed,
+            'started_at' => now(),
+        ]);
+        $utilityCampaign = Campaign::factory()->create([
+            'template_id' => $utility->id,
+            'status' => CampaignStatus::Completed,
+            'started_at' => now(),
+        ]);
+
+        CampaignRecipient::factory()->count(3)->create([
+            'campaign_id' => $marketingCampaign->id,
+            'status' => CampaignRecipientStatus::Delivered,
+            'sent_at' => now(),
+            'delivered_at' => now(),
+        ]);
+        CampaignRecipient::factory()->count(2)->create([
+            'campaign_id' => $utilityCampaign->id,
+            'status' => CampaignRecipientStatus::Sent,
+            'sent_at' => now(),
+        ]);
+        CampaignRecipient::factory()->create([
+            'campaign_id' => $marketingCampaign->id,
+            'status' => CampaignRecipientStatus::Failed,
+            'sent_at' => now(),
+        ]);
+        CampaignRecipient::factory()->create([
+            'campaign_id' => $marketingCampaign->id,
+            'status' => CampaignRecipientStatus::Pending,
+            'sent_at' => null,
+        ]);
+
+        $this->actingAsTenantUser()
+            ->getJson(route('dashboard.credits', ['period' => 'daily']))
+            ->assertOk()
+            ->assertJsonPath('credits.marketing', 3)
+            ->assertJsonPath('credits.utility', 2)
+            ->assertJsonPath('credits.sent', 5);
+    }
+
     public function test_dashboard_shows_plan_from_subscription_when_tenant_plan_missing(): void
     {
         $plan = tenancy()->central(fn () => Plan::query()->create([

@@ -7,13 +7,21 @@ namespace App\Domains\Webhooks\Commands;
 use App\Domains\Admin\Support\RespectsMaintenanceModules;
 use App\Domains\Webhooks\Jobs\DispatchOutboundWebhookJob;
 use App\Enums\WebhookDeliveryStatus;
+use App\Enums\WebhookSubscriptionStatus;
 use App\Models\WebhookDelivery;
+use App\Support\Console\Concerns\IteratesTenants;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Schema;
+use Throwable;
 
 class RetryFailedDeliveriesCommand extends Command
 {
+    use IteratesTenants;
     use RespectsMaintenanceModules;
-    protected $signature = 'webhooks:retry-failed {--limit=50 : Maximum deliveries to retry per run}';
+
+    protected $signature = 'webhooks:retry-failed
+        {--limit=50 : Maximum deliveries to retry per tenant}
+        {--tenants=* : Tenant IDs to process}';
 
     protected $description = 'Dispatch retry jobs for failed webhook deliveries past their next_retry_at time';
 
@@ -23,20 +31,43 @@ class RetryFailedDeliveriesCommand extends Command
             return self::SUCCESS;
         }
 
-        $limit = (int) $this->option('limit');
+        $limit = max(1, (int) $this->option('limit'));
+        $dispatched = 0;
+        $failedTenants = 0;
+
+        $this->foreachTenant(function () use ($limit, &$dispatched, &$failedTenants): void {
+            try {
+                $dispatched += $this->retryForCurrentTenant($limit);
+            } catch (Throwable $e) {
+                $failedTenants++;
+                $this->error('Webhook retry failed for tenant: '.$e->getMessage());
+                report($e);
+            }
+        });
+
+        $this->info("Dispatched {$dispatched} retry job(s).");
+
+        return $failedTenants > 0 ? self::FAILURE : self::SUCCESS;
+    }
+
+    private function retryForCurrentTenant(int $limit): int
+    {
+        if (! Schema::hasTable('webhook_deliveries')) {
+            $this->warn('Skipping tenant: webhook_deliveries table missing (run tenant migrations).');
+
+            return 0;
+        }
 
         $deliveries = WebhookDelivery::query()
             ->where('status', WebhookDeliveryStatus::Failed)
             ->whereNotNull('next_retry_at')
             ->where('next_retry_at', '<=', now())
-            ->whereHas('subscription', fn ($q) => $q->where('status', 'active'))
+            ->whereHas('subscription', fn ($q) => $q->where('status', WebhookSubscriptionStatus::Active))
             ->limit($limit)
             ->get();
 
         if ($deliveries->isEmpty()) {
-            $this->info('No failed deliveries due for retry.');
-
-            return self::SUCCESS;
+            return 0;
         }
 
         $count = 0;
@@ -45,14 +76,12 @@ class RetryFailedDeliveriesCommand extends Command
             DispatchOutboundWebhookJob::dispatch(
                 subscriptionId: (int) $delivery->webhook_subscription_id,
                 eventType: $delivery->event_type,
-                payload: $delivery->payload,
+                payload: is_array($delivery->payload) ? $delivery->payload : [],
             )->onQueue(config('webhooks.queue', 'default'));
 
             $count++;
         }
 
-        $this->info("Dispatched {$count} retry job(s).");
-
-        return self::SUCCESS;
+        return $count;
     }
 }
