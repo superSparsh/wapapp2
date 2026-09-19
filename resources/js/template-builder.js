@@ -11,6 +11,31 @@ const CAROUSEL_BUTTON_TEXT_LIMIT = 25;
 const DEFAULT_UNSUBSCRIBE_URL = `${window.location.origin}/unsubscribe-list/$(unsub)`;
 const COMMON_EMOJIS = ['😀', '😊', '👍', '🎉', '❤️', '🔥', '✅', '🙏', '💬', '📞'];
 
+function isUsableMediaPreviewUrl(url) {
+    const value = String(url || '').trim();
+    if (!value) {
+        return false;
+    }
+    if (typeof window !== 'undefined' && value === window.location.href) {
+        return false;
+    }
+    return (
+        value.startsWith('blob:') ||
+        value.startsWith('data:') ||
+        value.startsWith('http://') ||
+        value.startsWith('https://') ||
+        value.startsWith('/')
+    );
+}
+
+function readElementMediaSrc(el) {
+    if (!el || el.classList.contains('hidden')) {
+        return '';
+    }
+    const attr = (el.getAttribute('src') || '').trim();
+    return isUsableMediaPreviewUrl(attr) ? attr : '';
+}
+
 function escapeHtml(value) {
     return String(value)
         .replace(/&/g, '&amp;')
@@ -311,10 +336,10 @@ class TemplateLivePreview {
                     .join('');
 
                 let mediaHtml = `<div class="flex aspect-video w-full items-center justify-center bg-muted-surface text-[11px] text-text-muted">${header === 'VIDEO' ? 'Video' : 'Image'}</div>`;
-                if (media && header === 'VIDEO') {
-                    mediaHtml = `<video src="${escapeHtml(media)}" class="aspect-video w-full object-cover" muted playsinline preload="metadata"></video>`;
-                } else if (media) {
-                    mediaHtml = `<img src="${escapeHtml(media)}" alt="" class="aspect-video w-full object-cover">`;
+                if (isUsableMediaPreviewUrl(media) && header === 'VIDEO') {
+                    mediaHtml = `<video src="${escapeHtml(media)}" class="aspect-video w-full object-cover bg-muted-surface" muted playsinline preload="metadata"></video>`;
+                } else if (isUsableMediaPreviewUrl(media)) {
+                    mediaHtml = `<img src="${escapeHtml(media)}" alt="" class="aspect-video w-full object-cover bg-muted-surface">`;
                 }
 
                 return `
@@ -362,10 +387,10 @@ function collectCarouselState(root) {
         const mediaPath = cardEl.querySelector('[data-carousel-media-path]')?.value?.trim() || '';
         const mediaUrl = cardEl.querySelector('[data-carousel-media-url]')?.value?.trim() || '';
         const previewUrl =
-            cardEl.dataset.previewUrl ||
-            cardEl.querySelector('[data-carousel-media-image]:not(.hidden)')?.getAttribute('src') ||
-            cardEl.querySelector('[data-carousel-media-video]:not(.hidden)')?.getAttribute('src') ||
-            mediaUrl ||
+            (isUsableMediaPreviewUrl(cardEl.dataset.previewUrl) ? cardEl.dataset.previewUrl : '') ||
+            readElementMediaSrc(cardEl.querySelector('[data-carousel-media-image]')) ||
+            readElementMediaSrc(cardEl.querySelector('[data-carousel-media-video]')) ||
+            (useUrl && isUsableMediaPreviewUrl(mediaUrl) ? mediaUrl : '') ||
             '';
         const body = cardEl.querySelector('textarea[name*="[body]"]')?.value || '';
         const buttons = Array.from(cardEl.querySelectorAll('[data-carousel-button]'))
@@ -1793,16 +1818,20 @@ function initCarouselBuilder(scheduleUpdate) {
         }
 
         const useUrl = Boolean(cardEl.querySelector('[data-carousel-use-url]')?.checked);
+        const previewFromMedia =
+            readElementMediaSrc(cardEl.querySelector('[data-carousel-media-image]')) ||
+            readElementMediaSrc(cardEl.querySelector('[data-carousel-media-video]')) ||
+            '';
+        const previewUrl = isUsableMediaPreviewUrl(cardEl.dataset.previewUrl)
+            ? cardEl.dataset.previewUrl
+            : previewFromMedia;
+
         cards[index] = {
             header: cardEl.querySelector('[data-carousel-header-type]')?.value || 'IMAGE',
             body: cardEl.querySelector('textarea[name*="[body]"]')?.value || '',
             media_path: cardEl.querySelector('[data-carousel-media-path]')?.value || '',
             media_url: cardEl.querySelector('[data-carousel-media-url]')?.value || '',
-            media_preview_url:
-                cardEl.querySelector('[data-carousel-media-image]:not(.hidden)')?.src ||
-                cardEl.querySelector('[data-carousel-media-video]:not(.hidden)')?.src ||
-                cardEl.dataset.previewUrl ||
-                '',
+            media_preview_url: previewUrl,
             use_url: useUrl,
             buttons: [0, 1].map((buttonIndex) => {
                 const buttonEl = cardEl.querySelectorAll('[data-carousel-button]')[buttonIndex];
@@ -2024,19 +2053,19 @@ function initCarouselBuilder(scheduleUpdate) {
             </div>
             <div class="${useUrl ? 'hidden' : ''}" data-carousel-file-wrap>
               <div class="flex flex-col gap-3" data-carousel-upload data-max-bytes="${maxBytes}">
-                <label for="carousel_media_${index}" class="flex h-[88px] cursor-pointer flex-col items-center justify-center rounded-md border border-dashed border-divider px-6 py-3 transition-colors hover:border-green-500">
-                  <img src="/images/templates/upload-frame.svg" alt="" class="size-6" aria-hidden="true">
-                  <p class="mt-2 text-center text-xs text-text-body">
+                <label class="relative flex h-[88px] cursor-pointer flex-col items-center justify-center overflow-hidden rounded-md border border-dashed border-divider px-6 py-3 transition-colors hover:border-green-500">
+                  <img src="/images/templates/upload-frame.svg" alt="" class="pointer-events-none size-6" aria-hidden="true">
+                  <p class="pointer-events-none mt-2 text-center text-xs text-text-body">
                     <span class="font-medium">Drag &amp; Drop or</span>
                     <span class="font-medium text-green-500"> choose</span>
                     <span class="font-medium"> file to upload</span>
                   </p>
-                  <p class="mt-1 text-center text-[10px] font-medium text-text-body opacity-50">${hint}</p>
+                  <p class="pointer-events-none mt-1 text-center text-[10px] font-medium text-text-body opacity-50">${hint}</p>
+                  <input type="file" accept="${accept}" class="absolute inset-0 cursor-pointer opacity-0" data-carousel-media-input aria-label="Upload carousel media">
                 </label>
-                <input type="file" id="carousel_media_${index}" accept="${accept}" class="sr-only" data-carousel-media-input>
                 <div data-carousel-media-preview class="${hasPreview ? '' : 'hidden'}">
-                  <img src="${isVideo || !hasPreview ? '' : escapeHtml(previewUrl)}" alt="" class="max-h-40 w-full rounded-lg object-cover ${isVideo || !hasPreview ? 'hidden' : ''}" data-carousel-media-image>
-                  <video src="${isVideo && hasPreview ? escapeHtml(previewUrl) : ''}" class="max-h-40 w-full rounded-lg ${isVideo && hasPreview ? '' : 'hidden'}" controls data-carousel-media-video></video>
+                  <img ${isVideo || !hasPreview ? '' : `src="${escapeHtml(previewUrl)}"`} alt="" class="max-h-40 w-full rounded-lg object-cover ${isVideo || !hasPreview ? 'hidden' : ''}" data-carousel-media-image>
+                  <video ${isVideo && hasPreview ? `src="${escapeHtml(previewUrl)}"` : ''} class="max-h-40 w-full rounded-lg ${isVideo && hasPreview ? '' : 'hidden'}" ${isVideo && hasPreview ? 'controls' : ''} muted playsinline preload="metadata" data-carousel-media-video></video>
                   <p class="mt-1 text-xs text-text-subtle" data-carousel-media-name></p>
                 </div>
                 <p class="hidden text-xs text-red-500" data-carousel-upload-error></p>
@@ -2119,31 +2148,53 @@ function initCarouselBuilder(scheduleUpdate) {
             return;
         }
 
-        const objectUrl = URL.createObjectURL(file);
         const isVideo = file.type.startsWith('video/');
-        previewWrap?.classList.remove('hidden');
+        const isImage = file.type.startsWith('image/');
+        if (!isVideo && !isImage) {
+            showUploadError(zone, 'Only image (.jpg/.png) or video (.mp4/.3gp) files are supported.');
+            return;
+        }
+
+        const previousUrl = cardEl.dataset.previewUrl || '';
+        if (previousUrl.startsWith('blob:')) {
+            URL.revokeObjectURL(previousUrl);
+        }
+
+        const objectUrl = URL.createObjectURL(file);
         if (nameEl) {
             nameEl.textContent = file.name;
         }
+
         if (isVideo) {
-            imageEl?.classList.add('hidden');
+            if (imageEl) {
+                imageEl.classList.add('hidden');
+                imageEl.removeAttribute('src');
+            }
             if (videoEl) {
-                videoEl.classList.remove('hidden');
                 videoEl.src = objectUrl;
+                videoEl.setAttribute('controls', '');
+                videoEl.classList.remove('hidden');
             }
             if (headerSelect) {
                 headerSelect.value = 'VIDEO';
             }
         } else {
-            videoEl?.classList.add('hidden');
+            if (videoEl) {
+                videoEl.classList.add('hidden');
+                videoEl.removeAttribute('controls');
+                videoEl.removeAttribute('src');
+                videoEl.load?.();
+            }
             if (imageEl) {
-                imageEl.classList.remove('hidden');
                 imageEl.src = objectUrl;
+                imageEl.classList.remove('hidden');
             }
             if (headerSelect) {
                 headerSelect.value = 'IMAGE';
             }
         }
+
+        previewWrap?.classList.remove('hidden');
         cardEl.dataset.previewUrl = objectUrl;
         notifyPreview();
 
@@ -2182,6 +2233,9 @@ function initCarouselBuilder(scheduleUpdate) {
                 pathInput.value = data.path || '';
             }
             if (data.url) {
+                if (objectUrl.startsWith('blob:')) {
+                    URL.revokeObjectURL(objectUrl);
+                }
                 cardEl.dataset.previewUrl = data.url;
                 if (isVideo && videoEl) {
                     videoEl.src = data.url;
