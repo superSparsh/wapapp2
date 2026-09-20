@@ -182,33 +182,58 @@ class WalletService
 
     public function completeRecharge(RazorpayOrder $order, string $paymentId): WalletTransaction
     {
+        $wasAlreadyPaid = $order->status === RazorpayOrderStatus::Paid;
+
         $transaction = DB::transaction(function () use ($order, $paymentId): WalletTransaction {
-            $this->razorpayService->markOrderPaid($order, $paymentId);
+            $locked = RazorpayOrder::query()->whereKey($order->id)->lockForUpdate()->firstOrFail();
+
+            if ($locked->status === RazorpayOrderStatus::Paid) {
+                $existing = WalletTransaction::query()
+                    ->where('razorpay_payment_id', $paymentId)
+                    ->where('reference_type', RazorpayOrder::class)
+                    ->where('reference_id', $locked->id)
+                    ->first();
+
+                if ($existing) {
+                    return $existing;
+                }
+            }
+
+            $this->razorpayService->markOrderPaid($locked, $paymentId);
 
             $wallet = $this->account();
-            $newBalance = (float) $wallet->balance + (float) $order->amount;
+            $creditAmount = round((float) $locked->amount, 2);
+            $taxAmount = round((float) ($locked->tax_amount ?? 0), 2);
+            $payable = round((float) ($locked->total_amount ?? ($creditAmount + $taxAmount)), 2);
+            $newBalance = round((float) $wallet->balance + $creditAmount, 2);
             $wallet->update(['balance' => $newBalance]);
+
+            $description = 'Razorpay payment '.$paymentId
+                .' (credits ₹'.number_format($creditAmount, 2)
+                .', GST ₹'.number_format($taxAmount, 2)
+                .', paid ₹'.number_format($payable, 2).')';
 
             return WalletTransaction::query()->create([
                 'type' => WalletTransactionType::Credit,
-                'amount' => $order->amount,
-                'currency' => $order->currency,
+                'amount' => $creditAmount,
+                'currency' => $locked->currency,
                 'balance_after' => $newBalance,
-                'description' => 'Wallet recharge via Razorpay',
+                'description' => $description,
                 'reference_type' => RazorpayOrder::class,
-                'reference_id' => $order->id,
+                'reference_id' => $locked->id,
                 'razorpay_payment_id' => $paymentId,
                 'created_at' => now(),
             ]);
         });
 
         $tenantId = tenant('id');
-        if ($tenantId) {
+        if ($tenantId && ! $wasAlreadyPaid) {
             $userId = Auth::id();
-            DB::afterCommit(function () use ($tenantId, $order, $paymentId, $userId): void {
+            $orderId = (int) $order->id;
+            DB::afterCommit(function () use ($tenantId, $orderId, $paymentId, $userId): void {
                 ProcessWalletRazorpayZohoInvoiceJob::dispatch(
                     (string) $tenantId,
-                    (int) $order->id,
+                    $orderId,
                     $paymentId,
                     $userId !== null ? (int) $userId : null,
                 );

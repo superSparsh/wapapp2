@@ -68,6 +68,27 @@ class ProcessInboundWebhookJobTest extends TestCase
         $this->assertNull($event->error_message);
     }
 
+    public function test_job_skips_unknown_business_phone_without_failing(): void
+    {
+        $event = $this->createEvent([
+            'payload' => [[
+                'MessageId' => 'wamid.UNKNOWN-PHONE',
+                'From' => '918888820001',
+                'To' => '919805977719',
+                'Message' => 'Should be skipped',
+                'Type' => 'TEXT',
+            ]],
+        ]);
+
+        $job = new ProcessInboundWebhookJob((int) $event->id);
+        $this->app->call([$job, 'handle']);
+
+        $event->refresh();
+        $this->assertSame(InboundWebhookStatus::Processed, $event->status);
+        $this->assertNull($event->error_message);
+        $this->assertNull($event->tenant_id);
+    }
+
     public function test_job_skips_already_processed_events(): void
     {
         $event = $this->createEvent([

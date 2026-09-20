@@ -39,6 +39,15 @@ class TenantResolver
 
     public function initializeFromSession(): void
     {
+        // Admin panel shares the same session cookie as the customer app. Leftover
+        // web/team login + password_hash keys make AuthenticateSession flush the
+        // whole session (including admin) and bounce "Login as customer" to /login.
+        if (Auth::guard('admin')->check()) {
+            $this->forgetTenantScopedAuthSession();
+
+            return;
+        }
+
         $tenantId = data_get(session('auth'), 'tenant_id') ?? session(AuthSession::TENANT_ID);
 
         if (! is_string($tenantId) || $tenantId === '') {

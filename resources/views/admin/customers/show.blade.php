@@ -47,7 +47,7 @@
     </div>
 
     <div class="flex flex-col gap-4">
-      <div class="rounded-[20px] border border-border bg-elevated p-5">
+      <div id="assign-plan" class="rounded-[20px] border border-border bg-elevated p-5">
         <h2 class="text-lg font-bold text-text-primary">Assign plan</h2>
         <form method="POST" action="{{ route('admin.customers.assign-plan', $tenant) }}" class="mt-4 flex flex-col gap-3">
           @csrf
@@ -64,11 +64,12 @@
       </div>
 
       <div class="rounded-[20px] border border-border bg-elevated p-5">
-        <h2 class="text-lg font-bold text-text-primary">Extend validity</h2>
+        <h2 class="text-lg font-bold text-text-primary">Extend validity &amp; wallet</h2>
         <form method="POST" action="{{ route('admin.customers.extend-validity', $tenant) }}" class="mt-4 flex flex-col gap-3">
           @csrf
-          <input type="number" name="days" min="1" max="3650" value="30" class="rounded-lg border border-border px-3 py-2 text-sm" required>
-          <button type="submit" class="rounded-lg border border-border px-3 py-2 text-xs font-semibold hover:bg-surface">Add days</button>
+          <input type="number" name="days" min="0" max="3650" value="30" class="rounded-lg border border-border px-3 py-2 text-sm" placeholder="Days (0 = no change)">
+          <input type="number" name="wallet_amount" min="0" step="0.01" value="0" class="rounded-lg border border-border px-3 py-2 text-sm" placeholder="Wallet top-up ₹ (0 = no change)">
+          <button type="submit" class="rounded-lg border border-border px-3 py-2 text-xs font-semibold hover:bg-surface">Save</button>
         </form>
       </div>
     </div>

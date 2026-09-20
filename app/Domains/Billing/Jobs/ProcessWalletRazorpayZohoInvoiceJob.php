@@ -82,10 +82,8 @@ class ProcessWalletRazorpayZohoInvoiceJob implements ShouldQueue
                 return;
             }
 
-            // Invoice what Razorpay charged (incl. GST). When Zoho tax_id is set, send pre-tax credit amount.
-            $invoiceAmount = filled(config('services.zoho.wallet_line_tax_id'))
-                ? (float) $order->amount
-                : (float) ($order->total_amount ?: $order->amount);
+            // Legacy: Zoho invoice line = wallet credit (base). GST via ZOHO_WALLET_LINE_TAX_ID when set.
+            $invoiceAmount = (float) $order->amount;
 
             $creditRequest = $existing ?? ZohoWalletCreditRequest::query()->create([
                 'tenant_id' => $this->tenantId,
@@ -100,6 +98,7 @@ class ProcessWalletRazorpayZohoInvoiceJob implements ShouldQueue
                     'local_order_id' => $order->id,
                     'wallet_credit_amount' => (float) $order->amount,
                     'tax_amount' => (float) ($order->tax_amount ?? 0),
+                    'payable_amount' => (float) ($order->total_amount ?? $order->amount),
                 ],
             ]);
 

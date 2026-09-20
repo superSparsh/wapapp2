@@ -276,11 +276,9 @@ class ZohoBooksWalletCreditService
         $response = Http::withHeaders($this->orgHeaders($accessToken))->timeout(45)->post($url);
 
         if (! $response->successful()) {
-            Log::warning('Zoho mark invoice sent failed', [
-                'invoice_id' => $zohoInvoiceId,
-                'status' => $response->status(),
-                'body' => $response->body(),
-            ]);
+            $body = $response->json();
+            $message = is_array($body) ? ($body['message'] ?? json_encode($body)) : $response->body();
+            throw new RuntimeException('Zoho invoice mark sent failed: '.$message);
         }
     }
 
@@ -388,6 +386,20 @@ class ZohoBooksWalletCreditService
                 'phone' => (string) ($billingAddress->phone ?? $phone),
             ];
             $contactData['shipping_address'] = $contactData['billing_address'];
+
+            $treatment = strtolower(trim((string) ($billingAddress->gst_treatment ?? '')));
+            $gstin = strtoupper(trim((string) ($billingAddress->pan ?? '')));
+            // 2.0 stores GSTIN in pan when 15 chars; legacy used gstinuin.
+            $looksLikeGstin = strlen($gstin) === 15 && preg_match('/^[0-9A-Z]{15}$/', $gstin) === 1;
+            if ($looksLikeGstin && (str_contains($treatment, 'registered') || $treatment === '')) {
+                $contactData['gst_treatment'] = 'business_gst';
+                $contactData['gst_no'] = $gstin;
+            }
+
+            $pos = ZohoIndiaPlaceOfSupply::fromStateName($billingAddress->state ?? null);
+            if ($pos !== '') {
+                $contactData['place_of_contact'] = $pos;
+            }
         }
 
         $parts = preg_split('/\s+/', $name, 2) ?: [$name];

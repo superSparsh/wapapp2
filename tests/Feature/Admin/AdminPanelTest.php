@@ -101,12 +101,46 @@ class AdminPanelTest extends TestCase
         $this->actingAs($this->admin, 'admin')
             ->get(route('admin.customers.index'))
             ->assertOk()
-            ->assertSee($this->testTenant->name);
+            ->assertSee($this->testTenant->name)
+            ->assertSee('Activity logs', false)
+            ->assertSee('Billing audit', false)
+            ->assertSee('WhatsApp lines', false)
+            ->assertSee('Extend validity', false)
+            ->assertSee('Assign plan', false)
+            ->assertSee('Disable', false);
 
         $this->actingAs($this->admin, 'admin')
             ->get(route('admin.customers.show', $this->testTenant))
             ->assertOk()
             ->assertSee($this->testTenant->id);
+    }
+
+    public function test_admin_can_view_customer_activity_logs(): void
+    {
+        $this->actingAs($this->admin, 'admin')
+            ->get(route('admin.customers.activity-logs', $this->testTenant))
+            ->assertOk()
+            ->assertSee('Activity logs');
+    }
+
+    public function test_admin_can_extend_validity_and_credit_wallet_from_listing(): void
+    {
+        $this->actingAs($this->admin, 'admin')
+            ->from(route('admin.customers.index'))
+            ->post(route('admin.customers.extend-validity', $this->testTenant), [
+                'days' => 7,
+                'wallet_amount' => 50,
+            ])
+            ->assertRedirect(route('admin.customers.index'));
+
+        $this->testTenant->refresh();
+        $this->assertNotNull(data_get($this->testTenant->settings, 'valid_until'));
+
+        tenancy()->initialize($this->testTenant);
+        $balance = (float) \App\Models\WalletAccount::query()->value('balance');
+        tenancy()->end();
+
+        $this->assertSame(50.0, $balance);
     }
 
     public function test_admin_can_update_customer_status_and_plan(): void
@@ -169,6 +203,39 @@ class AdminPanelTest extends TestCase
             ->assertRedirect(route('admin.dashboard'));
 
         $this->assertAuthenticatedAs($this->admin, 'admin');
+    }
+
+    public function test_login_as_survives_stale_customer_password_hash_in_session(): void
+    {
+        TenantUserAccess::query()->updateOrCreate(
+            ['email' => strtolower($this->testUser->email)],
+            [
+                'tenant_id' => $this->testTenant->id,
+                'account_type' => TenantUserAccountType::Owner,
+                'is_active' => true,
+                'phone' => $this->testUser->phone,
+            ],
+        );
+
+        // Simulate leftover customer session keys sharing the admin cookie.
+        $this->actingAs($this->admin, 'admin')
+            ->withSession([
+                'auth' => [
+                    'tenant_id' => $this->testTenant->id,
+                    'guard' => 'web',
+                ],
+                'password_hash_web' => 'stale-invalid-hash',
+            ])
+            ->actingAs($this->testUser, 'web')
+            ->post(route('admin.customers.login-as', $this->testTenant))
+            ->assertRedirect(route('dashboard'));
+
+        $this->assertAuthenticatedAs($this->testUser, 'web');
+        $this->assertGuest('admin');
+
+        $this->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('Return to admin');
     }
 
     public function test_login_as_shows_admin_area_only_when_customer_has_admin_view(): void

@@ -135,6 +135,10 @@ class CustomerAdminService
 
     public function extendValidity(Tenant $tenant, int $days): Tenant
     {
+        if ($days < 1) {
+            return $tenant;
+        }
+
         $settings = is_array($tenant->settings) ? $tenant->settings : [];
         $current = isset($settings['valid_until'])
             ? Carbon::parse((string) $settings['valid_until'])
@@ -144,11 +148,80 @@ class CustomerAdminService
             $current = now();
         }
 
-        $settings['valid_until'] = $current->addDays(max(1, $days))->toDateString();
+        $settings['valid_until'] = $current->addDays($days)->toDateString();
         $tenant->settings = $settings;
         $tenant->save();
 
         return $tenant->fresh() ?? $tenant;
+    }
+
+    /**
+     * Credit tenant wallet from admin (initializes tenancy briefly).
+     */
+    public function creditWallet(Tenant $tenant, float $amount, string $description = 'Admin wallet top-up'): void
+    {
+        if ($amount <= 0) {
+            return;
+        }
+
+        $wasInitialized = tenancy()->initialized;
+        $previous = $wasInitialized ? tenant() : null;
+
+        if ($wasInitialized) {
+            tenancy()->end();
+        }
+
+        try {
+            tenancy()->initialize($tenant);
+            app(\App\Domains\Billing\Services\WalletService::class)->adminCredit($amount, $description);
+        } finally {
+            if (tenancy()->initialized) {
+                tenancy()->end();
+            }
+            if ($previous !== null) {
+                tenancy()->initialize($previous);
+            }
+        }
+    }
+
+    /**
+     * @return array{tenant: Tenant, logs: \Illuminate\Contracts\Pagination\LengthAwarePaginator, scopes: array<string, string>, activeScope: string}
+     */
+    public function activityLogs(Tenant $tenant, ?string $scope = null, int $perPage = 25): array
+    {
+        $wasInitialized = tenancy()->initialized;
+        $previous = $wasInitialized ? tenant() : null;
+        $logs = null;
+
+        if ($wasInitialized) {
+            tenancy()->end();
+        }
+
+        try {
+            tenancy()->initialize($tenant);
+            $logs = app(\App\Domains\Account\Services\ActivityLogService::class)->paginate(
+                $scope !== null && $scope !== '' ? $scope : null,
+                $perPage,
+            );
+        } finally {
+            if (tenancy()->initialized) {
+                tenancy()->end();
+            }
+            if ($previous !== null) {
+                tenancy()->initialize($previous);
+            }
+        }
+
+        if ($logs === null) {
+            throw new \RuntimeException('Unable to load activity logs for this customer.');
+        }
+
+        return [
+            'tenant' => $tenant,
+            'logs' => $logs,
+            'scopes' => (array) config('billing.activity_log.scopes', []),
+            'activeScope' => (string) ($scope ?? ''),
+        ];
     }
 
     public function updateInboxSettings(Tenant $tenant, bool $inboxPhoneMaskingEnabled): Tenant

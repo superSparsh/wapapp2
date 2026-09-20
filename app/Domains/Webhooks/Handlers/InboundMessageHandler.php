@@ -44,6 +44,7 @@ class InboundMessageHandler
     {
         $items = $this->parser->parsePayload($event->payload);
         $processed = 0;
+        $skipped = 0;
         $lastError = null;
 
         foreach ($items as $candidate) {
@@ -52,8 +53,12 @@ class InboundMessageHandler
             }
 
             try {
-                $this->processItem($event, $candidate);
-                $processed++;
+                $result = $this->processItem($event, $candidate);
+                if ($result === 'skipped') {
+                    $skipped++;
+                } else {
+                    $processed++;
+                }
             } catch (\Throwable $exception) {
                 $lastError = $exception;
                 Log::warning('Inbound message item failed', [
@@ -63,15 +68,18 @@ class InboundMessageHandler
             }
         }
 
-        if ($processed === 0) {
+        // Unknown business phones are skipped (not errors). Only fail when nothing
+        // was handled at all — empty payload or every item threw.
+        if ($processed === 0 && $skipped === 0) {
             throw $lastError ?? new \RuntimeException('Inbound message payload is empty.');
         }
     }
 
     /**
      * @param  array<string, mixed>  $item
+     * @return 'processed'|'skipped'
      */
-    private function processItem(InboundWebhookEvent $event, array $item): void
+    private function processItem(InboundWebhookEvent $event, array $item): string
     {
         $from = (string) ($item['From'] ?? $item['from'] ?? '');
         $to = (string) ($item['To'] ?? $item['to'] ?? '');
@@ -92,7 +100,16 @@ class InboundMessageHandler
         }
 
         if ($resolved === null) {
-            throw new \RuntimeException('No tenant registry entry found for business phone '.$to);
+            // Not a platform line (wrong route / unregistered / removed). Do not retry —
+            // retrying cannot create a registry entry.
+            Log::info('Skipping inbound message: no tenant registry for business phone', [
+                'event_id' => $event->id,
+                'to' => $to,
+                'from' => $from,
+                'message_id' => $messageId,
+            ]);
+
+            return 'skipped';
         }
 
         $wasInitialized = tenancy()->initialized;
@@ -115,7 +132,7 @@ class InboundMessageHandler
                     'whatsapp_line_id' => $line->id,
                 ])->save();
 
-                return;
+                return 'processed';
             }
 
             $messageType = $this->mapMessageType((string) ($item['Type'] ?? 'TEXT'));
@@ -217,6 +234,8 @@ class InboundMessageHandler
                 'tenant_id' => $resolved['tenant']->id,
                 'whatsapp_line_id' => $line->id,
             ])->save();
+
+            return 'processed';
         } finally {
             if (! $wasInitialized) {
                 tenancy()->end();

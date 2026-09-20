@@ -68,6 +68,7 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::get('/customers', [CustomerController::class, 'index'])->name('customers.index');
         Route::get('/customers/{tenant}', [CustomerController::class, 'show'])->name('customers.show');
         Route::get('/customers/{tenant}/edit', [CustomerController::class, 'edit'])->name('customers.edit');
+        Route::get('/customers/{tenant}/activity-logs', [CustomerController::class, 'activityLogs'])->name('customers.activity-logs');
         Route::put('/customers/{tenant}', [CustomerController::class, 'update'])->name('customers.update');
         Route::post('/customers/{tenant}/toggle-status', [CustomerController::class, 'toggleStatus'])->name('customers.toggle-status');
         Route::post('/customers/{tenant}/assign-plan', [CustomerController::class, 'assignPlan'])->name('customers.assign-plan');

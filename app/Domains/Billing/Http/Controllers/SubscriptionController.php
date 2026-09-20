@@ -156,6 +156,12 @@ class SubscriptionController extends Controller
             ->where('razorpay_order_id', $validated['razorpay_order_id'])
             ->firstOrFail();
 
+        try {
+            $razorpayService->assertPaymentMatchesOrder($order, $validated['razorpay_payment_id']);
+        } catch (\Throwable $e) {
+            return $this->paymentError($e->getMessage());
+        }
+
         if ($order->purpose === RazorpayOrderPurpose::Subscription) {
             $subscriptionService->completeSubscriptionPayment($order, $validated['razorpay_payment_id']);
             $activityLogService->log('billing.subscription.paid', [

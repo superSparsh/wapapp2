@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Admin\Http\Controllers\Auth;
 
+use App\Domains\Auth\Services\TenantResolver;
 use App\Http\Controllers\Controller;
 use App\Models\Admin;
 use Illuminate\Http\RedirectResponse;
@@ -47,6 +48,13 @@ class AdminLoginController extends Controller
         }
 
         $request->session()->regenerate();
+
+        // Admin shares the customer session cookie — drop any prior web/team login
+        // so AuthenticateSession never flushes the session on the next admin action.
+        Auth::guard('web')->logout();
+        Auth::guard('team')->logout();
+        app(TenantResolver::class)->forgetTenantScopedAuthSession();
+
         $admin->forceFill(['last_login_at' => now()])->save();
 
         return redirect()->intended(route('admin.dashboard'));

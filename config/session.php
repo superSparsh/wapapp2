@@ -73,7 +73,9 @@ return [
     |
     */
 
-    'connection' => env('SESSION_CONNECTION'),
+    // Always use the central DB for sessions — tenancy switches the default
+    // connection to `tenant`, which would otherwise write sessions into tenant DBs.
+    'connection' => env('SESSION_CONNECTION', env('DB_CONNECTION', 'mysql')),
 
     /*
     |--------------------------------------------------------------------------

@@ -118,12 +118,46 @@ class CustomerController extends Controller
     public function extendValidity(Request $request, Tenant $tenant): RedirectResponse
     {
         $validated = $request->validate([
-            'days' => ['required', 'integer', 'min:1', 'max:3650'],
+            'days' => ['nullable', 'integer', 'min:0', 'max:3650'],
+            'wallet_amount' => ['nullable', 'numeric', 'min:0'],
         ]);
 
-        $this->customers->extendValidity($tenant, (int) $validated['days']);
+        $days = (int) ($validated['days'] ?? 0);
+        $walletAmount = round((float) ($validated['wallet_amount'] ?? 0), 2);
 
-        return back()->with('status', 'Validity extended by '.$validated['days'].' day(s).');
+        if ($days < 1 && $walletAmount <= 0) {
+            return back()->with('error', 'Enter days to extend and/or a wallet top-up amount.');
+        }
+
+        if ($days >= 1) {
+            $this->customers->extendValidity($tenant, $days);
+        }
+
+        if ($walletAmount > 0) {
+            $this->customers->creditWallet(
+                $tenant,
+                $walletAmount,
+                'Admin wallet top-up for '.$tenant->id,
+            );
+        }
+
+        $parts = [];
+        if ($days >= 1) {
+            $parts[] = 'validity +'.$days.' day(s)';
+        }
+        if ($walletAmount > 0) {
+            $parts[] = 'wallet +₹'.number_format($walletAmount, 2);
+        }
+
+        return back()->with('status', 'Updated: '.implode(', ', $parts).'.');
+    }
+
+    public function activityLogs(Request $request, Tenant $tenant): View
+    {
+        return view(
+            'admin.customers.activity-logs',
+            $this->customers->activityLogs($tenant, $request->query('scope')),
+        );
     }
 
     public function updateSettings(Request $request, Tenant $tenant): RedirectResponse

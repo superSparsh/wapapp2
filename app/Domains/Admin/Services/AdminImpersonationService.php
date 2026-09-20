@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domains\Admin\Services;
 
 use App\Domains\Admin\Support\AdminSession;
+use App\Domains\Auth\Services\TenantResolver;
 use App\Domains\Auth\Support\AuthSession;
 use App\Enums\TenantUserAccountType;
 use App\Enums\UserRole;
@@ -17,6 +18,10 @@ use RuntimeException;
 
 class AdminImpersonationService
 {
+    public function __construct(
+        private readonly TenantResolver $tenantResolver,
+    ) {}
+
     public function loginAsTenant(Admin $admin, Tenant $tenant): void
     {
         $access = TenantUserAccess::query()
@@ -41,13 +46,17 @@ class AdminImpersonationService
         tenancy()->initialize($tenant);
 
         $user = User::query()
-            ->where('email', $access->email)
+            ->whereRaw('LOWER(email) = ?', [strtolower((string) $access->email)])
             ->first()
             ?? User::query()->where('role', UserRole::Owner)->orderBy('id')->first()
             ?? User::query()->orderBy('id')->first();
 
         if ($user === null) {
             throw new RuntimeException('No owner user found inside the customer tenant.');
+        }
+
+        if (! (bool) $user->is_active) {
+            throw new RuntimeException('Customer owner account is inactive.');
         }
 
         session([
@@ -60,12 +69,24 @@ class AdminImpersonationService
         ]);
 
         Auth::guard('admin')->logout();
-        Auth::guard('web')->login($user);
-        session()->put('auth', [
-            'tenant_id' => (string) $tenant->id,
-            'guard' => 'web',
-        ]);
+
+        // Drop any leftover customer auth keys before establishing the new login so
+        // AuthenticateSession cannot reject a stale password_hash_web on the next hop.
+        $this->tenantResolver->forgetTenantScopedAuthSession();
+
+        $guard = Auth::guard('web');
+        $guard->login($user);
+
+        $this->tenantResolver->storeInSession((string) $tenant->id, 'web');
         session([AuthSession::TWO_FACTOR_VERIFIED => true]);
+
+        $passwordHash = $user->getAuthPassword();
+        if (is_string($passwordHash) && $passwordHash !== '') {
+            session()->put(
+                'password_hash_web',
+                $guard->hashPasswordForCookie($passwordHash),
+            );
+        }
     }
 
     public function stop(): void
@@ -78,13 +99,9 @@ class AdminImpersonationService
         Auth::guard('web')->logout();
         Auth::guard('team')->logout();
 
-        session()->forget([
-            'auth',
-            AuthSession::TENANT_ID,
-            AuthSession::GUARD,
-            AuthSession::TWO_FACTOR_VERIFIED,
-            AdminSession::IMPERSONATION,
-        ]);
+        $this->tenantResolver->forgetTenantScopedAuthSession();
+
+        session()->forget(AdminSession::IMPERSONATION);
 
         if (tenancy()->initialized) {
             tenancy()->end();
