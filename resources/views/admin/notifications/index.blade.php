@@ -19,7 +19,14 @@
   <section class="space-y-2 p-4 pt-0">
     @forelse ($notifications as $notification)
       @php
-        $href = $notification->link ?: null;
+        $href = is_string($notification->link) ? $notification->link : null;
+        if (is_string($href) && str_contains($href, '://')) {
+          $parts = parse_url($href);
+          $href = ($parts['path'] ?? '').(! empty($parts['query']) ? '?'.$parts['query'] : '');
+        }
+        if (! is_string($href) || $href === '' || ! str_starts_with($href, '/admin')) {
+          $href = null;
+        }
         $typeLabel = $notification->type?->label() ?? 'Update';
       @endphp
       <article class="rounded-xl border border-border bg-elevated p-4">
@@ -36,9 +43,9 @@
           </div>
           <div class="flex items-center gap-2">
             @if ($href)
-              <a href="{{ route('admin.notifications.read', $notification) }}?redirect={{ urlencode(parse_url($href, PHP_URL_PATH) ?: '/') }}" class="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white">Open</a>
+              <a href="{{ route('admin.notifications.read', $notification->id) }}?redirect={{ urlencode($href) }}" class="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white">Open</a>
             @else
-              <form method="POST" action="{{ route('admin.notifications.read', $notification) }}">
+              <form method="POST" action="{{ route('admin.notifications.read', $notification->id) }}">
                 @csrf
                 <button class="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold hover:bg-surface">Mark read</button>
               </form>

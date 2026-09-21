@@ -33,6 +33,7 @@ use App\Domains\Admin\Http\Controllers\PlanController;
 use App\Domains\Admin\Http\Controllers\PlatformErrorLogController;
 use App\Domains\Admin\Http\Controllers\PlatformTemplateController;
 use App\Domains\Admin\Http\Controllers\PluginController;
+use App\Domains\Admin\Http\Controllers\ServerOpsController;
 use App\Domains\Admin\Http\Controllers\QueueController;
 use App\Domains\Admin\Http\Controllers\RazorpaySubscriptionAdminController;
 use App\Domains\Admin\Http\Controllers\RechargeSubscriptionRequestController;
@@ -64,7 +65,9 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
 
         Route::get('/notifications', [AdminNotificationController::class, 'index'])->name('notifications.index');
         Route::post('/notifications/mark-all-read', [AdminNotificationController::class, 'markAllRead'])->name('notifications.mark-all-read');
-        Route::match(['get', 'post'], '/notifications/{notification}/read', [AdminNotificationController::class, 'markRead'])->name('notifications.read');
+        Route::match(['get', 'post'], '/notifications/{notification}/read', [AdminNotificationController::class, 'markRead'])
+            ->whereNumber('notification')
+            ->name('notifications.read');
 
         Route::get('/account/profile', [AccountController::class, 'profile'])->name('account.profile');
         Route::put('/account/profile', [AccountController::class, 'update'])->name('account.update');
@@ -180,13 +183,15 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::post('/plans/{plan}/toggle-status', [PlanController::class, 'toggleStatus'])->name('plans.toggle-status');
 
         Route::get('/queues', [QueueController::class, 'index'])->name('queues.index');
-        Route::post('/queues/ops', [QueueController::class, 'runOps'])->name('queues.ops');
         Route::post('/queues/failed/retry-all', [QueueController::class, 'retryAll'])->name('queues.retry-all');
         Route::post('/queues/failed/flush', [QueueController::class, 'flush'])->name('queues.flush');
         Route::post('/queues/failed/flush-module', [QueueController::class, 'flushModule'])->name('queues.flush-module');
         Route::post('/queues/failed/clear-older', [QueueController::class, 'clearOlder'])->name('queues.clear-older');
         Route::post('/queues/failed/{uuid}/retry', [QueueController::class, 'retry'])->name('queues.retry');
         Route::post('/queues/failed/{uuid}/forget', [QueueController::class, 'forget'])->name('queues.forget');
+
+        Route::get('/server-ops', [ServerOpsController::class, 'index'])->name('server-ops.index');
+        Route::post('/server-ops/run', [ServerOpsController::class, 'run'])->name('server-ops.run');
 
         Route::get('/errors', [PlatformErrorLogController::class, 'index'])->name('errors.index');
         Route::get('/errors/{module}', [PlatformErrorLogController::class, 'show'])->name('errors.show');

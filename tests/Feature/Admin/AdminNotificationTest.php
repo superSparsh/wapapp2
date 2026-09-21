@@ -57,6 +57,29 @@ class AdminNotificationTest extends TestCase
             ->assertSee('Test alert');
     }
 
+    public function test_admin_can_view_notifications_index(): void
+    {
+        app(AdminNotificationService::class)->notify(
+            AdminNotificationType::System,
+            'Inbox alert',
+            'Visible on index.',
+            '/admin/queues',
+        );
+
+        $this->actingAs($this->admin, 'admin')
+            ->get(route('admin.notifications.index'))
+            ->assertOk()
+            ->assertSee('Notifications')
+            ->assertSee('Inbox alert');
+    }
+
+    public function test_missing_notification_read_redirects_to_index(): void
+    {
+        $this->actingAs($this->admin, 'admin')
+            ->get(route('admin.notifications.read', 999999).'?redirect=/admin/queues')
+            ->assertRedirect(route('admin.notifications.index'));
+    }
+
     public function test_mark_all_read_clears_unread(): void
     {
         $service = app(AdminNotificationService::class);
@@ -105,7 +128,7 @@ class AdminNotificationTest extends TestCase
         );
 
         $this->actingAs($this->admin, 'admin')
-            ->get(route('admin.notifications.read', $n).'?redirect=/admin/queues')
+            ->get(route('admin.notifications.read', $n->id).'?redirect=/admin/queues')
             ->assertRedirect('/admin/queues');
 
         $this->assertDatabaseHas('admin_notification_reads', [

@@ -73,7 +73,18 @@
             @endif
           </td>
           <td class="fd-table-cell p-2 align-middle">
-            <span class="rounded-full bg-surface px-2 py-1 text-xs font-medium">{{ $customer->status?->value }}</span>
+            @php
+              $statusValue = $customer->status?->value ?? '';
+              $statusTone = match ($statusValue) {
+                'active' => 'bg-green-50 text-green-700 ring-green-200',
+                'suspended' => 'bg-red-50 text-red-700 ring-red-200',
+                'pending' => 'bg-amber-50 text-amber-800 ring-amber-200',
+                default => 'bg-surface text-text-subtle ring-border',
+              };
+            @endphp
+            <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset {{ $statusTone }}">
+              {{ $statusValue !== '' ? ucfirst($statusValue) : '—' }}
+            </span>
           </td>
           <td class="fd-table-cell p-2 align-middle text-sm text-text-subtle">{{ format_ist($customer->created_at, 'd M Y') }}</td>
           <td class="w-[180px] p-2 align-middle">

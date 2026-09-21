@@ -342,9 +342,69 @@ class FlowNodeDataMapper
      */
     private function syncDateTimeCondition(array $data): array
     {
-        $timezone = (string) ($data['timezone'] ?? config('app.timezone', 'Asia/Kolkata'));
+        $timezone = trim((string) ($data['timezone'] ?? config('app.timezone', 'Asia/Kolkata')));
+        if ($timezone === '') {
+            $timezone = (string) config('app.timezone', 'Asia/Kolkata');
+        }
         $data['timezone'] = $timezone;
-        $data['mode'] = (string) ($data['mode'] ?? $data['conditionType'] ?? $data['condition_type'] ?? 'business_hours');
+
+        $mode = (string) ($data['mode'] ?? $data['conditionType'] ?? $data['condition_type'] ?? 'business_hours');
+        $data['mode'] = $mode;
+        $data['conditionType'] = $mode;
+        $data['condition_type'] = $mode;
+
+        foreach (['start_time', 'end_time', 'startTime', 'endTime'] as $timeKey) {
+            if (! array_key_exists($timeKey, $data)) {
+                continue;
+            }
+
+            if (is_object($data[$timeKey]) && method_exists($data[$timeKey], 'format')) {
+                try {
+                    $data[$timeKey] = (string) $data[$timeKey]->format('H:i');
+                } catch (\Throwable) {
+                    $data[$timeKey] = '';
+                }
+            } elseif (is_scalar($data[$timeKey])) {
+                $data[$timeKey] = trim((string) $data[$timeKey]);
+            } else {
+                $data[$timeKey] = '';
+            }
+
+            if (is_string($data[$timeKey]) && preg_match('/^(\d{1,2}):(\d{2})/', $data[$timeKey], $m)) {
+                $data[$timeKey] = sprintf('%02d:%02d', (int) $m[1], (int) $m[2]);
+            }
+        }
+
+        if (isset($data['start_time']) || isset($data['startTime'])) {
+            $start = (string) ($data['start_time'] ?? $data['startTime'] ?? '09:00');
+            $data['start_time'] = $start;
+            $data['startTime'] = $start;
+        }
+
+        if (isset($data['end_time']) || isset($data['endTime'])) {
+            $end = (string) ($data['end_time'] ?? $data['endTime'] ?? '18:00');
+            $data['end_time'] = $end;
+            $data['endTime'] = $end;
+        }
+
+        $days = $data['enabled_days'] ?? $data['enabledDays'] ?? $data['selected_days'] ?? $data['selectedDays'] ?? null;
+        if (is_array($days)) {
+            $days = array_values(array_filter(array_map(
+                static fn ($d) => strtolower(trim((string) $d)),
+                $days,
+            ), static fn ($d) => $d !== ''));
+            $data['enabled_days'] = $days;
+            $data['enabledDays'] = $days;
+            $data['selected_days'] = $days;
+            $data['selectedDays'] = $days;
+        }
+
+        if (isset($data['holidays']) && is_array($data['holidays'])) {
+            $data['holidays'] = array_values(array_filter(array_map(
+                static fn ($h) => trim((string) $h),
+                $data['holidays'],
+            ), static fn ($h) => $h !== ''));
+        }
 
         return $data;
     }

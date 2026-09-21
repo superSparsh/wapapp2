@@ -108,6 +108,18 @@ class OfflineHoursEvaluatorTest extends TestCase
         ]));
     }
 
+    public function test_closing_minute_is_still_within_hours(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-09-21 21:00:00', 'Asia/Kolkata'));
+
+        $this->assertTrue(OfflineHoursEvaluator::isWithinBusinessHours([
+            'enableOfflineHours' => true,
+            'timezone' => 'Asia/Kolkata',
+            'onlineFrom' => '09:00',
+            'onlineUntil' => '21:00',
+        ]));
+    }
+
     /**
      * @return array<string, array{0: string, 1: bool}>
      */

@@ -1157,43 +1157,42 @@ const DateTimeConditionNode = ({ data = {}, selected, id }) => {
         )}
       </div>
 
-      {/* Two Branch Handles: Left = Open (Green), Right = Closed (Red) */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8, paddingTop: 6, borderTop: "1px dashed #e2e8f0", fontSize: 11, fontWeight: 600 }}>
-        <div style={{ color: "#16a34a", position: "relative" }}>
+        <div style={{ color: "#16a34a" }}>
           <span>Open (YES)</span>
-          <Handle
-            type="source"
-            position={Position.Bottom}
-            id="open"
-            style={{
-              left: "25%",
-              bottom: "-18px",
-              background: "#22c55e",
-              width: 12,
-              height: 12,
-              border: "2px solid white",
-              cursor: "crosshair",
-            }}
-          />
         </div>
-        <div style={{ color: "#dc2626", position: "relative" }}>
+        <div style={{ color: "#dc2626" }}>
           <span>Closed (NO)</span>
-          <Handle
-            type="source"
-            position={Position.Bottom}
-            id="closed"
-            style={{
-              left: "75%",
-              bottom: "-18px",
-              background: "#ef4444",
-              width: 12,
-              height: 12,
-              border: "2px solid white",
-              cursor: "crosshair",
-            }}
-          />
         </div>
       </div>
+
+      {/* Handles must be direct children of the node root so sourceHandle is preserved */}
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        id="open"
+        style={{
+          left: "25%",
+          background: "#22c55e",
+          width: 12,
+          height: 12,
+          border: "2px solid white",
+          cursor: "crosshair",
+        }}
+      />
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        id="closed"
+        style={{
+          left: "75%",
+          background: "#ef4444",
+          width: 12,
+          height: 12,
+          border: "2px solid white",
+          cursor: "crosshair",
+        }}
+      />
     </div>
   );
 };

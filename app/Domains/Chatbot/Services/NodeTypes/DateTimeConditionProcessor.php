@@ -27,20 +27,7 @@ class DateTimeConditionProcessor extends AbstractNodeProcessor
         $variables['_is_open'] = $isOpen;
         $variables['_evaluated_at'] = now()->toIso8601String();
 
-        $nextId = $isOpen
-            ? ($this->nextNodeIdFromHandle($node, 'open')
-                ?? $this->nextNodeIdFromHandle($node, 'output_open')
-                ?? $this->nextNodeIdFromHandle($node, 'output_yes')
-                ?? $this->nextNodeIdFromHandle($node, 'output_true')
-                ?? $this->nextNodeIdFromHandle($node, 'yes')
-                ?? $this->defaultNextNodeId($node))
-            : ($this->nextNodeIdFromHandle($node, 'closed')
-                ?? $this->nextNodeIdFromHandle($node, 'output_closed')
-                ?? $this->nextNodeIdFromHandle($node, 'output_no')
-                ?? $this->nextNodeIdFromHandle($node, 'output_false')
-                ?? $this->nextNodeIdFromHandle($node, 'no')
-                ?? $this->nextNodeIdFromHandle($node, 'output_2')
-                ?? $this->defaultNextNodeId($node));
+        $nextId = $this->resolveBranchNextId($node, $isOpen);
 
         if ($nextId !== null) {
             $state->forceFill([
@@ -53,6 +40,84 @@ class DateTimeConditionProcessor extends AbstractNodeProcessor
         }
 
         return $nextId !== null ? NodeProcessResult::Continue : NodeProcessResult::Completed;
+    }
+
+    /**
+     * Prefer named open/closed handles; fall back to positional edges when
+     * React Flow saved unlabeled sourceHandles (both landed on output_1).
+     *
+     * @param  array<string, mixed>  $node
+     */
+    private function resolveBranchNextId(array $node, bool $isOpen): ?string
+    {
+        $preferred = $isOpen
+            ? ['open', 'output_open', 'yes', 'output_yes', 'true', 'output_true']
+            : ['closed', 'output_closed', 'no', 'output_no', 'false', 'output_false'];
+
+        foreach ($preferred as $handle) {
+            $next = $this->nextNodeIdFromHandle($node, $handle);
+            if ($next !== null) {
+                return $next;
+            }
+        }
+
+        $targets = $this->orderedConnectionTargets($node);
+
+        if ($targets === []) {
+            return $this->defaultNextNodeId($node);
+        }
+
+        if (count($targets) === 1) {
+            // Single wire: only follow it on the open/YES path.
+            return $isOpen ? $targets[0] : null;
+        }
+
+        return $isOpen ? $targets[0] : $targets[1];
+    }
+
+    /**
+     * @param  array<string, mixed>  $node
+     * @return list<string>
+     */
+    private function orderedConnectionTargets(array $node): array
+    {
+        $outputs = is_array($node['outputs'] ?? null) ? $node['outputs'] : [];
+        $preferredKeys = ['open', 'output_open', 'yes', 'output_yes', 'output_1', 'default', 'closed', 'output_closed', 'no', 'output_no', 'output_2', ''];
+        $targets = [];
+        $seen = [];
+
+        $append = function (array $connections) use (&$targets, &$seen): void {
+            foreach ($connections as $connection) {
+                if (! is_array($connection)) {
+                    continue;
+                }
+                $id = (string) ($connection['node'] ?? '');
+                if ($id === '' || isset($seen[$id])) {
+                    continue;
+                }
+                $seen[$id] = true;
+                $targets[] = $id;
+            }
+        };
+
+        foreach ($preferredKeys as $key) {
+            if (! isset($outputs[$key]) || ! is_array($outputs[$key])) {
+                continue;
+            }
+            $append((array) ($outputs[$key]['connections'] ?? []));
+        }
+
+        foreach ($outputs as $key => $output) {
+            if (in_array((string) $key, $preferredKeys, true)) {
+                continue;
+            }
+            if (! is_array($output)) {
+                continue;
+            }
+            $append((array) ($output['connections'] ?? []));
+        }
+
+        return $targets;
     }
 
     /**
@@ -114,7 +179,7 @@ class DateTimeConditionProcessor extends AbstractNodeProcessor
         }
 
         // Global weekly schedule check
-        $enabledDays = (array) ($data['enabled_days'] ?? $data['enabledDays'] ?? [
+        $enabledDays = (array) ($data['enabled_days'] ?? $data['enabledDays'] ?? $data['selected_days'] ?? $data['selectedDays'] ?? [
             'monday', 'tuesday', 'wednesday', 'thursday', 'friday',
         ]);
 
@@ -146,7 +211,7 @@ class DateTimeConditionProcessor extends AbstractNodeProcessor
      */
     private function evaluateDaysOfWeek(Carbon $now, array $data): bool
     {
-        $days = (array) ($data['selected_days'] ?? $data['selectedDays'] ?? $data['enabled_days'] ?? []);
+        $days = (array) ($data['selected_days'] ?? $data['selectedDays'] ?? $data['enabled_days'] ?? $data['enabledDays'] ?? []);
         $daysLower = array_map(fn ($d) => strtolower(trim((string) $d)), $days);
 
         $currentDayName = strtolower($now->format('l'));
@@ -176,20 +241,52 @@ class DateTimeConditionProcessor extends AbstractNodeProcessor
 
     private function isWithinTime(Carbon $now, string $startTime, string $endTime): bool
     {
-        $currentMinutes = $now->hour * 60 + $now->minute;
+        $startMinutes = $this->parseHourMinute($startTime);
+        $endMinutes = $this->parseHourMinute($endTime);
 
-        $startParts = explode(':', $startTime);
-        $startMinutes = ((int) ($startParts[0] ?? 0)) * 60 + ((int) ($startParts[1] ?? 0));
+        if ($startMinutes === null || $endMinutes === null) {
+            return true;
+        }
 
-        $endParts = explode(':', $endTime);
-        $endMinutes = ((int) ($endParts[0] ?? 23)) * 60 + ((int) ($endParts[1] ?? 59));
+        $currentMinutes = ((int) $now->format('H') * 60) + (int) $now->format('i');
 
-        if ($startMinutes <= $endMinutes) {
-            // Same-day range (e.g. 09:00 to 18:00)
+        if ($startMinutes === $endMinutes) {
+            return true;
+        }
+
+        if ($startMinutes < $endMinutes) {
+            // Same-day range (e.g. 09:00 to 18:00) — inclusive of closing minute.
             return $currentMinutes >= $startMinutes && $currentMinutes <= $endMinutes;
         }
 
         // Overnight range (e.g. 22:00 to 06:00)
         return $currentMinutes >= $startMinutes || $currentMinutes <= $endMinutes;
+    }
+
+    private function parseHourMinute(string $value): ?int
+    {
+        $value = trim($value);
+        if ($value === '') {
+            return null;
+        }
+
+        if (preg_match('/^(\d{1,2}):(\d{2})(?::\d{2})?$/', $value, $m)) {
+            $hour = (int) $m[1];
+            $minute = (int) $m[2];
+
+            if ($hour > 23 || $minute > 59) {
+                return null;
+            }
+
+            return ($hour * 60) + $minute;
+        }
+
+        try {
+            $parsed = Carbon::parse($value, 'UTC');
+
+            return ((int) $parsed->format('H') * 60) + (int) $parsed->format('i');
+        } catch (Throwable) {
+            return null;
+        }
     }
 }

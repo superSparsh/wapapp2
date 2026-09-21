@@ -177,6 +177,68 @@ class ChatbotBusinessHoursAndJumpTest extends TestCase
         $this->assertFalse($state->variables['_is_business_hours']);
     }
 
+    public function test_business_hours_branches_when_source_handles_are_missing(): void
+    {
+        // React Flow sometimes saves null/empty sourceHandle — both edges must still branch.
+        Carbon::setTestNow(Carbon::parse('2026-08-19 21:00:00', 'Asia/Kolkata'));
+
+        ChatbotFlow::factory()->active()->create([
+            'exported_data' => [
+                'nodes' => [
+                    [
+                        'id' => 'welcome_1',
+                        'type' => 'welcomeMessage',
+                        'data' => [
+                            'messageType' => 'text',
+                            'triggerKeyword' => 'support',
+                            'text' => 'Checking office status...',
+                        ],
+                    ],
+                    [
+                        'id' => 'bh_node',
+                        'type' => 'dateTimeCondition',
+                        'data' => [
+                            'mode' => 'business_hours',
+                            'timezone' => 'Asia/Kolkata',
+                            'start_time' => '09:00',
+                            'end_time' => '18:00',
+                            'enabled_days' => ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
+                        ],
+                    ],
+                    [
+                        'id' => 'open_msg',
+                        'type' => 'welcomeMessage',
+                        'data' => ['messageType' => 'text', 'text' => 'Our agents are available!'],
+                    ],
+                    [
+                        'id' => 'closed_msg',
+                        'type' => 'welcomeMessage',
+                        'data' => ['messageType' => 'text', 'text' => 'We are currently closed.'],
+                    ],
+                ],
+                'edges' => [
+                    ['source' => 'welcome_1', 'target' => 'bh_node', 'sourceHandle' => 'output_1'],
+                    ['source' => 'bh_node', 'target' => 'open_msg', 'sourceHandle' => null],
+                    ['source' => 'bh_node', 'target' => 'closed_msg', 'sourceHandle' => ''],
+                ],
+            ],
+        ]);
+
+        $conversation = Conversation::factory()->create();
+        $engine = app(ChatbotFlowEngine::class);
+
+        $engine->processInbound($conversation, Message::factory()->create([
+            'conversation_id' => $conversation->id,
+            'body' => 'support',
+            'direction' => MessageDirection::Inbound,
+        ]));
+
+        $state = ChatbotFlowState::forConversation($conversation->id)->first();
+        $this->assertNotNull($state);
+        $this->assertSame('closed_msg', $state->current_node_id);
+        $this->assertFalse($state->variables['_is_business_hours']);
+    }
+
     public function test_business_hours_branches_to_closed_on_holiday(): void
     {
         // Holiday date (e.g. 2026-12-25) at 12:00 PM

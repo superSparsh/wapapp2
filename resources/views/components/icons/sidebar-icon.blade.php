@@ -10,14 +10,13 @@
         'star' => 'star',
         'shopping-cart' => 'shopping-cart',
         'circle-square' => 'box',
+        'bell' => 'bell',
     ];
 
     $base = $iconMap[$name] ?? null;
     $src = null;
 
-    if ($name === 'bell') {
-        $src = asset('images/icons/header/bell-base.svg');
-    } elseif ($base === 'shopping-cart') {
+    if ($base === 'shopping-cart') {
         $src = asset('images/icons/sidebar/menu/shopping-cart.svg');
     } elseif ($base) {
         $src = asset('images/icons/sidebar/menu/'.$base.($active ? '-active' : '-inactive').'.svg');

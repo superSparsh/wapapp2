@@ -101,6 +101,28 @@ class FlowDataNormalizerTest extends TestCase
         $this->assertArrayHasKey('outputs', $result['n1']);
     }
 
+    public function test_null_source_handles_become_ordered_outputs(): void
+    {
+        $flow = ChatbotFlow::factory()->create([
+            'exported_data' => [
+                'nodes' => [
+                    ['id' => 'bh', 'type' => 'dateTimeCondition', 'data' => []],
+                    ['id' => 'open', 'type' => 'welcomeMessage', 'data' => []],
+                    ['id' => 'closed', 'type' => 'welcomeMessage', 'data' => []],
+                ],
+                'edges' => [
+                    ['source' => 'bh', 'target' => 'open', 'sourceHandle' => null],
+                    ['source' => 'bh', 'target' => 'closed', 'sourceHandle' => ''],
+                ],
+            ],
+        ]);
+
+        $result = $this->normalizer->normalize($flow);
+
+        $this->assertSame('open', $result['bh']['outputs']['output_1']['connections'][0]['node']);
+        $this->assertSame('closed', $result['bh']['outputs']['output_2']['connections'][0]['node']);
+    }
+
     public function test_normalize_does_not_return_stale_cache_after_trigger_change(): void
     {
         $flow = ChatbotFlow::factory()->create([

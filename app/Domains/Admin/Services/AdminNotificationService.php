@@ -41,12 +41,29 @@ class AdminNotificationService
                 'type' => $typeEnum,
                 'title' => Str::limit(trim($title), 180, '…'),
                 'body' => $body !== null ? Str::limit(trim($body), 1000, '…') : null,
-                'link' => $link !== null ? Str::limit($link, 500, '') : null,
+                'link' => $link !== null ? Str::limit($this->normalizeAdminLink($link), 500, '') : null,
                 'data' => $data !== [] ? $data : null,
             ]);
         } catch (Throwable) {
             return null;
         }
+    }
+
+    private function normalizeAdminLink(string $link): string
+    {
+        $link = trim($link);
+        if ($link === '') {
+            return '';
+        }
+
+        if (str_contains($link, '://')) {
+            $parts = parse_url($link);
+            $path = is_array($parts) ? (string) ($parts['path'] ?? '') : '';
+            $query = is_array($parts) && ! empty($parts['query']) ? '?'.$parts['query'] : '';
+            $link = $path.$query;
+        }
+
+        return str_starts_with($link, '/admin') ? $link : '';
     }
 
     /**

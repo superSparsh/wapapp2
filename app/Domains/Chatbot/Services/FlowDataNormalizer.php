@@ -168,9 +168,21 @@ class FlowDataNormalizer
     {
         $edges = $edgeIndex[$nodeId] ?? [];
         $outputs = [];
+        $anonymousIndex = 1;
 
         foreach ($edges as $edge) {
-            $handle = (string) ($edge['sourceHandle'] ?? 'output_1');
+            $rawHandle = $edge['sourceHandle'] ?? null;
+            $handle = is_string($rawHandle) ? trim($rawHandle) : '';
+
+            // React Flow often stores null/"" when the connection was not made
+            // from a named handle — assign output_1, output_2, … in edge order.
+            if ($handle === '' || strtolower($handle) === 'null') {
+                while (isset($outputs['output_'.$anonymousIndex])) {
+                    $anonymousIndex++;
+                }
+                $handle = 'output_'.$anonymousIndex;
+                $anonymousIndex++;
+            }
 
             if (! isset($outputs[$handle])) {
                 $outputs[$handle] = ['connections' => []];

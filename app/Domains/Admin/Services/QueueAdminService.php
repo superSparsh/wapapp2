@@ -18,7 +18,7 @@ class QueueAdminService
 {
     public function __construct(
         private readonly ErrorModuleResolver $resolver,
-        private readonly ServerOpsService $ops,
+        private readonly ServerOpsService $ops, // horizon/redis probes only
     ) {}
 
     private function dbConnection(): string
@@ -76,7 +76,6 @@ class QueueAdminService
             'queue_names' => $this->distinctQueueNames(),
             'horizon' => $probes['horizon'],
             'redis_probe' => $probes['redis'],
-            'ops_groups' => $this->ops->catalogByGroup(),
             'sortOptions' => [
                 ['value' => 'id', 'label' => 'Newest first', 'direction' => 'desc'],
                 ['value' => 'id', 'label' => 'Oldest first', 'direction' => 'asc'],

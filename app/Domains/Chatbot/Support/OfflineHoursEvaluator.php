@@ -78,11 +78,12 @@ final class OfflineHoursEvaluator
         }
 
         if ($fromMinutes < $untilMinutes) {
-            return $nowMinutes >= $fromMinutes && $nowMinutes < $untilMinutes;
+            // Inclusive closing minute — "until 21:00" stays open at 21:00.
+            return $nowMinutes >= $fromMinutes && $nowMinutes <= $untilMinutes;
         }
 
         // Overnight window (e.g. 22:00–06:00)
-        return $nowMinutes >= $fromMinutes || $nowMinutes < $untilMinutes;
+        return $nowMinutes >= $fromMinutes || $nowMinutes <= $untilMinutes;
     }
 
     /**

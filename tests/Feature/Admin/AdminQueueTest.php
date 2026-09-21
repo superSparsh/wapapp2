@@ -47,12 +47,10 @@ class AdminQueueTest extends TestCase
             ->get(route('admin.queues.index'))
             ->assertOk()
             ->assertSee('Queues')
-            ->assertSee('Server ops')
+            ->assertSee('Server Ops')
             ->assertSee('Failed jobs')
-            ->assertSee('Restart queue workers')
-            ->assertSee('Terminate Horizon')
-            ->assertSee('Supervisor status')
-            ->assertSee('Reload Apache');
+            ->assertDontSee('Restart queue workers')
+            ->assertDontSee('Reload Apache');
     }
 
     public function test_guest_cannot_view_queues(): void
@@ -87,6 +85,21 @@ class AdminQueueTest extends TestCase
         $this->assertDatabaseMissing('failed_jobs', ['uuid' => $uuid], $central);
     }
 
+    public function test_admin_can_view_server_ops_page(): void
+    {
+        Artisan::shouldReceive('call')->andReturn(0);
+        Artisan::shouldReceive('output')->andReturn('Horizon is running.');
+
+        $this->actingAs($this->admin, 'admin')
+            ->get(route('admin.server-ops.index'))
+            ->assertOk()
+            ->assertSee('Server ops')
+            ->assertSee('Restart queue workers')
+            ->assertSee('Terminate Horizon')
+            ->assertSee('Supervisor status')
+            ->assertSee('Reload Apache');
+    }
+
     public function test_admin_can_run_allowlisted_ops_command(): void
     {
         Artisan::shouldReceive('call')
@@ -97,7 +110,7 @@ class AdminQueueTest extends TestCase
             ->andReturn('Broadcasting queue restart signal.');
 
         $this->actingAs($this->admin, 'admin')
-            ->post(route('admin.queues.ops'), ['command' => 'queue_restart'])
+            ->post(route('admin.server-ops.run'), ['command' => 'queue_restart'])
             ->assertRedirect()
             ->assertSessionHas('status')
             ->assertSessionHas('ops_output');
@@ -106,7 +119,7 @@ class AdminQueueTest extends TestCase
     public function test_unknown_ops_command_is_rejected(): void
     {
         $this->actingAs($this->admin, 'admin')
-            ->post(route('admin.queues.ops'), ['command' => 'rm_rf_root'])
+            ->post(route('admin.server-ops.run'), ['command' => 'rm_rf_root'])
             ->assertRedirect()
             ->assertSessionHas('error');
     }

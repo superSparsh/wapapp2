@@ -35,6 +35,7 @@
       </div>
     </div>
     <div class="flex flex-wrap gap-2">
+      <a href="{{ route('admin.server-ops.index') }}" class="rounded-lg bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700">Server Ops</a>
       <form method="POST" action="{{ route('admin.queues.retry-all') }}">@csrf
         <button class="rounded-lg border border-border px-3 py-2 text-xs font-semibold hover:bg-surface">Retry all failed</button>
       </form>
@@ -58,60 +59,6 @@
       </form>
     </div>
   </div>
-
-  @if (session('ops_output'))
-    <div class="mx-4 mb-4 rounded-xl border border-border bg-elevated p-4">
-      <p class="text-xs font-semibold uppercase tracking-wide text-text-subtle">Last ops output @if (session('ops_command')) ({{ session('ops_command') }}) @endif</p>
-      <pre class="mt-2 max-h-64 overflow-auto whitespace-pre-wrap break-words text-xs leading-relaxed text-text-primary">{{ session('ops_output') }}</pre>
-    </div>
-  @endif
-
-  <section class="space-y-4 p-4 pt-0">
-    <div>
-      <h2 class="text-lg font-bold text-text-primary">Server ops</h2>
-      <p class="text-sm text-text-subtle">
-        Allowlisted commands only (queue, Horizon, Laravel cache, Redis, Supervisor, Apache).
-        Shell actions need passwordless sudo for the PHP user — see <code class="text-xs">config/admin_ops.php</code>.
-      </p>
-    </div>
-
-    <div class="grid gap-4 xl:grid-cols-2">
-      @foreach ($ops_groups as $group => $commands)
-        <div class="rounded-xl border border-border bg-elevated p-4">
-          <h3 class="text-sm font-bold text-text-primary">{{ $group }}</h3>
-          <ul class="mt-3 divide-y divide-border">
-            @foreach ($commands as $cmd)
-              <li class="flex flex-wrap items-start justify-between gap-3 py-3 first:pt-0 last:pb-0">
-                <div class="min-w-0 flex-1">
-                  <p class="text-sm font-semibold text-text-primary">{{ $cmd['label'] }}</p>
-                  <p class="mt-0.5 text-xs text-text-subtle">{{ $cmd['description'] }}</p>
-                </div>
-                <form method="POST" action="{{ route('admin.queues.ops') }}"
-                  @if ($cmd['danger'])
-                    data-confirm="Run “{{ $cmd['label'] }}”? This can affect live traffic."
-                    data-confirm-variant="danger"
-                  @else
-                    data-confirm="Run “{{ $cmd['label'] }}”?"
-                  @endif
-                >
-                  @csrf
-                  <input type="hidden" name="command" value="{{ $cmd['key'] }}">
-                  <button
-                    type="submit"
-                    @class([
-                      'rounded-lg px-3 py-1.5 text-xs font-semibold',
-                      'border border-amber-200 bg-amber-50 text-amber-900 hover:bg-amber-100' => $cmd['danger'],
-                      'border border-border bg-surface text-text-primary hover:bg-white' => ! $cmd['danger'],
-                    ])
-                  >Run</button>
-                </form>
-              </li>
-            @endforeach
-          </ul>
-        </div>
-      @endforeach
-    </div>
-  </section>
 
   <div class="flex flex-wrap items-center gap-2 px-4 pb-3">
     <a

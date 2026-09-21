@@ -10,12 +10,6 @@ return [
         'matches' => [],
     ],
     [
-        'label' => 'Notifications',
-        'route' => 'admin.notifications.index',
-        'icon' => 'bell',
-        'matches' => ['admin.notifications.*'],
-    ],
-    [
         'label' => 'Customer',
         'route' => 'admin.customers.index',
         'icon' => 'users',
@@ -73,7 +67,7 @@ return [
             ['label' => 'Form templates', 'route' => 'admin.form-templates.index', 'matches' => ['admin.form-templates.create', 'admin.form-templates.edit']],
             ['label' => 'Page layouts', 'route' => 'admin.page-layouts.index', 'matches' => ['admin.page-layouts.create', 'admin.page-layouts.edit']],
             ['label' => 'Languages', 'route' => 'admin.languages.index', 'matches' => ['admin.languages.create', 'admin.languages.edit']],
-            ['label' => 'Queues', 'route' => 'admin.queues.index', 'matches' => ['admin.queues.*']],
+            ['label' => 'Queues', 'route' => 'admin.queues.index', 'matches' => ['admin.queues.*', 'admin.server-ops.*']],
             ['label' => 'Errors', 'route' => 'admin.errors.index', 'matches' => ['admin.errors.*']],
         ],
     ],
@@ -100,5 +94,11 @@ return [
         'route' => 'admin.plugins.index',
         'icon' => 'box',
         'matches' => [],
+    ],
+    [
+        'label' => 'Notifications',
+        'route' => 'admin.notifications.index',
+        'icon' => 'bell',
+        'matches' => ['admin.notifications.*'],
     ],
 ];

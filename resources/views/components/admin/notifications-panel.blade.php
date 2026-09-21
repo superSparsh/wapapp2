@@ -27,10 +27,17 @@
     @forelse ($adminNotifications ?? [] as $notification)
       @php
         $typeLabel = $notification->type?->label() ?? 'Update';
-        $href = $notification->link ?: route('admin.notifications.index');
+        $linkPath = is_string($notification->link) ? $notification->link : '';
+        if ($linkPath !== '' && str_contains($linkPath, '://')) {
+          $parts = parse_url($linkPath);
+          $linkPath = ($parts['path'] ?? '').(! empty($parts['query']) ? '?'.$parts['query'] : '');
+        }
+        if ($linkPath === '' || ! str_starts_with($linkPath, '/admin')) {
+          $linkPath = route('admin.notifications.index', absolute: false);
+        }
       @endphp
       <a
-        href="{{ route('admin.notifications.read', $notification) }}?redirect={{ urlencode(parse_url($href, PHP_URL_PATH) ?: $href) }}"
+        href="{{ route('admin.notifications.read', $notification->id) }}?redirect={{ urlencode($linkPath) }}"
         class="block border-b border-border px-4 py-3 transition last:border-b-0 hover:bg-surface"
       >
         <div class="flex items-start justify-between gap-2">

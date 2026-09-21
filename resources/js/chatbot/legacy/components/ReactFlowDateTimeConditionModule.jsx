@@ -77,13 +77,16 @@ const ReactFlowDateTimeConditionModule = ({
         nodeData.mode || nodeData.conditionType || "business_hours";
       setMode(initialMode);
       setEnabledDays(
-        nodeData.enabled_days || [
-          "monday",
-          "tuesday",
-          "wednesday",
-          "thursday",
-          "friday",
-        ]
+        nodeData.enabled_days ||
+          nodeData.selected_days ||
+          nodeData.enabledDays ||
+          nodeData.selectedDays || [
+            "monday",
+            "tuesday",
+            "wednesday",
+            "thursday",
+            "friday",
+          ]
       );
       form.setFieldsValue({
         label: nodeData.label || "Business Hours & Schedule",
@@ -142,6 +145,9 @@ const ReactFlowDateTimeConditionModule = ({
         conditionType: mode,
         condition_type: mode,
         enabled_days: enabledDays,
+        enabledDays,
+        selected_days: enabledDays,
+        selectedDays: enabledDays,
         holidays,
         label:
           values.label ||
