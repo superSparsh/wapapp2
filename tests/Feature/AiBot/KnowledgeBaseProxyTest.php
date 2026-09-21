@@ -110,6 +110,7 @@ class KnowledgeBaseProxyTest extends TestCase
         $bot = AiBot::factory()->create([
             'is_default' => true,
             'legacy_bot_id' => 99,
+            'legacy_bot_uid' => '67abc123def45',
         ]);
 
         Http::fake([
@@ -125,7 +126,7 @@ class KnowledgeBaseProxyTest extends TestCase
 
         Http::assertSent(function ($request) {
             return str_contains($request->url(), '/knowledge_base/42')
-                && str_contains($request->url(), 'bot_id=99');
+                && str_contains($request->url(), 'bot_id=67abc123def45');
         });
     }
 

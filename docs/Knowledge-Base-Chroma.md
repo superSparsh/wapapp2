@@ -24,12 +24,17 @@ The Laravel app must **not** store uploaded KB files / scraped pages / long manu
 
 **Migrated tenants (legacy Continuity):** Laravel sends Chroma keys as:
 
-- `client_id` = `tenants.settings.legacy_customer_id` (numeric customer id from old app)
-- `bot_id` = `ai_bots.legacy_bot_id` (numeric legacy `ai_bots.id`)
+- `client_id` = `tenants.settings.legacy_customer_id` (numeric `customers.id`)
+- `bot_id` = `ai_bots.legacy_bot_uid` (legacy `ai_bots.uid` from PHP `uniqid()`)
+
+Legacy source of truth (`ExternalApiService`):
+
+- `GET /knowledge_base/{customer->id}?bot_id={bot->uid}`
+- **Not** numeric `ai_bots.id`, **not** the new app's UUID
 
 New (non-migrated) tenants use tenant slug + `AiBot.uuid`.
 
-`CHROMA_DB_PATH` on the AI service **must** point at the same Chroma directory the legacy stack used, or chunk counts stay 0 even with correct IDs.
+`CHROMA_DB_PATH` must be the **`chroma_data` directory** (SQLite/parquet under `/var/www/ai_env/chroma_data`), not just the `ai_chatbot` Python code folder.
 
 ## Dashboard
 

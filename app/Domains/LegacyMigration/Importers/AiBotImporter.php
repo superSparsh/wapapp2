@@ -71,8 +71,9 @@ final class AiBotImporter implements LegacyImporter
                 'status' => filled($row->status ?? null) ? (string) $row->status : 'active',
                 'is_default' => (bool) ($row->is_default ?? false),
                 'whatsapp_line_id' => $lineId,
-                // Chroma collections are keyed by legacy numeric bot id — keep for KB continuity.
+                // Chroma bot_id in legacy = ai_bots.uid (uniqid), not numeric id.
                 'legacy_bot_id' => $legacyId,
+                'legacy_bot_uid' => filled($row->uid ?? null) ? (string) $row->uid : null,
             ];
 
             if ($existing !== null) {
@@ -85,6 +86,9 @@ final class AiBotImporter implements LegacyImporter
             }
 
             $ids->put('ai_bot', $legacyId, $bot->id);
+            if (filled($row->uid ?? null)) {
+                $ids->put('ai_bot_uid_by_new', $bot->id, (string) $row->uid);
+            }
         }
     }
 

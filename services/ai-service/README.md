@@ -16,7 +16,9 @@ Source of truth for Knowledge Base documents and RAG embeddings.
 - Without bot: `client_{md5(customer_id)[:8]}`
 - With bot: `bot_{md5(f"client_{customer_id}_bot_{bot_id}")[:12]}`
 
-`customer_id` = tenant id string. `bot_id` = `AiBot.uuid`.
+Legacy keys: `customer_id` = numeric `customers.id`, `bot_id` = `ai_bots.uid` (`uniqid()`).
+Migrated WapApp 2.0 sends the same via `legacy_customer_id` + `legacy_bot_uid`.
+New tenants: tenant slug + `AiBot.uuid`.
 
 ## Ubuntu / production install (IMPORTANT)
 

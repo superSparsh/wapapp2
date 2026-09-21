@@ -16,8 +16,8 @@ use RuntimeException;
  * Chroma (via Python AI service) is the source of truth — no MySQL KB mirror.
  *
  * Collection keys must match legacy when data was indexed there:
- * client_id = legacy_customer_id (else tenant slug)
- * bot_id    = legacy_bot_id (else AiBot.uuid)
+ * client_id = legacy_customer_id (numeric customers.id)
+ * bot_id    = legacy_bot_uid (ai_bots.uid / PHP uniqid) — NOT numeric id, NOT new uuid
  */
 class KnowledgeBaseProxyService
 {
@@ -66,7 +66,7 @@ class KnowledgeBaseProxyService
     }
 
     /**
-     * Chroma bot key — prefer legacy numeric ai_bots.id used when chunks were indexed.
+     * Chroma bot key — legacy ExternalApiService sends ai_bots.uid (uniqid string).
      */
     public function chromaBotId(?AiBot $bot): ?string
     {
@@ -74,46 +74,39 @@ class KnowledgeBaseProxyService
             return null;
         }
 
-        if (filled($bot->legacy_bot_id)) {
-            return (string) $bot->legacy_bot_id;
+        if (filled($bot->legacy_bot_uid)) {
+            return (string) $bot->legacy_bot_uid;
         }
 
-        $fromMap = $this->legacyBotIdFromMigrationMap((int) $bot->id);
+        $fromMap = $this->legacyBotUidFromMigrationMap((int) $bot->id);
         if ($fromMap !== null) {
-            // Persist so later calls skip the central lookup.
-            if ($bot->isFillable('legacy_bot_id')) {
-                $bot->forceFill(['legacy_bot_id' => $fromMap])->saveQuietly();
-            }
+            $bot->forceFill(['legacy_bot_uid' => $fromMap])->saveQuietly();
 
-            return (string) $fromMap;
+            return $fromMap;
         }
 
+        // New (non-migrated) bots: use public uuid going forward.
         return $bot->uuid;
     }
 
-    private function legacyBotIdFromMigrationMap(int $newBotId): ?int
+    private function legacyBotUidFromMigrationMap(int $newBotId): ?string
     {
         $tenantId = tenant('id');
         if (! filled($tenantId)) {
             return null;
         }
 
-        return tenancy()->central(function () use ($tenantId, $newBotId): ?int {
+        return tenancy()->central(function () use ($tenantId, $newBotId): ?string {
             $record = LegacyCustomerMigration::query()
                 ->where('tenant_id', $tenantId)
                 ->where('status', 'completed')
                 ->orderByDesc('id')
                 ->first();
 
-            $map = $record?->report['id_map']['ai_bot'] ?? null;
-            if (! is_array($map)) {
-                return null;
-            }
-
-            foreach ($map as $legacyId => $mappedNewId) {
-                if ((int) $mappedNewId === $newBotId) {
-                    return (int) $legacyId;
-                }
+            // Prefer explicit uid map if present (newer migrations).
+            $uidByNew = $record?->report['id_map']['ai_bot_uid_by_new'] ?? null;
+            if (is_array($uidByNew) && filled($uidByNew[(string) $newBotId] ?? null)) {
+                return (string) $uidByNew[(string) $newBotId];
             }
 
             return null;

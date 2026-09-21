@@ -27,6 +27,7 @@ class AiBot extends TenantModel
         'is_default',
         'whatsapp_line_id',
         'legacy_bot_id',
+        'legacy_bot_uid',
     ];
 
     protected function casts(): array
