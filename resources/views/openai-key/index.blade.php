@@ -685,32 +685,30 @@
             </div>
 
             {{-- Phone conversation preview --}}
-            <div class="mx-auto w-full max-w-[425px] shrink-0 xl:mx-0">
-              <div class="relative h-[640px] w-full">
-                <div class="pointer-events-none absolute inset-[0_3px] rounded-[62px] border border-white/60 shadow-[inset_0px_0px_8px_0px_rgba(0,0,0,0.3)]">
-                  <div class="absolute inset-0 rounded-[62px] bg-muted-surface"></div>
-                </div>
-                <div class="absolute inset-[4px_7px] rounded-[58px] bg-black"></div>
-                <div class="absolute left-0 top-[136px] h-[30px] w-[3px] rounded-bl-[1px] rounded-tl-[1px] bg-border shadow-[inset_1px_0px_2px_0px_white]"></div>
-                <div class="absolute left-0 top-[198px] h-[62px] w-[3px] rounded-bl-[1px] rounded-tl-[1px] bg-border shadow-[inset_1px_0px_2px_0px_white]"></div>
-                <div class="absolute left-0 top-[278px] h-[62px] w-[3px] rounded-bl-[1px] rounded-tl-[1px] bg-border shadow-[inset_1px_0px_2px_0px_white]"></div>
-                <div class="absolute right-0 top-[220px] h-[100px] w-[3px] rounded-br-[1px] rounded-tr-[1px] bg-border shadow-[inset_-1px_0px_2px_0px_white]"></div>
+            <div class="relative mx-auto w-full max-w-[425px] shrink-0 xl:mx-0">
+              <div class="relative h-[640px] w-full overflow-hidden">
+                <div class="pointer-events-none absolute inset-x-[3.5px] inset-y-0 rounded-[62px] border border-white/60 bg-muted-surface shadow-[inset_0px_0px_8px_0px_rgba(0,0,0,0.3)]"></div>
+                <div class="pointer-events-none absolute inset-[4px_6.5px_4px_7.5px] rounded-[58px] bg-black"></div>
+                <div class="pointer-events-none absolute left-0 top-[136px] h-[30px] w-[3px] rounded-bl-[1px] rounded-tl-[1px] bg-border shadow-[inset_1px_0px_2px_0px_white]"></div>
+                <div class="pointer-events-none absolute left-0 top-[198px] h-[62px] w-[3px] rounded-bl-[1px] rounded-tl-[1px] bg-border shadow-[inset_1px_0px_2px_0px_white]"></div>
+                <div class="pointer-events-none absolute left-0 top-[278px] h-[62px] w-[3px] rounded-bl-[1px] rounded-tl-[1px] bg-border shadow-[inset_1px_0px_2px_0px_white]"></div>
+                <div class="pointer-events-none absolute right-0 top-[220px] h-[100px] w-[3px] rounded-br-[1px] rounded-tr-[1px] bg-border shadow-[inset_-1px_0px_2px_0px_white]"></div>
 
-                <div class="absolute inset-[22px_25px] flex flex-col overflow-hidden rounded-[40px] bg-elevated">
+                <div class="absolute inset-[22px_24px_22px_26px] flex flex-col overflow-hidden rounded-[40px] bg-elevated">
                   <img
-                    src="{{ asset('images/templates/phone-bg.png') }}"
+                    src="{{ asset('images/openai-key/test-bot-phone.png') }}"
                     alt=""
-                    class="pointer-events-none absolute inset-0 size-full rounded-[8px] object-cover"
+                    class="pointer-events-none absolute inset-0 size-full object-cover object-top"
                     width="375"
-                    height="854"
+                    height="640"
                   >
                   <x-ui.phone-preview-header-name size="default" />
 
                   <div
                     id="test-phone-thread"
-                    class="relative z-10 mt-[88px] flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-3 pb-2"
+                    class="relative z-10 mt-[100px] flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-3 pb-2"
                   >
-                    <p id="test-phone-empty" class="mt-6 text-center text-xs text-white/80">
+                    <p id="test-phone-empty" class="mt-4 text-center text-xs text-white/80">
                       Select a bot and type a message below to start chatting.
                     </p>
                   </div>
