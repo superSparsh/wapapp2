@@ -41,3 +41,5 @@ PYTHON_AI_ENABLED=true
 ```
 
 See `services/ai-service/README.md` for running FastAPI + Chroma.
+
+**Ubuntu tip:** use `python3 -m venv .venv` and install **inside** the venv (`python -m pip install -r requirements.txt`). Never use system/`~/.local` uvicorn.

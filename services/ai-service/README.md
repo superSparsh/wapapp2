@@ -9,7 +9,7 @@ Source of truth for Knowledge Base documents and RAG embeddings.
 | **Laravel (WapApp 2.0)** | Auth, tenant/bot identity, proxy HTTP only |
 | **This service** | Chunking, embeddings, Chroma persistence, query |
 
-**Never** store KB files/chunks as primary data in MySQL. Short `ai_bots.business_information` text may stay in DB; uploaded docs / URL scrapes / long manual content go here only.
+**Never** store KB files/chunks as primary data in MySQL.
 
 ## Collections
 
@@ -18,15 +18,53 @@ Source of truth for Knowledge Base documents and RAG embeddings.
 
 `customer_id` = tenant id string. `bot_id` = `AiBot.uuid`.
 
-## Run
+## Ubuntu / production install (IMPORTANT)
+
+Use **python3** + a **project venv**. Do not `pip install` into the user site-packages.
 
 ```bash
-cd services/ai-service
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-export CHROMA_DB_PATH=/var/www/ai_env/chroma_data   # or a local path
-uvicorn main:app --host 0.0.0.0 --port 5005
+cd /var/www/wapapp_v2.0/services/ai-service
+
+# 1) Create & activate venv
+python3 -m venv .venv
+source .venv/bin/activate
+
+# 2) Confirm you are inside the venv (should show .../ai-service/.venv/bin/pip)
+which pip
+which python
+
+# 3) Upgrade pip inside venv, then install
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+
+# 4) Chroma data directory (persistent)
+sudo mkdir -p /var/www/ai_env/chroma_data
+sudo chown -R "$USER":"$USER" /var/www/ai_env/chroma_data
+export CHROMA_DB_PATH=/var/www/ai_env/chroma_data
+
+# 5) Run (always with venv active, or use full path)
+python -m uvicorn main:app --host 0.0.0.0 --port 5005
+# or:
+# .venv/bin/uvicorn main:app --host 0.0.0.0 --port 5005
 ```
+
+Health check:
+```bash
+curl -s http://127.0.0.1:5005/docs | head
+```
+
+### If you already polluted user packages
+
+```bash
+deactivate 2>/dev/null
+rm -rf .venv
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+```
+
+Do **not** run `/home/ubuntu/.local/bin/uvicorn` — that skips the venv.
 
 ## Laravel env
 
