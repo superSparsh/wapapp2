@@ -105,16 +105,55 @@
 
           <div class="flex flex-col gap-2">
             <label for="bot_chat_model" class="text-sm font-semibold leading-[1.4] text-text-primary">
-              Chat Model <span class="text-text-muted">(optional)</span>
+              Chat Model
             </label>
-            <input
-              id="bot_chat_model"
-              name="chat_model"
-              type="text"
-              value="{{ old('chat_model') }}"
-              placeholder="gpt-4o-mini"
-              class="w-full rounded-xl border border-border bg-elevated p-3.5 text-sm font-medium leading-[1.4] text-text-muted placeholder:text-text-muted focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
-            >
+            <div class="relative">
+              <select
+                id="bot_chat_model"
+                name="chat_model"
+                data-bot-model-select="chat"
+                class="w-full appearance-none rounded-xl border border-border bg-elevated p-3.5 pr-10 text-sm font-medium leading-[1.4] text-text-muted focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
+              >
+                <option value="">Select chat model</option>
+                @if (old('chat_model'))
+                  <option value="{{ old('chat_model') }}" selected>{{ old('chat_model') }}</option>
+                @endif
+              </select>
+              <img
+                src="{{ asset('images/commerce/arrow-down.svg') }}"
+                alt=""
+                class="pointer-events-none absolute top-1/2 right-3.5 size-4 -translate-y-1/2"
+                width="16"
+                height="16"
+              >
+            </div>
+            <p class="text-xs text-text-muted">Models load from the active API key for the selected provider.</p>
+          </div>
+
+          <div class="flex flex-col gap-2">
+            <label for="bot_embedding_model" class="text-sm font-semibold leading-[1.4] text-text-primary">
+              Embedding Model
+            </label>
+            <div class="relative">
+              <select
+                id="bot_embedding_model"
+                name="embedding_model"
+                data-bot-model-select="embedding"
+                class="w-full appearance-none rounded-xl border border-border bg-elevated p-3.5 pr-10 text-sm font-medium leading-[1.4] text-text-muted focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
+              >
+                <option value="">Select embedding model</option>
+                @if (old('embedding_model'))
+                  <option value="{{ old('embedding_model') }}" selected>{{ old('embedding_model') }}</option>
+                @endif
+              </select>
+              <img
+                src="{{ asset('images/commerce/arrow-down.svg') }}"
+                alt=""
+                class="pointer-events-none absolute top-1/2 right-3.5 size-4 -translate-y-1/2"
+                width="16"
+                height="16"
+              >
+            </div>
           </div>
 
           <div class="flex flex-col gap-2">

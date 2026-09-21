@@ -126,6 +126,56 @@ class OpenAiKeyController extends Controller
             ->with('status', 'Provider key deleted successfully.');
     }
 
+    /**
+     * List chat/embedding models for a provider (legacy parity).
+     * Uses pasted api_key, else the tenant's active key for that provider.
+     */
+    public function listProviderModels(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'provider' => ['required', 'string', 'in:openai,gemini,azure'],
+            'api_key' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $provider = (string) $validated['provider'];
+        $apiKey = filled($validated['api_key'] ?? null) ? (string) $validated['api_key'] : null;
+
+        if ($apiKey === null) {
+            $keyRow = AiProviderKey::query()
+                ->where('provider', $provider)
+                ->where('is_active', true)
+                ->orderByDesc('is_validated')
+                ->orderByDesc('id')
+                ->first();
+
+            if ($keyRow === null || blank($keyRow->api_key)) {
+                return response()->json([
+                    'error' => 'No active API key for this provider. Paste a key or save one first.',
+                    'chat_models' => [],
+                    'embedding_models' => [],
+                ], 404);
+            }
+
+            $apiKey = (string) $keyRow->api_key;
+        }
+
+        try {
+            $models = $this->keyService->listModels($provider, $apiKey);
+
+            return response()->json([
+                'success' => true,
+                'chat_models' => $models['chat_models'],
+                'embedding_models' => $models['embedding_models'],
+            ]);
+        } catch (Throwable $e) {
+            return response()->json([
+                'error' => $e->getMessage(),
+                'chat_models' => [],
+                'embedding_models' => [],
+            ], 502);
+        }
+    }
+
     // --- Knowledge Base Actions (moved to KnowledgeBaseController / Chroma proxy) ---
 
     // --- Test Bot Action ---

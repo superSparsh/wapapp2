@@ -127,37 +127,67 @@
           <div class="flex flex-col gap-8 lg:flex-row lg:items-start">
             <div class="flex min-w-0 flex-1 flex-col gap-2">
               <label for="chat_model" class="text-sm font-semibold leading-[1.4] text-text-primary">
-                Default Chat Model <span class="text-text-muted">(optional)</span>
+                Default Chat Model
               </label>
-              <input
-                id="chat_model"
-                name="chat_model"
-                type="text"
-                placeholder="gpt-4o-mini"
-                class="w-full rounded-xl border border-border bg-elevated p-3.5 text-sm font-medium leading-[1.4] text-text-muted placeholder:text-text-muted focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
-              >
+              <div class="relative">
+                <select
+                  id="chat_model"
+                  name="chat_model"
+                  data-model-select="chat"
+                  class="w-full appearance-none rounded-xl border border-border bg-elevated p-3.5 pr-10 text-sm font-medium leading-[1.4] text-text-muted focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
+                >
+                  <option value="">Select chat model</option>
+                </select>
+                <img
+                  src="{{ asset('images/commerce/arrow-down.svg') }}"
+                  alt=""
+                  class="pointer-events-none absolute top-1/2 right-3.5 size-4 -translate-y-1/2"
+                  width="16"
+                  height="16"
+                >
+              </div>
+              <p id="chat_model_hint" class="text-xs text-text-muted">Enter API key (or use a saved active key) then click Load models.</p>
             </div>
             <div class="flex min-w-0 flex-1 flex-col gap-2">
               <label for="embedding_model" class="text-sm font-semibold leading-[1.4] text-text-primary">
-                Default Embedding Model <span class="text-text-muted">(optional)</span>
+                Default Embedding Model
               </label>
-              <input
-                id="embedding_model"
-                name="embedding_model"
-                type="text"
-                placeholder="text-embedding-3-small"
-                class="w-full rounded-xl border border-border bg-elevated p-3.5 text-sm font-medium leading-[1.4] text-text-muted placeholder:text-text-muted focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
-              >
+              <div class="relative">
+                <select
+                  id="embedding_model"
+                  name="embedding_model"
+                  data-model-select="embedding"
+                  class="w-full appearance-none rounded-xl border border-border bg-elevated p-3.5 pr-10 text-sm font-medium leading-[1.4] text-text-muted focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
+                >
+                  <option value="">Select embedding model</option>
+                </select>
+                <img
+                  src="{{ asset('images/commerce/arrow-down.svg') }}"
+                  alt=""
+                  class="pointer-events-none absolute top-1/2 right-3.5 size-4 -translate-y-1/2"
+                  width="16"
+                  height="16"
+                >
+              </div>
             </div>
           </div>
 
-          <button
-            type="submit"
-            class="fd-btn-sm inline-flex w-fit items-center justify-center gap-2 rounded border border-solid border-green-500 bg-green-50 px-4 py-1.5 text-sm font-medium leading-[1.4] text-green-500 transition-opacity hover:opacity-90"
-          >
-            <img src="{{ asset('images/openai-key/export.svg') }}" alt="" class="size-5" width="20" height="20">
-            Add API Key
-          </button>
+          <div class="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              id="load-provider-models"
+              class="fd-btn-sm inline-flex w-fit items-center justify-center gap-2 rounded border border-solid border-border-light bg-elevated px-4 py-1.5 text-sm font-medium leading-[1.4] text-text-body transition-colors hover:bg-surface"
+            >
+              Load models
+            </button>
+            <button
+              type="submit"
+              class="fd-btn-sm inline-flex w-fit items-center justify-center gap-2 rounded border border-solid border-green-500 bg-green-50 px-4 py-1.5 text-sm font-medium leading-[1.4] text-green-500 transition-opacity hover:opacity-90"
+            >
+              <img src="{{ asset('images/openai-key/export.svg') }}" alt="" class="size-5" width="20" height="20">
+              Add API Key
+            </button>
+          </div>
         </form>
       @elseif ($currentTab === 'knowledge-base')
         @if ($selectedBot)
@@ -913,5 +943,142 @@ async function testBot() {
   modal.addEventListener('click', function (e) {
     if (e.target === modal) hide();
   });
+})();
+
+(function () {
+  const modelsUrl = @json(route('openai-key.provider-keys.models'));
+  const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
+
+  function modelId(m) {
+    return (m && (m.id || m.name)) ? String(m.id || m.name) : '';
+  }
+
+  function fillSelect(select, models, placeholder) {
+    if (!select) return;
+    const current = select.value;
+    select.innerHTML = '';
+    const empty = document.createElement('option');
+    empty.value = '';
+    empty.textContent = placeholder;
+    select.appendChild(empty);
+    (models || []).forEach(function (m) {
+      const id = modelId(m);
+      if (!id) return;
+      const opt = document.createElement('option');
+      opt.value = id;
+      opt.textContent = m.name || id;
+      select.appendChild(opt);
+    });
+    if (current && Array.from(select.options).some(function (o) { return o.value === current; })) {
+      select.value = current;
+    } else if (select.options.length > 1) {
+      select.selectedIndex = 1;
+    }
+  }
+
+  async function fetchModels(provider, apiKey) {
+    const body = { provider: provider };
+    if (apiKey) body.api_key = apiKey;
+    const res = await fetch(modelsUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'X-CSRF-TOKEN': csrf,
+      },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(function () { return {}; });
+    if (!res.ok) {
+      throw new Error(data.error || 'Failed to load models');
+    }
+    return data;
+  }
+
+  // API Settings form
+  const loadBtn = document.getElementById('load-provider-models');
+  const providerSel = document.getElementById('provider');
+  const apiKeyInput = document.getElementById('api_key');
+  const chatSel = document.getElementById('chat_model');
+  const embedSel = document.getElementById('embedding_model');
+  const hint = document.getElementById('chat_model_hint');
+
+  async function loadApiSettingsModels() {
+    if (!providerSel || !chatSel || !embedSel) return;
+    const provider = providerSel.value;
+    if (!provider) {
+      if (hint) hint.textContent = 'Select a provider first.';
+      return;
+    }
+    if (loadBtn) {
+      loadBtn.disabled = true;
+      loadBtn.textContent = 'Loading…';
+    }
+    if (hint) hint.textContent = 'Loading models…';
+    try {
+      const data = await fetchModels(provider, (apiKeyInput && apiKeyInput.value.trim()) || '');
+      fillSelect(chatSel, data.chat_models, 'Select chat model');
+      fillSelect(embedSel, data.embedding_models, 'Select embedding model');
+      if (hint) {
+        hint.textContent = (data.chat_models || []).length
+          ? 'Showing models available for this active key / provider.'
+          : 'No models returned.';
+      }
+    } catch (e) {
+      fillSelect(chatSel, [], 'Select chat model');
+      fillSelect(embedSel, [], 'Select embedding model');
+      if (hint) hint.textContent = e.message || 'Failed to load models';
+    } finally {
+      if (loadBtn) {
+        loadBtn.disabled = false;
+        loadBtn.textContent = 'Load models';
+      }
+    }
+  }
+
+  if (loadBtn) loadBtn.addEventListener('click', loadApiSettingsModels);
+  if (providerSel) {
+    providerSel.addEventListener('change', function () {
+      // Auto-load from saved active key when provider changes
+      loadApiSettingsModels();
+    });
+  }
+
+  // Create bot modal
+  const botProvider = document.getElementById('bot_provider');
+  const botChat = document.getElementById('bot_chat_model');
+  const botEmbed = document.getElementById('bot_embedding_model');
+
+  async function loadBotModels() {
+    if (!botProvider || !botChat) return;
+    const provider = botProvider.value;
+    if (!provider) return;
+    botChat.disabled = true;
+    if (botEmbed) botEmbed.disabled = true;
+    try {
+      const data = await fetchModels(provider, '');
+      fillSelect(botChat, data.chat_models, 'Select chat model');
+      if (botEmbed) fillSelect(botEmbed, data.embedding_models, 'Select embedding model');
+    } catch (e) {
+      fillSelect(botChat, [], 'Select chat model');
+      if (botEmbed) fillSelect(botEmbed, [], 'Select embedding model');
+    } finally {
+      botChat.disabled = false;
+      if (botEmbed) botEmbed.disabled = false;
+    }
+  }
+
+  if (botProvider) {
+    botProvider.addEventListener('change', loadBotModels);
+    // Prefetch when create-bot modal opens
+    document.querySelectorAll('[data-open-modal="create-bot"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        setTimeout(loadBotModels, 50);
+      });
+    });
+    if (document.getElementById('modal-create-bot') && !document.getElementById('modal-create-bot').classList.contains('hidden')) {
+      loadBotModels();
+    }
+  }
 })();
 </script>

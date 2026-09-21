@@ -23,7 +23,16 @@
           </div>
           <div class="flex flex-col gap-1.5">
             <label for="chat_model" class="text-sm font-semibold text-text-body">Chat Model</label>
-            <input type="text" id="chat_model" name="chat_model" value="{{ old('chat_model', $bot->chat_model) }}" class="w-full rounded-lg border border-divider bg-surface px-4 py-3 text-sm text-text-body focus:border-green-500 focus:outline-none">
+            <select id="chat_model" name="chat_model" class="w-full rounded-lg border border-divider bg-surface px-4 py-3 text-sm text-text-body focus:border-green-500 focus:outline-none">
+              <option value="{{ old('chat_model', $bot->chat_model) }}" selected>{{ old('chat_model', $bot->chat_model) ?: 'Select chat model' }}</option>
+            </select>
+            <p class="text-xs text-text-muted">Loads from the active API key for this provider.</p>
+          </div>
+          <div class="flex flex-col gap-1.5">
+            <label for="embedding_model" class="text-sm font-semibold text-text-body">Embedding Model</label>
+            <select id="embedding_model" name="embedding_model" class="w-full rounded-lg border border-divider bg-surface px-4 py-3 text-sm text-text-body focus:border-green-500 focus:outline-none">
+              <option value="{{ old('embedding_model', $bot->embedding_model) }}" selected>{{ old('embedding_model', $bot->embedding_model) ?: 'Select embedding model' }}</option>
+            </select>
           </div>
           <div class="flex flex-col gap-1.5">
             <label for="temperature" class="text-sm font-semibold text-text-body">Temperature</label>
@@ -53,3 +62,58 @@
     </div>
   </div>
 </x-layouts.app>
+
+<script>
+(function () {
+  const modelsUrl = @json(route('openai-key.provider-keys.models'));
+  const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
+  const providerSel = document.getElementById('provider');
+  const chatSel = document.getElementById('chat_model');
+  const embedSel = document.getElementById('embedding_model');
+  if (!providerSel || !chatSel) return;
+
+  function modelId(m) { return (m && (m.id || m.name)) ? String(m.id || m.name) : ''; }
+
+  function fillSelect(select, models, keep) {
+    const current = keep || select.value;
+    select.innerHTML = '';
+    const empty = document.createElement('option');
+    empty.value = '';
+    empty.textContent = 'Select model';
+    select.appendChild(empty);
+    (models || []).forEach(function (m) {
+      const id = modelId(m);
+      if (!id) return;
+      const opt = document.createElement('option');
+      opt.value = id;
+      opt.textContent = m.name || id;
+      select.appendChild(opt);
+    });
+    if (current && Array.from(select.options).some(function (o) { return o.value === current; })) {
+      select.value = current;
+    } else if (!current && select.options.length > 1) {
+      select.selectedIndex = 1;
+    }
+  }
+
+  async function load() {
+    const provider = providerSel.value;
+    const keepChat = chatSel.value;
+    const keepEmbed = embedSel ? embedSel.value : '';
+    try {
+      const res = await fetch(modelsUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': csrf },
+        body: JSON.stringify({ provider: provider }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed');
+      fillSelect(chatSel, data.chat_models, keepChat);
+      if (embedSel) fillSelect(embedSel, data.embedding_models, keepEmbed);
+    } catch (e) { /* keep current option */ }
+  }
+
+  providerSel.addEventListener('change', load);
+  load();
+})();
+</script>

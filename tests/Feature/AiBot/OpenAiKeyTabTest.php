@@ -203,6 +203,57 @@ class OpenAiKeyTabTest extends TestCase
         $this->assertDatabaseMissing('ai_provider_keys', ['id' => $key->id]);
     }
 
+    public function test_list_provider_models_uses_active_key(): void
+    {
+        config([
+            'ai.python_url' => 'http://ai.test.local',
+            'ai.enabled' => true,
+        ]);
+
+        AiProviderKey::factory()->create([
+            'provider' => AiProvider::OpenAI,
+            'api_key' => 'sk-active',
+            'is_active' => true,
+        ]);
+
+        Http::fake([
+            'http://ai.test.local/list_models' => Http::response([
+                'chat_models' => [['id' => 'gpt-4o-mini', 'name' => 'gpt-4o-mini']],
+                'embedding_models' => [['id' => 'text-embedding-3-small', 'name' => 'text-embedding-3-small']],
+            ], 200),
+        ]);
+
+        $this->actingAsTenantUser()
+            ->postJson(route('openai-key.provider-keys.models'), ['provider' => 'openai'])
+            ->assertOk()
+            ->assertJsonPath('chat_models.0.id', 'gpt-4o-mini')
+            ->assertJsonPath('embedding_models.0.id', 'text-embedding-3-small');
+
+        Http::assertSent(function ($request) {
+            return str_contains($request->url(), '/list_models')
+                && ($request->data()['api_key'] ?? null) === 'sk-active';
+        });
+    }
+
+    public function test_list_provider_models_ignores_inactive_key_without_paste(): void
+    {
+        config([
+            'ai.python_url' => 'http://ai.test.local',
+            'ai.enabled' => true,
+        ]);
+
+        AiProviderKey::factory()->create([
+            'provider' => AiProvider::OpenAI,
+            'api_key' => 'sk-inactive',
+            'is_active' => false,
+        ]);
+
+        $this->actingAsTenantUser()
+            ->postJson(route('openai-key.provider-keys.models'), ['provider' => 'openai'])
+            ->assertNotFound()
+            ->assertJsonPath('chat_models', []);
+    }
+
     // --- Knowledge Base Actions (Chroma proxy — see KnowledgeBaseProxyTest) ---
 
     public function test_knowledge_base_mysql_store_route_removed(): void

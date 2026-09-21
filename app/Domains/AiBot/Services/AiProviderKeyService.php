@@ -66,6 +66,30 @@ class AiProviderKeyService
         return $isValid;
     }
 
+    /**
+     * Fetch chat + embedding model lists from the Python AI service (same as legacy).
+     *
+     * @return array{chat_models: list<array<string, mixed>>, embedding_models: list<array<string, mixed>>}
+     */
+    public function listModels(string $provider, string $apiKey): array
+    {
+        /** @var AiPythonClient $client */
+        $client = app(AiPythonClient::class);
+
+        $payload = $client->postJson('/list_models', [
+            'provider' => $provider,
+            'api_key' => $apiKey,
+        ]);
+
+        $chat = is_array($payload['chat_models'] ?? null) ? $payload['chat_models'] : [];
+        $embed = is_array($payload['embedding_models'] ?? null) ? $payload['embedding_models'] : [];
+
+        return [
+            'chat_models' => array_values(array_filter($chat, static fn ($m) => is_array($m) && filled($m['id'] ?? $m['name'] ?? null))),
+            'embedding_models' => array_values(array_filter($embed, static fn ($m) => is_array($m) && filled($m['id'] ?? $m['name'] ?? null))),
+        ];
+    }
+
     public function resolveProvider(AiProvider $provider): AiProviderInterface
     {
         return match ($provider) {

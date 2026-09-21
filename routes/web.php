@@ -246,6 +246,7 @@ Route::middleware(['tenancy.session', 'auth:web,team', '2fa', 'team.redirect-das
             Route::post('/bots/{ai_bot}/toggle-default', [OpenAiKeyController::class, 'toggleDefault'])->name('bots.toggle-default');
             Route::delete('/bots/{ai_bot}', [OpenAiKeyController::class, 'destroyBot'])->name('bots.destroy');
             Route::post('/provider-keys', [OpenAiKeyController::class, 'storeProviderKey'])->name('provider-keys.store');
+            Route::match(['get', 'post'], '/provider-keys/models', [OpenAiKeyController::class, 'listProviderModels'])->name('provider-keys.models');
             Route::post('/provider-keys/{provider_key}/validate', [OpenAiKeyController::class, 'validateProviderKey'])->name('provider-keys.validate');
             Route::delete('/provider-keys/{provider_key}', [OpenAiKeyController::class, 'destroyProviderKey'])->name('provider-keys.destroy');
             Route::post('/test-bot', [OpenAiKeyController::class, 'testBot'])->name('test-bot');
