@@ -591,7 +591,7 @@
                     @if ((($kbOffset ?? 0) + ($kbLimit ?? 10)) < ($kbTotal ?? 0))
                       <a
                         class="fd-btn-sm inline-flex items-center justify-center rounded border border-solid border-green-500 bg-green-50 px-4 py-1.5 text-sm font-medium text-green-500 hover:opacity-90"
-                        href="{{ route('openai-key.index', ['tab' => 'knowledge-base', 'bot' => $selectedBot->uuid, 'offset' => ($kbOffset ?? 0) + ($kbLimit ?? 10)), 'limit' => $kbLimit ?? 10]) }}"
+                        href="{{ route('openai-key.index', ['tab' => 'knowledge-base', 'bot' => $selectedBot->uuid, 'offset' => ($kbOffset ?? 0) + ($kbLimit ?? 10), 'limit' => $kbLimit ?? 10]) }}"
                       >Next</a>
                     @endif
                   </div>
