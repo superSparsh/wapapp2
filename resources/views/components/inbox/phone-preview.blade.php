@@ -27,7 +27,7 @@
                 <img
                     src="{{ asset('images/inbox/modals/phone-screen.png') }}"
                     alt=""
-                    class="absolute inset-0 size-full rounded-[8px] object-cover object-top"
+                    class="absolute inset-0 size-full rounded-[8px] object-cover"
                     width="375"
                     height="854"
                 >
