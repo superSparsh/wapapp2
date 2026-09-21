@@ -100,6 +100,35 @@ class KnowledgeBaseProxyTest extends TestCase
         });
     }
 
+    public function test_chroma_keys_use_legacy_ids_when_present(): void
+    {
+        $tenant = tenant();
+        $settings = $tenant->settings ?? [];
+        $settings['legacy_customer_id'] = 42;
+        $tenant->forceFill(['settings' => $settings])->save();
+
+        $bot = AiBot::factory()->create([
+            'is_default' => true,
+            'legacy_bot_id' => 99,
+        ]);
+
+        Http::fake([
+            'http://ai.test.local/knowledge_base/*' => Http::response([
+                'success' => true,
+                'data' => ['documents' => [], 'total_documents' => 0],
+            ], 200),
+        ]);
+
+        $this->actingAsTenantUser()
+            ->getJson(route('openai-key.knowledge-base', ['bot_id' => $bot->uuid]))
+            ->assertOk();
+
+        Http::assertSent(function ($request) {
+            return str_contains($request->url(), '/knowledge_base/42')
+                && str_contains($request->url(), 'bot_id=99');
+        });
+    }
+
     public function test_knowledge_base_tab_shows_chroma_documents_not_mysql(): void
     {
         $bot = AiBot::factory()->create(['is_default' => true, 'name' => 'Live Bot']);

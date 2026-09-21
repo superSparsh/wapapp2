@@ -26,6 +26,7 @@ class AiBot extends TenantModel
         'status',
         'is_default',
         'whatsapp_line_id',
+        'legacy_bot_id',
     ];
 
     protected function casts(): array
@@ -34,6 +35,7 @@ class AiBot extends TenantModel
             'is_default' => 'boolean',
             'temperature' => 'float',
             'provider' => AiProvider::class,
+            'legacy_bot_id' => 'integer',
         ];
     }
 

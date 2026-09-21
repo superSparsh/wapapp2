@@ -19,8 +19,17 @@ The Laravel app must **not** store uploaded KB files / scraped pages / long manu
 
 ## Collections
 
-- No bot: `client_{md5(tenant_id)[:8]}`
-- With bot: `bot_{md5("client_{tenant_id}_bot_{bot_uuid}")[:12]}`
+- No bot: `client_{md5(client_id)[:8]}`
+- With bot: `bot_{md5("client_{client_id}_bot_{bot_id}")[:12]}`
+
+**Migrated tenants (legacy Continuity):** Laravel sends Chroma keys as:
+
+- `client_id` = `tenants.settings.legacy_customer_id` (numeric customer id from old app)
+- `bot_id` = `ai_bots.legacy_bot_id` (numeric legacy `ai_bots.id`)
+
+New (non-migrated) tenants use tenant slug + `AiBot.uuid`.
+
+`CHROMA_DB_PATH` on the AI service **must** point at the same Chroma directory the legacy stack used, or chunk counts stay 0 even with correct IDs.
 
 ## Dashboard
 

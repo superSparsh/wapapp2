@@ -6,6 +6,7 @@ namespace App\Domains\AiBot\Services;
 
 use App\Models\AiBot;
 use App\Models\AiProviderKey;
+use App\Models\LegacyCustomerMigration;
 use App\Support\PublicId;
 use Illuminate\Http\UploadedFile;
 use RuntimeException;
@@ -13,6 +14,10 @@ use RuntimeException;
 /**
  * Application-layer proxy for Knowledge Base operations.
  * Chroma (via Python AI service) is the source of truth — no MySQL KB mirror.
+ *
+ * Collection keys must match legacy when data was indexed there:
+ * client_id = legacy_customer_id (else tenant slug)
+ * bot_id    = legacy_bot_id (else AiBot.uuid)
  */
 class KnowledgeBaseProxyService
 {
@@ -22,6 +27,20 @@ class KnowledgeBaseProxyService
 
     public function clientId(): string
     {
+        return $this->chromaClientId();
+    }
+
+    /**
+     * Chroma client key — prefer numeric legacy customer id so migrated tenants
+     * hit the same collections as the old app.
+     */
+    public function chromaClientId(): string
+    {
+        $legacyCustomerId = data_get(tenant()?->settings, 'legacy_customer_id');
+        if (filled($legacyCustomerId)) {
+            return (string) $legacyCustomerId;
+        }
+
         $tenantId = tenant('id');
         if (! filled($tenantId)) {
             throw new RuntimeException('Tenant context is required for Knowledge Base operations.');
@@ -43,7 +62,62 @@ class KnowledgeBaseProxyService
 
     public function botUid(?AiBot $bot): ?string
     {
-        return $bot?->uuid;
+        return $this->chromaBotId($bot);
+    }
+
+    /**
+     * Chroma bot key — prefer legacy numeric ai_bots.id used when chunks were indexed.
+     */
+    public function chromaBotId(?AiBot $bot): ?string
+    {
+        if ($bot === null) {
+            return null;
+        }
+
+        if (filled($bot->legacy_bot_id)) {
+            return (string) $bot->legacy_bot_id;
+        }
+
+        $fromMap = $this->legacyBotIdFromMigrationMap((int) $bot->id);
+        if ($fromMap !== null) {
+            // Persist so later calls skip the central lookup.
+            if ($bot->isFillable('legacy_bot_id')) {
+                $bot->forceFill(['legacy_bot_id' => $fromMap])->saveQuietly();
+            }
+
+            return (string) $fromMap;
+        }
+
+        return $bot->uuid;
+    }
+
+    private function legacyBotIdFromMigrationMap(int $newBotId): ?int
+    {
+        $tenantId = tenant('id');
+        if (! filled($tenantId)) {
+            return null;
+        }
+
+        return tenancy()->central(function () use ($tenantId, $newBotId): ?int {
+            $record = LegacyCustomerMigration::query()
+                ->where('tenant_id', $tenantId)
+                ->where('status', 'completed')
+                ->orderByDesc('id')
+                ->first();
+
+            $map = $record?->report['id_map']['ai_bot'] ?? null;
+            if (! is_array($map)) {
+                return null;
+            }
+
+            foreach ($map as $legacyId => $mappedNewId) {
+                if ((int) $mappedNewId === $newBotId) {
+                    return (int) $legacyId;
+                }
+            }
+
+            return null;
+        });
     }
 
     /**
