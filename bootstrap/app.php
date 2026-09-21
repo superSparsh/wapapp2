@@ -22,6 +22,7 @@ use App\Domains\LegacyMigration\Console\ImportLegacyPlansCommand;
 use App\Domains\LegacyMigration\Console\ImportLegacySettingsCommand;
 use App\Domains\LegacyMigration\Console\LegacyDoctorCommand;
 use App\Domains\LegacyMigration\Console\ListLegacyCustomersCommand;
+use App\Domains\LegacyMigration\Console\BackfillLegacyAiBotUidsCommand;
 use App\Domains\LegacyMigration\Console\MigrateLegacyCustomerCommand;
 use App\Domains\LegacyMigration\Console\SyncDailyLegacyCommand;
 use App\Domains\Operations\Console\Commands\DiscoverMetaPricingCsvUrlCommand;
@@ -172,6 +173,7 @@ return Application::configure(basePath: dirname(__DIR__))
         CleanOldFlowSubmissions::class,
         ProcessShopifyWebhooksCommand::class,
         MigrateLegacyCustomerCommand::class,
+        BackfillLegacyAiBotUidsCommand::class,
         SyncDailyLegacyCommand::class,
         ListLegacyCustomersCommand::class,
         LegacyDoctorCommand::class,

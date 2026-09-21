@@ -36,6 +36,18 @@ New (non-migrated) tenants use tenant slug + `AiBot.uuid`.
 
 `CHROMA_DB_PATH` must be the **`chroma_data` directory** (SQLite/parquet under `/var/www/ai_env/chroma_data`), not just the `ai_chatbot` Python code folder.
 
+### Backfill `legacy_bot_uid` (already migrated tenants)
+
+```bash
+php artisan tenants:migrate
+php artisan legacy:backfill-ai-bot-uids --dry-run   # preview
+php artisan legacy:backfill-ai-bot-uids             # write
+# one tenant:
+php artisan legacy:backfill-ai-bot-uids --tenant=acme-corp
+```
+
+Requires `LEGACY_DB_*` in `.env` pointing at the old WapApp MySQL.
+
 ## Dashboard
 
 AI Assistant → Knowledge Base tab:
