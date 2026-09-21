@@ -429,8 +429,19 @@ async def get_client_storage_info(
             "data": info
         }
     except Exception as e:
-        print(f"Error in get_client_storage_info endpoint: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logging.error("get_client_storage_info failed: %s | client_id=%s bot_id=%s", str(e), client_id, bot_id)
+        # Empty storage is fine for UI; do not 500 when Chroma has no collection yet
+        return {
+            "success": True,
+            "data": {
+                "client_id": client_id,
+                "document_count": 0,
+                "total_size_bytes": 0,
+                "total_size_mb": 0,
+                "metadata_fields": [],
+                "file_types": ["text"],
+            },
+        }
 
 @app.get("/knowledge_base/{client_id}/download")
 async def download_knowledge_base(

@@ -9,6 +9,11 @@ _cache: Dict[str, BaseAIProvider] = {}
 
 
 def get_provider(provider: str, api_key: str) -> BaseAIProvider:
+    if not api_key:
+        raise ValueError(
+            "API key is required for this operation. "
+            "Configure a provider key in AI Assistant → API Settings."
+        )
     cache_key = f"{provider}:{hashlib.sha256(api_key.encode()).hexdigest()[:16]}"
     if cache_key not in _cache:
         if provider == "openai":

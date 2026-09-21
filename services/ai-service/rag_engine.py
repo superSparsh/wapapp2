@@ -56,11 +56,10 @@ class RAGEngine:
         bot_id_str: str = None,
         customer_id: str = None,
     ):
-        # Use provided API key or fall back to default from config
+        # Use provided API key or fall back to default from config.
+        # Read-only Chroma ops (list / storage / delete) may run without a key.
         self.api_key = api_key or Config.OPENAI_API_KEY
         self.provider_name = provider or "openai"
-        self.provider = get_provider(self.provider_name, self.api_key)
-
         self.embedding_model_name = embedding_model or Config.EMBEDDING_MODEL
         self.bot_id_str = bot_id_str
         self.customer_id = customer_id
@@ -72,7 +71,10 @@ class RAGEngine:
         self.model_name = model_name or Config.MODEL_NAME
         self.temperature = temperature if temperature is not None else Config.TEMPERATURE
 
-        self.embedding_func = ProviderEmbeddingFunction(self.provider, self.embedding_model_name)
+        self._provider = None
+        self._embedding_func = None
+        self._intent_detector = None
+        self._semantic_classifier = None
 
         logging.info(
             "RAGEngine init",
@@ -82,6 +84,7 @@ class RAGEngine:
                 "embedding_model": self.embedding_model_name,
                 "customer_id": self.customer_id,
                 "bot_id": self.bot_id_str,
+                "has_api_key": bool(self.api_key),
             },
         )
 
@@ -93,17 +96,37 @@ class RAGEngine:
             )
         )
 
-        # Initialize Attribute-Aware modules (same provider + chat model as RAG generation)
-        self.intent_detector = IntentDetector(
-            api_key=self.api_key,
-            provider=self.provider_name,
-            model_name=self.model_name,
-        )
-        self.semantic_classifier = SemanticClassifier(
-            api_key=self.api_key,
-            provider=self.provider_name,
-            model_name=self.model_name,
-        )
+    @property
+    def provider(self):
+        if self._provider is None:
+            self._provider = get_provider(self.provider_name, self.api_key)
+        return self._provider
+
+    @property
+    def embedding_func(self):
+        if self._embedding_func is None:
+            self._embedding_func = ProviderEmbeddingFunction(self.provider, self.embedding_model_name)
+        return self._embedding_func
+
+    @property
+    def intent_detector(self):
+        if self._intent_detector is None:
+            self._intent_detector = IntentDetector(
+                api_key=self.api_key,
+                provider=self.provider_name,
+                model_name=self.model_name,
+            )
+        return self._intent_detector
+
+    @property
+    def semantic_classifier(self):
+        if self._semantic_classifier is None:
+            self._semantic_classifier = SemanticClassifier(
+                api_key=self.api_key,
+                provider=self.provider_name,
+                model_name=self.model_name,
+            )
+        return self._semantic_classifier
 
     def _log_usage_background(
         self,
@@ -1132,23 +1155,25 @@ Text:
             
             # Get all documents and their metadata
             results = collection.get()
-            
+            documents = [d for d in (results.get('documents') or []) if isinstance(d, str)]
+            metadatas = [m if isinstance(m, dict) else {} for m in (results.get('metadatas') or [])]
+
             # Calculate total size of documents
-            total_size = sum(len(doc.encode('utf-8')) for doc in results['documents'])
-            
+            total_size = sum(len(doc.encode('utf-8')) for doc in documents)
+
             # Get unique metadata keys
             metadata_keys = set()
-            for meta in results['metadatas']:
+            for meta in metadatas:
                 metadata_keys.update(meta.keys())
-            
+
             return {
                 "client_id": client_id,
                 "collection_name": collection_name,
-                "document_count": len(results['documents']),
+                "document_count": len(documents),
                 "total_size_bytes": total_size,
                 "total_size_mb": round(total_size / (1024 * 1024), 2),
                 "metadata_fields": list(metadata_keys),
-                "file_types": list(set(meta.get('file_type', 'text') for meta in results['metadatas']))
+                "file_types": list(set(meta.get('file_type', 'text') for meta in metadatas)) or ["text"],
             }
         except Exception as e:
             print(f"Error getting storage info: {str(e)}")
