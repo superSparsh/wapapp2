@@ -116,6 +116,17 @@ class TenantBootstrapper
             $slug = $this->slugService->generateUnique($customer->displayName());
             $phone = PhoneNormalizer::normalize($customer->phone);
 
+            $planImport = app(LegacyPlanImportService::class);
+            $legacySub = $planImport->resolveActiveLegacySubscription($customer->id);
+            $settings = [
+                'legacy_customer_id' => $customer->id,
+                'legacy_customer_uid' => $customer->uid,
+            ];
+            $validUntil = $planImport->legacyPeriodEndsAtDate($legacySub);
+            if ($validUntil !== null) {
+                $settings['valid_until'] = $validUntil;
+            }
+
             // Do NOT wrap in DB::transaction: TenantCreated runs CREATE DATABASE (DDL),
             // which MySQL implicitly commits and then Laravel fails with
             // "There is no active transaction".
@@ -131,10 +142,7 @@ class TenantBootstrapper
                 'timezone' => 'Asia/Kolkata',
                 'locale' => 'en',
                 'country_code' => 'IN',
-                'settings' => [
-                    'legacy_customer_id' => $customer->id,
-                    'legacy_customer_uid' => $customer->uid,
-                ],
+                'settings' => $settings,
                 'provisioned_at' => now(),
             ]);
 
@@ -192,13 +200,22 @@ class TenantBootstrapper
         $settings['legacy_customer_id'] = $customer->id;
         $settings['legacy_customer_uid'] = $customer->uid;
 
+        $planImport = app(LegacyPlanImportService::class);
+        $legacySub = $planImport->resolveActiveLegacySubscription($customer->id);
+        $validUntil = $planImport->legacyPeriodEndsAtDate($legacySub);
+        if ($validUntil !== null) {
+            $settings['valid_until'] = $validUntil;
+        }
+
         $attributes = [
             'settings' => $settings,
             'company_name' => $tenant->company_name ?: ($customer->companyName ?: $customer->displayName()),
             'phone' => PhoneNormalizer::normalize($customer->phone) ?: $tenant->phone,
         ];
 
-        $plan = app(LegacyPlanImportService::class)->resolvePlanForLegacyCustomer($customer->id);
+        $plan = $legacySub !== null
+            ? $planImport->findByLegacyPlanId((int) $legacySub->plan_id)
+            : $planImport->resolvePlanForLegacyCustomer($customer->id);
         if ($plan !== null) {
             $attributes['plan_id'] = $plan->id;
         }

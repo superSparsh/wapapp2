@@ -12,14 +12,17 @@
   $validityPercent = (int) ($subscription['validityPercent'] ?? 0);
   $hasPlan = (bool) ($subscription['hasPlan'] ?? filled($planName));
   $hasSubscription = (bool) ($subscription['hasSubscription'] ?? false);
+  $hasValidity = $expiresAt !== null || $daysRemaining !== null;
+  // Legacy newdashboard: danger styling when ≤ 60 days remaining.
+  $validityUrgent = $daysRemaining !== null && $daysRemaining <= 60;
 @endphp
 
 <section class="grid gap-4 p-4 pt-0 lg:grid-cols-[1fr_400px]">
   <div class="flex flex-col gap-4 rounded-lg border border-[0.5px] border-border-light bg-elevated p-4">
     <div class="flex flex-wrap items-center gap-4">
-      <p class="text-base font-bold leading-[1.5] text-danger-red" style="font-family: var(--font-display)">Account Validity</p>
+      <p class="text-base font-bold leading-[1.5] {{ $validityUrgent ? 'text-danger-red' : 'text-text-primary' }}" style="font-family: var(--font-display)">Account Validity</p>
       @if ($daysRemaining !== null)
-        <span class="rounded bg-green-50 px-2 py-1.5 text-xs font-semibold text-green-500" style="font-family: var(--font-display)">{{ $daysRemaining }} day's remaining</span>
+        <span class="rounded px-2 py-1.5 text-xs font-semibold {{ $validityUrgent ? 'bg-red-50 text-danger-red' : 'bg-green-50 text-green-500' }}" style="font-family: var(--font-display)">{{ $daysRemaining }} days remaining</span>
       @elseif ($hasPlan || $hasSubscription)
         <span class="rounded bg-green-50 px-2 py-1.5 text-xs font-semibold text-green-500" style="font-family: var(--font-display)">Active</span>
       @else
@@ -27,7 +30,7 @@
       @endif
     </div>
     <div class="h-2.5 overflow-hidden rounded-full bg-blue-50">
-      <div class="h-full rounded-full bg-auth-gradient" style="width: {{ max($hasPlan || $hasSubscription ? 8 : 0, $validityPercent) }}%"></div>
+      <div class="h-full rounded-full bg-auth-gradient" style="width: {{ max($hasValidity || $hasPlan || $hasSubscription ? 8 : 0, $validityPercent) }}%"></div>
     </div>
     <div class="grid gap-3 sm:grid-cols-2">
       <div class="flex items-center gap-2.5 rounded border border-border-light bg-elevated p-2">
@@ -36,7 +39,7 @@
         </div>
         <p class="fd-label text-sm text-primary-2">
           @if ($planName)
-            You are subscribed to {{ $planName }}
+            You are subscribed to {{ $planName }} plan
           @elseif ($hasSubscription)
             Subscription is active
           @else
@@ -50,7 +53,7 @@
         </div>
         <p class="fd-label text-sm text-primary-2">
           @if ($expiresAt)
-            Expires on {{ $expiresAt->format('d-m-Y') }}
+            Expires on {{ $expiresAt->format('F d, Y') }}
           @elseif ($hasPlan || $hasSubscription)
             Expiry date not set — ask admin to extend validity
           @else

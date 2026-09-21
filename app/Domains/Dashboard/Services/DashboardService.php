@@ -210,14 +210,17 @@ class DashboardService
         $validityPercent = 0;
 
         if ($expiresAt instanceof Carbon) {
-            $daysRemaining = max(0, (int) now()->diffInDays($expiresAt, false));
+            // Legacy DashboardService: Carbon::now()->diffInDays($planExpires)
+            $daysRemaining = max(0, (int) now()->startOfDay()->diffInDays($expiresAt->copy()->startOfDay(), false));
             $startsAt = $subscription?->starts_at;
 
             if ($startsAt instanceof Carbon && $expiresAt->greaterThan($startsAt)) {
-                $totalDays = max(1, (int) $startsAt->diffInDays($expiresAt));
+                $totalDays = max(1, (int) $startsAt->copy()->startOfDay()->diffInDays($expiresAt->copy()->startOfDay()));
                 $validityPercent = min(100, (int) round(($daysRemaining / $totalDays) * 100));
             } elseif ($daysRemaining > 0) {
-                $validityPercent = min(100, max(8, $daysRemaining));
+                // No start date — show remaining as a soft progress bar (legacy-ish).
+                $validityPercent = min(100, (int) round(($daysRemaining / max($daysRemaining, 365)) * 100));
+                $validityPercent = max(8, $validityPercent);
             }
         }
 
@@ -228,7 +231,7 @@ class DashboardService
             'validityPercent' => $validityPercent,
             'isCancelled' => (bool) ($summary['is_cancelled'] ?? false),
             'hasPlan' => filled($planName),
-            'hasSubscription' => $subscription !== null,
+            'hasSubscription' => $subscription !== null || filled($planName),
         ];
     }
 

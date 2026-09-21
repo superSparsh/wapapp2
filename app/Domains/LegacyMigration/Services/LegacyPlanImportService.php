@@ -126,14 +126,15 @@ class LegacyPlanImportService
 
         foreach ($tenants as $tenant) {
             $legacyCustomerId = (int) data_get($tenant->settings, 'legacy_customer_id');
-            $legacyPlanId = $this->resolveActiveLegacyPlanId($legacyCustomerId);
+            $legacySub = $this->resolveActiveLegacySubscription($legacyCustomerId);
 
-            if ($legacyPlanId === null) {
+            if ($legacySub === null) {
                 $stats['missing_subscription']++;
 
                 continue;
             }
 
+            $legacyPlanId = (int) $legacySub->plan_id;
             $plan = $planByLegacyId->get($legacyPlanId);
             if (! $plan instanceof Plan) {
                 $stats['missing_plan']++;
@@ -141,14 +142,27 @@ class LegacyPlanImportService
                 continue;
             }
 
-            if ((int) $tenant->plan_id === (int) $plan->id) {
+            $validUntil = $this->legacyPeriodEndsAtDate($legacySub);
+            $settings = is_array($tenant->settings) ? $tenant->settings : [];
+            $needsPlanUpdate = (int) $tenant->plan_id !== (int) $plan->id;
+            $needsValidityUpdate = $validUntil !== null
+                && (string) ($settings['valid_until'] ?? '') !== $validUntil;
+
+            if (! $needsPlanUpdate && ! $needsValidityUpdate) {
                 $stats['skipped']++;
 
                 continue;
             }
 
             if (! $dryRun) {
-                $tenant->forceFill(['plan_id' => $plan->id])->save();
+                if ($validUntil !== null) {
+                    $settings['valid_until'] = $validUntil;
+                }
+
+                $tenant->forceFill([
+                    'plan_id' => $plan->id,
+                    'settings' => $settings,
+                ])->save();
             }
 
             $stats['assigned']++;
@@ -201,6 +215,16 @@ class LegacyPlanImportService
 
     public function resolveActiveLegacyPlanId(int $legacyCustomerId): ?int
     {
+        $row = $this->resolveActiveLegacySubscription($legacyCustomerId);
+
+        return $row !== null ? (int) $row->plan_id : null;
+    }
+
+    /**
+     * @return object{plan_id: mixed, current_period_ends_at?: mixed, created_at?: mixed}|null
+     */
+    public function resolveActiveLegacySubscription(int $legacyCustomerId): ?object
+    {
         if (! $this->legacy->tableExists('subscriptions')) {
             return null;
         }
@@ -222,9 +246,27 @@ class LegacyPlanImportService
             $query->orderByDesc('id');
         }
 
-        $planId = $query->value('plan_id');
+        $row = $query->first();
 
-        return $planId !== null ? (int) $planId : null;
+        return $row !== null ? (object) (array) $row : null;
+    }
+
+    public function legacyPeriodEndsAtDate(?object $legacySub): ?string
+    {
+        if ($legacySub === null) {
+            return null;
+        }
+
+        $raw = $legacySub->current_period_ends_at ?? null;
+        if (! is_string($raw) && ! is_numeric($raw)) {
+            return null;
+        }
+
+        try {
+            return \Carbon\Carbon::parse((string) $raw)->toDateString();
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     /**

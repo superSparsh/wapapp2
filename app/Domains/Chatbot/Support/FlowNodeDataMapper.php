@@ -169,8 +169,6 @@ class FlowNodeDataMapper
 
         return $data;
     }
-        return $data;
-    }
 
     /**
      * @param  array<string, mixed>  $data
