@@ -18,6 +18,7 @@ class QueueAdminService
 {
     public function __construct(
         private readonly ErrorModuleResolver $resolver,
+        private readonly ServerOpsService $ops,
     ) {}
 
     private function dbConnection(): string
@@ -35,19 +36,7 @@ class QueueAdminService
      *   sort?: string,
      *   direction?: string
      * }  $filters
-     * @return array{
-     *   pending: LengthAwarePaginator,
-     *   failed: LengthAwarePaginator,
-     *   connection: string,
-     *   driver: string,
-     *   pending_count: int,
-     *   failed_count: int,
-     *   module: ?string,
-     *   modules: array<string, string>,
-     *   filters: array<string, mixed>,
-     *   queue_names: list<string>,
-     *   sortOptions: list<array{value: string, label: string, direction: string}>
-     * }
+     * @return array<string, mixed>
      */
     public function dashboard(int $page = 1, int $failedPage = 1, int $perPage = 25, array $filters = []): array
     {
@@ -72,6 +61,8 @@ class QueueAdminService
             'direction' => strtolower((string) ($filters['direction'] ?? 'desc')) === 'asc' ? 'asc' : 'desc',
         ];
 
+        $probes = $this->ops->probes();
+
         return [
             'pending' => $this->pendingJobs($page, $perPage, $normalized),
             'failed' => $this->failedJobs($failedPage, $perPage, $normalized),
@@ -83,6 +74,9 @@ class QueueAdminService
             'modules' => $this->resolver->modules(),
             'filters' => $normalized,
             'queue_names' => $this->distinctQueueNames(),
+            'horizon' => $probes['horizon'],
+            'redis_probe' => $probes['redis'],
+            'ops_groups' => $this->ops->catalogByGroup(),
             'sortOptions' => [
                 ['value' => 'id', 'label' => 'Newest first', 'direction' => 'desc'],
                 ['value' => 'id', 'label' => 'Oldest first', 'direction' => 'asc'],

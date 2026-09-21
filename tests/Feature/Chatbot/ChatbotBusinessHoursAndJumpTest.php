@@ -395,10 +395,72 @@ class ChatbotBusinessHoursAndJumpTest extends TestCase
 
         $state = ChatbotFlowState::forConversation($conversation->id)->first();
         $this->assertNotNull($state);
-        $this->assertSame(ChatbotFlowStateStatus::Active, $state->status);
+        $this->assertSame(ChatbotFlowStateStatus::Delayed, $state->status);
         $this->assertSame('final_reply', $state->current_node_id);
 
         Queue::assertPushed(\App\Domains\Chatbot\Jobs\ProcessDelayedNodeJob::class);
+
+        // Inbound mid-delay must NOT skip ahead and process final_reply early.
+        $engine->processInbound($conversation, Message::factory()->create([
+            'conversation_id' => $conversation->id,
+            'body' => 'impatient follow up',
+            'direction' => MessageDirection::Inbound,
+        ]));
+
+        $state->refresh();
+        $this->assertSame(ChatbotFlowStateStatus::Delayed, $state->status);
+        $this->assertSame('final_reply', $state->current_node_id);
+    }
+
+    public function test_welcome_resolves_legacy_dollar_paren_variables(): void
+    {
+        $sent = [];
+        $this->mock(InboxOutboundService::class, function ($mock) use (&$sent): void {
+            $mock->shouldReceive('sendText')->andReturnUsing(function ($conversation, string $body) use (&$sent) {
+                $sent[] = $body;
+
+                return new Message([
+                    'id' => count($sent),
+                    'body' => $body,
+                    'direction' => MessageDirection::Outbound,
+                    'message_type' => MessageType::Text,
+                ]);
+            });
+            $mock->shouldReceive('sendTypingIndicator')->andReturn(true);
+        });
+
+        ChatbotFlow::factory()->active()->create([
+            'exported_data' => [
+                'nodes' => [
+                    [
+                        'id' => 'welcome_1',
+                        'type' => 'welcomeMessage',
+                        'data' => [
+                            'messageType' => 'text',
+                            'triggerKeyword' => 'varname',
+                            'welcomeMessage' => 'Hello $(first_name), phone $(phone_number)',
+                        ],
+                    ],
+                ],
+                'edges' => [],
+            ],
+        ]);
+
+        $conversation = Conversation::factory()->create([
+            'contact_name' => 'Asha Verma',
+            'contact_phone' => '919111111111',
+        ]);
+        $engine = app(ChatbotFlowEngine::class);
+
+        $result = $engine->processInbound($conversation, Message::factory()->create([
+            'conversation_id' => $conversation->id,
+            'body' => 'varname',
+            'direction' => MessageDirection::Inbound,
+        ]));
+
+        $this->assertSame('fired', $result->value);
+        $this->assertContains('Hello Asha, phone 919111111111', $sent);
+        $this->assertNotContains('Hello $(first_name), phone $(phone_number)', $sent);
     }
 
     public function test_welcome_offline_hours_sends_offline_message_outside_window(): void

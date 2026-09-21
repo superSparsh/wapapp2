@@ -57,12 +57,16 @@ abstract class AbstractNodeProcessor implements NodeProcessorInterface
     }
 
     /**
-     * Resolve variables in a text string.
+     * Resolve variables in a text string (supports $(var) and {{var}}).
      *
      * @param  array<string, mixed>  $variables
      */
-    protected function resolveText(string $text, array $variables): string
+    protected function resolveText(string $text, array $variables, ?Conversation $conversation = null): string
     {
+        if ($conversation !== null) {
+            $variables = $this->variableResolver->withConversationContext($variables, $conversation);
+        }
+
         return $this->variableResolver->resolve($text, $variables);
     }
 

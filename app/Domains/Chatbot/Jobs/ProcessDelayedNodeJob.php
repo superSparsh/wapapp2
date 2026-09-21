@@ -36,6 +36,15 @@ class ProcessDelayedNodeJob implements ShouldQueue
             return;
         }
 
+        // Only the delay job should resume a Delayed state. Also allow Active for
+        // any jobs still in-flight from before Delayed status existed.
+        if (! in_array($state->status, [
+            ChatbotFlowStateStatus::Delayed,
+            ChatbotFlowStateStatus::Active,
+        ], true)) {
+            return;
+        }
+
         // Re-activate the state so the engine can continue
         $state->forceFill([
             'status' => ChatbotFlowStateStatus::Active,

@@ -75,7 +75,7 @@ class NaturalLanguageProcessor extends AbstractNodeProcessor
                 // If custom prompt override provided, dynamically inject
                 $customPrompt = trim((string) ($data['customPrompt'] ?? $data['custom_prompt'] ?? ''));
                 if ($customPrompt !== '') {
-                    $resolvedPrompt = $this->resolveText($customPrompt, $variables);
+                    $resolvedPrompt = $this->resolveText($customPrompt, $variables, $conversation);
                     $bot->system_prompt = $bot->system_prompt
                         ? "{$bot->system_prompt}\n\nAdditional Instructions: {$resolvedPrompt}"
                         : $resolvedPrompt;

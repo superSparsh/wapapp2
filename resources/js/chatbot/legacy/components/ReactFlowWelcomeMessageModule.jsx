@@ -26,6 +26,7 @@ import {
 import VariableHelper from "./VariableHelper.jsx";
 import ReactFlowOfflineHoursFields, {
   OFFLINE_HOURS_DEFAULTS,
+  normalizeOfflineHoursForSave,
 } from "./ReactFlowOfflineHoursFields.jsx";
 
 const { TextArea } = Input;
@@ -99,8 +100,10 @@ const ReactFlowWelcomeMessageModule = ({
       console.log("Quick replies:", quickReplies);
 
       // Process the form data
+      const offlineHours = normalizeOfflineHoursForSave(values);
       const nodeData = {
         ...values,
+        ...offlineHours,
         selectedTemplate: selectedTemplate,
         quickReplies: quickReplies, // Ensure quickReplies are passed
         templateId: selectedTemplate ? selectedTemplate.id : values.templateId, // Ensure templateId is set

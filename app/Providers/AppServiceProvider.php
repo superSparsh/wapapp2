@@ -11,6 +11,7 @@ use App\Models\Message;
 use App\Models\WhatsappLine;
 use App\Observers\MessageObserver;
 use App\Observers\WhatsappLineObserver;
+use App\View\Composers\AdminHeaderComposer;
 use App\View\Composers\HeaderComposer;
 use App\View\Composers\SidebarComposer;
 use Illuminate\Queue\Events\JobFailed;
@@ -73,6 +74,11 @@ class AppServiceProvider extends ServiceProvider
             'components.app.impersonation-banner',
             'components.app.admin-area-ribbon',
         ], HeaderComposer::class);
+
+        View::composer([
+            'components.admin.header',
+            'components.admin.notifications-panel',
+        ], AdminHeaderComposer::class);
 
         View::composer('components.app.sidebar', SidebarComposer::class);
 

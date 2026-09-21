@@ -5,16 +5,19 @@ declare(strict_types=1);
 namespace App\Domains\Admin\Http\Controllers;
 
 use App\Domains\Admin\Services\QueueAdminService;
+use App\Domains\Admin\Services\ServerOpsService;
 use App\Domains\Admin\Support\AdminListQuery;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
+use Throwable;
 
 class QueueController extends Controller
 {
     public function __construct(
         private readonly QueueAdminService $queues,
+        private readonly ServerOpsService $ops,
     ) {}
 
     public function index(Request $request): View
@@ -96,5 +99,24 @@ class QueueController extends Controller
         $scope = $module ? ' for this module' : '';
 
         return back()->with('status', "Deleted {$deleted} failed job(s) older than {$days} days{$scope}.");
+    }
+
+    public function runOps(Request $request): RedirectResponse
+    {
+        $key = (string) $request->input('command', '');
+        abort_if($key === '', 422, 'Command is required.');
+
+        try {
+            $result = $this->ops->run($key);
+        } catch (Throwable $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        $flash = $result['label'].': '.$result['output'];
+
+        return back()
+            ->with($result['ok'] ? 'status' : 'error', $flash)
+            ->with('ops_output', $result['output'])
+            ->with('ops_command', $result['key']);
     }
 }

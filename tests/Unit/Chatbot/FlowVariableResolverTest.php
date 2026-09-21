@@ -3,6 +3,7 @@
 namespace Tests\Unit\Chatbot;
 
 use App\Domains\Chatbot\Support\FlowVariableResolver;
+use App\Models\Conversation;
 use PHPUnit\Framework\TestCase;
 
 class FlowVariableResolverTest extends TestCase
@@ -22,6 +23,26 @@ class FlowVariableResolverTest extends TestCase
         $this->assertSame('Hello John!', $result);
     }
 
+    public function test_resolves_legacy_dollar_paren_syntax(): void
+    {
+        $result = $this->resolver->resolve(
+            'Hi $(first_name), your number is $(phone_number)',
+            ['first_name' => 'Riya', 'phone_number' => '919999999999'],
+        );
+
+        $this->assertSame('Hi Riya, your number is 919999999999', $result);
+    }
+
+    public function test_resolves_mixed_syntax(): void
+    {
+        $result = $this->resolver->resolve(
+            'Hi $(first_name) / {{last_name}}',
+            ['first_name' => 'A', 'last_name' => 'B'],
+        );
+
+        $this->assertSame('Hi A / B', $result);
+    }
+
     public function test_resolves_multiple_variables(): void
     {
         $result = $this->resolver->resolve(
@@ -37,6 +58,10 @@ class FlowVariableResolverTest extends TestCase
         $result = $this->resolver->resolve('Hello {{name}}!', []);
 
         $this->assertSame('Hello {{name}}!', $result);
+
+        $legacy = $this->resolver->resolve('Hello $(name)!', []);
+
+        $this->assertSame('Hello $(name)!', $legacy);
     }
 
     public function test_resolves_dot_notation(): void
@@ -69,5 +94,23 @@ class FlowVariableResolverTest extends TestCase
         $result = $this->resolver->resolve('Active: {{active}}', ['active' => true]);
 
         $this->assertSame('Active: true', $result);
+    }
+
+    public function test_conversation_context_splits_contact_name(): void
+    {
+        $conversation = new Conversation([
+            'contact_name' => 'Sparsh Thakur',
+            'contact_phone' => '919876543210',
+            'line_phone' => '911234567890',
+        ]);
+
+        $ctx = $this->resolver->conversationContext($conversation);
+
+        $this->assertSame('Sparsh', $ctx['first_name']);
+        $this->assertSame('Thakur', $ctx['last_name']);
+        $this->assertSame('Sparsh Thakur', $ctx['full_name']);
+        $this->assertSame('919876543210', $ctx['phone_number']);
+        $this->assertSame('911234567890', $ctx['recipient_number']);
+        $this->assertArrayHasKey('current_date', $ctx);
     }
 }

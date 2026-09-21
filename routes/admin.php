@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Domains\Admin\Http\Controllers\AdminNotificationController;
 use App\Domains\Admin\Http\Controllers\AccountController;
 use App\Domains\Admin\Http\Controllers\AdminRoleController;
 use App\Domains\Admin\Http\Controllers\AdminUserController;
@@ -60,6 +61,10 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
     Route::middleware(['auth:admin', 'admin.active'])->group(function (): void {
         Route::post('/logout', [AdminLoginController::class, 'destroy'])->name('logout');
         Route::get('/', DashboardController::class)->name('dashboard');
+
+        Route::get('/notifications', [AdminNotificationController::class, 'index'])->name('notifications.index');
+        Route::post('/notifications/mark-all-read', [AdminNotificationController::class, 'markAllRead'])->name('notifications.mark-all-read');
+        Route::match(['get', 'post'], '/notifications/{notification}/read', [AdminNotificationController::class, 'markRead'])->name('notifications.read');
 
         Route::get('/account/profile', [AccountController::class, 'profile'])->name('account.profile');
         Route::put('/account/profile', [AccountController::class, 'update'])->name('account.update');
@@ -175,6 +180,7 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::post('/plans/{plan}/toggle-status', [PlanController::class, 'toggleStatus'])->name('plans.toggle-status');
 
         Route::get('/queues', [QueueController::class, 'index'])->name('queues.index');
+        Route::post('/queues/ops', [QueueController::class, 'runOps'])->name('queues.ops');
         Route::post('/queues/failed/retry-all', [QueueController::class, 'retryAll'])->name('queues.retry-all');
         Route::post('/queues/failed/flush', [QueueController::class, 'flush'])->name('queues.flush');
         Route::post('/queues/failed/flush-module', [QueueController::class, 'flushModule'])->name('queues.flush-module');

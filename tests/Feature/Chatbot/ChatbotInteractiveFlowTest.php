@@ -175,10 +175,10 @@ class ChatbotInteractiveFlowTest extends TestCase
 
         $this->assertSame('fired', $result->value);
 
-        // Delay halts execution. State stays Active (delayed job will resume it).
+        // Delay halts execution. State is Delayed so inbound cannot skip ahead.
         // current_node_id points to the follow-up node for when the job runs.
         $state = ChatbotFlowState::query()->first();
-        $this->assertSame(ChatbotFlowStateStatus::Active, $state->status);
+        $this->assertSame(ChatbotFlowStateStatus::Delayed, $state->status);
         $this->assertSame('followup', $state->current_node_id);
 
         // A delayed job should have been dispatched
@@ -230,7 +230,7 @@ class ChatbotInteractiveFlowTest extends TestCase
 
         // Typing indicator dispatches a delayed job and halts execution (like delay node)
         $state = ChatbotFlowState::query()->first();
-        $this->assertSame(ChatbotFlowStateStatus::Active, $state->status);
+        $this->assertSame(ChatbotFlowStateStatus::Delayed, $state->status);
         $this->assertSame('followup', $state->current_node_id);
 
         Queue::assertPushed(\App\Domains\Chatbot\Jobs\ProcessDelayedNodeJob::class);

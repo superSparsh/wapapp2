@@ -10,6 +10,12 @@ return [
         'matches' => [],
     ],
     [
+        'label' => 'Notifications',
+        'route' => 'admin.notifications.index',
+        'icon' => 'bell',
+        'matches' => ['admin.notifications.*'],
+    ],
+    [
         'label' => 'Customer',
         'route' => 'admin.customers.index',
         'icon' => 'users',

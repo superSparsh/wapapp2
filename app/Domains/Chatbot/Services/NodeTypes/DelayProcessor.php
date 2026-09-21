@@ -6,6 +6,7 @@ namespace App\Domains\Chatbot\Services\NodeTypes;
 
 use App\Domains\Chatbot\Enums\NodeProcessResult;
 use App\Domains\Chatbot\Jobs\ProcessDelayedNodeJob;
+use App\Enums\ChatbotFlowStateStatus;
 use App\Models\ChatbotFlowState;
 use App\Models\Conversation;
 
@@ -29,8 +30,11 @@ class DelayProcessor extends AbstractNodeProcessor
             return NodeProcessResult::Completed;
         }
 
-        // Update state to point at the next node (after delay)
-        $state->forceFill(['current_node_id' => $nextId])->save();
+        // Point at the next node but mark Delayed so inbound cannot skip the wait.
+        $state->forceFill([
+            'current_node_id' => $nextId,
+            'status' => ChatbotFlowStateStatus::Delayed,
+        ])->save();
 
         // Dispatch a delayed job to continue the flow
         ProcessDelayedNodeJob::dispatch(

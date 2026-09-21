@@ -7,6 +7,7 @@ namespace App\Domains\Chatbot\Services\NodeTypes;
 use App\Domains\Chatbot\Enums\NodeProcessResult;
 use App\Domains\Chatbot\Jobs\ProcessDelayedNodeJob;
 use App\Domains\Chatbot\Jobs\SendTypingIndicatorJob;
+use App\Enums\ChatbotFlowStateStatus;
 use App\Models\ChatbotFlowState;
 use App\Models\Conversation;
 
@@ -48,7 +49,10 @@ class TypingIndicatorProcessor extends AbstractNodeProcessor
             }
         }
 
-        $state->forceFill(['current_node_id' => $nextId])->save();
+        $state->forceFill([
+            'current_node_id' => $nextId,
+            'status' => ChatbotFlowStateStatus::Delayed,
+        ])->save();
 
         ProcessDelayedNodeJob::dispatch(
             conversationId: $conversation->id,

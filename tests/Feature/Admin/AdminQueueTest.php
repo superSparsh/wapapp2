@@ -6,6 +6,7 @@ namespace Tests\Feature\Admin;
 
 use App\Models\Admin;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Tests\Concerns\InteractsWithTenants;
@@ -39,11 +40,19 @@ class AdminQueueTest extends TestCase
 
     public function test_admin_can_view_queues_dashboard(): void
     {
+        Artisan::shouldReceive('call')->andReturn(0);
+        Artisan::shouldReceive('output')->andReturn('Horizon is running.');
+
         $this->actingAs($this->admin, 'admin')
             ->get(route('admin.queues.index'))
             ->assertOk()
             ->assertSee('Queues')
-            ->assertSee('Failed jobs');
+            ->assertSee('Server ops')
+            ->assertSee('Failed jobs')
+            ->assertSee('Restart queue workers')
+            ->assertSee('Terminate Horizon')
+            ->assertSee('Supervisor status')
+            ->assertSee('Reload Apache');
     }
 
     public function test_guest_cannot_view_queues(): void
@@ -76,5 +85,29 @@ class AdminQueueTest extends TestCase
             ->assertRedirect();
 
         $this->assertDatabaseMissing('failed_jobs', ['uuid' => $uuid], $central);
+    }
+
+    public function test_admin_can_run_allowlisted_ops_command(): void
+    {
+        Artisan::shouldReceive('call')
+            ->once()
+            ->with('queue:restart')
+            ->andReturn(0);
+        Artisan::shouldReceive('output')
+            ->andReturn('Broadcasting queue restart signal.');
+
+        $this->actingAs($this->admin, 'admin')
+            ->post(route('admin.queues.ops'), ['command' => 'queue_restart'])
+            ->assertRedirect()
+            ->assertSessionHas('status')
+            ->assertSessionHas('ops_output');
+    }
+
+    public function test_unknown_ops_command_is_rejected(): void
+    {
+        $this->actingAs($this->admin, 'admin')
+            ->post(route('admin.queues.ops'), ['command' => 'rm_rf_root'])
+            ->assertRedirect()
+            ->assertSessionHas('error');
     }
 }

@@ -57,4 +57,25 @@ class RechargeSubscriptionRequest extends Model
     {
         return $this->status === self::STATUS_PENDING;
     }
+
+    protected static function booted(): void
+    {
+        static::created(function (self $request): void {
+            try {
+                $tenant = $request->tenant;
+                $label = (string) ($tenant?->company_name ?: $tenant?->name ?: $request->tenant_id);
+                $amount = $request->amount !== null
+                    ? trim(($request->currency ?: 'INR').' '.number_format((float) $request->amount, 2))
+                    : null;
+
+                app(\App\Domains\Admin\Services\AdminNotificationService::class)->notifyRechargeRequest(
+                    requestId: (int) $request->id,
+                    tenantLabel: $label,
+                    amount: $amount,
+                );
+            } catch (\Throwable) {
+                //
+            }
+        });
+    }
 }

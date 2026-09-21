@@ -31,7 +31,7 @@ class InteractiveMessageProcessor extends AbstractNodeProcessor
         $data = $this->nodeData($node);
         $interactiveType = (string) ($data['interactiveType'] ?? $data['interactive_type'] ?? $data['type'] ?? 'button');
         $variables = $state->variables ?? [];
-        $resolve = fn (string $text): string => $this->resolveText($text, $variables);
+        $resolve = fn (string $text): string => $this->resolveText($text, $variables, $conversation);
 
         $content = $this->payloadBuilder->fromNodeData($data, $resolve);
 

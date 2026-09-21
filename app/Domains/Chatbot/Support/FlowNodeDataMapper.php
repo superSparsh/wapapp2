@@ -100,17 +100,7 @@ class FlowNodeDataMapper
         $data['keywords'] = $keyword;
         $data['messageType'] = (string) ($data['messageType'] ?? 'text');
 
-        // Legacy offline-hours fields (ReactFlowOfflineHoursFields) — keep as-is.
-        if (array_key_exists('enableOfflineHours', $data)) {
-            $data['enableOfflineHours'] = (bool) $data['enableOfflineHours'];
-        }
-        foreach (['timezone', 'onlineFrom', 'onlineUntil', 'offlineMessage'] as $offlineKey) {
-            if (array_key_exists($offlineKey, $data)) {
-                $data[$offlineKey] = is_string($data[$offlineKey]) ? $data[$offlineKey] : (string) $data[$offlineKey];
-            }
-        }
-
-        return $data;
+        return $this->syncOfflineHoursFields($data);
     }
 
     /**
@@ -158,12 +148,52 @@ class FlowNodeDataMapper
         $data['keywords'] = $keyword;
         $data['messageType'] = $code !== '' ? 'template' : (string) ($data['messageType'] ?? 'text');
 
+        return $this->syncOfflineHoursFields($data);
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function syncOfflineHoursFields(array $data): array
+    {
         if (array_key_exists('enableOfflineHours', $data)) {
-            $data['enableOfflineHours'] = (bool) $data['enableOfflineHours'];
+            $data['enableOfflineHours'] = OfflineHoursEvaluator::truthy($data['enableOfflineHours']);
         }
+
         foreach (['timezone', 'onlineFrom', 'onlineUntil', 'offlineMessage'] as $offlineKey) {
-            if (array_key_exists($offlineKey, $data)) {
-                $data[$offlineKey] = is_string($data[$offlineKey]) ? $data[$offlineKey] : (string) $data[$offlineKey];
+            if (! array_key_exists($offlineKey, $data)) {
+                continue;
+            }
+
+            if (is_string($data[$offlineKey])) {
+                $data[$offlineKey] = trim($data[$offlineKey]);
+
+                continue;
+            }
+
+            // Ant Design TimePicker may persist a moment/dayjs-like object or ISO string.
+            if (is_object($data[$offlineKey]) && method_exists($data[$offlineKey], 'format')) {
+                try {
+                    $data[$offlineKey] = (string) $data[$offlineKey]->format('H:i');
+
+                    continue;
+                } catch (\Throwable) {
+                    // fall through
+                }
+            }
+
+            $data[$offlineKey] = is_scalar($data[$offlineKey]) ? trim((string) $data[$offlineKey]) : '';
+        }
+
+        // Normalize times to HH:mm when parseable.
+        foreach (['onlineFrom', 'onlineUntil'] as $timeKey) {
+            if (! isset($data[$timeKey]) || ! is_string($data[$timeKey]) || $data[$timeKey] === '') {
+                continue;
+            }
+
+            if (preg_match('/^(\d{1,2}):(\d{2})/', $data[$timeKey], $m)) {
+                $data[$timeKey] = sprintf('%02d:%02d', (int) $m[1], (int) $m[2]);
             }
         }
 

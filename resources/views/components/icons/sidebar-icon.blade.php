@@ -13,20 +13,21 @@
     ];
 
     $base = $iconMap[$name] ?? null;
+    $src = null;
 
-    if ($base === 'shopping-cart') {
-        $file = 'shopping-cart.svg';
+    if ($name === 'bell') {
+        $src = asset('images/icons/header/bell-base.svg');
+    } elseif ($base === 'shopping-cart') {
+        $src = asset('images/icons/sidebar/menu/shopping-cart.svg');
     } elseif ($base) {
-        $file = $base . ($active ? '-active' : '-inactive') . '.svg';
-    } else {
-        $file = null;
+        $src = asset('images/icons/sidebar/menu/'.$base.($active ? '-active' : '-inactive').'.svg');
     }
 @endphp
 
-@if ($file)
+@if ($src)
   <img
     {{ $attributes->merge(['class' => "inline-block shrink-0 object-contain {$class}"]) }}
-    src="{{ asset('images/icons/sidebar/menu/' . $file) }}"
+    src="{{ $src }}"
     alt=""
     width="20"
     height="20"

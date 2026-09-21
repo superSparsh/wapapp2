@@ -54,7 +54,7 @@ class WhatsappFlowTemplateProcessor extends AbstractNodeProcessor
         }
 
         if ($this->hasApiInteractivePayload($data)) {
-            $content = $this->resolveInteractiveContent($data, $variables);
+            $content = $this->resolveInteractiveContent($data, $variables, $conversation);
             $this->sendInteractive($conversation, $content);
 
             $state->mergeVariables([
@@ -73,7 +73,7 @@ class WhatsappFlowTemplateProcessor extends AbstractNodeProcessor
 
         $flowId = (string) ($data['flowId'] ?? $data['flow_id'] ?? '');
         $flowCta = (string) ($data['flowCta'] ?? $data['flow_cta'] ?? $data['ctaText'] ?? 'Open');
-        $bodyText = $this->resolveText((string) ($data['bodyText'] ?? ''), $variables);
+        $bodyText = $this->resolveText((string) ($data['bodyText'] ?? ''), $variables, $conversation);
         $flow = $flowId !== '' ? $this->flowInteractiveService->findByIdentifier($flowId) : null;
 
         if ($flow !== null) {
@@ -102,7 +102,7 @@ class WhatsappFlowTemplateProcessor extends AbstractNodeProcessor
             return NodeProcessResult::WaitForResponse;
         }
 
-        $headerText = $this->resolveText((string) ($data['headerText'] ?? ''), $variables);
+        $headerText = $this->resolveText((string) ($data['headerText'] ?? ''), $variables, $conversation);
         $messageParts = array_filter([$headerText, $bodyText]);
 
         if ($messageParts !== []) {
@@ -134,7 +134,7 @@ class WhatsappFlowTemplateProcessor extends AbstractNodeProcessor
      * @param  array<string, mixed>  $variables
      * @return array<string, mixed>
      */
-    private function resolveInteractiveContent(array $data, array $variables): array
+    private function resolveInteractiveContent(array $data, array $variables, Conversation $conversation): array
     {
         $content = [
             'type' => (string) $data['type'],
@@ -148,7 +148,7 @@ class WhatsappFlowTemplateProcessor extends AbstractNodeProcessor
             $sectionData = $data[$section];
 
             if (isset($sectionData['text']) && is_string($sectionData['text'])) {
-                $sectionData['text'] = $this->resolveText($sectionData['text'], $variables);
+                $sectionData['text'] = $this->resolveText($sectionData['text'], $variables, $conversation);
             }
 
             $content[$section] = $sectionData;

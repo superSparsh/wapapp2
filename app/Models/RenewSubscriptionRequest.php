@@ -60,4 +60,23 @@ class RenewSubscriptionRequest extends Model
     {
         return $this->status === self::STATUS_PENDING;
     }
+
+    protected static function booted(): void
+    {
+        static::created(function (self $request): void {
+            try {
+                $tenant = $request->tenant;
+                $label = (string) ($tenant?->company_name ?: $tenant?->name ?: $request->tenant_id);
+                $planName = $request->plan?->name;
+
+                app(\App\Domains\Admin\Services\AdminNotificationService::class)->notifyRenewRequest(
+                    requestId: (int) $request->id,
+                    tenantLabel: $label,
+                    planName: $planName,
+                );
+            } catch (\Throwable) {
+                //
+            }
+        });
+    }
 }

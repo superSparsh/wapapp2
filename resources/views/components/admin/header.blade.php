@@ -24,6 +24,20 @@
       <svg class="hidden size-5 dark:block" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M21 14.5A8.5 8.5 0 1 1 9.5 3 7 7 0 0 0 21 14.5z"/></svg>
     </button>
 
+    <div class="relative" data-admin-notifications>
+      <button
+        type="button"
+        data-admin-notifications-toggle
+        class="relative flex h-[37px] w-7 items-center justify-center"
+        aria-label="Notifications"
+        aria-expanded="false"
+      >
+        <x-icons.header-bell :count="$adminNotificationCount ?? 0" />
+      </button>
+      <div data-admin-notifications-backdrop class="fixed inset-0 z-40 hidden bg-transparent" aria-hidden="true"></div>
+      <x-admin.notifications-panel />
+    </div>
+
     {{-- Legacy admin user menu: Customer View + My Profile (no direct logout) --}}
     <div class="relative" data-admin-user-menu>
       <button
@@ -76,29 +90,56 @@
 <script>
   document.addEventListener('DOMContentLoaded', () => {
     const root = document.querySelector('[data-admin-user-menu]');
-    if (!root) return;
-    const toggle = root.querySelector('[data-admin-user-menu-toggle]');
-    const panel = root.querySelector('[data-admin-user-menu-panel]');
-    if (!toggle || !panel) return;
+    if (root) {
+      const toggle = root.querySelector('[data-admin-user-menu-toggle]');
+      const panel = root.querySelector('[data-admin-user-menu-panel]');
+      if (toggle && panel) {
+        const close = () => {
+          panel.classList.add('hidden');
+          toggle.setAttribute('aria-expanded', 'false');
+        };
+        const open = () => {
+          panel.classList.remove('hidden');
+          toggle.setAttribute('aria-expanded', 'true');
+        };
+        toggle.addEventListener('click', (e) => {
+          e.stopPropagation();
+          panel.classList.contains('hidden') ? open() : close();
+        });
+        document.addEventListener('click', (e) => {
+          if (!root.contains(e.target)) close();
+        });
+        document.addEventListener('keydown', (e) => {
+          if (e.key === 'Escape') close();
+        });
+      }
+    }
 
-    const close = () => {
-      panel.classList.add('hidden');
-      toggle.setAttribute('aria-expanded', 'false');
-    };
-    const open = () => {
-      panel.classList.remove('hidden');
-      toggle.setAttribute('aria-expanded', 'true');
-    };
-
-    toggle.addEventListener('click', (e) => {
-      e.stopPropagation();
-      panel.classList.contains('hidden') ? open() : close();
-    });
-    document.addEventListener('click', (e) => {
-      if (!root.contains(e.target)) close();
-    });
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') close();
-    });
+    const notifRoot = document.querySelector('[data-admin-notifications]');
+    if (notifRoot) {
+      const toggle = notifRoot.querySelector('[data-admin-notifications-toggle]');
+      const panel = notifRoot.querySelector('[data-admin-notifications-panel]');
+      const backdrop = notifRoot.querySelector('[data-admin-notifications-backdrop]');
+      if (toggle && panel) {
+        const close = () => {
+          panel.classList.add('hidden');
+          backdrop?.classList.add('hidden');
+          toggle.setAttribute('aria-expanded', 'false');
+        };
+        const open = () => {
+          panel.classList.remove('hidden');
+          backdrop?.classList.remove('hidden');
+          toggle.setAttribute('aria-expanded', 'true');
+        };
+        toggle.addEventListener('click', (e) => {
+          e.stopPropagation();
+          panel.classList.contains('hidden') ? open() : close();
+        });
+        backdrop?.addEventListener('click', close);
+        document.addEventListener('keydown', (e) => {
+          if (e.key === 'Escape') close();
+        });
+      }
+    }
   });
 </script>

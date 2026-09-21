@@ -21,10 +21,10 @@ class HttpRequestProcessor extends AbstractNodeProcessor
         $data = $this->nodeData($node);
         $variables = $state->variables ?? [];
 
-        $url = $this->resolveText((string) ($data['url'] ?? ''), $variables);
+        $url = $this->resolveText((string) ($data['url'] ?? ''), $variables, $conversation);
         $method = strtoupper((string) ($data['method'] ?? 'GET'));
-        $headers = $this->resolveHeaders($data['headers'] ?? [], $variables);
-        $body = $this->resolveBody($data['body'] ?? null, $variables);
+        $headers = $this->resolveHeaders($data['headers'] ?? [], $variables, $conversation);
+        $body = $this->resolveBody($data['body'] ?? null, $variables, $conversation);
         $resultVariable = (string) ($data['resultVariable'] ?? 'http_response');
 
         if ($url === '') {
@@ -67,7 +67,7 @@ class HttpRequestProcessor extends AbstractNodeProcessor
      * @param  array<string, mixed>  $variables
      * @return array<string, string>
      */
-    private function resolveHeaders(mixed $headers, array $variables): array
+    private function resolveHeaders(mixed $headers, array $variables, Conversation $conversation): array
     {
         if (! is_array($headers)) {
             return [];
@@ -76,7 +76,7 @@ class HttpRequestProcessor extends AbstractNodeProcessor
         $resolved = [];
 
         foreach ($headers as $key => $value) {
-            $resolved[$this->resolveText((string) $key, $variables)] = $this->resolveText((string) $value, $variables);
+            $resolved[$this->resolveText((string) $key, $variables, $conversation)] = $this->resolveText((string) $value, $variables, $conversation);
         }
 
         return $resolved;
@@ -85,7 +85,7 @@ class HttpRequestProcessor extends AbstractNodeProcessor
     /**
      * @param  array<string, mixed>  $variables
      */
-    private function resolveBody(mixed $body, array $variables): ?string
+    private function resolveBody(mixed $body, array $variables, Conversation $conversation): ?string
     {
         if ($body === null) {
             return null;
@@ -94,10 +94,10 @@ class HttpRequestProcessor extends AbstractNodeProcessor
         if (is_array($body)) {
             $jsonBody = json_encode($body);
 
-            return $jsonBody !== false ? $this->resolveText($jsonBody, $variables) : null;
+            return $jsonBody !== false ? $this->resolveText($jsonBody, $variables, $conversation) : null;
         }
 
-        return $this->resolveText((string) $body, $variables);
+        return $this->resolveText((string) $body, $variables, $conversation);
     }
 
     /**

@@ -74,6 +74,40 @@ class OfflineHoursEvaluatorTest extends TestCase
         $this->assertSame($expectedOpen, $open);
     }
 
+    public function test_string_false_flag_does_not_enable_offline_hours(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-09-21 22:30:00', 'Asia/Kolkata'));
+
+        $this->assertFalse(OfflineHoursEvaluator::shouldSendOfflineMessage([
+            'enableOfflineHours' => 'false',
+            'timezone' => 'Asia/Kolkata',
+            'onlineFrom' => '09:00',
+            'onlineUntil' => '21:00',
+            'offlineMessage' => 'We are offline',
+        ]));
+    }
+
+    public function test_hh_mm_ss_and_am_pm_times_parse(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-09-21 10:00:00', 'Asia/Kolkata'));
+
+        $this->assertTrue(OfflineHoursEvaluator::isWithinBusinessHours([
+            'enableOfflineHours' => true,
+            'timezone' => 'Asia/Kolkata',
+            'onlineFrom' => '09:00:00',
+            'onlineUntil' => '21:00:00',
+        ]));
+
+        Carbon::setTestNow(Carbon::parse('2026-09-21 22:00:00', 'Asia/Kolkata'));
+
+        $this->assertFalse(OfflineHoursEvaluator::isWithinBusinessHours([
+            'enableOfflineHours' => true,
+            'timezone' => 'Asia/Kolkata',
+            'onlineFrom' => '9:00 AM',
+            'onlineUntil' => '9:00 PM',
+        ]));
+    }
+
     /**
      * @return array<string, array{0: string, 1: bool}>
      */

@@ -151,7 +151,11 @@ class ChatbotFlowEngine
     {
         ChatbotFlowState::query()
             ->forConversation($conversation->id)
-            ->whereIn('status', [ChatbotFlowStateStatus::Active->value, ChatbotFlowStateStatus::Waiting->value])
+            ->whereIn('status', [
+                ChatbotFlowStateStatus::Active->value,
+                ChatbotFlowStateStatus::Waiting->value,
+                ChatbotFlowStateStatus::Delayed->value,
+            ])
             ->update([
                 'status' => ChatbotFlowStateStatus::Expired,
                 'processed_at' => now(),
@@ -853,12 +857,13 @@ class ChatbotFlowEngine
                 'conversation_id' => $conversation->id,
                 'chatbot_flow_id' => $flow->id,
                 'current_node_id' => $startNodeId,
-                'variables' => [
+                'variables' => $this->variableResolver->withConversationContext([
                     '_flow_name' => $flow->name,
                     '_start_node' => $startNodeId,
                     '_last_reply' => $body,
                     'user_response' => $body,
-                ],
+                    'message_text' => $body,
+                ], $conversation),
                 'status' => ChatbotFlowStateStatus::Active,
                 'expires_at' => now()->addMinutes((int) config('chatbot.state_ttl_minutes', 2)),
             ]);

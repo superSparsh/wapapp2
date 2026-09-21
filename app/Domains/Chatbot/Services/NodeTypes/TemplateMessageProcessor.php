@@ -25,7 +25,7 @@ class TemplateMessageProcessor extends AbstractNodeProcessor
         if (OfflineHoursEvaluator::shouldSendOfflineMessage($data)) {
             $offline = OfflineHoursEvaluator::resolveSessionText($data, '');
             if ($offline !== '') {
-                $this->sendText($conversation, $this->resolveText($offline, $variables));
+                $this->sendText($conversation, $this->resolveText($offline, $variables, $conversation));
             }
         } elseif ($messageType === 'template') {
             $templateCode = (string) ($data['templateId'] ?? $data['templateCode'] ?? '');
@@ -38,7 +38,7 @@ class TemplateMessageProcessor extends AbstractNodeProcessor
             $text = (string) ($data['text'] ?? $data['message'] ?? $data['welcomeMessage'] ?? '');
 
             if ($text !== '') {
-                $this->sendText($conversation, $this->resolveText($text, $variables));
+                $this->sendText($conversation, $this->resolveText($text, $variables, $conversation));
             }
         }
 

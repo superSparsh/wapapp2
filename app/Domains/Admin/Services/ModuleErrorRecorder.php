@@ -61,7 +61,7 @@ class ModuleErrorRecorder
                 $tenantId = $this->currentTenantId();
             }
 
-            PlatformErrorLog::query()->create([
+            $log = PlatformErrorLog::query()->create([
                 'module' => $resolvedModule,
                 'type' => $typeEnum,
                 'tenant_id' => $tenantId !== null && $tenantId !== '' ? Str::limit($tenantId, 64, '') : null,
@@ -70,6 +70,15 @@ class ModuleErrorRecorder
                 'context' => $this->sanitizeContext($context),
                 'occurred_at' => now(),
             ]);
+
+            // Bell notification (throttled inside the service so admins aren't flooded).
+            app(AdminNotificationService::class)->notifyPlatformError(
+                module: $resolvedModule,
+                type: $typeEnum->value,
+                message: (string) $log->message,
+                tenantId: $log->tenant_id,
+                errorLogId: (int) $log->id,
+            );
         } catch (Throwable $e) {
             Log::warning('ModuleErrorRecorder failed', [
                 'error' => $e->getMessage(),

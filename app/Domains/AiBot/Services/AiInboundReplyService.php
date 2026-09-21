@@ -110,6 +110,7 @@ class AiInboundReplyService
             ->whereIn('status', [
                 ChatbotFlowStateStatus::Active->value,
                 ChatbotFlowStateStatus::Waiting->value,
+                ChatbotFlowStateStatus::Delayed->value,
             ])
             ->where(function ($q): void {
                 $q->whereNull('expires_at')->orWhere('expires_at', '>', now());

@@ -92,6 +92,16 @@ class RegisterService
         $this->emailVerification->sendActivationCode($user);
         tenancy()->end();
 
+        try {
+            app(\App\Domains\Admin\Services\AdminNotificationService::class)->notifyNewCustomer(
+                tenantId: $tenant->id,
+                name: (string) ($tenant->company_name ?: $tenant->name ?: $user->name),
+                email: $email,
+            );
+        } catch (\Throwable) {
+            // Never block signup on admin notification failure.
+        }
+
         return $user;
     }
 

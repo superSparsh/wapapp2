@@ -27,7 +27,7 @@ class WelcomeMessageProcessor extends AbstractNodeProcessor
             if (OfflineHoursEvaluator::shouldSendOfflineMessage($data)) {
                 $offline = OfflineHoursEvaluator::resolveSessionText($data, '');
                 if ($offline !== '') {
-                    $this->sendText($conversation, $this->resolveText($offline, $variables));
+                    $this->sendText($conversation, $this->resolveText($offline, $variables, $conversation));
                 }
             } else {
                 $templateCode = (string) ($data['templateId'] ?? $data['templateCode'] ?? $data['template_name'] ?? '');
@@ -47,7 +47,7 @@ class WelcomeMessageProcessor extends AbstractNodeProcessor
             $text = OfflineHoursEvaluator::resolveSessionText($data, $this->resolveWelcomeBody($data));
 
             if ($text !== '') {
-                $this->sendText($conversation, $this->resolveText($text, $variables));
+                $this->sendText($conversation, $this->resolveText($text, $variables, $conversation));
             }
         }
 

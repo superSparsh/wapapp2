@@ -55,7 +55,7 @@ class JumpToStepProcessor extends AbstractNodeProcessor
 
         // If jump message is configured, optionally send it
         if (! empty($data['showMessage']) && ! empty($data['jumpMessage'])) {
-            $messageText = $this->resolveText((string) $data['jumpMessage'], $variables);
+            $messageText = $this->resolveText((string) $data['jumpMessage'], $variables, $conversation);
             $this->sendText($conversation, $messageText);
         }
 

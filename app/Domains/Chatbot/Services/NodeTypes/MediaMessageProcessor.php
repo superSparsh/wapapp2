@@ -18,7 +18,7 @@ class MediaMessageProcessor extends AbstractNodeProcessor
     ): NodeProcessResult {
         $data = $this->nodeData($node);
         $variables = $state->variables ?? [];
-        $caption = $this->resolveText((string) ($data['caption'] ?? $data['text'] ?? $data['message'] ?? ''), $variables);
+        $caption = $this->resolveText((string) ($data['caption'] ?? $data['text'] ?? $data['message'] ?? ''), $variables, $conversation);
         $mediaUrl = trim((string) ($data['mediaUrl'] ?? $data['media_url'] ?? $data['url'] ?? ''));
         $mediaType = strtolower((string) ($data['mediaType'] ?? $data['media_type'] ?? 'image'));
 

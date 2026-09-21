@@ -90,25 +90,48 @@ final class OfflineHoursEvaluator
      */
     private static function flagEnabled(array $nodeData): bool
     {
-        $flag = $nodeData['enableOfflineHours'] ?? false;
+        return self::truthy($nodeData['enableOfflineHours'] ?? false);
+    }
 
-        return $flag === true || $flag === 1 || $flag === '1' || $flag === 'true';
+    public static function truthy(mixed $flag): bool
+    {
+        if ($flag === true || $flag === 1 || $flag === 1.0) {
+            return true;
+        }
+
+        if (is_string($flag)) {
+            return in_array(strtolower(trim($flag)), ['1', 'true', 'yes', 'on'], true);
+        }
+
+        return false;
     }
 
     private static function parseHourMinute(string $value): ?int
     {
         $value = trim($value);
-        if ($value === '' || ! preg_match('/^(\d{1,2}):(\d{2})$/', $value, $m)) {
+        if ($value === '') {
             return null;
         }
 
-        $hour = (int) $m[1];
-        $minute = (int) $m[2];
+        // Accept HH:mm, H:mm, and HH:mm:ss from TimePicker / legacy builders.
+        if (preg_match('/^(\d{1,2}):(\d{2})(?::\d{2})?$/', $value, $m)) {
+            $hour = (int) $m[1];
+            $minute = (int) $m[2];
 
-        if ($hour > 23 || $minute > 59) {
-            return null;
+            if ($hour > 23 || $minute > 59) {
+                return null;
+            }
+
+            return ($hour * 60) + $minute;
         }
 
-        return ($hour * 60) + $minute;
+        // Soft-parse "9:00 AM" / "9am" style values.
+        try {
+            $parsed = Carbon::parse($value, 'UTC');
+
+            return ((int) $parsed->format('H') * 60) + (int) $parsed->format('i');
+        } catch (Throwable) {
+            return null;
+        }
     }
 }
