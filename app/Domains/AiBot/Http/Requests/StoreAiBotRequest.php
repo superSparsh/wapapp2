@@ -24,7 +24,7 @@ class StoreAiBotRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'type' => ['nullable', 'string', 'max:100'],
             'system_prompt' => ['nullable', 'string'],
-            'provider' => ['sometimes', Rule::enum(AiProvider::class)],
+            'provider' => ['sometimes', Rule::in([AiProvider::OpenAI->value, AiProvider::Gemini->value])],
             'chat_model' => ['nullable', 'string', 'max:100'],
             'embedding_model' => ['nullable', 'string', 'max:100'],
             'temperature' => ['nullable', 'numeric', 'min:0', 'max:2'],

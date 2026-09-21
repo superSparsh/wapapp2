@@ -21,7 +21,7 @@ class StoreProviderKeyRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'provider' => ['required', Rule::enum(AiProvider::class)],
+            'provider' => ['required', Rule::in([AiProvider::OpenAI->value, AiProvider::Gemini->value])],
             'api_key' => ['required', 'string'],
             'chat_model' => ['nullable', 'string', 'max:100'],
             'embedding_model' => ['nullable', 'string', 'max:100'],

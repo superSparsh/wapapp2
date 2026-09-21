@@ -133,7 +133,7 @@ class OpenAiKeyController extends Controller
     public function listProviderModels(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'provider' => ['required', 'string', 'in:openai,gemini,azure'],
+            'provider' => ['required', 'string', 'in:openai,gemini'],
             'api_key' => ['nullable', 'string', 'max:500'],
         ]);
 

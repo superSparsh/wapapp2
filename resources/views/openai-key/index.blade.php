@@ -66,7 +66,7 @@
         <div class="flex flex-col gap-1">
           <h1 class="text-2xl font-bold leading-[1.5] text-text-primary">Step - 1 : Configure your API settings</h1>
           <p class="max-w-[854px] text-sm font-normal leading-[1.4] text-text-subtle opacity-50">
-            Manage your OpenAI, Gemini, and Azure OpenAI API keys. Keys are encrypted at rest and shared across all bots.
+            Manage your OpenAI and Gemini API keys. Keys are encrypted at rest and shared across all bots.
           </p>
           <p class="max-w-[854px] text-sm font-normal leading-[1.4] text-text-subtle opacity-50">
             Don't have an API Key? Get one from your provider:
@@ -74,7 +74,6 @@
           <div class="flex max-w-[854px] flex-wrap gap-x-4 gap-y-1 text-sm font-normal leading-[1.4]">
             <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" class="text-green-500 underline">OpenAI</a>
             <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" class="text-green-500 underline">Google Gemini</a>
-            <a href="https://portal.azure.com/#view/Microsoft_Azure_ProjectOxford/CognitiveServicesHub/~/OpenAI" target="_blank" rel="noopener noreferrer" class="text-green-500 underline">Azure OpenAI</a>
           </div>
         </div>
 
@@ -102,7 +101,6 @@
                   <option value="" selected disabled>Select AI Platform</option>
                   <option value="openai">OpenAI</option>
                   <option value="gemini">Google Gemini</option>
-                  <option value="azure">Azure OpenAI</option>
                 </select>
                 <img
                   src="{{ asset('images/commerce/arrow-down.svg') }}"
@@ -815,10 +813,6 @@
                     <li>
                       Google Gemini —
                       <a href="https://aistudio.google.com/usage" target="_blank" rel="noopener noreferrer" class="text-green-500 underline">aistudio.google.com/usage</a>
-                    </li>
-                    <li>
-                      Azure OpenAI —
-                      <a href="https://portal.azure.com/#view/Microsoft_Azure_ProjectOxford/CognitiveServicesHub/~/OpenAI" target="_blank" rel="noopener noreferrer" class="text-green-500 underline">Azure Portal (OpenAI)</a>
                     </li>
                   </ul>
                 </div>
