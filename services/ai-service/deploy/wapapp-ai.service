@@ -1,0 +1,21 @@
+[Unit]
+Description=WapApp AI Knowledge Base (FastAPI + Chroma)
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=www-data
+WorkingDirectory=/var/www/wapapp_v2.0/services/ai-service
+Environment=CHROMA_DB_PATH=/var/www/ai_env/chroma_data
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/var/www/wapapp_v2.0/services/ai-service/.venv/bin/python -m uvicorn main:app --host 127.0.0.1 --port 5005
+Restart=always
+RestartSec=5
+
+# Hardening (optional but recommended)
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

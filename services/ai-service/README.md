@@ -53,6 +53,41 @@ Health check:
 curl -s http://127.0.0.1:5005/docs | head
 ```
 
+## Auto-start on server (systemd) — required for production
+
+Laravel does **not** start this process. It only HTTP-calls `PYTHON_AI_URL`.  
+For reboot / crash recovery, install the unit once:
+
+```bash
+# after venv + pip install succeed
+sudo mkdir -p /var/www/ai_env/chroma_data
+sudo chown -R ubuntu:www-data /var/www/ai_env/chroma_data
+
+sudo cp /var/www/wapapp_v2.0/services/ai-service/deploy/wapapp-ai.service \
+  /etc/systemd/system/wapapp-ai.service
+
+# edit User/paths if your deploy user or app path differs
+sudo nano /etc/systemd/system/wapapp-ai.service
+
+sudo systemctl daemon-reload
+sudo systemctl enable --now wapapp-ai
+sudo systemctl status wapapp-ai
+```
+
+Useful commands:
+```bash
+sudo systemctl restart wapapp-ai
+sudo journalctl -u wapapp-ai -f
+```
+
+Laravel `.env` (same machine):
+```
+PYTHON_AI_URL=http://127.0.0.1:5005
+PYTHON_AI_ENABLED=true
+```
+
+Flow: browser → Laravel → `http://127.0.0.1:5005` → Chroma on disk (`CHROMA_DB_PATH`).
+
 ### If you already polluted user packages
 
 ```bash
