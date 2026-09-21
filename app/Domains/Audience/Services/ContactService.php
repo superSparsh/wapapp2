@@ -106,7 +106,12 @@ class ContactService
      */
     public function subscribe(Contact $contact): void
     {
+        $wasSubscribed = $contact->status === ContactStatus::Subscribed;
         $contact->subscribe();
+
+        if (! $wasSubscribed) {
+            $this->dripTriggerDispatcher->dispatchForContact('welcome-new-subscriber', $contact->fresh());
+        }
     }
 
     /**
@@ -114,7 +119,12 @@ class ContactService
      */
     public function unsubscribe(Contact $contact): void
     {
+        $wasUnsubscribed = $contact->status === ContactStatus::Unsubscribed;
         $contact->unsubscribe();
+
+        if (! $wasUnsubscribed) {
+            $this->dripTriggerDispatcher->dispatchForContact('say-goodbye-subscriber', $contact->fresh());
+        }
     }
 
     /**
@@ -122,13 +132,13 @@ class ContactService
      */
     public function bulkSubscribe(array $ids): int
     {
-        return Contact::query()
-            ->whereIn('id', $ids)
-            ->update([
-                'status' => ContactStatus::Subscribed,
-                'opt_in_status' => ContactOptInStatus::OptedIn,
-                'opted_in_at' => now(),
-            ]);
+        $contacts = Contact::query()->whereIn('id', $ids)->get();
+
+        foreach ($contacts as $contact) {
+            $this->subscribe($contact);
+        }
+
+        return $contacts->count();
     }
 
     /**
@@ -136,13 +146,13 @@ class ContactService
      */
     public function bulkUnsubscribe(array $ids): int
     {
-        return Contact::query()
-            ->whereIn('id', $ids)
-            ->update([
-                'status' => ContactStatus::Unsubscribed,
-                'opt_in_status' => ContactOptInStatus::OptedOut,
-                'opted_out_at' => now(),
-            ]);
+        $contacts = Contact::query()->whereIn('id', $ids)->get();
+
+        foreach ($contacts as $contact) {
+            $this->unsubscribe($contact);
+        }
+
+        return $contacts->count();
     }
 
     /**

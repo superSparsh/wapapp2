@@ -60,7 +60,20 @@
 
         <div id="free-type-sections" class="flex flex-col gap-4">
           <div id="free-section-button" @class(['flex flex-col gap-3', 'hidden' => $type !== 'button'])>
-            <div id="template-buttons-root" data-saved-buttons='@json(old('buttons', $content['buttons'] ?? []))' class="flex flex-col gap-3">
+            @php
+              $header = is_array($content['header'] ?? null) ? $content['header'] : ['type' => 'none', 'text' => ''];
+              $headerType = old('header_type', ($header['type'] ?? 'none') === 'text' ? 'text' : 'none');
+            @endphp
+            <label for="free_header_type" class="fd-label">Header</label>
+            <select id="free_header_type" name="header_type" class="fd-input w-full rounded-xl border border-border bg-elevated p-3.5">
+              <option value="none" @selected($headerType === 'none')>None</option>
+              <option value="text" @selected($headerType === 'text')>Text</option>
+            </select>
+            <div id="free-header-text-wrap" @class(['flex flex-col gap-2', 'hidden' => $headerType !== 'text'])>
+              <label for="header_text" class="fd-label">Header text</label>
+              <input id="header_text" name="header_text" maxlength="60" value="{{ old('header_text', $header['text'] ?? '') }}" class="fd-input w-full rounded-xl border border-border p-3.5" placeholder="Optional header">
+            </div>
+            <div id="template-buttons-root" data-saved-buttons='@json(old('buttons', $content['buttons'] ?? []))' data-max-buttons="3" class="flex flex-col gap-3">
               <input type="hidden" id="button_mode" name="button_mode" value="quick_reply">
               <p class="text-sm font-semibold text-text-body">Quick Reply Buttons (max 3)</p>
               <div id="template-button-rows" class="flex flex-col gap-3"></div>
@@ -84,7 +97,10 @@
                       </div>
                     @endforeach
                   </div>
-                  <button type="button" data-add-list-row class="fd-btn-sm w-fit text-sm text-green-500">+ Add row</button>
+                  <div class="flex gap-3">
+                    <button type="button" data-add-list-row class="fd-btn-sm w-fit text-sm text-green-500">+ Add row</button>
+                    <button type="button" data-remove-list-section class="fd-btn-sm w-fit text-sm text-red-500">Remove section</button>
+                  </div>
                 </div>
               @endforeach
             </div>

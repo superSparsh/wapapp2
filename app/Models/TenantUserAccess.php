@@ -22,6 +22,7 @@ class TenantUserAccess extends Model
         'tenant_id',
         'account_type',
         'is_active',
+        'api_token',
     ];
 
     protected function casts(): array

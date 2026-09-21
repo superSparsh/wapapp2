@@ -131,6 +131,23 @@ class DripCampaign extends TenantModel
         return 0;
     }
 
+    public function templateCount(): int
+    {
+        $nodes = (array) data_get($this->exported_data, 'nodes', []);
+        $messageTypes = [
+            'templateMessage',
+            'welcomeMessage',
+            'interactiveMessage',
+            'mediaMessage',
+            'carouselTemplate',
+            'whatsappFlowTemplate',
+        ];
+
+        return collect($nodes)
+            ->filter(fn ($node): bool => is_array($node) && in_array((string) ($node['type'] ?? ''), $messageTypes, true))
+            ->count();
+    }
+
     public function triggerLabel(): string
     {
         return DripTriggerCatalog::treeLabel($this->trigger_type);
@@ -145,6 +162,6 @@ class DripCampaign extends TenantModel
 
         $completed = (int) ($this->completed_stats_count ?? 0);
 
-        return number_format(($completed / $entered) * 100, 2) . '%';
+        return number_format(($completed / $entered) * 100, 2).'%';
     }
 }

@@ -65,6 +65,39 @@ class InteractiveMessageTest extends TestCase
         $this->assertSame('Track Order', $message->content['buttons'][0]['title'] ?? null);
     }
 
+    public function test_button_free_template_stores_header_text(): void
+    {
+        $this->actingAsTenantUser()
+            ->post(route('templates.free.store'), [
+                'name' => 'Header Buttons',
+                'type' => 'button',
+                'body' => 'Hello there',
+                'header_type' => 'text',
+                'header_text' => 'Welcome',
+                'buttons' => [
+                    ['text' => 'Yes', 'type' => 'quick_reply'],
+                ],
+            ])
+            ->assertRedirect(route('templates.index', ['tab' => 'free']));
+
+        $message = InteractiveMessage::query()->where('name', 'Header Buttons')->first();
+        $this->assertSame('text', $message->content['header']['type'] ?? null);
+        $this->assertSame('Welcome', $message->content['header']['text'] ?? null);
+    }
+
+    public function test_button_free_template_requires_a_button(): void
+    {
+        $this->actingAsTenantUser()
+            ->from(route('templates.free.create'))
+            ->post(route('templates.free.store'), [
+                'name' => 'Empty Buttons',
+                'type' => 'button',
+                'body' => 'Hello',
+            ])
+            ->assertRedirect(route('templates.free.create'))
+            ->assertSessionHasErrors('buttons');
+    }
+
     public function test_owner_can_create_list_free_template(): void
     {
         $this->actingAsTenantUser()

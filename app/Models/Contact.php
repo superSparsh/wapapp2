@@ -5,8 +5,9 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Domains\Audience\Enums\ContactStatus;
-use App\Enums\ContactOptInStatus;
 use App\Domains\Audience\Models\ContactTag;
+use App\Domains\Drip\Services\DripTriggerDispatcher;
+use App\Enums\ContactOptInStatus;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -15,6 +16,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Contact extends TenantModel
 {
     use HasFactory;
+
     protected $fillable = [
         'phone',
         'name',
@@ -134,10 +136,33 @@ class Contact extends TenantModel
      */
     public function syncTags(array $tags): void
     {
+        $existing = $this->tags()->pluck('name')
+            ->map(fn ($name): string => strtolower(trim((string) $name)))
+            ->all();
+
+        $incoming = array_values(array_unique(array_filter(array_map(
+            fn ($tag): string => trim((string) $tag),
+            $tags,
+        ))));
+
         $this->tags()->delete();
 
-        foreach (array_unique(array_filter($tags)) as $tag) {
+        foreach ($incoming as $tag) {
             $this->tags()->create(['name' => $tag]);
+        }
+
+        $added = array_values(array_filter(
+            $incoming,
+            fn (string $tag): bool => ! in_array(strtolower($tag), $existing, true),
+        ));
+
+        if ($added === []) {
+            return;
+        }
+
+        $dispatcher = app(DripTriggerDispatcher::class);
+        foreach ($added as $tag) {
+            $dispatcher->dispatchForContact('tag-added', $this, tag: $tag);
         }
     }
 

@@ -30,6 +30,24 @@ return [
     // Minimum wallet balance required for chatbot to fire
     'wallet_min_balance' => (float) env('CHATBOT_WALLET_MIN', 50.0),
 
+    /*
+    | Demo flows keep replying during client demos even if wallet is low
+    | or a node fails (gateway, missing template, bad interactive payload).
+    | Comma-separated exact names. Matching is case-insensitive.
+    */
+    'demo_flow_names' => array_values(array_filter(array_map(
+        static fn (string $name): string => trim($name),
+        explode(',', (string) env(
+            'CHATBOT_DEMO_FLOW_NAMES',
+            'tittu chatbot using interactive messages',
+        )),
+    ))),
+
+    'demo_fallback_message' => (string) env(
+        'CHATBOT_DEMO_FALLBACK',
+        'Thanks for your message. Reply with a menu option to continue.',
+    ),
+
     // "start" command to reset conversation
     'start_command' => 'start',
 

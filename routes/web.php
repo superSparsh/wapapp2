@@ -26,6 +26,7 @@ use App\Domains\HelpCenter\Http\Controllers\TutorialController;
 use App\Domains\Inbox\Http\Controllers\InboxController;
 use App\Domains\Inbox\Services\InboxService;
 use App\Domains\Integration\Http\Controllers\LineLoginController;
+use App\Domains\Integration\Http\Controllers\OnboardingController;
 use App\Domains\Team\Http\Controllers\ManagerSettingsController;
 use App\Domains\Team\Http\Controllers\ManagerTeamController;
 use App\Domains\Team\Http\Controllers\TeamController;
@@ -117,7 +118,18 @@ Route::middleware([InitializeTenancyByPath::class])
         Route::post('/embedded-form-subscribe-captcha', [PublicEmbeddedFormController::class, 'subscribe'])->name('embedded-form.subscribe-captcha');
     });
 
-Route::middleware(['tenancy.session', 'auth:web,team', '2fa', 'team.redirect-dashboard'])->group(function () {
+Route::middleware(['tenancy.session', 'auth:web,team', '2fa', 'team.redirect-dashboard', 'waba.bound'])->group(function () {
+    // WhatsApp Embedded Signup onboarding (allowlisted inside EnsureWabaBound)
+    Route::middleware('team.owner')->group(function () {
+        Route::get('/onboarding', [OnboardingController::class, 'show'])->name('onboarding.start');
+        Route::get('/onboarding/business', [OnboardingController::class, 'business'])->name('onboarding.business');
+        Route::get('/onboarding/connect', [OnboardingController::class, 'connect'])->name('onboarding.connect');
+        Route::get('/onboarding/finish', [OnboardingController::class, 'finish'])->name('onboarding.finish');
+        Route::get('/integrations/isv-terms', [OnboardingController::class, 'isvTerms'])->name('onboarding.isv-terms');
+        Route::post('/integrations/add-isv-terms', [OnboardingController::class, 'storeIsvTerms'])->name('onboarding.add-isv-terms');
+        Route::post('/integrations/embed-data', [OnboardingController::class, 'embedData'])->name('onboarding.embed-data');
+    });
+
     Route::get('/api/search', GlobalSearchController::class)->name('search');
 
     Route::middleware('team.owner')->group(function () {

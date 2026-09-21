@@ -8,6 +8,7 @@ use App\Enums\UserRole;
 use App\Models\Tenant;
 use App\Models\TeamMember;
 use App\Models\User;
+use App\Models\WabaAccount;
 use App\Models\WhatsappLine;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -54,6 +55,14 @@ trait InteractsWithTenants
             'display_name' => 'Test Line',
             'status' => RecordStatus::Active,
             'is_default' => true,
+        ]);
+
+        // Mark onboarding complete without attaching a real WABA to the default test line
+        // (LineProfileService resolves sibling WABA IDs across all lines).
+        WabaAccount::query()->create([
+            'waba_id' => 'TEST-ONBOARDING-COMPLETE',
+            'alibaba_cust_space_id' => 'TEST-SPACE',
+            'is_registered' => true,
         ]);
 
         app(\App\Domains\Webhooks\Services\WhatsappLineRegistryService::class)

@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Models\WhatsappLine;
 use App\Support\PhoneNormalizer;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Str;
 
 class TenantDatabaseSeeder extends Seeder
 {
@@ -24,7 +25,7 @@ class TenantDatabaseSeeder extends Seeder
             'password' => 'password',
             'role' => UserRole::Owner,
             'email_verified_at' => now(),
-            'api_token' => \Illuminate\Support\Str::random(60),
+            'api_token' => Str::random(60),
         ]);
 
         WhatsappLine::query()->create([
@@ -44,6 +45,7 @@ class TenantDatabaseSeeder extends Seeder
                     'phone' => PhoneNormalizer::normalize($user->phone),
                     'account_type' => TenantUserAccountType::Owner,
                     'is_active' => true,
+                    'api_token' => $user->api_token,
                 ],
             );
         });

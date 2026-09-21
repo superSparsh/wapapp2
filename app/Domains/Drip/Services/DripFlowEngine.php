@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace App\Domains\Drip\Services;
 
-use App\Domains\Audience\Enums\ContactStatus;
 use App\Domains\Chatbot\Support\FlowVariableResolver;
 use App\Domains\Drip\Jobs\ExecuteDripStepJob;
 use App\Domains\Inbox\Services\InboxOutboundService;
+use App\Domains\Templates\Support\InteractiveMessagePayloadBuilder;
 use App\Domains\WhatsappFlow\Services\WhatsappFlowInteractiveService;
-use App\Enums\ChatbotFlowStateStatus;
 use App\Enums\ChatbotFlowStatAction;
+use App\Enums\ChatbotFlowStateStatus;
 use App\Enums\MessageDirection;
 use App\Enums\MessageStatus;
 use App\Models\Contact;
@@ -112,7 +112,7 @@ class DripFlowEngine
                     ? $this->evaluateEnhancedCondition($state, $conversation, $nodeData)
                     : $this->evaluateCondition($state, $conversation, $nodeData);
                 $waitSeconds = $this->resolveConditionWaitSeconds($nodeData);
-                $waitFlagKey = 'cond_waited_' . $currentNodeId;
+                $waitFlagKey = 'cond_waited_'.$currentNodeId;
                 $variables = (array) ($state->variables ?? []);
 
                 if ($evalResult) {
@@ -202,7 +202,7 @@ class DripFlowEngine
 
             // 6. Interactive Message (Buttons / Lists)
             if ($type === 'interactiveMessage') {
-                $builder = app(\App\Domains\Templates\Support\InteractiveMessagePayloadBuilder::class);
+                $builder = app(InteractiveMessagePayloadBuilder::class);
                 $interactivePayload = $builder->fromNodeData($nodeData);
 
                 if ($interactivePayload !== null) {
@@ -397,6 +397,18 @@ class DripFlowEngine
             }
         }
 
+        if ($branch === 'no') {
+            $noTarget = '';
+            foreach ($nodesList as $node) {
+                if (is_array($node) && (string) ($node['id'] ?? '') === $currentNodeId) {
+                    $noTarget = (string) data_get($node, 'data.no_target', '');
+                    break;
+                }
+            }
+
+            return ($noTarget !== '' && $noTarget !== 'end') ? $noTarget : null;
+        }
+
         // 2. Generic edge from this source
         foreach ($edges as $edge) {
             if (! is_array($edge)) {
@@ -460,8 +472,8 @@ class DripFlowEngine
      */
     private function resolveConditionWaitSeconds(array $data): int
     {
-        if (! empty($data['wait_seconds'])) {
-            return (int) $data['wait_seconds'];
+        if (array_key_exists('wait_seconds', $data) && $data['wait_seconds'] !== null && $data['wait_seconds'] !== '') {
+            return max(0, (int) $data['wait_seconds']);
         }
 
         $condWait = (string) ($data['condition_wait'] ?? '1 day');
@@ -959,14 +971,20 @@ class DripFlowEngine
         array $nodeData,
     ): void {
         $variables = (array) ($state->variables ?? []);
-        $templateId = $nodeData['templateId'] ?? $nodeData['template_id'] ?? Arr::get($nodeData, 'selectedTemplate.id');
+        $templateKey = (string) ($nodeData['templateId'] ?? $nodeData['template_id'] ?? $nodeData['template_name'] ?? $nodeData['templateCode'] ?? Arr::get($nodeData, 'selectedTemplate.id') ?? '');
 
-        if ($templateId !== null && $templateId !== '') {
-            $template = Template::query()->find($templateId);
-            $templateCode = $template?->whatsappCode();
+        if ($templateKey !== '') {
+            $template = ctype_digit($templateKey)
+                ? Template::query()->find($templateKey)
+                : Template::query()
+                    ->where(function ($query) use ($templateKey): void {
+                        $query->where('code', $templateKey)->orWhere('uuid', $templateKey);
+                    })
+                    ->first();
+            $templateCode = $template?->whatsappCode() ?: ($template === null ? $templateKey : null);
             if (is_string($templateCode) && $templateCode !== '') {
                 $this->outboundService->sendTemplate($conversation, $templateCode);
-                $variables['_whatsapp_flow_template_id'] = (string) $templateId;
+                $variables['_whatsapp_flow_template_id'] = $templateKey;
                 $variables['_whatsapp_flow_node_id'] = (string) ($node['id'] ?? '');
                 $state->forceFill(['variables' => $variables])->save();
 

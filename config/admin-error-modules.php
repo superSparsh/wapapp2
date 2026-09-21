@@ -96,6 +96,7 @@ return [
         'DeprecateFlow' => 'whatsapp_flow',
         'DeleteFlow' => 'whatsapp_flow',
         'ChatappBindWaba' => 'integration',
+        'IsvGetAppId' => 'integration',
         'ChatappSyncPhoneNumber' => 'integration',
         'QueryWabaBusinessInfo' => 'integration',
         'QueryPhoneBusinessProfile' => 'integration',

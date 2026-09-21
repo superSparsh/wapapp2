@@ -67,7 +67,7 @@
                     </div>
                   </td>
                   <td class="p-2 text-[13px] font-normal leading-[1.5] text-text-body">{{ $campaign->states_count }}</td>
-                  <td class="p-2 text-[13px] font-normal leading-[1.5] text-text-body">{{ $campaign->nodeCount() }}</td>
+                  <td class="p-2 text-[13px] font-normal leading-[1.5] text-text-body">{{ $campaign->templateCount() }}</td>
                   <td class="p-2 text-[13px] font-normal leading-[1.5] text-text-body">{{ $campaign->completionRate() }}</td>
                   <td class="p-2">
                     <a href="{{ route('automation.drip.statistics', $campaign) }}" aria-label="View statistics" class="inline-flex">
@@ -90,6 +90,10 @@
                       <a href="{{ route('automation.drip.design', $campaign) }}" class="flex size-5 items-center justify-center" aria-label="Edit" title="Edit">
                         <img src="{{ asset('images/automation/edit.svg') }}" alt="" class="size-5" width="20" height="20">
                       </a>
+                      <form method="POST" action="{{ route('automation.drip.duplicate', $campaign) }}" class="inline-flex">
+                        @csrf
+                        <button type="submit" class="text-[13px] font-semibold text-green-600 hover:underline" title="Duplicate">Copy</button>
+                      </form>
                       <x-automation.listing-delete-button
                         :action="route('automation.drip.destroy', $campaign)"
                         confirm="Delete this drip campaign? This action cannot be undone."

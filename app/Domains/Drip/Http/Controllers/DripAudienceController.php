@@ -11,6 +11,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Contact;
 use App\Models\DripCampaign;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class DripAudienceController extends Controller
@@ -23,7 +24,7 @@ class DripAudienceController extends Controller
     /**
      * Audience contacts list with stats grid.
      */
-    public function contacts(DripCampaign $campaign, \Illuminate\Http\Request $request): View
+    public function contacts(DripCampaign $campaign, Request $request): View
     {
         $result = $this->audiencePresenter->contacts(
             $campaign,
@@ -59,7 +60,7 @@ class DripAudienceController extends Controller
         $contact = Contact::query()->where('phone', $phone)->first();
 
         if ($contact !== null) {
-            $this->triggerDispatcher->dispatchForContact((string) $campaign->trigger_type, $contact);
+            $this->triggerDispatcher->enroll($campaign, $contact, force: true);
         }
 
         return redirect()

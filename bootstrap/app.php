@@ -30,6 +30,7 @@ use App\Domains\Operations\Console\Commands\ScheduleIntegrationSyncCommand;
 use App\Domains\Operations\Console\Commands\SyncFreeUicQuotaCommand;
 use App\Domains\Operations\Console\Commands\SyncMetaPricingCommand;
 use App\Domains\Operations\Console\Commands\WhatsAppHealthSnapshotCommand;
+use App\Domains\Integration\Http\Middleware\EnsureWabaBound;
 use App\Domains\Team\Http\Middleware\EnsureAccountOwner;
 use App\Domains\Team\Http\Middleware\EnsureManager;
 use App\Domains\Team\Http\Middleware\EnsureTeamPermission;
@@ -58,7 +59,7 @@ return Application::configure(basePath: dirname(__DIR__))
             require base_path('routes/webhooks.php');
             Route::middleware('web')->group(base_path('routes/auth.php'));
             Route::middleware('web')->group(base_path('routes/admin.php'));
-            Route::middleware(['web', 'tenancy.session', 'auth:web,team', '2fa', 'team.owner'])
+            Route::middleware(['web', 'tenancy.session', 'auth:web,team', '2fa', 'team.owner', 'waba.bound'])
                 ->group(base_path('routes/account.php'));
         },
     )
@@ -126,6 +127,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'team.manager' => EnsureManager::class,
             'team.permission' => EnsureTeamPermission::class,
             'team.redirect-dashboard' => RedirectTeamMemberDashboard::class,
+            'waba.bound' => EnsureWabaBound::class,
             'admin.active' => EnsureAdminIsActive::class,
             'guest' => RedirectIfAuthenticated::class,
             'maintenance.customer' => EnsureCustomerSiteAvailable::class,

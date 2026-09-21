@@ -295,7 +295,7 @@
         this.configBody.querySelector('[data-cancel-config]')?.addEventListener('click', () => this.closeConfig());
       };
 
-      if ((node.type === 'templateMessage' || node.type === 'condition' || node.type === 'enhancedCondition') && this.templatesUrl && !this.templates) {
+      if ((node.type === 'templateMessage' || node.type === 'whatsappFlowTemplate' || node.type === 'condition' || node.type === 'enhancedCondition') && this.templatesUrl && !this.templates) {
         this.ensureTemplates().then(renderPanel);
         return;
       }
@@ -436,6 +436,43 @@
         .catch(() => this.render());
     }
 
+    buildEdges() {
+      const noTargets = new Set();
+      this.nodes.forEach((node) => {
+        if (node.type !== 'condition' && node.type !== 'enhancedCondition') {
+          return;
+        }
+        const noTarget = node.data?.no_target;
+        if (noTarget && noTarget !== 'end') {
+          noTargets.add(noTarget);
+        }
+      });
+
+      const nextLinear = (index) => this.nodes.slice(index + 1).find((candidate) => !noTargets.has(candidate.id));
+      const edges = [];
+
+      this.nodes.forEach((node, index) => {
+        if (node.type === 'condition' || node.type === 'enhancedCondition') {
+          const yesTarget = nextLinear(index);
+          if (yesTarget) {
+            edges.push({ source: node.id, target: yesTarget.id, sourceHandle: 'yes' });
+          }
+          const noTarget = node.data?.no_target;
+          if (noTarget && noTarget !== 'end' && noTarget !== node.id) {
+            edges.push({ source: node.id, target: noTarget, sourceHandle: 'no' });
+          }
+          return;
+        }
+
+        const next = nextLinear(index);
+        if (next) {
+          edges.push({ source: node.id, target: next.id });
+        }
+      });
+
+      return edges;
+    }
+
     save() {
       if (!this.saveUrl || this.saving) {
         return;
@@ -468,7 +505,7 @@
           'X-Requested-With': 'XMLHttpRequest',
         },
         credentials: 'same-origin',
-        body: JSON.stringify({ nodes: this.nodes, edges: [] }),
+        body: JSON.stringify({ nodes: this.nodes, edges: this.buildEdges() }),
       })
         .then((response) => response.json().then((body) => ({ ok: response.ok, status: response.status, body })))
         .then(({ ok, body }) => {

@@ -7,6 +7,7 @@ namespace App\Domains\Chatbot\Services;
 use App\Domains\Billing\Services\WalletService;
 use App\Domains\Chatbot\Enums\NodeProcessResult;
 use App\Domains\Chatbot\Support\FlowVariableResolver;
+use App\Domains\Inbox\Services\InboxOutboundService;
 use App\Domains\TriggerTemplate\Enums\TriggerFireResult;
 use App\Enums\ChatbotFlowStateStatus;
 use App\Enums\MessageDirection;
@@ -55,8 +56,29 @@ class ChatbotFlowEngine
             return TriggerFireResult::NoMatch;
         }
 
-        // Wallet balance check
-        if ($this->walletService->balance() <= (float) config('chatbot.wallet_min_balance', 50)) {
+        try {
+            return $this->runInbound($conversation, $inboundMessage, $body);
+        } catch (\Throwable $e) {
+            Log::error('Chatbot inbound failed', [
+                'conversation_id' => $conversation->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            if ($this->demoFlowWouldHandle($conversation, $body)) {
+                $this->sendDemoFallback($conversation);
+
+                return TriggerFireResult::Fired;
+            }
+
+            return TriggerFireResult::SendFailed;
+        }
+    }
+
+    private function runInbound(Conversation $conversation, Message $inboundMessage, string $body): TriggerFireResult
+    {
+        // Wallet balance check. Demo flows still run so a low balance
+        // does not kill a client demo.
+        if (! $this->walletAllowsChatbot() && ! $this->demoFlowWouldHandle($conversation, $body)) {
             return TriggerFireResult::WalletBlocked;
         }
 
@@ -921,7 +943,27 @@ class ChatbotFlowEngine
                     return TriggerFireResult::Fired;
                 }
 
-                // Completed or Error
+                // Completed, or a real error on a normal flow.
+                // Demo flows skip the broken node and keep going.
+                if ($result === NodeProcessResult::Error && $this->isDemoFlow($flow)) {
+                    Log::warning('Demo chatbot skipped a failed node', [
+                        'flow_id' => $flow->id,
+                        'node_id' => $currentNodeId,
+                    ]);
+
+                    $nextId = $this->defaultNextNodeId($node);
+                    if ($nextId !== null && isset($nodeMap[$nextId])) {
+                        $state->forceFill([
+                            'current_node_id' => $nextId,
+                            'status' => ChatbotFlowStateStatus::Active,
+                        ])->save();
+
+                        continue;
+                    }
+
+                    break;
+                }
+
                 $this->completeState($state);
 
                 return $anyMessageSent ? TriggerFireResult::Fired : TriggerFireResult::NoMatch;
@@ -950,6 +992,11 @@ class ChatbotFlowEngine
         }
 
         // If we exhausted iterations or hit a cycle, complete the state
+        if (! $anyMessageSent && $this->isDemoFlow($flow)) {
+            $this->sendDemoFallback($conversation);
+            $anyMessageSent = true;
+        }
+
         $this->completeState($state);
 
         return $anyMessageSent ? TriggerFireResult::Fired : TriggerFireResult::NoMatch;
@@ -1000,6 +1047,101 @@ class ChatbotFlowEngine
         DB::transaction(function () use ($conversation): void {
             $conversation->forceFill(['unread_count' => 0])->save();
         });
+    }
+
+    private function walletAllowsChatbot(): bool
+    {
+        try {
+            return $this->walletService->balance() > (float) config('chatbot.wallet_min_balance', 50);
+        } catch (\Throwable $e) {
+            Log::warning('Chatbot wallet check failed', ['error' => $e->getMessage()]);
+
+            return false;
+        }
+    }
+
+    private function isDemoFlow(?ChatbotFlow $flow): bool
+    {
+        if ($flow === null) {
+            return false;
+        }
+
+        $name = mb_strtolower(trim((string) $flow->name));
+
+        foreach ($this->demoFlowNames() as $demoName) {
+            if ($name === $demoName) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /** @return list<string> */
+    private function demoFlowNames(): array
+    {
+        $names = config('chatbot.demo_flow_names', []);
+        if (! is_array($names)) {
+            return [];
+        }
+
+        return array_values(array_filter(array_map(
+            static fn (mixed $name): string => mb_strtolower(trim((string) $name)),
+            $names,
+        )));
+    }
+
+    private function demoFlowWouldHandle(Conversation $conversation, string $body): bool
+    {
+        if ($this->demoFlowNames() === []) {
+            return false;
+        }
+
+        try {
+            if ($conversation->getKey()) {
+                $state = $this->findWaitingState($conversation) ?? $this->findActiveState($conversation);
+                if ($state !== null && $this->isDemoFlow(ChatbotFlow::query()->find($state->chatbot_flow_id))) {
+                    return true;
+                }
+            }
+
+            $messageLower = mb_strtolower(trim($body));
+            if ($messageLower === '') {
+                return false;
+            }
+
+            foreach (ChatbotFlow::query()->active()->get() as $flow) {
+                if (! $this->isDemoFlow($flow) || ! $flow->hasFlowData()) {
+                    continue;
+                }
+
+                $nodeMap = $this->normalizer->normalize($flow, bypassCache: true);
+                if ($this->findTriggeredMatch($nodeMap, $messageLower, exactOnly: false) !== null) {
+                    return true;
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Demo chatbot lookup failed', ['error' => $e->getMessage()]);
+        }
+
+        return false;
+    }
+
+    private function sendDemoFallback(Conversation $conversation): void
+    {
+        $text = trim((string) config('chatbot.demo_fallback_message', ''));
+        if ($text === '' || ! $conversation->getKey()) {
+            return;
+        }
+
+        try {
+            app(InboxOutboundService::class)->sendText($conversation, $text, enforceWindow: false);
+        } catch (\Throwable $e) {
+            Log::warning('Demo chatbot fallback send failed', [
+                'conversation_id' => $conversation->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     private function logDebug(string $message): void

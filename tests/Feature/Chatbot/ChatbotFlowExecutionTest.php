@@ -72,6 +72,78 @@ class ChatbotFlowExecutionTest extends TestCase
         $this->assertSame(0, ChatbotFlowState::query()->count());
     }
 
+    public function test_demo_chatbot_runs_when_wallet_is_empty(): void
+    {
+        $this->mock(WalletService::class, function ($mock): void {
+            $mock->shouldReceive('balance')->andReturn(0.0);
+        });
+
+        ChatbotFlow::factory()->active()->create([
+            'name' => 'tittu chatbot using interactive messages',
+            'exported_data' => [
+                'nodes' => [
+                    [
+                        'id' => 'welcome_1',
+                        'type' => 'welcomeMessage',
+                        'data' => [
+                            'messageType' => 'text',
+                            'triggerKeyword' => 'hello',
+                            'text' => 'Welcome to the demo.',
+                        ],
+                    ],
+                ],
+                'edges' => [],
+            ],
+        ]);
+
+        $conversation = Conversation::factory()->create();
+        $message = Message::factory()->create([
+            'conversation_id' => $conversation->id,
+            'body' => 'hello',
+            'direction' => MessageDirection::Inbound,
+        ]);
+
+        $result = app(ChatbotFlowEngine::class)->processInbound($conversation, $message);
+
+        $this->assertSame('fired', $result->value);
+    }
+
+    public function test_non_demo_chatbot_stays_blocked_when_wallet_is_empty(): void
+    {
+        $this->mock(WalletService::class, function ($mock): void {
+            $mock->shouldReceive('balance')->andReturn(0.0);
+        });
+
+        ChatbotFlow::factory()->active()->create([
+            'name' => 'Regular support bot',
+            'exported_data' => [
+                'nodes' => [
+                    [
+                        'id' => 'welcome_1',
+                        'type' => 'welcomeMessage',
+                        'data' => [
+                            'messageType' => 'text',
+                            'triggerKeyword' => 'hello',
+                            'text' => 'Welcome.',
+                        ],
+                    ],
+                ],
+                'edges' => [],
+            ],
+        ]);
+
+        $conversation = Conversation::factory()->create();
+        $message = Message::factory()->create([
+            'conversation_id' => $conversation->id,
+            'body' => 'hello',
+            'direction' => MessageDirection::Inbound,
+        ]);
+
+        $result = app(ChatbotFlowEngine::class)->processInbound($conversation, $message);
+
+        $this->assertSame('wallet_blocked', $result->value);
+    }
+
     public function test_keyword_trigger_creates_state_and_processes_flow(): void
     {
         $flow = ChatbotFlow::factory()->active()->create([

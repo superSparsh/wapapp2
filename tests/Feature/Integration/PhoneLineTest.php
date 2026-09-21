@@ -71,11 +71,11 @@ class PhoneLineTest extends TestCase
 
     public function test_default_line_not_shown_on_manage_page(): void
     {
-        // testLine is default and should NOT appear in secondary listing
+        // Only the default testLine exists → secondary list is empty.
         $this->actingAsTenantUser()
             ->get(route('profile.phone-lines.index'))
             ->assertOk()
-            ->assertDontSee($this->testLine->display_name);
+            ->assertSee('No additional phone numbers found.');
     }
 
     // ─── Set Password ─────────────────────────────────────────────────────────

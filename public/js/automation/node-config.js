@@ -184,8 +184,11 @@
       case 'jumpToStep':
         return data.target_node ? 'Target: ' + data.target_node : 'Click to configure...';
       case 'carouselTemplate':
+        return data.headerText ? truncate(data.headerText, 60) : ((data.cards || []).length ? (data.cards || []).length + ' cards' : 'Click to configure...');
       case 'whatsappFlowTemplate':
-        return 'Coming Soon';
+        return data.template_name || data.flowId || data.flow_id
+          ? truncate(data.template_name || data.flowId || data.flow_id, 60)
+          : 'Click to configure...';
       default:
         return data.message ? truncate(data.message, 60) : 'Click to configure...';
     }
@@ -335,6 +338,18 @@
         ], false);
         html += field('Value', 'cfg-condition-value', data.condition_value || '', 'text', false);
         html += '</div>';
+
+        const noTargets = [{ value: 'end', label: 'Stop automation (No path)' }];
+        (context.allNodes || []).forEach(function (candidate) {
+          if (candidate.id && candidate.id !== node.id) {
+            noTargets.push({
+              value: candidate.id,
+              label: (candidate.data && candidate.data.label) || candidate.type || candidate.id,
+            });
+          }
+        });
+        html += selectField('If condition is No', 'cfg-no-target', data.no_target || 'end', noTargets, true);
+        html += '<p class="text-xs text-text-subtle">If the condition is Yes, the flow continues to the next step.</p>';
         break;
       }
 
@@ -458,9 +473,25 @@
         break;
       }
 
-      case 'carouselTemplate':
+      case 'carouselTemplate': {
+        const cards = Array.isArray(data.cards) ? data.cards : [];
+        html += field('Header', 'cfg-header-text', data.headerText || data.text || '', 'text', false);
+        html += textarea('Cards (JSON)', 'cfg-cards', JSON.stringify(cards, null, 2), true, '[{"title":"Card title","subtitle":"Short text"}]');
+        break;
+      }
+
       case 'whatsappFlowTemplate':
-        html += '<p class="mb-3 text-sm text-text-subtle">This node type is coming soon.</p>';
+        if (context.templates && context.templates.length) {
+          html += selectField('Template', 'cfg-template-name', data.template_name || data.templateCode || '', [
+            { value: '', label: '-- None --' },
+          ].concat(context.templates), false);
+        } else {
+          html += field('Template name', 'cfg-template-name', data.template_name || data.templateCode || '', 'text', false);
+        }
+        html += field('WhatsApp Flow ID', 'cfg-flow-id', data.flowId || data.flow_id || '', 'text', false);
+        html += field('Button label', 'cfg-flow-cta', data.flowCta || data.flow_cta || 'Open', 'text', false);
+        html += textarea('Body', 'cfg-body-text', data.bodyText || data.message || '', false);
+        html += '<p class="text-xs text-text-subtle">Send a template, or a WhatsApp Flow button. One of them is required.</p>';
         break;
 
       default:
@@ -614,6 +645,7 @@
     node.data.condition_variable = get('cfg-condition-variable');
     node.data.condition_operator = get('cfg-condition-operator') || 'equals';
     node.data.condition_value = get('cfg-condition-value');
+    node.data.no_target = get('cfg-no-target') || node.data.no_target || 'end';
 
     // Contact operation handling
     node.data.operation_type = get('cfg-operation-type') || node.data.operation_type || 'tag';
@@ -653,6 +685,23 @@
     }
 
     node.data.body = get('cfg-body');
+
+    if (node.type === 'carouselTemplate') {
+      node.data.headerText = get('cfg-header-text');
+      try {
+        const cards = JSON.parse(get('cfg-cards') || '[]');
+        node.data.cards = Array.isArray(cards) ? cards : [];
+      } catch (_) {
+        node.data.cards = node.data.cards || [];
+      }
+    }
+
+    if (node.type === 'whatsappFlowTemplate') {
+      node.data.template_name = get('cfg-template-name');
+      node.data.flowId = get('cfg-flow-id');
+      node.data.flowCta = get('cfg-flow-cta') || 'Open';
+      node.data.bodyText = get('cfg-body-text');
+    }
 
     syncEngineAliases(node);
   }
@@ -796,6 +845,31 @@
       case 'jumpToStep':
         requireField('cfg-target-node', 'Target step is required.');
         break;
+      case 'carouselTemplate': {
+        const cardsRaw = (root.querySelector('#cfg-cards')?.value || '').trim();
+        let cards = [];
+        try {
+          cards = cardsRaw ? JSON.parse(cardsRaw) : [];
+        } catch (_) {
+          setFieldError(root.querySelector('[data-cfg-field="cfg-cards"]'), 'Cards must be a JSON array.');
+          errors.push('Cards must be a JSON array.');
+          break;
+        }
+        if (!Array.isArray(cards) || cards.length === 0) {
+          setFieldError(root.querySelector('[data-cfg-field="cfg-cards"]'), 'Add at least one card.');
+          errors.push('Add at least one card.');
+        }
+        break;
+      }
+      case 'whatsappFlowTemplate': {
+        const templateName = (root.querySelector('#cfg-template-name')?.value || '').trim();
+        const flowId = (root.querySelector('#cfg-flow-id')?.value || '').trim();
+        if (!templateName && !flowId) {
+          setFieldError(root.querySelector('[data-cfg-field="cfg-flow-id"]'), 'Choose a template or enter a WhatsApp Flow ID.');
+          errors.push('Choose a template or enter a WhatsApp Flow ID.');
+        }
+        break;
+      }
       default:
         break;
     }
@@ -877,6 +951,16 @@
       case 'jumpToStep':
         if (!String(data.target_node || '').trim()) {
           errors.push(label + ': target step is required.');
+        }
+        break;
+      case 'carouselTemplate':
+        if (!Array.isArray(data.cards) || data.cards.length === 0) {
+          errors.push(label + ': add at least one card.');
+        }
+        break;
+      case 'whatsappFlowTemplate':
+        if (!String(data.template_name || data.templateCode || data.flowId || data.flow_id || '').trim()) {
+          errors.push(label + ': choose a template or enter a WhatsApp Flow ID.');
         }
         break;
       default:

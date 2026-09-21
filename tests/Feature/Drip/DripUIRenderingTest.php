@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Drip;
 
-use App\Enums\ChatbotFlowStatus;
 use App\Models\DripCampaign;
-use App\Models\DripCampaignStat;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\InteractsWithTenants;
 use Tests\TestCase;
@@ -133,7 +131,8 @@ class DripUIRenderingTest extends TestCase
             ->get(route('automation.drip.index'))
             ->assertOk()
             ->assertSee('Visible Campaign')
-            ->assertSee('Running');
+            ->assertSee('Running')
+            ->assertSee('Copy');
     }
 
     public function test_index_shows_paused_badge_for_inactive(): void

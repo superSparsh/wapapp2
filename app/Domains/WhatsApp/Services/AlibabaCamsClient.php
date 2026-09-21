@@ -6,6 +6,7 @@ namespace App\Domains\WhatsApp\Services;
 
 use App\Domains\WhatsApp\Support\CamsComponentEncoder;
 use Illuminate\Http\Client\Response;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Http;
 
 class AlibabaCamsClient
@@ -292,6 +293,35 @@ class AlibabaCamsClient
         return $this->signedRequest(array_merge([
             'Action' => 'DeleteFlow',
         ], $params));
+    }
+
+    /**
+     * Meta App ID for WhatsApp Embedded Signup (IsvGetAppId).
+     */
+    public function isvGetAppId(string $type = 'WHATSAPP'): ?string
+    {
+        if (! $this->isConfigured()) {
+            return null;
+        }
+
+        $response = $this->signedRequest([
+            'Action' => 'IsvGetAppId',
+            'Type' => $type,
+        ]);
+
+        if (! $response->successful()) {
+            return null;
+        }
+
+        $json = $response->json() ?? [];
+        $appId = Arr::get($json, 'AppId')
+            ?? Arr::get($json, 'appId')
+            ?? Arr::get($json, 'Data.AppId')
+            ?? Arr::get($json, 'Data.appId')
+            ?? Arr::get($json, 'body.AppId')
+            ?? Arr::get($json, 'body.appId');
+
+        return is_scalar($appId) && (string) $appId !== '' ? (string) $appId : null;
     }
 
     /**

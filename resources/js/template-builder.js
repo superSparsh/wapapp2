@@ -437,8 +437,11 @@ function collectPreviewState(root) {
     };
 
     const headerTypeInput = document.querySelector('input[name="header_type"]:checked');
+    const freeHeaderType = document.getElementById('free_header_type');
     if (headerTypeInput) {
         state.headerType = headerTypeInput.value;
+    } else if (freeHeaderType) {
+        state.headerType = freeHeaderType.value || 'none';
     }
 
     const headerTextInput = document.getElementById('header_text');
@@ -466,7 +469,7 @@ function collectPreviewState(root) {
         state.samples = readSamples(document.getElementById('variable-samples'));
     }
 
-    const footerInput = document.querySelector('textarea[name="footer_text"]');
+    const footerInput = document.getElementById('footer_text') || document.querySelector('textarea[name="footer_text"]');
     if (footerInput) {
         state.footer = footerInput.value;
     }
@@ -2464,7 +2467,9 @@ export function initTemplateBuilder() {
     initCarouselBuilder(scheduleUpdate);
     initAuthApps();
 
-    document.querySelector('textarea[name="footer_text"]')?.addEventListener('input', scheduleUpdate);
+    (document.getElementById('footer_text') || document.querySelector('textarea[name="footer_text"]'))?.addEventListener('input', scheduleUpdate);
+    document.getElementById('header_text')?.addEventListener('input', scheduleUpdate);
+    document.getElementById('free_header_type')?.addEventListener('change', scheduleUpdate);
 
     scheduleUpdate();
 }

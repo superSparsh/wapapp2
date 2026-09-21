@@ -6,7 +6,6 @@ namespace App\Domains\Templates\Http\Controllers;
 
 use App\Domains\Templates\Services\InteractiveMessagePreviewService;
 use App\Domains\Templates\Services\InteractiveMessageService;
-use App\Domains\Templates\Support\InteractiveMessagePresenter;
 use App\Domains\WhatsappFlow\Services\WhatsappFlowQueryService;
 use App\Http\Controllers\Controller;
 use App\Models\InteractiveMessage;
@@ -14,6 +13,8 @@ use App\Models\WhatsappFlow;
 use App\Support\PublicId;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class InteractiveMessageController extends Controller
@@ -117,9 +118,11 @@ class InteractiveMessageController extends Controller
                 'required_if:type,flow',
                 'nullable',
                 'uuid',
-                \Illuminate\Validation\Rule::exists(WhatsappFlow::class, 'uuid'),
+                Rule::exists(WhatsappFlow::class, 'uuid'),
             ],
             'flow_cta' => ['required_if:type,flow', 'nullable', 'string', 'max:20'],
+            'header_type' => ['nullable', 'string', 'in:none,text'],
+            'header_text' => ['nullable', 'string', 'max:60'],
         ]);
 
         $type = (string) $validated['type'];
@@ -136,11 +139,23 @@ class InteractiveMessageController extends Controller
             ])
             ->all();
 
+        if ($type === 'button' && $buttons === []) {
+            throw ValidationException::withMessages([
+                'buttons' => 'Add at least one quick reply button.',
+            ]);
+        }
+
+        $headerType = (string) ($validated['header_type'] ?? 'none');
+        $headerText = trim((string) ($validated['header_text'] ?? ''));
         $content = [
             'body' => $validated['body'],
             'footer' => $validated['footer'] ?? '',
             'buttons' => $type === 'button' ? $buttons : [],
-            'header' => ['type' => 'none', 'text' => '', 'media_path' => null],
+            'header' => [
+                'type' => $type === 'button' && $headerType === 'text' && $headerText !== '' ? 'text' : 'none',
+                'text' => $type === 'button' && $headerType === 'text' ? $headerText : '',
+                'media_path' => null,
+            ],
         ];
 
         if ($type === 'list') {
@@ -161,7 +176,15 @@ class InteractiveMessageController extends Controller
                             ->all(),
                     ];
                 })
+                ->filter(fn (array $section): bool => ($section['rows'] ?? []) !== [])
+                ->values()
                 ->all();
+        }
+
+        if ($type === 'list' && ($content['list_sections'] ?? []) === []) {
+            throw ValidationException::withMessages([
+                'list_sections' => 'Add at least one list section with a row.',
+            ]);
         }
 
         if ($type === 'product') {

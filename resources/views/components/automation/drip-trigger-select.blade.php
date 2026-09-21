@@ -241,7 +241,7 @@
             <label class="text-sm font-semibold leading-[1.4] text-text-primary">API endpoint</label>
             @if ($campaign)
               <div class="rounded-xl border border-dashed border-border bg-surface p-3">
-                <code class="block break-all text-xs text-text-body">POST {{ url('/api/drip/'.$campaign->uuid.'/trigger') }}</code>
+                <code class="block break-all text-xs text-text-body">POST {{ route('api.drip.trigger', $campaign) }}</code>
               </div>
               <p class="text-xs leading-[1.4] text-text-subtle">
                 Use your API token to trigger this automation for contacts in the selected audience.
