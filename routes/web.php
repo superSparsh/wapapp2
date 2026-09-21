@@ -30,6 +30,7 @@ use App\Domains\Integration\Http\Controllers\LineLoginController;
 use App\Domains\Integration\Http\Controllers\OnboardingController;
 use App\Domains\Team\Http\Controllers\ManagerSettingsController;
 use App\Domains\Team\Http\Controllers\ManagerTeamController;
+use App\Domains\Team\Http\Controllers\OwnerTeamSettingsController;
 use App\Domains\Team\Http\Controllers\TeamController;
 use App\Domains\Team\Http\Controllers\TeamImpersonationController;
 use App\Domains\Team\Http\Controllers\TeamImportController;
@@ -507,6 +508,8 @@ Route::middleware(['tenancy.session', 'auth:web,team', '2fa', 'team.redirect-das
 
     Route::middleware('team.owner')->prefix('my-team')->name('my-team.')->group(function () {
         Route::get('/', [TeamController::class, 'index'])->name('index');
+        Route::get('/settings', [OwnerTeamSettingsController::class, 'edit'])->name('settings');
+        Route::patch('/settings/auto', [OwnerTeamSettingsController::class, 'update'])->name('settings.update');
         Route::get('/create', [TeamController::class, 'create'])->name('create');
         Route::post('/', [TeamController::class, 'store'])->name('store');
         Route::get('/{teamMember}/edit', [TeamController::class, 'edit'])->name('edit');

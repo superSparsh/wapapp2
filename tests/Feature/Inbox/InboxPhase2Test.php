@@ -42,11 +42,14 @@ class InboxPhase2Test extends TestCase
         parent::tearDown();
     }
 
-    public function test_new_conversation_auto_assigns_team_member_with_flag(): void
+    public function test_new_conversation_auto_assigns_when_owner_enables_flag(): void
     {
+        $this->testUser->forceFill(['auto_assign_chats' => true])->save();
+
         $member = TeamMember::factory()->create([
             'parent_user_id' => $this->testUser->id,
-            'auto_assign_chats' => true,
+            'role' => TeamMemberRole::Member,
+            'auto_assign_chats' => false,
             'status' => RecordStatus::Active,
             'assigned_whatsapp_line_ids' => [$this->testLine->id],
         ]);
@@ -58,6 +61,26 @@ class InboxPhase2Test extends TestCase
         );
 
         $this->assertSame($member->id, $conversation->assigned_team_member_id);
+    }
+
+    public function test_new_conversation_does_not_auto_assign_when_flags_off(): void
+    {
+        $this->testUser->forceFill(['auto_assign_chats' => false])->save();
+
+        TeamMember::factory()->create([
+            'parent_user_id' => $this->testUser->id,
+            'role' => TeamMemberRole::Member,
+            'status' => RecordStatus::Active,
+            'assigned_whatsapp_line_ids' => [$this->testLine->id],
+        ]);
+
+        $conversation = app(InboxConversationService::class)->findOrCreateConversation(
+            $this->testLine,
+            '919988776656',
+            'No Auto Assign',
+        );
+
+        $this->assertNull($conversation->assigned_team_member_id);
     }
 
     public function test_it_assigns_conversation_to_team_member(): void

@@ -159,6 +159,17 @@ class TeamPhase2Test extends TestCase
         $this->assertTrue($manager->fresh()->auto_assign_chats);
     }
 
+    public function test_owner_can_update_auto_assign_setting(): void
+    {
+        $this->testUser->forceFill(['auto_assign_chats' => false])->save();
+
+        $this->actingAs($this->testUser)
+            ->patch(route('my-team.settings.update'), ['auto_assign_chats' => '1'])
+            ->assertRedirect(route('my-team.settings'));
+
+        $this->assertTrue($this->testUser->fresh()->auto_assign_chats);
+    }
+
     public function test_regular_team_member_cannot_access_manager_portal(): void
     {
         $member = TeamMember::factory()->create([

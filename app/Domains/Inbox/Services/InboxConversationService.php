@@ -6,9 +6,12 @@ namespace App\Domains\Inbox\Services;
 
 use App\Enums\ConversationStatus;
 use App\Enums\RecordStatus;
+use App\Enums\TeamMemberRole;
 use App\Models\Contact;
 use App\Models\Conversation;
+use App\Models\ManagerMemberAssignment;
 use App\Models\TeamMember;
+use App\Models\User;
 use App\Models\WhatsappLine;
 use App\Support\PhoneNormalizer;
 use Illuminate\Support\Facades\DB;
@@ -97,16 +100,44 @@ class InboxConversationService
     }
 
     /**
-     * Legacy-style round-robin: pick an active team member with auto_assign_chats
-     * who can handle this WhatsApp line (or has no line restriction).
+     * Legacy-style least-load assign when owner and/or manager has auto_assign_chats enabled.
+     * Assignees are active members (agents) who can handle this WhatsApp line.
      */
     private function nextAutoAssignee(WhatsappLine $line): ?TeamMember
     {
-        $candidates = TeamMember::query()
+        $ownerEnabled = User::query()
+            ->where('auto_assign_chats', true)
+            ->where('is_active', true)
+            ->exists();
+
+        $enabledManagerIds = TeamMember::query()
+            ->where('role', TeamMemberRole::Manager)
             ->where('status', RecordStatus::Active)
             ->where('auto_assign_chats', true)
-            ->orderBy('id')
-            ->get(['id', 'assigned_whatsapp_line_ids']);
+            ->pluck('id');
+
+        if (! $ownerEnabled && $enabledManagerIds->isEmpty()) {
+            return null;
+        }
+
+        $query = TeamMember::query()
+            ->where('status', RecordStatus::Active)
+            ->where('role', TeamMemberRole::Member)
+            ->orderBy('id');
+
+        if (! $ownerEnabled) {
+            $memberIds = ManagerMemberAssignment::query()
+                ->whereIn('manager_id', $enabledManagerIds)
+                ->pluck('member_id');
+
+            if ($memberIds->isEmpty()) {
+                return null;
+            }
+
+            $query->whereIn('id', $memberIds);
+        }
+
+        $candidates = $query->get(['id', 'assigned_whatsapp_line_ids']);
 
         if ($candidates->isEmpty()) {
             return null;

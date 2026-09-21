@@ -19,6 +19,7 @@ use Illuminate\Notifications\Notifiable;
 
 #[Fillable([
     'name', 'first_name', 'last_name', 'email', 'phone', 'password', 'role', 'is_active',
+    'auto_assign_chats',
     'avatar_path', 'api_token', 'last_login_at',
     'two_factor_secret', 'two_factor_recovery_codes', 'two_factor_confirmed_at',
 ])]
@@ -40,6 +41,7 @@ class User extends Authenticatable implements MustVerifyEmail, TwoFactorAuthenti
             'password' => 'hashed',
             'role' => UserRole::class,
             'is_active' => 'boolean',
+            'auto_assign_chats' => 'boolean',
         ];
     }
 

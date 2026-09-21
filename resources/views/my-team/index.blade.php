@@ -23,15 +23,23 @@
             class="fd-filter-placeholder min-w-0 flex-1 bg-transparent focus:outline-none"
           >
         </form>
-        @if ($canCreate)
+        <div class="flex flex-wrap items-center justify-end gap-3">
           <a
-            href="{{ route('my-team.create') }}"
-            class="fd-btn inline-flex items-center justify-center gap-2 self-end rounded bg-green-500 px-4 py-3 text-sm font-semibold leading-[1.5] text-primary-2 transition-opacity hover:opacity-90 sm:self-auto"
+            href="{{ route('my-team.settings') }}"
+            class="fd-btn inline-flex items-center justify-center gap-2 rounded border border-border-light bg-elevated px-4 py-3 text-sm font-semibold leading-[1.5] text-primary-2 transition-colors hover:bg-surface"
           >
-            <img src="{{ asset('images/team/add.svg') }}" alt="" class="size-5" width="20" height="20">
-            Create
+            Settings
           </a>
-        @endif
+          @if ($canCreate)
+            <a
+              href="{{ route('my-team.create') }}"
+              class="fd-btn inline-flex items-center justify-center gap-2 rounded bg-green-500 px-4 py-3 text-sm font-semibold leading-[1.5] text-primary-2 transition-opacity hover:opacity-90"
+            >
+              <img src="{{ asset('images/team/add.svg') }}" alt="" class="size-5" width="20" height="20">
+              Create
+            </a>
+          @endif
+        </div>
       </div>
     </div>
 

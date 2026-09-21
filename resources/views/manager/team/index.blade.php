@@ -30,6 +30,7 @@
           <input type="search" name="q" value="{{ $search ?? '' }}" placeholder="Search by name, email or phone" class="fd-filter-placeholder min-w-0 flex-1 bg-transparent focus:outline-none">
         </form>
         <div class="flex flex-wrap items-center gap-2 self-end sm:self-auto">
+          <a href="{{ route('manager.settings') }}" class="fd-btn inline-flex items-center justify-center rounded border border-border-light bg-elevated px-4 py-3 text-sm font-semibold text-primary-2">Settings</a>
           <a href="{{ route('manager.team.import') }}" class="fd-btn inline-flex items-center justify-center rounded border border-green-500 px-4 py-3 text-sm font-semibold text-green-500">Import CSV</a>
           @if ($canCreate)
             <a href="{{ route('manager.team.create') }}" class="fd-btn inline-flex items-center justify-center gap-2 rounded bg-green-500 px-4 py-3 text-sm font-semibold text-primary-2">Create</a>
