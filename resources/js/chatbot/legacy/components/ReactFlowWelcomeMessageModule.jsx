@@ -24,6 +24,9 @@ import {
   UploadOutlined,
 } from "@ant-design/icons";
 import VariableHelper from "./VariableHelper.jsx";
+import ReactFlowOfflineHoursFields, {
+  OFFLINE_HOURS_DEFAULTS,
+} from "./ReactFlowOfflineHoursFields.jsx";
 
 const { TextArea } = Input;
 const { Text, Paragraph } = Typography;
@@ -51,7 +54,10 @@ const ReactFlowWelcomeMessageModule = ({
   // Initialize form with node data if editing
   useEffect(() => {
     if (visible && nodeData) {
-      form.setFieldsValue(nodeData);
+      form.setFieldsValue({
+        ...OFFLINE_HOURS_DEFAULTS,
+        ...nodeData,
+      });
       // Set selected template and quick replies if they exist
       if (nodeData.selectedTemplate) {
         setSelectedTemplate(nodeData.selectedTemplate);
@@ -71,6 +77,7 @@ const ReactFlowWelcomeMessageModule = ({
         messageType: "text",
         triggerKeyword: "",
         welcomeMessage: "",
+        ...OFFLINE_HOURS_DEFAULTS,
       });
       setSelectedTemplate(null);
       setQuickReplies([]);
@@ -254,6 +261,7 @@ const ReactFlowWelcomeMessageModule = ({
           messageType: "text",
           triggerKeyword: "",
           welcomeMessage: "",
+          ...OFFLINE_HOURS_DEFAULTS,
         }}
       >
         <Card title="Message Type" size="small" style={{ marginBottom: 16 }}>
@@ -352,6 +360,7 @@ const ReactFlowWelcomeMessageModule = ({
                       </div>
                     </div>
                   </Form.Item>
+                  <ReactFlowOfflineHoursFields />
                 </Card>
               );
             }
@@ -513,6 +522,7 @@ const ReactFlowWelcomeMessageModule = ({
                   </Form.Item>
 
                   {/* Quick Reply Info Section */}
+                  <ReactFlowOfflineHoursFields />
                   {renderQuickReplyInfo()}
                 </Card>
               );

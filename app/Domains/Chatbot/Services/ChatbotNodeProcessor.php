@@ -34,6 +34,8 @@ class ChatbotNodeProcessor
      */
     private array $processorMap = [
         ChatbotNodeType::WelcomeMessage->value => WelcomeMessageProcessor::class,
+        // Legacy Drawflow alias — same runtime behavior as welcome text nodes.
+        'textMessage' => WelcomeMessageProcessor::class,
         ChatbotNodeType::InteractiveMessage->value => InteractiveMessageProcessor::class,
         ChatbotNodeType::MediaMessage->value => MediaMessageProcessor::class,
         ChatbotNodeType::WaitForResponse->value => WaitForResponseProcessor::class,

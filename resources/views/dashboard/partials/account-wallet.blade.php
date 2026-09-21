@@ -52,9 +52,9 @@
           @if ($expiresAt)
             Expires on {{ $expiresAt->format('d-m-Y') }}
           @elseif ($hasPlan || $hasSubscription)
-            Validity details unavailable
+            Expiry date not set — ask admin to extend validity
           @else
-            Subscription expiry unavailable
+            No subscription expiry on file
           @endif
         </p>
       </div>

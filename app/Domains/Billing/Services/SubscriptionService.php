@@ -12,8 +12,10 @@ use App\Models\Plan;
 use App\Models\RazorpayOrder;
 use App\Models\Subscription;
 use App\Models\Tenant;
+use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Throwable;
 
 class SubscriptionService
 {
@@ -56,6 +58,7 @@ class SubscriptionService
     {
         $subscription = $this->activeSubscription();
         $plan = $this->currentPlan();
+        $tenant = $this->currentTenant();
 
         // Fallback plan name from subscription metadata when central plan row is missing.
         $planName = $plan?->name;
@@ -64,11 +67,22 @@ class SubscriptionService
             $planName = is_string($metaName) && $metaName !== '' ? $metaName : null;
         }
 
+        // Account validity: prefer subscription ends_at, fall back to admin-managed
+        // tenant.settings.valid_until (legacy / Extend validity). Use the later date
+        // when both exist so admin extensions still show on the dashboard.
+        $expiresAt = $subscription?->ends_at;
+        $validUntil = $this->tenantValidUntil($tenant);
+        if ($expiresAt === null) {
+            $expiresAt = $validUntil;
+        } elseif ($validUntil !== null && $validUntil->greaterThan($expiresAt)) {
+            $expiresAt = $validUntil;
+        }
+
         return [
             'plan' => $plan,
             'plan_name' => $planName,
             'subscription' => $subscription,
-            'expires_at' => $subscription?->ends_at,
+            'expires_at' => $expiresAt,
             'is_cancelled' => $subscription?->status === SubscriptionStatus::Cancelled,
         ];
     }
@@ -171,8 +185,14 @@ class SubscriptionService
 
             $tenant = $this->currentTenant();
             if ($tenant) {
-                tenancy()->central(function () use ($tenant, $plan): void {
-                    Tenant::query()->whereKey($tenant->id)->update(['plan_id' => $plan->id]);
+                tenancy()->central(function () use ($tenant, $plan, $endsAt): void {
+                    $settings = is_array($tenant->settings) ? $tenant->settings : [];
+                    $settings['valid_until'] = $endsAt->toDateString();
+
+                    Tenant::query()->whereKey($tenant->id)->update([
+                        'plan_id' => $plan->id,
+                        'settings' => $settings,
+                    ]);
                 });
             }
 
@@ -206,5 +226,26 @@ class SubscriptionService
         }
 
         return tenancy()->central(fn () => Tenant::query()->find($tenantId));
+    }
+
+    /**
+     * Admin "Extend validity" stores expiry on the central tenant settings row.
+     */
+    private function tenantValidUntil(?Tenant $tenant): ?Carbon
+    {
+        if ($tenant === null) {
+            return null;
+        }
+
+        $raw = is_array($tenant->settings) ? ($tenant->settings['valid_until'] ?? null) : null;
+        if (! is_string($raw) || trim($raw) === '') {
+            return null;
+        }
+
+        try {
+            return Carbon::parse($raw)->endOfDay();
+        } catch (Throwable) {
+            return null;
+        }
     }
 }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domains\Chatbot\Services\NodeTypes;
 
 use App\Domains\Chatbot\Enums\NodeProcessResult;
+use App\Domains\Chatbot\Support\OfflineHoursEvaluator;
 use App\Enums\ChatbotFlowStateStatus;
 use App\Models\ChatbotFlowState;
 use App\Models\Conversation;
@@ -22,20 +23,28 @@ class WelcomeMessageProcessor extends AbstractNodeProcessor
         $variables = $state->variables ?? [];
 
         if ($messageType === 'template') {
-            $templateCode = (string) ($data['templateId'] ?? $data['templateCode'] ?? $data['template_name'] ?? '');
+            // Offline hours: send text offlineMessage instead of the online template (legacy parity).
+            if (OfflineHoursEvaluator::shouldSendOfflineMessage($data)) {
+                $offline = OfflineHoursEvaluator::resolveSessionText($data, '');
+                if ($offline !== '') {
+                    $this->sendText($conversation, $this->resolveText($offline, $variables));
+                }
+            } else {
+                $templateCode = (string) ($data['templateId'] ?? $data['templateCode'] ?? $data['template_name'] ?? '');
 
-            if ($templateCode === '' && is_array($data['selectedTemplate'] ?? null)) {
-                $templateCode = (string) ($data['selectedTemplate']['code']
-                    ?? $data['selectedTemplate']['template_code']
-                    ?? $data['selectedTemplate']['id']
-                    ?? '');
-            }
+                if ($templateCode === '' && is_array($data['selectedTemplate'] ?? null)) {
+                    $templateCode = (string) ($data['selectedTemplate']['code']
+                        ?? $data['selectedTemplate']['template_code']
+                        ?? $data['selectedTemplate']['id']
+                        ?? '');
+                }
 
-            if ($templateCode !== '') {
-                $this->sendTemplate($conversation, $templateCode);
+                if ($templateCode !== '') {
+                    $this->sendTemplate($conversation, $templateCode);
+                }
             }
         } else {
-            $text = $this->resolveWelcomeBody($data);
+            $text = OfflineHoursEvaluator::resolveSessionText($data, $this->resolveWelcomeBody($data));
 
             if ($text !== '') {
                 $this->sendText($conversation, $this->resolveText($text, $variables));

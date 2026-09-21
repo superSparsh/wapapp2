@@ -242,7 +242,9 @@ class ChatbotFlowEngine
                 'reply' => $replyBody,
             ]);
 
-            return TriggerFireResult::NoMatch;
+            // Legacy marks the inbound turn as consumed when chatbot owns the wait.
+            // Returning Fired prevents AI / trigger-templates from hijacking mid-flow.
+            return TriggerFireResult::Fired;
         }
 
         if ($nextNodeId === null) {
@@ -543,7 +545,7 @@ class ChatbotFlowEngine
         foreach ($nodeMap as $nodeId => $node) {
             $nodeType = (string) ($node['class'] ?? 'unknown');
 
-            if (! in_array($nodeType, ['welcomeMessage', 'templateMessage'], true)) {
+            if (! in_array($nodeType, ['welcomeMessage', 'templateMessage', 'textMessage'], true)) {
                 continue;
             }
 
@@ -691,7 +693,7 @@ class ChatbotFlowEngine
 
             foreach ($nodeMap as $node) {
                 $nodeType = (string) ($node['class'] ?? 'unknown');
-                if (! in_array($nodeType, ['welcomeMessage', 'templateMessage'], true)) {
+                if (! in_array($nodeType, ['welcomeMessage', 'templateMessage', 'textMessage'], true)) {
                     continue;
                 }
                 $kw = $this->resolveNodeTriggerKeywords(is_array($node['data'] ?? null) ? $node['data'] : []);
@@ -940,6 +942,9 @@ class ChatbotFlowEngine
                 }
 
                 if ($result === NodeProcessResult::Delayed) {
+                    // Keep mid-delay ownership alive so AI cannot steal the turn.
+                    $this->refreshExpiry($state);
+
                     return TriggerFireResult::Fired;
                 }
 
@@ -966,7 +971,7 @@ class ChatbotFlowEngine
 
                 $this->completeState($state);
 
-                return $anyMessageSent ? TriggerFireResult::Fired : TriggerFireResult::NoMatch;
+                return TriggerFireResult::Fired;
             }
 
             // Continue → refresh the state to get updated current_node_id
@@ -991,7 +996,9 @@ class ChatbotFlowEngine
             $this->refreshExpiry($state);
         }
 
-        // If we exhausted iterations or hit a cycle, complete the state
+        // If we exhausted iterations or hit a cycle, complete the state.
+        // Keyword/resume already entered this flow — treat as Fired even when
+        // only conditions/delays ran (legacy marks inbound Read → AI locked out).
         if (! $anyMessageSent && $this->isDemoFlow($flow)) {
             $this->sendDemoFallback($conversation);
             $anyMessageSent = true;
@@ -999,7 +1006,7 @@ class ChatbotFlowEngine
 
         $this->completeState($state);
 
-        return $anyMessageSent ? TriggerFireResult::Fired : TriggerFireResult::NoMatch;
+        return TriggerFireResult::Fired;
     }
 
     // ─── Private: Helpers ────────────────────────────────────────────

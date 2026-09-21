@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domains\Chatbot\Services\NodeTypes;
 
 use App\Domains\Chatbot\Enums\NodeProcessResult;
+use App\Domains\Chatbot\Support\OfflineHoursEvaluator;
 use App\Enums\ChatbotFlowStateStatus;
 use App\Models\ChatbotFlowState;
 use App\Models\Conversation;
@@ -21,7 +22,12 @@ class TemplateMessageProcessor extends AbstractNodeProcessor
         $messageType = (string) ($data['messageType'] ?? 'text');
         $variables = $state->variables ?? [];
 
-        if ($messageType === 'template') {
+        if (OfflineHoursEvaluator::shouldSendOfflineMessage($data)) {
+            $offline = OfflineHoursEvaluator::resolveSessionText($data, '');
+            if ($offline !== '') {
+                $this->sendText($conversation, $this->resolveText($offline, $variables));
+            }
+        } elseif ($messageType === 'template') {
             $templateCode = (string) ($data['templateId'] ?? $data['templateCode'] ?? '');
             $params = $data['templateParams'] ?? [];
 

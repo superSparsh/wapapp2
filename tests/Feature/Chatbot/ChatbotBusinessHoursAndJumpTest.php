@@ -363,6 +363,7 @@ class ChatbotBusinessHoursAndJumpTest extends TestCase
                         'type' => 'typingIndicator',
                         'data' => [
                             'duration' => 3,
+                            'showTyping' => true,
                         ],
                     ],
                     [
@@ -384,15 +385,126 @@ class ChatbotBusinessHoursAndJumpTest extends TestCase
         $conversation = Conversation::factory()->create();
         $engine = app(ChatbotFlowEngine::class);
 
-        $engine->processInbound($conversation, Message::factory()->create([
+        $result = $engine->processInbound($conversation, Message::factory()->create([
             'conversation_id' => $conversation->id,
             'body' => 'typing',
             'direction' => MessageDirection::Inbound,
         ]));
 
+        $this->assertSame('fired', $result->value);
+
         $state = ChatbotFlowState::forConversation($conversation->id)->first();
         $this->assertNotNull($state);
         $this->assertSame(ChatbotFlowStateStatus::Active, $state->status);
         $this->assertSame('final_reply', $state->current_node_id);
+
+        Queue::assertPushed(\App\Domains\Chatbot\Jobs\ProcessDelayedNodeJob::class);
+    }
+
+    public function test_welcome_offline_hours_sends_offline_message_outside_window(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-08-19 23:30:00', 'Asia/Kolkata'));
+
+        $sent = [];
+        $this->mock(InboxOutboundService::class, function ($mock) use (&$sent): void {
+            $mock->shouldReceive('sendText')->andReturnUsing(function ($conversation, string $body) use (&$sent) {
+                $sent[] = $body;
+
+                return new Message([
+                    'id' => count($sent),
+                    'body' => $body,
+                    'direction' => MessageDirection::Outbound,
+                    'message_type' => MessageType::Text,
+                ]);
+            });
+            $mock->shouldReceive('sendTypingIndicator')->andReturn(true);
+        });
+
+        ChatbotFlow::factory()->active()->create([
+            'exported_data' => [
+                'nodes' => [
+                    [
+                        'id' => 'welcome_1',
+                        'type' => 'welcomeMessage',
+                        'data' => [
+                            'messageType' => 'text',
+                            'triggerKeyword' => 'hours',
+                            'welcomeMessage' => 'We are open!',
+                            'enableOfflineHours' => true,
+                            'timezone' => 'Asia/Kolkata',
+                            'onlineFrom' => '09:00',
+                            'onlineUntil' => '21:00',
+                            'offlineMessage' => 'We are offline right now.',
+                        ],
+                    ],
+                ],
+                'edges' => [],
+            ],
+        ]);
+
+        $conversation = Conversation::factory()->create();
+        $engine = app(ChatbotFlowEngine::class);
+
+        $result = $engine->processInbound($conversation, Message::factory()->create([
+            'conversation_id' => $conversation->id,
+            'body' => 'hours',
+            'direction' => MessageDirection::Inbound,
+        ]));
+
+        $this->assertSame('fired', $result->value);
+        $this->assertContains('We are offline right now.', $sent);
+        $this->assertNotContains('We are open!', $sent);
+    }
+
+    public function test_keyword_trigger_blocks_ai_ownership_while_flow_active(): void
+    {
+        ChatbotFlow::factory()->active()->create([
+            'exported_data' => [
+                'nodes' => [
+                    [
+                        'id' => 'welcome_1',
+                        'type' => 'welcomeMessage',
+                        'data' => [
+                            'messageType' => 'text',
+                            'triggerKeyword' => 'hellobot',
+                            'text' => 'Chatbot says hi',
+                        ],
+                    ],
+                    [
+                        'id' => 'wait_1',
+                        'type' => 'waitForResponse',
+                        'data' => [
+                            'prompt' => 'Tell me more',
+                        ],
+                    ],
+                ],
+                'edges' => [
+                    ['source' => 'welcome_1', 'target' => 'wait_1', 'sourceHandle' => 'output_1'],
+                ],
+            ],
+        ]);
+
+        $conversation = Conversation::factory()->create([
+            'response_type' => \App\Enums\ConversationResponseType::Ai,
+        ]);
+
+        $engine = app(ChatbotFlowEngine::class);
+        $result = $engine->processInbound($conversation, Message::factory()->create([
+            'conversation_id' => $conversation->id,
+            'body' => 'hellobot',
+            'direction' => MessageDirection::Inbound,
+        ]));
+
+        $this->assertSame('fired', $result->value);
+
+        $ai = app(\App\Domains\AiBot\Services\AiInboundReplyService::class);
+        $followUp = Message::factory()->create([
+            'conversation_id' => $conversation->id,
+            'body' => 'random follow up',
+            'direction' => MessageDirection::Inbound,
+            'message_type' => MessageType::Text,
+        ]);
+
+        $this->assertFalse($ai->shouldTrigger($conversation->refresh(), $followUp));
     }
 }

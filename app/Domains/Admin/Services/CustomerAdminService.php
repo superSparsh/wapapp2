@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Domains\Admin\Services;
 
 use App\Domains\Admin\Support\AdminListQuery;
+use App\Enums\SubscriptionStatus;
 use App\Enums\TenantStatus;
 use App\Models\Plan;
+use App\Models\Subscription;
 use App\Models\Tenant;
 use App\Models\TenantUserAccess;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -151,6 +153,35 @@ class CustomerAdminService
         $settings['valid_until'] = $current->addDays($days)->toDateString();
         $tenant->settings = $settings;
         $tenant->save();
+
+        // Keep tenant DB subscription ends_at in sync so dashboard/profile stay consistent.
+        $wasInitialized = tenancy()->initialized;
+        $previous = $wasInitialized ? tenant() : null;
+
+        if ($wasInitialized) {
+            tenancy()->end();
+        }
+
+        try {
+            tenancy()->initialize($tenant);
+            $subscription = Subscription::query()
+                ->where('status', SubscriptionStatus::Active)
+                ->latest('id')
+                ->first();
+
+            if ($subscription !== null) {
+                $subscription->forceFill([
+                    'ends_at' => Carbon::parse($settings['valid_until'])->endOfDay(),
+                ])->save();
+            }
+        } finally {
+            if (tenancy()->initialized) {
+                tenancy()->end();
+            }
+            if ($wasInitialized && $previous) {
+                tenancy()->initialize($previous);
+            }
+        }
 
         return $tenant->fresh() ?? $tenant;
     }

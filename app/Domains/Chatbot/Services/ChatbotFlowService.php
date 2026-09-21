@@ -259,7 +259,7 @@ class ChatbotFlowService
             $type = (string) ($node['type'] ?? '');
             $nodeData = is_array($node['data'] ?? null) ? $node['data'] : [];
 
-            if (! in_array($type, ['welcomeMessage', 'templateMessage'], true)) {
+            if (! in_array($type, ['welcomeMessage', 'templateMessage', 'textMessage'], true)) {
                 continue;
             }
 

@@ -1164,18 +1164,18 @@ function initHeaderMedia(scheduleUpdate) {
                 if (remoteUrl) {
                     const applyRemote = (ok) => {
                         if (!ok) {
-                            return;
-                        }
-                        if (data.type === 'video' && videoEl) {
-                            videoEl.src = remoteUrl;
-                            videoEl.dataset.previewUrl = remoteUrl;
-                            videoEl.classList.remove('hidden');
-                            imageEl?.classList.add('hidden');
+                    return;
+                }
+                if (data.type === 'video' && videoEl) {
+                    videoEl.src = remoteUrl;
+                    videoEl.dataset.previewUrl = remoteUrl;
+                    videoEl.classList.remove('hidden');
+                    imageEl?.classList.add('hidden');
                         } else if (imageEl && (data.type === 'image' || isImage)) {
-                            imageEl.src = remoteUrl;
-                            imageEl.dataset.previewUrl = remoteUrl;
-                            imageEl.classList.remove('hidden');
-                            videoEl?.classList.add('hidden');
+                    imageEl.src = remoteUrl;
+                    imageEl.dataset.previewUrl = remoteUrl;
+                    imageEl.classList.remove('hidden');
+                    videoEl?.classList.add('hidden');
                         }
                         scheduleUpdate();
                     };

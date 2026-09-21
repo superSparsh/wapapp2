@@ -47,6 +47,9 @@ class DateTimeConditionProcessor extends AbstractNodeProcessor
                 'current_node_id' => $nextId,
                 'variables' => $variables,
             ])->save();
+        } else {
+            // Persist evaluation even when open/closed handles are unwired.
+            $state->forceFill(['variables' => $variables])->save();
         }
 
         return $nextId !== null ? NodeProcessResult::Continue : NodeProcessResult::Completed;

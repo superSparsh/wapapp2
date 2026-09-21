@@ -292,6 +292,7 @@ class InboxOutboundService
 
     /**
      * Send real-time typing indicator to WhatsApp user via Alibaba CAMS.
+     * Falls back to legacy "..." text ping when the typing_indicator API is unavailable.
      */
     public function sendTypingIndicator(Conversation $conversation): bool
     {
@@ -311,14 +312,42 @@ class InboxOutboundService
             'Type' => 'message',
             'MessageType' => 'typing_indicator',
             'CustSpaceId' => $line->alibaba_cust_space_id,
+            'Content' => json_encode(['text' => '...'], JSON_UNESCAPED_UNICODE),
         ];
 
         try {
             $response = $this->camsClient->sendChatappMessage($params);
 
+            if ($response->successful()) {
+                return true;
+            }
+
+            Log::info('CAMS typing_indicator rejected; falling back to legacy text ping', [
+                'conversation_id' => $conversation->id,
+                'status' => $response->status(),
+                'body' => $response->json(),
+            ]);
+        } catch (\Throwable $e) {
+            Log::warning('Failed to send WhatsApp typing_indicator via CAMS: '.$e->getMessage(), [
+                'conversation_id' => $conversation->id,
+            ]);
+        }
+
+        // Legacy ChatbotFlowService::sendAlibabaTypingIndicator — literal "..." text.
+        try {
+            $fallback = [
+                'From' => $from,
+                'To' => $to,
+                'Type' => 'message',
+                'MessageType' => 'text',
+                'CustSpaceId' => $line->alibaba_cust_space_id,
+                'Content' => json_encode(['text' => '...'], JSON_UNESCAPED_UNICODE),
+            ];
+            $response = $this->camsClient->sendChatappMessage($fallback);
+
             return $response->successful();
         } catch (\Throwable $e) {
-            Log::warning('Failed to send WhatsApp typing indicator via CAMS: '.$e->getMessage(), [
+            Log::warning('Failed to send legacy typing text via CAMS: '.$e->getMessage(), [
                 'conversation_id' => $conversation->id,
             ]);
 

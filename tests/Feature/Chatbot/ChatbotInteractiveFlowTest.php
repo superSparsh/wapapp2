@@ -1063,7 +1063,7 @@ class ChatbotInteractiveFlowTest extends TestCase
             'direction' => MessageDirection::Inbound,
         ]));
 
-        $this->assertSame('no_match', $result->value);
+        $this->assertSame('fired', $result->value);
         $this->assertNotContains('SHOULD NOT SEND', $sent);
 
         $state = ChatbotFlowState::query()->first();

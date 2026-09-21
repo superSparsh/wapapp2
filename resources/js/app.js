@@ -2,7 +2,7 @@ import './echo.js';
 import './form-validation.js';
 import { initThemedSelects, initThemedSelectObserver } from './themed-select.js';
 import { initConfirmDialog, showAppAlert, showAppConfirm } from './confirm-dialog.js';
-import { initToast } from './toast.js';
+import { initToast, showInfoToast } from './toast.js';
 import { initTemplateBuilder } from './template-builder.js';
 import { initTemplatesIndex } from './templates-index.js';
 import { initFreeTemplateBuilder } from './free-template-builder.js';
@@ -780,6 +780,29 @@ function inboxCanNotify() {
     );
 }
 
+function isAppleDesktopBrowser() {
+    const ua = navigator.userAgent || '';
+
+    return /Macintosh|Mac OS X/i.test(ua) && !/Mobile/i.test(ua);
+}
+
+function isWindowsDesktopBrowser() {
+    const ua = navigator.userAgent || '';
+    const platform = navigator.platform || navigator.userAgentData?.platform || '';
+
+    return /Win/i.test(platform) || /Windows NT/i.test(ua);
+}
+
+function inboxNotifyIconUrl() {
+    const raw = document.body?.dataset.inboxNotifyIcon || '/images/logo.png';
+
+    try {
+        return new URL(raw, window.location.origin).href;
+    } catch {
+        return `${window.location.origin}/images/logo.png`;
+    }
+}
+
 function setInboxNotifyUi(enabled) {
     const btn = document.querySelector('[data-inbox-notify-toggle]');
     const label = document.querySelector('[data-inbox-notify-label]');
@@ -834,20 +857,45 @@ function showInboxWebNotification(thread, message, { force = false } = {}) {
     lastInboxNotifyKey = key;
     lastInboxNotifyAt = now;
 
-    const icon = document.body?.dataset.inboxNotifyIcon || '/images/logo.png';
+    const icon = inboxNotifyIconUrl();
+    // macOS often ignores renotify, so unique tags are required there.
+    // Windows/Linux: stable per-conversation tag + renotify (Linux-style banners;
+    // unique tags flood Windows Action Center and get rate-limited).
+    const apple = isAppleDesktopBrowser();
+    const tag = force
+        ? `inbox-test-${now}`
+        : apple
+          ? `inbox-${thread?.uuid || 'general'}-${now}`
+          : `inbox-${thread?.uuid || 'general'}`;
+
+    let created = false;
 
     try {
-        const notification = new Notification(title, {
+        /** @type {NotificationOptions} */
+        const options = {
             body,
-            tag: force ? `inbox-test-${now}` : thread?.uuid || 'inbox',
-            renotify: true,
+            tag,
             icon,
+            // Absolute icon again as badge — Windows Chrome/Edge show this in the tray.
             badge: icon,
+            silent: false,
             requireInteraction: false,
-        });
+        };
+
+        if (!apple) {
+            options.renotify = true;
+        }
+
+        const notification = new Notification(title, options);
+
+        created = true;
 
         notification.onclick = () => {
-            window.focus();
+            try {
+                window.focus();
+            } catch {
+                // ignore focus errors (some Windows browsers)
+            }
             if (thread?.uuid) {
                 const params = window.location.search || '';
                 window.location.href = `${inboxBaseUrl()}/${encodeURIComponent(thread.uuid)}${params}`;
@@ -855,10 +903,41 @@ function showInboxWebNotification(thread, message, { force = false } = {}) {
             notification.close();
         };
 
-        return true;
+        notification.onerror = () => {
+            showInfoToast(body, title);
+        };
+
+        // Windows Action Center keeps banners forever unless closed; auto-dismiss
+        // matches Linux Chrome behavior (~8s) so the tray does not pile up.
+        if (isWindowsDesktopBrowser() && !force) {
+            window.setTimeout(() => {
+                try {
+                    notification.close();
+                } catch {
+                    // already closed
+                }
+            }, 8000);
+        }
     } catch {
-        return false;
+        created = false;
     }
+
+    // macOS often suppresses OS banners while the browser window is focused.
+    // Always surface an in-app toast there so the user still gets a signal.
+    if (
+        !force &&
+        apple &&
+        document.visibilityState === 'visible' &&
+        document.hasFocus()
+    ) {
+        showInfoToast(body, title);
+    }
+
+    if (!created) {
+        showInfoToast(body, title);
+    }
+
+    return created;
 }
 
 function applyInboxUnreadSnapshot(data, { notify = true } = {}) {
@@ -3835,7 +3914,21 @@ function initInboxNotifications() {
 
         if (!shown) {
             showAppAlert(
-                'Browser permission is granted, but the OS blocked the test alert. Check macOS/Windows notification settings for this browser, and keep at least one WapApp tab open.',
+                isAppleDesktopBrowser()
+                    ? 'Browser permission is granted, but macOS blocked the banner. Open System Settings → Notifications and enable Google Chrome plus “Google Chrome Helper (Alerts)” (or Safari). Turn Focus / Do Not Disturb off, then try again.'
+                    : isWindowsDesktopBrowser()
+                      ? 'Browser permission is granted, but Windows blocked the banner. Open Settings → System → Notifications and turn on notifications for Google Chrome or Microsoft Edge. Turn Focus Assist / Do Not Disturb off, then try again. Keep at least one WapApp tab open.'
+                      : 'Browser permission is granted, but the OS blocked the test alert. Check notification settings for this browser, and keep at least one WapApp tab open.',
+                'Notifications on',
+            );
+        } else if (isAppleDesktopBrowser()) {
+            showAppAlert(
+                'Notifications are on. On Mac, also enable System Settings → Notifications → Google Chrome and “Google Chrome Helper (Alerts)” (or Safari). Keep at least one WapApp tab open; banners work best when the window is in the background.',
+                'Notifications on',
+            );
+        } else if (isWindowsDesktopBrowser()) {
+            showAppAlert(
+                'Notifications are on. On Windows, keep Chrome/Edge notifications enabled under Settings → System → Notifications, and turn Focus Assist off. Keep at least one WapApp tab open (banners work in the background like on Linux).',
                 'Notifications on',
             );
         } else {

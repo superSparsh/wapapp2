@@ -37,6 +37,7 @@ return [
         \App\Domains\Templates\Jobs\SubmitTemplateJob::class => 'templates',
         \App\Domains\Templates\Jobs\DeleteTemplateJob::class => 'templates',
         \App\Domains\Chatbot\Jobs\ProcessDelayedNodeJob::class => 'chatbot',
+        \App\Domains\Chatbot\Jobs\SendTypingIndicatorJob::class => 'chatbot',
         \App\Domains\Drip\Jobs\ExecuteDripStepJob::class => 'drip',
         \App\Domains\Webhooks\Jobs\ProcessInboundWebhookJob::class => 'webhooks',
         \App\Domains\Webhooks\Jobs\DispatchOutboundWebhookJob::class => 'webhooks',

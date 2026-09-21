@@ -59,7 +59,7 @@ class AiInboundReplyServiceTest extends TestCase
         AiSetting::set('ai_auto_response_enabled', true);
 
         $conversation = Conversation::factory()->create([
-            'response_type' => ConversationResponseType::Human,
+            'response_type' => ConversationResponseType::Ai,
         ]);
         $message = Message::factory()->create([
             'conversation_id' => $conversation->id,
@@ -70,6 +70,54 @@ class AiInboundReplyServiceTest extends TestCase
         $service = app(AiInboundReplyService::class);
 
         $this->assertTrue($service->shouldTrigger($conversation, $message));
+    }
+
+    public function test_should_not_trigger_when_human_response_mode(): void
+    {
+        AiProviderKey::factory()->create(['is_active' => true, 'is_validated' => true]);
+        AiBot::factory()->active()->create();
+        AiSetting::set('ai_auto_response_enabled', true);
+
+        $conversation = Conversation::factory()->create([
+            'response_type' => ConversationResponseType::Human,
+        ]);
+        $message = Message::factory()->create([
+            'conversation_id' => $conversation->id,
+            'message_type' => MessageType::Text,
+            'body' => 'Hello',
+        ]);
+
+        $service = app(AiInboundReplyService::class);
+
+        $this->assertFalse($service->shouldTrigger($conversation, $message));
+    }
+
+    public function test_should_not_trigger_when_chatbot_owns_conversation(): void
+    {
+        AiProviderKey::factory()->create(['is_active' => true, 'is_validated' => true]);
+        AiBot::factory()->active()->create();
+        AiSetting::set('ai_auto_response_enabled', true);
+
+        $conversation = Conversation::factory()->create([
+            'response_type' => ConversationResponseType::Ai,
+        ]);
+        \App\Models\ChatbotFlowState::query()->create([
+            'conversation_id' => $conversation->id,
+            'chatbot_flow_id' => \App\Models\ChatbotFlow::factory()->create()->id,
+            'current_node_id' => 'n1',
+            'status' => \App\Enums\ChatbotFlowStateStatus::Waiting,
+            'expires_at' => now()->addHour(),
+            'variables' => [],
+        ]);
+        $message = Message::factory()->create([
+            'conversation_id' => $conversation->id,
+            'message_type' => MessageType::Text,
+            'body' => 'Hello',
+        ]);
+
+        $service = app(AiInboundReplyService::class);
+
+        $this->assertFalse($service->shouldTrigger($conversation, $message));
     }
 
     public function test_should_trigger_when_conversation_is_ai_mode(): void
@@ -98,7 +146,9 @@ class AiInboundReplyServiceTest extends TestCase
         AiBot::factory()->active()->create();
         AiSetting::set('ai_auto_response_enabled', true);
 
-        $conversation = Conversation::factory()->create();
+        $conversation = Conversation::factory()->create([
+            'response_type' => ConversationResponseType::Ai,
+        ]);
         $message = Message::factory()->create([
             'conversation_id' => $conversation->id,
             'message_type' => MessageType::Text,

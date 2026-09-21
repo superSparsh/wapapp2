@@ -287,6 +287,17 @@ return [
             'timeout' => 60,
             'nice' => 0,
         ],
+        'chatbot' => [
+            'connection' => 'redis',
+            'queue' => ['chatbot'],
+            'balance' => 'auto',
+            'autoScalingStrategy' => 'time',
+            'maxProcesses' => 2,
+            'memory' => 128,
+            'tries' => 3,
+            'timeout' => 60,
+            'nice' => 0,
+        ],
         'provisioning' => [
             'connection' => 'redis',
             'queue' => ['provisioning'],
@@ -317,6 +328,11 @@ return [
                 'balanceMaxShift' => 1,
                 'balanceCooldown' => 5,
             ],
+            'chatbot' => [
+                'maxProcesses' => 2,
+                'balanceMaxShift' => 1,
+                'balanceCooldown' => 3,
+            ],
         ],
 
         'local' => [
@@ -328,6 +344,7 @@ return [
             'default' => ['maxProcesses' => 1],
             'low' => ['maxProcesses' => 1],
             'ai' => ['maxProcesses' => 1],
+            'chatbot' => ['maxProcesses' => 1],
             'provisioning' => ['maxProcesses' => 1],
         ],
     ],

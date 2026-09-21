@@ -56,12 +56,13 @@ class FlowNodeDataMapper
     private function syncNodeData(string $type, array $data): array
     {
         return match ($type) {
-            'welcomeMessage' => $this->syncWelcomeMessage($data),
+            'welcomeMessage', 'textMessage' => $this->syncWelcomeMessage($data),
             'interactiveMessage' => $this->syncInteractiveMessage($data),
             'templateMessage' => $this->syncTemplateMessage($data),
             'mediaMessage' => $this->syncMediaMessage($data),
             'waitForResponse' => $this->syncWaitForResponse($data),
-            'delay', 'typingIndicator' => $this->syncDelay($data),
+            'delay' => $this->syncDelay($data),
+            'typingIndicator' => $this->syncTypingIndicator($data),
             'condition', 'enhancedCondition' => $this->syncCondition($data),
             'dateTimeCondition' => $this->syncDateTimeCondition($data),
             'httpRequest' => $this->syncHttpRequest($data),
@@ -98,6 +99,16 @@ class FlowNodeDataMapper
         $data['triggerKeyword'] = $keyword;
         $data['keywords'] = $keyword;
         $data['messageType'] = (string) ($data['messageType'] ?? 'text');
+
+        // Legacy offline-hours fields (ReactFlowOfflineHoursFields) — keep as-is.
+        if (array_key_exists('enableOfflineHours', $data)) {
+            $data['enableOfflineHours'] = (bool) $data['enableOfflineHours'];
+        }
+        foreach (['timezone', 'onlineFrom', 'onlineUntil', 'offlineMessage'] as $offlineKey) {
+            if (array_key_exists($offlineKey, $data)) {
+                $data[$offlineKey] = is_string($data[$offlineKey]) ? $data[$offlineKey] : (string) $data[$offlineKey];
+            }
+        }
 
         return $data;
     }
@@ -147,6 +158,17 @@ class FlowNodeDataMapper
         $data['keywords'] = $keyword;
         $data['messageType'] = $code !== '' ? 'template' : (string) ($data['messageType'] ?? 'text');
 
+        if (array_key_exists('enableOfflineHours', $data)) {
+            $data['enableOfflineHours'] = (bool) $data['enableOfflineHours'];
+        }
+        foreach (['timezone', 'onlineFrom', 'onlineUntil', 'offlineMessage'] as $offlineKey) {
+            if (array_key_exists($offlineKey, $data)) {
+                $data[$offlineKey] = is_string($data[$offlineKey]) ? $data[$offlineKey] : (string) $data[$offlineKey];
+            }
+        }
+
+        return $data;
+    }
         return $data;
     }
 
@@ -201,6 +223,44 @@ class FlowNodeDataMapper
         $data['delaySeconds'] = $seconds;
 
         return $data;
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function syncTypingIndicator(array $data): array
+    {
+        $seconds = (int) ($data['duration'] ?? $data['durationSeconds'] ?? $data['delaySeconds'] ?? $data['delay_seconds'] ?? 3);
+
+        if (! isset($data['duration']) && ! isset($data['durationSeconds']) && ! isset($data['delaySeconds']) && ! isset($data['delay_seconds'])) {
+            $seconds = match ((string) ($data['typingSpeed'] ?? 'normal')) {
+                'slow' => 2,
+                'fast' => 1,
+                'custom' => (int) round((float) ($data['customDuration'] ?? 3)),
+                default => 3,
+            };
+        }
+
+        $seconds = max(1, min(60, $seconds));
+
+        $data['duration'] = $seconds;
+        $data['durationSeconds'] = $seconds;
+        $data['delaySeconds'] = $seconds;
+        $data['delay_seconds'] = $seconds;
+        $data['showTyping'] = $this->boolFlag($data['showTyping'] ?? true);
+        $data['repeatTyping'] = $this->boolFlag($data['repeatTyping'] ?? false);
+
+        if (array_key_exists('maxRepeats', $data) && $data['maxRepeats'] !== null && $data['maxRepeats'] !== '') {
+            $data['maxRepeats'] = max(1, min(10, (int) $data['maxRepeats']));
+        }
+
+        return $data;
+    }
+
+    private function boolFlag(mixed $flag): bool
+    {
+        return $flag === true || $flag === 1 || $flag === '1' || $flag === 'true';
     }
 
     /**

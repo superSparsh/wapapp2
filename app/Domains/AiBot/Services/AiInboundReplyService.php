@@ -6,9 +6,11 @@ namespace App\Domains\AiBot\Services;
 
 use App\Enums\ConversationResponseType;
 use App\Enums\MessageType;
+use App\Enums\ChatbotFlowStateStatus;
 use App\Models\AiBot;
 use App\Models\AiProviderKey;
 use App\Models\AiSetting;
+use App\Models\ChatbotFlowState;
 use App\Models\Conversation;
 use App\Models\Message;
 use Illuminate\Support\Facades\Log;
@@ -63,6 +65,16 @@ class AiInboundReplyService
             }
         }
 
+        // Chatbot owns this conversation (mid-flow / waiting) — never let AI steal the turn.
+        if ($this->chatbotOwnsConversation($conversation)) {
+            return false;
+        }
+
+        // Explicit human takeover — chatbot/AI stay out until switched back to AI.
+        if ($conversation->response_type === ConversationResponseType::Human) {
+            return false;
+        }
+
         if (! $this->hasConfiguredProvider()) {
             return false;
         }
@@ -71,13 +83,13 @@ class AiInboundReplyService
             return false;
         }
 
-        // Global tenant toggle (legacy customers.ai_response).
-        if (AiSetting::getBool('ai_auto_response_enabled', false)) {
+        // Per-conversation AI mode (legacy sub_reply.response_type = ai_response).
+        if ($conversation->response_type === ConversationResponseType::Ai) {
             return true;
         }
 
-        // Per-conversation AI mode (legacy sub_reply.response_type = ai_response).
-        if ($conversation->response_type === ConversationResponseType::Ai) {
+        // Global tenant toggle (legacy customers.ai_response).
+        if (AiSetting::getBool('ai_auto_response_enabled', false)) {
             return true;
         }
 
@@ -89,6 +101,20 @@ class AiInboundReplyService
         }
 
         return false;
+    }
+
+    private function chatbotOwnsConversation(Conversation $conversation): bool
+    {
+        return ChatbotFlowState::query()
+            ->forConversation($conversation->id)
+            ->whereIn('status', [
+                ChatbotFlowStateStatus::Active->value,
+                ChatbotFlowStateStatus::Waiting->value,
+            ])
+            ->where(function ($q): void {
+                $q->whereNull('expires_at')->orWhere('expires_at', '>', now());
+            })
+            ->exists();
     }
 
     public function hasConfiguredProvider(): bool

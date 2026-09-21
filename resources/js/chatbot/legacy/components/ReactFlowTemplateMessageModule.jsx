@@ -37,6 +37,9 @@ import {
   CheckCircleOutlined,
 } from "@ant-design/icons";
 import VariableHelper from "./VariableHelper.jsx";
+import ReactFlowOfflineHoursFields, {
+  OFFLINE_HOURS_DEFAULTS,
+} from "./ReactFlowOfflineHoursFields.jsx";
 
 const { Text, Paragraph } = Typography;
 const { TextArea } = Input;
@@ -68,7 +71,10 @@ const ReactFlowTemplateMessageModule = ({
   // Initialize form with node data if editing
   useEffect(() => {
     if (visible && nodeData) {
-      form.setFieldsValue(nodeData);
+      form.setFieldsValue({
+        ...OFFLINE_HOURS_DEFAULTS,
+        ...nodeData,
+      });
       if (nodeData.templateId) {
         const template = templates.find((t) => t.id === nodeData.templateId);
         if (template) {
@@ -122,6 +128,7 @@ const ReactFlowTemplateMessageModule = ({
         fallbackText: "",
         quickReplyBranches: {},
         defaultBranch: "",
+        ...OFFLINE_HOURS_DEFAULTS,
         timeoutConfig: {
           deliveredTimeout: 0,
           unreadTimeout: 300,
@@ -505,6 +512,7 @@ const ReactFlowTemplateMessageModule = ({
                   </Card>
 
                   {/* Quick Reply Branching Information */}
+                  <ReactFlowOfflineHoursFields />
                   {renderQuickReplyInfo()}
                 </>
               );
@@ -561,6 +569,7 @@ const ReactFlowTemplateMessageModule = ({
                       </div>
                     </Card>
                   )}
+                  <ReactFlowOfflineHoursFields />
                 </Card>
               );
             }
