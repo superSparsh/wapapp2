@@ -433,50 +433,73 @@
         @if ($selectedBot)
           <div class="flex flex-col gap-4">
             @if (! empty($kbError))
-              <div class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+              <div class="rounded-lg bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
                 Knowledge Base unavailable: {{ $kbError }}
-                <span class="mt-1 block text-xs opacity-80">Chroma/AI service is the source of truth — nothing is loaded from MySQL.</span>
-              </div>
-            @elseif (($storageInfo['document_count'] ?? $kbTotal ?? 0) === 0)
-              <div class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                No chunks for this bot yet.
-                <span class="mt-1 block font-mono text-xs opacity-90">
-                  Chroma keys: client_id={{ $kbChromaClientId ?? '?' }}
-                  bot_id={{ $kbChromaBotId ?? '?' }}
-                  @if (! empty($kbCollectionName))
-                    collection={{ $kbCollectionName }}
-                  @endif
-                </span>
-                <span class="mt-1 block text-xs opacity-80">
-                  Migrated accounts need legacy_bot_uid + shared chroma_data. Run:
-                  <code class="rounded bg-white/70 px-1">php artisan legacy:kb-doctor --tenant=YOUR_TENANT</code>
-                </span>
               </div>
             @endif
 
-            <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-              <div class="flex flex-wrap items-center gap-4">
-                <p class="text-sm font-normal leading-[1.4] text-text-subtle opacity-50">
-                  Total Chunks:&nbsp;<span class="font-bold">{{ $storageInfo['document_count'] ?? $kbTotal ?? 0 }}</span>
-                </p>
-                <span class="hidden h-[13.5px] w-px bg-[rgba(13,13,13,0.2)] sm:block" aria-hidden="true"></span>
-                <p class="text-sm font-normal leading-[1.4] text-text-subtle opacity-50">
-                  Storage:&nbsp;<span class="font-bold">{{ number_format((float) ($storageInfo['total_size_mb'] ?? 0), 2) }}&nbsp;MB</span>
-                </p>
-                <span class="hidden h-[13.5px] w-px bg-[rgba(13,13,13,0.2)] sm:block" aria-hidden="true"></span>
-                <div class="flex flex-wrap items-center gap-1">
-                  <p class="text-sm font-normal leading-[1.4] text-text-subtle opacity-50">Types:</p>
-                  @forelse (($storageInfo['file_types'] ?? []) as $type)
-                    <span class="inline-flex items-center justify-center rounded bg-stat-blue/15 px-2 py-1 text-[10px] font-medium leading-[1.2] text-stat-blue">{{ $type }}</span>
-                  @empty
-                    <span class="text-xs text-text-muted">—</span>
-                  @endforelse
+            {{-- Stats --}}
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <div class="flex items-start gap-5 overflow-hidden rounded-xl border border-solid border-border bg-elevated p-5">
+                <div class="flex shrink-0 items-center overflow-hidden rounded-xl bg-green-50 p-3">
+                  <img src="{{ asset('images/openai-key/personalcard.svg') }}" alt="" class="size-6" width="24" height="24">
+                </div>
+                <div class="flex min-w-0 flex-1 flex-col gap-1">
+                  <p class="text-sm font-medium leading-[1.4] text-text-subtle opacity-50">Total Chunks</p>
+                  <p class="text-2xl font-bold leading-[1.3] text-text-primary">{{ $storageInfo['document_count'] ?? $kbTotal ?? 0 }}</p>
                 </div>
               </div>
+              <div class="flex items-start gap-5 overflow-hidden rounded-xl border border-solid border-border bg-elevated p-5">
+                <div class="flex shrink-0 items-center overflow-hidden rounded-xl bg-green-50 p-3">
+                  <img src="{{ asset('images/openai-key/personalcard.svg') }}" alt="" class="size-6" width="24" height="24">
+                </div>
+                <div class="flex min-w-0 flex-1 flex-col gap-1">
+                  <p class="text-sm font-medium leading-[1.4] text-text-subtle opacity-50">Storage</p>
+                  <p class="text-2xl font-bold leading-[1.3] text-text-primary">{{ number_format((float) ($storageInfo['total_size_mb'] ?? 0), 2) }} MB</p>
+                </div>
+              </div>
+              <div class="flex items-start gap-5 overflow-hidden rounded-xl border border-solid border-border bg-elevated p-5">
+                <div class="flex shrink-0 items-center overflow-hidden rounded-xl bg-green-50 p-3">
+                  <img src="{{ asset('images/openai-key/personalcard.svg') }}" alt="" class="size-6" width="24" height="24">
+                </div>
+                <div class="flex min-w-0 flex-1 flex-col gap-2">
+                  <p class="text-sm font-medium leading-[1.4] text-text-subtle opacity-50">Types</p>
+                  <div class="flex flex-wrap gap-1">
+                    @forelse (($storageInfo['file_types'] ?? []) as $type)
+                      <span class="inline-flex items-center justify-center rounded bg-stat-blue/15 px-2 py-1 text-[10px] font-medium leading-[1.2] text-stat-blue">{{ $type }}</span>
+                    @empty
+                      <span class="text-sm text-text-muted">—</span>
+                    @endforelse
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {{-- Toolbar --}}
+            <div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+              @if ($bots->count() > 1)
+                <div class="flex w-full flex-col gap-2 sm:max-w-xs">
+                  <label for="kb_bot_switch" class="text-sm font-semibold leading-[1.4] text-text-primary">Bot</label>
+                  <select
+                    id="kb_bot_switch"
+                    class="w-full appearance-none rounded-xl border border-border bg-elevated p-3.5 text-sm font-medium leading-[1.4] text-text-body focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
+                    onchange="window.location.href=this.value"
+                  >
+                    @foreach ($bots as $botOption)
+                      <option
+                        value="{{ route('openai-key.index', ['tab' => 'knowledge-base', 'bot' => $botOption->uuid]) }}"
+                        @selected($selectedBot->uuid === $botOption->uuid)
+                      >{{ $botOption->name }}</option>
+                    @endforeach
+                  </select>
+                </div>
+              @else
+                <div></div>
+              @endif
 
               <div class="flex flex-wrap items-center gap-3">
                 <a href="{{ route('openai-key.index', ['tab' => 'knowledge-base', 'bot' => $selectedBot->uuid]) }}"
-                  class="fd-btn inline-flex items-center justify-center gap-3 rounded border border-solid border-border-light bg-elevated px-4 py-3 text-sm font-semibold leading-[1.5] text-green-500 transition-colors hover:bg-surface"
+                  class="fd-btn inline-flex items-center justify-center gap-2 rounded border border-solid border-border-light bg-elevated px-4 py-3 text-sm font-semibold leading-[1.5] text-green-500 transition-colors hover:bg-surface"
                 >
                   <img src="{{ asset('images/openai-key/refresh.svg') }}" alt="" class="size-4" width="16" height="16">
                   Refresh
@@ -486,66 +509,53 @@
                 >
                   Download All
                 </a>
-                <form action="{{ route('openai-key.knowledge-base.clear') }}" method="POST" onsubmit="return confirm('Clear all Knowledge Base data for this bot from Chroma?')">
+                <form action="{{ route('openai-key.knowledge-base.clear') }}" method="POST" onsubmit="return confirm('Clear all Knowledge Base data for this bot?')">
                   @csrf @method('DELETE')
                   <input type="hidden" name="bot_id" value="{{ $selectedBot->uuid }}">
-                  <button type="submit" class="fd-btn inline-flex items-center justify-center rounded border border-red-300 px-4 py-3 text-sm font-semibold text-red-600 hover:bg-red-50">
+                  <button type="submit" class="fd-btn inline-flex items-center justify-center rounded border border-solid border-[red] px-4 py-3 text-sm font-semibold leading-[1.5] text-[red] transition-colors hover:bg-red-50">
                     Clear KB
                   </button>
                 </form>
               </div>
             </div>
 
-            @if ($bots->count() > 1)
-              <div class="flex flex-col gap-2 sm:max-w-sm">
-                <label for="kb_bot_switch" class="text-sm font-semibold text-text-primary">Bot</label>
-                <select
-                  id="kb_bot_switch"
-                  class="w-full rounded-xl border border-border bg-elevated p-3.5 text-sm"
-                  onchange="window.location.href=this.value"
-                >
-                  @foreach ($bots as $botOption)
-                    <option
-                      value="{{ route('openai-key.index', ['tab' => 'knowledge-base', 'bot' => $botOption->uuid]) }}"
-                      @selected($selectedBot->uuid === $botOption->uuid)
-                    >{{ $botOption->name }}</option>
-                  @endforeach
-                </select>
-              </div>
-            @endif
-
+            {{-- Table with scroll --}}
             <div class="overflow-hidden rounded-xl bg-elevated shadow-[0px_4px_6px_rgba(0,0,0,0.04)]">
-              <div class="overflow-x-auto">
-                <table class="w-full min-w-[800px] text-left">
-                  <thead>
-                    <tr class="bg-elevated">
-                      <th class="w-[54px] p-2 text-[13px] font-medium text-text-body">#</th>
-                      <th class="w-[160px] p-2 text-[13px] font-medium text-text-body">Source</th>
-                      <th class="w-[100px] p-2 text-[13px] font-medium text-text-body">Type</th>
-                      <th class="p-2 text-[13px] font-medium text-text-body">Preview</th>
-                      <th class="w-[90px] p-2 text-[13px] font-medium text-text-body">Action</th>
+              <div class="max-h-[min(560px,calc(100vh-280px))] overflow-auto">
+                <table class="w-full min-w-[720px] table-fixed text-left">
+                  <thead class="sticky top-0 z-10 bg-elevated">
+                    <tr>
+                      <th class="w-[56px] border-b border-divider p-3 text-[13px] font-medium leading-[1.5] text-text-body">#</th>
+                      <th class="w-[180px] border-b border-divider p-3 text-[13px] font-medium leading-[1.5] text-text-body">Source</th>
+                      <th class="w-[100px] border-b border-divider p-3 text-[13px] font-medium leading-[1.5] text-text-body">Type</th>
+                      <th class="border-b border-divider p-3 text-[13px] font-medium leading-[1.5] text-text-body">Preview</th>
+                      <th class="w-[96px] border-b border-divider p-3 text-center text-[13px] font-medium leading-[1.5] text-text-body">Action</th>
                     </tr>
                   </thead>
                   <tbody>
                     @forelse ($kbDocuments as $index => $doc)
                       @php
                         $meta = is_array($doc['metadata'] ?? null) ? $doc['metadata'] : [];
-                        $source = $meta['source'] ?? ($meta['filename'] ?? '—');
-                        $type = $meta['file_type'] ?? ($meta['type'] ?? 'text');
-                        $preview = $doc['content_preview'] ?? \Illuminate\Support\Str::limit((string) ($doc['content'] ?? ''), 200);
+                        $source = (string) ($meta['source'] ?? ($meta['filename'] ?? '—'));
+                        $type = (string) ($meta['file_type'] ?? ($meta['type'] ?? 'text'));
+                        $preview = (string) ($doc['content_preview'] ?? \Illuminate\Support\Str::limit((string) ($doc['content'] ?? ''), 200));
                         $full = (string) ($doc['content'] ?? '');
                       @endphp
                       <tr class="border-t border-divider bg-elevated">
-                        <td class="w-[54px] p-2 text-[13px] text-text-body">{{ ($kbOffset ?? 0) + $index + 1 }}</td>
-                        <td class="w-[160px] p-2 text-[13px] font-semibold text-text-subtle">{{ $source }}</td>
-                        <td class="w-[100px] p-2">
-                          <span class="inline-flex rounded bg-stat-blue/15 px-2 py-1 text-[10px] font-medium text-stat-blue">{{ $type }}</span>
+                        <td class="p-3 align-top text-[13px] font-normal leading-[1.5] text-text-body">{{ ($kbOffset ?? 0) + $index + 1 }}</td>
+                        <td class="p-3 align-top text-[13px] font-semibold leading-[1.5] text-text-subtle">
+                          <span class="line-clamp-2 break-all" title="{{ $source }}">{{ $source }}</span>
                         </td>
-                        <td class="p-2 text-[13px] text-text-body opacity-60">{{ $preview }}</td>
-                        <td class="w-[90px] p-2">
+                        <td class="p-3 align-top">
+                          <span class="inline-flex max-w-full truncate rounded bg-stat-blue/15 px-2 py-1 text-[10px] font-medium leading-[1.2] text-stat-blue">{{ $type }}</span>
+                        </td>
+                        <td class="p-3 align-top text-[13px] font-normal leading-[1.5] text-text-body opacity-60">
+                          <span class="line-clamp-3 break-words">{{ $preview }}</span>
+                        </td>
+                        <td class="p-3 align-top text-center">
                           <button
                             type="button"
-                            class="text-sm font-semibold text-green-600 hover:underline"
+                            class="fd-btn-sm inline-flex items-center justify-center rounded bg-green-500 px-4 py-1.5 text-[10px] font-semibold leading-[1.5] text-primary-2 transition-opacity hover:opacity-90"
                             data-kb-view
                             data-kb-content="{{ e($full) }}"
                           >View</button>
@@ -553,11 +563,11 @@
                       </tr>
                     @empty
                       <tr class="border-t border-divider bg-elevated">
-                        <td colspan="5" class="p-8 text-center text-sm text-text-muted">
+                        <td colspan="5" class="p-10 text-center text-sm text-text-muted">
                           @if (! empty($kbError))
                             Unable to load Knowledge Base from AI service.
                           @else
-                            No knowledge base chunks yet. Use Add Sources to index content into Chroma.
+                            No knowledge base chunks yet. Use <span class="font-semibold text-text-body">Add Sources</span> to index content.
                           @endif
                         </td>
                       </tr>
@@ -565,18 +575,23 @@
                   </tbody>
                 </table>
               </div>
+
               @if (($kbTotal ?? 0) > ($kbLimit ?? 10))
-                <div class="flex items-center justify-between border-t border-divider px-4 py-3 text-sm">
-                  <span class="text-text-muted">Showing {{ min(($kbOffset ?? 0) + count($kbDocuments), $kbTotal) }} of {{ $kbTotal }}</span>
+                <div class="flex flex-wrap items-center justify-between gap-3 border-t border-divider px-4 py-3 text-sm">
+                  <span class="text-text-muted">
+                    Showing {{ min(($kbOffset ?? 0) + count($kbDocuments), $kbTotal) }} of {{ $kbTotal }}
+                  </span>
                   <div class="flex gap-2">
                     @if (($kbOffset ?? 0) > 0)
-                      <a class="rounded border border-border px-3 py-1.5 font-semibold text-green-600"
+                      <a
+                        class="fd-btn-sm inline-flex items-center justify-center rounded border border-solid border-green-500 bg-green-50 px-4 py-1.5 text-sm font-medium text-green-500 hover:opacity-90"
                         href="{{ route('openai-key.index', ['tab' => 'knowledge-base', 'bot' => $selectedBot->uuid, 'offset' => max(0, ($kbOffset ?? 0) - ($kbLimit ?? 10)), 'limit' => $kbLimit ?? 10]) }}"
                       >Prev</a>
                     @endif
                     @if ((($kbOffset ?? 0) + ($kbLimit ?? 10)) < ($kbTotal ?? 0))
-                      <a class="rounded border border-border px-3 py-1.5 font-semibold text-green-600"
-                        href="{{ route('openai-key.index', ['tab' => 'knowledge-base', 'bot' => $selectedBot->uuid, 'offset' => ($kbOffset ?? 0) + ($kbLimit ?? 10), 'limit' => $kbLimit ?? 10]) }}"
+                      <a
+                        class="fd-btn-sm inline-flex items-center justify-center rounded border border-solid border-green-500 bg-green-50 px-4 py-1.5 text-sm font-medium text-green-500 hover:opacity-90"
+                        href="{{ route('openai-key.index', ['tab' => 'knowledge-base', 'bot' => $selectedBot->uuid, 'offset' => ($kbOffset ?? 0) + ($kbLimit ?? 10)), 'limit' => $kbLimit ?? 10]) }}"
                       >Next</a>
                     @endif
                   </div>
@@ -585,18 +600,19 @@
             </div>
           </div>
 
-          <div id="kb-view-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60 p-4">
-            <div class="max-h-[80vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-elevated p-5">
-              <div class="mb-3 flex items-center justify-between">
-                <h3 class="text-lg font-bold text-text-primary">Document content</h3>
-                <button type="button" id="kb-view-close" class="text-text-muted">&times;</button>
+          {{-- View modal --}}
+          <div id="kb-view-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
+            <div class="flex max-h-[90vh] w-full max-w-[769px] flex-col gap-4 overflow-hidden rounded-[20px] bg-elevated p-5 shadow-[0px_4px_6px_rgba(0,0,0,0.1)]">
+              <div class="flex shrink-0 items-center justify-between gap-3">
+                <h3 class="text-lg font-bold leading-[1.5] text-text-primary">Document content</h3>
+                <button type="button" id="kb-view-close" class="flex size-8 items-center justify-center rounded-lg text-xl leading-none text-text-muted hover:bg-surface" aria-label="Close">&times;</button>
               </div>
-              <pre id="kb-view-body" class="whitespace-pre-wrap text-sm text-text-body"></pre>
+              <pre id="kb-view-body" class="min-h-0 flex-1 overflow-y-auto whitespace-pre-wrap break-words rounded-xl border border-border bg-surface p-4 text-sm leading-[1.5] text-text-body"></pre>
             </div>
           </div>
         @else
           <div class="rounded-xl bg-elevated p-8 text-center text-sm text-text-muted">
-            No bots available. <a href="{{ route('openai-key.index', ['tab' => 'bot-manager']) }}" class="text-green-500 underline">Create a bot first</a>.
+            No bots available. <a href="{{ route('openai-key.index', ['tab' => 'bot-manager']) }}" class="font-medium text-green-500 underline">Create a bot first</a>.
           </div>
         @endif
       @elseif ($currentTab === 'test-bot')
