@@ -217,6 +217,9 @@ class OpenAiKeyController extends Controller
             return;
         }
 
+        $data['kbChromaClientId'] = $this->knowledgeBaseProxy->chromaClientId();
+        $data['kbChromaBotId'] = $this->knowledgeBaseProxy->chromaBotId($selectedBot);
+
         try {
             $list = $this->knowledgeBaseProxy->list(
                 botId: $selectedBot->uuid,
@@ -226,6 +229,7 @@ class OpenAiKeyController extends Controller
             $listData = is_array($list['data'] ?? null) ? $list['data'] : $list;
             $data['kbDocuments'] = is_array($listData['documents'] ?? null) ? $listData['documents'] : [];
             $data['kbTotal'] = (int) ($listData['total_documents'] ?? count($data['kbDocuments']));
+            $data['kbCollectionName'] = $listData['collection_name'] ?? null;
 
             $storage = $this->knowledgeBaseProxy->storageInfo(botId: $selectedBot->uuid);
             $storageData = is_array($storage['data'] ?? null) ? $storage['data'] : $storage;

@@ -543,6 +543,31 @@ async def structure_text(request: StructureRequest):
         print(f"Error in structure_text endpoint: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+
+@app.get("/debug/collections")
+async def debug_collections():
+    """List Chroma collections + counts (ops / kb-doctor)."""
+    try:
+        client_engine = RAGEngine()
+        cols = []
+        for col in client_engine.chroma_client.list_collections():
+            try:
+                count = col.count()
+            except Exception:
+                count = -1
+            cols.append({"name": col.name, "count": count})
+        cols.sort(key=lambda c: c["name"])
+        return {
+            "success": True,
+            "chroma_path": Config.CHROMA_DB_PATH,
+            "collection_count": len(cols),
+            "collections": cols,
+        }
+    except Exception as e:
+        logging.error("debug_collections failed: %s", str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 if __name__ == "__main__":
     uvicorn.run(
         app, 

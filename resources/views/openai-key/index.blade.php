@@ -437,6 +437,21 @@
                 Knowledge Base unavailable: {{ $kbError }}
                 <span class="mt-1 block text-xs opacity-80">Chroma/AI service is the source of truth — nothing is loaded from MySQL.</span>
               </div>
+            @elseif (($storageInfo['document_count'] ?? $kbTotal ?? 0) === 0)
+              <div class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                No chunks for this bot yet.
+                <span class="mt-1 block font-mono text-xs opacity-90">
+                  Chroma keys: client_id={{ $kbChromaClientId ?? '?' }}
+                  bot_id={{ $kbChromaBotId ?? '?' }}
+                  @if (! empty($kbCollectionName))
+                    collection={{ $kbCollectionName }}
+                  @endif
+                </span>
+                <span class="mt-1 block text-xs opacity-80">
+                  Migrated accounts need legacy_bot_uid + shared chroma_data. Run:
+                  <code class="rounded bg-white/70 px-1">php artisan legacy:kb-doctor --tenant=YOUR_TENANT</code>
+                </span>
+              </div>
             @endif
 
             <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
