@@ -76,17 +76,17 @@
           @endforeach
         </div>
 
-        <div class="flex flex-col-reverse gap-3 sm:flex-row sm:items-stretch">
+        <div class="flex items-stretch gap-3">
           <button
             type="button"
             data-recharge-close
-            class="fd-btn flex w-full items-center justify-center rounded-xl border-[1.25px] border-green-500 bg-elevated px-5 py-3.5 text-center text-base font-bold leading-[1.5] text-green-500 transition-colors hover:bg-green-50 sm:w-auto sm:min-w-[140px] sm:shrink-0"
-            style="font-family: var(--font-display)"
+            class="fd-btn flex w-[120px] shrink-0 items-center justify-center rounded-xl border-[1.25px] border-green-500 bg-elevated px-4 text-center text-base font-bold leading-[1.5] text-green-500 transition-colors hover:bg-green-50"
+            style="font-family: var(--font-display); min-height: 56px;"
           >
             Cancel
           </button>
 
-          <div class="flex min-w-0 flex-1" data-recharge-pay>
+          <div class="min-w-0 flex-1">
             <x-billing.razorpay-checkout
               button-id="dashboard-recharge-btn"
               :checkout-url="route('profile.subscription.wallet-recharge')"
@@ -94,10 +94,19 @@
               :redirect-url="route('dashboard', ['status' => 'wallet-recharged'])"
               button-label="Pay Securely"
               :razorpay-configured="$razorpayConfigured"
-              class="min-h-[56px] rounded-xl px-6 py-4 text-lg font-extrabold"
             />
           </div>
         </div>
+        <style>
+          #dashboard-recharge-btn {
+            min-height: 56px !important;
+            width: 100% !important;
+            padding: 1rem 1.5rem !important;
+            font-size: 1.125rem !important;
+            font-weight: 800 !important;
+            border-radius: 0.75rem !important;
+          }
+        </style>
       </div>
     </div>
   </div>
