@@ -24,8 +24,7 @@
         @if ($plan)
           <span>You are currently subscribed to </span>
           <span class="font-bold text-text-body">{{ $plan->name }}</span>
-          <span> plan </span>
-          <span class="font-bold text-text-body">(₹ {{ number_format((float) $plan->price, 2) }}).</span>
+          <span> plan.</span>
           @if ($expiresAt)
             <br>
             <span>Your subscription expires on </span>
@@ -35,6 +34,7 @@
           <span>No active plan selected. Choose a plan to get started.</span>
         @endif
       </p>
+      {{--
       <div class="flex flex-wrap gap-4">
         <a href="{{ route('profile.subscription.upgrade') }}" class="fd-btn inline-flex items-center justify-center gap-3 rounded border border-border-light bg-elevated px-4 py-3 text-base font-semibold leading-[1.5] text-primary-2 transition-colors hover:bg-surface">
           <img src="{{ asset('images/profile/refresh.svg') }}" alt="" class="size-4 shrink-0" width="16" height="16">
@@ -44,6 +44,7 @@
           Cancel Now
         </a>
       </div>
+      --}}
     </div>
 
     <div class="flex flex-col gap-4 xl:flex-row xl:items-start">
@@ -93,16 +94,28 @@
 
         <div class="flex flex-col gap-4">
           <h3 class="text-xl font-semibold leading-[1.4] text-text-primary">Plan details</h3>
+          @php
+            $tierRaw = strtoupper(trim((string) ($messagingLimitTier ?? '')));
+            $tierLabel = match ($tierRaw) {
+              'TIER_50' => '50 / 24h',
+              'TIER_250' => '250 / 24h',
+              'TIER_1K', 'TIER_1000' => '1K / 24h',
+              'TIER_2K', 'TIER_2000' => '2K / 24h',
+              'TIER_10K', 'TIER_10000' => '10K / 24h',
+              'TIER_100K', 'TIER_100000' => '100K / 24h',
+              'UNLIMITED' => 'Unlimited',
+              '', 'UNKNOWN' => '—',
+              default => $tierRaw,
+            };
+          @endphp
           <div class="overflow-hidden rounded-xl border border-divider bg-elevated shadow-[0px_4px_12px_rgba(0,0,0,0.04)]">
-            <div class="grid grid-cols-3 gap-2 bg-elevated p-2">
+            <div class="grid grid-cols-2 gap-2 bg-elevated p-2">
               <div class="p-2 text-[13px] font-medium text-text-body">Plan name</div>
-              <div class="p-2 text-[13px] font-medium text-text-body">Price</div>
-              <div class="p-2 text-[13px] font-medium text-text-body">Messages limit</div>
+              <div class="p-2 text-[13px] font-medium text-text-body">Messaging tier</div>
             </div>
-            <div class="grid grid-cols-3 gap-2 border-t border-divider bg-elevated px-2 py-1.5">
+            <div class="grid grid-cols-2 gap-2 border-t border-divider bg-elevated px-2 py-1.5">
               <div class="p-2 text-xs text-text-body">{{ $plan?->name ?? '—' }}</div>
-              <div class="p-2 text-[13px] font-bold text-text-body">{{ $plan ? '₹ '.number_format((float) $plan->price, 2) : '—' }}</div>
-              <div class="p-2 text-xs text-text-body">{{ $plan?->messages_limit ? number_format($plan->messages_limit) : 'Unlimited' }}</div>
+              <div class="p-2 text-xs text-text-body" title="{{ $tierRaw !== '' ? $tierRaw : 'Meta messaging limit tier' }}">{{ $tierLabel }}</div>
             </div>
           </div>
         </div>

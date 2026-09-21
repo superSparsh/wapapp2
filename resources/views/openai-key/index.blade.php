@@ -725,7 +725,7 @@
 
                 <div
                   id="test-phone-thread"
-                  class="absolute top-[500px] left-[43px] z-10 flex h-[280px] w-[min(354px,calc(100%-86px))] flex-col gap-2 overflow-y-auto rounded-lg px-1 py-1"
+                  class="absolute top-[500px] left-[43px] z-10 flex h-[280px] w-[min(354px,calc(100%-86px))] flex-col gap-2 overflow-y-auto rounded-lg px-1 py-1" style="top: 234px;"
                 >
                   <p id="test-phone-empty" class="mt-8 text-center text-xs text-white/90">
                     Send a message to start chatting.

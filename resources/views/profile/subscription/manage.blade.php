@@ -14,7 +14,7 @@
       <div class="flex items-start justify-between">
         <div>
           <h3 class="text-lg font-semibold text-text-primary">{{ $plan?->name ?? 'No plan' }}</h3>
-          <p class="mt-1 text-2xl text-green-500">{{ $plan ? '₹ '.number_format((float) $plan->price, 2) : '—' }}</p>
+          {{-- <p class="mt-1 text-2xl text-green-500">{{ $plan ? '₹ '.number_format((float) $plan->price, 2) : '—' }}</p> --}}
           @if ($subscription?->ends_at)
             <p class="mt-2 text-sm text-text-body/60">Expires on {{ $subscription->ends_at->format('d M Y') }}</p>
           @endif

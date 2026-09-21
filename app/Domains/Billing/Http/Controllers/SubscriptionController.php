@@ -16,6 +16,7 @@ use App\Enums\RazorpayOrderPurpose;
 use App\Http\Controllers\Controller;
 use App\Models\Plan;
 use App\Models\RazorpayOrder;
+use App\Models\WhatsappLine;
 use App\Support\PublicId;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -32,6 +33,10 @@ class SubscriptionController extends Controller
             ?? config('billing.wallet.default_recharge_amount', 5000));
         $rechargeTotals = $subscriptionService->calculateTotals($rechargeAmount);
 
+        $messagingLimitTier = WhatsappLine::query()
+            ->orderByDesc('is_default')
+            ->value('messaging_limit_tier');
+
         return view('profile.subscription', [
             'summary' => $subscriptionService->subscriptionSummary(),
             'orders' => $subscriptionService->recentOrders(),
@@ -40,6 +45,7 @@ class SubscriptionController extends Controller
             'rechargeAmount' => $rechargeAmount,
             'rechargeTotals' => $rechargeTotals,
             'razorpayConfigured' => app(RazorpayService::class)->isConfigured(),
+            'messagingLimitTier' => $messagingLimitTier,
         ]);
     }
 
