@@ -146,7 +146,7 @@
                   height="16"
                 >
               </div>
-              <p id="chat_model_hint" class="text-xs text-text-muted">Enter API key (or use a saved active key) then click Load models.</p>
+              <p id="chat_model_hint" class="text-xs text-text-muted">Paste API key — chat &amp; embedding models load automatically (or click Load models).</p>
             </div>
             <div class="flex min-w-0 flex-1 flex-col gap-2">
               <label for="embedding_model" class="text-sm font-semibold leading-[1.4] text-text-primary">
@@ -1042,6 +1042,31 @@ async function testBot() {
       // Auto-load from saved active key when provider changes
       loadApiSettingsModels();
     });
+  }
+
+  // Auto-load when user pastes/types an API key
+  if (apiKeyInput) {
+    let keyTimer = null;
+    let lastLoadedKey = '';
+    function scheduleKeyLoad() {
+      clearTimeout(keyTimer);
+      keyTimer = setTimeout(function () {
+        const key = (apiKeyInput.value || '').trim();
+        if (key.length < 20) return;
+        if (key === lastLoadedKey) return;
+        if (!providerSel || !providerSel.value) {
+          if (hint) hint.textContent = 'Select a provider, then models will load automatically.';
+          return;
+        }
+        lastLoadedKey = key;
+        loadApiSettingsModels();
+      }, 450);
+    }
+    apiKeyInput.addEventListener('input', scheduleKeyLoad);
+    apiKeyInput.addEventListener('paste', function () {
+      setTimeout(scheduleKeyLoad, 0);
+    });
+    apiKeyInput.addEventListener('change', scheduleKeyLoad);
   }
 
   // Create bot modal
