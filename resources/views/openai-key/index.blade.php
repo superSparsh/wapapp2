@@ -650,7 +650,7 @@
         @endif
       @elseif ($currentTab === 'test-bot')
         <div class="rounded-xl bg-elevated p-5">
-          <div class="flex flex-col items-start gap-6 xl:flex-row">
+          <div class="flex flex-col items-start gap-4 xl:flex-row">
             <div class="flex w-full min-w-0 flex-1 flex-col gap-4">
               <div class="flex flex-col gap-3">
                 <label for="test_bot_id" class="text-sm font-semibold leading-[1.4] text-text-primary">
@@ -666,16 +666,32 @@
                   @endforeach
                 </select>
               </div>
-              <p class="text-sm leading-[1.4] text-text-subtle opacity-50">
-                Type messages in the phone preview to run a multi-turn conversation with your bot.
-              </p>
-              <div class="flex flex-wrap gap-3">
+              <div class="flex flex-col gap-3">
+                <label for="test_message" class="text-sm font-semibold leading-[1.4] text-text-primary">
+                  Ask Questions
+                </label>
+                <input
+                  id="test_message"
+                  type="text"
+                  placeholder="Type a message — conversation continues in the phone"
+                  autocomplete="off"
+                  class="w-full rounded-xl border border-border bg-elevated p-3.5 text-sm font-medium leading-[1.4] text-text-muted placeholder:text-text-muted focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
+                >
+              </div>
+              <div class="flex flex-wrap items-center justify-end gap-3">
                 <button
                   type="button"
                   id="test-bot-clear"
                   class="fd-btn-sm inline-flex items-center justify-center rounded border border-solid border-border-light bg-elevated px-4 py-2 text-sm font-semibold text-text-body hover:bg-surface"
                 >
                   Clear conversation
+                </button>
+                <button
+                  type="button"
+                  id="test-bot-send"
+                  class="fd-btn-sm inline-flex items-center justify-center rounded bg-green-500 px-6 py-3 text-xs font-semibold leading-[1.5] text-primary-2 transition-opacity hover:opacity-90"
+                >
+                  Test
                 </button>
               </div>
               <div id="test-response" class="hidden rounded-xl border border-border bg-muted-surface p-4">
@@ -684,52 +700,36 @@
               </div>
             </div>
 
-            {{-- Phone conversation preview --}}
-            <div class="relative mx-auto w-full max-w-[425px] shrink-0 xl:mx-0">
-              <div class="relative h-[640px] w-full overflow-hidden">
-                <div class="pointer-events-none absolute inset-x-[3.5px] inset-y-0 rounded-[62px] border border-white/60 bg-muted-surface shadow-[inset_0px_0px_8px_0px_rgba(0,0,0,0.3)]"></div>
-                <div class="pointer-events-none absolute inset-[4px_6.5px_4px_7.5px] rounded-[58px] bg-black"></div>
-                <div class="pointer-events-none absolute left-0 top-[136px] h-[30px] w-[3px] rounded-bl-[1px] rounded-tl-[1px] bg-border shadow-[inset_1px_0px_2px_0px_white]"></div>
-                <div class="pointer-events-none absolute left-0 top-[198px] h-[62px] w-[3px] rounded-bl-[1px] rounded-tl-[1px] bg-border shadow-[inset_1px_0px_2px_0px_white]"></div>
-                <div class="pointer-events-none absolute left-0 top-[278px] h-[62px] w-[3px] rounded-bl-[1px] rounded-tl-[1px] bg-border shadow-[inset_1px_0px_2px_0px_white]"></div>
-                <div class="pointer-events-none absolute right-0 top-[220px] h-[100px] w-[3px] rounded-br-[1px] rounded-tr-[1px] bg-border shadow-[inset_-1px_0px_2px_0px_white]"></div>
+            {{-- Original phone preview shell + live conversation overlay --}}
+            <div class="mx-auto w-full max-w-[425px] shrink-0 px-2 py-4 xl:mx-0">
+              <div class="relative h-[518px] w-full overflow-hidden">
+                <div class="pointer-events-none absolute inset-[0_2.5px_-338px_3.5px] rounded-[62px] border border-[rgba(255,255,255,0.6)] shadow-[inset_0px_0px_8px_0px_rgba(0,0,0,0.3)]">
+                  <div class="absolute inset-0 rounded-[62px] bg-muted-surface"></div>
+                </div>
+                <div class="absolute inset-[4px_6.5px_-334px_7.5px] rounded-[58px] bg-black"></div>
+                <div class="absolute top-[136px] left-[0.5px] h-[30px] w-[3px] rounded-tl-[1px] rounded-bl-[1px] bg-border shadow-[inset_1px_0px_2px_0px_white]"></div>
+                <div class="absolute top-[198px] left-[0.5px] h-[62px] w-[3px] rounded-tl-[1px] rounded-bl-[1px] bg-border shadow-[inset_1px_0px_2px_0px_white]"></div>
+                <div class="absolute top-[278px] left-[0.5px] h-[62px] w-[3px] rounded-tl-[1px] rounded-bl-[1px] bg-border shadow-[inset_1px_0px_2px_0px_white]"></div>
+                <div class="absolute top-[220px] right-[-0.5px] h-[100px] w-[3px] rounded-tr-[1px] rounded-br-[1px] bg-border shadow-[inset_-1px_0px_2px_0px_white]"></div>
 
-                <div class="absolute inset-[22px_24px_22px_26px] flex flex-col overflow-hidden rounded-[40px] bg-elevated">
+                <div class="absolute inset-[22px_24px_0_26px] overflow-hidden rounded-t-[40px] bg-elevated">
                   <img
                     src="{{ asset('images/openai-key/test-bot-phone.png') }}"
                     alt=""
-                    class="pointer-events-none absolute inset-0 size-full object-cover object-top"
+                    class="absolute top-0 left-1/2 h-[496px] w-[375px] max-w-none -translate-x-1/2 rounded-t-lg object-cover object-top"
                     width="375"
-                    height="640"
+                    height="496"
                   >
                   <x-ui.phone-preview-header-name size="default" />
+                </div>
 
-                  <div
-                    id="test-phone-thread"
-                    class="relative z-10 mt-[100px] flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-3 pb-2"
-                  >
-                    <p id="test-phone-empty" class="mt-4 text-center text-xs text-white/80">
-                      Select a bot and type a message below to start chatting.
-                    </p>
-                  </div>
-
-                  <div class="relative z-10 flex shrink-0 items-center gap-2 border-t border-black/10 bg-[#f0f2f5] px-2 py-2">
-                    <input
-                      id="test_message"
-                      type="text"
-                      placeholder="Type a message"
-                      autocomplete="off"
-                      class="min-w-0 flex-1 rounded-full border-0 bg-white px-4 py-2.5 text-sm text-text-body placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-green-500"
-                    >
-                    <button
-                      type="button"
-                      id="test-bot-send"
-                      class="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-green-500 text-sm font-semibold text-primary-2 hover:opacity-90"
-                      aria-label="Send"
-                    >
-                      ➤
-                    </button>
-                  </div>
+                <div
+                  id="test-phone-thread"
+                  class="absolute top-[210px] left-[43px] z-10 flex h-[280px] w-[min(354px,calc(100%-86px))] flex-col gap-2 overflow-y-auto rounded-lg px-1 py-1"
+                >
+                  <p id="test-phone-empty" class="mt-8 text-center text-xs text-white/90">
+                    Send a message to start chatting.
+                  </p>
                 </div>
               </div>
             </div>
