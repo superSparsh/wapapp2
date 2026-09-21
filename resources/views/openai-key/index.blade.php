@@ -68,9 +68,14 @@
           <p class="max-w-[854px] text-sm font-normal leading-[1.4] text-text-subtle opacity-50">
             Manage your OpenAI, Gemini, and Azure OpenAI API keys. Keys are encrypted at rest and shared across all bots.
           </p>
-          <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" class="max-w-[854px] text-sm font-normal leading-[1.4] text-green-500 underline">
-            Don't have an API Key? Click to learn how to get one.
-          </a>
+          <p class="max-w-[854px] text-sm font-normal leading-[1.4] text-text-subtle opacity-50">
+            Don't have an API Key? Get one from your provider:
+          </p>
+          <div class="flex max-w-[854px] flex-wrap gap-x-4 gap-y-1 text-sm font-normal leading-[1.4]">
+            <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" class="text-green-500 underline">OpenAI</a>
+            <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" class="text-green-500 underline">Google Gemini</a>
+            <a href="https://portal.azure.com/#view/Microsoft_Azure_ProjectOxford/CognitiveServicesHub/~/OpenAI" target="_blank" rel="noopener noreferrer" class="text-green-500 underline">Azure OpenAI</a>
+          </div>
         </div>
 
         <form action="{{ route('openai-key.provider-keys.store') }}" method="POST" class="flex w-full flex-col gap-4 overflow-hidden rounded-xl border border-border-light bg-muted-surface p-4">
@@ -647,7 +652,7 @@
         @endif
       @elseif ($currentTab === 'test-bot')
         <div class="rounded-xl bg-elevated p-5">
-          <div class="flex flex-col items-start gap-4 xl:flex-row">
+          <div class="flex flex-col items-start gap-6 xl:flex-row">
             <div class="flex w-full min-w-0 flex-1 flex-col gap-4">
               <div class="flex flex-col gap-3">
                 <label for="test_bot_id" class="text-sm font-semibold leading-[1.4] text-text-primary">
@@ -663,58 +668,71 @@
                   @endforeach
                 </select>
               </div>
-              <div class="flex flex-col gap-3">
-                <label for="test_message" class="text-sm font-semibold leading-[1.4] text-text-primary">
-                  Ask Questions
-                </label>
-                <input
-                  id="test_message"
-                  type="text"
-                  placeholder="Enter your question"
-                  class="w-full rounded-xl border border-border bg-elevated p-3.5 text-sm font-medium leading-[1.4] text-text-muted placeholder:text-text-muted focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
-                >
-              </div>
-              <div class="flex items-center justify-end">
+              <p class="text-sm leading-[1.4] text-text-subtle opacity-50">
+                Type messages in the phone preview to run a multi-turn conversation with your bot.
+              </p>
+              <div class="flex flex-wrap gap-3">
                 <button
                   type="button"
-                  onclick="testBot()"
-                  class="fd-btn-sm inline-flex items-center justify-center rounded bg-green-500 px-6 py-3 text-xs font-semibold leading-[1.5] text-primary-2 transition-opacity hover:opacity-90"
+                  id="test-bot-clear"
+                  class="fd-btn-sm inline-flex items-center justify-center rounded border border-solid border-border-light bg-elevated px-4 py-2 text-sm font-semibold text-text-body hover:bg-surface"
                 >
-                  Test
+                  Clear conversation
                 </button>
               </div>
               <div id="test-response" class="hidden rounded-xl border border-border bg-muted-surface p-4">
-                <p class="text-sm font-semibold text-text-primary">AI Response</p>
-                <p id="test-response-text" class="mt-2 text-sm text-text-body"></p>
-                <p id="test-response-error" class="mt-2 text-sm text-red-500"></p>
+                <p id="test-response-error" class="text-sm text-red-500"></p>
                 <p id="test-response-tokens" class="mt-1 text-xs text-text-muted"></p>
               </div>
             </div>
 
-            <div class="mx-auto w-full max-w-[425px] shrink-0 px-2 py-4 xl:mx-0">
-              <div class="relative h-[518px] w-full overflow-hidden">
-                <div class="pointer-events-none absolute inset-[0_2.5px_-338px_3.5px] rounded-[62px] border border-[rgba(255,255,255,0.6)] shadow-[inset_0px_0px_8px_0px_rgba(0,0,0,0.3)]">
+            {{-- Phone conversation preview --}}
+            <div class="mx-auto w-full max-w-[425px] shrink-0 xl:mx-0">
+              <div class="relative h-[640px] w-full">
+                <div class="pointer-events-none absolute inset-[0_3px] rounded-[62px] border border-white/60 shadow-[inset_0px_0px_8px_0px_rgba(0,0,0,0.3)]">
                   <div class="absolute inset-0 rounded-[62px] bg-muted-surface"></div>
                 </div>
-                <div class="absolute inset-[4px_6.5px_-334px_7.5px] rounded-[58px] bg-black"></div>
-                <div class="absolute top-[136px] left-[0.5px] h-[30px] w-[3px] rounded-tl-[1px] rounded-bl-[1px] bg-border shadow-[inset_1px_0px_2px_0px_white]"></div>
-                <div class="absolute top-[198px] left-[0.5px] h-[62px] w-[3px] rounded-tl-[1px] rounded-bl-[1px] bg-border shadow-[inset_1px_0px_2px_0px_white]"></div>
-                <div class="absolute top-[278px] left-[0.5px] h-[62px] w-[3px] rounded-tl-[1px] rounded-bl-[1px] bg-border shadow-[inset_1px_0px_2px_0px_white]"></div>
-                <div class="absolute top-[220px] right-[-0.5px] h-[100px] w-[3px] rounded-tr-[1px] rounded-br-[1px] bg-border shadow-[inset_-1px_0px_2px_0px_white]"></div>
+                <div class="absolute inset-[4px_7px] rounded-[58px] bg-black"></div>
+                <div class="absolute left-0 top-[136px] h-[30px] w-[3px] rounded-bl-[1px] rounded-tl-[1px] bg-border shadow-[inset_1px_0px_2px_0px_white]"></div>
+                <div class="absolute left-0 top-[198px] h-[62px] w-[3px] rounded-bl-[1px] rounded-tl-[1px] bg-border shadow-[inset_1px_0px_2px_0px_white]"></div>
+                <div class="absolute left-0 top-[278px] h-[62px] w-[3px] rounded-bl-[1px] rounded-tl-[1px] bg-border shadow-[inset_1px_0px_2px_0px_white]"></div>
+                <div class="absolute right-0 top-[220px] h-[100px] w-[3px] rounded-br-[1px] rounded-tr-[1px] bg-border shadow-[inset_-1px_0px_2px_0px_white]"></div>
 
-                <div class="absolute inset-[22px_24px_0_26px] overflow-hidden rounded-t-[40px] bg-elevated">
+                <div class="absolute inset-[22px_25px] flex flex-col overflow-hidden rounded-[40px] bg-elevated">
                   <img
-                    src="{{ asset('images/openai-key/test-bot-phone.png') }}"
+                    src="{{ asset('images/templates/phone-bg.png') }}"
                     alt=""
-                    class="absolute top-0 left-1/2 h-[496px] w-[375px] max-w-none -translate-x-1/2 rounded-t-lg object-cover object-top"
+                    class="pointer-events-none absolute inset-0 size-full rounded-[8px] object-cover"
                     width="375"
-                    height="496"
+                    height="854"
                   >
-                </div>
+                  <x-ui.phone-preview-header-name size="default" />
 
-                <div id="phone-response" class="hidden absolute top-[315px] left-[43px] z-10 flex w-[min(354px,calc(100%-86px))] items-start gap-3 rounded-lg border border-border bg-elevated p-3.5">
-                  <div class="min-w-0 flex-1 text-xs font-normal leading-[1.4] text-text-muted">
-                    <p id="phone-response-text"></p>
+                  <div
+                    id="test-phone-thread"
+                    class="relative z-10 mt-[88px] flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-3 pb-2"
+                  >
+                    <p id="test-phone-empty" class="mt-6 text-center text-xs text-white/80">
+                      Select a bot and type a message below to start chatting.
+                    </p>
+                  </div>
+
+                  <div class="relative z-10 flex shrink-0 items-center gap-2 border-t border-black/10 bg-[#f0f2f5] px-2 py-2">
+                    <input
+                      id="test_message"
+                      type="text"
+                      placeholder="Type a message"
+                      autocomplete="off"
+                      class="min-w-0 flex-1 rounded-full border-0 bg-white px-4 py-2.5 text-sm text-text-body placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-green-500"
+                    >
+                    <button
+                      type="button"
+                      id="test-bot-send"
+                      class="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-green-500 text-sm font-semibold text-primary-2 hover:opacity-90"
+                      aria-label="Send"
+                    >
+                      ➤
+                    </button>
                   </div>
                 </div>
               </div>
@@ -787,11 +805,22 @@
                 <div class="flex min-w-0 flex-1 flex-col gap-1">
                   <p class="text-sm font-bold leading-[1.4] text-text-body">API Status</p>
                   <p class="text-sm font-normal leading-[1.4] text-text-muted">
-                    For detailed usage information, please visit
-                    <a href="https://platform.openai.com/usage" target="_blank" rel="noopener noreferrer" class="underline">
-                      https://platform.openai.com/usage
-                    </a>
+                    For detailed usage information, visit your provider:
                   </p>
+                  <ul class="flex flex-col gap-1 text-sm font-normal leading-[1.4] text-text-muted">
+                    <li>
+                      OpenAI —
+                      <a href="https://platform.openai.com/usage" target="_blank" rel="noopener noreferrer" class="text-green-500 underline">platform.openai.com/usage</a>
+                    </li>
+                    <li>
+                      Google Gemini —
+                      <a href="https://aistudio.google.com/usage" target="_blank" rel="noopener noreferrer" class="text-green-500 underline">aistudio.google.com/usage</a>
+                    </li>
+                    <li>
+                      Azure OpenAI —
+                      <a href="https://portal.azure.com/#view/Microsoft_Azure_ProjectOxford/CognitiveServicesHub/~/OpenAI" target="_blank" rel="noopener noreferrer" class="text-green-500 underline">Azure Portal (OpenAI)</a>
+                    </li>
+                  </ul>
                 </div>
               </div>
             </div>
@@ -881,45 +910,127 @@ async function validateKey(keyId, btn) {
 }
 
 async function testBot() {
-  const botId = document.getElementById('test_bot_id').value;
-  const message = document.getElementById('test_message').value;
+  const botId = document.getElementById('test_bot_id')?.value;
+  const input = document.getElementById('test_message');
+  const message = (input?.value || '').trim();
+  const thread = document.getElementById('test-phone-thread');
+  const empty = document.getElementById('test-phone-empty');
   const responseDiv = document.getElementById('test-response');
-  const responseText = document.getElementById('test-response-text');
   const responseError = document.getElementById('test-response-error');
   const responseTokens = document.getElementById('test-response-tokens');
-  const phoneResponse = document.getElementById('phone-response');
-  const phoneText = document.getElementById('phone-response-text');
+  const sendBtn = document.getElementById('test-bot-send');
 
-  if (!botId || !message) return;
+  if (!botId) {
+    if (responseDiv && responseError) {
+      responseDiv.classList.remove('hidden');
+      responseError.textContent = 'Select a bot first.';
+    }
+    return;
+  }
+  if (!message || !thread) return;
 
-  responseDiv.classList.remove('hidden');
-  responseError.textContent = '';
-  responseText.textContent = 'Loading...';
-  responseTokens.textContent = '';
-  phoneResponse.classList.add('hidden');
+  window.__testBotHistory = window.__testBotHistory || [];
+  const history = window.__testBotHistory.slice();
+
+  if (empty) empty.classList.add('hidden');
+
+  function appendBubble(role, text) {
+    const wrap = document.createElement('div');
+    wrap.className = role === 'user' ? 'flex justify-end' : 'flex justify-start';
+    const bubble = document.createElement('div');
+    bubble.className = role === 'user'
+      ? 'max-w-[85%] rounded-2xl rounded-br-md bg-[#dcf8c6] px-3 py-2 text-xs leading-[1.4] text-text-body shadow-sm'
+      : 'max-w-[85%] rounded-2xl rounded-bl-md bg-white px-3 py-2 text-xs leading-[1.4] text-text-body shadow-sm';
+    bubble.style.fontFamily = 'var(--font-display)';
+    bubble.textContent = text;
+    wrap.appendChild(bubble);
+    thread.appendChild(wrap);
+    thread.scrollTop = thread.scrollHeight;
+  }
+
+  appendBubble('user', message);
+  input.value = '';
+  if (sendBtn) sendBtn.disabled = true;
+  if (responseDiv) responseDiv.classList.add('hidden');
+  if (responseError) responseError.textContent = '';
+  if (responseTokens) responseTokens.textContent = '';
+
+  const typing = document.createElement('div');
+  typing.id = 'test-phone-typing';
+  typing.className = 'flex justify-start';
+  typing.innerHTML = '<div class="rounded-2xl rounded-bl-md bg-white px-3 py-2 text-xs text-text-muted shadow-sm">Typing…</div>';
+  thread.appendChild(typing);
+  thread.scrollTop = thread.scrollHeight;
 
   const token = document.querySelector('meta[name="csrf-token"]').content;
   try {
-    const res = await fetch('{{ route("openai-key.test-bot") }}', {
+    const res = await fetch(@json(route('openai-key.test-bot')), {
       method: 'POST',
       headers: { 'X-CSRF-TOKEN': token, 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      body: JSON.stringify({ bot_id: botId, message: message }),
+      body: JSON.stringify({ bot_id: botId, message: message, chat_history: history }),
     });
     const data = await res.json();
+    typing.remove();
     if (data.error) {
-      responseText.textContent = '';
-      responseError.textContent = data.error;
+      if (responseDiv && responseError) {
+        responseDiv.classList.remove('hidden');
+        responseError.textContent = data.error;
+      }
+      appendBubble('assistant', 'Sorry — ' + data.error);
     } else {
-      responseText.textContent = data.response;
-      responseTokens.textContent = data.tokens + ' tokens used';
-      phoneText.innerHTML = '<p>' + data.response + '</p>';
-      phoneResponse.classList.remove('hidden');
+      const reply = data.response || '';
+      appendBubble('assistant', reply);
+      window.__testBotHistory.push({ role: 'user', content: message });
+      window.__testBotHistory.push({ role: 'assistant', content: reply });
+      if (responseDiv && responseTokens) {
+        responseDiv.classList.remove('hidden');
+        if (responseError) responseError.textContent = '';
+        responseTokens.textContent = (data.tokens || 0) + ' tokens used';
+      }
     }
   } catch (e) {
-    responseText.textContent = '';
-    responseError.textContent = 'An error occurred. Please try again.';
+    typing.remove();
+    if (responseDiv && responseError) {
+      responseDiv.classList.remove('hidden');
+      responseError.textContent = 'An error occurred. Please try again.';
+    }
+  } finally {
+    if (sendBtn) sendBtn.disabled = false;
+    input?.focus();
   }
 }
+
+(function () {
+  const sendBtn = document.getElementById('test-bot-send');
+  const input = document.getElementById('test_message');
+  const clearBtn = document.getElementById('test-bot-clear');
+  const botSel = document.getElementById('test_bot_id');
+  const thread = document.getElementById('test-phone-thread');
+  const empty = document.getElementById('test-phone-empty');
+
+  if (sendBtn) sendBtn.addEventListener('click', testBot);
+  if (input) {
+    input.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        testBot();
+      }
+    });
+  }
+  function resetThread() {
+    window.__testBotHistory = [];
+    if (thread) {
+      thread.querySelectorAll('[data-bubble], .flex.justify-end, .flex.justify-start').forEach(function (n) { n.remove(); });
+      // remove all children except empty hint
+      Array.from(thread.children).forEach(function (child) {
+        if (child.id !== 'test-phone-empty') child.remove();
+      });
+    }
+    if (empty) empty.classList.remove('hidden');
+  }
+  if (clearBtn) clearBtn.addEventListener('click', resetThread);
+  if (botSel) botSel.addEventListener('change', resetThread);
+})();
 
 (function () {
   const modal = document.getElementById('kb-view-modal');

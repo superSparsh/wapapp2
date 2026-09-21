@@ -20,15 +20,17 @@ class AiTestBotService
      * Test a bot with a user message and return the AI response.
      * Prefers Python RAG (/process_query) when the AI service is available.
      *
+     * @param  list<array{role: string, content: string}>  $chatHistory
      * @return array{response: string, tokens: int}
      */
-    public function test(AiBot $bot, string $message): array
+    public function test(AiBot $bot, string $message, array $chatHistory = []): array
     {
         if ($this->pythonClient->isConfigured()) {
             try {
                 $payload = $this->knowledgeBaseProxy->processQuery(
                     queryText: $message,
                     botId: $bot->uuid,
+                    chatHistory: $chatHistory,
                 );
 
                 $text = is_string($payload['response'] ?? null)
@@ -57,8 +59,18 @@ class AiTestBotService
 
         $messages = [
             ['role' => 'system', 'content' => $systemPrompt],
-            ['role' => 'user', 'content' => $message],
         ];
+
+        foreach ($chatHistory as $turn) {
+            $role = (string) ($turn['role'] ?? '');
+            $content = (string) ($turn['content'] ?? '');
+            if ($content === '' || ! in_array($role, ['user', 'assistant'], true)) {
+                continue;
+            }
+            $messages[] = ['role' => $role, 'content' => $content];
+        }
+
+        $messages[] = ['role' => 'user', 'content' => $message];
 
         $provider = $this->providerKeyService->resolveProvider($bot->provider);
 

@@ -185,15 +185,22 @@ class OpenAiKeyController extends Controller
         $validated = $request->validate([
             'bot_id' => PublicId::uuidExistsRules(AiBot::class, nullable: false),
             'message' => ['required', 'string', 'max:2000'],
+            'chat_history' => ['nullable', 'array', 'max:40'],
+            'chat_history.*.role' => ['required_with:chat_history', 'string', 'in:user,assistant'],
+            'chat_history.*.content' => ['required_with:chat_history', 'string', 'max:4000'],
         ]);
 
         $bot = PublicId::findOrFail(AiBot::class, (string) $validated['bot_id']);
 
         try {
-            $result = $this->testBotService->test($bot, $validated['message']);
+            $result = $this->testBotService->test(
+                $bot,
+                $validated['message'],
+                $validated['chat_history'] ?? [],
+            );
 
             return response()->json($result);
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             return response()->json([
                 'error' => $e->getMessage(),
             ], 422);
