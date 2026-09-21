@@ -5,13 +5,15 @@
 
 @php
     $displayName = $name ?? \App\Support\PreviewBusinessName::resolve();
+    $sizeClass = $size === 'compact'
+        ? 'phone-preview-header-name--compact'
+        : 'phone-preview-header-name--default';
 @endphp
 
 <span
   {{ $attributes->merge([
-      'class' => 'phone-preview-header-name phone-preview-header-name--' . $size,
+      'class' => "phone-preview-header-name {$sizeClass}",
       'title' => $displayName,
   ]) }}
   aria-hidden="true"
-  style="margin-top: 5%; margin-left: 6px; background: #377e6b; font-size: 14px; width: 161px;"
 >{{ $displayName }}</span>

@@ -290,9 +290,19 @@
         opacity: 0.5;
     }
 
+    /*
+     * Covers baked-in "Judy Smith" on phone-bg PNGs.
+     * Requires the screen <img> to use object-cover object-top so the
+     * contact-name row lands at the same % in every preview.
+     */
     .phone-preview-header-name {
         position: absolute;
         z-index: 20;
+        left: 14.8%;
+        top: 7.8%;
+        width: 34%;
+        max-width: 180px;
+        min-height: 1.15em;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
@@ -300,22 +310,17 @@
         font-weight: 600;
         color: #fff;
         background-color: #075e54;
-        line-height: 1.2;
+        line-height: 1.15;
         pointer-events: none;
+        box-sizing: border-box;
     }
 
     .phone-preview-header-name--compact {
-        left: 15.5%;
-        top: 6.8%;
-        max-width: 58%;
         padding: 1px 4px;
         font-size: 11px;
     }
 
     .phone-preview-header-name--default {
-        left: 14.8%;
-        top: 5%;
-        max-width: 52%;
         padding: 2px 6px;
         font-size: 13px;
     }

@@ -725,7 +725,7 @@
 
                 <div
                   id="test-phone-thread"
-                  class="absolute top-[210px] left-[43px] z-10 flex h-[280px] w-[min(354px,calc(100%-86px))] flex-col gap-2 overflow-y-auto rounded-lg px-1 py-1"
+                  class="absolute top-[234px] left-[43px] z-10 flex h-[280px] w-[min(354px,calc(100%-86px))] flex-col gap-2 overflow-y-auto rounded-lg px-1 py-1"
                 >
                   <p id="test-phone-empty" class="mt-8 text-center text-xs text-white/90">
                     Send a message to start chatting.
@@ -931,8 +931,8 @@ async function testBot() {
     wrap.className = role === 'user' ? 'flex justify-end' : 'flex justify-start';
     const bubble = document.createElement('div');
     bubble.className = role === 'user'
-      ? 'max-w-[85%] rounded-2xl rounded-br-md bg-[#dcf8c6] px-3 py-2 text-xs leading-[1.4] text-text-body shadow-sm'
-      : 'max-w-[85%] rounded-2xl rounded-bl-md bg-white px-3 py-2 text-xs leading-[1.4] text-text-body shadow-sm';
+      ? 'max-w-[85%] rounded-bl-[12px] rounded-tl-[12px] rounded-tr-[12px] border border-border bg-green-100 px-3 py-2 text-xs leading-[1.4] text-text-body shadow-sm'
+      : 'max-w-[85%] rounded-br-[12px] rounded-tl-[12px] rounded-tr-[12px] border border-border bg-elevated px-3 py-2 text-xs leading-[1.4] text-text-body shadow-sm';
     bubble.style.fontFamily = 'var(--font-display)';
     bubble.textContent = text;
     wrap.appendChild(bubble);

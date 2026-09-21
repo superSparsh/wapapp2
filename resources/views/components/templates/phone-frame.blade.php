@@ -22,7 +22,7 @@
         <img
           src="{{ asset('images/templates/phone-bg.png') }}"
           alt=""
-          class="absolute inset-0 size-full rounded-[5px] object-cover"
+          class="absolute inset-0 size-full rounded-[5px] object-cover object-top"
           width="242"
           height="550"
         >
@@ -48,7 +48,7 @@
         <img
           src="{{ asset('images/templates/phone-bg.png') }}"
           alt=""
-          class="absolute inset-0 size-full rounded-[8px] object-cover"
+          class="absolute inset-0 size-full rounded-[8px] object-cover object-top"
           width="375"
           height="854"
         >
