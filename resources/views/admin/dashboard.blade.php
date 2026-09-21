@@ -32,7 +32,7 @@
               <p class="text-sm font-semibold text-text-primary">{{ $customer->company_name ?: $customer->name }}</p>
               <p class="text-xs text-text-subtle">{{ $customer->email ?: $customer->id }}</p>
             </div>
-            <span class="rounded-full bg-surface px-2 py-1 text-xs font-medium text-text-subtle">{{ $customer->status?->value }}</span>
+            <x-admin.status-badge :status="$customer->status" />
           </a>
         @empty
           <p class="py-6 text-sm text-text-subtle">No customers yet.</p>

@@ -30,7 +30,7 @@
           </td>
           <td class="fd-table-cell p-2 align-middle text-sm">{{ ucfirst($row->source) }}</td>
           <td class="fd-table-cell p-2 align-middle text-sm font-semibold">{{ $row->currency }} {{ $row->amount }}</td>
-          <td class="fd-table-cell p-2 align-middle text-sm">{{ ucfirst($row->status) }}</td>
+          <td class="fd-table-cell p-2 align-middle"><x-admin.status-badge :status="$row->status" /></td>
           <td class="fd-table-cell p-2 align-middle text-sm text-text-subtle">{{ format_ist($row->wallet_credited_at) }}</td>
           <td class="w-[120px] p-2 align-middle">
             <x-ui.table-actions

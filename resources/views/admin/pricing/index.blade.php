@@ -47,7 +47,7 @@
           <td class="fd-table-cell p-2 align-middle text-sm">{{ $row->utility_price }}</td>
           <td class="fd-table-cell p-2 align-middle text-sm">{{ $row->auth_price }}</td>
           <td class="fd-table-cell p-2 align-middle text-sm">{{ $row->service_price }}</td>
-          <td class="fd-table-cell p-2 align-middle text-sm">{{ $row->isActive() ? 'Yes' : 'No' }}</td>
+          <td class="fd-table-cell p-2 align-middle"><x-admin.status-badge :status="$row->isActive()" /></td>
           <td class="w-[120px] p-2 align-middle">
             <x-ui.table-actions
               :actions="['edit', 'toggle']"

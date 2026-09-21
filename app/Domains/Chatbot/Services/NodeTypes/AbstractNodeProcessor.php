@@ -41,19 +41,70 @@ abstract class AbstractNodeProcessor implements NodeProcessorInterface
     /**
      * Resolve the default next node ID (legacy: only `default` / `output_1`).
      * Never fall through to reply-*, button-*, unread, etc. — those are branch handles.
+     * If those are missing, use the sole non-branch outbound edge (Loose-mode saves).
      *
      * @param  array<string, mixed>  $node
      */
     protected function defaultNextNodeId(array $node): ?string
     {
-        foreach (['default', 'output_1'] as $handle) {
+        foreach (['default', 'output_1', 'output_2'] as $handle) {
             $nextId = $this->nextNodeIdFromHandle($node, $handle);
             if ($nextId !== null) {
                 return $nextId;
             }
         }
 
+        return $this->firstLinearNextNodeId($node);
+    }
+
+    /**
+     * First outbound connection that is not a reply/button/status branch handle.
+     *
+     * @param  array<string, mixed>  $node
+     */
+    protected function firstLinearNextNodeId(array $node): ?string
+    {
+        $outputs = is_array($node['outputs'] ?? null) ? $node['outputs'] : [];
+
+        foreach ($outputs as $handle => $output) {
+            $handle = (string) $handle;
+            if ($this->isBranchHandle($handle)) {
+                continue;
+            }
+
+            if (! is_array($output)) {
+                continue;
+            }
+
+            $connections = $output['connections'] ?? [];
+            if (isset($connections[0]['node']) && (string) $connections[0]['node'] !== '') {
+                return (string) $connections[0]['node'];
+            }
+        }
+
         return null;
+    }
+
+    protected function isBranchHandle(string $handle): bool
+    {
+        $handle = strtolower(trim($handle));
+
+        if (in_array($handle, [
+            'unread', 'undelivered', 'delivered',
+            'open', 'closed', 'output_open', 'output_closed',
+            'yes', 'no', 'output_yes', 'output_no',
+            'true', 'false', 'output_true', 'output_false',
+        ], true)) {
+            return true;
+        }
+
+        foreach (['reply-', 'reply_', 'button-', 'interactive-', 'carousel-'] as $prefix) {
+            if (str_starts_with($handle, $prefix)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

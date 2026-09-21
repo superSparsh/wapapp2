@@ -72,11 +72,32 @@ class AiInboundReplyServiceTest extends TestCase
         $this->assertTrue($service->shouldTrigger($conversation, $message));
     }
 
-    public function test_should_not_trigger_when_human_response_mode(): void
+    public function test_should_trigger_when_global_auto_response_enabled_even_if_human_default(): void
     {
         AiProviderKey::factory()->create(['is_active' => true, 'is_validated' => true]);
         AiBot::factory()->active()->create();
         AiSetting::set('ai_auto_response_enabled', true);
+
+        // Existing chats often still have human_response from the old default.
+        $conversation = Conversation::factory()->create([
+            'response_type' => ConversationResponseType::Human,
+        ]);
+        $message = Message::factory()->create([
+            'conversation_id' => $conversation->id,
+            'message_type' => MessageType::Text,
+            'body' => 'Hello',
+        ]);
+
+        $service = app(AiInboundReplyService::class);
+
+        $this->assertTrue($service->shouldTrigger($conversation, $message));
+    }
+
+    public function test_should_not_trigger_when_human_and_global_auto_disabled(): void
+    {
+        AiProviderKey::factory()->create(['is_active' => true, 'is_validated' => true]);
+        AiBot::factory()->active()->create();
+        AiSetting::set('ai_auto_response_enabled', false);
 
         $conversation = Conversation::factory()->create([
             'response_type' => ConversationResponseType::Human,

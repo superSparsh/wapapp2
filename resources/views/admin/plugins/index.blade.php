@@ -49,7 +49,7 @@
           </td>
           <td class="fd-table-cell p-2 align-middle text-sm">{{ $row->type }}</td>
           <td class="fd-table-cell p-2 align-middle text-sm">{{ $row->version ?: '—' }}</td>
-          <td class="fd-table-cell p-2 align-middle text-sm">{{ $row->is_enabled ? 'Yes' : 'No' }}</td>
+          <td class="fd-table-cell p-2 align-middle"><x-admin.status-badge :status="$row->is_enabled" :label="$row->is_enabled ? 'Enabled' : 'Disabled'" /></td>
           <td class="w-[120px] p-2 align-middle">
             <x-ui.table-actions
               :actions="['toggle', 'trash']"

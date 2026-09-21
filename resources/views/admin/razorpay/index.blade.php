@@ -22,7 +22,7 @@
             <a href="{{ route('admin.customers.show', $row['tenant_id']) }}" class="fd-table-name hover:text-green-500">{{ $row['tenant_name'] }}</a>
           </td>
           <td class="fd-table-cell p-2 align-middle text-xs font-mono">{{ $row['razorpay_subscription_id'] }}</td>
-          <td class="fd-table-cell p-2 align-middle text-sm">{{ $row['status'] ?: '—' }}</td>
+          <td class="fd-table-cell p-2 align-middle"><x-admin.status-badge :status="$row['status']" /></td>
           <td class="fd-table-cell p-2 align-middle text-sm">{{ $row['currency'] }} {{ $row['amount'] }}</td>
           <td class="fd-table-cell p-2 align-middle text-sm text-text-subtle">{{ format_ist($row['starts_at'], 'd M Y') }}</td>
           <td class="fd-table-cell p-2 align-middle text-sm text-text-subtle">{{ format_ist($row['ends_at'], 'd M Y') }}</td>

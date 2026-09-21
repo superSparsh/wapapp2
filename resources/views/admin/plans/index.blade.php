@@ -30,7 +30,7 @@
             Msg {{ $plan->messages_limit ?? '∞' }} · Contacts {{ $plan->contacts_limit ?? '∞' }}
           </td>
           <td class="fd-table-cell p-2 align-middle text-sm">{{ $plan->tenants_count }}</td>
-          <td class="fd-table-cell p-2 align-middle text-sm">{{ $plan->is_active ? 'Active' : 'Inactive' }}</td>
+          <td class="fd-table-cell p-2 align-middle"><x-admin.status-badge :status="$plan->is_active" :label="$plan->is_active ? 'Active' : 'Inactive'" /></td>
           <td class="w-[120px] p-2 align-middle">
             <x-ui.table-actions
               :actions="['edit', 'toggle']"

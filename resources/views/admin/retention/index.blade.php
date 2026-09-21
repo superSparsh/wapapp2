@@ -59,7 +59,7 @@
               {{ $row['days_left'] }}
             @endif
           </td>
-          <td class="fd-table-cell p-2 align-middle text-sm">{{ $row['status'] }}</td>
+          <td class="fd-table-cell p-2 align-middle"><x-admin.status-badge :status="$row['status']" /></td>
           <td class="fd-table-cell p-2 align-middle text-sm">{{ $row['notes_count'] }}</td>
           <td class="w-[120px] p-2 align-middle">
             <x-ui.table-actions

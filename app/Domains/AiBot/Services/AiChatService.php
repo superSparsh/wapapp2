@@ -45,6 +45,8 @@ class AiChatService
                     );
 
                     if (filled($responseText)) {
+                        $this->logPythonUsage($bot, $payload, $conversation->id);
+
                         $this->outboundService->sendText($conversation, $responseText, enforceWindow: false);
 
                         return $responseText;
@@ -140,5 +142,36 @@ class AiChatService
         $parts[] = 'Important: Format your response for WhatsApp. Use *bold* for emphasis. Keep it concise and conversational.';
 
         return implode("\n\n", $parts);
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    private function logPythonUsage(AiBot $bot, array $payload, ?int $conversationId = null): void
+    {
+        $prompt = (int) ($payload['prompt_tokens'] ?? 0);
+        $completion = (int) ($payload['completion_tokens'] ?? 0);
+        $total = (int) ($payload['total_tokens'] ?? $payload['tokens'] ?? ($prompt + $completion));
+
+        if ($total <= 0 && $prompt + $completion <= 0) {
+            return;
+        }
+
+        $config = $bot->resolveProvider();
+        $provider = $payload['provider']
+            ?? (is_string($config['provider'] ?? null)
+                ? $config['provider']
+                : (string) ($config['provider']->value ?? $config['provider'] ?? $bot->provider));
+
+        $this->tokenUsageService->log([
+            'ai_bot_id' => $bot->id,
+            'provider' => is_string($provider) ? $provider : (string) $provider,
+            'model' => (string) ($payload['model'] ?? $config['chat_model'] ?? 'unknown'),
+            'request_type' => 'chat',
+            'prompt_tokens' => $prompt,
+            'completion_tokens' => $completion,
+            'total_tokens' => $total > 0 ? $total : ($prompt + $completion),
+            'conversation_id' => $conversationId,
+        ]);
     }
 }

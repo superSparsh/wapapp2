@@ -833,7 +833,9 @@
                     <span class="absolute left-0.5 top-0.5 size-5 rounded-full bg-white transition-transform"></span>
                   </span>
                   <span class="min-w-0 flex-1 text-sm font-normal leading-[1.4] text-text-muted">
-                    {{ $autoResponseEnabled ? 'AI responses are enabled for inbound chats' : 'AI responses are disabled — turn on to auto-reply when a key and bot are set' }}
+                    {{ $autoResponseEnabled
+                      ? 'AI Assistant auto-replies on WhatsApp when Chatbot is not handling the chat'
+                      : 'Off — only chats switched to AI in Inbox (or Chatbot Natural Language nodes) will use AI' }}
                   </span>
                 </label>
               </div>

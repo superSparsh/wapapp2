@@ -17,4 +17,5 @@ return [
     'timeout' => (int) env('PYTHON_AI_TIMEOUT', 90),
     'connect_timeout' => (int) env('PYTHON_AI_CONNECT_TIMEOUT', 10),
     'enabled' => (bool) env('PYTHON_AI_ENABLED', true),
+    'internal_secret' => (string) env('AI_INTERNAL_API_SECRET', env('INTERNAL_API_SECRET', '')),
 ];

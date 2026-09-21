@@ -23,7 +23,7 @@
           <td class="fd-table-cell p-2 align-middle font-semibold fd-table-name">{{ $bill->filename }}</td>
           <td class="fd-table-cell p-2 align-middle text-sm">{{ $bill->period ?: '—' }}</td>
           <td class="fd-table-cell p-2 align-middle text-sm">{{ $bill->amount !== null ? $bill->currency.' '.$bill->amount : '—' }}</td>
-          <td class="fd-table-cell p-2 align-middle text-sm">{{ $bill->status }}</td>
+          <td class="fd-table-cell p-2 align-middle"><x-admin.status-badge :status="$bill->status" /></td>
           <td class="fd-table-cell p-2 align-middle text-sm text-text-subtle">{{ format_ist($bill->created_at) }}</td>
           <td class="w-[120px] p-2 align-middle">
             <x-ui.table-actions

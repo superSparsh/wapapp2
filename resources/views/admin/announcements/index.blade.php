@@ -24,7 +24,7 @@
             <div class="fd-table-name">{{ $row->title }}</div>
             <div class="line-clamp-1 text-xs text-text-subtle">{{ \Illuminate\Support\Str::limit($row->body, 80) }}</div>
           </td>
-          <td class="fd-table-cell p-2 align-middle text-sm">{{ $row->is_active ? 'Yes' : 'No' }}</td>
+          <td class="fd-table-cell p-2 align-middle"><x-admin.status-badge :status="$row->is_active" /></td>
           <td class="fd-table-cell p-2 align-middle text-xs text-text-subtle">
             {{ format_ist($row->starts_at, 'd M Y') }} → {{ format_ist($row->ends_at, 'd M Y') }}
           </td>

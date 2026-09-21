@@ -18,7 +18,7 @@
     <div class="rounded-[20px] border border-border bg-elevated p-5 xl:col-span-2">
       <h2 class="text-lg font-bold">Account snapshot</h2>
       <dl class="mt-4 grid gap-3 sm:grid-cols-2 text-sm">
-        <div><dt class="text-xs uppercase text-text-subtle">Status</dt><dd class="font-semibold">{{ $tenant->status?->value }}</dd></div>
+        <div><dt class="text-xs uppercase text-text-subtle">Status</dt><dd class="mt-1"><x-admin.status-badge :status="$tenant->status" /></dd></div>
         <div><dt class="text-xs uppercase text-text-subtle">Plan</dt><dd class="font-semibold">{{ $tenant->plan?->name ?: '—' }}</dd></div>
         <div><dt class="text-xs uppercase text-text-subtle">Valid until</dt><dd class="font-semibold">{{ $valid_until?->toDateString() ?: '—' }}</dd></div>
         <div><dt class="text-xs uppercase text-text-subtle">Days left</dt><dd class="font-semibold">{{ $days_left === null ? '—' : $days_left }}</dd></div>

@@ -30,10 +30,83 @@ class FlowNodeDataMapper
             ]);
         }
 
+        $edges = is_array($flowData['edges'] ?? null) ? $flowData['edges'] : [];
+        $edges = $this->normalizeDateTimeConditionEdges($nodes, $edges);
+
         return array_merge($flowData, [
             'nodes' => $nodes,
-            'edges' => is_array($flowData['edges'] ?? null) ? $flowData['edges'] : [],
+            'edges' => $edges,
         ]);
+    }
+
+    /**
+     * Persist open/closed handles for Business Hours edges even when the builder
+     * saved null/"default" (React Flow Loose mode).
+     *
+     * @param  array<int, array<string, mixed>>  $nodes
+     * @param  array<int, array<string, mixed>>  $edges
+     * @return array<int, array<string, mixed>>
+     */
+    private function normalizeDateTimeConditionEdges(array $nodes, array $edges): array
+    {
+        $bhIds = [];
+        foreach ($nodes as $node) {
+            $id = (string) ($node['id'] ?? '');
+            if ($id !== '' && (string) ($node['type'] ?? '') === 'dateTimeCondition') {
+                $bhIds[$id] = true;
+            }
+        }
+
+        if ($bhIds === []) {
+            return $edges;
+        }
+
+        $namedOpen = ['open', 'output_open', 'yes', 'output_yes', 'true', 'output_true'];
+        $namedClosed = ['closed', 'output_closed', 'no', 'output_no', 'false', 'output_false'];
+
+        /** @var array<string, list<int>> $indexesBySource */
+        $indexesBySource = [];
+        foreach ($edges as $index => $edge) {
+            if (! is_array($edge)) {
+                continue;
+            }
+            $source = (string) ($edge['source'] ?? '');
+            if ($source === '' || ! isset($bhIds[$source])) {
+                continue;
+            }
+            $indexesBySource[$source][] = $index;
+        }
+
+        foreach ($indexesBySource as $indexes) {
+            $hasOpen = false;
+            $hasClosed = false;
+            $unlabeled = [];
+
+            foreach ($indexes as $index) {
+                $handle = strtolower(trim((string) ($edges[$index]['sourceHandle'] ?? '')));
+                if (in_array($handle, $namedOpen, true)) {
+                    $hasOpen = true;
+                    $edges[$index]['sourceHandle'] = 'open';
+                } elseif (in_array($handle, $namedClosed, true)) {
+                    $hasClosed = true;
+                    $edges[$index]['sourceHandle'] = 'closed';
+                } else {
+                    $unlabeled[] = $index;
+                }
+            }
+
+            foreach ($unlabeled as $index) {
+                if (! $hasOpen) {
+                    $edges[$index]['sourceHandle'] = 'open';
+                    $hasOpen = true;
+                } elseif (! $hasClosed) {
+                    $edges[$index]['sourceHandle'] = 'closed';
+                    $hasClosed = true;
+                }
+            }
+        }
+
+        return array_values($edges);
     }
 
     /**

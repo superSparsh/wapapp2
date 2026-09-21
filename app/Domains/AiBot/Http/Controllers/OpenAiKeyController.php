@@ -12,11 +12,13 @@ use App\Domains\AiBot\Services\AiProviderKeyService;
 use App\Domains\AiBot\Services\AiTestBotService;
 use App\Domains\AiBot\Services\AiTokenUsageService;
 use App\Domains\AiBot\Services\KnowledgeBaseProxyService;
+use App\Enums\ConversationResponseType;
 use App\Http\Controllers\Controller;
 use App\Models\AiBot;
 use App\Models\AiProviderKey;
 use App\Models\AiSetting;
 use App\Models\AiTokenUsageLog;
+use App\Models\Conversation;
 use App\Support\PublicId;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -215,7 +217,16 @@ class OpenAiKeyController extends Controller
             'ai_auto_response_enabled' => ['nullable', 'boolean'],
         ]);
 
-        AiSetting::set('ai_auto_response_enabled', (bool) ($validated['ai_auto_response_enabled'] ?? false));
+        $enabled = (bool) ($validated['ai_auto_response_enabled'] ?? false);
+        AiSetting::set('ai_auto_response_enabled', $enabled);
+
+        // Turning global AI on also flips open chats to AI mode so live WhatsApp
+        // matches Test Bot without requiring a manual inbox “AI for all” click.
+        if ($enabled) {
+            Conversation::query()
+                ->where('response_type', ConversationResponseType::Human->value)
+                ->update(['response_type' => ConversationResponseType::Ai->value]);
+        }
 
         return redirect()
             ->route('openai-key.index', ['tab' => 'global-settings'])

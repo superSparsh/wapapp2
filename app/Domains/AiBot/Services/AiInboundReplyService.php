@@ -65,13 +65,8 @@ class AiInboundReplyService
             }
         }
 
-        // Chatbot owns this conversation (mid-flow / waiting) — never let AI steal the turn.
+        // Chatbot keyword flows / mid-flow waiting own the turn — never let AI steal.
         if ($this->chatbotOwnsConversation($conversation)) {
-            return false;
-        }
-
-        // Explicit human takeover — chatbot/AI stay out until switched back to AI.
-        if ($conversation->response_type === ConversationResponseType::Human) {
             return false;
         }
 
@@ -83,13 +78,24 @@ class AiInboundReplyService
             return false;
         }
 
+        $globalAuto = AiSetting::getBool('ai_auto_response_enabled', false);
+
+        // Explicit human takeover blocks AI only when global auto-reply is off.
+        // When global is on (legacy customers.ai_response), AI answers every chat
+        // that chatbot does not own — including chats still marked human_response
+        // from the old default. Agents who need full takeover should disable global
+        // or switch the chat after disabling auto-response.
+        if ($conversation->response_type === ConversationResponseType::Human && ! $globalAuto) {
+            return false;
+        }
+
         // Per-conversation AI mode (legacy sub_reply.response_type = ai_response).
         if ($conversation->response_type === ConversationResponseType::Ai) {
             return true;
         }
 
         // Global tenant toggle (legacy customers.ai_response).
-        if (AiSetting::getBool('ai_auto_response_enabled', false)) {
+        if ($globalAuto) {
             return true;
         }
 

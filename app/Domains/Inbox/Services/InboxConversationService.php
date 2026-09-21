@@ -7,6 +7,7 @@ namespace App\Domains\Inbox\Services;
 use App\Enums\ConversationStatus;
 use App\Enums\RecordStatus;
 use App\Enums\TeamMemberRole;
+use App\Models\AiSetting;
 use App\Models\Contact;
 use App\Models\Conversation;
 use App\Models\ManagerMemberAssignment;
@@ -56,6 +57,12 @@ class InboxConversationService
             if ($conversation === null) {
                 $autoAssignee = $this->nextAutoAssignee($line);
 
+                // Legacy parity: when "AI Response for All Customers" is on, new
+                // WhatsApp chats start in AI mode so Test Bot and live inbound match.
+                $defaultResponseType = AiSetting::getBool('ai_auto_response_enabled', false)
+                    ? 'ai_response'
+                    : 'human_response';
+
                 $conversation = Conversation::query()->create([
                     'whatsapp_line_id' => $line->id,
                     'contact_phone' => $normalizedPhone,
@@ -63,7 +70,7 @@ class InboxConversationService
                     'line_phone' => $linePhone,
                     'contact_name' => $contactName ?: $contact->name ?: $normalizedPhone,
                     'status' => ConversationStatus::Open,
-                    'response_type' => 'human_response',
+                    'response_type' => $defaultResponseType,
                     'unread_count' => 0,
                     'last_message_at' => now(),
                     'assigned_team_member_id' => $autoAssignee?->id,

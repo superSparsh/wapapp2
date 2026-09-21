@@ -119,8 +119,30 @@ class FlowDataNormalizerTest extends TestCase
 
         $result = $this->normalizer->normalize($flow);
 
-        $this->assertSame('open', $result['bh']['outputs']['output_1']['connections'][0]['node']);
-        $this->assertSame('closed', $result['bh']['outputs']['output_2']['connections'][0]['node']);
+        $this->assertSame('open', $result['bh']['outputs']['open']['connections'][0]['node']);
+        $this->assertSame('closed', $result['bh']['outputs']['closed']['connections'][0]['node']);
+    }
+
+    public function test_default_source_handles_on_business_hours_become_open_closed(): void
+    {
+        $flow = ChatbotFlow::factory()->create([
+            'exported_data' => [
+                'nodes' => [
+                    ['id' => 'bh', 'type' => 'dateTimeCondition', 'data' => []],
+                    ['id' => 'open', 'type' => 'welcomeMessage', 'data' => []],
+                    ['id' => 'closed', 'type' => 'welcomeMessage', 'data' => []],
+                ],
+                'edges' => [
+                    ['source' => 'bh', 'target' => 'open', 'sourceHandle' => 'default'],
+                    ['source' => 'bh', 'target' => 'closed', 'sourceHandle' => 'default'],
+                ],
+            ],
+        ]);
+
+        $result = $this->normalizer->normalize($flow);
+
+        $this->assertSame('open', $result['bh']['outputs']['open']['connections'][0]['node']);
+        $this->assertSame('closed', $result['bh']['outputs']['closed']['connections'][0]['node']);
     }
 
     public function test_normalize_does_not_return_stale_cache_after_trigger_change(): void

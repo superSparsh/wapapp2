@@ -4770,6 +4770,58 @@ const ChatBotFlowReactFlow = () => {
       const sourceNode = nodes.find((node) => node.id === params.source);
       console.log("Source node:", sourceNode);
 
+      // Business Hours node: never collapse open/closed onto "default"
+      // (Loose connection mode often yields null sourceHandle).
+      if (sourceNode?.type === "dateTimeCondition") {
+        const namedOpen = edges.some(
+          (e) => e.source === params.source && e.sourceHandle === "open"
+        );
+        const namedClosed = edges.some(
+          (e) => e.source === params.source && e.sourceHandle === "closed"
+        );
+
+        let handle = params.sourceHandle;
+        if (handle !== "open" && handle !== "closed") {
+          if (!namedOpen) {
+            handle = "open";
+          } else if (!namedClosed) {
+            handle = "closed";
+          } else {
+            handle = "open";
+          }
+        }
+
+        const isClosed = handle === "closed";
+        const bhEdge = {
+          ...params,
+          sourceHandle: handle,
+          targetHandle: params.targetHandle || "default",
+          type: "smoothstep",
+          data: {
+            label: isClosed ? "Closed" : "Open",
+            replyId: handle,
+            replyText: isClosed ? "Closed" : "Open",
+          },
+          style: {
+            stroke: isClosed ? "#ef4444" : "#22c55e",
+            strokeWidth: 2.5,
+          },
+        };
+
+        // One wire per branch handle
+        setEdges((eds) => {
+          const withoutSameHandle = eds.filter(
+            (edge) =>
+              !(
+                edge.source === params.source &&
+                edge.sourceHandle === handle
+              )
+          );
+          return addEdge(decorateEdge(bhEdge), withoutSameHandle);
+        });
+        return;
+      }
+
       // Check for existing connections from the same source handle to the same target
       const existingConnection = edges.find(
         (edge) =>

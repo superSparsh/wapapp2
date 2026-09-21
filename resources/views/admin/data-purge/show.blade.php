@@ -6,7 +6,7 @@
 
   <section class="mx-4 mb-8 max-w-2xl rounded-[20px] border border-border bg-elevated p-5">
     <dl class="grid gap-3 sm:grid-cols-2 text-sm">
-      <div><dt class="text-xs uppercase text-text-subtle">Status</dt><dd class="font-semibold">{{ $tenant->status?->value }}</dd></div>
+      <div><dt class="text-xs uppercase text-text-subtle">Status</dt><dd class="mt-1"><x-admin.status-badge :status="$tenant->status" /></dd></div>
       <div><dt class="text-xs uppercase text-text-subtle">Valid until</dt><dd class="font-semibold">{{ $valid_until ?: '—' }}</dd></div>
       <div><dt class="text-xs uppercase text-text-subtle">Purge requested</dt><dd class="font-semibold">{{ $purge_requested_at ?: '—' }}</dd></div>
       <div><dt class="text-xs uppercase text-text-subtle">Plan</dt><dd class="font-semibold">{{ $tenant->plan?->name ?: '—' }}</dd></div>

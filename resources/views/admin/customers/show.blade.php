@@ -32,7 +32,6 @@
           'Company' => $tenant->company_name,
           'Email' => $tenant->email,
           'Phone' => $tenant->phone,
-          'Status' => $tenant->status?->value,
           'Timezone' => $tenant->timezone,
           'Plan' => $tenant->plan?->name,
           'Provisioned' => optional($tenant->provisioned_at)->toDayDateTimeString(),
@@ -43,6 +42,10 @@
             <dd class="mt-1 text-sm font-semibold text-text-primary">{{ $value ?: '—' }}</dd>
           </div>
         @endforeach
+        <div>
+          <dt class="text-xs font-medium uppercase tracking-wide text-text-subtle">Status</dt>
+          <dd class="mt-1"><x-admin.status-badge :status="$tenant->status" /></dd>
+        </div>
       </dl>
     </div>
 
@@ -125,7 +128,7 @@
                 <td class="py-2">{{ $row->email }}</td>
                 <td class="py-2">{{ $row->phone ?: '—' }}</td>
                 <td class="py-2">{{ $row->account_type?->value }}</td>
-                <td class="py-2">{{ $row->is_active ? 'Yes' : 'No' }}</td>
+                <td class="py-2"><x-admin.status-badge :status="$row->is_active" /></td>
               </tr>
             @empty
               <tr><td colspan="4" class="py-4 text-text-subtle">No access rows.</td></tr>

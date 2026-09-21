@@ -185,8 +185,9 @@ class InboundMessageHandler
                     $triggerResult = TriggerFireResult::NoMatch;
                 }
 
-                // AI only when chatbot and trigger-template did not consume the turn (legacy parity).
-                if ($chatbotResult === TriggerFireResult::NoMatch && $triggerResult !== TriggerFireResult::Fired) {
+                // AI only when chatbot / trigger-template did not fire a turn (legacy).
+                // WalletBlocked / SendFailed must not permanently silence AI Assistant.
+                if ($chatbotResult !== TriggerFireResult::Fired && $triggerResult !== TriggerFireResult::Fired) {
                     try {
                         $this->aiInboundReplyService->handle($conversation->refresh(), $message);
                     } catch (\Throwable $e) {

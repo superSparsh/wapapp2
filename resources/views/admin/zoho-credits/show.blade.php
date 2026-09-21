@@ -10,7 +10,6 @@
         'Customer' => $row->tenant_id,
         'Source' => $row->source,
         'Amount' => $row->currency.' '.$row->amount,
-        'Status' => $row->status,
         'External id' => $row->external_id,
         'Invoice number' => $row->invoice_number,
         'Wallet credited' => optional($row->wallet_credited_at)->toDayDateTimeString(),
@@ -21,6 +20,10 @@
           <dd class="mt-1 font-semibold">{{ $value ?: '—' }}</dd>
         </div>
       @endforeach
+      <div>
+        <dt class="text-xs uppercase tracking-wide text-text-subtle">Status</dt>
+        <dd class="mt-1"><x-admin.status-badge :status="$row->status" /></dd>
+      </div>
     </dl>
 
     @if ($row->last_error)

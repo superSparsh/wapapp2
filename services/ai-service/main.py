@@ -197,10 +197,24 @@ async def process_query(request: QueryRequest):
             bot_id=request.bot_id,
             chat_history=request.chat_history
         )
+        usage = getattr(client_engine, "last_usage", None) or {}
+        prompt_tokens = int(usage.get("prompt_tokens") or 0)
+        completion_tokens = int(usage.get("completion_tokens") or 0)
+        # Providers sometimes omit usage — rough estimate so UI is not stuck at 0.
+        if prompt_tokens + completion_tokens == 0:
+            prompt_tokens = max(1, len(request.query_text or "") // 4)
+            completion_tokens = max(1, len(response or "") // 4)
+        total_tokens = prompt_tokens + completion_tokens
         return {
             "success": True,
             "response": response,
-            "client_id": request.client_id
+            "client_id": request.client_id,
+            "prompt_tokens": prompt_tokens,
+            "completion_tokens": completion_tokens,
+            "total_tokens": total_tokens,
+            "tokens": total_tokens,
+            "model": usage.get("model") or model_name,
+            "provider": usage.get("provider") or request.provider,
         }
     except Exception as e:
         logging.error(

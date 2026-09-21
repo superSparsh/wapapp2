@@ -28,11 +28,11 @@
       <button
         type="button"
         data-admin-notifications-toggle
-        class="relative flex h-[37px] w-7 items-center justify-center"
+        class="relative flex size-9 items-center justify-center rounded-md border border-border-sidebar text-text-primary transition hover:bg-surface"
         aria-label="Notifications"
         aria-expanded="false"
       >
-        <x-icons.header-bell :count="$adminNotificationCount ?? 0" />
+        <x-icons.header-bell :count="$adminNotificationCount ?? 0" class="size-5" />
       </button>
       <div data-admin-notifications-backdrop class="fixed inset-0 z-40 hidden bg-transparent" aria-hidden="true"></div>
       <x-admin.notifications-panel />

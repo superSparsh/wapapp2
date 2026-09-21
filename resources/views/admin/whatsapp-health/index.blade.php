@@ -47,7 +47,7 @@
             <div>{{ $row['display_name'] ?: '—' }}</div>
             <div class="text-xs text-text-subtle">{{ $row['phone'] }}</div>
           </td>
-          <td class="fd-table-cell p-2 align-middle text-sm font-semibold">{{ $row['quality_rating'] }}</td>
+          <td class="fd-table-cell p-2 align-middle"><x-admin.status-badge :status="$row['quality_rating']" /></td>
           <td class="fd-table-cell p-2 align-middle text-sm">{{ $row['messaging_limit_tier'] }}</td>
           <td class="fd-table-cell p-2 align-middle text-sm">{{ $row['delivered'] }}</td>
           <td class="fd-table-cell p-2 align-middle text-sm">{{ $row['read'] }}</td>

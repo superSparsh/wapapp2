@@ -24,7 +24,7 @@
           <td class="fd-table-cell p-2 align-middle font-semibold">{{ $admin->name }}</td>
           <td class="fd-table-cell p-2 align-middle text-sm">{{ $admin->email }}</td>
           <td class="fd-table-cell p-2 align-middle text-sm">{{ $admin->adminRole?->name ?: '—' }}</td>
-          <td class="fd-table-cell p-2 align-middle text-sm">{{ $admin->is_active ? 'Active' : 'Disabled' }}</td>
+          <td class="fd-table-cell p-2 align-middle"><x-admin.status-badge :status="$admin->is_active" :label="$admin->is_active ? 'Active' : 'Disabled'" /></td>
           <td class="fd-table-cell p-2 align-middle text-sm text-text-subtle">{{ format_ist($admin->last_login_at) }}</td>
           <td class="w-[120px] p-2 align-middle">
             <x-ui.table-actions

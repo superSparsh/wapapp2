@@ -68,8 +68,9 @@ class DateTimeConditionProcessor extends AbstractNodeProcessor
         }
 
         if (count($targets) === 1) {
-            // Single wire: only follow it on the open/YES path.
-            return $isOpen ? $targets[0] : null;
+            // Only one branch wired — follow it for both open and closed so the
+            // flow does not silently Complete with no message.
+            return $targets[0];
         }
 
         return $isOpen ? $targets[0] : $targets[1];

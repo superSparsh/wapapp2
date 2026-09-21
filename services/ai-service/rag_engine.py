@@ -928,6 +928,14 @@ CRITICAL: The user asked about "{location_in_query}". You MUST list and describe
             session_id=rag_session,
         )
 
+        self.last_usage = {
+            "prompt_tokens": int(result.get("prompt_tokens") or 0),
+            "completion_tokens": int(result.get("completion_tokens") or 0),
+            "total_tokens": int(result.get("prompt_tokens") or 0) + int(result.get("completion_tokens") or 0),
+            "model": self.model_name,
+            "provider": self.provider_name,
+        }
+
         # COST OPTIMIZATION: Cache the response
         self._response_cache[cache_key] = ai_response
         return ai_response

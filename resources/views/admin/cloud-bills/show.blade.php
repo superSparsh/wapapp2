@@ -3,7 +3,7 @@
     <div>
       <a href="{{ route('admin.cloud-bills.index') }}" class="text-xs font-semibold text-green-600 hover:underline">← Cloud bills</a>
       <h1 class="mt-1 text-2xl font-bold text-text-primary">{{ $bill->filename }}</h1>
-      <p class="text-sm text-text-subtle">{{ $bill->period ?: 'No period' }} · {{ $bill->status }}</p>
+      <p class="text-sm text-text-subtle">{{ $bill->period ?: 'No period' }} · <x-admin.status-badge :status="$bill->status" class="align-middle" /></p>
     </div>
     <div class="flex gap-2">
       <a href="{{ route('admin.cloud-bills.download', $bill) }}" class="rounded-lg border border-border px-3 py-2 text-xs font-semibold hover:bg-surface">Download</a>

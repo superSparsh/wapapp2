@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Domains\AiBot\Http\Controllers\AiInternalUsageController;
 use App\Domains\Api\Http\Controllers\V1\CampaignApiController;
 use App\Domains\Api\Http\Controllers\V1\ListApiController;
 use App\Domains\Api\Http\Controllers\V1\SubscriberApiController;
@@ -12,6 +13,9 @@ use Illuminate\Support\Facades\Route;
 Route::post('/drip/{campaign}/trigger', DripTriggerApiController::class)
     ->middleware(AuthenticateApiToken::class)
     ->name('api.drip.trigger');
+
+Route::post('/ai/internal/log-usage', AiInternalUsageController::class)
+    ->name('api.ai.internal.log-usage');
 
 Route::prefix('v1')
     ->middleware(AuthenticateApiToken::class)
