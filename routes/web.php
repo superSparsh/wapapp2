@@ -4,6 +4,7 @@ use App\Domains\Admin\Http\Controllers\CustomerReadinessController;
 use App\Domains\AiBot\Http\Controllers\AiBotController;
 use App\Domains\AiBot\Http\Controllers\AiBusinessInfoController;
 use App\Domains\AiBot\Http\Controllers\AiProviderKeyController;
+use App\Domains\AiBot\Http\Controllers\KnowledgeBaseController;
 use App\Domains\AiBot\Http\Controllers\OpenAiKeyController;
 use App\Domains\Audience\Http\Controllers\PublicEmbeddedFormController;
 use App\Domains\AutomationEvents\Http\Controllers\AutomationEventController;
@@ -247,12 +248,35 @@ Route::middleware(['tenancy.session', 'auth:web,team', '2fa', 'team.redirect-das
             Route::post('/provider-keys', [OpenAiKeyController::class, 'storeProviderKey'])->name('provider-keys.store');
             Route::post('/provider-keys/{provider_key}/validate', [OpenAiKeyController::class, 'validateProviderKey'])->name('provider-keys.validate');
             Route::delete('/provider-keys/{provider_key}', [OpenAiKeyController::class, 'destroyProviderKey'])->name('provider-keys.destroy');
-            Route::post('/business-info', [OpenAiKeyController::class, 'storeBusinessInfo'])->name('business-info.store');
-            Route::delete('/business-info/{ai_bot}/{business_info}', [OpenAiKeyController::class, 'destroyBusinessInfo'])->name('business-info.destroy');
             Route::post('/test-bot', [OpenAiKeyController::class, 'testBot'])->name('test-bot');
             Route::post('/settings', [OpenAiKeyController::class, 'saveSettings'])->name('settings.save');
             Route::delete('/usage', [OpenAiKeyController::class, 'clearUsage'])->name('usage.clear');
+
+            // Knowledge Base — proxy to Python/Chroma (legacy parity). No MySQL KB store.
+            Route::get('/knowledge_base', [KnowledgeBaseController::class, 'index'])->name('knowledge-base');
+            Route::get('/knowledge_base_download', [KnowledgeBaseController::class, 'download'])->name('knowledge-base.download');
+            Route::get('/client_storage_info', [KnowledgeBaseController::class, 'storageInfo'])->name('knowledge-base.storage');
+            Route::delete('/clear_client_data', [KnowledgeBaseController::class, 'clear'])->name('knowledge-base.clear');
+            Route::post('/add_manual_content', [KnowledgeBaseController::class, 'addManualContent'])->name('knowledge-base.add-manual');
+            Route::post('/upload_file', [KnowledgeBaseController::class, 'uploadFile'])->name('knowledge-base.upload');
+            Route::post('/scrape_website', [KnowledgeBaseController::class, 'scrapeWebsite'])->name('knowledge-base.scrape');
+            Route::post('/extract_text_from_file', [KnowledgeBaseController::class, 'extractText'])->name('knowledge-base.extract');
+            Route::post('/structure_text', [KnowledgeBaseController::class, 'structureText'])->name('knowledge-base.structure');
+            Route::post('/process_query', [KnowledgeBaseController::class, 'processQuery'])->name('knowledge-base.query');
+            Route::post('/bots/{ai_bot}/reindex', [KnowledgeBaseController::class, 'reindex'])->name('bots.reindex');
         });
+
+        // Legacy-style top-level aliases (same handlers)
+        Route::get('/knowledge_base', [KnowledgeBaseController::class, 'index'])->name('knowledge_base');
+        Route::get('/knowledge_base_download', [KnowledgeBaseController::class, 'download'])->name('knowledge_base_download');
+        Route::get('/client_storage_info', [KnowledgeBaseController::class, 'storageInfo'])->name('client_storage_info');
+        Route::delete('/clear_client_data', [KnowledgeBaseController::class, 'clear'])->name('clear_client_data');
+        Route::post('/add_manual_content', [KnowledgeBaseController::class, 'addManualContent'])->name('add_manual_content');
+        Route::post('/upload_file', [KnowledgeBaseController::class, 'uploadFile'])->name('upload_file');
+        Route::post('/scrape_website', [KnowledgeBaseController::class, 'scrapeWebsite'])->name('scrape_website');
+        Route::post('/extract_text_from_file', [KnowledgeBaseController::class, 'extractText'])->name('extract_text_from_file');
+        Route::post('/structure_text', [KnowledgeBaseController::class, 'structureText'])->name('structure_text');
+        Route::post('/process_query', [KnowledgeBaseController::class, 'processQuery'])->name('process_query');
 
         Route::prefix('ai-bots')->name('ai-bots.')->group(function () {
             Route::get('/', [AiBotController::class, 'index'])->name('index');

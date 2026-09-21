@@ -182,7 +182,7 @@ return [
                 '1136:21520' => ['name' => 'Add New Trigger', 'route' => 'trigger-template.index', 'view' => 'trigger-template.index', 'query' => ['modal' => 'add-trigger']],
                 '1136:22076' => ['name' => 'Tutorials', 'route' => 'tutorials.index', 'view' => 'tutorials.index'],
                 '1136:22398' => ['name' => 'Tutorials', 'route' => 'tutorials.index', 'view' => 'tutorials.index'],
-                '1136:22679' => ['name' => 'OpenAI Key', 'route' => 'openai-key.index', 'view' => 'openai-key.index'],
+                '1136:22679' => ['name' => 'AI Assistant', 'route' => 'openai-key.index', 'view' => 'openai-key.index'],
                 '1136:22680' => ['name' => 'AI Bot Manager', 'route' => 'openai-key.index', 'view' => 'openai-key.index'],
                 '1141:19444' => ['name' => 'Bot Readiness Analysis', 'route' => 'openai-key.index', 'view' => 'openai-key.index', 'query' => ['modal' => 'bot-analytics']],
                 '1136:23237' => ['name' => 'API Settings', 'route' => 'openai-key.index', 'view' => 'openai-key.index', 'query' => ['tab' => 'api-settings']],

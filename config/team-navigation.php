@@ -3,7 +3,7 @@
 return [
     ['route' => 'dashboard', 'label' => 'Dashboard', 'icon' => 'smart-home'],
     ['route' => 'my-team.index', 'label' => 'My Team', 'icon' => 'document-text'],
-    ['route' => 'openai-key.index', 'label' => 'OpenAI key/Business information', 'icon' => 'data'],
+    ['route' => 'openai-key.index', 'label' => 'AI Assistant', 'icon' => 'data'],
     ['route' => 'trigger-template.index', 'label' => 'Trigger Template', 'icon' => 'task-square'],
     ['route' => 'tutorials.index', 'label' => 'Tutorials', 'icon' => 'task-square'],
     ['route' => 'faqs.index', 'label' => 'FAQ', 'icon' => 'task-square'],

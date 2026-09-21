@@ -5,22 +5,48 @@ declare(strict_types=1);
 namespace App\Domains\AiBot\Services;
 
 use App\Models\AiBot;
+use Illuminate\Support\Facades\Log;
 
 class AiTestBotService
 {
     public function __construct(
         private readonly AiProviderKeyService $providerKeyService,
         private readonly AiTokenUsageService $tokenUsageService,
+        private readonly KnowledgeBaseProxyService $knowledgeBaseProxy,
+        private readonly AiPythonClient $pythonClient,
     ) {}
 
     /**
      * Test a bot with a user message and return the AI response.
-     * Calls the provider directly without WhatsApp sending or RAG.
+     * Prefers Python RAG (/process_query) when the AI service is available.
      *
      * @return array{response: string, tokens: int}
      */
     public function test(AiBot $bot, string $message): array
     {
+        if ($this->pythonClient->isConfigured()) {
+            try {
+                $payload = $this->knowledgeBaseProxy->processQuery(
+                    queryText: $message,
+                    botId: $bot->uuid,
+                );
+
+                $text = is_string($payload['response'] ?? null)
+                    ? $payload['response']
+                    : (string) json_encode($payload['response'] ?? $payload);
+
+                return [
+                    'response' => $text,
+                    'tokens' => (int) ($payload['tokens'] ?? $payload['total_tokens'] ?? 0),
+                ];
+            } catch (\Throwable $e) {
+                Log::warning('AI process_query failed; falling back to direct chat', [
+                    'bot_id' => $bot->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
         $config = $bot->resolveProvider();
 
         if (empty($config['api_key'])) {
@@ -58,9 +84,6 @@ class AiTestBotService
         ];
     }
 
-    /**
-     * Build a simple system prompt from the bot's configuration (no RAG).
-     */
     private function buildSystemPrompt(AiBot $bot): string
     {
         $parts = [];

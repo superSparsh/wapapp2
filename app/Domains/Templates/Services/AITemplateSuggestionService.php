@@ -20,7 +20,7 @@ class AITemplateSuggestionService
     {
         $key = AiProviderKey::query()->active()->orderByDesc('id')->first();
         if (! $key instanceof AiProviderKey) {
-            throw new \RuntimeException('No active AI provider key configured. Add one in OpenAI Key settings.');
+            throw new \RuntimeException('No active AI provider key configured. Add one in AI Assistant settings.');
         }
 
         $provider = $this->providerKeyService->resolveProvider($key->provider);

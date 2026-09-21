@@ -3,9 +3,7 @@
 namespace Tests\Feature\AiBot;
 
 use App\Enums\AiProvider;
-use App\Enums\BusinessInfoContentType;
 use App\Models\AiBot;
-use App\Models\AiBusinessInfo;
 use App\Models\AiProviderKey;
 use App\Models\AiSetting;
 use App\Models\AiTokenUsageLog;
@@ -58,16 +56,33 @@ class OpenAiKeyTabTest extends TestCase
     public function test_index_loads_knowledge_base_tab(): void
     {
         $bot = AiBot::factory()->active()->create();
-        AiBusinessInfo::query()->create([
-            'ai_bot_id' => $bot->id,
-            'title' => 'Pricing FAQ',
-            'content_type' => BusinessInfoContentType::Text,
-            'content' => 'Our plans start at $10/mo.',
-            'embedding_status' => 'pending',
+
+        config([
+            'ai.python_url' => 'http://ai.test.local',
+            'ai.enabled' => true,
+        ]);
+
+        Http::fake([
+            'http://ai.test.local/knowledge_base/*' => Http::response([
+                'success' => true,
+                'data' => [
+                    'documents' => [[
+                        'id' => '1',
+                        'content' => 'Our plans start at $10/mo.',
+                        'content_preview' => 'Our plans start at $10/mo.',
+                        'metadata' => ['source' => 'Pricing FAQ', 'file_type' => 'text'],
+                    ]],
+                    'total_documents' => 1,
+                ],
+            ], 200),
+            'http://ai.test.local/client_storage_info/*' => Http::response([
+                'success' => true,
+                'data' => ['document_count' => 1, 'total_size_mb' => 0.01, 'file_types' => ['text']],
+            ], 200),
         ]);
 
         $this->actingAsTenantUser()
-            ->get(route('openai-key.index', ['tab' => 'knowledge-base']))
+            ->get(route('openai-key.index', ['tab' => 'knowledge-base', 'bot' => $bot->uuid]))
             ->assertOk()
             ->assertSee('Knowledge Base Content')
             ->assertSee('Pricing FAQ');
@@ -188,49 +203,22 @@ class OpenAiKeyTabTest extends TestCase
         $this->assertDatabaseMissing('ai_provider_keys', ['id' => $key->id]);
     }
 
-    // --- Knowledge Base Actions ---
+    // --- Knowledge Base Actions (Chroma proxy — see KnowledgeBaseProxyTest) ---
 
-    public function test_store_business_info_creates_entry(): void
+    public function test_knowledge_base_mysql_store_route_removed(): void
     {
-        $bot = AiBot::factory()->active()->create();
-
-        $this->actingAsTenantUser()
-            ->post(route('openai-key.business-info.store'), [
-                'ai_bot_id' => $bot->id,
-                'title' => 'Returns Policy',
-                'content_type' => 'text',
-                'content' => 'We accept returns within 30 days.',
-            ])
-            ->assertRedirect(route('openai-key.index', ['tab' => 'knowledge-base', 'bot' => $bot->id]));
-
-        $this->assertDatabaseHas('ai_business_info', [
-            'ai_bot_id' => $bot->id,
-            'title' => 'Returns Policy',
-        ]);
-    }
-
-    public function test_destroy_business_info_deletes_entry(): void
-    {
-        $bot = AiBot::factory()->active()->create();
-        $info = AiBusinessInfo::query()->create([
-            'ai_bot_id' => $bot->id,
-            'title' => 'Temporary Entry',
-            'content_type' => BusinessInfoContentType::Text,
-            'content' => 'To be deleted',
-            'embedding_status' => 'pending',
-        ]);
-
-        $this->actingAsTenantUser()
-            ->delete(route('openai-key.business-info.destroy', [$bot, $info]))
-            ->assertRedirect(route('openai-key.index', ['tab' => 'knowledge-base', 'bot' => $bot->id]));
-
-        $this->assertSoftDeleted('ai_business_info', ['id' => $info->id]);
+        $this->assertFalse(
+            \Illuminate\Support\Facades\Route::has('openai-key.business-info.store'),
+            'KB must not be written to MySQL via openai-key.business-info.store'
+        );
     }
 
     // --- Test Bot Action ---
 
     public function test_test_bot_ajax_returns_response(): void
     {
+        config(['ai.enabled' => false]);
+
         Http::fake([
             'api.openai.com/v1/chat/completions' => Http::response([
                 'choices' => [['message' => ['content' => 'Hello! How can I help?']]],
@@ -247,7 +235,7 @@ class OpenAiKeyTabTest extends TestCase
         $this->actingAsTenantUser()
             ->withHeader('Accept', 'application/json')
             ->post(route('openai-key.test-bot'), [
-                'bot_id' => $bot->id,
+                'bot_id' => $bot->uuid,
                 'message' => 'Hi there!',
             ])
             ->assertOk()

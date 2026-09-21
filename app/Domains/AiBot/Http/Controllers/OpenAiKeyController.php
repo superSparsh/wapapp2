@@ -5,17 +5,15 @@ declare(strict_types=1);
 namespace App\Domains\AiBot\Http\Controllers;
 
 use App\Domains\AiBot\Http\Requests\StoreAiBotRequest;
-use App\Domains\AiBot\Http\Requests\StoreBusinessInfoRequest;
 use App\Domains\AiBot\Http\Requests\StoreProviderKeyRequest;
 use App\Domains\AiBot\Services\AiBotQueryService;
 use App\Domains\AiBot\Services\AiBotService;
-use App\Domains\AiBot\Services\AiBusinessInfoService;
 use App\Domains\AiBot\Services\AiProviderKeyService;
 use App\Domains\AiBot\Services\AiTestBotService;
 use App\Domains\AiBot\Services\AiTokenUsageService;
+use App\Domains\AiBot\Services\KnowledgeBaseProxyService;
 use App\Http\Controllers\Controller;
 use App\Models\AiBot;
-use App\Models\AiBusinessInfo;
 use App\Models\AiProviderKey;
 use App\Models\AiSetting;
 use App\Models\AiTokenUsageLog;
@@ -23,8 +21,8 @@ use App\Support\PublicId;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
+use Throwable;
 
 class OpenAiKeyController extends Controller
 {
@@ -41,9 +39,9 @@ class OpenAiKeyController extends Controller
         private readonly AiBotQueryService $queryService,
         private readonly AiBotService $botService,
         private readonly AiProviderKeyService $keyService,
-        private readonly AiBusinessInfoService $businessInfoService,
         private readonly AiTokenUsageService $tokenUsageService,
         private readonly AiTestBotService $testBotService,
+        private readonly KnowledgeBaseProxyService $knowledgeBaseProxy,
     ) {}
 
     public function index(Request $request): View
@@ -128,32 +126,7 @@ class OpenAiKeyController extends Controller
             ->with('status', 'Provider key deleted successfully.');
     }
 
-    // --- Knowledge Base Actions ---
-
-    public function storeBusinessInfo(StoreBusinessInfoRequest $request): RedirectResponse
-    {
-        $validated = $request->validated();
-        $bot = PublicId::findOrFail(AiBot::class, (string) ($validated['ai_bot_id'] ?? ''));
-
-        if ($request->hasFile('file')) {
-            $this->businessInfoService->upload($bot, $request->file('file'), $validated['title']);
-        } else {
-            $this->businessInfoService->create($bot, $validated);
-        }
-
-        return redirect()
-            ->route('openai-key.index', ['tab' => 'knowledge-base', 'bot' => $bot->uuid])
-            ->with('status', 'Knowledge base entry added successfully.');
-    }
-
-    public function destroyBusinessInfo(AiBot $aiBot, AiBusinessInfo $business_info): RedirectResponse
-    {
-        $this->businessInfoService->delete($business_info);
-
-        return redirect()
-            ->route('openai-key.index', ['tab' => 'knowledge-base', 'bot' => $aiBot->uuid])
-            ->with('status', 'Knowledge base entry deleted successfully.');
-    }
+    // --- Knowledge Base Actions (moved to KnowledgeBaseController / Chroma proxy) ---
 
     // --- Test Bot Action ---
 
@@ -229,12 +202,41 @@ class OpenAiKeyController extends Controller
             : $bots->first();
 
         $data['selectedBot'] = $selectedBot;
+        $data['kbError'] = null;
+        $data['kbDocuments'] = [];
+        $data['kbTotal'] = 0;
+        $data['kbLimit'] = max(1, min((int) $request->query('limit', 10), 50));
+        $data['kbOffset'] = max(0, (int) $request->query('offset', 0));
+        $data['storageInfo'] = [
+            'document_count' => 0,
+            'total_size_mb' => 0,
+            'file_types' => [],
+        ];
 
-        $data['entries'] = $selectedBot
-            ? $selectedBot->businessInfoEntries()->orderByDesc('created_at')->paginate(10)
-            : collect();
+        if ($selectedBot === null) {
+            return;
+        }
 
-        $data['storageInfo'] = $this->calculateStorageInfo($selectedBot);
+        try {
+            $list = $this->knowledgeBaseProxy->list(
+                botId: $selectedBot->uuid,
+                limit: $data['kbLimit'],
+                offset: $data['kbOffset'],
+            );
+            $listData = is_array($list['data'] ?? null) ? $list['data'] : $list;
+            $data['kbDocuments'] = is_array($listData['documents'] ?? null) ? $listData['documents'] : [];
+            $data['kbTotal'] = (int) ($listData['total_documents'] ?? count($data['kbDocuments']));
+
+            $storage = $this->knowledgeBaseProxy->storageInfo(botId: $selectedBot->uuid);
+            $storageData = is_array($storage['data'] ?? null) ? $storage['data'] : $storage;
+            $data['storageInfo'] = [
+                'document_count' => (int) ($storageData['document_count'] ?? $data['kbTotal']),
+                'total_size_mb' => (float) ($storageData['total_size_mb'] ?? 0),
+                'file_types' => is_array($storageData['file_types'] ?? null) ? $storageData['file_types'] : [],
+            ];
+        } catch (Throwable $e) {
+            $data['kbError'] = $e->getMessage();
+        }
     }
 
     private function loadTestBotData(array &$data): void
@@ -245,48 +247,30 @@ class OpenAiKeyController extends Controller
     private function loadUsageAnalyticsData(array &$data): void
     {
         $data['stats'] = $this->tokenUsageService->globalStats();
+        $data['storageInfo'] = [
+            'document_count' => 0,
+            'total_size_mb' => 0,
+            'file_types' => [],
+        ];
+        $data['fileTypes'] = [];
 
-        $data['storageInfo'] = $this->calculateStorageInfo();
-
-        $data['fileTypes'] = AiBusinessInfo::query()
-            ->selectRaw('content_type, COUNT(*) as count')
-            ->groupBy('content_type')
-            ->pluck('count', 'content_type')
-            ->all();
+        try {
+            $storage = $this->knowledgeBaseProxy->storageInfo();
+            $storageData = is_array($storage['data'] ?? null) ? $storage['data'] : $storage;
+            $data['storageInfo'] = [
+                'document_count' => (int) ($storageData['document_count'] ?? 0),
+                'total_size_mb' => (float) ($storageData['total_size_mb'] ?? 0),
+                'file_types' => is_array($storageData['file_types'] ?? null) ? $storageData['file_types'] : [],
+            ];
+            $types = $data['storageInfo']['file_types'];
+            $data['fileTypes'] = array_combine($types, array_fill(0, count($types), 1)) ?: [];
+        } catch (Throwable) {
+            // Usage tab still shows token stats if Chroma is down.
+        }
     }
 
     private function loadGlobalSettingsData(array &$data): void
     {
         $data['autoResponseEnabled'] = AiSetting::getBool('ai_auto_response_enabled', false);
-    }
-
-    /**
-     * Calculate storage info for a specific bot or all bots.
-     */
-    private function calculateStorageInfo(?AiBot $bot = null): array
-    {
-        $query = AiBusinessInfo::query();
-
-        if ($bot !== null) {
-            $query->where('ai_bot_id', $bot->id);
-        }
-
-        $totalDocuments = (clone $query)->count();
-        $documentsWithFiles = (clone $query)->whereNotNull('file_path')->count();
-
-        $totalSize = 0;
-        $entriesWithFiles = (clone $query)->whereNotNull('file_path')->get(['file_path']);
-        foreach ($entriesWithFiles as $entry) {
-            if ($entry->file_path && Storage::disk('local')->exists($entry->file_path)) {
-                $totalSize += Storage::disk('local')->size($entry->file_path);
-            }
-        }
-
-        return [
-            'total_documents' => $totalDocuments,
-            'documents_with_files' => $documentsWithFiles,
-            'total_size_bytes' => $totalSize,
-            'total_size_mb' => round($totalSize / (1024 * 1024), 2),
-        ];
     }
 }

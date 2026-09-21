@@ -18,6 +18,8 @@ class AiChatService
         private readonly AiRagService $ragService,
         private readonly AiTokenUsageService $tokenUsageService,
         private readonly InboxOutboundService $outboundService,
+        private readonly KnowledgeBaseProxyService $knowledgeBaseProxy,
+        private readonly AiPythonClient $pythonClient,
     ) {}
 
     /**
@@ -26,29 +28,52 @@ class AiChatService
     public function processMessage(Conversation $conversation, AiBot $bot, string $userMessage): ?string
     {
         try {
+            // Prefer Python RAG + chat (Chroma) when AI service is up — legacy parity.
+            if ($this->pythonClient->isConfigured()) {
+                try {
+                    $history = ConversationMemory::build($conversation);
+                    $payload = $this->knowledgeBaseProxy->processQuery(
+                        queryText: $userMessage,
+                        botId: $bot->uuid,
+                        chatHistory: $history,
+                    );
+
+                    $responseText = AiResponseFormatter::forWhatsApp(
+                        is_string($payload['response'] ?? null)
+                            ? $payload['response']
+                            : (string) ($payload['response'] ?? '')
+                    );
+
+                    if (filled($responseText)) {
+                        $this->outboundService->sendText($conversation, $responseText, enforceWindow: false);
+
+                        return $responseText;
+                    }
+                } catch (\Throwable $e) {
+                    Log::warning('AI process_query failed; falling back to local chat', [
+                        'bot_id' => $bot->id,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+
             $config = $bot->resolveProvider();
 
             if (empty($config['api_key'])) {
                 Log::warning('AI bot has no API key', ['bot_id' => $bot->id]);
+
                 return null;
             }
 
-            // Build conversation memory (last 5 messages)
             $memory = ConversationMemory::build($conversation);
-
-            // Add current user message
             $memory[] = ['role' => 'user', 'content' => $userMessage];
 
-            // Build system prompt
             $systemPrompt = $this->buildSystemPrompt($bot, $userMessage);
-
-            // Prepend system message
             $messages = array_merge(
                 [['role' => 'system', 'content' => $systemPrompt]],
                 $memory,
             );
 
-            // Call the LLM provider
             $provider = $this->providerKeyService->resolveProvider($bot->provider);
 
             $result = $provider->chat($messages, [
@@ -57,7 +82,6 @@ class AiChatService
                 'temperature' => $bot->temperature ?? 0.3,
             ]);
 
-            // Log token usage
             $this->tokenUsageService->log([
                 'ai_bot_id' => $bot->id,
                 'provider' => is_string($config['provider'])
@@ -71,14 +95,12 @@ class AiChatService
                 'conversation_id' => $conversation->id,
             ]);
 
-            // Format response for WhatsApp
             $responseText = AiResponseFormatter::forWhatsApp($result['text']);
 
             if (blank($responseText)) {
                 return null;
             }
 
-            // Send the response
             $this->outboundService->sendText($conversation, $responseText, enforceWindow: false);
 
             return $responseText;
@@ -93,36 +115,29 @@ class AiChatService
         }
     }
 
-    /**
-     * Build the system prompt with optional RAG context.
-     */
     private function buildSystemPrompt(AiBot $bot, string $userMessage): string
     {
         $parts = [];
 
-        // Bot's system prompt
         if (! empty($bot->system_prompt)) {
             $parts[] = $bot->system_prompt;
         }
 
-        // Bot's business information (inline)
         if (! empty($bot->business_information)) {
             $parts[] = "Business context: {$bot->business_information}";
         }
 
-        // RAG context from knowledge base
+        // Legacy MySQL embeddings path is deprecated; only short business_information stays in DB.
         $ragContext = $this->ragService->retrieveContext($bot, $userMessage);
         if (! empty($ragContext)) {
             $parts[] = $ragContext;
         }
 
-        // Default instructions if no system prompt
         if (empty($parts)) {
-            $parts[] = "You are a helpful customer support assistant for WhatsApp. Be concise and friendly. Keep responses under 300 words.";
+            $parts[] = 'You are a helpful customer support assistant for WhatsApp. Be concise and friendly. Keep responses under 300 words.';
         }
 
-        // WhatsApp-specific instruction
-        $parts[] = "Important: Format your response for WhatsApp. Use *bold* for emphasis. Keep it concise and conversational.";
+        $parts[] = 'Important: Format your response for WhatsApp. Use *bold* for emphasis. Keep it concise and conversational.';
 
         return implode("\n\n", $parts);
     }
