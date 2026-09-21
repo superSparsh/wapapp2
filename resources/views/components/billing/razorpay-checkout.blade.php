@@ -26,7 +26,10 @@
     data-redirect-url="{{ $redirectUrl ?? route('profile.subscription') }}"
     data-key="{{ $key }}"
     data-amount="{{ $amount }}"
-    class="razorpay-checkout-btn fd-btn flex w-full items-center justify-center overflow-hidden rounded-xl p-3.5 text-center text-base font-extrabold leading-[1.5] text-white transition-opacity hover:opacity-90"
+    {{ $attributes->class([
+      'razorpay-checkout-btn fd-btn flex w-full items-center justify-center overflow-hidden rounded-xl text-center font-extrabold leading-[1.5] text-white transition-opacity hover:opacity-90',
+      'p-3.5 text-base' => blank($attributes->get('class')),
+    ]) }}
     style="background: linear-gradient(179.23deg, #6dbb48 0%, rgba(17, 153, 170, 0.557) 100%);"
   >
     {{ $buttonLabel }}

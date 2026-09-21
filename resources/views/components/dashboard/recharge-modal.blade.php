@@ -76,17 +76,17 @@
           @endforeach
         </div>
 
-        <div class="flex flex-col gap-3 sm:flex-row sm:items-stretch">
+        <div class="flex flex-col-reverse gap-3 sm:flex-row sm:items-stretch">
           <button
             type="button"
             data-recharge-close
-            class="fd-btn order-2 flex flex-1 items-center justify-center rounded-xl border-[1.25px] border-green-500 bg-elevated px-4 py-3.5 text-center text-base font-extrabold leading-[1.5] text-green-500 transition-colors hover:bg-green-50 sm:order-1"
+            class="fd-btn flex w-full items-center justify-center rounded-xl border-[1.25px] border-green-500 bg-elevated px-5 py-3.5 text-center text-base font-bold leading-[1.5] text-green-500 transition-colors hover:bg-green-50 sm:w-auto sm:min-w-[140px] sm:shrink-0"
             style="font-family: var(--font-display)"
           >
             Cancel
           </button>
 
-          <div class="order-1 flex flex-1 sm:order-2">
+          <div class="flex min-w-0 flex-1" data-recharge-pay>
             <x-billing.razorpay-checkout
               button-id="dashboard-recharge-btn"
               :checkout-url="route('profile.subscription.wallet-recharge')"
@@ -94,6 +94,7 @@
               :redirect-url="route('dashboard', ['status' => 'wallet-recharged'])"
               button-label="Pay Securely"
               :razorpay-configured="$razorpayConfigured"
+              class="min-h-[56px] rounded-xl px-6 py-4 text-lg font-extrabold"
             />
           </div>
         </div>
