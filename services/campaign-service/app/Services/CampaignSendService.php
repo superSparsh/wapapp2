@@ -22,7 +22,6 @@ class CampaignSendService
     public function __construct(
         private readonly OutboundTemplateSenderInterface $templateSender,
         private readonly CampaignWebhookService $webhookService,
-        private readonly CampaignMassSendService $massSendService,
         private readonly AlibabaCamsClient $camsClient,
         private readonly TenantContext $tenantContext,
     ) {}
@@ -40,18 +39,7 @@ class CampaignSendService
             'started_at' => $campaign->started_at ?? now(),
         ]);
 
-        $pendingCount = CampaignRecipient::query()
-            ->where('campaign_id', $campaign->id)
-            ->where('status', CampaignRecipientStatus::Pending)
-            ->count();
-
-        $massThreshold = max(1, (int) config('campaigns.mass_threshold', 50));
-
-        // High volume → mass API; low volume → simple API jobs only.
-        if ($pendingCount >= $massThreshold) {
-            $this->massSendService->dispatchPending($campaign);
-        }
-
+        // Simple SendChatappMessage jobs only (mass API disabled until tested).
         $batchSize = (int) config('campaigns.dispatch_batch_size', 100);
         $tenantId = (string) ($campaign->tenant_id ?? $this->tenantContext->getTenantId() ?? '');
 

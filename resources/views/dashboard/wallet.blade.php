@@ -1,5 +1,7 @@
 @php
   $period = $period ?? 'all';
+  $from = $from ?? null;
+  $to = $to ?? null;
   $periodLabels = [
     'daily' => 'Daily',
     'weekly' => 'Weekly',
@@ -7,6 +9,12 @@
     'yearly' => 'Yearly',
     'all' => 'All time',
   ];
+  $exportQuery = array_filter([
+    'q' => $search ?? null,
+    'period' => $period,
+    'from' => $from,
+    'to' => $to,
+  ], fn ($v) => filled($v));
 @endphp
 
 <x-layouts.app title="Wallet History - WapApp" active="dashboard">
@@ -20,6 +28,12 @@
       <div class="flex flex-wrap items-center justify-between gap-4">
         <form method="GET" action="{{ route('dashboard.wallet') }}" class="flex w-full max-w-[550px] items-center gap-3 rounded-lg bg-elevated p-3">
           <input type="hidden" name="period" value="{{ $period }}">
+          @if (filled($from))
+            <input type="hidden" name="from" value="{{ $from }}">
+          @endif
+          @if (filled($to))
+            <input type="hidden" name="to" value="{{ $to }}">
+          @endif
           <img src="{{ asset('images/templates/search.svg') }}" alt="" class="size-5 shrink-0 opacity-60" width="20" height="20">
           <input
             type="search"
@@ -30,6 +44,32 @@
           >
         </form>
         <div class="flex flex-wrap items-center gap-3">
+          <form method="GET" action="{{ route('dashboard.wallet') }}" class="flex flex-wrap items-center gap-2">
+            @if (filled($search))
+              <input type="hidden" name="q" value="{{ $search }}">
+            @endif
+            <input type="hidden" name="period" value="{{ $period }}">
+            <label class="sr-only" for="wallet_from">From date</label>
+            <input
+              id="wallet_from"
+              type="date"
+              name="from"
+              value="{{ $from }}"
+              class="rounded-lg border border-border bg-elevated px-3 py-2.5 text-sm text-text-primary outline-none focus:border-green-500"
+            >
+            <span class="text-xs text-text-muted">to</span>
+            <label class="sr-only" for="wallet_to">To date</label>
+            <input
+              id="wallet_to"
+              type="date"
+              name="to"
+              value="{{ $to }}"
+              class="rounded-lg border border-border bg-elevated px-3 py-2.5 text-sm text-text-primary outline-none focus:border-green-500"
+            >
+            <button type="submit" class="fd-btn rounded border border-border-light bg-elevated px-3 py-2.5 text-sm font-semibold text-green-500 hover:bg-surface">
+              Apply
+            </button>
+          </form>
           <form method="GET" action="{{ route('dashboard.wallet') }}" class="shrink-0">
             @if (filled($search))
               <input type="hidden" name="q" value="{{ $search }}">
@@ -43,10 +83,17 @@
               class="min-w-[10.5rem] rounded-lg border border-border bg-elevated py-2.5 pl-3 pr-8 text-sm font-medium text-text-primary outline-none focus:border-green-500"
             >
               @foreach ($periodLabels as $value => $label)
-                <option value="{{ $value }}" @selected($period === $value)>Sort by : {{ $label }}</option>
+                <option value="{{ $value }}" @selected($period === $value && blank($from) && blank($to))>Sort by : {{ $label }}</option>
               @endforeach
             </select>
           </form>
+          <a
+            href="{{ route('dashboard.wallet.export', $exportQuery) }}"
+            class="fd-btn inline-flex shrink-0 items-center justify-center gap-2 rounded border border-green-500 bg-elevated px-4 py-3 text-sm font-semibold text-green-500 hover:bg-surface"
+          >
+            <img src="{{ asset('images/automation/export-csv.svg') }}" alt="" class="size-4" width="16" height="16">
+            Export CSV
+          </a>
           <a
             href="{{ route('dashboard', ['modal' => 'recharge']) }}"
             class="fd-btn inline-flex shrink-0 items-center justify-center gap-2 rounded bg-green-500 px-4 py-3 text-primary-2"

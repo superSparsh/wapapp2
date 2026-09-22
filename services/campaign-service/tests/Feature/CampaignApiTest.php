@@ -137,25 +137,19 @@ class CampaignApiTest extends TestCase
             ->assertJsonPath('campaign.name', 'Summer Sale (Copy)');
     }
 
-    public function test_launch_uses_mass_api_when_recipients_meet_threshold(): void
+    public function test_launch_always_uses_simple_api_jobs_not_mass_api(): void
     {
         Queue::fake();
         config([
-            'campaigns.mass_threshold' => 2,
             'whatsapp.alibaba.access_key_id' => 'test-key',
             'whatsapp.alibaba.access_key_secret' => 'test-secret',
         ]);
 
-        \Illuminate\Support\Facades\Http::fake([
-            'cams.ap-southeast-1.aliyuncs.com/*' => \Illuminate\Support\Facades\Http::response([
-                'Code' => 'OK',
-                'GroupId' => 'grp-svc-1',
-            ], 200),
-        ]);
+        \Illuminate\Support\Facades\Http::fake();
 
         $campaign = Campaign::query()->create([
             'tenant_id' => $this->tenantId,
-            'name' => 'Mass Blast',
+            'name' => 'Simple Blast',
             'status' => CampaignStatus::Draft,
             'whatsapp_line_id' => 1,
             'template_id' => 1,
@@ -180,11 +174,12 @@ class CampaignApiTest extends TestCase
 
         $this->postJson("/api/v1/campaigns/{$campaign->uuid}/launch", [], $this->authHeaders())
             ->assertOk()
-            ->assertJsonPath('campaign.status', 'completed');
+            ->assertJsonPath('campaign.status', 'sending');
 
-        Queue::assertNothingPushed();
-        \Illuminate\Support\Facades\Http::assertSent(fn ($request) => str_contains($request->url(), 'Action=SendChatappMassMessage'));
-        $this->assertSame(2, CampaignRecipient::query()->where('campaign_id', $campaign->id)->where('status', CampaignRecipientStatus::Sent)->count());
+        Queue::assertPushed(\App\Jobs\SendCampaignRecipientJob::class, 2);
+        \Illuminate\Support\Facades\Http::assertNotSent(
+            fn ($request) => str_contains($request->url(), 'Action=SendChatappMassMessage')
+        );
     }
 
     public function test_campaign_statistics_and_recipients(): void

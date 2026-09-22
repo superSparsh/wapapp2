@@ -46,14 +46,10 @@ class WalletService
         ?string $search = null,
         int $perPage = 25,
         ?string $period = null,
+        ?string $fromDate = null,
+        ?string $toDate = null,
     ): LengthAwarePaginator {
-        $maxDays = (int) config('billing.wallet.history_max_days', 365);
-        $period = DashboardService::normalizePeriod($period, DashboardService::PERIOD_ALL);
-        [$from, $to] = DashboardService::periodRange($period, $maxDays);
-        $historyCutoff = now()->subDays($maxDays);
-        if ($from->lessThan($historyCutoff)) {
-            $from = $historyCutoff;
-        }
+        [$from, $to] = $this->resolveHistoryRange($period, $fromDate, $toDate);
         $search = trim((string) $search);
 
         $paginator = WalletTransaction::query()
@@ -76,7 +72,8 @@ class WalletService
                 $query->where(function ($nested) use ($search): void {
                     $nested->where('description', 'like', "%{$search}%")
                         ->orWhere('razorpay_payment_id', 'like', "%{$search}%")
-                        ->orWhere('metadata->legacy_category', 'like', "%{$search}%");
+                        ->orWhere('metadata->legacy_category', 'like', "%{$search}%")
+                        ->orWhere('metadata->legacy_campaign_id', 'like', "%{$search}%");
                 });
             })
             ->latest('id')
@@ -86,6 +83,112 @@ class WalletService
         $this->attachDisplayBalanceAfter($paginator);
 
         return $paginator;
+    }
+
+    /**
+     * Stream wallet history CSV for the same filters as the history page.
+     */
+    public function exportTransactionsCsv(
+        ?string $search = null,
+        ?string $period = null,
+        ?string $fromDate = null,
+        ?string $toDate = null,
+    ): \Symfony\Component\HttpFoundation\StreamedResponse {
+        [$from, $to] = $this->resolveHistoryRange($period, $fromDate, $toDate);
+        $search = trim((string) $search);
+        $filename = 'wallet-history-'.now()->format('Y-m-d').'.csv';
+
+        return response()->streamDownload(function () use ($from, $to, $search): void {
+            $handle = fopen('php://output', 'w');
+            fputcsv($handle, [
+                'SI. No',
+                'Description',
+                'Type',
+                'Date',
+                'Amount',
+                'Balance After',
+                'Payment ID',
+                'Campaign ID',
+                'Category',
+            ]);
+
+            $seq = 0;
+            $query = WalletTransaction::query()
+                ->whereBetween('created_at', [$from, $to])
+                ->when($search !== '', function ($q) use ($search): void {
+                    $q->where(function ($nested) use ($search): void {
+                        $nested->where('description', 'like', "%{$search}%")
+                            ->orWhere('razorpay_payment_id', 'like', "%{$search}%")
+                            ->orWhere('metadata->legacy_category', 'like', "%{$search}%")
+                            ->orWhere('metadata->legacy_campaign_id', 'like', "%{$search}%");
+                    });
+                })
+                ->latest('id');
+
+            $liveBalance = $this->balance();
+            $runningNewerNet = 0.0;
+
+            $query->cursor()->each(function (WalletTransaction $transaction) use ($handle, &$seq, $liveBalance, &$runningNewerNet): void {
+                $balanceAfter = round($liveBalance - $runningNewerNet, 2);
+                $signed = $transaction->type === WalletTransactionType::Credit
+                    ? abs((float) $transaction->amount)
+                    : -abs((float) $transaction->amount);
+                $runningNewerNet += $signed;
+
+                $meta = is_array($transaction->metadata) ? $transaction->metadata : [];
+                $description = $transaction->description
+                    ?: ($meta['legacy_category'] ?? null)
+                    ?: ($meta['legacy_type'] ?? null)
+                    ?: ($transaction->type === WalletTransactionType::Credit ? 'Wallet credit' : 'Wallet withdrawal');
+
+                fputcsv($handle, [
+                    ++$seq,
+                    $description,
+                    $transaction->type?->label() ?? '—',
+                    $transaction->created_at?->format('d M Y h:i:s A') ?? 'N/A',
+                    ($transaction->type?->signPrefix() ?? '').number_format((float) $transaction->amount, 2, '.', ''),
+                    number_format($balanceAfter, 2, '.', ''),
+                    $transaction->razorpay_payment_id ?: 'N/A',
+                    (string) ($meta['legacy_campaign_id'] ?? $transaction->reference_id ?? 'N/A'),
+                    (string) ($meta['legacy_category'] ?? 'N/A'),
+                ]);
+            });
+
+            fclose($handle);
+        }, $filename, ['Content-Type' => 'text/csv']);
+    }
+
+    /**
+     * @return array{0: \Illuminate\Support\Carbon, 1: \Illuminate\Support\Carbon}
+     */
+    private function resolveHistoryRange(?string $period, ?string $fromDate, ?string $toDate): array
+    {
+        $maxDays = (int) config('billing.wallet.history_max_days', 365);
+        $historyCutoff = now()->subDays($maxDays)->startOfDay();
+
+        $fromInput = filled($fromDate) ? \Illuminate\Support\Carbon::parse($fromDate)->startOfDay() : null;
+        $toInput = filled($toDate) ? \Illuminate\Support\Carbon::parse($toDate)->endOfDay() : null;
+
+        if ($fromInput !== null || $toInput !== null) {
+            $to = $toInput ?? now()->endOfDay();
+            $from = $fromInput ?? $to->copy()->subDays($maxDays)->startOfDay();
+            if ($from->greaterThan($to)) {
+                [$from, $to] = [$to->copy()->startOfDay(), $from->copy()->endOfDay()];
+            }
+            if ($from->lessThan($historyCutoff)) {
+                $from = $historyCutoff->copy();
+            }
+
+            return [$from, $to];
+        }
+
+        $period = DashboardService::normalizePeriod($period, DashboardService::PERIOD_ALL);
+        [$from, $to] = DashboardService::periodRange($period, $maxDays);
+        if ($from->lessThan($historyCutoff)) {
+            $from = $historyCutoff->copy();
+        }
+
+        return [$from, $to];
     }
 
     /**

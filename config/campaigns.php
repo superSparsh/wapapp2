@@ -11,11 +11,12 @@ return [
     'queue' => env('CAMPAIGN_QUEUE', 'default'),
     'dispatch_batch_size' => 100,
     /*
-    | Recipients at/above this count use CAMS SendChatappMassMessage.
-    | Below it, each recipient uses SendChatappMessage (simple API).
+    | Mass SendChatappMassMessage is disabled until CAMS mass API is tested.
+    | All campaigns use per-recipient simple SendChatappMessage jobs.
     */
-    'mass_threshold' => (int) env('CAMPAIGN_MASS_THRESHOLD', 50),
+    'mass_threshold' => (int) env('CAMPAIGN_MASS_THRESHOLD', PHP_INT_MAX),
     'mass_batch_size' => (int) env('CAMPAIGN_MASS_BATCH_SIZE', 1000),
+    'mass_api_enabled' => (bool) env('CAMPAIGN_MASS_API_ENABLED', false),
     'cost' => [
         'currency' => 'INR',
         'category_rates' => [

@@ -253,6 +253,61 @@ class DashboardTest extends TestCase
             ->assertDontSee('Campaign send deduction');
     }
 
+    public function test_wallet_history_filters_by_custom_date_range(): void
+    {
+        WalletTransaction::query()->create([
+            'type' => WalletTransactionType::Credit,
+            'amount' => 100,
+            'currency' => 'INR',
+            'balance_after' => 100,
+            'description' => 'Inside range topup',
+            'created_at' => now()->subDays(2),
+        ]);
+        WalletTransaction::query()->create([
+            'type' => WalletTransactionType::Debit,
+            'amount' => 50,
+            'currency' => 'INR',
+            'balance_after' => 50,
+            'description' => 'Outside range debit',
+            'created_at' => now()->subDays(40),
+        ]);
+
+        $from = now()->subDays(7)->toDateString();
+        $to = now()->toDateString();
+
+        $this->actingAsTenantUser()
+            ->get(route('dashboard.wallet', ['from' => $from, 'to' => $to]))
+            ->assertOk()
+            ->assertSee('Inside range topup')
+            ->assertDontSee('Outside range debit')
+            ->assertSee('Export CSV');
+    }
+
+    public function test_wallet_history_export_downloads_csv(): void
+    {
+        WalletTransaction::query()->create([
+            'type' => WalletTransactionType::Credit,
+            'amount' => 250,
+            'currency' => 'INR',
+            'balance_after' => 250,
+            'description' => 'Exportable credit',
+            'created_at' => now(),
+        ]);
+
+        $response = $this->actingAsTenantUser()
+            ->get(route('dashboard.wallet.export', ['period' => 'all']));
+
+        $response->assertOk()
+            ->assertHeader('content-type', 'text/csv; charset=utf-8');
+
+        ob_start();
+        $response->sendContent();
+        $csv = (string) ob_get_clean();
+
+        $this->assertStringContainsString('Exportable credit', $csv);
+        $this->assertStringContainsString('Description', $csv);
+    }
+
     public function test_mark_all_notifications_read_endpoint(): void
     {
         $this->actingAsTenantUser()

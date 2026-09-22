@@ -166,4 +166,26 @@ class CampaignStatisticsTest extends TestCase
         $this->assertStringContainsString('Failed', $csv);
         $this->assertSame(2, substr_count($csv, "\n")); // header + 1 failed row
     }
+
+    public function test_export_report_downloads_summary_and_recipients(): void
+    {
+        $campaign = Campaign::factory()->create(['name' => 'Report Campaign']);
+        CampaignRecipient::factory()->for($campaign)->delivered()->count(2)->create();
+        CampaignRecipient::factory()->for($campaign)->failed()->count(1)->create();
+
+        $response = $this->actingAsTenantUser()
+            ->get(route('campaigns.export-report', $campaign));
+
+        $response->assertOk()
+            ->assertHeader('content-type', 'text/csv; charset=utf-8');
+
+        ob_start();
+        $response->sendContent();
+        $csv = (string) ob_get_clean();
+
+        $this->assertStringContainsString('Campaign Report — Summary', $csv);
+        $this->assertStringContainsString('Campaign Report — Recipients', $csv);
+        $this->assertStringContainsString('Report Campaign', $csv);
+        $this->assertStringContainsString('Total Campaign Cost (INR)', $csv);
+    }
 }

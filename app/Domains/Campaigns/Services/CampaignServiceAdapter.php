@@ -488,6 +488,11 @@ class CampaignServiceAdapter
         return $this->localStatsService->exportCsv($campaign, $status);
     }
 
+    public function exportFullReport(Campaign $campaign): StreamedResponse
+    {
+        return $this->localStatsService->exportFullReport($campaign);
+    }
+
     /**
      * Embed line/template CAMS fields into template_variables for the microservice.
      *

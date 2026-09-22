@@ -118,6 +118,23 @@ class CampaignStatsServiceTest extends TestCase
         $this->assertInstanceOf(\Symfony\Component\HttpFoundation\StreamedResponse::class, $response);
     }
 
+    public function test_export_full_report_includes_summary_section(): void
+    {
+        $campaign = Campaign::factory()->create(['name' => 'Full Report']);
+        CampaignRecipient::factory()->for($campaign)->delivered()->count(2)->create();
+
+        $response = $this->service->exportFullReport($campaign);
+        $this->assertInstanceOf(\Symfony\Component\HttpFoundation\StreamedResponse::class, $response);
+
+        ob_start();
+        $response->sendContent();
+        $csv = (string) ob_get_clean();
+
+        $this->assertStringContainsString('Campaign Report — Summary', $csv);
+        $this->assertStringContainsString('Full Report', $csv);
+        $this->assertStringContainsString('Campaign Report — Recipients', $csv);
+    }
+
     public function test_dashboard_stats_aggregates(): void
     {
         Campaign::factory()->withStats(100, 80, 10, 70)->create();

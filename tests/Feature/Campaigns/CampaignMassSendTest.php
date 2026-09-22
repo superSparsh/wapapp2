@@ -6,7 +6,6 @@ namespace Tests\Feature\Campaigns;
 
 use App\Domains\Campaigns\Jobs\SendCampaignRecipientJob;
 use App\Domains\Campaigns\Services\CampaignSendService;
-use App\Enums\CampaignRecipientStatus;
 use App\Enums\CampaignStatus;
 use App\Models\Campaign;
 use App\Models\CampaignRecipient;
@@ -40,16 +39,9 @@ class CampaignMassSendTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_launch_uses_cams_mass_message_api(): void
+    public function test_launch_always_uses_simple_api_jobs_not_mass_api(): void
     {
         Queue::fake();
-        config(['campaigns.mass_threshold' => 2]);
-        Http::fake([
-            'cams.ap-southeast-1.aliyuncs.com/*' => Http::response([
-                'Code' => 'OK',
-                'GroupId' => 'grp-mass-1',
-            ], 200),
-        ]);
 
         $line = WhatsappLine::factory()->connected()->create();
         $template = Template::factory()->create(['code' => 'promo_offer']);
@@ -59,53 +51,21 @@ class CampaignMassSendTest extends TestCase
             'template_variables' => ['offer' => '20%'],
         ]);
 
-        CampaignRecipient::factory()->for($campaign)->pending()->create(['contact_phone' => '919811111111']);
-        CampaignRecipient::factory()->for($campaign)->pending()->create(['contact_phone' => '919822222222']);
+        CampaignRecipient::factory()->for($campaign)->pending()->count(5)->create();
 
         app(CampaignSendService::class)->queueCampaign($campaign);
 
-        Http::assertSent(function ($request) {
-            $url = $request->url();
-
-            return str_contains($url, 'Action=SendChatappMassMessage')
-                && str_contains($url, 'TemplateCode=promo_offer')
-                && str_contains($url, 'SenderList.1.To')
-                && str_contains($url, 'SenderList.2.To');
-        });
-
-        Queue::assertNothingPushed();
-
-        $this->assertSame(CampaignStatus::Completed, $campaign->fresh()->status);
-        $this->assertSame(2, CampaignRecipient::query()->where('campaign_id', $campaign->id)->where('status', CampaignRecipientStatus::Sent)->count());
-        $this->assertSame('grp-mass-1', CampaignRecipient::query()->where('campaign_id', $campaign->id)->value('message_id'));
-    }
-
-    public function test_launch_uses_simple_api_jobs_when_below_mass_threshold(): void
-    {
-        Queue::fake();
-        config(['campaigns.mass_threshold' => 50]);
-
-        $line = WhatsappLine::factory()->connected()->create();
-        $template = Template::factory()->create();
-        $campaign = Campaign::factory()->create([
-            'whatsapp_line_id' => $line->id,
-            'template_id' => $template->id,
-        ]);
-        CampaignRecipient::factory()->for($campaign)->pending()->count(2)->create();
-
-        app(CampaignSendService::class)->queueCampaign($campaign);
-
-        Queue::assertPushed(SendCampaignRecipientJob::class, 2);
+        Queue::assertPushed(SendCampaignRecipientJob::class, 5);
         Http::assertNothingSent();
+        Http::assertNotSent(fn ($request) => str_contains($request->url(), 'Action=SendChatappMassMessage'));
         $this->assertSame(CampaignStatus::Sending, $campaign->fresh()->status);
     }
 
-    public function test_launch_falls_back_to_per_recipient_jobs_when_cams_unavailable(): void
+    public function test_launch_queues_one_job_per_pending_recipient(): void
     {
         Queue::fake();
-        config(['campaigns.mass_threshold' => 1]);
 
-        $line = WhatsappLine::factory()->create(['alibaba_cust_space_id' => null]);
+        $line = WhatsappLine::factory()->connected()->create();
         $template = Template::factory()->create();
         $campaign = Campaign::factory()->create([
             'whatsapp_line_id' => $line->id,

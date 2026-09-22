@@ -77,6 +77,7 @@ Route::middleware('team.permission:campaign_read')->prefix('campaigns')->name('c
     Route::get('/{bulkCampaign}/statistics', [CampaignStatisticsController::class, 'overview'])->name('statistics');
     Route::get('/{bulkCampaign}/statistics/detail', [CampaignStatisticsController::class, 'detail'])->name('statistics.detail');
     Route::get('/{bulkCampaign}/statistics/export', [CampaignStatisticsController::class, 'export'])->name('statistics.export');
+    Route::get('/{bulkCampaign}/export-report', [CampaignStatisticsController::class, 'exportReport'])->name('export-report');
 });
 
 Route::middleware('team.permission:audience_read')->prefix('audience')->name('audience.')->group(function () {

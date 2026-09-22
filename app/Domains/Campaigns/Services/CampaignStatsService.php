@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Domains\Campaigns\Services;
 
 use App\Enums\CampaignRecipientStatus;
+use App\Enums\WalletTransactionType;
 use App\Models\Campaign;
 use App\Models\CampaignRecipient;
+use App\Models\WalletTransaction;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -180,6 +182,174 @@ class CampaignStatsService
 
             fclose($handle);
         }, $filename, ['Content-Type' => 'text/csv']);
+    }
+
+    /**
+     * Full campaign report (legacy parity): summary block + all recipients.
+     * CSV format (no XLSX dependency) with Summary then Recipients sections.
+     */
+    public function exportFullReport(Campaign $campaign): StreamedResponse
+    {
+        $campaign->loadMissing(['audience:id,name', 'template:id,name,category']);
+
+        $metrics = $this->gaugeMetrics($campaign);
+        $delivered = (int) $metrics['delivered'];
+        $read = (int) $metrics['read'];
+        $failed = (int) $metrics['failed'];
+        $response = (int) $metrics['response'];
+        $audienceCount = (int) $metrics['total'];
+        $sentForRate = max($audienceCount - (int) $metrics['pending'], $delivered + $failed);
+
+        $delivRate = $sentForRate > 0
+            ? round(($delivered / $sentForRate) * 100, 1).'%'
+            : '0%';
+        $readRate = $delivered > 0
+            ? round(($read / $delivered) * 100, 1).'%'
+            : '0%';
+
+        $campaignCost = $this->resolveCampaignCost($campaign);
+
+        $safeName = preg_replace('/[^A-Za-z0-9_\-]+/', '_', (string) $campaign->name) ?: 'campaign';
+        $filename = 'campaign_'.$safeName.'_'.$campaign->id.'_report.csv';
+
+        return response()->streamDownload(function () use (
+            $campaign,
+            $audienceCount,
+            $sentForRate,
+            $delivered,
+            $read,
+            $failed,
+            $response,
+            $delivRate,
+            $readRate,
+            $campaignCost,
+        ): void {
+            $handle = fopen('php://output', 'w');
+
+            fputcsv($handle, ['Campaign Report — Summary']);
+            fputcsv($handle, [
+                'Campaign ID',
+                'Campaign Name',
+                'Audience / Contact List',
+                'Template Name',
+                'Template Category',
+                'Status',
+                'Created Date',
+                'Scheduled / Sent Time',
+                'Total Audience',
+                'Sent Count',
+                'Delivered Count',
+                'Read Count',
+                'Failed Count',
+                'Response Count',
+                'Delivery Rate (%)',
+                'Read Rate (%)',
+                'Total Campaign Cost (INR)',
+            ]);
+            fputcsv($handle, [
+                $campaign->id,
+                $campaign->name,
+                $campaign->audience?->name ?? 'N/A',
+                $campaign->template?->name ?? 'N/A',
+                $campaign->template?->category ?? 'N/A',
+                strtoupper((string) ($campaign->status?->label() ?? $campaign->status?->value ?? 'N/A')),
+                $campaign->created_at?->timezone('Asia/Kolkata')->format('d M Y h:i A') ?? 'N/A',
+                $campaign->scheduled_at
+                    ? $campaign->scheduled_at->timezone('Asia/Kolkata')->format('d M Y h:i A')
+                    : ($campaign->started_at?->timezone('Asia/Kolkata')->format('d M Y h:i A') ?? 'Immediate'),
+                $audienceCount,
+                $sentForRate,
+                $delivered,
+                $read,
+                $failed,
+                $response,
+                $delivRate,
+                $readRate,
+                number_format($campaignCost, 2, '.', ''),
+            ]);
+
+            fputcsv($handle, []);
+            fputcsv($handle, ['Campaign Report — Recipients']);
+            fputcsv($handle, [
+                'Phone',
+                'Name',
+                'Status',
+                'Sent',
+                'Delivered',
+                'Read',
+                'Failed',
+                'Replied',
+                'Sent At',
+                'Delivered At',
+                'Updated At',
+                'Failure Reason',
+            ]);
+
+            CampaignRecipient::query()
+                ->where('campaign_id', $campaign->id)
+                ->with('contact:id,name,phone')
+                ->orderBy('id')
+                ->cursor()
+                ->each(function (CampaignRecipient $recipient) use ($handle): void {
+                    $status = $recipient->status;
+                    $isSent = in_array($status, [
+                        CampaignRecipientStatus::Sent,
+                        CampaignRecipientStatus::Delivered,
+                        CampaignRecipientStatus::Read,
+                        CampaignRecipientStatus::Response,
+                        CampaignRecipientStatus::Failed,
+                    ], true);
+                    $isDelivered = in_array($status, [
+                        CampaignRecipientStatus::Delivered,
+                        CampaignRecipientStatus::Read,
+                        CampaignRecipientStatus::Response,
+                    ], true);
+                    $isRead = in_array($status, [
+                        CampaignRecipientStatus::Read,
+                        CampaignRecipientStatus::Response,
+                    ], true);
+                    $isFailed = $status === CampaignRecipientStatus::Failed;
+                    $isReplied = $status === CampaignRecipientStatus::Response;
+
+                    fputcsv($handle, [
+                        $recipient->contact_phone ?? $recipient->contact?->phone ?? '',
+                        $recipient->contact?->name ?? '',
+                        $status?->label() ?? 'Unknown',
+                        $isSent ? 'Yes' : 'No',
+                        $isDelivered ? 'Yes' : 'No',
+                        $isRead ? 'Yes' : 'No',
+                        $isFailed ? 'Yes' : 'No',
+                        $isReplied ? 'Yes' : 'No',
+                        $recipient->sent_at?->timezone('Asia/Kolkata')->format('d M Y h:i A') ?? '',
+                        $recipient->delivered_at?->timezone('Asia/Kolkata')->format('d M Y h:i A') ?? '',
+                        $recipient->updated_at?->timezone('Asia/Kolkata')->format('d M Y h:i A') ?? '',
+                        $isFailed ? ($recipient->failure_reason ?: '') : '',
+                    ]);
+                });
+
+            fclose($handle);
+        }, $filename, ['Content-Type' => 'text/csv']);
+    }
+
+    private function resolveCampaignCost(Campaign $campaign): float
+    {
+        $walletCharged = (float) WalletTransaction::query()
+            ->where('type', WalletTransactionType::Debit)
+            ->where(function ($q) use ($campaign): void {
+                $q->where(function ($inner) use ($campaign): void {
+                    $inner->where('reference_type', Campaign::class)
+                        ->where('reference_id', $campaign->id);
+                })->orWhere('metadata->legacy_campaign_id', $campaign->id);
+            })
+            ->sum('amount');
+
+        if ($walletCharged > 0) {
+            return round($walletCharged, 2);
+        }
+
+        $estimate = app(CampaignCostCalculator::class)->estimate($campaign);
+
+        return (float) ($estimate['total_cost'] ?? 0.0);
     }
 
     /**

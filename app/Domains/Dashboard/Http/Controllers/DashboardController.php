@@ -13,6 +13,7 @@ use App\Support\PublicId;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class DashboardController extends Controller
 {
@@ -44,16 +45,37 @@ class DashboardController extends Controller
             $request->string('period')->toString(),
             DashboardService::PERIOD_ALL,
         );
+        $from = $request->string('from')->toString() ?: null;
+        $to = $request->string('to')->toString() ?: null;
 
         return view('dashboard.wallet', [
             'transactions' => $walletService->paginateTransactions(
                 search: $request->string('q')->toString(),
                 perPage: (int) config('billing.wallet.history_per_page', 25),
                 period: $period,
+                fromDate: $from,
+                toDate: $to,
             ),
             'search' => $request->string('q')->toString(),
             'period' => $period,
+            'from' => $from,
+            'to' => $to,
         ]);
+    }
+
+    public function exportWallet(Request $request, WalletService $walletService): StreamedResponse
+    {
+        $period = DashboardService::normalizePeriod(
+            $request->string('period')->toString(),
+            DashboardService::PERIOD_ALL,
+        );
+
+        return $walletService->exportTransactionsCsv(
+            search: $request->string('q')->toString(),
+            period: $period,
+            fromDate: $request->string('from')->toString() ?: null,
+            toDate: $request->string('to')->toString() ?: null,
+        );
     }
 
     public function analytics(): View

@@ -60,4 +60,12 @@ class CampaignStatisticsController extends Controller
             $request->query('status'),
         );
     }
+
+    /**
+     * Full campaign report: summary + recipients (legacy Download Report).
+     */
+    public function exportReport(Campaign $bulkCampaign): StreamedResponse
+    {
+        return $this->adapter->exportFullReport($bulkCampaign);
+    }
 }

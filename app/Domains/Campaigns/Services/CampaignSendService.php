@@ -27,7 +27,6 @@ class CampaignSendService
         private readonly InboxOutboundService $outboundService,
         private readonly OptInTemplateService $optInTemplateService,
         private readonly CampaignWebhookService $webhookService,
-        private readonly CampaignMassSendService $massSendService,
         private readonly CampaignTemplateParamsResolver $paramsResolver,
     ) {}
 
@@ -48,18 +47,7 @@ class CampaignSendService
             'started_at' => $campaign->started_at ?? now(),
         ]);
 
-        $pendingCount = CampaignRecipient::query()
-            ->where('campaign_id', $campaign->id)
-            ->where('status', CampaignRecipientStatus::Pending)
-            ->count();
-
-        $massThreshold = max(1, (int) config('campaigns.mass_threshold', 50));
-
-        // High volume → CAMS mass API; low volume → simple SendChatappMessage via jobs.
-        if ($pendingCount >= $massThreshold) {
-            $this->massSendService->dispatchPending($campaign);
-        }
-
+        // Simple SendChatappMessage only (mass API disabled until tested).
         $batchSize = (int) config('campaigns.dispatch_batch_size', 100);
 
         CampaignRecipient::query()

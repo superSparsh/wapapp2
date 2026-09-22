@@ -70,7 +70,7 @@
           <a href="{{ route('campaigns.create.start') }}" class="mt-3 text-sm font-semibold text-green-500 hover:underline">Create your first campaign</a>
         </div>
       @else
-        <x-ui.data-table :headers="['SI. No', 'Campaign Name', 'Audience Name', 'Communication Status', 'Status', 'Actions']" :paginator="$paginator" :column-widths="['w-[54px]', 'w-[320px]', 'w-[220px]', 'w-[220px]', '', 'w-[160px]']">
+        <x-ui.data-table :headers="['SI. No', 'Campaign Name', 'Audience Name', 'Communication Status', 'Status', 'Actions']" :paginator="$paginator" :column-widths="['w-[54px]', 'w-[320px]', 'w-[220px]', 'w-[220px]', '', 'w-[200px]']">
           @foreach ($campaigns as $index => $campaign)
             @php $card = app(\App\Domains\Campaigns\Services\CampaignPresenter::class)->indexCard($campaign); @endphp
             <tr class="bg-elevated" data-campaign-row>
@@ -98,8 +98,8 @@
                   @endif
                 </div>
               </td>
-              <td class="w-[160px] p-2 align-middle">
-                <div class="flex items-center justify-center gap-6">
+              <td class="w-[200px] p-2 align-middle">
+                <div class="flex items-center justify-center gap-4">
                   @if ($campaign->canBeEdited())
                     <a href="{{ route('campaigns.edit', $campaign) }}" class="flex size-5 items-center justify-center" aria-label="Edit campaign">
                       <img src="{{ asset('images/campaigns/edit.svg') }}" alt="" class="size-5" width="20" height="20">
@@ -107,6 +107,9 @@
                   @endif
                   <a href="{{ route('campaigns.statistics', $campaign) }}" class="flex size-5 items-center justify-center" aria-label="Statistics">
                     <img src="{{ asset('images/campaigns/chart.svg') }}" alt="" class="size-5" width="20" height="20">
+                  </a>
+                  <a href="{{ route('campaigns.export-report', $campaign) }}" class="flex size-5 items-center justify-center" aria-label="Download Report" title="Download Report">
+                    <img src="{{ asset('images/automation/export-csv.svg') }}" alt="" class="size-5" width="20" height="20">
                   </a>
                   <form method="POST" action="{{ route('campaigns.duplicate', $campaign) }}" class="inline">
                     @csrf
