@@ -200,6 +200,7 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::post('/server-ops/run', [ServerOpsController::class, 'run'])->name('server-ops.run');
 
         Route::get('/errors', [PlatformErrorLogController::class, 'index'])->name('errors.index');
+        Route::get('/errors/log/{log}', [PlatformErrorLogController::class, 'detail'])->name('errors.detail');
         Route::get('/errors/{module}', [PlatformErrorLogController::class, 'show'])->name('errors.show');
         Route::post('/errors/{module}/clear', [PlatformErrorLogController::class, 'clear'])->name('errors.clear');
         Route::post('/errors/{module}/destroy-all', [PlatformErrorLogController::class, 'destroyAll'])->name('errors.destroy-all');

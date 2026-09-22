@@ -347,6 +347,29 @@ class PlatformErrorLogTest extends TestCase
         $this->assertDatabaseHas('platform_error_logs', ['id' => $keepOther->id], config('tenancy.database.central_connection'));
     }
 
+    public function test_admin_can_open_error_detail_by_id(): void
+    {
+        $log = PlatformErrorLog::query()->create([
+            'module' => 'inbox',
+            'type' => PlatformErrorType::Exception,
+            'tenant_id' => $this->testTenant->id,
+            'source' => 'Outbound',
+            'message' => 'Detail page unique boom message',
+            'context' => ['foo' => 'bar'],
+            'occurred_at' => now(),
+        ]);
+
+        $this->actingAs($this->admin, 'admin')
+            ->get(route('admin.errors.detail', $log))
+            ->assertOk()
+            ->assertSee('Detail page unique boom message', false)
+            ->assertSee('Error #'.$log->id, false);
+
+        $this->actingAs($this->admin, 'admin')
+            ->get('/admin/errors/'.$log->id)
+            ->assertRedirect(route('admin.errors.detail', $log));
+    }
+
     public function test_admin_can_flush_failed_jobs_for_module(): void
     {
         $central = config('tenancy.database.central_connection');

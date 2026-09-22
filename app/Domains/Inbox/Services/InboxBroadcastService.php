@@ -12,6 +12,10 @@ use App\Events\Inbox\InboxMessageStatusUpdated;
 use App\Events\Inbox\InboxThreadUpdated;
 use App\Models\Conversation;
 use App\Models\Message;
+use Illuminate\Broadcasting\BroadcastException;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class InboxBroadcastService
 {
@@ -49,7 +53,7 @@ class InboxBroadcastService
         $thread = $this->threadPayload($conversation);
         $thread['preview'] = InboxPresenter::preview($message->body) ?: ($thread['preview'] ?? '');
 
-        broadcast(new InboxMessageCreated(
+        $this->safeBroadcast(new InboxMessageCreated(
             tenantId: $tenantId,
             conversationUuid: $conversation->uuid,
             message: $this->messagePayload($message),
@@ -74,7 +78,7 @@ class InboxBroadcastService
             return;
         }
 
-        broadcast(new InboxMessageStatusUpdated(
+        $this->safeBroadcast(new InboxMessageStatusUpdated(
             tenantId: $tenantId,
             conversationUuid: $conversation->uuid,
             message: $this->messagePayload($message),
@@ -105,7 +109,7 @@ class InboxBroadcastService
             'contact:id,phone,status,opt_in_status,metadata',
         ]);
 
-        broadcast(new InboxThreadUpdated(
+        $this->safeBroadcast(new InboxThreadUpdated(
             tenantId: $tenantId,
             conversationUuid: $conversation->uuid,
             thread: $this->threadPayload($conversation),
@@ -193,6 +197,41 @@ class InboxBroadcastService
             'ai_enabled' => $conversation->response_type?->isAi() ?? false,
             'stopped' => $conversation->contact?->hasStoppedMessaging() ?? false,
         ];
+    }
+
+    private function safeBroadcast(ShouldBroadcastNow $event): void
+    {
+        try {
+            // Force PendingBroadcast::__destruct inside try so Pusher/Reverb
+            // failures cannot escape and break webhook / status pipelines.
+            $pending = broadcast($event);
+            unset($pending);
+        } catch (BroadcastException $e) {
+            Log::warning('Inbox realtime broadcast failed', [
+                'event' => $event::class,
+                'driver' => config('broadcasting.default'),
+                'host' => config('broadcasting.connections.'.config('broadcasting.default').'.options.host'),
+                'port' => config('broadcasting.connections.'.config('broadcasting.default').'.options.port'),
+                'error' => $this->summarizeBroadcastError($e),
+            ]);
+        } catch (Throwable $e) {
+            Log::warning('Inbox realtime broadcast failed', [
+                'event' => $event::class,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    private function summarizeBroadcastError(BroadcastException $e): string
+    {
+        $message = $e->getMessage();
+
+        // Pusher/Reverb often embeds a full HTML 404 page — keep logs readable.
+        if (str_contains($message, '<!DOCTYPE html>') || str_contains($message, '<html')) {
+            return 'Pusher/Reverb endpoint returned HTML (usually wrong REVERB_HOST/PORT or reverb not running).';
+        }
+
+        return mb_substr($message, 0, 500);
     }
 
     private function shouldBroadcast(): bool

@@ -107,8 +107,8 @@ class AdminNotificationService
         $link = null;
         try {
             $link = $errorLogId
-                ? route('admin.errors.show', $errorLogId)
-                : route('admin.errors.index', ['module' => $module]);
+                ? route('admin.errors.detail', $errorLogId)
+                : route('admin.errors.show', ['module' => $module]);
         } catch (Throwable) {
             $link = '/admin/errors';
         }

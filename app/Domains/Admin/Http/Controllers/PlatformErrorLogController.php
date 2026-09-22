@@ -28,8 +28,29 @@ class PlatformErrorLogController extends Controller
         ]);
     }
 
-    public function show(Request $request, string $module): View
+    public function detail(PlatformErrorLog $log): View
     {
+        $module = (string) $log->module;
+
+        return view('admin.errors.detail', [
+            'log' => $log,
+            'module' => $module,
+            'moduleLabel' => $this->resolver->label($module),
+        ]);
+    }
+
+    public function show(Request $request, string $module): View|RedirectResponse
+    {
+        // Notifications historically linked /admin/errors/{id} — redirect those to the detail page.
+        if (ctype_digit($module)) {
+            $log = PlatformErrorLog::query()->find((int) $module);
+            if ($log === null) {
+                throw new NotFoundHttpException('Error log not found.');
+            }
+
+            return redirect()->route('admin.errors.detail', $log);
+        }
+
         if (! $this->resolver->isValidModule($module)) {
             throw new NotFoundHttpException('Unknown error module.');
         }

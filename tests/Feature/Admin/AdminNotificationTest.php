@@ -116,7 +116,16 @@ class AdminNotificationTest extends TestCase
         $recorder->record(PlatformErrorType::Job, 'Boom failed', module: 'campaigns', source: 'TestJob');
         $recorder->record(PlatformErrorType::Job, 'Boom failed', module: 'campaigns', source: 'TestJob');
 
+        $notification = AdminNotification::query()->where('type', 'platform_error')->first();
+        $this->assertNotNull($notification);
         $this->assertSame(1, AdminNotification::query()->where('type', 'platform_error')->count());
+
+        $logId = $notification->data['error_log_id'] ?? null;
+        $this->assertNotNull($logId);
+        $this->assertTrue(
+            str_ends_with((string) $notification->link, '/admin/errors/log/'.$logId),
+            'Notification link should point to error detail page',
+        );
     }
 
     public function test_opening_notification_marks_read_and_redirects(): void
