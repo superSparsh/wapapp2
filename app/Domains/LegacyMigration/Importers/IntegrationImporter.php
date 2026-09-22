@@ -43,6 +43,160 @@ final class IntegrationImporter implements LegacyImporter
         $this->importShopify($customer, (int) $userId, $report, $dryRun);
         $this->importCalendly($customer, (int) $userId, $report, $dryRun);
         $this->importGoogleCalendar($customer, (int) $userId, $report, $dryRun);
+        $this->importWebsiteTrackers($customer, $ids, $report, $dryRun);
+        $this->importGoogleCalendarBookingLinks($customer, (int) $userId, $ids, $report, $dryRun);
+    }
+
+    private function importWebsiteTrackers(
+        LegacyCustomerSnapshot $customer,
+        MigrationIdMap $ids,
+        MigrationReport $report,
+        bool $dryRun,
+    ): void {
+        if (! $this->legacy->tableExists('websites')) {
+            return;
+        }
+
+        $rows = $this->legacy->db()->table('websites')
+            ->where('customer_id', $customer->id)
+            ->orderBy('id')
+            ->get();
+
+        foreach ($rows as $row) {
+            $legacyId = (int) $row->id;
+            $name = trim((string) ($row->title ?? $row->name ?? 'Website '.$legacyId));
+            $domain = $this->extractDomain((string) ($row->url ?? $row->domain ?? ''));
+            if ($domain === null) {
+                $report->bump('website_trackers', 'skipped');
+
+                continue;
+            }
+
+            $status = strtolower((string) ($row->status ?? 'inactive'));
+            $status = in_array($status, ['connected', 'active', '1', 'enabled'], true) ? 'active' : 'inactive';
+
+            $existingId = $ids->getInt('website_tracker', $legacyId);
+            $existing = $existingId
+                ? \App\Domains\ThirdParty\Models\WebsiteTracker::query()->find($existingId)
+                : \App\Domains\ThirdParty\Models\WebsiteTracker::query()->where('domain', $domain)->first();
+
+            if ($dryRun) {
+                $report->bump('website_trackers', $existing ? 'updated' : 'created');
+
+                continue;
+            }
+
+            $attributes = [
+                'name' => $name !== '' ? $name : $domain,
+                'domain' => $domain,
+                'status' => $status,
+            ];
+
+            if ($existing !== null) {
+                $existing->forceFill($attributes)->save();
+                $tracker = $existing;
+                $report->bump('website_trackers', 'updated');
+            } else {
+                $tracker = \App\Domains\ThirdParty\Models\WebsiteTracker::query()->create($attributes);
+                $report->bump('website_trackers', 'created');
+            }
+
+            $ids->put('website_tracker', $legacyId, $tracker->id);
+        }
+    }
+
+    private function importGoogleCalendarBookingLinks(
+        LegacyCustomerSnapshot $customer,
+        int $userId,
+        MigrationIdMap $ids,
+        MigrationReport $report,
+        bool $dryRun,
+    ): void {
+        if (! $this->legacy->tableExists('google_calendar_booking_links')) {
+            return;
+        }
+
+        $legacyUserIds = $this->legacy->db()->table('users')
+            ->where('customer_id', $customer->id)
+            ->pluck('id');
+
+        if ($legacyUserIds->isEmpty()) {
+            return;
+        }
+
+        $rows = $this->legacy->db()->table('google_calendar_booking_links')
+            ->whereIn('user_id', $legacyUserIds)
+            ->orderBy('id')
+            ->get();
+
+        foreach ($rows as $row) {
+            $legacyId = (int) $row->id;
+            $slug = trim((string) ($row->slug ?? ''));
+            if ($slug === '') {
+                $report->bump('gcal_booking_links', 'skipped');
+
+                continue;
+            }
+
+            $mappedUserId = $ids->getInt('legacy_user', (int) ($row->user_id ?? 0)) ?? $userId;
+            $status = strtolower((string) ($row->status ?? 'enabled'));
+            $enabled = in_array($status, ['enabled', 'active', '1'], true);
+
+            $settings = $row->settings ?? null;
+            if (is_string($settings) && $settings !== '') {
+                $decoded = json_decode($settings, true);
+                $settings = is_array($decoded) ? $decoded : null;
+            }
+
+            $existingId = $ids->getInt('gcal_booking_link', $legacyId);
+            $existing = $existingId
+                ? \App\Domains\ThirdParty\Models\GoogleCalendarBookingLink::query()->find($existingId)
+                : \App\Domains\ThirdParty\Models\GoogleCalendarBookingLink::query()->where('slug', $slug)->first();
+
+            if ($dryRun) {
+                $report->bump('gcal_booking_links', $existing ? 'updated' : 'created');
+
+                continue;
+            }
+
+            $attributes = [
+                'user_id' => $mappedUserId,
+                'slug' => $slug,
+                'title' => trim((string) ($row->title ?? $slug)),
+                'duration_minutes' => (int) ($row->duration_minutes ?? 30),
+                'status' => $enabled
+                    ? \App\Domains\ThirdParty\Enums\IntegrationStatus::Enabled
+                    : \App\Domains\ThirdParty\Enums\IntegrationStatus::Disabled,
+                'settings' => is_array($settings) ? $settings : [],
+            ];
+
+            if ($existing !== null) {
+                $existing->forceFill($attributes)->save();
+                $link = $existing;
+                $report->bump('gcal_booking_links', 'updated');
+            } else {
+                $link = \App\Domains\ThirdParty\Models\GoogleCalendarBookingLink::query()->create($attributes);
+                $report->bump('gcal_booking_links', 'created');
+            }
+
+            $ids->put('gcal_booking_link', $legacyId, $link->id);
+        }
+    }
+
+    private function extractDomain(string $url): ?string
+    {
+        $url = trim($url);
+        if ($url === '') {
+            return null;
+        }
+
+        if (! str_contains($url, '://')) {
+            $url = 'https://'.$url;
+        }
+
+        $host = parse_url($url, PHP_URL_HOST);
+
+        return is_string($host) && $host !== '' ? strtolower($host) : null;
     }
 
     private function importShopify(

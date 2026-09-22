@@ -49,6 +49,7 @@ return [
         'messages' => (int) env('LEGACY_MIGRATE_MESSAGE_CHUNK', 300),
         'campaign_recipients' => (int) env('LEGACY_MIGRATE_RECIPIENT_CHUNK', 500),
         'inbox_threads' => (int) env('LEGACY_MIGRATE_INBOX_CHUNK', 200),
+        'webhook_logs' => (int) env('LEGACY_MIGRATE_WEBHOOK_LOG_CHUNK', 300),
     ],
 
     /*
@@ -92,7 +93,9 @@ return [
         'owner',
         'lines',
         'lists',
+        'list_fields',
         'contacts',
+        'segments',
         'templates',
         'interactive_messages',
         'variables',
@@ -108,5 +111,7 @@ return [
         'inbox',
         'billing',
         'integrations',
+        'commerce',
+        'webhooks',
     ],
 ];

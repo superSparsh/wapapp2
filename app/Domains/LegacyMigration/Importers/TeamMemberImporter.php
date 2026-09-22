@@ -101,6 +101,51 @@ final class TeamMemberImporter implements LegacyImporter
 
             $ids->put('team_member', $legacyId, $member->id);
         }
+
+        $this->importManagerAssignments($customer, $ownerId, $ids, $report, $dryRun);
+    }
+
+    private function importManagerAssignments(
+        LegacyCustomerSnapshot $customer,
+        int $ownerId,
+        MigrationIdMap $ids,
+        MigrationReport $report,
+        bool $dryRun,
+    ): void {
+        if (! $this->legacy->tableExists('manager_member_assignments')) {
+            return;
+        }
+
+        $query = $this->legacy->db()->table('manager_member_assignments');
+        if ($this->legacy->hasColumn('manager_member_assignments', 'customer_id')) {
+            $query->where('customer_id', $customer->id);
+        }
+
+        foreach ($query->orderBy('id')->get() as $row) {
+            $managerId = $ids->getInt('team_member', (int) ($row->manager_id ?? 0));
+            $memberId = $ids->getInt('team_member', (int) ($row->member_id ?? 0));
+            if ($managerId === null || $memberId === null) {
+                $report->bump('manager_assignments', 'skipped');
+
+                continue;
+            }
+
+            if ($dryRun) {
+                $report->bump('manager_assignments', 'created');
+
+                continue;
+            }
+
+            \App\Models\ManagerMemberAssignment::query()->updateOrCreate(
+                [
+                    'parent_user_id' => $ownerId,
+                    'manager_id' => $managerId,
+                    'member_id' => $memberId,
+                ],
+                [],
+            );
+            $report->bump('manager_assignments', 'updated');
+        }
     }
 
     private function mapRole(mixed $role): TeamMemberRole

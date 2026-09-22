@@ -4,14 +4,17 @@ declare(strict_types=1);
 
 namespace App\Domains\LegacyMigration\Importers;
 
+use App\Domains\Billing\Models\WalletAutoRechargeSetting;
 use App\Domains\LegacyMigration\DTO\LegacyCustomerSnapshot;
 use App\Domains\LegacyMigration\Support\LegacyConnection;
 use App\Domains\LegacyMigration\Support\MigrationIdMap;
 use App\Domains\LegacyMigration\Support\MigrationReport;
 use App\Enums\WalletTransactionType;
+use App\Models\BillingAddress;
 use App\Models\Tenant;
 use App\Models\WalletAccount;
 use App\Models\WalletTransaction;
+use Illuminate\Support\Carbon;
 
 final class BillingImporter implements LegacyImporter
 {
@@ -59,6 +62,8 @@ final class BillingImporter implements LegacyImporter
 
         if (! $this->legacy->tableExists('wallet_transactions')) {
             $report->warn('Legacy table [wallet_transactions] not found; wallet balance only synced.');
+            $this->importBillingAddresses($customer, $ids, $report);
+            $this->importAutoRecharge($customer, $report);
 
             return;
         }
@@ -122,6 +127,134 @@ final class BillingImporter implements LegacyImporter
         }
 
         $this->recomputeBalanceAfter((float) ($wallet->fresh()?->balance ?? 0));
+        $this->importBillingAddresses($customer, $ids, $report);
+        $this->importAutoRecharge($customer, $report);
+    }
+
+    private function importBillingAddresses(
+        LegacyCustomerSnapshot $customer,
+        MigrationIdMap $ids,
+        MigrationReport $report,
+    ): void {
+        if (! $this->legacy->tableExists('billing_addresses')) {
+            return;
+        }
+
+        $rows = $this->legacy->db()->table('billing_addresses')
+            ->where('customer_id', $customer->id)
+            ->orderBy('id')
+            ->get();
+
+        $first = true;
+        foreach ($rows as $row) {
+            $legacyId = (int) $row->id;
+            $company = trim((string) (
+                $row->business_legal_name
+                ?? $row->business_trade_name
+                ?? $row->name
+                ?? $row->company_name
+                ?? ''
+            ));
+            $line1 = trim((string) ($row->address ?? $row->address_line_1 ?? ''));
+
+            $attributes = [
+                'gst_treatment' => filled($row->gst_treatment ?? null) ? (string) $row->gst_treatment : null,
+                'company_name' => $company !== '' ? $company : null,
+                'pan' => filled($row->pan ?? null) ? (string) $row->pan : null,
+                'email' => filled($row->email ?? null) ? strtolower((string) $row->email) : null,
+                'phone' => filled($row->phone ?? null) ? (string) $row->phone : null,
+                'address_line_1' => $line1 !== '' ? $line1 : null,
+                'address_line_2' => filled($row->address_line_2 ?? null) ? (string) $row->address_line_2 : null,
+                'city' => filled($row->city ?? null) ? (string) $row->city : null,
+                'state' => filled($row->state ?? null) ? (string) $row->state : null,
+                'postal_code' => filled($row->zip ?? $row->postal_code ?? null)
+                    ? (string) ($row->zip ?? $row->postal_code)
+                    : null,
+                'country_code' => $this->resolveCountryCode($row),
+                'is_default' => $first,
+            ];
+            $first = false;
+
+            $existingId = $ids->getInt('billing_address', $legacyId);
+            $existing = $existingId
+                ? BillingAddress::query()->find($existingId)
+                : null;
+
+            if ($existing !== null) {
+                $existing->forceFill($attributes)->save();
+                $address = $existing;
+                $report->bump('billing_addresses', 'updated');
+            } else {
+                $address = BillingAddress::query()->create($attributes);
+                $report->bump('billing_addresses', 'created');
+            }
+
+            $ids->put('billing_address', $legacyId, $address->id);
+        }
+    }
+
+    private function importAutoRecharge(LegacyCustomerSnapshot $customer, MigrationReport $report): void
+    {
+        if (! $this->legacy->tableExists('wallet_auto_recharge_settings')) {
+            return;
+        }
+
+        $row = $this->legacy->db()->table('wallet_auto_recharge_settings')
+            ->where('customer_id', $customer->id)
+            ->orderByDesc('id')
+            ->first();
+
+        if ($row === null) {
+            return;
+        }
+
+        $enabled = (bool) ($row->is_enabled ?? false);
+        if (isset($row->status)) {
+            $status = strtolower((string) $row->status);
+            $enabled = $enabled && in_array($status, ['active', '1', 'enabled'], true);
+        }
+
+        $lastTriggered = null;
+        if (! empty($row->last_recharged_at) && $row->last_recharged_at !== '0000-00-00 00:00:00') {
+            try {
+                $lastTriggered = Carbon::parse((string) $row->last_recharged_at);
+            } catch (\Throwable) {
+                $lastTriggered = null;
+            }
+        }
+
+        $settings = WalletAutoRechargeSetting::query()->first();
+        $attributes = [
+            'enabled' => $enabled,
+            'threshold_amount' => (float) ($row->threshold_amount ?? 0),
+            'recharge_amount' => (float) ($row->recharge_amount ?? 0),
+            'last_triggered_at' => $lastTriggered,
+        ];
+
+        if ($settings !== null) {
+            $settings->forceFill($attributes)->save();
+            $report->bump('wallet_auto_recharge', 'updated');
+        } else {
+            WalletAutoRechargeSetting::query()->create($attributes);
+            $report->bump('wallet_auto_recharge', 'created');
+        }
+    }
+
+    private function resolveCountryCode(object $row): ?string
+    {
+        if (filled($row->country_code ?? null)) {
+            return strtoupper(substr((string) $row->country_code, 0, 3));
+        }
+
+        if (! isset($row->country_id) || ! $this->legacy->tableExists('countries')) {
+            return 'IN';
+        }
+
+        $code = $this->legacy->db()->table('countries')
+            ->where('id', (int) $row->country_id)
+            ->value('code');
+
+        return filled($code) ? strtoupper(substr((string) $code, 0, 3)) : 'IN';
     }
 
     private function recomputeBalanceAfter(float $currentBalance): void

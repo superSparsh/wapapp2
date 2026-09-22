@@ -15,6 +15,8 @@ use App\Models\Plan;
 use App\Models\Tenant;
 use App\Models\TenantUserAccess;
 use App\Models\User;
+use App\Models\WebhookDelivery;
+use App\Models\WebhookSubscription;
 use App\Models\WhatsappLine;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -103,6 +105,46 @@ class LegacyCustomerMigrationTest extends TestCase
             'tenant_id' => $tenant->id,
             'status' => 'completed',
         ]);
+    }
+
+    public function test_migrates_webhook_subscriptions_and_delivery_logs(): void
+    {
+        $this->seedLegacyCustomer(40, 'webhooks@example.com', withExtras: true);
+
+        $result = app(CustomerMigrationOrchestrator::class)->migrate(
+            '40',
+            new MigrationOptions(dryRun: false, force: false),
+        );
+
+        $tenant = Tenant::query()->findOrFail($result['tenant_id']);
+        tenancy()->initialize($tenant);
+
+        $this->assertSame(1, WebhookSubscription::query()->count());
+        $subscription = WebhookSubscription::query()->firstOrFail();
+        $this->assertSame('https://hooks.example.com/leads/40', $subscription->url);
+        $this->assertSame('secret-legacy-40', $subscription->secret_key);
+        $this->assertSame(['new_lead'], $subscription->events);
+        $this->assertNotNull($subscription->whatsapp_line_id);
+        $this->assertNotNull($subscription->audience_list_id);
+
+        $this->assertSame(1, WebhookDelivery::query()->count());
+        $delivery = WebhookDelivery::query()->firstOrFail();
+        $this->assertSame($subscription->id, $delivery->webhook_subscription_id);
+        $this->assertSame('new_lead', $delivery->event_type);
+        $this->assertSame(200, $delivery->response_status);
+        $this->assertStringStartsWith('legacy-webhook-log-', (string) $delivery->correlation_id);
+        tenancy()->end();
+
+        // Re-run must not duplicate.
+        app(CustomerMigrationOrchestrator::class)->migrate(
+            '40',
+            new MigrationOptions(dryRun: false, force: true),
+        );
+
+        tenancy()->initialize($tenant);
+        $this->assertSame(1, WebhookSubscription::query()->count());
+        $this->assertSame(1, WebhookDelivery::query()->count());
+        tenancy()->end();
     }
 
     public function test_dry_run_does_not_create_tenant(): void
@@ -404,6 +446,37 @@ class LegacyCustomerMigrationTest extends TestCase
             $table->timestamps();
         });
 
+        $schema->create('webhook_settings', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('customer_id');
+            $table->unsignedBigInteger('new_contact_id')->nullable();
+            $table->string('url');
+            $table->string('description')->nullable();
+            $table->string('secret_key');
+            $table->text('events');
+            $table->string('status')->default('active');
+            $table->timestamp('last_triggered_at')->nullable();
+            $table->unsignedInteger('audience_list_id')->nullable();
+            $table->timestamps();
+        });
+
+        $schema->create('webhook_logs', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedInteger('customer_id');
+            $table->unsignedBigInteger('new_contact_id')->nullable();
+            $table->unsignedBigInteger('webhook_id')->nullable();
+            $table->string('webhook_url')->nullable();
+            $table->string('event_type');
+            $table->text('payload');
+            $table->text('response_body')->nullable();
+            $table->integer('response_status')->nullable();
+            $table->text('error_message')->nullable();
+            $table->string('status');
+            $table->timestamp('sent_at')->nullable();
+            $table->timestamp('response_received_at')->nullable();
+            $table->timestamps();
+        });
+
         foreach (['automation_bots', 'automation2s', 'flows', 'team_members', 'new_campaigns', 'wallet_transactions', 'sub_replies', 'conversations'] as $table) {
             if ($schema->hasTable($table)) {
                 continue;
@@ -490,6 +563,38 @@ class LegacyCustomerMigrationTest extends TestCase
             'actual_body' => 'Hello {{1}}',
             'created_at' => now(),
             'updated_at' => now(),
+        ]);
+
+        $webhookId = $id * 1000;
+        DB::connection('legacy')->table('webhook_settings')->insert([
+            'id' => $webhookId,
+            'customer_id' => $id,
+            'new_contact_id' => $id * 10,
+            'url' => 'https://hooks.example.com/leads/'.$id,
+            'description' => 'Legacy webhook '.$id,
+            'secret_key' => 'secret-legacy-'.$id,
+            'events' => json_encode(['new_lead']),
+            'status' => 'active',
+            'audience_list_id' => $listId,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::connection('legacy')->table('webhook_logs')->insert([
+            'customer_id' => $id,
+            'new_contact_id' => $id * 10,
+            'webhook_id' => $webhookId,
+            'webhook_url' => 'https://hooks.example.com/leads/'.$id,
+            'event_type' => 'new_lead',
+            'payload' => json_encode(['phone' => '919876543210', 'name' => 'Lead '.$id]),
+            'response_body' => '{"ok":true}',
+            'response_status' => 200,
+            'error_message' => null,
+            'status' => 'success',
+            'sent_at' => now()->subHour(),
+            'response_received_at' => now()->subHour()->addSeconds(2),
+            'created_at' => now()->subHour(),
+            'updated_at' => now()->subHour(),
         ]);
     }
 }

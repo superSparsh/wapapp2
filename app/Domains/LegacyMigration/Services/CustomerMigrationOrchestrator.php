@@ -11,19 +11,23 @@ use App\Domains\LegacyMigration\Importers\AiSettingsImporter;
 use App\Domains\LegacyMigration\Importers\BillingImporter;
 use App\Domains\LegacyMigration\Importers\CampaignImporter;
 use App\Domains\LegacyMigration\Importers\ChatbotFlowImporter;
+use App\Domains\LegacyMigration\Importers\CommerceImporter;
 use App\Domains\LegacyMigration\Importers\ContactImporter;
 use App\Domains\LegacyMigration\Importers\DripCampaignImporter;
 use App\Domains\LegacyMigration\Importers\InboxImporter;
 use App\Domains\LegacyMigration\Importers\IntegrationImporter;
 use App\Domains\LegacyMigration\Importers\InteractiveMessageImporter;
 use App\Domains\LegacyMigration\Importers\LegacyImporter;
+use App\Domains\LegacyMigration\Importers\ListFieldImporter;
 use App\Domains\LegacyMigration\Importers\MailListImporter;
 use App\Domains\LegacyMigration\Importers\OwnerUserImporter;
+use App\Domains\LegacyMigration\Importers\SegmentImporter;
 use App\Domains\LegacyMigration\Importers\SignupFormImporter;
 use App\Domains\LegacyMigration\Importers\TeamMemberImporter;
 use App\Domains\LegacyMigration\Importers\TemplateImporter;
 use App\Domains\LegacyMigration\Importers\TriggerVariableImporter;
 use App\Domains\LegacyMigration\Importers\VariableImporter;
+use App\Domains\LegacyMigration\Importers\WebhookImporter;
 use App\Domains\LegacyMigration\Importers\WhatsappFlowImporter;
 use App\Domains\LegacyMigration\Importers\WhatsappLineImporter;
 use App\Domains\LegacyMigration\Support\LegacyConnection;
@@ -46,7 +50,9 @@ class CustomerMigrationOrchestrator
         OwnerUserImporter $owner,
         WhatsappLineImporter $lines,
         MailListImporter $lists,
+        ListFieldImporter $listFields,
         ContactImporter $contacts,
+        SegmentImporter $segments,
         TemplateImporter $templates,
         InteractiveMessageImporter $interactiveMessages,
         VariableImporter $variables,
@@ -62,12 +68,16 @@ class CustomerMigrationOrchestrator
         InboxImporter $inbox,
         BillingImporter $billing,
         IntegrationImporter $integrations,
+        CommerceImporter $commerce,
+        WebhookImporter $webhooks,
     ) {
         $this->importers = [
             $owner->key() => $owner,
             $lines->key() => $lines,
             $lists->key() => $lists,
+            $listFields->key() => $listFields,
             $contacts->key() => $contacts,
+            $segments->key() => $segments,
             $templates->key() => $templates,
             $interactiveMessages->key() => $interactiveMessages,
             $variables->key() => $variables,
@@ -83,6 +93,8 @@ class CustomerMigrationOrchestrator
             $inbox->key() => $inbox,
             $billing->key() => $billing,
             $integrations->key() => $integrations,
+            $commerce->key() => $commerce,
+            $webhooks->key() => $webhooks,
         ];
     }
 

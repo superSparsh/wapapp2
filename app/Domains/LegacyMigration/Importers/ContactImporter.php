@@ -75,6 +75,8 @@ final class ContactImporter implements LegacyImporter
         }
 
         $contact = Contact::query()->where('phone', $phone)->first();
+        $customFields = $this->loadCustomFields($legacyId, $ids, $contact?->custom_fields ?? []);
+
         $payload = [
             'phone' => $phone,
             'name' => $name !== '' ? $name : null,
@@ -83,6 +85,7 @@ final class ContactImporter implements LegacyImporter
             'opt_in_status' => $this->mapOptIn($row->status ?? null),
             'source' => 'legacy_import',
             'mail_list_id' => $mailListId ?? ($contact?->mail_list_id),
+            'custom_fields' => $customFields,
             'metadata' => array_merge($contact?->metadata ?? [], [
                 'legacy_subscriber_id' => $legacyId,
                 'legacy_uid' => $row->uid ?? null,
@@ -102,6 +105,38 @@ final class ContactImporter implements LegacyImporter
 
         $ids->put('contact', $legacyId, $contact->id);
         $ids->put('contact_phone', $phone, $contact->id);
+    }
+
+    /**
+     * @param  array<string, mixed>  $existing
+     * @return array<string, mixed>
+     */
+    private function loadCustomFields(int $legacySubscriberId, MigrationIdMap $ids, array $existing): array
+    {
+        if (! $this->legacy->tableExists('subscriber_fields')) {
+            return $existing;
+        }
+
+        $rows = $this->legacy->db()->table('subscriber_fields')
+            ->where('subscriber_id', $legacySubscriberId)
+            ->get(['field_id', 'value']);
+
+        $fields = $existing;
+        foreach ($rows as $row) {
+            $legacyFieldId = (int) ($row->field_id ?? 0);
+            if ($legacyFieldId <= 0) {
+                continue;
+            }
+
+            $tag = $ids->get('list_field_tag', $legacyFieldId);
+            if (! is_string($tag) || $tag === '') {
+                continue;
+            }
+
+            $fields[$tag] = $row->value;
+        }
+
+        return $fields;
     }
 
     /**
