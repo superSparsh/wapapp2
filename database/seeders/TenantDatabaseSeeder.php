@@ -16,24 +16,28 @@ class TenantDatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        $user = User::query()->create([
-            'name' => 'Demo Owner',
-            'first_name' => 'Demo',
-            'last_name' => 'Owner',
-            'email' => 'owner@demo.wapapp.test',
-            'phone' => '919999999999',
-            'password' => 'password',
-            'role' => UserRole::Owner,
-            'email_verified_at' => now(),
-            'api_token' => Str::random(60),
-        ]);
+        $user = User::query()->updateOrCreate(
+            ['email' => 'owner@demo.wapapp.test'],
+            [
+                'name' => 'Demo Owner',
+                'first_name' => 'Demo',
+                'last_name' => 'Owner',
+                'phone' => '919999999999',
+                'password' => 'password',
+                'role' => UserRole::Owner,
+                'email_verified_at' => now(),
+                'api_token' => Str::random(60),
+            ],
+        );
 
-        WhatsappLine::query()->create([
-            'phone' => '919999999999',
-            'display_name' => 'Demo Business Line',
-            'status' => RecordStatus::Active,
-            'is_default' => true,
-        ]);
+        WhatsappLine::query()->updateOrCreate(
+            ['phone' => '919999999999'],
+            [
+                'display_name' => 'Demo Business Line',
+                'status' => RecordStatus::Active,
+                'is_default' => true,
+            ],
+        );
 
         $tenantId = tenant('id');
 

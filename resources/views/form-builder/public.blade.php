@@ -4,6 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ $form->name }}</title>
+    <x-layouts.favicon />
     <style>
         :root {
             --green: #6dbb48;

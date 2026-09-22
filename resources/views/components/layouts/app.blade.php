@@ -8,6 +8,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="preview-business-name" content="{{ \App\Support\PreviewBusinessName::resolve() }}">
     <title>{{ $title ?? config('app.name', 'WapApp') }}</title>
+    <x-layouts.favicon />
     <x-layouts.theme-boot />
     @fonts
     @php

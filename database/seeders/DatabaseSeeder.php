@@ -18,65 +18,78 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        $plan = Plan::query()->create([
-            'name' => 'Professional',
-            'slug' => 'professional',
-            'description' => 'For growing businesses with campaigns and automation.',
-            'price' => 4999,
-            'currency' => 'INR',
-            'billing_cycle' => BillingCycle::Monthly,
-            'messages_limit' => 50000,
-            'contacts_limit' => 10000,
-            'team_members_limit' => 10,
-            'whatsapp_lines_limit' => 5,
-            'sort_order' => 1,
-            'is_active' => true,
-            'features' => [
-                'inbox' => true,
-                'campaigns' => true,
-                'automation' => true,
-                'webhooks' => true,
-            ],
-        ]);
-
         $this->call(PlatformDefaultsSeeder::class);
 
-        $adminEmail = strtolower(trim((string) env('ADMIN_SEED_EMAIL', 'superadmin@wapapp.in')));
-        $adminPassword = (string) env('ADMIN_SEED_PASSWORD', '');
-        if ($adminPassword === '') {
-            $adminPassword = Str::password(28, symbols: true);
-        }
+        $plan = Plan::query()->updateOrCreate(
+            ['slug' => 'professional'],
+            [
+                'name' => 'Professional',
+                'description' => 'For growing businesses with campaigns and automation.',
+                'price' => 4999,
+                'currency' => 'INR',
+                'billing_cycle' => BillingCycle::Monthly,
+                'messages_limit' => 50000,
+                'contacts_limit' => 10000,
+                'team_members_limit' => 10,
+                'whatsapp_lines_limit' => 5,
+                'sort_order' => 1,
+                'is_active' => true,
+                'features' => [
+                    'inbox' => true,
+                    'campaigns' => true,
+                    'automation' => true,
+                    'webhooks' => true,
+                ],
+            ],
+        );
 
-        Admin::query()->create([
-            'name' => 'Super Admin',
-            'email' => $adminEmail,
-            'password' => $adminPassword,
-            'admin_role_id' => AdminRole::query()->where('slug', 'super-admin')->value('id'),
-        ]);
+        $adminEmail = strtolower(trim((string) env('ADMIN_SEED_EMAIL', 'superadmin@wapapp.in')));
+        $configuredPassword = (string) env('ADMIN_SEED_PASSWORD', '');
+        $existingAdmin = Admin::query()->where('email', $adminEmail)->first();
+
+        $adminPassword = $configuredPassword !== ''
+            ? $configuredPassword
+            : ($existingAdmin ? null : Str::password(28, symbols: true));
+
+        $admin = Admin::query()->updateOrCreate(
+            ['email' => $adminEmail],
+            array_filter([
+                'name' => 'Super Admin',
+                'password' => $adminPassword,
+                'admin_role_id' => AdminRole::query()->where('slug', 'super-admin')->value('id'),
+                'is_active' => true,
+            ], static fn ($value) => $value !== null),
+        );
 
         $this->call(HelpCenterSeeder::class);
 
         $tenantId = 'demo-0001';
         $databaseName = app(TenantDatabaseNamingService::class)->forTenantId($tenantId);
 
-        $tenant = Tenant::query()->create([
-            'id' => $tenantId,
-            'database_name' => $databaseName,
-            'name' => 'Demo Company',
-            'company_name' => 'Demo Company Pvt Ltd',
-            'email' => 'demo@wapapp.test',
-            'status' => TenantStatus::Active,
-            'plan_id' => $plan->id,
-            'timezone' => 'Asia/Kolkata',
-            'locale' => 'en',
-            'country_code' => 'IN',
-            'provisioned_at' => now(),
-        ]);
+        $tenant = Tenant::query()->firstOrCreate(
+            ['id' => $tenantId],
+            [
+                'database_name' => $databaseName,
+                'name' => 'Demo Company',
+                'company_name' => 'Demo Company Pvt Ltd',
+                'email' => 'demo@wapapp.test',
+                'status' => TenantStatus::Active,
+                'plan_id' => $plan->id,
+                'timezone' => 'Asia/Kolkata',
+                'locale' => 'en',
+                'country_code' => 'IN',
+                'provisioned_at' => now(),
+            ],
+        );
 
-        $tenant->domains()->create([
-            'domain' => $tenantId,
-            'is_primary' => true,
-        ]);
+        if ($tenant->plan_id !== $plan->id) {
+            $tenant->forceFill(['plan_id' => $plan->id])->save();
+        }
+
+        $tenant->domains()->firstOrCreate(
+            ['domain' => $tenantId],
+            ['is_primary' => true],
+        );
 
         app(TenantProvisioner::class)->ensureDatabase($tenant);
 
@@ -85,8 +98,12 @@ class DatabaseSeeder extends Seeder
         });
 
         $this->command?->info('Master DB seeded successfully.');
-        $this->command?->info("Admin login: {$adminEmail}");
-        $this->command?->warn("Admin password: {$adminPassword}");
+        $this->command?->info("Admin login: {$admin->email}");
+        if ($adminPassword !== null) {
+            $this->command?->warn("Admin password: {$adminPassword}");
+        } else {
+            $this->command?->info('Admin already existed — password left unchanged (set ADMIN_SEED_PASSWORD to reset).');
+        }
         $this->command?->info('Set ADMIN_SEED_EMAIL / ADMIN_SEED_PASSWORD in .env to use fixed credentials.');
         $this->command?->info('Tenant: '.$tenantId.' (auto-provisioned)');
         $this->command?->info('Tenant DB: '.$databaseName);

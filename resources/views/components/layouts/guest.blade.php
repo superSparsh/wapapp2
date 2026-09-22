@@ -6,6 +6,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <title>{{ $title ?? config('app.name', 'WapApp') }}</title>
+    <x-layouts.favicon />
 
     <x-layouts.theme-boot />
     @fonts

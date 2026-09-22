@@ -4,6 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ $options['form_title'] ?: $list->name }}</title>
+    <x-layouts.favicon />
     {{-- Preview always loads stylesheet so admin sees the real form look --}}
     <link href="{{ url('/core/css/embedded.css') }}" rel="stylesheet" type="text/css">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
