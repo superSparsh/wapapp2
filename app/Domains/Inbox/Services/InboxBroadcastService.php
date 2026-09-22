@@ -202,10 +202,9 @@ class InboxBroadcastService
     private function safeBroadcast(ShouldBroadcastNow $event): void
     {
         try {
-            // Force PendingBroadcast::__destruct inside try so Pusher/Reverb
-            // failures cannot escape and break webhook / status pipelines.
-            $pending = broadcast($event);
-            unset($pending);
+            // Dispatch through the event bus so Event::fake works in tests, while
+            // keeping Pusher/Reverb failures inside this try/catch.
+            event($event);
         } catch (BroadcastException $e) {
             Log::warning('Inbox realtime broadcast failed', [
                 'event' => $event::class,

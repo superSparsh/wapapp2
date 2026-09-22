@@ -41,8 +41,6 @@ class InboxRealtimeTest extends TestCase
         app(\App\Domains\Inbox\Services\InboxMessageService::class)
             ->recordInbound($conversation, 'Realtime hello');
 
-        $this->app->terminate();
-
         Event::assertDispatched(InboxMessageCreated::class, function (InboxMessageCreated $event) use ($conversation): bool {
             return $event->conversationUuid === $conversation->uuid
                 && $event->message['body'] === 'Realtime hello';
@@ -57,12 +55,8 @@ class InboxRealtimeTest extends TestCase
         app(\App\Domains\Inbox\Services\InboxMessageService::class)
             ->recordInbound($conversation, 'Unread');
 
-        $this->app->terminate();
-
         app(\App\Domains\Inbox\Services\InboxMessageService::class)
             ->markRead($conversation);
-
-        $this->app->terminate();
 
         Event::assertDispatched(InboxThreadUpdated::class, function (InboxThreadUpdated $event) use ($conversation): bool {
             return $event->conversationUuid === $conversation->uuid
@@ -80,8 +74,6 @@ class InboxRealtimeTest extends TestCase
 
         app(\App\Domains\Inbox\Services\InboxMessageService::class)
             ->recordInbound($conversation, 'No broadcast');
-
-        $this->app->terminate();
 
         Event::assertNotDispatched(InboxMessageCreated::class);
     }

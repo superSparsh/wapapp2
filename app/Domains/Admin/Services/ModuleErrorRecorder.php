@@ -194,6 +194,7 @@ class ModuleErrorRecorder
             \Symfony\Component\HttpKernel\Exception\HttpException::class,
             \Illuminate\Session\TokenMismatchException::class,
             \Illuminate\Routing\Exceptions\InvalidSignatureException::class,
+            \Illuminate\Broadcasting\BroadcastException::class,
         ];
 
         foreach ($skip as $skipClass) {
@@ -205,6 +206,12 @@ class ModuleErrorRecorder
 
                 return true;
             }
+        }
+
+        // Reverb misconfig often returns a full Laravel HTML 404 page.
+        $message = $e->getMessage();
+        if (str_contains($message, 'Pusher error:') && str_contains($message, '<!DOCTYPE html>')) {
+            return true;
         }
 
         return false;

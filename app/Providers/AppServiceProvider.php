@@ -87,12 +87,19 @@ class AppServiceProvider extends ServiceProvider
 
         Queue::failing(function (JobFailed $event): void {
             try {
+                $exception = $event->exception;
+                $displayName = $event->job->resolveName();
+
+                // Inbox realtime / Reverb outages should not flood the Errors hub.
+                if ($exception instanceof \Illuminate\Broadcasting\BroadcastException
+                    || str_contains($displayName, 'BroadcastEvent')
+                    || str_contains($displayName, 'Events\\Inbox\\')) {
+                    return;
+                }
+
                 $resolver = app(ErrorModuleResolver::class);
                 $recorder = app(ModuleErrorRecorder::class);
-
-                $displayName = $event->job->resolveName();
                 $module = $resolver->fromDisplayName($displayName);
-                $exception = $event->exception;
 
                 $recorder->recordJob(
                     message: $exception->getMessage() !== ''
