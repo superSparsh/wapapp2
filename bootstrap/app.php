@@ -3,6 +3,10 @@
 use App\Domains\Admin\Http\Middleware\EnsureAdminIsActive;
 use App\Domains\Admin\Http\Middleware\EnsureCustomerSiteAvailable;
 use App\Domains\Admin\Services\ModuleErrorRecorder;
+use App\Domains\Alerts\Console\Commands\SendAccountExpirationReportCommand;
+use App\Domains\Alerts\Console\Commands\SendCalendarRemindersCommand;
+use App\Domains\Alerts\Console\Commands\SendPlanExpirationAlertsCommand;
+use App\Domains\Alerts\Console\Commands\SyncPhoneQualityAndNotifyCommand;
 use App\Domains\Api\Http\Middleware\AuthenticateApiToken;
 use App\Domains\Audience\Console\Commands\BackfillNonWhatsAppNumbersCommand;
 use App\Domains\Audience\Console\Commands\VerifyListContactsCommand;
@@ -164,6 +168,10 @@ return Application::configure(basePath: dirname(__DIR__))
         ScheduleIntegrationSyncCommand::class,
         WhatsAppHealthSnapshotCommand::class,
         WhatsAppHealthDigestCommand::class,
+        SendCalendarRemindersCommand::class,
+        SendPlanExpirationAlertsCommand::class,
+        SendAccountExpirationReportCommand::class,
+        SyncPhoneQualityAndNotifyCommand::class,
         SyncMetaPricingCommand::class,
         DiscoverMetaPricingCsvUrlCommand::class,
         SyncFreeUicQuotaCommand::class,
