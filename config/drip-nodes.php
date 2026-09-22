@@ -143,13 +143,14 @@ return [
             'icon' => 'clock.svg',
             'coming_soon' => false,
         ],
-        'typingIndicator' => [
-            'label' => 'Typing Indicator',
-            'description' => 'Show a typing indicator before the next message is sent.',
-            'category' => 'Timing',
-            'icon' => 'more.svg',
-            'coming_soon' => false,
-        ],
+        // Disabled: Typing Indicator not reliable yet
+        // 'typingIndicator' => [
+        //     'label' => 'Typing Indicator',
+        //     'description' => 'Show a typing indicator before the next message is sent.',
+        //     'category' => 'Timing',
+        //     'icon' => 'more.svg',
+        //     'coming_soon' => false,
+        // ],
         'contactOperation' => [
             'label' => 'Operation',
             'description' => 'Perform an operation like update, copy, move, or tag contacts.',

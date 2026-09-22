@@ -25,6 +25,7 @@ class JumpToStepProcessor extends AbstractNodeProcessor
             $data['targetNodeId']
             ?? $data['target_node']
             ?? $data['targetNode']
+            ?? $data['targetStepId']
             ?? $data['targetStep']
             ?? $data['stepId']
             ?? ''

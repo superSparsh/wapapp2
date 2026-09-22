@@ -39,8 +39,16 @@ class ConditionProcessor extends AbstractNodeProcessor
         $operator = (string) ($data['operator'] ?? 'equals');
         $value = (string) ($data['value'] ?? '');
 
-        // Resolve the field value from variables
+        // Resolve the field value from variables (with reply aliases)
         $fieldValue = (string) ($variables[$field] ?? '');
+        if ($fieldValue === '') {
+            foreach (['user_response', '_last_reply', 'message_text', 'last_reply'] as $alias) {
+                if (array_key_exists($alias, $variables) && (string) $variables[$alias] !== '') {
+                    $fieldValue = (string) $variables[$alias];
+                    break;
+                }
+            }
+        }
 
         $matched = $this->compare($fieldValue, $operator, $value);
 

@@ -59,7 +59,7 @@ class CampaignStatsController extends Controller
         ]);
     }
 
-    public function export(string $uuid): StreamedResponse|JsonResponse
+    public function export(Request $request, string $uuid): StreamedResponse|JsonResponse
     {
         $campaign = $this->queryService->findByUuid($uuid)
             ?? (is_numeric($uuid) ? $this->queryService->findById((int) $uuid) : null);
@@ -68,6 +68,6 @@ class CampaignStatsController extends Controller
             return response()->json(['error' => 'Campaign not found.'], 404);
         }
 
-        return $this->statsService->exportCsv($campaign);
+        return $this->statsService->exportCsv($campaign, $request->query('status'));
     }
 }

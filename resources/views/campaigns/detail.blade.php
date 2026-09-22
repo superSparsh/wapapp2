@@ -29,11 +29,11 @@
             </select>
           </form>
           <a
-            href="{{ route('campaigns.statistics.export', $campaign) }}"
+            href="{{ route('campaigns.statistics.export', array_filter(['bulkCampaign' => $campaign, 'status' => $currentStatus ?: null])) }}"
             class="fd-btn inline-flex shrink-0 items-center justify-center gap-3 rounded border border-solid border-green-500 bg-green-50 px-4 py-3 text-sm font-semibold leading-[1.5] text-green-500 transition-colors hover:bg-green-100"
           >
             <img src="{{ asset('images/automation/export-csv.svg') }}" alt="" class="size-4" width="16" height="16">
-            Export CSV
+            Export to CSV
           </a>
         </div>
       </div>

@@ -104,12 +104,38 @@ const ReactFlowEnhancedConditionModule = ({
       setLoading(true);
 
       // Process the form data
+      const normalizedConditions = (conditions || []).map((condition) => {
+        const matchType = condition.type || condition.operator || "equals";
+        const operator =
+          matchType === "exact"
+            ? "equals"
+            : matchType === "contains"
+              ? "contains"
+              : matchType === "starts_with"
+                ? "starts_with"
+                : matchType === "ends_with"
+                  ? "ends_with"
+                  : matchType === "regex"
+                    ? "regex"
+                    : condition.operator || "equals";
+
+        return {
+          ...condition,
+          field: condition.field || condition.variable || "user_response",
+          variable: condition.variable || condition.field || "user_response",
+          operator,
+          type: condition.type || operator,
+          value: condition.value ?? "",
+        };
+      });
+
       const nodeData = {
         ...values,
-        conditionType: conditionType,
+        conditionType: conditionType || "user_response",
         selectedTemplate: selectedTemplate,
         quickReplies: quickReplies,
-        conditions: conditions,
+        conditions: normalizedConditions,
+        logicOperator: values.logicOperator || "AND",
         label: `Enhanced Condition - ${getConditionTypeLabel(conditionType)}`,
       };
 
@@ -855,7 +881,9 @@ const ReactFlowEnhancedConditionModule = ({
                 name: values.conditionName,
                 type: values.conditionType,
                 value: values.conditionValue,
-                operator: values.conditionOperator,
+                operator: values.conditionOperator || values.conditionType,
+                field: values.conditionField || "user_response",
+                variable: values.conditionField || "user_response",
               });
             } else {
               message.error("Please fill all required fields");
@@ -875,7 +903,20 @@ const ReactFlowEnhancedConditionModule = ({
           <Form.Item name="conditionName" label="Condition Name" required>
             <Input placeholder="Enter condition name" />
           </Form.Item>
-          <Form.Item name="conditionType" label="Condition Type" required>
+          <Form.Item
+            name="conditionField"
+            label="Variable / Field"
+            initialValue="user_response"
+            required
+          >
+            <Select placeholder="Select variable to compare">
+              <Select.Option value="user_response">user_response</Select.Option>
+              <Select.Option value="_last_reply">_last_reply</Select.Option>
+              <Select.Option value="contact_name">contact_name</Select.Option>
+              <Select.Option value="contact_phone">contact_phone</Select.Option>
+            </Select>
+          </Form.Item>
+          <Form.Item name="conditionType" label="Match Type" required>
             <Select placeholder="Select condition type">
               <Select.Option value="exact">Exact Match</Select.Option>
               <Select.Option value="contains">Contains</Select.Option>
@@ -887,8 +928,8 @@ const ReactFlowEnhancedConditionModule = ({
           <Form.Item name="conditionValue" label="Condition Value" required>
             <Input placeholder="Enter condition value" />
           </Form.Item>
-          <Form.Item name="conditionOperator" label="Operator" required>
-            <Select placeholder="Select operator">
+          <Form.Item name="conditionOperator" label="Operator">
+            <Select placeholder="Select operator (optional)">
               <Select.Option value="equals">Equals</Select.Option>
               <Select.Option value="not_equals">Not Equals</Select.Option>
               <Select.Option value="greater_than">Greater Than</Select.Option>

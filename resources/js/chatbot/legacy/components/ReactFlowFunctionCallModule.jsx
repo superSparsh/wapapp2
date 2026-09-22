@@ -62,6 +62,10 @@ const ReactFlowFunctionCallModule = ({
       // Process the form data
       const nodeData = {
         ...values,
+        resultVariable:
+          values.returnVariable || values.resultVariable || "function_result",
+        returnVariable:
+          values.returnVariable || values.resultVariable || "function_result",
         label: `Function Call - ${values.functionName || values.functionType}`,
       };
 
@@ -84,54 +88,34 @@ const ReactFlowFunctionCallModule = ({
 
   const getPredefinedFunctions = () => [
     {
-      value: "send_email",
-      label: "Send Email",
-      description: "Send email notification",
+      value: "now",
+      label: "Current Time",
+      description: "ISO timestamp of now",
     },
     {
-      value: "send_sms",
-      label: "Send SMS",
-      description: "Send SMS notification",
+      value: "contact_name",
+      label: "Contact Name",
+      description: "Current conversation contact name",
     },
     {
-      value: "create_user",
-      label: "Create User",
-      description: "Create new user account",
+      value: "contact_phone",
+      label: "Contact Phone",
+      description: "Current conversation phone number",
     },
     {
-      value: "update_user",
-      label: "Update User",
-      description: "Update user information",
-    },
-    {
-      value: "get_weather",
-      label: "Get Weather",
-      description: "Get weather information",
-    },
-    {
-      value: "calculate_total",
-      label: "Calculate Total",
-      description: "Calculate order total",
-    },
-    {
-      value: "validate_input",
-      label: "Validate Input",
-      description: "Validate user input",
+      value: "random_number",
+      label: "Random Number",
+      description: "Random int using parameters min/max",
     },
     {
       value: "format_date",
       label: "Format Date",
-      description: "Format date string",
+      description: "Format current date (param: format)",
     },
     {
       value: "generate_id",
       label: "Generate ID",
-      description: "Generate unique ID",
-    },
-    {
-      value: "log_activity",
-      label: "Log Activity",
-      description: "Log user activity",
+      description: "Generate a unique ID string",
     },
   ];
 

@@ -56,10 +56,27 @@ class EnhancedConditionProcessor extends ConditionProcessor
         $isAnd = strtoupper($logicOperator) === 'AND';
 
         foreach ($conditions as $condition) {
-            $field = (string) ($condition['field'] ?? $condition['variable'] ?? '');
-            $operator = (string) ($condition['operator'] ?? 'equals');
+            if (! is_array($condition)) {
+                continue;
+            }
+
+            $field = (string) ($condition['field'] ?? $condition['variable'] ?? 'user_response');
+            $type = (string) ($condition['type'] ?? '');
+            $operator = (string) ($condition['operator'] ?? '');
+
+            if ($operator === '' || in_array($type, ['exact', 'contains', 'starts_with', 'ends_with', 'regex'], true)) {
+                $operator = match ($type) {
+                    'exact' => 'equals',
+                    'contains' => 'contains',
+                    'starts_with' => 'starts_with',
+                    'ends_with' => 'ends_with',
+                    'regex' => 'regex',
+                    default => ($operator !== '' ? $operator : 'equals'),
+                };
+            }
+
             $value = (string) ($condition['value'] ?? '');
-            $fieldValue = (string) ($variables[$field] ?? '');
+            $fieldValue = $this->resolveFieldValue($field, $variables);
 
             $result = $this->compare($fieldValue, $operator, $value);
 
@@ -73,5 +90,24 @@ class EnhancedConditionProcessor extends ConditionProcessor
         }
 
         return $isAnd;
+    }
+
+    /**
+     * @param  array<string, mixed>  $variables
+     */
+    private function resolveFieldValue(string $field, array $variables): string
+    {
+        if ($field !== '' && array_key_exists($field, $variables)) {
+            return (string) $variables[$field];
+        }
+
+        // Common aliases for reply-based conditions.
+        foreach (['user_response', '_last_reply', 'message_text', 'last_reply'] as $alias) {
+            if (array_key_exists($alias, $variables) && (string) $variables[$alias] !== '') {
+                return (string) $variables[$alias];
+            }
+        }
+
+        return '';
     }
 }

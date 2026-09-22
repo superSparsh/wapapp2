@@ -1,22 +1,27 @@
 @if (! empty($isAdminImpersonating) && ! empty($canAccessAdminView) && empty($isAdminOwnCustomer))
-  <div class="flex items-center justify-between gap-4 border-b border-amber-500/30 bg-amber-50 px-4 py-2 text-sm text-amber-900">
+  <div class="flex items-center justify-between gap-4 border-b border-green-500/25 bg-green-50 px-4 py-2 text-sm text-green-700">
     <span>
-      Admin view as customer
+      You are logged in as
+      <strong>{{ $adminImpersonatedTenantName ?: ($currentAccountName ?? 'customer') }}</strong>
       @if (! empty($adminImpersonatorName))
-        (via <strong>{{ $adminImpersonatorName }}</strong>)
+        <span class="text-green-600/80">(via {{ $adminImpersonatorName }})</span>
       @endif
     </span>
     <form method="post" action="{{ route('admin.impersonation.stop') }}">
       @csrf
-      <button type="submit" class="font-semibold text-amber-900 underline">Return to admin</button>
+      <button type="submit" class="font-semibold text-green-800 underline hover:text-green-900">Return to admin</button>
     </form>
   </div>
 @elseif (! empty($isAdminImpersonating) && empty($isAdminOwnCustomer))
   {{-- Regular login-as (not the admin's own customer account): keep a way back --}}
-  <div class="flex items-center justify-end gap-4 border-b border-border-light bg-elevated px-4 py-1.5 text-xs text-text-muted">
+  <div class="flex items-center justify-between gap-4 border-b border-green-500/25 bg-green-50 px-4 py-2 text-sm text-green-700">
+    <span>
+      You are logged in as
+      <strong>{{ $adminImpersonatedTenantName ?: ($currentAccountName ?? 'customer') }}</strong>
+    </span>
     <form method="post" action="{{ route('admin.impersonation.stop') }}">
       @csrf
-      <button type="submit" class="font-semibold text-primary-2 underline">Return to admin</button>
+      <button type="submit" class="font-semibold text-green-800 underline hover:text-green-900">Return to admin</button>
     </form>
   </div>
 @elseif (! empty($isImpersonating) && $impersonatedMember)

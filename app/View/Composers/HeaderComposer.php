@@ -46,6 +46,7 @@ class HeaderComposer
             'impersonatedMember' => $this->impersonationService->impersonatedMember(),
             'isAdminImpersonating' => $adminImpersonation !== null,
             'adminImpersonatorName' => $adminImpersonation['admin_name'] ?? null,
+            'adminImpersonatedTenantName' => $adminImpersonation['tenant_name'] ?? null,
             'canAccessAdminView' => AdminViewAccess::canAccess(),
             'isAdminOwnCustomer' => $isAdminOwnCustomer,
         ]);

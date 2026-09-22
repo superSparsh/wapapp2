@@ -147,4 +147,23 @@ class CampaignStatisticsTest extends TestCase
             ->assertOk()
             ->assertHeader('content-type', 'text/csv; charset=utf-8');
     }
+
+    public function test_export_respects_status_filter(): void
+    {
+        $campaign = Campaign::factory()->create();
+        CampaignRecipient::factory()->for($campaign)->delivered()->count(2)->create();
+        CampaignRecipient::factory()->for($campaign)->failed()->count(1)->create();
+
+        $response = $this->actingAsTenantUser()
+            ->get(route('campaigns.statistics.export', ['bulkCampaign' => $campaign, 'status' => 'failed']));
+
+        $response->assertOk();
+
+        ob_start();
+        $response->sendContent();
+        $csv = (string) ob_get_clean();
+
+        $this->assertStringContainsString('Failed', $csv);
+        $this->assertSame(2, substr_count($csv, "\n")); // header + 1 failed row
+    }
 }

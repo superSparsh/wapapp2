@@ -856,18 +856,36 @@ const EnhancedConditionNode = ({ data = {}, selected, id }) => (
       Enhanced Condition
     </div>
     <div style={{ fontSize: "12px", color: "#666" }}>
-      <div>Type: {data.conditionType || "delivery"}</div>
+      <div>Type: {data.conditionType || "user_response"}</div>
       {data.conditionType === "template_replies" && data.selectedTemplate && (
         <div>Template: {data.selectedTemplate.template_name}</div>
       )}
-      {data.conditionType === "user_response" && data.conditions && (
-        <div>Conditions: {data.conditions.length}</div>
-      )}
+      {(data.conditionType === "user_response" || !data.conditionType) &&
+        data.conditions && (
+          <div>Conditions: {data.conditions.length}</div>
+        )}
       {data.conditionType === "delivery" && (
         <div>Timeout: {data.deliveryTimeout || 30}s</div>
       )}
+      {(data.variable || data.field) && (
+        <div>
+          {(data.variable || data.field)} {(data.operator || "equals")}{" "}
+          {data.value || ""}
+        </div>
+      )}
     </div>
-    <Handle type="source" position={Position.Bottom} id="default" />
+    <Handle
+      type="source"
+      position={Position.Bottom}
+      id="output_yes"
+      style={{ left: "30%", background: "#52c41a" }}
+    />
+    <Handle
+      type="source"
+      position={Position.Bottom}
+      id="output_no"
+      style={{ left: "70%", background: "#ff4d4f" }}
+    />
   </div>
 );
 
@@ -4809,16 +4827,64 @@ const ChatBotFlowReactFlow = () => {
         };
 
         // One wire per branch handle
-        setEdges((eds) => {
-          const withoutSameHandle = eds.filter(
-            (edge) =>
-              !(
-                edge.source === params.source &&
-                edge.sourceHandle === handle
-              )
-          );
-          return addEdge(decorateEdge(bhEdge), withoutSameHandle);
-        });
+        setEdges((eds) =>
+          addEdge(
+            decorateEdge(bhEdge),
+            eds.filter(
+              (e) =>
+                !(e.source === params.source && e.sourceHandle === handle)
+            )
+          )
+        );
+        return;
+      }
+
+      // Enhanced Condition: map connections onto yes/no handles.
+      if (sourceNode?.type === "enhancedCondition") {
+        const namedYes = edges.some(
+          (e) => e.source === params.source && e.sourceHandle === "output_yes"
+        );
+        const namedNo = edges.some(
+          (e) => e.source === params.source && e.sourceHandle === "output_no"
+        );
+
+        let handle = params.sourceHandle;
+        if (handle !== "output_yes" && handle !== "output_no") {
+          if (!namedYes) {
+            handle = "output_yes";
+          } else if (!namedNo) {
+            handle = "output_no";
+          } else {
+            handle = "output_yes";
+          }
+        }
+
+        const isNo = handle === "output_no";
+        const conditionEdge = {
+          ...params,
+          sourceHandle: handle,
+          targetHandle: params.targetHandle || "default",
+          type: "smoothstep",
+          data: {
+            label: isNo ? "No" : "Yes",
+            replyId: handle,
+            replyText: isNo ? "No" : "Yes",
+          },
+          style: {
+            stroke: isNo ? "#ef4444" : "#22c55e",
+            strokeWidth: 2.5,
+          },
+        };
+
+        setEdges((eds) =>
+          addEdge(
+            decorateEdge(conditionEdge),
+            eds.filter(
+              (e) =>
+                !(e.source === params.source && e.sourceHandle === handle)
+            )
+          )
+        );
         return;
       }
 
@@ -6167,13 +6233,14 @@ const ChatBotFlowReactFlow = () => {
           onDragStart: (e) => onDragStart(e, "mediaMessage"),
           draggable: true,
         },
-        {
-          key: "typingIndicator",
-          icon: <LoadingOutlined />,
-          label: "Typing Indicator",
-          onDragStart: (e) => onDragStart(e, "typingIndicator"),
-          draggable: true,
-        },
+        // Disabled: Typing Indicator not reliable on WhatsApp yet
+        // {
+        //   key: "typingIndicator",
+        //   icon: <LoadingOutlined />,
+        //   label: "Typing Indicator",
+        //   onDragStart: (e) => onDragStart(e, "typingIndicator"),
+        //   draggable: true,
+        // },
       ],
     },
     {
@@ -6188,13 +6255,14 @@ const ChatBotFlowReactFlow = () => {
           onDragStart: (e) => onDragStart(e, "enhancedCondition"),
           draggable: true,
         },
-        {
-          key: "dateTimeCondition",
-          icon: <CalendarOutlined />,
-          label: "Business Hours & Time Branching",
-          onDragStart: (e) => onDragStart(e, "dateTimeCondition"),
-          draggable: true,
-        },
+        // Disabled: Business Hours & Time Branching not working correctly
+        // {
+        //   key: "dateTimeCondition",
+        //   icon: <CalendarOutlined />,
+        //   label: "Business Hours & Time Branching",
+        //   onDragStart: (e) => onDragStart(e, "dateTimeCondition"),
+        //   draggable: true,
+        // },
         {
           key: "jumpToStep",
           icon: <ThunderboltOutlined />,
@@ -6254,31 +6322,9 @@ const ChatBotFlowReactFlow = () => {
         {
           key: "waitForResponse",
           icon: <QuestionCircleOutlined />,
-          label: (
-            <span>
-              Wait for Response
-              {/* <span
-                style={{
-                  marginLeft: 6,
-                  background: "#fff1f0",
-                  color: "#cf1322",
-                  border: "1px solid #ffa39e",
-                  borderRadius: 4,
-                  padding: "0 6px",
-                  fontSize: 10,
-                  fontWeight: 600,
-                }}
-              >
-                Coming Soon
-              </span> */}
-            </span>
-          ),
-          // onClick: () => {
-          //   message.warning("Wait for Response is coming soon!");
-          // },
+          label: "Wait for Response",
           onDragStart: (e) => onDragStart(e, "waitForResponse"),
           draggable: true,
-          // style: { opacity: 0.6, cursor: "not-allowed" },
         },
       ],
     },

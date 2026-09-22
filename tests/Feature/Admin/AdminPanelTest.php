@@ -196,6 +196,7 @@ class AdminPanelTest extends TestCase
             ->assertOk()
             ->assertDontSee('Admin Area')
             ->assertDontSee('Admin view as customer')
+            ->assertSee('You are logged in as')
             ->assertSee('Return to admin')
             ->assertSee(route('admin.impersonation.stop'), false);
 
@@ -259,7 +260,7 @@ class AdminPanelTest extends TestCase
         $this->get(route('dashboard'))
             ->assertOk()
             ->assertSee('Admin Area')
-            ->assertSee('Admin view as customer')
+            ->assertSee('You are logged in as')
             ->assertSee('Return to admin')
             ->assertSee(route('admin.impersonation.stop'), false);
     }

@@ -128,35 +128,55 @@ class CampaignStatsService
     }
 
     /**
-     * Stream CSV export of all recipients for this campaign.
+     * Stream CSV export of recipients for this campaign (optional status filter).
      * Uses cursor() for memory-efficient streaming.
      */
-    public function exportCsv(Campaign $campaign): StreamedResponse
+    public function exportCsv(Campaign $campaign, ?string $status = null): StreamedResponse
     {
         $filename = 'campaign-recipients-' . $campaign->id . '-' . now()->format('Y-m-d') . '.csv';
 
-        return response()->streamDownload(function () use ($campaign): void {
+        return response()->streamDownload(function () use ($campaign, $status): void {
             $handle = fopen('php://output', 'w');
-            fputcsv($handle, ['SI. No', 'Contact Phone', 'Contact Name', 'Status', 'Sent At', 'Delivered At', 'Read At', 'Failed Reason']);
+            fputcsv($handle, [
+                'SI. No',
+                'Contact Phone',
+                'Contact Name',
+                'Status',
+                'Reason',
+                'Sent At',
+                'Delivered At',
+                'Failed At',
+                'Read At',
+            ]);
 
-            $seq = 0;
-            CampaignRecipient::query()
+            $query = CampaignRecipient::query()
                 ->where('campaign_id', $campaign->id)
                 ->with('contact:id,name,phone')
-                ->orderByDesc('created_at')
-                ->cursor()
-                ->each(function (CampaignRecipient $recipient) use ($handle, &$seq): void {
-                    fputcsv($handle, [
-                        ++$seq,
-                        $recipient->contact_phone,
-                        $recipient->contact?->name ?? 'N/A',
-                        $recipient->status->label(),
-                        $recipient->sent_at?->format('d M Y h:i:s A') ?? 'N/A',
-                        $recipient->delivered_at?->format('d M Y h:i:s A') ?? 'N/A',
-                        $recipient->read_at?->format('d M Y h:i:s A') ?? 'N/A',
-                        $recipient->failure_reason ?? 'N/A',
-                    ]);
-                });
+                ->orderByDesc('created_at');
+
+            if ($status !== null && $status !== '') {
+                $enum = CampaignRecipientStatus::tryFrom($status);
+                if ($enum !== null) {
+                    $query->where('status', $enum);
+                }
+            }
+
+            $seq = 0;
+            $query->cursor()->each(function (CampaignRecipient $recipient) use ($handle, &$seq): void {
+                fputcsv($handle, [
+                    ++$seq,
+                    $recipient->contact_phone ?? 'N/A',
+                    $recipient->contact?->name ?? 'N/A',
+                    $recipient->status?->label() ?? 'Unknown',
+                    $recipient->status === CampaignRecipientStatus::Failed
+                        ? ($recipient->failure_reason ?: 'N/A')
+                        : '—',
+                    $recipient->sent_at?->format('d M Y h:i:s A') ?? 'N/A',
+                    $recipient->delivered_at?->format('d M Y h:i:s A') ?? 'N/A',
+                    $recipient->failed_at?->format('d M Y h:i:s A') ?? 'N/A',
+                    $recipient->read_at?->format('d M Y h:i:s A') ?? 'N/A',
+                ]);
+            });
 
             fclose($handle);
         }, $filename, ['Content-Type' => 'text/csv']);

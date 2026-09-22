@@ -11,7 +11,7 @@
         </p>
       </div>
 
-      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div class="flex flex-wrap items-center justify-between gap-3">
         <h3 class="text-xl font-bold leading-[1.5] text-text-primary">Statistics</h3>
         <div class="flex flex-wrap items-center gap-2">
           <a
@@ -20,6 +20,13 @@
           >
             <img src="{{ asset('images/campaigns/refresh.svg') }}" alt="" class="size-4" width="16" height="16">
             Refresh
+          </a>
+          <a
+            href="{{ route('campaigns.statistics.export', $campaign) }}"
+            class="fd-btn inline-flex items-center justify-center gap-3 rounded border border-solid border-green-500 bg-green-50 px-4 py-3 text-sm font-semibold leading-[1.5] text-green-500 transition-colors hover:bg-green-100"
+          >
+            <img src="{{ asset('images/automation/export-csv.svg') }}" alt="" class="size-4" width="16" height="16">
+            Export to CSV
           </a>
           @if ($campaign->isSending() || $campaign->isPaused())
             <a

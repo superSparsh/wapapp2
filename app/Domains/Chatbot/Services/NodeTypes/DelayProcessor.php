@@ -19,10 +19,20 @@ class DelayProcessor extends AbstractNodeProcessor
         ChatbotFlowState $state,
     ): NodeProcessResult {
         $data = $this->nodeData($node);
-        $delaySeconds = (int) ($data['delaySeconds'] ?? $data['seconds'] ?? $data['delay'] ?? 5);
+        $delaySeconds = (int) ($data['delaySeconds'] ?? $data['seconds'] ?? $data['delay'] ?? 0);
 
-        // Clamp between 1 and 3600 seconds
-        $delaySeconds = max(1, min(3600, $delaySeconds));
+        if ($delaySeconds < 1) {
+            $delaySeconds = ((int) ($data['delayInHours'] ?? 0)) * 3600
+                + ((int) ($data['delayInMinutes'] ?? 0)) * 60
+                + ((int) ($data['delayInSeconds'] ?? 0));
+        }
+
+        if ($delaySeconds < 1) {
+            $delaySeconds = 5;
+        }
+
+        // Clamp between 1 second and 7 days
+        $delaySeconds = max(1, min(604800, $delaySeconds));
 
         $nextId = $this->defaultNextNodeId($node);
 

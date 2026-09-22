@@ -106,9 +106,9 @@ const ReactFlowHttpRequestModule = ({ visible, onClose, nodeData, onSave }) => {
         body: JSON.stringify(
           {
             user_data: {
-              phone: "{{user_phone}}",
-              name: "{{user_name}}",
-              message: "{{user_message}}",
+              phone: "{{phone_number}}",
+              name: "{{full_name}}",
+              message: "{{_last_reply}}",
             },
             button_data: {
               button_text: "{{button_text}}",
@@ -118,20 +118,20 @@ const ReactFlowHttpRequestModule = ({ visible, onClose, nodeData, onSave }) => {
             flow_data: {
               node_id: "{{node_id}}",
               automation_id: "{{automation_id}}",
-              timestamp: "{{timestamp}}",
+              timestamp: "{{current_timestamp}}",
               message_id: "{{message_id}}",
             },
-            complete_payload: "{{complete_payload}}",
           },
           null,
           2
         ),
-        timeout: 30, // Default timeout
-        retryCount: 3, // Default retries
-        errorHandling: "continue", // Always continue on error
-        successCondition: "status_200", // Default success condition
-        saveResponse: false, // Don't save response by default
-        responseVariable: "",
+        timeout: 30,
+        retryCount: 3,
+        errorHandling: "continue",
+        successCondition: "status_200",
+        saveResponse: true,
+        responseVariable: "http_response",
+        resultVariable: "http_response",
       };
 
       onSave(updatedData);

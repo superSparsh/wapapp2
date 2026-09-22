@@ -465,13 +465,15 @@ class CampaignServiceAdapter
         return $this->localStatsService->recipientLog($campaign, $perPage, $status);
     }
 
-    public function exportCsv(Campaign $campaign): StreamedResponse
+    public function exportCsv(Campaign $campaign, ?string $status = null): StreamedResponse
     {
         if ($this->isMicroserviceEnabled()) {
             try {
                 $uuid = $campaign->uuid ?? (string) $campaign->id;
 
-                return $this->client->exportRecipients($uuid);
+                return $this->client->exportRecipients($uuid, array_filter([
+                    'status' => $status,
+                ]));
             } catch (Throwable $e) {
                 Log::warning('Failed exporting campaign recipients via microservice, attempting fallback', [
                     'error' => $e->getMessage(),
@@ -483,7 +485,7 @@ class CampaignServiceAdapter
             }
         }
 
-        return $this->localStatsService->exportCsv($campaign);
+        return $this->localStatsService->exportCsv($campaign, $status);
     }
 
     /**

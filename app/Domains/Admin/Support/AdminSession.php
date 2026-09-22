@@ -9,7 +9,7 @@ final class AdminSession
     public const IMPERSONATION = 'admin.impersonation';
 
     /**
-     * @return array{admin_id: int, tenant_id: string, admin_name: string, admin_email?: string}|null
+     * @return array{admin_id: int, tenant_id: string, tenant_name?: string, admin_name: string, admin_email?: string}|null
      */
     public static function impersonation(): ?array
     {

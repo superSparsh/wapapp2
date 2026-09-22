@@ -95,7 +95,7 @@ interface CampaignServiceClientInterface
      */
     public function getRecipients(string $uuid, array $params = []): array;
 
-    public function exportRecipients(string $uuid): StreamedResponse;
+    public function exportRecipients(string $uuid, array $params = []): StreamedResponse;
 
     /**
      * @return array<string, mixed>

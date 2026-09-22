@@ -160,13 +160,13 @@ class CampaignServiceClient implements CampaignServiceClientInterface
         return $this->handleResponse($response, 'getRecipients');
     }
 
-    public function exportRecipients(string $uuid): StreamedResponse
+    public function exportRecipients(string $uuid, array $params = []): StreamedResponse
     {
         $url = $this->baseUrl() . '/campaigns/' . $uuid . '/export';
         $filename = 'campaign-recipients-' . $uuid . '-' . now()->format('Y-m-d') . '.csv';
 
-        return response()->streamDownload(function () use ($url): void {
-            $stream = $this->buildRequest()->withOptions(['stream' => true])->get($url);
+        return response()->streamDownload(function () use ($url, $params): void {
+            $stream = $this->buildRequest()->withOptions(['stream' => true])->get($url, $params);
             $body = $stream->toPsrResponse()->getBody();
 
             while (! $body->eof()) {

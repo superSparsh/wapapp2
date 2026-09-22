@@ -51,10 +51,13 @@ class CampaignStatisticsController extends Controller
     }
 
     /**
-     * CSV export of all recipients.
+     * CSV export of recipients (optional status filter, drip-parity UX).
      */
-    public function export(Campaign $bulkCampaign): StreamedResponse
+    public function export(Request $request, Campaign $bulkCampaign): StreamedResponse
     {
-        return $this->adapter->exportCsv($bulkCampaign);
+        return $this->adapter->exportCsv(
+            $bulkCampaign,
+            $request->query('status'),
+        );
     }
 }

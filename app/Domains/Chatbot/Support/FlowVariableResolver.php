@@ -66,6 +66,7 @@ class FlowVariableResolver
         $messageText = (string) ($variables['message_text'] ?? $variables['_last_reply'] ?? $variables['user_response'] ?? '');
         if ($messageText !== '') {
             $context['message_text'] = $messageText;
+            $context['user_message'] = $messageText;
         }
 
         return array_merge($context, $variables);
@@ -109,8 +110,10 @@ class FlowVariableResolver
             'first_name' => $firstName,
             'last_name' => $lastName,
             'full_name' => $fullName,
+            'user_name' => $fullName,
             'display_name' => $fullName !== '' ? $fullName : $phone,
             'phone_number' => $phone,
+            'user_phone' => $phone,
             'recipient_number' => $linePhone,
             'subscriber_first_name' => $subscriberFirst,
             'subscriber_last_name' => $subscriberLast,
@@ -134,6 +137,7 @@ class FlowVariableResolver
             'current_month' => $now->format('F'),
             'current_year' => $now->format('Y'),
             'current_timestamp' => (string) $now->timestamp,
+            'timestamp' => (string) $now->timestamp,
             'timezone' => $now->timezone->getName(),
         ];
 

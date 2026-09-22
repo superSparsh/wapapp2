@@ -314,11 +314,26 @@ class FlowNodeDataMapper
      */
     private function syncDelay(array $data): array
     {
-        $seconds = (int) ($data['delay_seconds'] ?? $data['delaySeconds'] ?? $data['duration'] ?? 1);
+        $seconds = null;
 
-        if ($seconds < 1) {
-            $seconds = 1;
+        if (isset($data['delaySeconds']) || isset($data['delay_seconds']) || isset($data['duration'])) {
+            $seconds = (int) ($data['delaySeconds'] ?? $data['delay_seconds'] ?? $data['duration']);
+        } elseif (
+            isset($data['delayInHours'])
+            || isset($data['delayInMinutes'])
+            || isset($data['delayInSeconds'])
+        ) {
+            $seconds = ((int) ($data['delayInHours'] ?? 0)) * 3600
+                + ((int) ($data['delayInMinutes'] ?? 0)) * 60
+                + ((int) ($data['delayInSeconds'] ?? 0));
         }
+
+        if ($seconds === null || $seconds < 1) {
+            $seconds = 5;
+        }
+
+        // Allow up to 7 days for long delays configured in the builder.
+        $seconds = max(1, min(604800, $seconds));
 
         $data['delay_seconds'] = $seconds;
         $data['delaySeconds'] = $seconds;
@@ -370,16 +385,51 @@ class FlowNodeDataMapper
      */
     private function syncCondition(array $data): array
     {
-        $variable = (string) ($data['condition_variable'] ?? $data['variable'] ?? '');
+        $variable = (string) ($data['condition_variable'] ?? $data['variable'] ?? $data['field'] ?? '');
         $operator = (string) ($data['condition_operator'] ?? $data['operator'] ?? 'equals');
         $value = (string) ($data['condition_value'] ?? $data['value'] ?? '');
 
+        if ($variable === '') {
+            $variable = 'user_response';
+        }
+
         $data['condition_variable'] = $variable;
         $data['variable'] = $variable;
+        $data['field'] = $variable;
         $data['condition_operator'] = $operator;
         $data['operator'] = $operator;
         $data['condition_value'] = $value;
         $data['value'] = $value;
+
+        if (isset($data['conditions']) && is_array($data['conditions'])) {
+            $data['conditions'] = array_map(static function ($condition): array {
+                if (! is_array($condition)) {
+                    return [];
+                }
+
+                $field = (string) ($condition['field'] ?? $condition['variable'] ?? 'user_response');
+                $type = (string) ($condition['type'] ?? '');
+                $operator = (string) ($condition['operator'] ?? '');
+
+                if ($operator === '' || in_array($type, ['exact', 'contains', 'starts_with', 'ends_with', 'regex'], true)) {
+                    $operator = match ($type) {
+                        'exact' => 'equals',
+                        'contains' => 'contains',
+                        'starts_with' => 'starts_with',
+                        'ends_with' => 'ends_with',
+                        'regex' => 'regex',
+                        default => ($operator !== '' ? $operator : 'equals'),
+                    };
+                }
+
+                $condition['field'] = $field !== '' ? $field : 'user_response';
+                $condition['variable'] = $condition['field'];
+                $condition['operator'] = $operator;
+                $condition['value'] = (string) ($condition['value'] ?? '');
+
+                return $condition;
+            }, $data['conditions']);
+        }
 
         return $data;
     }
@@ -391,6 +441,16 @@ class FlowNodeDataMapper
     private function syncHttpRequest(array $data): array
     {
         $data['method'] = strtoupper((string) ($data['method'] ?? 'GET'));
+        $data['enabled'] = $this->boolFlag($data['enabled'] ?? true);
+
+        $resultVariable = (string) (
+            $data['resultVariable']
+            ?? $data['responseVariable']
+            ?? $data['result_variable']
+            ?? 'http_response'
+        );
+        $data['resultVariable'] = $resultVariable !== '' ? $resultVariable : 'http_response';
+        $data['responseVariable'] = $data['resultVariable'];
 
         return $data;
     }
@@ -405,6 +465,35 @@ class FlowNodeDataMapper
 
         $data['function_name'] = $name;
         $data['functionName'] = $name;
+
+        $resultVariable = (string) (
+            $data['resultVariable']
+            ?? $data['returnVariable']
+            ?? $data['result_variable']
+            ?? 'function_result'
+        );
+        $data['resultVariable'] = $resultVariable;
+        $data['returnVariable'] = $resultVariable;
+
+        if (isset($data['parameters']) && is_array($data['parameters'])) {
+            $assoc = [];
+            $isList = array_is_list($data['parameters']);
+
+            foreach ($data['parameters'] as $key => $value) {
+                if ($isList && is_array($value)) {
+                    $paramKey = (string) ($value['key'] ?? $value['name'] ?? '');
+                    if ($paramKey === '') {
+                        continue;
+                    }
+                    $assoc[$paramKey] = $value['value'] ?? null;
+                    continue;
+                }
+
+                $assoc[(string) $key] = $value;
+            }
+
+            $data['parameters'] = $assoc;
+        }
 
         return $data;
     }

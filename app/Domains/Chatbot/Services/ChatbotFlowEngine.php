@@ -296,6 +296,12 @@ class ChatbotFlowEngine
             return true;
         }
 
+        // Wait-for-response free-text: any reply continues via default edge.
+        // Only require a matched handle when quick-replies were actually armed.
+        if ($nodeClass === 'waitForResponse') {
+            return ! empty($variables['_quick_replies']);
+        }
+
         foreach (array_keys($node['outputs'] ?? []) as $handle) {
             $handle = (string) $handle;
             if (

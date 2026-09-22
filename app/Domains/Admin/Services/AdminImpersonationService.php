@@ -63,6 +63,7 @@ class AdminImpersonationService
             AdminSession::IMPERSONATION => [
                 'admin_id' => (int) $admin->id,
                 'tenant_id' => (string) $tenant->id,
+                'tenant_name' => (string) $tenant->name,
                 'admin_name' => (string) $admin->name,
                 'admin_email' => strtolower((string) $admin->email),
             ],

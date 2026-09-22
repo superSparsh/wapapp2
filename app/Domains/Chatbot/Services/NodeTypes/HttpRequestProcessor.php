@@ -21,11 +21,27 @@ class HttpRequestProcessor extends AbstractNodeProcessor
         $data = $this->nodeData($node);
         $variables = $state->variables ?? [];
 
+        if (array_key_exists('enabled', $data) && ! $this->flagEnabled($data['enabled'])) {
+            $nextId = $this->defaultNextNodeId($node);
+            if ($nextId !== null) {
+                $state->forceFill(['current_node_id' => $nextId])->save();
+            }
+
+            return $nextId !== null ? NodeProcessResult::Continue : NodeProcessResult::Completed;
+        }
+
         $url = $this->resolveText((string) ($data['url'] ?? ''), $variables, $conversation);
         $method = strtoupper((string) ($data['method'] ?? 'GET'));
         $headers = $this->resolveHeaders($data['headers'] ?? [], $variables, $conversation);
         $body = $this->resolveBody($data['body'] ?? null, $variables, $conversation);
-        $resultVariable = (string) ($data['resultVariable'] ?? 'http_response');
+        $resultVariable = (string) (
+            $data['resultVariable']
+            ?? $data['responseVariable']
+            ?? 'http_response'
+        );
+        if ($resultVariable === '') {
+            $resultVariable = 'http_response';
+        }
 
         if ($url === '') {
             return NodeProcessResult::Error;
@@ -121,5 +137,10 @@ class HttpRequestProcessor extends AbstractNodeProcessor
             'body' => $response->body(),
             'success' => $response->successful(),
         ];
+    }
+
+    private function flagEnabled(mixed $flag): bool
+    {
+        return $flag === true || $flag === 1 || $flag === '1' || $flag === 'true';
     }
 }

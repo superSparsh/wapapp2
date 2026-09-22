@@ -21,7 +21,12 @@ class FunctionCallProcessor extends AbstractNodeProcessor
         $variables = $state->variables ?? [];
 
         $functionName = (string) ($data['functionName'] ?? $data['function'] ?? '');
-        $resultVariable = (string) ($data['resultVariable'] ?? 'function_result');
+        $resultVariable = (string) (
+            $data['resultVariable']
+            ?? $data['returnVariable']
+            ?? $data['result_variable']
+            ?? 'function_result'
+        );
 
         if ($functionName === '') {
             return NodeProcessResult::Error;
@@ -65,7 +70,7 @@ class FunctionCallProcessor extends AbstractNodeProcessor
      */
     private function executeFunction(string $functionName, array $data, array $variables, Conversation $conversation): mixed
     {
-        $params = $data['parameters'] ?? [];
+        $params = $this->normalizeParameters($data['parameters'] ?? []);
 
         // Built-in functions
         return match ($functionName) {
@@ -73,8 +78,39 @@ class FunctionCallProcessor extends AbstractNodeProcessor
             'contact_name' => $conversation->contact_name,
             'contact_phone' => $conversation->contact_phone,
             'random_number' => random_int((int) ($params['min'] ?? 0), (int) ($params['max'] ?? 100)),
+            'format_date' => now()->format((string) ($params['format'] ?? 'Y-m-d H:i:s')),
+            'generate_id' => (string) str()->ulid(),
             default => $this->executeCallableFunction($functionName, $params, $variables, $conversation),
         };
+    }
+
+    /**
+     * @param  mixed  $parameters
+     * @return array<string, mixed>
+     */
+    private function normalizeParameters(mixed $parameters): array
+    {
+        if (! is_array($parameters)) {
+            return [];
+        }
+
+        if (! array_is_list($parameters)) {
+            return $parameters;
+        }
+
+        $assoc = [];
+        foreach ($parameters as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+            $key = (string) ($row['key'] ?? $row['name'] ?? '');
+            if ($key === '') {
+                continue;
+            }
+            $assoc[$key] = $row['value'] ?? null;
+        }
+
+        return $assoc;
     }
 
     /**

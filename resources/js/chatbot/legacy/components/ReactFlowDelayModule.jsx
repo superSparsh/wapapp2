@@ -62,8 +62,25 @@ const ReactFlowDelayModule = ({
       setLoading(true);
 
       // Process the form data
+      const hours = Number(values.delayInHours || 0);
+      const minutes = Number(values.delayInMinutes || 0);
+      const seconds = Number(values.delayInSeconds || 0);
+      let delaySeconds = hours * 3600 + minutes * 60 + seconds;
+
+      if (values.delayType === "random") {
+        const min = Number(values.minDelay || 1);
+        const max = Number(values.maxDelay || min);
+        delaySeconds = Math.max(1, Math.floor((min + max) / 2));
+      }
+
+      if (!Number.isFinite(delaySeconds) || delaySeconds < 1) {
+        delaySeconds = 5;
+      }
+
       const nodeData = {
         ...values,
+        delaySeconds,
+        delay_seconds: delaySeconds,
         label: `Delay - ${getDelayLabel(values)}`,
       };
 
