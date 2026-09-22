@@ -12,6 +12,7 @@ use App\Models\Plan;
 use App\Models\Tenant;
 use Database\Seeders\TenantDatabaseSeeder;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Str;
 
 class DatabaseSeeder extends Seeder
 {
@@ -40,10 +41,16 @@ class DatabaseSeeder extends Seeder
 
         $this->call(PlatformDefaultsSeeder::class);
 
+        $adminEmail = strtolower(trim((string) env('ADMIN_SEED_EMAIL', 'superadmin@wapapp.in')));
+        $adminPassword = (string) env('ADMIN_SEED_PASSWORD', '');
+        if ($adminPassword === '') {
+            $adminPassword = Str::password(28, symbols: true);
+        }
+
         Admin::query()->create([
             'name' => 'Super Admin',
-            'email' => 'admin@wapapp.test',
-            'password' => 'password',
+            'email' => $adminEmail,
+            'password' => $adminPassword,
             'admin_role_id' => AdminRole::query()->where('slug', 'super-admin')->value('id'),
         ]);
 
@@ -78,7 +85,9 @@ class DatabaseSeeder extends Seeder
         });
 
         $this->command?->info('Master DB seeded successfully.');
-        $this->command?->info('Admin: admin@wapapp.test / password');
+        $this->command?->info("Admin login: {$adminEmail}");
+        $this->command?->warn("Admin password: {$adminPassword}");
+        $this->command?->info('Set ADMIN_SEED_EMAIL / ADMIN_SEED_PASSWORD in .env to use fixed credentials.');
         $this->command?->info('Tenant: '.$tenantId.' (auto-provisioned)');
         $this->command?->info('Tenant DB: '.$databaseName);
     }

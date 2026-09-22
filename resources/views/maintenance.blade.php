@@ -90,13 +90,13 @@
 </head>
 <body>
   <main class="card" role="status" aria-live="polite">
-    <div class="badge"><span class="dot" aria-hidden="true"></span> Maintenance in progress</div>
-    <h1>{{ $appName }} will be back shortly</h1>
-    <p>{{ $message }}</p>
+    <div class="badge"><span class="dot" aria-hidden="true"></span> Under maintenance</div>
+    <h1>We'll be right back</h1>
+    <p>{{ filled($message) ? $message : "We're making a few improvements. Thanks for your patience — this won't take long." }}</p>
     @if (! empty($until))
-      <div class="until">Expected back around {{ \Illuminate\Support\Carbon::parse($until)->timezone(config('app.timezone'))->format('d M Y, h:i A') }}</div>
+      <div class="until">Expected back by {{ \Illuminate\Support\Carbon::parse($until)->timezone(config('app.timezone'))->format('d M Y, h:i A') }}</div>
     @endif
-    <div class="foot">Customer dashboard is paused. WhatsApp automations may still be running in the background.</div>
+    <div class="foot">Your dashboard is temporarily paused. WhatsApp automations may continue running in the background.</div>
   </main>
 </body>
 </html>
