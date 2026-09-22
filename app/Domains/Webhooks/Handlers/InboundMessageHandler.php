@@ -147,6 +147,19 @@ class InboundMessageHandler
                 messageType: $messageType,
             );
 
+            try {
+                app(\App\Domains\Alerts\Services\AlertDispatcher::class)->inboxNewMessage(
+                    fromPhone: $contactPhone,
+                    preview: $body !== '' ? $body : '['.$messageType->value.']',
+                    contactName: $conversation->contact_name,
+                );
+            } catch (\Throwable $e) {
+                Log::warning('Inbox owner alert failed', [
+                    'message_id' => $messageId,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+
             if ($parsedReply['metadata'] !== []) {
                 $message->forceFill([
                     'metadata' => array_merge(

@@ -1,6 +1,10 @@
 <?php
 
 use App\Console\Commands\ProcessDataDeletionSchedules;
+use App\Domains\Alerts\Console\Commands\SendAccountExpirationReportCommand;
+use App\Domains\Alerts\Console\Commands\SendCalendarRemindersCommand;
+use App\Domains\Alerts\Console\Commands\SendPlanExpirationAlertsCommand;
+use App\Domains\Alerts\Console\Commands\SyncPhoneQualityAndNotifyCommand;
 use App\Domains\Audience\Console\Commands\VerifyListContactsCommand;
 use App\Domains\AutomationEvents\Console\Commands\ProcessAutomationEventsCommand;
 use App\Domains\Billing\Console\Commands\CheckWalletAutoRechargeCommand;
@@ -13,6 +17,7 @@ use App\Domains\Operations\Console\Commands\ProcessInboundResponsesCommand;
 use App\Domains\Operations\Console\Commands\ScheduleIntegrationSyncCommand;
 use App\Domains\Operations\Console\Commands\SyncFreeUicQuotaCommand;
 use App\Domains\Operations\Console\Commands\SyncMetaPricingCommand;
+use App\Domains\Operations\Console\Commands\WhatsAppHealthDigestCommand;
 use App\Domains\Operations\Console\Commands\WhatsAppHealthSnapshotCommand;
 use App\Domains\Templates\Console\Commands\DeleteSoftDeletedTemplates;
 use App\Domains\Templates\Console\Commands\SubmitPendingTemplates;
@@ -55,6 +60,11 @@ Schedule::command(ScheduleIntegrationSyncCommand::class)->everyFiveMinutes();
 
 // Platform maintenance
 Schedule::command(WhatsAppHealthSnapshotCommand::class)->dailyAt('01:00');
+Schedule::command(WhatsAppHealthDigestCommand::class)->dailyAt('07:30');
+Schedule::command(SyncPhoneQualityAndNotifyCommand::class)->dailyAt('00:30');
+Schedule::command(SendPlanExpirationAlertsCommand::class)->dailyAt('00:30');
+Schedule::command(SendAccountExpirationReportCommand::class)->monthlyOn(1, '03:30');
+Schedule::command(SendCalendarRemindersCommand::class)->everyFiveMinutes();
 Schedule::command(SyncMetaPricingCommand::class)->dailyAt('03:00');
 Schedule::command(SyncFreeUicQuotaCommand::class)->hourly();
 Schedule::command(VerifyListContactsCommand::class)->dailyAt('04:00');

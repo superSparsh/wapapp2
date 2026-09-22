@@ -36,6 +36,7 @@ return [
         ],
     ],
     ['label' => 'Form builder', 'route' => 'form-builder.index', 'icon' => 'star', 'matches' => ['form-builder.create', 'form-builder.edit']],
+    ['label' => 'New Features', 'route' => 'announcements.features', 'icon' => 'star', 'matches' => ['announcements.features']],
     [
         'label' => 'Commerce',
         'route' => 'commerce.index',

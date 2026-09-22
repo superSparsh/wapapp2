@@ -126,6 +126,9 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::put('/announcements/{announcement}', [AnnouncementController::class, 'update'])->name('announcements.update');
         Route::post('/announcements/{announcement}/toggle', [AnnouncementController::class, 'toggle'])->name('announcements.toggle');
         Route::delete('/announcements/{announcement}', [AnnouncementController::class, 'destroy'])->name('announcements.destroy');
+        Route::get('/announcements/{announcement}/requests', [AnnouncementController::class, 'requests'])->name('announcements.requests');
+        Route::post('/announcement-requests/{featureRequest}/acknowledge', [AnnouncementController::class, 'acknowledgeRequest'])->name('announcements.requests.acknowledge');
+        Route::delete('/announcement-requests/{featureRequest}', [AnnouncementController::class, 'destroyRequest'])->name('announcements.requests.destroy');
 
         Route::get('/pricing', [CountryPricingController::class, 'index'])->name('pricing.index');
         Route::get('/pricing/create', [CountryPricingController::class, 'create'])->name('pricing.create');
@@ -173,6 +176,9 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::delete('/cloud-bills/{bill}', [CloudBillController::class, 'destroy'])->name('cloud-bills.destroy');
 
         Route::get('/whatsapp-health', [WhatsappHealthController::class, 'index'])->name('whatsapp-health.index');
+        Route::post('/whatsapp-health/digest', [WhatsappHealthController::class, 'sendDigest'])->name('whatsapp-health.digest');
+        Route::post('/whatsapp-health/alerts/read-all', [WhatsappHealthController::class, 'markAllAlertsRead'])->name('whatsapp-health.alerts.read-all');
+        Route::post('/whatsapp-health/alerts/{alert}/read', [WhatsappHealthController::class, 'markAlertRead'])->name('whatsapp-health.alerts.read');
         Route::get('/message-performance', [MessagePerformanceController::class, 'index'])->name('message-performance.index');
 
         Route::get('/plans', [PlanController::class, 'index'])->name('plans.index');

@@ -80,6 +80,17 @@ class CloudBillController extends Controller
             'uploaded_by' => auth('admin')->id(),
         ]);
 
+        try {
+            app(\App\Domains\Alerts\Services\AlertDispatcher::class)->cloudBillUploaded([
+                'filename' => $file->getClientOriginalName(),
+                'period' => $validated['period'] ?? null,
+                'amount' => $validated['amount'] ?? null,
+                'currency' => strtoupper((string) ($validated['currency'] ?? 'USD')),
+            ]);
+        } catch (\Throwable) {
+            // non-blocking
+        }
+
         return redirect()->route('admin.cloud-bills.index')->with('status', 'Cloud bill uploaded.');
     }
 

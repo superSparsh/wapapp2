@@ -1,5 +1,6 @@
 <?php
 
+use App\Domains\Announcements\Http\Controllers\FeatureAnnouncementController;
 use App\Domains\Admin\Http\Controllers\CustomerReadinessController;
 use App\Domains\AiBot\Http\Controllers\AiBotController;
 use App\Domains\AiBot\Http\Controllers\AiBusinessInfoController;
@@ -144,6 +145,11 @@ Route::middleware(['tenancy.session', 'auth:web,team', '2fa', 'team.redirect-das
             Route::get('/campaigns', [DashboardController::class, 'campaigns'])->name('dashboard.campaigns');
             Route::get('/wallet', [DashboardController::class, 'wallet'])->name('dashboard.wallet');
             Route::get('/wallet/export', [DashboardController::class, 'exportWallet'])->name('dashboard.wallet.export');
+        });
+
+        Route::prefix('features')->name('announcements.')->group(function () {
+            Route::get('/', [FeatureAnnouncementController::class, 'index'])->name('features');
+            Route::post('/{announcement}/request', [FeatureAnnouncementController::class, 'requestActivation'])->name('features.request');
         });
 
         Route::prefix('automation/chatbot')->name('chatbot.')->group(function () {

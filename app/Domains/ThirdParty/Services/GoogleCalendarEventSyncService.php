@@ -143,5 +143,44 @@ class GoogleCalendarEventSyncService
             ],
             $payload
         );
+
+        $stored = GoogleCalendarEvent::query()
+            ->where('user_id', $integration->user_id)
+            ->where('event_id', $eventId)
+            ->where('calendar_id', $calendarId)
+            ->first();
+
+        if ($stored === null || $integration->first_synced_at === null) {
+            return;
+        }
+
+        try {
+            $dispatcher = app(\App\Domains\Alerts\Services\AlertDispatcher::class);
+            $phone = (string) ($stored->whatsapp_number ?? '');
+            $params = [
+                'name' => (string) ($stored->invitee_name ?? $stored->summary ?? 'Guest'),
+                'event' => (string) ($stored->summary ?? 'Meeting'),
+                'start' => $stored->start_time?->format('d M Y h:i A') ?? '',
+            ];
+
+            if ($status === 'canceled' && ! $stored->notified_canceled) {
+                if ($phone !== '') {
+                    $dispatcher->calendarWhatsApp('operational-alerts.google_calendar.customer_canceled', $phone, $params);
+                }
+                $stored->update(['notified_canceled' => true]);
+            } elseif ($status === 'rescheduled' && ! $stored->notified_rescheduled) {
+                if ($phone !== '') {
+                    $dispatcher->calendarWhatsApp('operational-alerts.google_calendar.customer_created', $phone, $params);
+                }
+                $stored->update(['notified_rescheduled' => true, 'notified_created' => true]);
+            } elseif ($status === 'active' && ! $stored->notified_created) {
+                if ($phone !== '') {
+                    $dispatcher->calendarWhatsApp('operational-alerts.google_calendar.customer_created', $phone, $params);
+                }
+                $stored->update(['notified_created' => true]);
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Google Calendar booking alert failed', ['error' => $e->getMessage()]);
+        }
     }
 }

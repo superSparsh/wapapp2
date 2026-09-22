@@ -126,6 +126,20 @@ class ProcessWalletRazorpayZohoInvoiceJob implements ShouldQueue
                     'zoho_synced_at' => now()->toIso8601String(),
                 ]),
             ])->save();
+
+            try {
+                app(\App\Domains\Alerts\Services\AlertDispatcher::class)->walletCreditCompleted([
+                    'customer_email' => $user->email,
+                    'customer_name' => $user->name,
+                    'amount' => $invoiceAmount,
+                    'currency' => 'INR',
+                    'payment_id' => $this->paymentId,
+                    'invoice_id' => $invoice['invoice_number'] ?? null,
+                    'balance' => app(\App\Domains\Billing\Services\WalletService::class)->balance(),
+                ]);
+            } catch (Throwable $alertError) {
+                Log::warning('Wallet credit completed alert failed', ['error' => $alertError->getMessage()]);
+            }
         } catch (Throwable $e) {
             ZohoWalletCreditRequest::query()
                 ->where('tenant_id', $this->tenantId)

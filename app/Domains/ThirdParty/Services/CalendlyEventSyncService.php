@@ -119,6 +119,36 @@ class CalendlyEventSyncService
             ['event_id' => $event['uri']],
             $payload
         );
+
+        $stored = CalendlyEvent::query()->where('event_id', $event['uri'])->first();
+        if ($stored === null) {
+            return;
+        }
+
+        $status = strtolower((string) ($event['status'] ?? 'active'));
+        try {
+            $dispatcher = app(\App\Domains\Alerts\Services\AlertDispatcher::class);
+            $phone = (string) ($stored->whatsapp_number ?? '');
+            $params = [
+                'name' => (string) ($stored->invitee_email ?? 'Guest'),
+                'event' => (string) ($stored->event_type ?? 'Meeting'),
+                'start' => $stored->start_time?->format('d M Y h:i A') ?? '',
+            ];
+
+            if ($status === 'canceled' && ! $stored->notified_canceled) {
+                if ($phone !== '') {
+                    $dispatcher->calendarWhatsApp('operational-alerts.calendly.customer_canceled', $phone, $params);
+                }
+                $stored->update(['notified_canceled' => true]);
+            } elseif ($status !== 'canceled' && ! $stored->notified_created && $integration->first_synced_at !== null) {
+                if ($phone !== '') {
+                    $dispatcher->calendarWhatsApp('operational-alerts.calendly.customer_created', $phone, $params);
+                }
+                $stored->update(['notified_created' => true]);
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Calendly booking alert failed', ['error' => $e->getMessage()]);
+        }
     }
 
     /**

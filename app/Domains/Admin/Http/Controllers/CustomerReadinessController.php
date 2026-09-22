@@ -53,6 +53,21 @@ class CustomerReadinessController extends Controller
             ],
         ]);
 
+        try {
+            app(\App\Domains\Alerts\Services\AlertDispatcher::class)->readinessSubmitted([
+                'customer_name' => $validated['name'],
+                'customer_email' => strtolower($validated['email']),
+                'business_name' => $validated['business_name'],
+                'business_email' => $validated['business_email'] ?? null,
+                'website' => $validated['website'] ?? null,
+                'doc_type' => $validated['doc_type'],
+                'name' => $validated['name'],
+                'email' => strtolower($validated['email']),
+            ], 'submitted');
+        } catch (\Throwable) {
+            // non-blocking
+        }
+
         return redirect()->route('customer-readiness.thanks');
     }
 

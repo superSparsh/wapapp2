@@ -30,4 +30,23 @@ class Announcement extends Model
             'ends_at' => 'datetime',
         ];
     }
+
+    public function featureRequests(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(AnnouncementFeatureRequest::class);
+    }
+
+    public function scopeCurrentlyActive($query)
+    {
+        $now = now();
+
+        return $query
+            ->where('is_active', true)
+            ->where(function ($q) use ($now): void {
+                $q->whereNull('starts_at')->orWhere('starts_at', '<=', $now);
+            })
+            ->where(function ($q) use ($now): void {
+                $q->whereNull('ends_at')->orWhere('ends_at', '>=', $now);
+            });
+    }
 }

@@ -79,6 +79,16 @@ class ModuleErrorRecorder
                 tenantId: $log->tenant_id,
                 errorLogId: (int) $log->id,
             );
+
+            try {
+                app(\App\Domains\Alerts\Services\PlatformAlertService::class)->notifyDeveloperError(
+                    context: $resolvedModule,
+                    detail: (string) $log->message,
+                    throttleKey: 'mod-err:'.$resolvedModule.':'.md5((string) $log->message),
+                );
+            } catch (Throwable) {
+                // never break error recording
+            }
         } catch (Throwable $e) {
             Log::warning('ModuleErrorRecorder failed', [
                 'error' => $e->getMessage(),

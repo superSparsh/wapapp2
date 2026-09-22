@@ -31,6 +31,7 @@ use App\Domains\Operations\Console\Commands\ProcessInboundResponsesCommand;
 use App\Domains\Operations\Console\Commands\ScheduleIntegrationSyncCommand;
 use App\Domains\Operations\Console\Commands\SyncFreeUicQuotaCommand;
 use App\Domains\Operations\Console\Commands\SyncMetaPricingCommand;
+use App\Domains\Operations\Console\Commands\WhatsAppHealthDigestCommand;
 use App\Domains\Operations\Console\Commands\WhatsAppHealthSnapshotCommand;
 use App\Domains\Integration\Http\Middleware\EnsureWabaBound;
 use App\Domains\Team\Http\Middleware\EnsureAccountOwner;
@@ -162,6 +163,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ProcessInboundResponsesCommand::class,
         ScheduleIntegrationSyncCommand::class,
         WhatsAppHealthSnapshotCommand::class,
+        WhatsAppHealthDigestCommand::class,
         SyncMetaPricingCommand::class,
         DiscoverMetaPricingCsvUrlCommand::class,
         SyncFreeUicQuotaCommand::class,

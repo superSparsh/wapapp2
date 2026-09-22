@@ -37,6 +37,12 @@ class CampaignSendService
         abort_if($campaign->whatsappLine === null, 422, 'Campaign WhatsApp line is required.');
         abort_if($campaign->template === null, 422, 'Campaign template is required.');
 
+        try {
+            app(\App\Domains\Alerts\Services\AlertDispatcher::class)->lowWallet(context: 'campaign_start');
+        } catch (Throwable $e) {
+            Log::warning('Low wallet alert at campaign start failed', ['error' => $e->getMessage()]);
+        }
+
         if ($campaign->total_recipients === 0 && $campaign->audience_id) {
             app(CampaignService::class)->populateRecipients($campaign);
             $campaign->refresh();

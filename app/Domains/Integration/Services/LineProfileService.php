@@ -499,6 +499,8 @@ class LineProfileService
             $line = WhatsappLine::query()->where('phone', $phone)->first()
                 ?? WhatsappLine::query()->where('phone', '+'.$phone)->first();
 
+            $oldQuality = $line?->quality_rating;
+
             $attributes = [
                 'alibaba_cust_space_id' => $custSpaceId,
                 'quality_rating' => is_scalar($quality) ? (string) $quality : null,
@@ -522,13 +524,24 @@ class LineProfileService
 
             if ($line) {
                 $line->update($attributes);
+                $line->refresh();
             } else {
                 $hasDefault = WhatsappLine::query()->where('is_default', true)->exists();
-                WhatsappLine::query()->create(array_merge($attributes, [
+                $line = WhatsappLine::query()->create(array_merge($attributes, [
                     'phone' => $phone,
                     'display_name' => is_string($verifiedName) && $verifiedName !== '' ? $verifiedName : $phone,
                     'is_default' => ! $hasDefault,
                 ]));
+            }
+
+            try {
+                $tenantId = (string) (tenant('id') ?? '');
+                if ($tenantId !== '') {
+                    app(\App\Domains\Operations\Services\WhatsAppHealthAlertService::class)
+                        ->recordLine($line, $tenantId, $oldQuality);
+                }
+            } catch (\Throwable $e) {
+                Log::warning('WA health alert after line sync failed', ['error' => $e->getMessage()]);
             }
         }
     }

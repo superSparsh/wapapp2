@@ -7,6 +7,7 @@ namespace App\Domains\Admin\Http\Controllers;
 use App\Domains\Admin\Support\AdminListQuery;
 use App\Http\Controllers\Controller;
 use App\Models\Announcement;
+use App\Models\AnnouncementFeatureRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -22,7 +23,7 @@ class AnnouncementController extends Controller
             defaultDirection: 'desc',
         );
 
-        $query = Announcement::query();
+        $query = Announcement::query()->withCount('featureRequests');
         AdminListQuery::applySearch($query, $parsed['q'], ['title', 'body']);
         AdminListQuery::applySort(
             $query,
@@ -47,6 +48,36 @@ class AnnouncementController extends Controller
                 ['value' => 'ends_at', 'label' => 'Ends', 'direction' => 'desc'],
             ],
         ]);
+    }
+
+    public function requests(Announcement $announcement): View
+    {
+        $requests = AnnouncementFeatureRequest::query()
+            ->where('announcement_id', $announcement->id)
+            ->latest('id')
+            ->paginate(25);
+
+        return view('admin.announcements.requests', [
+            'announcement' => $announcement,
+            'requests' => $requests,
+        ]);
+    }
+
+    public function acknowledgeRequest(AnnouncementFeatureRequest $featureRequest): RedirectResponse
+    {
+        $featureRequest->update([
+            'is_acknowledged' => true,
+            'is_viewed' => true,
+        ]);
+
+        return back()->with('status', 'Request acknowledged.');
+    }
+
+    public function destroyRequest(AnnouncementFeatureRequest $featureRequest): RedirectResponse
+    {
+        $featureRequest->delete();
+
+        return back()->with('status', 'Request deleted.');
     }
 
     public function create(): View

@@ -159,6 +159,16 @@ class DataDeletionService
                     ],
                 ]);
 
+                try {
+                    $ownerEmail = User::query()->orderBy('id')->value('email');
+                    app(\App\Domains\Alerts\Services\AlertDispatcher::class)->accountPurged(
+                        summary: "Deleted {$recordsDeleted} record(s) for modules: ".implode(', ', (array) ($schedule->modules ?? [])),
+                        customerEmail: $ownerEmail ? (string) $ownerEmail : null,
+                    );
+                } catch (\Throwable $e) {
+                    // Alerts must not block deletion completion.
+                }
+
                 $processed++;
             });
 

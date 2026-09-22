@@ -239,7 +239,7 @@ class WalletService
         $subscriptionService = app(SubscriptionService::class);
         $totals = $subscriptionService->calculateTotals($amount);
 
-        return DB::transaction(function () use ($amount, $totals): RazorpayOrder {
+        $order = DB::transaction(function () use ($amount, $totals): RazorpayOrder {
             $razorpayOrder = $this->razorpayService->createOrder(
                 amount: $totals['total'],
                 currency: 'INR',
@@ -258,6 +258,21 @@ class WalletService
                 'metadata' => ['razorpay' => $razorpayOrder],
             ]);
         });
+
+        try {
+            $user = Auth::user();
+            app(\App\Domains\Alerts\Services\AlertDispatcher::class)->walletCreditRequested([
+                'customer_email' => $user instanceof \App\Models\User ? $user->email : null,
+                'customer_name' => $user instanceof \App\Models\User ? $user->name : null,
+                'amount' => $amount,
+                'currency' => 'INR',
+                'reference' => $order->razorpay_order_id,
+            ]);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Wallet credit requested alert failed', ['error' => $e->getMessage()]);
+        }
+
+        return $order;
     }
 
     /**
