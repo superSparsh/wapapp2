@@ -1,0 +1,30 @@
+# Run from repo root:
+#   docker compose -f deploy/oci/docker-compose.yml up -d --build
+#
+# Mount the same storage volume the web app writes imports into.
+
+services:
+  horizon-oci:
+    build:
+      context: ../..
+      dockerfile: deploy/oci/Dockerfile
+    container_name: wapapp-horizon-oci
+    restart: unless-stopped
+    env_file:
+      - ../../.env
+    environment:
+      HORIZON_ROLE: oci-heavy
+      HORIZON_NAME: oci-heavy
+      # Keep false inside worker container; web app owns the flag
+      OCI_WORKERS_ENABLED: "false"
+      QUEUE_CONNECTION: redis
+    volumes:
+      # Shared app storage (imports CSV + logs). Required for ≥30k import jobs.
+      - ../../storage:/var/www/html/storage
+    command: ["php", "artisan", "horizon"]
+    healthcheck:
+      test: ["CMD", "php", "artisan", "horizon:status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s

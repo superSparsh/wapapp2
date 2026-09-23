@@ -8,7 +8,7 @@ return [
     'max_campaigns_per_tenant' => 100,
     'max_recipients_per_campaign' => 50000,
     'sort_columns' => ['name', 'created_at', 'total_recipients', 'scheduled_at', 'status'],
-    'queue' => env('CAMPAIGN_QUEUE', 'default'),
+    'queue' => env('CAMPAIGN_QUEUE', 'campaign'),
     'dispatch_batch_size' => 100,
     /*
     | Mass SendChatappMassMessage is disabled until CAMS mass API is tested.

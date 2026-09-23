@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domains\Campaigns\Services;
 
 use App\Domains\Audience\Enums\ContactStatus;
+use App\Domains\Campaigns\Jobs\SendCampaignRecipientJob;
 use App\Domains\Inbox\Services\InboxConversationService;
 use App\Domains\Inbox\Services\InboxOutboundService;
 use App\Domains\Templates\Services\OptInTemplateService;
@@ -16,6 +17,7 @@ use App\Enums\MessageStatus;
 use App\Models\Campaign;
 use App\Models\CampaignRecipient;
 use App\Models\Contact;
+use App\Support\OciWorkload;
 use App\Support\PhoneNormalizer;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -62,10 +64,10 @@ class CampaignSendService
             ->orderBy('id')
             ->chunkById($batchSize, function ($recipients) use ($campaign): void {
                 foreach ($recipients as $recipient) {
-                    \App\Domains\Campaigns\Jobs\SendCampaignRecipientJob::dispatch(
+                    SendCampaignRecipientJob::dispatch(
                         (int) $campaign->id,
                         (int) $recipient->id,
-                    )->onQueue((string) config('campaigns.queue', 'default'));
+                    )->onQueue(OciWorkload::campaignQueue());
                 }
             });
 

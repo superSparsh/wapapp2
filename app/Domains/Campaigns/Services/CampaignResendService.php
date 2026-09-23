@@ -8,6 +8,7 @@ use App\Domains\Campaigns\Jobs\SendCampaignRecipientJob;
 use App\Enums\CampaignRecipientStatus;
 use App\Models\Campaign;
 use App\Models\CampaignRecipient;
+use App\Support\OciWorkload;
 
 class CampaignResendService
 {
@@ -28,7 +29,7 @@ class CampaignResendService
                     ]);
 
                     SendCampaignRecipientJob::dispatch((int) $campaign->id, (int) $recipient->id)
-                        ->onQueue((string) config('campaigns.queue', 'default'));
+                        ->onQueue(OciWorkload::campaignQueue());
 
                     $count++;
                 }

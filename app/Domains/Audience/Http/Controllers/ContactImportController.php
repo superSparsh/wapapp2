@@ -7,6 +7,7 @@ namespace App\Domains\Audience\Http\Controllers;
 use App\Domains\Audience\Jobs\ImportContactsJob;
 use App\Domains\Audience\Services\ContactImportService;
 use App\Models\MailList;
+use App\Support\OciWorkload;
 use App\Support\PublicId;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -76,13 +77,17 @@ class ContactImportController extends Controller
 
         $forceSendOptIn = ($validated['send_opt_in_message'] ?? 'no') === 'yes';
 
+        $absolute = Storage::disk('local')->path($storedPath);
+        $estimatedRows = OciWorkload::estimateCsvRows($absolute);
+        $queue = OciWorkload::queueForImport($estimatedRows);
+
         ImportContactsJob::dispatch(
             $tenantId,
             $storedPath,
             (int) $mailList->id,
             $forceSendOptIn,
             'local',
-        );
+        )->onQueue($queue);
 
         // Sync queue (tests / local): job already finished — give accurate counts.
         if (config('queue.default') === 'sync') {

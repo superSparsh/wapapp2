@@ -158,4 +158,32 @@ class InboundWebhookRecorderTest extends TestCase
         $expectedKey = 'hash:'.hash('sha256', $payload);
         $this->assertSame($expectedKey, $event->idempotency_key);
     }
+
+    public function test_status_event_skips_sync_and_queues_when_oci_enabled(): void
+    {
+        config([
+            'oci-workers.enabled' => true,
+            'oci-workers.status_queue_only' => true,
+            'oci-workers.queues.status' => 'status',
+        ]);
+
+        \Illuminate\Support\Facades\Queue::fake();
+
+        $recorder = app(InboundWebhookRecorder::class);
+
+        $payload = json_encode([[
+            'MessageId' => 'wamid.STATUS-OCI-001',
+            'Status' => '2',
+            'Type' => 'MESSAGE_STATUS',
+        ]], JSON_THROW_ON_ERROR);
+
+        $event = $recorder->record(InboundWebhookEventType::Status, $payload);
+
+        $this->assertSame(InboundWebhookStatus::Received, $event->status);
+
+        \Illuminate\Support\Facades\Queue::assertPushedOn(
+            'status',
+            \App\Domains\Webhooks\Jobs\ProcessInboundWebhookJob::class,
+        );
+    }
 }

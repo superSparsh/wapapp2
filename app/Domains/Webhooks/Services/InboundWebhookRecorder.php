@@ -9,6 +9,7 @@ use App\Domains\Webhooks\Parsers\AlibabaWebhookParser;
 use App\Enums\InboundWebhookEventType;
 use App\Enums\InboundWebhookStatus;
 use App\Models\InboundWebhookEvent;
+use App\Support\OciWorkload;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -60,24 +61,30 @@ class InboundWebhookRecorder
             return $event;
         }
 
-        try {
-            dispatch_sync(new ProcessInboundWebhookJob($event->id));
-        } catch (\Throwable $exception) {
-            Log::warning('Inbound webhook sync processing failed; queued retry remains', [
-                'event_id' => $event->id,
-                'error' => $exception->getMessage(),
-            ]);
+        $queue = OciWorkload::queueForInboundEvent($eventType);
+        $skipSync = $eventType === InboundWebhookEventType::Status
+            && OciWorkload::statusShouldSkipSync();
+
+        if (! $skipSync) {
+            try {
+                dispatch_sync(new ProcessInboundWebhookJob($event->id));
+            } catch (\Throwable $exception) {
+                Log::warning('Inbound webhook sync processing failed; queued retry remains', [
+                    'event_id' => $event->id,
+                    'error' => $exception->getMessage(),
+                ]);
+            }
         }
 
         $event = $event->refresh();
 
         if (! in_array($event->status, [InboundWebhookStatus::Processed, InboundWebhookStatus::Duplicate], true)) {
             try {
-                ProcessInboundWebhookJob::dispatch($event->id)
-                    ->onQueue((string) config('webhooks.queue', 'default'));
+                ProcessInboundWebhookJob::dispatch($event->id)->onQueue($queue);
             } catch (\Throwable $exception) {
                 Log::warning('Inbound webhook queued retry failed', [
                     'event_id' => $event->id,
+                    'queue' => $queue,
                     'error' => $exception->getMessage(),
                 ]);
             }
