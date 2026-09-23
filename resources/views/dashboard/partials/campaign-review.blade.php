@@ -5,13 +5,22 @@
   $selectedCampaign = $selectedCampaign ?? null;
   /** @var \Illuminate\Support\Collection<int, \App\Models\CampaignRecipient> $campaignRecipients */
   $campaignRecipients = $campaignRecipients ?? collect();
-  $total = (int) ($selectedCampaign?->total_recipients ?? 0);
-  $delivered = (int) ($selectedCampaign?->total_delivered ?? 0);
-  $failed = (int) ($selectedCampaign?->total_failed ?? 0);
-  $read = (int) ($selectedCampaign?->total_read ?? 0);
-  $response = (int) ($selectedCampaign?->total_response ?? 0);
-  $unsubscribed = (int) ($selectedCampaign?->total_unsubscribed ?? 0);
-  $pct = fn (int $val): string => $total > 0 ? (string) number_format(($val / $total) * 100) : '0';
+  /** @var array<string, array{count: int, percent: int}> $campaignReviewMetrics */
+  $campaignReviewMetrics = $campaignReviewMetrics ?? [
+    'total' => ['count' => 0, 'percent' => 100],
+    'delivered' => ['count' => 0, 'percent' => 0],
+    'failed' => ['count' => 0, 'percent' => 0],
+    'read' => ['count' => 0, 'percent' => 0],
+    'response' => ['count' => 0, 'percent' => 0],
+    'unsubscribed' => ['count' => 0, 'percent' => 0],
+  ];
+  $total = (int) ($campaignReviewMetrics['total']['count'] ?? 0);
+  $delivered = (int) ($campaignReviewMetrics['delivered']['count'] ?? 0);
+  $failed = (int) ($campaignReviewMetrics['failed']['count'] ?? 0);
+  $read = (int) ($campaignReviewMetrics['read']['count'] ?? 0);
+  $response = (int) ($campaignReviewMetrics['response']['count'] ?? 0);
+  $unsubscribed = (int) ($campaignReviewMetrics['unsubscribed']['count'] ?? 0);
+  $pct = static fn (int $val): string => (string) ($total > 0 ? (int) round(($val / $total) * 100) : 0);
   $detailsBase = $selectedCampaign
     ? route('campaigns.statistics.detail', $selectedCampaign)
     : route('campaigns.index');

@@ -32,6 +32,10 @@
 
       <x-ui.data-table :headers="['SI. No', 'Segment Name', 'Subscribers', 'Actions']" :paginator="$segments">
         @forelse ($segments as $i => $segment)
+          @php
+            [$segmentMatch, $segmentRules] = app(\App\Domains\Audience\Services\SegmentService::class)
+              ->extractMatchAndRules($segment->conditions ?? []);
+          @endphp
           <tr class="bg-elevated">
             <td class="fd-table-cell w-[54px] p-2">{{ $segments->firstItem() + $i }}</td>
             <td class="w-[420px] p-2">
@@ -44,7 +48,21 @@
               </span>
             </td>
             <td class="p-2">
-              <div class="flex justify-center gap-6">
+              <div class="flex items-center justify-center gap-6">
+                <button
+                  type="button"
+                  data-open-modal="create-segment"
+                  data-segment-edit
+                  data-segment-update-url="{{ route('audience.segments.update', $segment) }}"
+                  data-segment-name="{{ $segment->name }}"
+                  data-segment-match="{{ $segmentMatch }}"
+                  data-segment-conditions="{{ e(json_encode(array_values($segmentRules))) }}"
+                  class="flex size-5 items-center justify-center"
+                  aria-label="Edit segment"
+                  title="Edit"
+                >
+                  <img src="{{ asset('images/templates/edit.svg') }}" alt="" class="size-5" width="20" height="20">
+                </button>
                 <form method="POST" action="{{ route('audience.segments.destroy', $segment) }}" class="inline" data-confirm="Delete this segment?" data-confirm-title="Delete segment" data-confirm-label="Delete">
                   @csrf
                   @method('DELETE')

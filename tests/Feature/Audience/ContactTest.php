@@ -266,6 +266,37 @@ class ContactTest extends TestCase
 
     // ─── Subscribe / Unsubscribe ─────────────────────────────────────────────
 
+    public function test_subscribers_page_renders_toggle_as_submit_button(): void
+    {
+        $contact = Contact::factory()->create(['status' => ContactStatus::Subscribed]);
+
+        $html = $this->actingAsTenantUser()
+            ->get(route('audience.subscribers'))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString(
+            'aria-label="Unsubscribe contact"',
+            $html,
+            'Subscribe toggle should render with unsubscribe label when active',
+        );
+        $this->assertStringContainsString(
+            'type="submit"',
+            $html,
+        );
+        // Nested buttons break form submit — toggle must be the submit control.
+        $this->assertDoesNotMatchRegularExpression(
+            '/<button[^>]*type="submit"[^>]*>\s*<button/i',
+            $html,
+            'Toggle must not be wrapped in another button',
+        );
+        $this->assertStringContainsString(
+            route('audience.subscribers.unsubscribe', absolute: false),
+            $html,
+        );
+        $this->assertStringContainsString($contact->uuid, $html);
+    }
+
     public function test_subscribe_changes_status(): void
     {
         $contact = Contact::factory()->create(['status' => ContactStatus::Unsubscribed]);

@@ -40,26 +40,43 @@ async function fetchJson(url) {
         credentials: 'same-origin',
     });
 
+    const contentType = response.headers.get('content-type') || '';
     if (!response.ok) {
         throw new Error(`Request failed (${response.status})`);
+    }
+    if (!contentType.includes('application/json')) {
+        throw new Error('Expected JSON response');
     }
 
     return response.json();
 }
 
+function setRefreshBusy(buttons, busy) {
+    buttons.forEach((btn) => {
+        if (!(btn instanceof HTMLButtonElement)) {
+            return;
+        }
+        btn.disabled = busy;
+        btn.classList.toggle('opacity-60', busy);
+        btn.setAttribute('aria-busy', busy ? 'true' : 'false');
+    });
+}
+
 function initCreditsFilter(root) {
     const select = root.querySelector('[data-credits-period]');
     const url = root.dataset.creditsUrl;
-    if (!select || !url) {
+    if (!url) {
         return;
     }
 
     let requestId = 0;
+    const refreshButtons = [...root.querySelectorAll('[data-credits-refresh]')];
 
     const load = async () => {
-        const period = select.value || 'daily';
+        const period = (select instanceof HTMLSelectElement ? select.value : null) || 'daily';
         const current = ++requestId;
         updateUrlParam('credits_period', period);
+        setRefreshBusy(refreshButtons, true);
 
         try {
             const data = await fetchJson(`${url}?period=${encodeURIComponent(period)}`);
@@ -80,13 +97,20 @@ function initCreditsFilter(root) {
             });
         } catch (error) {
             console.warn('Credits refresh failed', error);
+        } finally {
+            if (current === requestId) {
+                setRefreshBusy(refreshButtons, false);
+            }
         }
     };
 
-    select.addEventListener('change', load);
-    root.querySelectorAll('[data-credits-refresh]').forEach((btn) => {
+    if (select instanceof HTMLSelectElement) {
+        select.addEventListener('change', load);
+    }
+    refreshButtons.forEach((btn) => {
         btn.addEventListener('click', (event) => {
             event.preventDefault();
+            event.stopPropagation();
             load();
         });
     });
@@ -126,6 +150,43 @@ function escapeHtml(value) {
         .replace(/"/g, '&quot;');
 }
 
+function applyCampaignMetrics(root, campaign) {
+    if (!campaign) {
+        return;
+    }
+
+    const total = campaign.total_recipients || 0;
+    Object.entries(campaign.metrics || {}).forEach(([key, metric]) => {
+        const card = root.querySelector(`[data-metric="${key}"]`);
+        if (!card) {
+            return;
+        }
+        const countEl = card.querySelector('[data-metric-count]');
+        const totalEl = card.querySelector('[data-metric-total]');
+        const percentEl = card.querySelector('[data-metric-percent]');
+        const barEl = card.querySelector('[data-metric-bar]');
+        const detailsEl = card.querySelector('[data-metric-details]');
+
+        if (countEl) {
+            countEl.textContent = String(metric.count ?? 0);
+        }
+        if (totalEl) {
+            totalEl.textContent = String(total);
+        }
+        if (percentEl) {
+            percentEl.textContent = `${metric.percent ?? 0}%`;
+        }
+        if (barEl) {
+            barEl.style.width = `${metric.percent ?? 0}%`;
+        }
+        if (detailsEl && campaign.details_base) {
+            detailsEl.href = key === 'total'
+                ? campaign.details_base
+                : `${campaign.details_base}?status=${encodeURIComponent(key)}`;
+        }
+    });
+}
+
 function initCampaignReview(root) {
     const select = root.querySelector('[data-campaign-review-select]');
     const url = root.dataset.campaignReviewUrl;
@@ -133,20 +194,26 @@ function initCampaignReview(root) {
     const heading = root.querySelector('[data-campaign-review-heading]');
     const moreLink = root.querySelector('[data-campaign-review-more]');
 
-    if (!select || !url || !rows) {
+    if (!url || !rows) {
         return;
     }
 
     let requestId = 0;
+    const refreshButtons = [...root.querySelectorAll('[data-campaign-review-refresh]')];
 
     const load = async () => {
-        const campaignId = select.value;
+        const campaignId = select instanceof HTMLSelectElement ? select.value : '';
         if (!campaignId) {
+            rows.innerHTML = renderRecipientRows([]);
+            if (heading) {
+                heading.textContent = 'Send to 0 recipients';
+            }
             return;
         }
 
         const current = ++requestId;
         updateUrlParam('campaign_id', campaignId);
+        setRefreshBusy(refreshButtons, true);
 
         try {
             const data = await fetchJson(`${url}?campaign_id=${encodeURIComponent(campaignId)}`);
@@ -170,45 +237,23 @@ function initCampaignReview(root) {
                 moreLink.classList.remove('pointer-events-none', 'opacity-50');
             }
 
-            const total = campaign.total_recipients || 0;
-            Object.entries(campaign.metrics || {}).forEach(([key, metric]) => {
-                const card = root.querySelector(`[data-metric="${key}"]`);
-                if (!card) {
-                    return;
-                }
-                const countEl = card.querySelector('[data-metric-count]');
-                const totalEl = card.querySelector('[data-metric-total]');
-                const percentEl = card.querySelector('[data-metric-percent]');
-                const barEl = card.querySelector('[data-metric-bar]');
-                const detailsEl = card.querySelector('[data-metric-details]');
-
-                if (countEl) {
-                    countEl.textContent = String(metric.count ?? 0);
-                }
-                if (totalEl) {
-                    totalEl.textContent = String(total);
-                }
-                if (percentEl) {
-                    percentEl.textContent = `${metric.percent ?? 0}%`;
-                }
-                if (barEl) {
-                    barEl.style.width = `${metric.percent ?? 0}%`;
-                }
-                if (detailsEl && campaign.details_base) {
-                    detailsEl.href = key === 'total'
-                        ? campaign.details_base
-                        : `${campaign.details_base}?status=${encodeURIComponent(key)}`;
-                }
-            });
+            applyCampaignMetrics(root, campaign);
         } catch (error) {
             console.warn('Campaign review refresh failed', error);
+        } finally {
+            if (current === requestId) {
+                setRefreshBusy(refreshButtons, false);
+            }
         }
     };
 
-    select.addEventListener('change', load);
-    root.querySelectorAll('[data-campaign-review-refresh]').forEach((btn) => {
+    if (select instanceof HTMLSelectElement) {
+        select.addEventListener('change', load);
+    }
+    refreshButtons.forEach((btn) => {
         btn.addEventListener('click', (event) => {
             event.preventDefault();
+            event.stopPropagation();
             load();
         });
     });

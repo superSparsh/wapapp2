@@ -132,7 +132,13 @@ class LegacyCustomerMigrationTest extends TestCase
         $this->assertSame($subscription->id, $delivery->webhook_subscription_id);
         $this->assertSame('new_lead', $delivery->event_type);
         $this->assertSame(200, $delivery->response_status);
-        $this->assertStringStartsWith('legacy-webhook-log-', (string) $delivery->correlation_id);
+        $this->assertMatchesRegularExpression(
+            '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/',
+            (string) $delivery->correlation_id,
+        );
+        $this->assertSame('Lead 40', $delivery->payload['data']['name'] ?? null);
+        $this->assertSame(40000, $delivery->payload['_legacy']['webhook_id'] ?? null);
+        $this->assertIsInt($delivery->payload['_legacy']['webhook_log_id'] ?? null);
         tenancy()->end();
 
         // Re-run must not duplicate.

@@ -51,6 +51,11 @@ class WebhookDelivery extends Model
         });
     }
 
+    public function getRouteKeyName(): string
+    {
+        return 'uuid';
+    }
+
     public function subscription(): BelongsTo
     {
         return $this->belongsTo(WebhookSubscription::class, 'webhook_subscription_id');

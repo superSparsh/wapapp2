@@ -4,23 +4,43 @@
 ])
 
 @php
-  $defaultFields = [
+  $coreFields = [
       ['tag' => 'phone', 'label' => 'Phone'],
-      ['tag' => 'name', 'label' => 'Name'],
+      ['tag' => 'phone_number', 'label' => 'WhatsApp Number'],
+      ['tag' => 'FIRST_NAME', 'label' => 'First Name'],
+      ['tag' => 'LAST_NAME', 'label' => 'Last Name'],
+      ['tag' => 'name', 'label' => 'Full Name'],
       ['tag' => 'email', 'label' => 'Email'],
       ['tag' => 'country_code', 'label' => 'Country code'],
       ['tag' => 'status', 'label' => 'Status'],
       ['tag' => 'created_at', 'label' => 'Created at'],
   ];
 
-  $fieldOptions = collect($listFields)->map(fn ($f) => [
-      'tag' => $f->tag ?? $f['tag'] ?? '',
-      'label' => $f->label ?? $f['label'] ?? '',
+  $listFieldOptions = collect($listFields)->map(fn ($f) => [
+      'tag' => (string) ($f->tag ?? $f['tag'] ?? ''),
+      'label' => (string) ($f->label ?? $f['label'] ?? ''),
   ])->filter(fn ($f) => $f['tag'] !== '')->values();
 
-  if ($fieldOptions->isEmpty()) {
-      $fieldOptions = collect($defaultFields);
-  }
+  // Always expose core contact fields (incl. First/Last Name); merge custom list fields after.
+  $fieldOptions = collect($coreFields)
+      ->concat($listFieldOptions)
+      ->unique(fn ($f) => strtoupper($f['tag']))
+      ->values();
+
+  // Prefer First Name / Last Name labels when list fields use those tags.
+  $fieldOptions = $fieldOptions->map(function (array $field) use ($listFieldOptions): array {
+      $tag = strtoupper($field['tag']);
+      if ($tag === 'FIRST_NAME') {
+          $field['tag'] = 'FIRST_NAME';
+          $field['label'] = $listFieldOptions->firstWhere(fn ($f) => strtoupper($f['tag']) === 'FIRST_NAME')['label'] ?? 'First Name';
+      }
+      if ($tag === 'LAST_NAME') {
+          $field['tag'] = 'LAST_NAME';
+          $field['label'] = $listFieldOptions->firstWhere(fn ($f) => strtoupper($f['tag']) === 'LAST_NAME')['label'] ?? 'Last Name';
+      }
+
+      return $field;
+  });
 
   $operators = [
       'equals' => 'Equal',
@@ -39,16 +59,23 @@
   <div class="flex max-h-[90vh] w-full max-w-[660px] flex-col gap-4 overflow-y-auto rounded-[20px] bg-elevated p-5 shadow-[0px_4px_6px_rgba(0,0,0,0.1)]">
     <div class="flex items-start justify-end gap-4">
       <div class="min-w-0 flex-1">
-        <h2 id="modal-title-create-segment" class="text-2xl font-bold leading-[1.5] text-text-primary">Create segment</h2>
-        <p class="mt-1 text-sm font-normal leading-[1.4] text-text-subtle opacity-50">Filter subscribers with one or more conditions</p>
+        <h2 id="modal-title-create-segment" class="text-2xl font-bold leading-[1.5] text-text-primary" data-segment-modal-title>Create segment</h2>
+        <p class="mt-1 text-sm font-normal leading-[1.4] text-text-subtle opacity-50" data-segment-modal-subtitle>Filter subscribers with one or more conditions</p>
       </div>
       <button type="button" data-modal-close aria-label="Close" class="flex size-6 shrink-0 items-center justify-center rounded hover:bg-muted-surface">
         <img src="{{ asset('images/inbox/modals/close-square.svg') }}" alt="" class="size-6" width="24" height="24">
       </button>
     </div>
 
-    <form method="POST" action="{{ route('audience.segments.store') }}" class="space-y-4" data-segment-form>
+    <form
+      method="POST"
+      action="{{ route('audience.segments.store') }}"
+      class="space-y-4"
+      data-segment-form
+      data-segment-store-url="{{ route('audience.segments.store') }}"
+    >
       @csrf
+      <input type="hidden" name="_method" value="POST" data-segment-method>
       @if ($mailListId)
         <input type="hidden" name="mail_list_id" value="{{ $mailListId }}">
       @endif
@@ -66,6 +93,7 @@
                 type="text"
                 required
                 placeholder="Enter Segment Name"
+                data-segment-name
                 class="w-full rounded-[12px] border border-border bg-elevated px-[14px] py-[14px] text-sm font-medium leading-[1.4] text-text-muted placeholder:text-text-muted focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
               >
             </div>
@@ -78,6 +106,7 @@
                 <select
                   id="segment_match_type"
                   name="match_type"
+                  data-segment-match
                   class="w-full appearance-none rounded-[12px] border border-border bg-elevated px-[14px] py-[14px] pr-10 text-sm font-medium leading-[1.4] text-text-muted focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
                 >
                   <option value="all" selected>All (match every condition)</option>
@@ -155,7 +184,7 @@
       </div>
 
       <div class="flex justify-end">
-        <button type="submit" class="fd-btn rounded bg-green-500 px-4 py-3 text-sm font-semibold text-primary-2 transition-colors hover:opacity-90">
+        <button type="submit" class="fd-btn rounded bg-green-500 px-4 py-3 text-sm font-semibold text-primary-2 transition-colors hover:opacity-90" data-segment-submit>
           Save
         </button>
       </div>
@@ -204,6 +233,14 @@ document.addEventListener('DOMContentLoaded', () => {
   const container = document.querySelector('[data-segment-conditions]');
   const template = document.getElementById('segment-condition-template');
   const addBtn = document.querySelector('[data-add-condition]');
+  const methodInput = form?.querySelector('[data-segment-method]');
+  const titleEl = document.querySelector('[data-segment-modal-title]');
+  const subtitleEl = document.querySelector('[data-segment-modal-subtitle]');
+  const nameInput = form?.querySelector('[data-segment-name]');
+  const matchSelect = form?.querySelector('[data-segment-match]');
+  const submitBtn = form?.querySelector('[data-segment-submit]');
+  const storeUrl = form?.dataset.segmentStoreUrl || '';
+
   if (!form || !container || !template || !addBtn) return;
 
   const reindex = () => {
@@ -216,9 +253,74 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   };
 
-  addBtn.addEventListener('click', () => {
+  const clearConditions = () => {
+    container.querySelectorAll('[data-condition-row]').forEach((row) => row.remove());
+  };
+
+  const appendCondition = (condition = {}) => {
     const node = template.content.cloneNode(true);
+    const row = node.querySelector('[data-condition-row]');
+    if (!row) return;
+
+    const fieldSelect = row.querySelector('[data-name-field="field"]');
+    const typeSelect = row.querySelector('[data-name-field="type"]');
+    const valueInput = row.querySelector('[data-name-field="value"]');
+
+    if (fieldSelect instanceof HTMLSelectElement && condition.field) {
+      fieldSelect.value = condition.field;
+    }
+    if (typeSelect instanceof HTMLSelectElement && condition.type) {
+      typeSelect.value = condition.type;
+    }
+    if (valueInput instanceof HTMLInputElement) {
+      valueInput.value = condition.value != null ? String(condition.value) : '';
+    }
+
     container.appendChild(node);
+  };
+
+  const resetCreateMode = () => {
+    form.action = storeUrl;
+    if (methodInput) methodInput.value = 'POST';
+    if (titleEl) titleEl.textContent = 'Create segment';
+    if (subtitleEl) subtitleEl.textContent = 'Filter subscribers with one or more conditions';
+    if (submitBtn) submitBtn.textContent = 'Save';
+    if (nameInput) nameInput.value = '';
+    if (matchSelect) matchSelect.value = 'all';
+    clearConditions();
+    appendCondition();
+    reindex();
+  };
+
+  const openEditMode = (trigger) => {
+    const updateUrl = trigger.dataset.segmentUpdateUrl || '';
+    const name = trigger.dataset.segmentName || '';
+    const match = trigger.dataset.segmentMatch || 'all';
+    let conditions = [];
+    try {
+      conditions = JSON.parse(trigger.dataset.segmentConditions || '[]');
+    } catch {
+      conditions = [];
+    }
+    if (!Array.isArray(conditions) || conditions.length === 0) {
+      conditions = [{}];
+    }
+
+    form.action = updateUrl;
+    if (methodInput) methodInput.value = 'PUT';
+    if (titleEl) titleEl.textContent = 'Edit segment';
+    if (subtitleEl) subtitleEl.textContent = 'Update segment name and conditions';
+    if (submitBtn) submitBtn.textContent = 'Update';
+    if (nameInput) nameInput.value = name;
+    if (matchSelect) matchSelect.value = match === 'any' ? 'any' : 'all';
+
+    clearConditions();
+    conditions.forEach((condition) => appendCondition(condition || {}));
+    reindex();
+  };
+
+  addBtn.addEventListener('click', () => {
+    appendCondition();
     reindex();
   });
 
@@ -229,6 +331,16 @@ document.addEventListener('DOMContentLoaded', () => {
     if (rows.length <= 1) return;
     btn.closest('[data-condition-row]')?.remove();
     reindex();
+  });
+
+  document.querySelectorAll('[data-open-modal="create-segment"]').forEach((trigger) => {
+    trigger.addEventListener('click', () => {
+      if (trigger.hasAttribute('data-segment-edit')) {
+        openEditMode(trigger);
+      } else {
+        resetCreateMode();
+      }
+    });
   });
 });
 </script>

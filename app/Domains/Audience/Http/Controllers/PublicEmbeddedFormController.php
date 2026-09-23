@@ -79,6 +79,10 @@ class PublicEmbeddedFormController extends Controller
                 'opt_in_status' => ContactOptInStatus::OptedIn,
                 'opted_in_at' => now(),
                 'source' => 'embedded_form',
+                'custom_fields' => array_filter([
+                    'FIRST_NAME' => $firstName !== '' ? $firstName : null,
+                    'LAST_NAME' => $lastName !== '' ? $lastName : null,
+                ], static fn ($value) => $value !== null) ?: null,
             ], static fn ($value) => $value !== null)
         );
 

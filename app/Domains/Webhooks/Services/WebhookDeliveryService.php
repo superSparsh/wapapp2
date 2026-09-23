@@ -106,7 +106,9 @@ class WebhookDeliveryService
 
             return WebhookDelivery::query()->create([
                 'webhook_subscription_id' => $subscription->id,
+                'whatsapp_line_id' => $subscription->whatsapp_line_id,
                 'event_type' => $eventType,
+                'correlation_id' => $deliveryUuid,
                 'payload' => $payload,
                 'response_status' => $response->status(),
                 'response_body' => Str::limit($response->body(), 5000),
@@ -122,7 +124,9 @@ class WebhookDeliveryService
 
             return WebhookDelivery::query()->create([
                 'webhook_subscription_id' => $subscription->id,
+                'whatsapp_line_id' => $subscription->whatsapp_line_id,
                 'event_type' => $eventType,
+                'correlation_id' => $deliveryUuid,
                 'payload' => $payload,
                 'error_message' => $e->getMessage(),
                 'status' => WebhookDeliveryStatus::Failed,

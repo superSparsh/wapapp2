@@ -4,7 +4,6 @@ use App\Console\Commands\ProcessDataDeletionSchedules;
 use App\Domains\Alerts\Console\Commands\SendAccountExpirationReportCommand;
 use App\Domains\Alerts\Console\Commands\SendCalendarRemindersCommand;
 use App\Domains\Alerts\Console\Commands\SendPlanExpirationAlertsCommand;
-use App\Domains\Alerts\Console\Commands\SyncPhoneQualityAndNotifyCommand;
 use App\Domains\Audience\Console\Commands\VerifyListContactsCommand;
 use App\Domains\AutomationEvents\Console\Commands\ProcessAutomationEventsCommand;
 use App\Domains\Billing\Console\Commands\CheckWalletAutoRechargeCommand;
@@ -18,7 +17,6 @@ use App\Domains\Operations\Console\Commands\ScheduleIntegrationSyncCommand;
 use App\Domains\Operations\Console\Commands\SyncFreeUicQuotaCommand;
 use App\Domains\Operations\Console\Commands\SyncMetaPricingCommand;
 use App\Domains\Operations\Console\Commands\WhatsAppHealthDigestCommand;
-use App\Domains\Operations\Console\Commands\WhatsAppHealthSnapshotCommand;
 use App\Domains\Templates\Console\Commands\DeleteSoftDeletedTemplates;
 use App\Domains\Templates\Console\Commands\SubmitPendingTemplates;
 use App\Domains\Templates\Console\Commands\SyncTemplateStatuses;
@@ -55,13 +53,15 @@ Schedule::command(ProcessSubscriptionRenewalsCommand::class)->everyFiveMinutes()
 Schedule::command(CheckWalletAutoRechargeCommand::class)->everyFiveMinutes();
 Schedule::command(ReconcileZohoWalletCommand::class)->everyThirtyMinutes();
 
-// Integrations sync
+// Integrations sync (Calendly / Google Calendar only — not WhatsApp line profile)
 Schedule::command(ScheduleIntegrationSyncCommand::class)->everyFiveMinutes();
 
 // Platform maintenance
-Schedule::command(WhatsAppHealthSnapshotCommand::class)->dailyAt('01:00');
+// Disabled: automated WhatsApp line sync was flooding activity with "WhatsApp business data — synced".
+// Manual sync remains available from Profile → Integration.
+// Schedule::command(WhatsAppHealthSnapshotCommand::class)->dailyAt('01:00');
+// Schedule::command(SyncPhoneQualityAndNotifyCommand::class)->dailyAt('00:30');
 Schedule::command(WhatsAppHealthDigestCommand::class)->dailyAt('07:30');
-Schedule::command(SyncPhoneQualityAndNotifyCommand::class)->dailyAt('00:30');
 Schedule::command(SendPlanExpirationAlertsCommand::class)->dailyAt('00:30');
 Schedule::command(SendAccountExpirationReportCommand::class)->monthlyOn(1, '03:30');
 Schedule::command(SendCalendarRemindersCommand::class)->everyFiveMinutes();

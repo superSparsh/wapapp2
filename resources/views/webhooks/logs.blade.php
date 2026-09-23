@@ -187,17 +187,17 @@
                       <td class="p-2">
                         <div class="flex items-center justify-center gap-6">
                           @if ($delivery->status === \App\Enums\WebhookDeliveryStatus::Failed)
-                            <form action="{{ route('webhooks.logs.retry', $delivery->id) }}" method="POST">
+                            <form action="{{ route('webhooks.logs.retry', $delivery) }}" method="POST">
                               @csrf
                               <button type="submit" aria-label="Retry">
                                 <img src="{{ asset('images/webhooks/rotate-right.svg') }}" alt="" class="size-5" width="20" height="20">
                               </button>
                             </form>
                           @endif
-                          <a href="{{ route('webhooks.logs.detail', $delivery->id) }}" aria-label="View">
+                          <a href="{{ route('webhooks.logs.detail', $delivery) }}" aria-label="View">
                             <img src="{{ asset('images/webhooks/eye.svg') }}" alt="" class="size-5" width="20" height="20">
                           </a>
-                          <form action="{{ route('webhooks.logs.destroy', $delivery->id) }}" method="POST" onsubmit="return confirm('Delete this log?')">
+                          <form action="{{ route('webhooks.logs.destroy', $delivery) }}" method="POST" onsubmit="return confirm('Delete this log?')">
                             @csrf
                             @method('DELETE')
                             <button type="submit" aria-label="Delete">

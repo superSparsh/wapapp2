@@ -110,17 +110,29 @@ class SegmentService
 
         $applyRules = function (Builder $builder) use ($rules, $match): void {
             foreach ($rules as $index => $condition) {
-                $field = $this->resolveColumn((string) ($condition['field'] ?? ''));
+                $rawField = trim((string) ($condition['field'] ?? ''));
                 $type = SegmentConditionType::tryFrom((string) ($condition['type'] ?? ''));
                 $value = $condition['value'] ?? null;
 
-                if ($field === '' || ! $type) {
+                if ($rawField === '' || ! $type) {
                     continue;
                 }
 
                 $method = ($match === 'any' && $index > 0) ? 'orWhere' : 'where';
+                $namePart = $this->namePartFromField($rawField);
 
-                $builder->{$method}(function (Builder $inner) use ($field, $type, $value): void {
+                $builder->{$method}(function (Builder $inner) use ($rawField, $type, $value, $namePart): void {
+                    if ($namePart !== null) {
+                        $this->applyFirstOrLastNameCondition($inner, $namePart, $type, $value);
+
+                        return;
+                    }
+
+                    $field = $this->resolveColumn($rawField);
+                    if ($field === '') {
+                        return;
+                    }
+
                     $type->apply($inner, $field, $value);
                 });
             }
@@ -193,13 +205,14 @@ class SegmentService
             return '';
         }
 
+        // First/Last Name are handled separately (custom_fields + name fallback).
+        if ($this->namePartFromField($field) !== null) {
+            return '';
+        }
+
         $map = [
             'phone_number' => 'phone',
             'whatsapp_number' => 'phone',
-            'FIRST_NAME' => 'name',
-            'LAST_NAME' => 'name',
-            'first_name' => 'name',
-            'last_name' => 'name',
         ];
 
         $column = $map[$field] ?? $field;
@@ -211,5 +224,103 @@ class SegmentService
 
         // Custom list-field tags live in JSON custom_fields.
         return 'custom_fields->'.$column;
+    }
+
+    /**
+     * @return 'first'|'last'|null
+     */
+    private function namePartFromField(string $field): ?string
+    {
+        $normalized = strtoupper(str_replace([' ', '-'], '_', trim($field)));
+
+        return match ($normalized) {
+            'FIRST_NAME', 'FIRSTNAME' => 'first',
+            'LAST_NAME', 'LASTNAME' => 'last',
+            default => null,
+        };
+    }
+
+    /**
+     * Match FIRST_NAME / LAST_NAME against custom_fields and a name-token fallback.
+     *
+     * @param  'first'|'last'  $part
+     */
+    private function applyFirstOrLastNameCondition(
+        Builder $query,
+        string $part,
+        SegmentConditionType $type,
+        mixed $value,
+    ): void {
+        $customColumn = 'custom_fields->'.($part === 'first' ? 'FIRST_NAME' : 'LAST_NAME');
+
+        $query->where(function (Builder $outer) use ($customColumn, $part, $type, $value): void {
+            $type->apply($outer, $customColumn, $value);
+
+            $outer->orWhere(function (Builder $nameQuery) use ($part, $type, $value): void {
+                $this->applyNameTokenFallback($nameQuery, $part, $type, $value);
+            });
+        });
+    }
+
+    /**
+     * @param  'first'|'last'  $part
+     */
+    private function applyNameTokenFallback(
+        Builder $query,
+        string $part,
+        SegmentConditionType $type,
+        mixed $value,
+    ): void {
+        $raw = trim((string) ($value ?? ''));
+
+        match ($type) {
+            SegmentConditionType::IsEmpty => $query->where(function (Builder $q): void {
+                $q->whereNull('name')->orWhere('name', '');
+            }),
+            SegmentConditionType::IsNotEmpty => $query->where(function (Builder $q): void {
+                $q->whereNotNull('name')->where('name', '!=', '');
+            }),
+            SegmentConditionType::Equals => $part === 'first'
+                ? $query->where(function (Builder $q) use ($raw): void {
+                    $q->where('name', $raw)->orWhere('name', 'LIKE', $raw.' %');
+                })
+                : $query->where(function (Builder $q) use ($raw): void {
+                    $q->where('name', $raw)->orWhere('name', 'LIKE', '% '.$raw);
+                }),
+            SegmentConditionType::NotEquals => $part === 'first'
+                ? $query->where(function (Builder $q) use ($raw): void {
+                    $q->where(function (Builder $inner) use ($raw): void {
+                        $inner->whereNull('name')
+                            ->orWhere(function (Builder $n) use ($raw): void {
+                                $n->where('name', '!=', $raw)
+                                    ->where('name', 'NOT LIKE', $raw.' %');
+                            });
+                    });
+                })
+                : $query->where(function (Builder $q) use ($raw): void {
+                    $q->where(function (Builder $inner) use ($raw): void {
+                        $inner->whereNull('name')
+                            ->orWhere(function (Builder $n) use ($raw): void {
+                                $n->where('name', '!=', $raw)
+                                    ->where('name', 'NOT LIKE', '% '.$raw);
+                            });
+                    });
+                }),
+            SegmentConditionType::Contains => $query->where('name', 'LIKE', '%'.$raw.'%'),
+            SegmentConditionType::StartsWith => $part === 'first'
+                ? $query->where('name', 'LIKE', $raw.'%')
+                : $query->where('name', 'LIKE', '% '.$raw.'%'),
+            SegmentConditionType::EndsWith => $part === 'last'
+                ? $query->where(function (Builder $q) use ($raw): void {
+                    $q->where('name', 'LIKE', '%'.$raw)
+                        ->orWhere('name', $raw);
+                })
+                : $query->where(function (Builder $q) use ($raw): void {
+                    $q->where('name', 'LIKE', $raw.' %')
+                        ->orWhere('name', $raw);
+                }),
+            SegmentConditionType::GreaterThan => $query->where('name', '>', $raw),
+            SegmentConditionType::LessThan => $query->where('name', '<', $raw),
+        };
     }
 }

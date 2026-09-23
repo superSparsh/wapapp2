@@ -22,7 +22,7 @@ class MigrateLegacyCustomerCommand extends Command
                             {--yes : Skip confirmation prompts (for --all / cron)}
                             {--skip-inbox : Skip inbox threads/messages}
                             {--skip-billing : Skip wallet/billing}
-                            {--only=* : Limit to modules (owner,lines,lists,contacts,templates,interactive_messages,variables,forms,trigger_templates,team,campaigns,chatbots,drips,whatsapp_flows,ai,inbox,billing,integrations)}';
+                            {--only=* : Limit to modules (owner,lines,lists,list_fields,contacts,segments,templates,interactive_messages,variables,forms,trigger_templates,team,campaigns,chatbots,drips,whatsapp_flows,ai,ai_settings,inbox,billing,integrations,commerce,webhooks)}';
 
     protected $description = 'Migrate one or all legacy WapApp customers into WapApp 2.0 tenants (duplicate-safe). FAQs/tutorials: php artisan help-center:import-legacy --force';
 

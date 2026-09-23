@@ -123,6 +123,14 @@ class ContactImportService
                 $countryCode = trim((string) ($data['country_code'] ?? ''));
                 $countryCode = $countryCode !== '' ? $countryCode : null;
 
+                $customFields = ['existing_customer' => $existingCustomer];
+                if ($firstName !== '') {
+                    $customFields['FIRST_NAME'] = $firstName;
+                }
+                if ($lastName !== '') {
+                    $customFields['LAST_NAME'] = $lastName;
+                }
+
                 $now = now();
                 $batch[] = [
                     'uuid' => (string) Str::uuid(),
@@ -135,7 +143,7 @@ class ContactImportService
                     'opt_in_status' => ContactOptInStatus::OptedIn->value,
                     'opted_in_at' => $now,
                     'send_opt_in_message' => $sendOptIn,
-                    'custom_fields' => json_encode(['existing_customer' => $existingCustomer], JSON_THROW_ON_ERROR),
+                    'custom_fields' => json_encode($customFields, JSON_THROW_ON_ERROR),
                     'source' => trim((string) ($data['source'] ?? 'import')) ?: 'import',
                     'created_at' => $now,
                     'updated_at' => $now,

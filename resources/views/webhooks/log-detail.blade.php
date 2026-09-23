@@ -160,7 +160,7 @@
           Back to Logs
         </a>
         @if ($delivery->status === \App\Enums\WebhookDeliveryStatus::Failed)
-          <form action="{{ route('webhooks.logs.retry', $delivery->id) }}" method="POST">
+          <form action="{{ route('webhooks.logs.retry', $delivery) }}" method="POST">
             @csrf
             <button
               type="submit"
@@ -170,7 +170,7 @@
             </button>
           </form>
         @endif
-        <form action="{{ route('webhooks.logs.destroy', $delivery->id) }}" method="POST" onsubmit="return confirm('Delete this log?')">
+        <form action="{{ route('webhooks.logs.destroy', $delivery) }}" method="POST" onsubmit="return confirm('Delete this log?')">
           @csrf
           @method('DELETE')
           <button

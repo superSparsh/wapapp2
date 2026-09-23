@@ -151,12 +151,20 @@
             <td class="fd-table-cell p-2">{{ $contact->created_at?->format('d M Y H:i') ?? '-' }}</td>
             <td class="fd-table-cell p-2">{{ $contact->updated_at?->format('d M Y H:i') ?? '-' }}</td>
             <td class="w-[80px] p-2 text-center">
-              <form method="POST" action="{{ route('audience.subscribers.' . ($contact->status?->value === 'subscribed' ? 'unsubscribe' : 'subscribe')) }}">
+              <form
+                method="POST"
+                action="{{ route(
+                  'audience.subscribers.' . ($contact->status?->value === 'subscribed' ? 'unsubscribe' : 'subscribe'),
+                  array_filter(['list' => $mailListId, 'status' => request('status')])
+                ) }}"
+              >
                 @csrf
                 <input type="hidden" name="ids[]" value="{{ $contact->uuid }}">
-                <button type="submit">
-                  <x-ui.toggle-switch :active="$contact->status?->value === 'subscribed'" />
-                </button>
+                <x-ui.toggle-switch
+                  :active="$contact->status?->value === 'subscribed'"
+                  :submit="true"
+                  aria-label="{{ $contact->status?->value === 'subscribed' ? 'Unsubscribe contact' : 'Subscribe contact' }}"
+                />
               </form>
             </td>
             <td class="w-[80px] p-2">

@@ -23,7 +23,12 @@ class WebhookSubscriptionService
     public function index(?string $search = null, int $perPage = 15): LengthAwarePaginator
     {
         return WebhookSubscription::query()
-            ->when($search, fn ($q) => $q->where('description', 'LIKE', "%{$search}%")->orWhere('url', 'LIKE', "%{$search}%"))
+            ->when($search, function ($q) use ($search): void {
+                $q->where(function ($inner) use ($search): void {
+                    $inner->where('description', 'LIKE', "%{$search}%")
+                        ->orWhere('url', 'LIKE', "%{$search}%");
+                });
+            })
             ->withCount([
                 'deliveries',
                 'deliveries as sent_count' => fn ($q) => $q->where('status', WebhookDeliveryStatus::Sent),

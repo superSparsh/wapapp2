@@ -30,6 +30,58 @@ class SegmentTest extends TestCase
         parent::tearDown();
     }
 
+    public function test_segments_index_shows_edit_action_and_name_condition_fields(): void
+    {
+        $list = MailList::factory()->create();
+        Segment::factory()->create([
+            'mail_list_id' => $list->id,
+            'name' => 'Editable Segment',
+            'conditions' => [
+                'match' => 'all',
+                'rules' => [
+                    ['field' => 'FIRST_NAME', 'type' => 'equals', 'value' => 'Ada'],
+                ],
+            ],
+        ]);
+
+        $html = $this->actingAsTenantUser()
+            ->get(route('audience.segments', ['list' => $list->uuid]))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('data-segment-edit', $html);
+        $this->assertStringContainsString('aria-label="Edit segment"', $html);
+        $this->assertStringContainsString('value="FIRST_NAME"', $html);
+        $this->assertStringContainsString('First Name', $html);
+        $this->assertStringContainsString('value="LAST_NAME"', $html);
+        $this->assertStringContainsString('Last Name', $html);
+    }
+
+    public function test_first_name_condition_matches_name_token_fallback(): void
+    {
+        $list = MailList::factory()->create();
+        Contact::factory()->create(['mail_list_id' => $list->id, 'name' => 'Ada Lovelace', 'custom_fields' => null]);
+        Contact::factory()->create(['mail_list_id' => $list->id, 'name' => 'Grace Hopper', 'custom_fields' => null]);
+        Contact::factory()->create([
+            'mail_list_id' => $list->id,
+            'name' => 'Someone Else',
+            'custom_fields' => ['FIRST_NAME' => 'Ada'],
+        ]);
+
+        $segment = Segment::factory()->create([
+            'mail_list_id' => $list->id,
+            'conditions' => [
+                ['field' => 'FIRST_NAME', 'type' => 'equals', 'value' => 'Ada'],
+            ],
+        ]);
+
+        $service = app(\App\Domains\Audience\Services\SegmentService::class);
+        $service->recalculateCount($segment);
+        $segment->refresh();
+
+        $this->assertEquals(2, $segment->contact_count);
+    }
+
     // ─── Index / Listing ─────────────────────────────────────────────────────
 
     public function test_segments_index_requires_auth(): void

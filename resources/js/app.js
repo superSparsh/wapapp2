@@ -27,8 +27,12 @@ document.addEventListener('DOMContentLoaded', () => {
     initAuthFeaturesCarousel();
     initThemedSelects();
     initThemedSelectObserver();
+    try {
+        initDashboard();
+    } catch (error) {
+        console.warn('Dashboard init failed', error);
+    }
     initCampaignWizard();
-    initDashboard();
     initInboxModals();
     initInboxMessageMenu();
     initCommerceOrderModal();

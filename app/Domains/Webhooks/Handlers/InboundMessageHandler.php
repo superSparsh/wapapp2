@@ -7,6 +7,7 @@ namespace App\Domains\Webhooks\Handlers;
 use App\Domains\Admin\Services\MaintenanceModeService;
 use App\Domains\AiBot\Services\AiInboundReplyService;
 use App\Domains\Audience\Services\StopKeywordService;
+use App\Domains\Campaigns\Services\CampaignInboundResponseService;
 use App\Domains\Chatbot\Services\ChatbotFlowEngine;
 use App\Domains\Commerce\Services\CommerceOrderIngestService;
 use App\Domains\Inbox\Contracts\InboxServiceClientInterface;
@@ -38,6 +39,7 @@ class InboundMessageHandler
         private readonly CommerceOrderIngestService $commerceOrderIngest,
         private readonly StopKeywordService $stopKeywordService,
         private readonly AiInboundReplyService $aiInboundReplyService,
+        private readonly CampaignInboundResponseService $campaignInboundResponseService,
     ) {}
 
     public function handle(InboundWebhookEvent $event): void
@@ -184,6 +186,15 @@ class InboundMessageHandler
             $keywordHandled = $this->stopKeywordService->handle($conversation->refresh(), $message);
 
             if (! $keywordHandled) {
+                try {
+                    $this->campaignInboundResponseService->recordReply($conversation, $message, $item);
+                } catch (\Throwable $e) {
+                    Log::warning('Campaign response tracking failed', [
+                        'message_id' => $messageId,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+
                 // Chatbot keyword flows take priority over free trigger-templates
                 // so the same word does not send template + wrong "next" chatbot message.
                 $chatbotResult = TriggerFireResult::NoMatch;

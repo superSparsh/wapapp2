@@ -7,6 +7,7 @@ namespace App\Domains\Dashboard\Services;
 use App\Domains\Audience\Enums\ContactStatus;
 use App\Domains\Billing\Services\SubscriptionService;
 use App\Domains\Billing\Services\WalletService;
+use App\Domains\Campaigns\Services\CampaignStatsService;
 use App\Enums\CampaignRecipientStatus;
 use App\Enums\ContactOptInStatus;
 use App\Enums\MessageDirection;
@@ -46,12 +47,14 @@ class DashboardService
     public function __construct(
         private readonly WalletService $walletService,
         private readonly SubscriptionService $subscriptionService,
+        private readonly CampaignStatsService $campaignStatsService,
     ) {}
 
     public function indexPayload(User $user): array
     {
         $creditsPeriod = self::normalizePeriod(request()->string('credits_period')->toString());
         $campaign = $this->resolveCampaignFromRequest();
+        $selectedCampaign = $this->selectedCampaign($campaign);
 
         return [
             'greeting' => $this->greeting($user),
@@ -62,8 +65,9 @@ class DashboardService
             'growthMetrics' => $this->growthMetrics(),
             'subscriberSeries' => $this->subscriberSeries(),
             'recentCampaigns' => $this->recentCampaigns(),
-            'selectedCampaign' => $this->selectedCampaign($campaign),
+            'selectedCampaign' => $selectedCampaign,
             'campaignRecipients' => $this->selectedCampaignRecipients($campaign),
+            'campaignReviewMetrics' => $this->campaignReviewMetrics($selectedCampaign),
         ];
     }
 
@@ -87,8 +91,8 @@ class DashboardService
     {
         $campaign = $this->selectedCampaign($campaign);
         $recipients = $this->selectedCampaignRecipients($campaign);
-        $total = (int) ($campaign?->total_recipients ?? 0);
-        $pct = static fn (int $val): int => $total > 0 ? (int) round(($val / $total) * 100) : 0;
+        $metrics = $this->campaignReviewMetrics($campaign);
+        $total = (int) ($metrics['total']['count'] ?? 0);
 
         $detailsBase = $campaign
             ? route('campaigns.statistics.detail', $campaign)
@@ -102,21 +106,14 @@ class DashboardService
                 'id' => $campaign->uuid,
                 'name' => $campaign->name,
                 'total_recipients' => $total,
-                'total_delivered' => (int) $campaign->total_delivered,
-                'total_failed' => (int) $campaign->total_failed,
-                'total_read' => (int) $campaign->total_read,
-                'total_response' => (int) ($campaign->total_response ?? 0),
-                'total_unsubscribed' => (int) ($campaign->total_unsubscribed ?? 0),
+                'total_delivered' => (int) ($metrics['delivered']['count'] ?? 0),
+                'total_failed' => (int) ($metrics['failed']['count'] ?? 0),
+                'total_read' => (int) ($metrics['read']['count'] ?? 0),
+                'total_response' => (int) ($metrics['response']['count'] ?? 0),
+                'total_unsubscribed' => (int) ($metrics['unsubscribed']['count'] ?? 0),
                 'details_base' => $detailsBase,
                 'stats_url' => $statsUrl,
-                'metrics' => [
-                    'total' => ['count' => $total, 'percent' => 100],
-                    'delivered' => ['count' => (int) $campaign->total_delivered, 'percent' => $pct((int) $campaign->total_delivered)],
-                    'failed' => ['count' => (int) $campaign->total_failed, 'percent' => $pct((int) $campaign->total_failed)],
-                    'read' => ['count' => (int) $campaign->total_read, 'percent' => $pct((int) $campaign->total_read)],
-                    'response' => ['count' => (int) ($campaign->total_response ?? 0), 'percent' => $pct((int) ($campaign->total_response ?? 0))],
-                    'unsubscribed' => ['count' => (int) ($campaign->total_unsubscribed ?? 0), 'percent' => $pct((int) ($campaign->total_unsubscribed ?? 0))],
-                ],
+                'metrics' => $metrics,
             ],
             'recipients' => $recipients->map(function (CampaignRecipient $recipient) use ($campaign): array {
                 $status = $recipient->status;
@@ -452,6 +449,47 @@ class DashboardService
         return $series;
     }
 
+    /**
+     * Live recipient-status gauges (not denormalized campaign counters).
+     *
+     * @return array{
+     *     total: array{count: int, percent: int},
+     *     delivered: array{count: int, percent: int},
+     *     failed: array{count: int, percent: int},
+     *     read: array{count: int, percent: int},
+     *     response: array{count: int, percent: int},
+     *     unsubscribed: array{count: int, percent: int}
+     * }
+     */
+    public function campaignReviewMetrics(?Campaign $campaign): array
+    {
+        $empty = [
+            'total' => ['count' => 0, 'percent' => 100],
+            'delivered' => ['count' => 0, 'percent' => 0],
+            'failed' => ['count' => 0, 'percent' => 0],
+            'read' => ['count' => 0, 'percent' => 0],
+            'response' => ['count' => 0, 'percent' => 0],
+            'unsubscribed' => ['count' => 0, 'percent' => 0],
+        ];
+
+        if ($campaign === null) {
+            return $empty;
+        }
+
+        $gauge = $this->campaignStatsService->gaugeMetrics($campaign);
+        $total = max(0, (int) ($gauge['total'] ?? 0));
+        $pct = static fn (int $val): int => $total > 0 ? (int) round(($val / $total) * 100) : 0;
+
+        return [
+            'total' => ['count' => $total, 'percent' => 100],
+            'delivered' => ['count' => (int) ($gauge['delivered'] ?? 0), 'percent' => $pct((int) ($gauge['delivered'] ?? 0))],
+            'failed' => ['count' => (int) ($gauge['failed'] ?? 0), 'percent' => $pct((int) ($gauge['failed'] ?? 0))],
+            'read' => ['count' => (int) ($gauge['read'] ?? 0), 'percent' => $pct((int) ($gauge['read'] ?? 0))],
+            'response' => ['count' => (int) ($gauge['response'] ?? 0), 'percent' => $pct((int) ($gauge['response'] ?? 0))],
+            'unsubscribed' => ['count' => (int) ($gauge['unsubscribed'] ?? 0), 'percent' => $pct((int) ($gauge['unsubscribed'] ?? 0))],
+        ];
+    }
+
     /** @return Collection<int, Campaign> */
     private function recentCampaigns(): Collection
     {
@@ -459,6 +497,7 @@ class DashboardService
             ->with(['audience:id,name', 'template:id,name', 'whatsappLine:id,phone'])
             ->orderByDesc(DB::raw('COALESCE(completed_at, started_at, scheduled_at, updated_at)'))
             ->orderByDesc('id')
+            ->limit(50)
             ->get();
     }
 

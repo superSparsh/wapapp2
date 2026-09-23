@@ -332,7 +332,7 @@ TXT;
                         </button>
                       </td>
                       <td class="p-2 text-[13px] font-normal leading-[1.5] text-text-body">
-                        @foreach ($sub->events as $event)
+                        @foreach (($sub->events ?? []) as $event)
                           {{ $event === 'new_lead' ? 'New Lead Created' : $event }}
                         @endforeach
                       </td>

@@ -384,16 +384,22 @@ class DashboardTest extends TestCase
 
     public function test_campaign_review_endpoint_returns_recipients(): void
     {
-        $campaign = Campaign::factory()->create(['name' => 'Live Campaign']);
+        $campaign = Campaign::factory()->create([
+            'name' => 'Live Campaign',
+            'total_recipients' => 1,
+            'total_response' => 0,
+        ]);
         $contact = Contact::factory()->create(['name' => 'Neha']);
 
         CampaignRecipient::factory()->create([
             'campaign_id' => $campaign->id,
             'contact_id' => $contact->id,
             'contact_phone' => $contact->phone,
-            'status' => CampaignRecipientStatus::Delivered,
+            'status' => CampaignRecipientStatus::Response,
             'sent_at' => now(),
             'delivered_at' => now(),
+            'read_at' => now(),
+            'responded_at' => now(),
         ]);
 
         $this->actingAsTenantUser()
@@ -401,6 +407,8 @@ class DashboardTest extends TestCase
             ->assertOk()
             ->assertJsonPath('campaign.name', 'Live Campaign')
             ->assertJsonPath('recipients.0.name', 'Neha')
+            ->assertJsonPath('recipients.0.status_label', 'Response')
+            ->assertJsonPath('campaign.metrics.response.count', 1)
             ->assertJsonPath('campaign.stats_url', route('campaigns.statistics', $campaign));
     }
 }
