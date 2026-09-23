@@ -413,6 +413,11 @@ class InboxOutboundService
         // Legacy parity: low wallet blocks free-form, but templates / opt-in / payment still go out.
         if ($messageType !== MessageType::Template && $messageType !== MessageType::System) {
             $this->assertWalletAllowsSend();
+            $metadata = array_merge([
+                'billable' => true,
+                'wallet_source' => 'inbox',
+                'pricing_category' => 'SERVICE',
+            ], $metadata ?? []);
         }
 
         if ($messageType === MessageType::Text) {

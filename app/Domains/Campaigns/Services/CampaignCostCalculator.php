@@ -81,6 +81,8 @@ class CampaignCostCalculator
             'MARKETING' => $marketing,
             'UTILITY' => $utility,
             'AUTHENTICATION' => $auth,
+            // Meta Oct 2026: service message rates match utility/authentication.
+            'SERVICE' => $utility > 0 ? $utility : (float) ($fallback['SERVICE'] ?? $fallback['UTILITY'] ?? 0),
             'DEFAULT' => $default,
         ];
     }

@@ -100,6 +100,7 @@ class AlertDispatcher
                 'contact_name' => $contactName,
                 'preview' => mb_substr($preview, 0, 280),
                 'received_at' => now()->format('d M Y h:i A'),
+                'recipient_name' => 'there',
             ],
             whatsappTemplate: (string) config('operational-alerts.inbox_new_message.whatsapp_template'),
             whatsappParams: [
@@ -196,11 +197,12 @@ class AlertDispatcher
     {
         $this->alerts->notifyTenantContacts(
             type: OperationalAlertType::PhoneQualityChanged,
-            emailSubject: 'WhatsApp phone quality / messaging limit update',
+            emailSubject: 'WhatsApp Business Account Status Update',
             emailView: 'emails.alerts.phone-quality-changed',
             emailData: [
                 'phone' => $line->phone,
                 'display_name' => $line->display_name,
+                'user_name' => '',
                 'old_quality' => $oldQuality,
                 'new_quality' => $line->quality_rating,
                 'old_tier' => $oldTier,
@@ -280,7 +282,7 @@ class AlertDispatcher
     }
 
     /**
-     * @param  array<string, mixed>  $digest
+     * @param  array<string, mixed>  $digest  Legacy-shaped summary from WhatsAppHealthDigestService::buildSummary()
      */
     public function whatsappHealthDigest(array $digest): void
     {
@@ -289,11 +291,21 @@ class AlertDispatcher
             explode(',', (string) config('services.wa_health.digest_emails', ''))
         )));
 
+        $generatedAt = $digest['generatedAt'] ?? now();
+        $dateLabel = $generatedAt instanceof \DateTimeInterface
+            ? $generatedAt->format('M j, Y')
+            : now()->format('M j, Y');
+
         $this->platform->notifyAdmins(
             OperationalAlertType::WhatsappHealthDigest,
-            'WhatsApp Health Digest — '.now()->format('d M Y'),
+            __('wa_health.digest_subject', ['date' => $dateLabel]),
             'emails.alerts.wa-health-digest',
-            $digest,
+            [
+                'summary' => $digest,
+                'admin' => null,
+                'healthUrl' => route('admin.whatsapp-health.index'),
+                'messagePerformanceUrl' => route('admin.message-performance.index'),
+            ],
             $emails !== [] ? $emails : null,
         );
     }

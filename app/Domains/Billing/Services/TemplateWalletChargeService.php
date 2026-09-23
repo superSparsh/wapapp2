@@ -5,20 +5,23 @@ declare(strict_types=1);
 namespace App\Domains\Billing\Services;
 
 use App\Domains\Campaigns\Services\CampaignCostCalculator;
+use App\Enums\MessageDirection;
 use App\Enums\MessageType;
 use App\Enums\WalletTransactionType;
 use App\Models\Campaign;
 use App\Models\CampaignRecipient;
-use App\Models\Conversation;
 use App\Models\Message;
 use App\Models\WalletTransaction;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
 /**
- * Legacy parity: debit wallet once per delivered WhatsApp template message
- * (campaign, inbox, chatbot, trigger, drip, opt-in, form, …).
- * Free-form session messages are never charged.
+ * Debit wallet once per delivered billable WhatsApp message.
+ *
+ * - Templates: always (campaign / inbox / chatbot / …), category from metadata.
+ * - Service (session) messages: from META_SERVICE_BILLING_STARTS_AT (default 2026-10-01).
+ * - Utility 24h same-conversation skip only applies before that date.
  */
 class TemplateWalletChargeService
 {
@@ -36,10 +39,6 @@ class TemplateWalletChargeService
             return null;
         }
 
-        if ($message->message_type !== MessageType::Template) {
-            return null;
-        }
-
         $meta = is_array($message->metadata) ? $message->metadata : [];
         if (! empty($meta['wallet_charged'])) {
             return null;
@@ -50,15 +49,27 @@ class TemplateWalletChargeService
             return null;
         }
 
+        $isTemplate = $message->message_type === MessageType::Template;
+        $isService = $this->isServiceMessage($message);
+
+        if (! $isTemplate && ! $isService) {
+            return null;
+        }
+
         $message->loadMissing('conversation');
 
-        $source = $this->resolveSource($meta, $recipient);
-        $category = strtoupper((string) (
-            $meta['template_category']
-            ?? 'MARKETING'
-        ));
+        $source = $this->resolveSource($meta, $recipient, $isService);
+        $category = $isTemplate
+            ? strtoupper((string) ($meta['template_category'] ?? 'MARKETING'))
+            : 'SERVICE';
 
-        if ($category === 'UTILITY' && $this->hasOpenUtilityWindow($message, $meta)) {
+        // Pre–Oct 1 Meta parity: second utility in same conversation within 24h is free.
+        if (
+            $isTemplate
+            && $category === 'UTILITY'
+            && ! $this->serviceBillingStarted()
+            && $this->hasOpenUtilityWindow($message, $meta)
+        ) {
             Log::info('Wallet charge skipped: utility 24h window still open', [
                 'message_id' => $message->id,
                 'conversation_id' => $message->conversation_id,
@@ -84,7 +95,9 @@ class TemplateWalletChargeService
             $campaign = Campaign::query()->find($campaignId);
         }
 
-        $idempotencyKey = 'template_message:'.$message->id;
+        $idempotencyKey = $isTemplate
+            ? 'template_message:'.$message->id
+            : 'service_message:'.$message->id;
         $conversion = $this->costCalculator->conversionPrice();
         $phone = (string) (
             $recipient?->contact_phone
@@ -93,7 +106,7 @@ class TemplateWalletChargeService
             ?? ''
         );
 
-        $description = $this->descriptionFor($source, $category, $campaign, $meta, $phone);
+        $description = $this->descriptionFor($source, $category, $campaign, $meta, $phone, $isService);
 
         try {
             $transaction = $this->walletService->debit(
@@ -110,6 +123,7 @@ class TemplateWalletChargeService
                     'conversation_id' => (int) $message->conversation_id,
                     'external_message_id' => $message->external_message_id,
                     'template_category' => $category,
+                    'pricing_category' => $category,
                     'template_id' => $meta['template_id'] ?? null,
                     'template_name' => $meta['template_name'] ?? null,
                     'template_code' => $meta['template_code'] ?? null,
@@ -133,10 +147,6 @@ class TemplateWalletChargeService
             $meta['wallet_charged_at'] = now()->toIso8601String();
             $message->forceFill(['metadata' => $meta])->save();
 
-            if ($category === 'UTILITY') {
-                $this->openUtilityWindow($message);
-            }
-
             try {
                 app(\App\Domains\Alerts\Services\AlertDispatcher::class)
                     ->lowWallet(context: 'template_delivery_charge:'.$source);
@@ -146,9 +156,10 @@ class TemplateWalletChargeService
 
             return $transaction;
         } catch (Throwable $e) {
-            Log::error('Template wallet charge failed', [
+            Log::error('Wallet delivery charge failed', [
                 'message_id' => $message->id,
                 'source' => $source,
+                'category' => $category,
                 'error' => $e->getMessage(),
             ]);
 
@@ -156,10 +167,53 @@ class TemplateWalletChargeService
         }
     }
 
+    public function serviceBillingStarted(?Carbon $at = null): bool
+    {
+        $raw = trim((string) config('campaigns.meta_service_billing_starts_at', '2026-10-01'));
+        if ($raw === '') {
+            return true;
+        }
+
+        try {
+            $start = Carbon::parse($raw, 'Asia/Kolkata')->startOfDay();
+        } catch (Throwable) {
+            $start = Carbon::parse('2026-10-01', 'Asia/Kolkata')->startOfDay();
+        }
+
+        $point = ($at ?? now())->copy()->timezone('Asia/Kolkata');
+
+        return $point->greaterThanOrEqualTo($start);
+    }
+
+    private function isServiceMessage(Message $message): bool
+    {
+        if (! $this->serviceBillingStarted()) {
+            return false;
+        }
+
+        $direction = $message->direction instanceof MessageDirection
+            ? $message->direction
+            : MessageDirection::tryFrom((string) $message->direction);
+
+        if ($direction !== MessageDirection::Outbound) {
+            return false;
+        }
+
+        $type = $message->message_type instanceof MessageType
+            ? $message->message_type
+            : MessageType::tryFrom((string) $message->message_type);
+
+        if ($type === null || $type === MessageType::Template || $type === MessageType::System) {
+            return false;
+        }
+
+        return true;
+    }
+
     /**
      * @param  array<string, mixed>  $meta
      */
-    private function resolveSource(array $meta, ?CampaignRecipient $recipient): string
+    private function resolveSource(array $meta, ?CampaignRecipient $recipient, bool $isService): string
     {
         $explicit = strtolower(trim((string) ($meta['wallet_source'] ?? '')));
         if ($explicit !== '') {
@@ -170,7 +224,7 @@ class TemplateWalletChargeService
             return 'campaign';
         }
 
-        return 'inbox';
+        return $isService ? 'inbox' : 'inbox';
     }
 
     /**
@@ -182,8 +236,18 @@ class TemplateWalletChargeService
         ?Campaign $campaign,
         array $meta,
         string $phone,
+        bool $isService,
     ): string {
         $suffix = $phone !== '' ? ' · '.$phone : '';
+
+        if ($isService || $category === 'SERVICE') {
+            return match ($source) {
+                'chatbot' => 'Chatbot service message (delivered)'.$suffix,
+                'trigger' => 'Trigger service message (delivered)'.$suffix,
+                'drip' => 'Drip service message (delivered)'.$suffix,
+                default => 'Service message (session, delivered)'.$suffix,
+            };
+        }
 
         return match ($source) {
             'opt_in' => 'Opt-in message (marketing template, delivered)'.$suffix,
@@ -218,12 +282,5 @@ class TemplateWalletChargeService
             ->where('metadata->conversation_id', $conversationId)
             ->where('created_at', '>=', now()->subHours(24))
             ->exists();
-    }
-
-    private function openUtilityWindow(Message $message): void
-    {
-        // Window is inferred from the debit ledger (hasOpenUtilityWindow).
-        // Keeping a hook here if we later persist conversation.utility_window_expires_at.
-        unset($message);
     }
 }

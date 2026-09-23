@@ -1,0 +1,71 @@
+<?php
+
+declare(strict_types=1);
+
+/**
+ * WhatsApp Health Center — digest email strings (ported from legacy messages.admin.wa_health.*).
+ */
+return [
+    'menu_label' => 'WhatsApp Health Center',
+
+    'lines_connected' => 'Connected',
+    'templates_pending' => 'Pending',
+    'templates_rejected' => 'Rejected / disabled',
+    'alerts_unread' => 'Unread alerts',
+    'alerts_critical_7d' => 'Serious alerts (last 7 days)',
+
+    'col_customer' => 'User details',
+    'col_template' => 'Template',
+    'col_template_status' => 'Status',
+    'col_messages_out' => 'Messages sent',
+    'col_send_rate' => 'Send rate',
+    'col_delivery_rate' => 'Delivery rate',
+    'col_response_rate' => 'Response rate',
+    'col_unsubscribe_rate' => 'Unsubscribe rate',
+    'col_error_message' => 'Error / reason',
+    'col_updated' => 'Last updated',
+    'col_last_campaign' => 'Last campaign completed',
+    'col_last_message' => 'Last message sent',
+
+    'last_snapshot_at' => 'Last snapshot run: :at (:lines WhatsApp numbers)',
+    'last_snapshot_never' => 'No snapshot run recorded yet.',
+    'lines_without_quality' => 'WhatsApp numbers missing quality rating',
+
+    'digest_subject' => 'WhatsApp Health summary — :date',
+    'digest_preheader' => ':unread unread alerts · :lines WhatsApp numbers · :red need urgent quality review.',
+    'digest_daily_report' => 'Daily summary · :date',
+    'digest_greeting' => 'Hi :name,',
+    'digest_greeting_fallback' => 'there',
+    'digest_intro' => 'Here is a quick look at how WhatsApp is doing for your customers — numbers, templates, alerts, who sent the most and least today, and how campaigns performed.',
+    'digest_summary_title' => 'At a glance',
+    'digest_lines_section' => 'WhatsApp numbers',
+    'digest_templates_section' => 'Templates',
+    'digest_alerts_section' => 'Alerts',
+    'digest_usage_section' => 'Who messaged the most and least today',
+    'digest_usage_help' => 'Active subscription accounts only — fewest and most outbound campaign messages sent today (since midnight).',
+    'digest_least_usage_today' => 'Lowest usage today',
+    'digest_most_usage_today' => 'Highest usage today',
+    'digest_usage_empty' => 'No outbound messages recorded today yet.',
+    'digest_view_performance' => 'Open full message performance report',
+    'digest_quality_good' => 'Good',
+    'digest_quality_watch' => 'Watch',
+    'digest_quality_poor' => 'Needs work',
+    'digest_messaging_section' => 'Campaign messaging (last 7 days)',
+    'digest_messaging_period' => 'Send, delivery, reply, and unsubscribe rates from :from to :to.',
+    'digest_customer_activity_section' => 'Recent customer activity (last 7 days)',
+    'digest_customer_activity_help' => 'Customers who finished a campaign or sent a message in the last 7 days.',
+    'digest_health_ok' => 'Things look okay',
+    'digest_health_ok_help' => 'No unread critical alerts, no poor-quality (RED) numbers, and no rejected templates right now.',
+    'digest_health_attention' => 'Please take a look',
+    'digest_health_attention_help' => 'You have unread alerts, poor-quality numbers, or rejected templates that may need action.',
+    'digest_cta' => 'Open WhatsApp Health Center',
+    'digest_cta_help' => 'See full details, filters, and per-customer reports in the admin panel.',
+    'digest_footer' => 'This is an automatic daily email from :app WhatsApp Health Center.',
+    'digest_generated_at' => 'Sent at :at',
+    'digest_template_errors_section' => 'Templates with problems',
+    'digest_template_errors_help' => 'Templates Meta rejected or disabled, with the error reason when we have it.',
+    'digest_template_errors_empty' => 'No rejected or failed templates right now.',
+    'digest_template_errors_link' => 'View all rejected templates',
+    'digest_template_no_reason' => 'No error message saved',
+    'times_in_ist' => 'All times shown in :tz (IST).',
+];

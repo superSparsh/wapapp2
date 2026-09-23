@@ -25,6 +25,7 @@ use App\Models\PlatformSetting;
 use App\Models\Template;
 use App\Models\WalletAccount;
 use App\Models\WalletTransaction;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\InteractsWithTenants;
 use Tests\TestCase;
@@ -199,9 +200,49 @@ class CampaignWalletChargeTest extends TestCase
         $this->assertSame(1, WalletTransaction::query()->where('type', WalletTransactionType::Debit)->count());
     }
 
-    public function test_charge_service_skips_non_campaign_messages(): void
+    public function test_service_text_message_is_charged_after_billing_start(): void
     {
         tenancy()->initialize($this->testTenant);
+        config(['campaigns.meta_service_billing_starts_at' => '2026-09-01']);
+
+        WalletAccount::query()->firstOrCreate([], ['balance' => 10, 'currency' => 'INR']);
+
+        $conversation = Conversation::factory()->create([
+            'whatsapp_line_id' => $this->testLine->id,
+            'contact_phone' => '919988776655',
+        ]);
+
+        $message = Message::query()->create([
+            'conversation_id' => $conversation->id,
+            'direction' => MessageDirection::Outbound,
+            'message_type' => MessageType::Text,
+            'status' => MessageStatus::Delivered,
+            'body' => 'Hi',
+            'external_message_id' => 'wamid.FREE-001',
+            'metadata' => [
+                'billable' => true,
+                'wallet_source' => 'inbox',
+                'pricing_category' => 'SERVICE',
+            ],
+            'delivered_at' => now(),
+        ]);
+
+        $txn = app(\App\Domains\Billing\Services\TemplateWalletChargeService::class)
+            ->chargeIfDelivered($message, 'Delivered');
+
+        $this->assertNotNull($txn);
+        // SERVICE rate = UTILITY = 0.005 USD * 100 conversion = 0.5 INR
+        $this->assertEquals(0.5, (float) $txn->amount);
+        $this->assertSame('SERVICE', $txn->metadata['pricing_category'] ?? null);
+        $this->assertEquals(9.5, (float) app(WalletService::class)->balance());
+    }
+
+    public function test_service_text_message_not_charged_before_billing_start(): void
+    {
+        tenancy()->initialize($this->testTenant);
+        config(['campaigns.meta_service_billing_starts_at' => '2026-10-01']);
+        $this->travelTo(Carbon::parse('2026-09-23', 'Asia/Kolkata'));
+
         WalletAccount::query()->firstOrCreate([], ['balance' => 10, 'currency' => 'INR']);
 
         $conversation = Conversation::factory()->create([
@@ -214,7 +255,7 @@ class CampaignWalletChargeTest extends TestCase
             'message_type' => MessageType::Text,
             'status' => MessageStatus::Delivered,
             'body' => 'Hi',
-            'external_message_id' => 'wamid.FREE-001',
+            'external_message_id' => 'wamid.FREE-PRE',
             'metadata' => [],
             'delivered_at' => now(),
         ]);
@@ -260,9 +301,12 @@ class CampaignWalletChargeTest extends TestCase
         $this->assertSame('inbox', $txn->metadata['wallet_source'] ?? null);
     }
 
-    public function test_utility_second_message_within_24h_is_not_charged(): void
+    public function test_utility_second_message_within_24h_is_not_charged_before_billing_start(): void
     {
         tenancy()->initialize($this->testTenant);
+        config(['campaigns.meta_service_billing_starts_at' => '2026-10-01']);
+        $this->travelTo(Carbon::parse('2026-09-23', 'Asia/Kolkata'));
+
         WalletAccount::query()->firstOrCreate([], ['balance' => 10, 'currency' => 'INR']);
 
         $conversation = Conversation::factory()->create([
@@ -306,5 +350,56 @@ class CampaignWalletChargeTest extends TestCase
         $this->assertNull($txn);
         // Only first utility charged: 10 - (0.005 * 100) = 9.5
         $this->assertEquals(9.5, (float) app(WalletService::class)->balance());
+    }
+
+    public function test_utility_second_message_is_charged_after_billing_start(): void
+    {
+        tenancy()->initialize($this->testTenant);
+        config(['campaigns.meta_service_billing_starts_at' => '2026-09-01']);
+
+        WalletAccount::query()->firstOrCreate([], ['balance' => 10, 'currency' => 'INR']);
+
+        $conversation = Conversation::factory()->create([
+            'whatsapp_line_id' => $this->testLine->id,
+        ]);
+
+        $first = Message::query()->create([
+            'conversation_id' => $conversation->id,
+            'direction' => MessageDirection::Outbound,
+            'message_type' => MessageType::Template,
+            'status' => MessageStatus::Delivered,
+            'body' => 'Utility 1',
+            'external_message_id' => 'wamid.UTIL-A',
+            'metadata' => [
+                'billable' => true,
+                'wallet_source' => 'inbox',
+                'template_category' => 'UTILITY',
+            ],
+        ]);
+
+        app(\App\Domains\Billing\Services\TemplateWalletChargeService::class)
+            ->chargeIfDelivered($first, 'Delivered');
+
+        $second = Message::query()->create([
+            'conversation_id' => $conversation->id,
+            'direction' => MessageDirection::Outbound,
+            'message_type' => MessageType::Template,
+            'status' => MessageStatus::Delivered,
+            'body' => 'Utility 2',
+            'external_message_id' => 'wamid.UTIL-B',
+            'metadata' => [
+                'billable' => true,
+                'wallet_source' => 'inbox',
+                'template_category' => 'UTILITY',
+            ],
+        ]);
+
+        $txn = app(\App\Domains\Billing\Services\TemplateWalletChargeService::class)
+            ->chargeIfDelivered($second, 'Delivered');
+
+        $this->assertNotNull($txn);
+        $this->assertEquals(0.5, (float) $txn->amount);
+        // Both utilities charged: 10 - 0.5 - 0.5 = 9.0
+        $this->assertEquals(9.0, (float) app(WalletService::class)->balance());
     }
 }
