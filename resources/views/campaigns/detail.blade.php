@@ -64,14 +64,17 @@
                   <td class="w-[160px] p-2 text-[13px] font-normal leading-[1.5] text-text-body">{{ $recipient->contact?->name ?? 'N/A' }}</td>
                   <td class="p-2 text-center">
                     @php
-                      $statusLabel = $recipient->status?->label() ?? 'Unknown';
-                      $statusColor = match ($recipient->status) {
-                          \App\Enums\CampaignRecipientStatus::Delivered => 'text-blue-600 bg-[rgba(59,130,246,0.1)]',
-                          \App\Enums\CampaignRecipientStatus::Read => 'text-green-600 bg-[rgba(16,185,129,0.1)]',
-                          \App\Enums\CampaignRecipientStatus::Response => 'text-purple-600 bg-[rgba(142,68,173,0.1)]',
-                          \App\Enums\CampaignRecipientStatus::Failed => 'text-red-600 bg-[rgba(239,68,68,0.1)]',
-                          \App\Enums\CampaignRecipientStatus::Sent => 'text-gray-600 bg-[rgba(107,114,128,0.1)]',
-                          \App\Enums\CampaignRecipientStatus::Unsubscribed => 'text-orange-600 bg-[rgba(245,158,11,0.1)]',
+                      $statusLabel = $recipient->status?->label() ?? (is_string($recipient->status) ? ucfirst($recipient->status) : 'Unknown');
+                      $statusValue = $recipient->status instanceof \App\Enums\CampaignRecipientStatus
+                        ? $recipient->status->value
+                        : (string) ($recipient->status ?? '');
+                      $statusColor = match ($statusValue) {
+                          'delivered' => 'text-blue-600 bg-[rgba(59,130,246,0.1)]',
+                          'read' => 'text-green-600 bg-[rgba(16,185,129,0.1)]',
+                          'response' => 'text-purple-600 bg-[rgba(142,68,173,0.1)]',
+                          'failed' => 'text-red-600 bg-[rgba(239,68,68,0.1)]',
+                          'sent' => 'text-gray-600 bg-[rgba(107,114,128,0.1)]',
+                          'unsubscribed' => 'text-orange-600 bg-[rgba(245,158,11,0.1)]',
                           default => 'text-text-muted bg-[rgba(0,0,0,0.05)]',
                       };
                     @endphp
@@ -79,10 +82,8 @@
                       {{ $statusLabel }}
                     </span>
                   </td>
-                  <td class="min-w-[220px] max-w-[360px] p-2 text-[13px] font-normal leading-[1.5] break-words text-text-body">
-                    {{ $recipient->status === \App\Enums\CampaignRecipientStatus::Failed
-                        ? ($recipient->failure_reason ?: 'N/A')
-                        : '—' }}
+                  <td class="min-w-[220px] max-w-[360px] p-2 text-[13px] font-normal leading-[1.5] break-words text-text-body" title="{{ $recipient->displayReason() }}">
+                    {{ $recipient->displayReason() }}
                   </td>
                   <td class="p-2 text-[13px] font-normal leading-[1.5] text-text-body">{{ $recipient->sent_at?->format('d M Y h:i A') ?? '—' }}</td>
                   <td class="p-2 text-[13px] font-normal leading-[1.5] text-text-body">{{ $recipient->delivered_at?->format('d M Y h:i A') ?? '—' }}</td>

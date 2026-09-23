@@ -98,7 +98,7 @@ class DeliveryStatusHandler
                     app(\App\Domains\Inbox\Contracts\InboxServiceClientInterface::class)->updateDeliveryStatus(
                         externalMessageId: $messageId,
                         status: strtolower($status),
-                        failedReason: (string) ($item['ErrorDescription'] ?? null),
+                        failedReason: $status === 'Failed' ? $this->extractFailureReason($item) : (string) ($item['ErrorDescription'] ?? null),
                     );
                 } catch (\Throwable $e) {
                     \Illuminate\Support\Facades\Log::warning('Failed forwarding delivery status to inbox microservice', [
@@ -137,7 +137,7 @@ class DeliveryStatusHandler
             'Failed' => [
                 'status' => MessageStatus::Failed,
                 'failed_at' => $message->failed_at ?? $now,
-                'failed_reason' => (string) ($item['ErrorDescription'] ?? 'Delivery failed'),
+                'failed_reason' => $this->extractFailureReason($item),
             ],
             default => [],
         };
@@ -247,13 +247,13 @@ class DeliveryStatusHandler
         }
         if ($recipientStatus === CampaignRecipientStatus::Failed) {
             $updates['failed_at'] = $recipient->failed_at ?? $now;
-            $updates['failure_reason'] = mb_substr((string) ($item['ErrorDescription'] ?? 'Delivery failed'), 0, 255);
+            $updates['failure_reason'] = $this->extractFailureReason($item);
             if ($recipient->status !== CampaignRecipientStatus::Failed) {
                 $recipient->campaign?->increment('total_failed');
             }
 
-            $error = (string) ($item['ErrorDescription'] ?? $item['ErrorCode'] ?? '');
-            $errorCode = (string) ($item['ErrorCode'] ?? '');
+            $error = $this->extractFailureReason($item);
+            $errorCode = (string) ($item['ErrorCode'] ?? $item['errorCode'] ?? '');
             $nonWa = app(NonWhatsAppNumberService::class);
             if ($nonWa->isUndeliverableCode($errorCode) || $nonWa->errorLooksLike131026($error)) {
                 if ($recipient->contact_id) {
@@ -331,5 +331,33 @@ class DeliveryStatusHandler
                 $query->whereIn('contact_phone', $variants);
             })
             ->first();
+    }
+
+    /**
+     * @param  array<string, mixed>  $item
+     */
+    private function extractFailureReason(array $item): string
+    {
+        foreach ([
+            'ErrorDescription',
+            'errorDescription',
+            'error_description',
+            'ErrorMsg',
+            'error_message',
+            'failed_reason',
+            'FailedReason',
+        ] as $key) {
+            $value = trim((string) ($item[$key] ?? ''));
+            if ($value !== '') {
+                return mb_substr($value, 0, 255);
+            }
+        }
+
+        $code = trim((string) ($item['ErrorCode'] ?? $item['errorCode'] ?? ''));
+        if ($code !== '') {
+            return mb_substr('Error code: '.$code, 0, 255);
+        }
+
+        return 'Delivery failed';
     }
 }

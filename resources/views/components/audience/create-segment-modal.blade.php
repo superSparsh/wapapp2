@@ -107,6 +107,7 @@
                   id="segment_match_type"
                   name="match_type"
                   data-segment-match
+                  data-native-select="true"
                   class="w-full appearance-none rounded-[12px] border border-border bg-elevated px-[14px] py-[14px] pr-10 text-sm font-medium leading-[1.4] text-text-muted focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
                 >
                   <option value="all" selected>All (match every condition)</option>
@@ -129,6 +130,7 @@
                     <select
                       name="conditions[0][field]"
                       required
+                      data-native-select="true"
                       class="w-full appearance-none rounded-[12px] border border-border bg-elevated px-[14px] py-[14px] pr-10 text-sm font-medium leading-[1.4] text-text-muted focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
                     >
                       <option value="">Select field</option>
@@ -148,6 +150,7 @@
                     <select
                       name="conditions[0][type]"
                       required
+                      data-native-select="true"
                       class="w-full appearance-none rounded-[12px] border border-border bg-elevated px-[14px] py-[14px] pr-10 text-sm font-medium leading-[1.4] text-text-muted focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
                     >
                       @foreach ($operators as $value => $label)
@@ -197,7 +200,7 @@
     <div class="min-w-0 flex-1">
       <label class="mb-1 block text-sm font-semibold leading-[1.4] text-text-primary">Field <span class="text-red-500">*</span></label>
       <div class="relative">
-        <select data-name-field="field" required class="w-full appearance-none rounded-[12px] border border-border bg-elevated px-[14px] py-[14px] pr-10 text-sm font-medium leading-[1.4] text-text-muted focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500">
+        <select data-name-field="field" data-native-select="true" required class="w-full appearance-none rounded-[12px] border border-border bg-elevated px-[14px] py-[14px] pr-10 text-sm font-medium leading-[1.4] text-text-muted focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500">
           <option value="">Select field</option>
           @foreach ($fieldOptions as $field)
             <option value="{{ $field['tag'] }}">{{ $field['label'] }}</option>
@@ -209,7 +212,7 @@
     <div class="min-w-0 flex-1">
       <label class="mb-1 block text-sm font-semibold leading-[1.4] text-text-primary">Operator <span class="text-red-500">*</span></label>
       <div class="relative">
-        <select data-name-field="type" required class="w-full appearance-none rounded-[12px] border border-border bg-elevated px-[14px] py-[14px] pr-10 text-sm font-medium leading-[1.4] text-text-muted focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500">
+        <select data-name-field="type" data-native-select="true" required class="w-full appearance-none rounded-[12px] border border-border bg-elevated px-[14px] py-[14px] pr-10 text-sm font-medium leading-[1.4] text-text-muted focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500">
           @foreach ($operators as $value => $label)
             <option value="{{ $value }}">{{ $label }}</option>
           @endforeach
@@ -229,6 +232,7 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
+  const modal = document.getElementById('modal-create-segment');
   const form = document.querySelector('[data-segment-form]');
   const container = document.querySelector('[data-segment-conditions]');
   const template = document.getElementById('segment-condition-template');
@@ -241,7 +245,49 @@ document.addEventListener('DOMContentLoaded', () => {
   const submitBtn = form?.querySelector('[data-segment-submit]');
   const storeUrl = form?.dataset.segmentStoreUrl || '';
 
-  if (!form || !container || !template || !addBtn) return;
+  if (!form || !container || !template || !addBtn || !modal) return;
+
+  const operatorAliases = {
+    equal: 'equals',
+    equals: 'equals',
+    'not equal': 'not_equals',
+    not_equal: 'not_equals',
+    not_equals: 'not_equals',
+    contains: 'contains',
+    starts_with: 'starts_with',
+    ends_with: 'ends_with',
+    greater_than: 'greater_than',
+    less_than: 'less_than',
+    is_empty: 'is_empty',
+    is_not_empty: 'is_not_empty',
+  };
+
+  const normalizeCondition = (raw = {}) => {
+    const field = String(raw.field ?? raw.tag ?? '').trim();
+    const typeRaw = String(raw.type ?? raw.operator ?? '').trim().toLowerCase().replace(/\s+/g, '_');
+    const type = operatorAliases[typeRaw] || typeRaw;
+
+    return {
+      field,
+      type,
+      value: raw.value ?? '',
+    };
+  };
+
+  const parseConditions = (trigger) => {
+    const rawAttr = trigger.getAttribute('data-segment-conditions') || '[]';
+    let parsed = [];
+    try {
+      parsed = JSON.parse(rawAttr);
+    } catch {
+      parsed = [];
+    }
+    if (!Array.isArray(parsed) || parsed.length === 0) {
+      return [{}];
+    }
+
+    return parsed.map((item) => normalizeCondition(item || {}));
+  };
 
   const reindex = () => {
     container.querySelectorAll('[data-condition-row]').forEach((row, index) => {
@@ -258,6 +304,7 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   const appendCondition = (condition = {}) => {
+    const normalized = normalizeCondition(condition);
     const node = template.content.cloneNode(true);
     const row = node.querySelector('[data-condition-row]');
     if (!row) return;
@@ -266,14 +313,28 @@ document.addEventListener('DOMContentLoaded', () => {
     const typeSelect = row.querySelector('[data-name-field="type"]');
     const valueInput = row.querySelector('[data-name-field="value"]');
 
-    if (fieldSelect instanceof HTMLSelectElement && condition.field) {
-      fieldSelect.value = condition.field;
+    if (fieldSelect instanceof HTMLSelectElement) {
+      if (normalized.field) {
+        const hasOption = [...fieldSelect.options].some((opt) => opt.value === normalized.field);
+        if (hasOption) {
+          fieldSelect.value = normalized.field;
+        } else {
+          const option = document.createElement('option');
+          option.value = normalized.field;
+          option.textContent = normalized.field;
+          fieldSelect.appendChild(option);
+          fieldSelect.value = normalized.field;
+        }
+      }
     }
-    if (typeSelect instanceof HTMLSelectElement && condition.type) {
-      typeSelect.value = condition.type;
+    if (typeSelect instanceof HTMLSelectElement && normalized.type) {
+      const hasOption = [...typeSelect.options].some((opt) => opt.value === normalized.type);
+      if (hasOption) {
+        typeSelect.value = normalized.type;
+      }
     }
     if (valueInput instanceof HTMLInputElement) {
-      valueInput.value = condition.value != null ? String(condition.value) : '';
+      valueInput.value = normalized.value != null ? String(normalized.value) : '';
     }
 
     container.appendChild(node);
@@ -296,15 +357,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const updateUrl = trigger.dataset.segmentUpdateUrl || '';
     const name = trigger.dataset.segmentName || '';
     const match = trigger.dataset.segmentMatch || 'all';
-    let conditions = [];
-    try {
-      conditions = JSON.parse(trigger.dataset.segmentConditions || '[]');
-    } catch {
-      conditions = [];
-    }
-    if (!Array.isArray(conditions) || conditions.length === 0) {
-      conditions = [{}];
-    }
+    const conditions = parseConditions(trigger);
 
     form.action = updateUrl;
     if (methodInput) methodInput.value = 'PUT';
@@ -315,7 +368,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (matchSelect) matchSelect.value = match === 'any' ? 'any' : 'all';
 
     clearConditions();
-    conditions.forEach((condition) => appendCondition(condition || {}));
+    conditions.forEach((condition) => appendCondition(condition));
     reindex();
   };
 
@@ -333,6 +386,8 @@ document.addEventListener('DOMContentLoaded', () => {
     reindex();
   });
 
+  // Capture phase: prepare form BEFORE global modal opener shows the dialog,
+  // so users never see a create→edit flash / themed-select rebuild glitch.
   document.querySelectorAll('[data-open-modal="create-segment"]').forEach((trigger) => {
     trigger.addEventListener('click', () => {
       if (trigger.hasAttribute('data-segment-edit')) {
@@ -340,7 +395,20 @@ document.addEventListener('DOMContentLoaded', () => {
       } else {
         resetCreateMode();
       }
+    }, true);
+  });
+
+  modal.querySelectorAll('[data-modal-close]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      // Next open starts clean if user closed mid-edit.
+      window.setTimeout(resetCreateMode, 0);
     });
+  });
+
+  modal.addEventListener('click', (event) => {
+    if (event.target === modal) {
+      window.setTimeout(resetCreateMode, 0);
+    }
   });
 });
 </script>

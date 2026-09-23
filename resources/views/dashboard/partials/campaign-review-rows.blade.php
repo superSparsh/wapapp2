@@ -26,10 +26,13 @@
     <td class="p-2 text-center">
       <x-ui.status-chip :label="$recipient->status?->label() ?? 'Pending'" :variant="$statusVariant" />
     </td>
+    <td class="fd-table-cell max-w-[240px] break-words p-2 text-xs" title="{{ $recipient->displayReason() }}">
+      {{ $recipient->displayReason() }}
+    </td>
   </tr>
 @empty
   <tr class="border-t border-divider bg-elevated">
-    <td colspan="6" class="fd-table-cell p-4 text-sm text-text-muted">
+    <td colspan="7" class="fd-table-cell p-4 text-sm text-text-muted">
       @if ($selectedCampaign)
         No recipient logs for this campaign yet.
       @else

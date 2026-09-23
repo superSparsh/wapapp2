@@ -51,15 +51,110 @@ async function fetchJson(url) {
     return response.json();
 }
 
-function setRefreshBusy(buttons, busy) {
+function refreshIcon(btn) {
+    return btn.querySelector('[data-refresh-icon], svg, img');
+}
+
+function refreshLabel(btn) {
+    return btn.querySelector('[data-refresh-text]');
+}
+
+function ensureRefreshLabel(btn) {
+    let label = refreshLabel(btn);
+    if (label) {
+        return label;
+    }
+
+    const icon = refreshIcon(btn);
+    const textNode = [...btn.childNodes].find(
+        (node) => node.nodeType === Node.TEXT_NODE && node.textContent.trim() !== '',
+    );
+
+    label = document.createElement('span');
+    label.setAttribute('data-refresh-text', '');
+    label.textContent = textNode ? textNode.textContent.trim() : 'Refresh';
+
+    if (textNode) {
+        btn.replaceChild(label, textNode);
+    } else if (icon?.nextSibling) {
+        btn.insertBefore(label, icon.nextSibling);
+    } else {
+        btn.appendChild(label);
+    }
+
+    return label;
+}
+
+function clearRefreshStatusTimer(btn) {
+    const timerId = Number(btn.dataset.refreshStatusTimer || 0);
+    if (timerId) {
+        window.clearTimeout(timerId);
+        delete btn.dataset.refreshStatusTimer;
+    }
+}
+
+/**
+ * @param {HTMLButtonElement[]} buttons
+ * @param {'idle'|'busy'|'done'|'error'} state
+ */
+function setRefreshState(buttons, state) {
     buttons.forEach((btn) => {
         if (!(btn instanceof HTMLButtonElement)) {
             return;
         }
+
+        clearRefreshStatusTimer(btn);
+
+        if (!btn.dataset.refreshIdleLabel) {
+            btn.dataset.refreshIdleLabel = ensureRefreshLabel(btn).textContent.trim() || 'Refresh';
+        }
+
+        const label = ensureRefreshLabel(btn);
+        const icon = refreshIcon(btn);
+        const busy = state === 'busy';
+        const done = state === 'done';
+        const failed = state === 'error';
+
         btn.disabled = busy;
-        btn.classList.toggle('opacity-60', busy);
+        btn.classList.toggle('opacity-70', busy);
+        btn.classList.toggle('pointer-events-none', busy);
+        btn.classList.toggle('border-green-500', done);
+        btn.classList.toggle('text-green-600', done);
+        btn.classList.toggle('border-danger', failed);
+        btn.classList.toggle('text-danger', failed);
         btn.setAttribute('aria-busy', busy ? 'true' : 'false');
+
+        if (icon) {
+            icon.classList.toggle('animate-spin', busy);
+        }
+
+        if (busy) {
+            label.textContent = 'Refreshing…';
+        } else if (done) {
+            label.textContent = 'Updated';
+            btn.dataset.refreshStatusTimer = String(
+                window.setTimeout(() => setRefreshState([btn], 'idle'), 1600),
+            );
+        } else if (failed) {
+            label.textContent = 'Failed';
+            btn.dataset.refreshStatusTimer = String(
+                window.setTimeout(() => setRefreshState([btn], 'idle'), 2000),
+            );
+        } else {
+            label.textContent = btn.dataset.refreshIdleLabel || 'Refresh';
+        }
     });
+}
+
+function flashRefreshTarget(root) {
+    if (!(root instanceof HTMLElement)) {
+        return;
+    }
+
+    root.classList.remove('dashboard-refresh-flash');
+    // Force reflow so the animation can replay on rapid clicks.
+    void root.offsetWidth;
+    root.classList.add('dashboard-refresh-flash');
 }
 
 function initCreditsFilter(root) {
@@ -72,11 +167,13 @@ function initCreditsFilter(root) {
     let requestId = 0;
     const refreshButtons = [...root.querySelectorAll('[data-credits-refresh]')];
 
-    const load = async () => {
+    const load = async ({ fromRefresh = false } = {}) => {
         const period = (select instanceof HTMLSelectElement ? select.value : null) || 'daily';
         const current = ++requestId;
         updateUrlParam('credits_period', period);
-        setRefreshBusy(refreshButtons, true);
+        if (fromRefresh) {
+            setRefreshState(refreshButtons, 'busy');
+        }
 
         try {
             const data = await fetchJson(`${url}?period=${encodeURIComponent(period)}`);
@@ -95,23 +192,31 @@ function initCreditsFilter(root) {
                 const limit = credits[`${key}_limit`] ?? credits.sent_limit ?? 1000;
                 valueEl.textContent = `${formatNumber(used)}/${formatNumber(limit)}`;
             });
+
+            if (fromRefresh) {
+                flashRefreshTarget(root.querySelector('.grid') || root);
+                setRefreshState(refreshButtons, 'done');
+            }
         } catch (error) {
             console.warn('Credits refresh failed', error);
+            if (fromRefresh && current === requestId) {
+                setRefreshState(refreshButtons, 'error');
+            }
         } finally {
-            if (current === requestId) {
-                setRefreshBusy(refreshButtons, false);
+            if (!fromRefresh && current === requestId) {
+                setRefreshState(refreshButtons, 'idle');
             }
         }
     };
 
     if (select instanceof HTMLSelectElement) {
-        select.addEventListener('change', load);
+        select.addEventListener('change', () => load());
     }
     refreshButtons.forEach((btn) => {
         btn.addEventListener('click', (event) => {
             event.preventDefault();
             event.stopPropagation();
-            load();
+            load({ fromRefresh: true });
         });
     });
 }
@@ -119,7 +224,7 @@ function initCreditsFilter(root) {
 function renderRecipientRows(recipients) {
     if (!Array.isArray(recipients) || recipients.length === 0) {
         return `<tr class="border-t border-divider bg-elevated">
-            <td colspan="6" class="fd-table-cell p-4 text-sm text-text-muted">No recipient logs for this campaign yet.</td>
+            <td colspan="7" class="fd-table-cell p-4 text-sm text-text-muted">No recipient logs for this campaign yet.</td>
         </tr>`;
     }
 
@@ -127,6 +232,7 @@ function renderRecipientRows(recipients) {
         .map((row, index) => {
             const si = String(index + 1).padStart(2, '0');
             const chip = statusChipClass(row.status_variant);
+            const reason = row.reason || '—';
 
             return `<tr class="border-t border-divider bg-elevated">
                 <td class="fd-table-cell p-2 pl-4">${si}</td>
@@ -137,6 +243,7 @@ function renderRecipientRows(recipients) {
                 <td class="p-2 text-center">
                     <span class="fd-status-chip inline-flex items-center rounded px-2 py-1 ${chip}">${escapeHtml(row.status_label || 'Pending')}</span>
                 </td>
+                <td class="fd-table-cell max-w-[240px] break-words p-2 text-xs" title="${escapeHtml(reason)}">${escapeHtml(reason)}</td>
             </tr>`;
         })
         .join('');
@@ -201,19 +308,24 @@ function initCampaignReview(root) {
     let requestId = 0;
     const refreshButtons = [...root.querySelectorAll('[data-campaign-review-refresh]')];
 
-    const load = async () => {
+    const load = async ({ fromRefresh = false } = {}) => {
         const campaignId = select instanceof HTMLSelectElement ? select.value : '';
         if (!campaignId) {
             rows.innerHTML = renderRecipientRows([]);
             if (heading) {
                 heading.textContent = 'Send to 0 recipients';
             }
+            if (fromRefresh) {
+                setRefreshState(refreshButtons, 'idle');
+            }
             return;
         }
 
         const current = ++requestId;
         updateUrlParam('campaign_id', campaignId);
-        setRefreshBusy(refreshButtons, true);
+        if (fromRefresh) {
+            setRefreshState(refreshButtons, 'busy');
+        }
 
         try {
             const data = await fetchJson(`${url}?campaign_id=${encodeURIComponent(campaignId)}`);
@@ -225,6 +337,9 @@ function initCampaignReview(root) {
 
             const campaign = data.campaign;
             if (!campaign) {
+                if (fromRefresh) {
+                    setRefreshState(refreshButtons, 'done');
+                }
                 return;
             }
 
@@ -238,23 +353,31 @@ function initCampaignReview(root) {
             }
 
             applyCampaignMetrics(root, campaign);
+
+            if (fromRefresh) {
+                flashRefreshTarget(root.querySelector('[data-campaign-review-metrics]') || rows);
+                setRefreshState(refreshButtons, 'done');
+            }
         } catch (error) {
             console.warn('Campaign review refresh failed', error);
+            if (fromRefresh && current === requestId) {
+                setRefreshState(refreshButtons, 'error');
+            }
         } finally {
-            if (current === requestId) {
-                setRefreshBusy(refreshButtons, false);
+            if (!fromRefresh && current === requestId) {
+                setRefreshState(refreshButtons, 'idle');
             }
         }
     };
 
     if (select instanceof HTMLSelectElement) {
-        select.addEventListener('change', load);
+        select.addEventListener('change', () => load());
     }
     refreshButtons.forEach((btn) => {
         btn.addEventListener('click', (event) => {
             event.preventDefault();
             event.stopPropagation();
-            load();
+            load({ fromRefresh: true });
         });
     });
 }

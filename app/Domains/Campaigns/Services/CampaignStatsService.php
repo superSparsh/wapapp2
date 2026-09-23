@@ -170,9 +170,7 @@ class CampaignStatsService
                     $recipient->contact_phone ?? 'N/A',
                     $recipient->contact?->name ?? 'N/A',
                     $recipient->status?->label() ?? 'Unknown',
-                    $recipient->status === CampaignRecipientStatus::Failed
-                        ? ($recipient->failure_reason ?: 'N/A')
-                        : '—',
+                    $recipient->displayReason(),
                     $recipient->sent_at?->format('d M Y h:i:s A') ?? 'N/A',
                     $recipient->delivered_at?->format('d M Y h:i:s A') ?? 'N/A',
                     $recipient->failed_at?->format('d M Y h:i:s A') ?? 'N/A',
@@ -323,7 +321,7 @@ class CampaignStatsService
                         $recipient->sent_at?->timezone('Asia/Kolkata')->format('d M Y h:i A') ?? '',
                         $recipient->delivered_at?->timezone('Asia/Kolkata')->format('d M Y h:i A') ?? '',
                         $recipient->updated_at?->timezone('Asia/Kolkata')->format('d M Y h:i A') ?? '',
-                        $isFailed ? ($recipient->failure_reason ?: '') : '',
+                        $recipient->displayReason() === '—' ? '' : $recipient->displayReason(),
                     ]);
                 });
 

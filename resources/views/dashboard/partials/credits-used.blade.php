@@ -21,9 +21,9 @@
 >
   <div class="flex flex-wrap items-center gap-4">
     <h2 class="fd-section-title min-w-0 flex-1">Credits Used</h2>
-    <button type="button" data-credits-refresh class="fd-btn inline-flex items-center gap-2.5 rounded-lg border border-border bg-elevated px-3 py-2 text-sm font-medium text-text-primary">
-      Refresh
-      <x-icons.nav-icon name="refresh-2" class="size-4" />
+    <button type="button" data-credits-refresh class="fd-btn inline-flex items-center gap-2.5 rounded-lg border border-border bg-elevated px-3 py-2 text-sm font-medium text-text-primary transition-colors">
+      <span data-refresh-text>Refresh</span>
+      <x-icons.nav-icon name="refresh-2" class="size-4" data-refresh-icon />
     </button>
     <label class="sr-only" for="credits_period">Sort by period</label>
     <select

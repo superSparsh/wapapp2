@@ -37,9 +37,9 @@
   <div class="flex flex-col gap-4 rounded-lg bg-elevated p-4">
     <div class="flex flex-wrap items-center justify-end gap-2">
       <h2 class="fd-section-title mr-auto">Review Your Recently Sent Campaigns</h2>
-      <button type="button" data-campaign-review-refresh class="fd-btn inline-flex items-center gap-2 rounded-lg border border-border bg-elevated px-3 py-2 text-sm font-medium">
-        <x-icons.nav-icon name="refresh-2" class="size-4" />
-        Refresh
+      <button type="button" data-campaign-review-refresh class="fd-btn inline-flex items-center gap-2 rounded-lg border border-border bg-elevated px-3 py-2 text-sm font-medium transition-colors">
+        <x-icons.nav-icon name="refresh-2" class="size-4" data-refresh-icon />
+        <span data-refresh-text>Refresh</span>
       </button>
     </div>
 
@@ -72,6 +72,7 @@
               <th class="fd-table-head bg-elevated p-2">Campaign</th>
               <th class="fd-table-head w-[180px] bg-elevated p-2">Sent At</th>
               <th class="fd-table-head w-[120px] bg-elevated p-2 text-center">Status</th>
+              <th class="fd-table-head min-w-[180px] bg-elevated p-2">Reason</th>
             </tr>
           </thead>
           <tbody data-campaign-review-rows>
@@ -99,9 +100,9 @@
 
     <div class="flex flex-wrap items-center justify-end gap-2">
       <h3 class="fd-section-title mr-auto" data-campaign-review-heading>Send to {{ number_format($total) }} recipients</h3>
-      <button type="button" data-campaign-review-refresh class="fd-btn inline-flex items-center gap-2 rounded-lg border border-border bg-elevated px-3 py-2 text-sm font-medium">
-        <x-icons.nav-icon name="refresh-2" class="size-4" />
-        Refresh
+      <button type="button" data-campaign-review-refresh class="fd-btn inline-flex items-center gap-2 rounded-lg border border-border bg-elevated px-3 py-2 text-sm font-medium transition-colors">
+        <x-icons.nav-icon name="refresh-2" class="size-4" data-refresh-icon />
+        <span data-refresh-text>Refresh</span>
       </button>
     </div>
 

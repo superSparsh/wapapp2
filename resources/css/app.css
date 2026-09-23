@@ -1253,3 +1253,20 @@ html.fd-page-loading {
 body:has(#chatbot-react-root) .ant-message {
     display: none !important;
 }
+
+@keyframes dashboard-refresh-flash {
+    0% {
+        box-shadow: 0 0 0 0 rgba(109, 187, 72, 0.35);
+    }
+    40% {
+        box-shadow: 0 0 0 4px rgba(109, 187, 72, 0.18);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(109, 187, 72, 0);
+    }
+}
+
+.dashboard-refresh-flash {
+    animation: dashboard-refresh-flash 0.9s ease-out;
+    border-radius: 0.75rem;
+}

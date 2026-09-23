@@ -99,4 +99,21 @@ class CampaignRecipient extends Model
     {
         $query->where('status', CampaignRecipientStatus::Sent);
     }
+
+    /**
+     * Human-readable failure / status reason for recipient logs.
+     */
+    public function displayReason(): string
+    {
+        $reason = trim((string) ($this->failure_reason ?? ''));
+        if ($reason !== '') {
+            return $reason;
+        }
+
+        $status = $this->status instanceof CampaignRecipientStatus
+            ? $this->status
+            : CampaignRecipientStatus::tryFrom((string) $this->status);
+
+        return $status === CampaignRecipientStatus::Failed ? 'N/A' : '—';
+    }
 }

@@ -133,6 +133,7 @@ class DashboardService
                         'unsubscribed' => 'inactive',
                         default => 'pending',
                     },
+                    'reason' => $recipient->displayReason(),
                 ];
             })->values()->all(),
         ];
