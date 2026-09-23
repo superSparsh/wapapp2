@@ -14,9 +14,12 @@ class HorizonServiceProvider extends HorizonApplicationServiceProvider
      */
     public function boot(): void
     {
-        // Must run before Horizon reads supervisors — uses getenv(HORIZON_ROLE)
-        // so supervisor overrides work even when config is cached.
-        HorizonRole::applyToConfig();
+        // Apply role filter at runtime only. Never during config:cache / optimize,
+        // or the filtered (web) map gets baked into bootstrap/cache/config.php
+        // and oci-heavy starts with zero supervisors.
+        if (! $this->isBuildingConfigCache()) {
+            HorizonRole::applyToConfig();
+        }
 
         parent::boot();
 
@@ -37,5 +40,24 @@ class HorizonServiceProvider extends HorizonApplicationServiceProvider
                 //
             ]);
         });
+    }
+
+    private function isBuildingConfigCache(): bool
+    {
+        if (! $this->app->runningInConsole()) {
+            return false;
+        }
+
+        $argv = $_SERVER['argv'] ?? [];
+        $command = $argv[1] ?? '';
+
+        // `php artisan config:cache` sometimes places the command at index 1 or 2.
+        foreach ($argv as $part) {
+            if (in_array($part, ['config:cache', 'optimize'], true)) {
+                return true;
+            }
+        }
+
+        return in_array($command, ['config:cache', 'optimize'], true);
     }
 }
