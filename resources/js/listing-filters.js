@@ -68,6 +68,18 @@ export function initListingFilters() {
             event.preventDefault();
             form.requestSubmit();
         });
+
+        const debounceMs = Number(input.dataset.listingSearchDebounce || 0);
+        if (debounceMs > 0) {
+            let timer = null;
+
+            input.addEventListener('input', () => {
+                window.clearTimeout(timer);
+                timer = window.setTimeout(() => {
+                    form.requestSubmit();
+                }, debounceMs);
+            });
+        }
     });
 }
 

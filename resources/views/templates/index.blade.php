@@ -40,16 +40,27 @@
       <x-ui.validation-errors class="max-w-[854px]" />
 
       <div class="flex flex-wrap items-center justify-between gap-4">
-        <form method="get" action="{{ route('templates.index') }}" class="flex flex-wrap items-center gap-4">
+        <form method="get" action="{{ route('templates.index') }}" class="flex flex-wrap items-center gap-4" data-templates-filter-form>
           <input type="hidden" name="tab" value="{{ $activeTab }}">
-          <label class="flex w-[280px] shrink-0 items-center gap-3 overflow-hidden rounded-lg bg-elevated p-3">
-            <img src="{{ asset('images/templates/search.svg') }}" alt="" class="size-5 shrink-0" width="20" height="20">
-            <input type="search" name="q" value="{{ $search }}" placeholder="Search" class="fd-filter-placeholder min-w-0 flex-1 bg-transparent opacity-60 focus:opacity-100 focus:outline-none">
-          </label>
+          <div class="flex w-[280px] shrink-0 items-center gap-3 overflow-hidden rounded-lg bg-elevated p-3">
+            <button type="submit" class="shrink-0 rounded p-0.5 hover:opacity-80" aria-label="Search templates">
+              <img src="{{ asset('images/templates/search.svg') }}" alt="" class="size-5" width="20" height="20">
+            </button>
+            <input
+              type="search"
+              name="q"
+              value="{{ $search }}"
+              placeholder="Search"
+              autocomplete="off"
+              data-listing-search-enter
+              data-listing-search-debounce="400"
+              class="fd-filter-placeholder min-w-0 flex-1 bg-transparent opacity-60 focus:opacity-100 focus:outline-none"
+            >
+          </div>
 
           @if ($isFreeTab)
             <div class="min-w-[140px] shrink-0">
-              <x-ui.select name="free_type" variant="filter" class="min-w-[140px]" onchange="this.form.submit()">
+              <x-ui.select name="free_type" variant="filter" class="min-w-[140px]" data-listing-filter>
                 <option value="">Type</option>
                 @foreach ($freeTypes as $freeType)
                   <option value="{{ $freeType }}" @selected($selectedFreeType === $freeType)>{{ ucfirst($freeType) }}</option>
@@ -58,7 +69,7 @@
             </div>
           @else
             <div class="min-w-[140px] shrink-0">
-              <x-ui.select name="type" variant="filter" class="min-w-[140px]" onchange="this.form.submit()">
+              <x-ui.select name="type" variant="filter" class="min-w-[140px]" data-listing-filter>
                 <option value="">Type</option>
                 @foreach ($types as $typeOption)
                   <option value="{{ $typeOption }}" @selected($selectedType === $typeOption)>{{ $typeOption }}</option>
@@ -66,7 +77,7 @@
               </x-ui.select>
             </div>
             <div class="min-w-[140px] shrink-0">
-              <x-ui.select name="category" variant="filter" class="min-w-[140px]" onchange="this.form.submit()">
+              <x-ui.select name="category" variant="filter" class="min-w-[140px]" data-listing-filter>
                 <option value="">Category</option>
                 @foreach ($categories as $category)
                   <option value="{{ $category }}" @selected($selectedCategory === $category)>{{ \App\Domains\Templates\Support\TemplateCategoryCatalog::label((string) $category) }}</option>
