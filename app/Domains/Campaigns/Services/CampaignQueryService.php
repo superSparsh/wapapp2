@@ -26,10 +26,21 @@ class CampaignQueryService
             ->with('audience:id,name')
             ->with('whatsappLine:id,phone,display_name')
             ->with('template:id,name')
-            // Live delivered count — denormalized total_delivered used to increment on send.
+            // Match statistics gauges: Delivered includes read/response (progressive).
             ->withCount([
                 'recipients as delivered_recipients_count' => fn ($q) => $q
-                    ->where('status', CampaignRecipientStatus::Delivered),
+                    ->whereIn('status', [
+                        CampaignRecipientStatus::Delivered,
+                        CampaignRecipientStatus::Read,
+                        CampaignRecipientStatus::Response,
+                    ]),
+                'recipients as read_recipients_count' => fn ($q) => $q
+                    ->where('status', CampaignRecipientStatus::Read),
+                'recipients as response_recipients_count' => fn ($q) => $q
+                    ->where('status', CampaignRecipientStatus::Response),
+                'recipients as failed_recipients_count' => fn ($q) => $q
+                    ->where('status', CampaignRecipientStatus::Failed),
+                'recipients as recipients_total_count',
             ])
             // Select only display columns — skip heavy JSON fields
             ->select([

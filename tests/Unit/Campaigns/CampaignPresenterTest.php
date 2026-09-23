@@ -76,14 +76,14 @@ class CampaignPresenterTest extends TestCase
         $this->assertSame('paused', $this->presenter->indexCard($paused)['status_variant']);
     }
 
-    public function test_index_card_delivered_uses_recipient_delivered_status_not_sent_counter(): void
+    public function test_index_card_delivered_matches_statistics_progressive_count(): void
     {
         $campaign = Campaign::factory()->create([
             'total_recipients' => 3,
             'total_delivered' => 3, // stale "API sent" counter — must be ignored
-            'total_read' => 1,
-            'total_failed' => 0,
-            'total_response' => 0,
+            'total_read' => 99, // stale — must be ignored when live counts present
+            'total_failed' => 99,
+            'total_response' => 99,
         ]);
         $campaign->load('audience', 'whatsappLine', 'template');
 
@@ -93,13 +93,31 @@ class CampaignPresenterTest extends TestCase
 
         $campaign->loadCount([
             'recipients as delivered_recipients_count' => fn ($q) => $q
-                ->where('status', \App\Enums\CampaignRecipientStatus::Delivered),
+                ->whereIn('status', [
+                    \App\Enums\CampaignRecipientStatus::Delivered,
+                    \App\Enums\CampaignRecipientStatus::Read,
+                    \App\Enums\CampaignRecipientStatus::Response,
+                ]),
+            'recipients as read_recipients_count' => fn ($q) => $q
+                ->where('status', \App\Enums\CampaignRecipientStatus::Read),
+            'recipients as response_recipients_count' => fn ($q) => $q
+                ->where('status', \App\Enums\CampaignRecipientStatus::Response),
+            'recipients as failed_recipients_count' => fn ($q) => $q
+                ->where('status', \App\Enums\CampaignRecipientStatus::Failed),
+            'recipients as recipients_total_count',
         ]);
 
         $card = $this->presenter->indexCard($campaign);
+        $metrics = app(\App\Domains\Campaigns\Services\CampaignStatsService::class)
+            ->gaugeMetrics($campaign);
 
-        $this->assertSame('1/3', $card['delivered']);
+        // Listing Delivered = exclusive delivered + read + response (same as Statistics).
+        $this->assertSame('2/3', $card['delivered']);
         $this->assertSame('1/3', $card['read']);
+        $this->assertSame('0/3', $card['response']);
+        $this->assertSame('0/3', $card['failed']);
+        $this->assertSame(2, (int) $metrics['delivered']);
+        $this->assertSame(1, (int) $metrics['read']);
     }
 
     public function test_review_summary_shows_all_data(): void

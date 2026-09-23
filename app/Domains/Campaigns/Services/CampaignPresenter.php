@@ -44,14 +44,27 @@ class CampaignPresenter
             default => 'default',
         };
 
-        $total = max(0, (int) $campaign->total_recipients);
+        // Same rules as CampaignStatsService::gaugeMetrics (listing must match Statistics).
+        $recipientTotal = $campaign->recipients_total_count;
+        $total = $recipientTotal !== null && (int) $recipientTotal > 0
+            ? (int) $recipientTotal
+            : max(0, (int) $campaign->total_recipients);
         $ratio = static fn (int $count): string => $count.'/'.$total;
 
-        // Live count of recipients with WhatsApp Delivered status (not merely API-sent).
+        $deliveredStatuses = [
+            CampaignRecipientStatus::Delivered,
+            CampaignRecipientStatus::Read,
+            CampaignRecipientStatus::Response,
+        ];
+
         $deliveredCount = $campaign->delivered_recipients_count
-            ?? $campaign->recipients()
-                ->where('status', CampaignRecipientStatus::Delivered)
-                ->count();
+            ?? $campaign->recipients()->whereIn('status', $deliveredStatuses)->count();
+        $readCount = $campaign->read_recipients_count
+            ?? (int) $campaign->total_read;
+        $responseCount = $campaign->response_recipients_count
+            ?? (int) $campaign->total_response;
+        $failedCount = $campaign->failed_recipients_count
+            ?? (int) $campaign->total_failed;
 
         return [
             'name' => $campaign->name,
@@ -61,9 +74,9 @@ class CampaignPresenter
             'status_variant' => $statusVariant,
             'recipients' => $total,
             'delivered' => $ratio(max(0, (int) $deliveredCount)),
-            'read' => $ratio(max(0, (int) $campaign->total_read)),
-            'response' => $ratio(max(0, (int) $campaign->total_response)),
-            'failed' => $ratio(max(0, (int) $campaign->total_failed)),
+            'read' => $ratio(max(0, (int) $readCount)),
+            'response' => $ratio(max(0, (int) $responseCount)),
+            'failed' => $ratio(max(0, (int) $failedCount)),
             'completion_rate' => $campaign->completionRate(),
             'created_at' => $campaign->created_at?->format('d M Y h:i A') ?? '',
             'scheduled_at' => $campaign->scheduled_at?->format('d M Y h:i A'),
