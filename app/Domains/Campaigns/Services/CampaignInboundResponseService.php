@@ -36,6 +36,12 @@ class CampaignInboundResponseService
                 }
 
                 $now = $inboundMessage->created_at ?? now();
+                $previousStatus = $recipient->status;
+                $alreadyDelivered = in_array($previousStatus, [
+                    CampaignRecipientStatus::Delivered,
+                    CampaignRecipientStatus::Read,
+                    CampaignRecipientStatus::Response,
+                ], true);
 
                 $recipient->forceFill([
                     'status' => CampaignRecipientStatus::Response,
@@ -45,6 +51,9 @@ class CampaignInboundResponseService
                     'sent_at' => $recipient->sent_at ?? $now,
                 ])->save();
 
+                if (! $alreadyDelivered) {
+                    $recipient->campaign?->increment('total_delivered');
+                }
                 $recipient->campaign?->increment('total_response');
             });
         } catch (\Throwable $e) {

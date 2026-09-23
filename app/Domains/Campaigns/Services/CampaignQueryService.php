@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domains\Campaigns\Services;
 
 use App\Enums\CampaignStatus;
+use App\Enums\CampaignRecipientStatus;
 use App\Models\Campaign;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
@@ -25,6 +26,11 @@ class CampaignQueryService
             ->with('audience:id,name')
             ->with('whatsappLine:id,phone,display_name')
             ->with('template:id,name')
+            // Live delivered count — denormalized total_delivered used to increment on send.
+            ->withCount([
+                'recipients as delivered_recipients_count' => fn ($q) => $q
+                    ->where('status', CampaignRecipientStatus::Delivered),
+            ])
             // Select only display columns — skip heavy JSON fields
             ->select([
                 'id', 'uuid', 'name', 'status', 'audience_id',

@@ -2,7 +2,7 @@ import './echo.js';
 import './form-validation.js';
 import { initThemedSelects, initThemedSelectObserver } from './themed-select.js';
 import { initConfirmDialog, showAppAlert, showAppConfirm } from './confirm-dialog.js';
-import { initToast, showInfoToast } from './toast.js';
+import { initToast } from './toast.js';
 import { initTemplateBuilder } from './template-builder.js';
 import { initTemplatesIndex } from './templates-index.js';
 import { initFreeTemplateBuilder } from './free-template-builder.js';
@@ -907,10 +907,6 @@ function showInboxWebNotification(thread, message, { force = false } = {}) {
             notification.close();
         };
 
-        notification.onerror = () => {
-            showInfoToast(body, title);
-        };
-
         // Windows Action Center keeps banners forever unless closed; auto-dismiss
         // matches Linux Chrome behavior (~8s) so the tray does not pile up.
         if (isWindowsDesktopBrowser() && !force) {
@@ -926,20 +922,8 @@ function showInboxWebNotification(thread, message, { force = false } = {}) {
         created = false;
     }
 
-    // macOS often suppresses OS banners while the browser window is focused.
-    // Always surface an in-app toast there so the user still gets a signal.
-    if (
-        !force &&
-        apple &&
-        document.visibilityState === 'visible' &&
-        document.hasFocus()
-    ) {
-        showInfoToast(body, title);
-    }
-
-    if (!created) {
-        showInfoToast(body, title);
-    }
+    // Do not fall back to in-app toasts for chat traffic — high volume freezes the tab.
+    // Desktop OS notifications only (when permission is granted).
 
     return created;
 }

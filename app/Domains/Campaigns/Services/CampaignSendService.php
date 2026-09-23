@@ -178,7 +178,7 @@ class CampaignSendService
                 'failed_at' => null,
             ]);
 
-            $campaign->increment('total_delivered');
+            // total_delivered is reserved for WhatsApp Delivered/Read webhooks — not API accept.
 
             $this->webhookService->dispatch($campaign, 'sent', [
                 'recipient_id' => $recipient->id,

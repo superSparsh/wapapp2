@@ -248,6 +248,13 @@ class DeliveryStatusHandler
             return;
         }
 
+        $previousStatus = $recipient->status;
+        $alreadyDelivered = in_array($previousStatus, [
+            CampaignRecipientStatus::Delivered,
+            CampaignRecipientStatus::Read,
+            CampaignRecipientStatus::Response,
+        ], true);
+
         $updates = [
             'status' => $recipientStatus,
             'message_id' => $messageId,
@@ -259,11 +266,17 @@ class DeliveryStatusHandler
         if ($recipientStatus === CampaignRecipientStatus::Delivered) {
             $updates['delivered_at'] = $recipient->delivered_at ?? $now;
             $updates['sent_at'] = $recipient->sent_at ?? $now;
+            if (! $alreadyDelivered) {
+                $recipient->campaign?->increment('total_delivered');
+            }
         }
         if ($recipientStatus === CampaignRecipientStatus::Read) {
             $updates['read_at'] = $recipient->read_at ?? $now;
             $updates['delivered_at'] = $recipient->delivered_at ?? $now;
-            if ($recipient->status !== CampaignRecipientStatus::Read) {
+            if (! $alreadyDelivered) {
+                $recipient->campaign?->increment('total_delivered');
+            }
+            if ($previousStatus !== CampaignRecipientStatus::Read) {
                 $recipient->campaign?->increment('total_read');
             }
         }

@@ -47,7 +47,7 @@ class DeliveryStatusCampaignSyncTest extends TestCase
             'whatsapp_line_id' => $this->testLine->id,
             'status' => CampaignStatus::Sending,
             'total_recipients' => 1,
-            'total_delivered' => 1,
+            'total_delivered' => 0,
             'total_read' => 0,
         ]);
 
@@ -112,6 +112,7 @@ class DeliveryStatusCampaignSyncTest extends TestCase
         $this->assertNotNull($recipient->read_at);
         $this->assertNotNull($recipient->delivered_at);
         $this->assertSame(1, (int) $campaign->total_read);
+        $this->assertSame(1, (int) $campaign->total_delivered);
         $this->assertSame(MessageStatus::Read, $message->status);
     }
 
@@ -123,7 +124,7 @@ class DeliveryStatusCampaignSyncTest extends TestCase
             'whatsapp_line_id' => $this->testLine->id,
             'status' => CampaignStatus::Sending,
             'total_recipients' => 1,
-            'total_delivered' => 1,
+            'total_delivered' => 0,
             'total_read' => 0,
         ]);
 
@@ -185,5 +186,8 @@ class DeliveryStatusCampaignSyncTest extends TestCase
         $this->assertSame(CampaignRecipientStatus::Delivered, $recipient->status);
         $this->assertSame($externalId, $recipient->message_id);
         $this->assertNotNull($recipient->delivered_at);
+
+        $campaign->refresh();
+        $this->assertSame(1, (int) $campaign->total_delivered);
     }
 }

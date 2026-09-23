@@ -141,7 +141,7 @@ class CampaignMassSendService
                     $accepted++;
                 }
 
-                $campaign->increment('total_delivered', count($batchRecipients));
+                // total_delivered updates only on delivery/read status webhooks.
 
                 if ($groupId !== '' && tenancy()->initialized) {
                     $tenantId = tenant('id');

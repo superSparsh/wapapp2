@@ -10,6 +10,7 @@ use App\Domains\Templates\Services\TemplateRegistryService;
 use App\Domains\Templates\Support\TemplateCategoryCatalog;
 use App\Domains\Audience\Enums\ContactStatus;
 use App\Domains\Billing\Services\SubscriptionService;
+use App\Enums\CampaignRecipientStatus;
 use App\Enums\CampaignStatus;
 use App\Models\Campaign;
 use App\Models\MailList;
@@ -46,6 +47,12 @@ class CampaignPresenter
         $total = max(0, (int) $campaign->total_recipients);
         $ratio = static fn (int $count): string => $count.'/'.$total;
 
+        // Live count of recipients with WhatsApp Delivered status (not merely API-sent).
+        $deliveredCount = $campaign->delivered_recipients_count
+            ?? $campaign->recipients()
+                ->where('status', CampaignRecipientStatus::Delivered)
+                ->count();
+
         return [
             'name' => $campaign->name,
             'audience' => $campaign->audience?->name ?? 'No audience',
@@ -53,7 +60,7 @@ class CampaignPresenter
             'status_label' => $campaign->status?->label() ?? 'Unknown',
             'status_variant' => $statusVariant,
             'recipients' => $total,
-            'delivered' => $ratio(max(0, (int) $campaign->total_delivered)),
+            'delivered' => $ratio(max(0, (int) $deliveredCount)),
             'read' => $ratio(max(0, (int) $campaign->total_read)),
             'response' => $ratio(max(0, (int) $campaign->total_response)),
             'failed' => $ratio(max(0, (int) $campaign->total_failed)),

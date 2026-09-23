@@ -76,6 +76,32 @@ class CampaignPresenterTest extends TestCase
         $this->assertSame('paused', $this->presenter->indexCard($paused)['status_variant']);
     }
 
+    public function test_index_card_delivered_uses_recipient_delivered_status_not_sent_counter(): void
+    {
+        $campaign = Campaign::factory()->create([
+            'total_recipients' => 3,
+            'total_delivered' => 3, // stale "API sent" counter — must be ignored
+            'total_read' => 1,
+            'total_failed' => 0,
+            'total_response' => 0,
+        ]);
+        $campaign->load('audience', 'whatsappLine', 'template');
+
+        \App\Models\CampaignRecipient::factory()->sent()->create(['campaign_id' => $campaign->id]);
+        \App\Models\CampaignRecipient::factory()->delivered()->create(['campaign_id' => $campaign->id]);
+        \App\Models\CampaignRecipient::factory()->read()->create(['campaign_id' => $campaign->id]);
+
+        $campaign->loadCount([
+            'recipients as delivered_recipients_count' => fn ($q) => $q
+                ->where('status', \App\Enums\CampaignRecipientStatus::Delivered),
+        ]);
+
+        $card = $this->presenter->indexCard($campaign);
+
+        $this->assertSame('1/3', $card['delivered']);
+        $this->assertSame('1/3', $card['read']);
+    }
+
     public function test_review_summary_shows_all_data(): void
     {
         $audience = MailList::factory()->create(['name' => 'Target Audience']);
