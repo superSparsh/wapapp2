@@ -100,4 +100,15 @@ class OciWorkloadTest extends TestCase
         $all = HorizonRole::filterConfig($config, 'all');
         $this->assertCount(5, $all['defaults']);
     }
+
+    public function test_horizon_role_prefers_process_environment(): void
+    {
+        putenv('HORIZON_ROLE=oci-heavy');
+        try {
+            $this->assertSame('oci-heavy', HorizonRole::current());
+            $this->assertSame(HorizonRole::HEAVY, HorizonRole::allowedSupervisors());
+        } finally {
+            putenv('HORIZON_ROLE');
+        }
+    }
 }

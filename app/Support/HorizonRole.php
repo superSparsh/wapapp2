@@ -29,9 +29,18 @@ final class HorizonRole
         'import',
     ];
 
+    /**
+     * Prefer process env (supervisor `environment=`) over cached config/.env
+     * so two Horizon processes on the same host can use different roles.
+     */
     public static function current(): string
     {
-        $role = strtolower(trim((string) config('oci-workers.horizon_role', env('HORIZON_ROLE', 'all'))));
+        $fromProcess = getenv('HORIZON_ROLE');
+        if (is_string($fromProcess) && $fromProcess !== '') {
+            $role = strtolower(trim($fromProcess));
+        } else {
+            $role = strtolower(trim((string) config('oci-workers.horizon_role', 'all')));
+        }
 
         return in_array($role, ['web', 'oci-heavy', 'all'], true) ? $role : 'all';
     }
@@ -72,5 +81,18 @@ final class HorizonRole
         }
 
         return $horizon;
+    }
+
+    /**
+     * Apply role filter onto the live horizon config (safe with config:cache).
+     */
+    public static function applyToConfig(?string $role = null): void
+    {
+        $horizon = config('horizon');
+        if (! is_array($horizon)) {
+            return;
+        }
+
+        config(['horizon' => self::filterConfig($horizon, $role ?? self::current())]);
     }
 }

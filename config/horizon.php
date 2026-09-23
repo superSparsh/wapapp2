@@ -1,6 +1,5 @@
 <?php
 
-use App\Support\HorizonRole;
 use Illuminate\Support\Str;
 
 $horizon = [
@@ -275,4 +274,6 @@ $horizon = [
     ],
 ];
 
-return HorizonRole::filterConfig($horizon, env('HORIZON_ROLE', 'all'));
+// Full supervisor map — role filtering is applied at runtime in
+// HorizonServiceProvider (so config:cache + supervisor HORIZON_ROLE both work).
+return $horizon;

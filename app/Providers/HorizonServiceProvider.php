@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Support\HorizonRole;
 use Illuminate\Support\Facades\Gate;
 use Laravel\Horizon\Horizon;
 use Laravel\Horizon\HorizonApplicationServiceProvider;
@@ -13,6 +14,10 @@ class HorizonServiceProvider extends HorizonApplicationServiceProvider
      */
     public function boot(): void
     {
+        // Must run before Horizon reads supervisors — uses getenv(HORIZON_ROLE)
+        // so supervisor overrides work even when config is cached.
+        HorizonRole::applyToConfig();
+
         parent::boot();
 
         // Horizon::routeSmsNotificationsTo('15556667777');
