@@ -6,10 +6,12 @@ namespace App\Domains\Webhooks\Handlers;
 
 use App\Domains\Audience\Services\NonWhatsAppNumberService;
 use App\Domains\Audience\Services\OptInMessageService;
+use App\Domains\Billing\Services\TemplateWalletChargeService;
 use App\Domains\Webhooks\Parsers\AlibabaWebhookParser;
 use App\Domains\Webhooks\Services\WhatsappLineRegistryService;
 use App\Enums\CampaignRecipientStatus;
 use App\Enums\MessageStatus;
+use App\Enums\MessageType;
 use App\Models\CampaignRecipient;
 use App\Models\Contact;
 use App\Models\InboundWebhookEvent;
@@ -22,6 +24,7 @@ class DeliveryStatusHandler
     public function __construct(
         private readonly AlibabaWebhookParser $parser,
         private readonly WhatsappLineRegistryService $registryService,
+        private readonly TemplateWalletChargeService $templateWalletChargeService,
     ) {}
 
     public function handle(InboundWebhookEvent $event): void
@@ -92,6 +95,25 @@ class DeliveryStatusHandler
             }
 
             $this->syncCampaignRecipient($item, $messageId, $status, $now);
+
+            if ($message !== null && $message->message_type === MessageType::Template) {
+                $recipient = CampaignRecipient::query()->where('message_id', $messageId)->first()
+                    ?? CampaignRecipient::query()->where('message_id', (string) $message->id)->first();
+
+                try {
+                    $this->templateWalletChargeService->chargeIfDelivered(
+                        message: $message->refresh(),
+                        deliveryStatus: $status,
+                        recipient: $recipient,
+                    );
+                } catch (\Throwable $e) {
+                    Log::warning('Template wallet charge hook failed', [
+                        'message_id' => $message->id,
+                        'status' => $status,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
 
             if (config('inbox-service.enabled')) {
                 try {

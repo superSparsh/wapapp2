@@ -153,6 +153,7 @@ class InboxOutboundService
 
     /**
      * @param  array<string, mixed>  $templateParams
+     * @param  array<string, mixed>  $extraMetadata
      */
     public function sendTemplate(
         Conversation $conversation,
@@ -160,6 +161,7 @@ class InboxOutboundService
         array $templateParams = [],
         ?string $language = null,
         bool $sendImmediately = false,
+        array $extraMetadata = [],
     ): Message {
         $templateCode = trim($templateCode);
         abort_if($templateCode === '', 422, 'Template code is required.');
@@ -196,13 +198,17 @@ class InboxOutboundService
             conversation: $conversation,
             body: $display['body'],
             messageType: MessageType::Template,
-            metadata: [
+            metadata: array_merge([
                 'template_code' => $providerCode,
                 'template_name' => $display['name'] ?? $template?->name,
                 'template_params' => $templateParams,
                 'template_buttons' => $display['buttons'],
                 'language' => $resolvedLanguage,
-            ],
+                'template_category' => strtoupper((string) ($template?->category ?? 'MARKETING')),
+                'template_id' => $template?->id,
+                'billable' => true,
+                'wallet_source' => 'inbox',
+            ], $extraMetadata),
             sendImmediately: $sendImmediately,
         );
     }

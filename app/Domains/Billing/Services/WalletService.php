@@ -73,7 +73,9 @@ class WalletService
                     $nested->where('description', 'like', "%{$search}%")
                         ->orWhere('razorpay_payment_id', 'like', "%{$search}%")
                         ->orWhere('metadata->legacy_category', 'like', "%{$search}%")
-                        ->orWhere('metadata->legacy_campaign_id', 'like', "%{$search}%");
+                        ->orWhere('metadata->legacy_campaign_id', 'like', "%{$search}%")
+                        ->orWhere('metadata->template_category', 'like', "%{$search}%")
+                        ->orWhere('metadata->campaign_id', 'like', "%{$search}%");
                 });
             })
             ->latest('id')
@@ -120,7 +122,9 @@ class WalletService
                         $nested->where('description', 'like', "%{$search}%")
                             ->orWhere('razorpay_payment_id', 'like', "%{$search}%")
                             ->orWhere('metadata->legacy_category', 'like', "%{$search}%")
-                            ->orWhere('metadata->legacy_campaign_id', 'like', "%{$search}%");
+                            ->orWhere('metadata->legacy_campaign_id', 'like', "%{$search}%")
+                            ->orWhere('metadata->template_category', 'like', "%{$search}%")
+                            ->orWhere('metadata->campaign_id', 'like', "%{$search}%");
                     });
                 })
                 ->latest('id');
@@ -228,6 +232,79 @@ class WalletService
     public function recentTransactions(int $limit = 20): Collection
     {
         return WalletTransaction::query()->latest('id')->limit($limit)->get();
+    }
+
+    /**
+     * Debit the current tenant wallet.
+     *
+     * @param  array<string, mixed>  $metadata
+     */
+    public function debit(
+        float $amount,
+        string $description,
+        ?string $referenceType = null,
+        ?int $referenceId = null,
+        array $metadata = [],
+        ?string $idempotencyKey = null,
+        bool $allowNegative = true,
+    ): WalletTransaction {
+        $amount = round(abs($amount), 4);
+        abort_unless($amount > 0, 422, 'Debit amount must be greater than zero.');
+
+        if ($idempotencyKey !== null && $idempotencyKey !== '') {
+            $metadata['idempotency_key'] = $idempotencyKey;
+
+            $existing = WalletTransaction::query()
+                ->where('type', WalletTransactionType::Debit)
+                ->where('metadata->idempotency_key', $idempotencyKey)
+                ->first();
+
+            if ($existing instanceof WalletTransaction) {
+                return $existing;
+            }
+        }
+
+        return DB::transaction(function () use ($amount, $description, $referenceType, $referenceId, $metadata, $allowNegative, $idempotencyKey): WalletTransaction {
+            if ($idempotencyKey !== null && $idempotencyKey !== '') {
+                $existing = WalletTransaction::query()
+                    ->where('type', WalletTransactionType::Debit)
+                    ->where('metadata->idempotency_key', $idempotencyKey)
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($existing instanceof WalletTransaction) {
+                    return $existing;
+                }
+            }
+
+            $wallet = WalletAccount::query()->lockForUpdate()->first();
+            if ($wallet === null) {
+                $wallet = $this->account();
+                $wallet = WalletAccount::query()->whereKey($wallet->id)->lockForUpdate()->firstOrFail();
+            }
+
+            $current = round((float) $wallet->balance, 4);
+            $roundedAmount = round($amount, 2);
+
+            if (! $allowNegative && $current < $roundedAmount) {
+                abort(422, 'Insufficient wallet balance.');
+            }
+
+            $newBalance = round($current - $roundedAmount, 2);
+            $wallet->update(['balance' => $newBalance]);
+
+            return WalletTransaction::query()->create([
+                'type' => WalletTransactionType::Debit,
+                'amount' => $roundedAmount,
+                'currency' => $wallet->currency ?? 'INR',
+                'balance_after' => $newBalance,
+                'description' => $description,
+                'reference_type' => $referenceType,
+                'reference_id' => $referenceId,
+                'metadata' => $metadata,
+                'created_at' => now(),
+            ]);
+        });
     }
 
     public function createRechargeOrder(float $amount): RazorpayOrder

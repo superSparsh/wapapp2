@@ -101,6 +101,11 @@ class CampaignTestMessageService
             templateParams: $params,
             language: CamsTemplateIdentity::language($template->language),
             sendImmediately: true,
+            extraMetadata: [
+                'wallet_source' => 'test',
+                'billable' => true,
+                'template_category' => strtoupper((string) ($template->category ?? 'MARKETING')),
+            ],
         );
 
         $message->refresh();

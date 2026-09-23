@@ -133,6 +133,14 @@ class CampaignSendService
                 templateParams: $params,
                 language: CamsTemplateIdentity::language($template->language),
                 sendImmediately: true,
+                extraMetadata: [
+                    'campaign_id' => (int) $campaign->id,
+                    'campaign_recipient_id' => (int) $recipient->id,
+                    'campaign_name' => (string) $campaign->name,
+                    'template_category' => strtoupper((string) $template->category),
+                    'billable' => true,
+                    'wallet_source' => 'campaign',
+                ],
             );
 
             $message->refresh();

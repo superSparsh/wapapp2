@@ -144,7 +144,15 @@ abstract class AbstractNodeProcessor implements NodeProcessorInterface
             return;
         }
 
-        $this->outboundService->sendTemplate($conversation, $templateCode, $params);
+        $this->outboundService->sendTemplate(
+            $conversation,
+            $templateCode,
+            $params,
+            extraMetadata: [
+                'wallet_source' => 'chatbot',
+                'billable' => true,
+            ],
+        );
     }
 
     /**

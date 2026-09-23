@@ -154,6 +154,7 @@ class CampaignPresenter
             : TemplateCategoryCatalog::MARKETING;
         $estimate = $this->costCalculator->estimateFor($recipients, $category);
         $planSummary = $this->subscriptionService->subscriptionSummary();
+        $categoryRates = $this->costCalculator->categoryRatesInr();
 
         return [
             'templates' => $templates,
@@ -166,7 +167,8 @@ class CampaignPresenter
                 'plan_name' => (string) ($planSummary['plan_name'] ?? 'Current plan'),
                 'template_name' => $selectedTemplate?->name ?? '',
                 'template_type' => TemplateCategoryCatalog::label($category) ?: $category,
-                'category_rates' => (array) config('campaigns.cost.category_rates', []),
+                'category_rates' => $categoryRates,
+                'conversion_price' => $this->costCalculator->conversionPrice(),
             ],
         ];
     }

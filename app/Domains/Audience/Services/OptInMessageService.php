@@ -93,6 +93,13 @@ class OptInMessageService
                 ],
                 language: CamsTemplateIdentity::language($template->language),
                 sendImmediately: true,
+                extraMetadata: [
+                    'wallet_source' => 'opt_in',
+                    'billable' => true,
+                    'opt_in_contact_id' => (int) $contact->id,
+                    'template_category' => strtoupper((string) ($template->category ?? 'MARKETING')),
+                    'contact_phone' => (string) $contact->phone,
+                ],
             );
 
             $message->refresh();

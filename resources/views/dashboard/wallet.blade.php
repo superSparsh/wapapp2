@@ -134,16 +134,21 @@
                     ?: ($meta['legacy_type'] ?? null)
                     ?: ($isCredit ? 'Wallet credit' : 'Wallet withdrawal');
                   $balanceAfter = (float) ($transaction->display_balance_after ?? $transaction->balance_after);
+                  $campaignId = $meta['campaign_id'] ?? $meta['legacy_campaign_id'] ?? $transaction->reference_id ?? null;
+                  $category = $meta['template_category'] ?? $meta['legacy_category'] ?? null;
+                  $msgId = $meta['external_message_id'] ?? $meta['legacy_msg_id'] ?? $meta['message_id'] ?? null;
                   $detailPayload = [
                     'description' => $description,
                     'type' => $type?->label() ?? '—',
                     'amount' => ($type?->signPrefix() ?? '').'₹ '.number_format((float) $transaction->amount, 2),
                     'balance_after' => '₹ '.number_format($balanceAfter, 2),
                     'date' => $transaction->created_at?->format('d M Y h:i A') ?? '—',
-                    'legacy_msg_id' => filled($meta['legacy_msg_id'] ?? null) ? (string) $meta['legacy_msg_id'] : '—',
-                    'legacy_category' => filled($meta['legacy_category'] ?? null) ? (string) $meta['legacy_category'] : '—',
-                    'legacy_campaign_id' => filled($meta['legacy_campaign_id'] ?? null) ? (string) $meta['legacy_campaign_id'] : '—',
-                    'legacy_sender_name' => filled($meta['legacy_sender_name'] ?? null) ? (string) $meta['legacy_sender_name'] : '—',
+                    'legacy_msg_id' => filled($msgId) ? (string) $msgId : '—',
+                    'legacy_category' => filled($category) ? (string) $category : '—',
+                    'legacy_campaign_id' => filled($campaignId) ? (string) $campaignId : '—',
+                    'legacy_sender_name' => filled($meta['legacy_sender_name'] ?? $meta['campaign_name'] ?? null)
+                      ? (string) ($meta['legacy_sender_name'] ?? $meta['campaign_name'])
+                      : '—',
                   ];
                 @endphp
                 <tr

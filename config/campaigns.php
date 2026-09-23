@@ -19,11 +19,14 @@ return [
     'mass_api_enabled' => (bool) env('CAMPAIGN_MASS_API_ENABLED', false),
     'cost' => [
         'currency' => 'INR',
+        /** Used when admin CountryPricing row is missing. */
         'category_rates' => [
             'MARKETING' => 0.88,
             'UTILITY' => 0.35,
             'AUTHENTICATION' => 0.35,
             'DEFAULT' => 0.78,
         ],
+        'default_country_code' => env('CAMPAIGN_COST_COUNTRY', 'IN'),
+        'fallback_conversion_price' => env('WALLET_CONVERSION_PRICE', '83.17'),
     ],
 ];

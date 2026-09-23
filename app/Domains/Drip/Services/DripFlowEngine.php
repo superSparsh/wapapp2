@@ -661,6 +661,11 @@ class DripFlowEngine
             templateCode: $templateCode,
             templateParams: $templateParams,
             language: $language,
+            extraMetadata: [
+                'wallet_source' => 'drip',
+                'billable' => true,
+                'drip_campaign_id' => (int) $state->drip_campaign_id,
+            ],
         );
 
         $vars = (array) ($state->variables ?? []);
@@ -983,7 +988,15 @@ class DripFlowEngine
                     ->first();
             $templateCode = $template?->whatsappCode() ?: ($template === null ? $templateKey : null);
             if (is_string($templateCode) && $templateCode !== '') {
-                $this->outboundService->sendTemplate($conversation, $templateCode);
+                $this->outboundService->sendTemplate(
+                    $conversation,
+                    $templateCode,
+                    extraMetadata: [
+                        'wallet_source' => 'drip',
+                        'billable' => true,
+                        'drip_campaign_id' => (int) $state->drip_campaign_id,
+                    ],
+                );
                 $variables['_whatsapp_flow_template_id'] = $templateKey;
                 $variables['_whatsapp_flow_node_id'] = (string) ($node['id'] ?? '');
                 $state->forceFill(['variables' => $variables])->save();

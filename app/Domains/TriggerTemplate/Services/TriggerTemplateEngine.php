@@ -65,6 +65,11 @@ class TriggerTemplateEngine
                 conversation: $conversation,
                 templateCode: $trigger->template_code,
                 templateParams: [],
+                extraMetadata: [
+                    'wallet_source' => 'trigger',
+                    'billable' => true,
+                    'trigger_id' => (int) $trigger->id,
+                ],
             );
 
             $this->markConversationRead($conversation);
