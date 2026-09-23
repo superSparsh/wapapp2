@@ -159,16 +159,67 @@ function clearPreview(root) {
 }
 
 function syncMarketingPricing(form, select) {
-    const panel = form.querySelector('[data-campaign-marketing-pricing]');
+    const panel = form.querySelector('[data-campaign-template-pricing]')
+        || form.querySelector('[data-campaign-marketing-pricing]');
     if (!(panel instanceof HTMLElement)) {
         return;
     }
 
     const option = select.selectedOptions[0];
+    const category = (option?.dataset.category || '').toUpperCase();
     const show = option?.dataset.showPricing === '1'
-        || (option?.dataset.category || '').toUpperCase() === 'MARKETING';
+        || category === 'MARKETING'
+        || category === 'UTILITY';
 
     panel.classList.toggle('hidden', !show);
+    syncCostBanner(form, select);
+}
+
+function formatCampaignMoney(symbol, amount) {
+    const value = Number.isFinite(amount) ? amount : 0;
+    return `${symbol}${value.toFixed(2)}`;
+}
+
+function syncCostBanner(form, select) {
+    const banner = form.querySelector('[data-campaign-cost-banner]');
+    if (!(banner instanceof HTMLElement)) {
+        return;
+    }
+
+    const option = select.selectedOptions[0];
+    const recipients = Number(banner.dataset.recipients || 0);
+    const symbol = banner.dataset.currencySymbol || '₹';
+    const rates = (() => {
+        try {
+            return JSON.parse(banner.dataset.categoryRates || '{}');
+        } catch {
+            return {};
+        }
+    })();
+
+    const category = (option?.dataset.category || 'MARKETING').toUpperCase();
+    const unitFromOption = Number(option?.dataset.unitCost);
+    const unitCost = Number.isFinite(unitFromOption)
+        ? unitFromOption
+        : Number(rates[category] ?? rates.DEFAULT ?? 0.78);
+    const totalCost = Math.round(unitCost * recipients * 100) / 100;
+    const templateName = option?.dataset.templateName || 'Select a template';
+    const templateType = option?.dataset.categoryLabel || category || '—';
+
+    const setText = (selector, value) => {
+        const el = banner.querySelector(selector);
+        if (el) {
+            el.textContent = value;
+        }
+    };
+
+    setText('[data-cost-recipients]', String(recipients));
+    setText('[data-cost-plan]', banner.dataset.planName || 'Current plan');
+    setText('[data-cost-unit]', formatCampaignMoney(symbol, unitCost));
+    setText('[data-cost-total]', formatCampaignMoney(symbol, totalCost));
+    setText('[data-cost-template-name]', templateName);
+    setText('[data-cost-template-type]', templateType);
+    setText('[data-cost-template-total]', formatCampaignMoney(symbol, totalCost));
 }
 
 function initTemplateSelectPreview(form) {

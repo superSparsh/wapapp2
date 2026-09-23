@@ -27,7 +27,7 @@
               || (string) old('audience_id', $wizardData['audience_id'] ?? '') === (string) $list->id
             )
           >
-            {{ $list->name }} ({{ $list->contacts_count }} contacts)
+            {{ $list->name }} ({{ (int) ($list->subscribed_contacts_count ?? 0) }} contacts)
           </option>
         @endforeach
       </select>

@@ -7,6 +7,9 @@ namespace App\Domains\Campaigns\Services;
 use App\Domains\Templates\Enums\TemplateStatus;
 use App\Domains\Templates\Services\TemplatePreviewService;
 use App\Domains\Templates\Services\TemplateRegistryService;
+use App\Domains\Templates\Support\TemplateCategoryCatalog;
+use App\Domains\Audience\Enums\ContactStatus;
+use App\Domains\Billing\Services\SubscriptionService;
 use App\Enums\CampaignStatus;
 use App\Models\Campaign;
 use App\Models\MailList;
@@ -19,6 +22,8 @@ class CampaignPresenter
         private readonly TemplatePreviewService $previewService,
         private readonly TemplateRegistryService $templateRegistry,
         private readonly CampaignVariableGridService $variableGridService,
+        private readonly CampaignCostCalculator $costCalculator,
+        private readonly SubscriptionService $subscriptionService,
     ) {}
 
     /**
@@ -88,9 +93,13 @@ class CampaignPresenter
                     ->orderBy('display_name')
                     ->get(),
                 'audiences' => MailList::query()
-                    ->select(['id', 'uuid', 'name'])
-                    ->withCount('contacts')
-                    ->orderBy('name')
+                    ->select(['id', 'uuid', 'name', 'created_at'])
+                    ->withCount([
+                        'contacts as subscribed_contacts_count' => fn ($query) => $query
+                            ->where('status', ContactStatus::Subscribed),
+                    ])
+                    ->orderByDesc('created_at')
+                    ->orderByDesc('id')
                     ->get(),
             ],
             3 => $this->templateStepData($wizardData),
@@ -126,22 +135,52 @@ class CampaignPresenter
 
         $previewData = null;
         $templateId = $wizardData['template_id'] ?? null;
+        $selectedTemplate = null;
         if ($templateId) {
-            $template = Template::query()
+            $selectedTemplate = Template::query()
                 ->with('variables')
                 ->where('status', TemplateStatus::Approved)
                 ->whereNotNull('code')
                 ->where('code', '!=', '')
                 ->find($templateId);
-            if ($template instanceof Template) {
-                $previewData = $this->previewService->forTemplate($template, keepPlaceholders: true);
+            if ($selectedTemplate instanceof Template) {
+                $previewData = $this->previewService->forTemplate($selectedTemplate, keepPlaceholders: true);
             }
         }
+
+        $recipients = $this->subscribedRecipientCount($wizardData['audience_id'] ?? null);
+        $category = $selectedTemplate instanceof Template
+            ? strtoupper((string) $selectedTemplate->category)
+            : TemplateCategoryCatalog::MARKETING;
+        $estimate = $this->costCalculator->estimateFor($recipients, $category);
+        $planSummary = $this->subscriptionService->subscriptionSummary();
 
         return [
             'templates' => $templates,
             'previewData' => $previewData,
+            'costEstimate' => [
+                'recipients' => $estimate['recipients'],
+                'unit_cost' => $estimate['unit_cost'],
+                'total_cost' => $estimate['total_cost'],
+                'currency' => $estimate['currency'],
+                'plan_name' => (string) ($planSummary['plan_name'] ?? 'Current plan'),
+                'template_name' => $selectedTemplate?->name ?? '',
+                'template_type' => TemplateCategoryCatalog::label($category) ?: $category,
+                'category_rates' => (array) config('campaigns.cost.category_rates', []),
+            ],
         ];
+    }
+
+    private function subscribedRecipientCount(mixed $audienceId): int
+    {
+        $id = is_numeric($audienceId) ? (int) $audienceId : 0;
+        if ($id <= 0) {
+            return 0;
+        }
+
+        $list = MailList::query()->find($id);
+
+        return $list instanceof MailList ? $list->subscribedCount() : 0;
     }
 
     /**

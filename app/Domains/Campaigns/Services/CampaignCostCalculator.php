@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Domains\Campaigns\Services;
 
 use App\Models\Campaign;
-use App\Models\Template;
 
 class CampaignCostCalculator
 {
@@ -16,10 +15,20 @@ class CampaignCostCalculator
      */
     public function estimate(Campaign $campaign): array
     {
-        $recipients = max(0, (int) $campaign->total_recipients);
-        $template = $campaign->template;
+        return $this->estimateFor(
+            max(0, (int) $campaign->total_recipients),
+            $campaign->template?->category,
+        );
+    }
 
-        $unitCost = $this->unitCostForTemplate($template);
+    /**
+     * @return array{recipients: int, unit_cost: float, total_cost: float, currency: string, category: string}
+     */
+    public function estimateFor(int $recipients, ?string $category): array
+    {
+        $recipients = max(0, $recipients);
+        $normalized = strtoupper(trim((string) $category));
+        $unitCost = $this->unitCostForCategory($normalized);
         $currency = (string) config('campaigns.cost.currency', 'INR');
 
         return [
@@ -27,18 +36,19 @@ class CampaignCostCalculator
             'unit_cost' => $unitCost,
             'total_cost' => round($unitCost * $recipients, 2),
             'currency' => $currency,
+            'category' => $normalized !== '' ? $normalized : 'DEFAULT',
         ];
     }
 
-    private function unitCostForTemplate(?Template $template): float
+    public function unitCostForCategory(?string $category): float
     {
-        if ($template === null) {
-            return 0.0;
-        }
-
-        $category = strtoupper((string) $template->category);
+        $normalized = strtoupper(trim((string) $category));
         $rates = (array) config('campaigns.cost.category_rates', []);
 
-        return (float) ($rates[$category] ?? $rates['DEFAULT'] ?? 0.78);
+        if ($normalized !== '' && isset($rates[$normalized])) {
+            return (float) $rates[$normalized];
+        }
+
+        return (float) ($rates['DEFAULT'] ?? 0.78);
     }
 }

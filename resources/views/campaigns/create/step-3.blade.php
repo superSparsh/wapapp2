@@ -6,8 +6,35 @@
     fn ($template) => (string) $template->uuid === $selectedTemplateId
       || (string) $template->id === $selectedTemplateId,
   );
-  $showMarketingPricing = $selectedTemplate
-    && strtoupper((string) $selectedTemplate->category) === TemplateCategoryCatalog::MARKETING;
+  $selectedCategory = $selectedTemplate
+    ? strtoupper((string) $selectedTemplate->category)
+    : '';
+  $showCampaignPricing = in_array($selectedCategory, [
+    TemplateCategoryCatalog::MARKETING,
+    TemplateCategoryCatalog::UTILITY,
+  ], true);
+
+  $costEstimate = $costEstimate ?? [
+    'recipients' => 0,
+    'unit_cost' => 0,
+    'total_cost' => 0,
+    'currency' => 'INR',
+    'plan_name' => 'Current plan',
+    'template_name' => '',
+    'template_type' => 'Marketing',
+    'category_rates' => (array) config('campaigns.cost.category_rates', []),
+  ];
+
+  if ($selectedTemplate) {
+    $category = strtoupper((string) $selectedTemplate->category);
+    $costEstimate['template_name'] = (string) $selectedTemplate->name;
+    $costEstimate['template_type'] = TemplateCategoryCatalog::label($category) ?: $category;
+    $rates = (array) ($costEstimate['category_rates'] ?? []);
+    $unit = (float) ($rates[$category] ?? $rates['DEFAULT'] ?? 0.78);
+    $recipients = (int) ($costEstimate['recipients'] ?? 0);
+    $costEstimate['unit_cost'] = $unit;
+    $costEstimate['total_cost'] = round($unit * $recipients, 2);
+  }
 @endphp
 
 <x-campaigns.create-layout
@@ -43,7 +70,12 @@
             @php
               $category = strtoupper((string) ($template->category ?? ''));
               $categoryLabel = TemplateCategoryCatalog::label($category);
-              $isMarketing = $category === TemplateCategoryCatalog::MARKETING;
+              $showPricing = in_array($category, [
+                TemplateCategoryCatalog::MARKETING,
+                TemplateCategoryCatalog::UTILITY,
+              ], true);
+              $rates = (array) ($costEstimate['category_rates'] ?? []);
+              $unitCost = (float) ($rates[$category] ?? $rates['DEFAULT'] ?? 0.78);
             @endphp
             <option
               value="{{ $template->uuid }}"
@@ -52,8 +84,11 @@
                 || $selectedTemplateId === (string) $template->id
               )
               data-category="{{ $category }}"
+              data-template-name="{{ $template->name }}"
+              data-category-label="{{ $categoryLabel }}"
+              data-unit-cost="{{ $unitCost }}"
               @if ($categoryLabel !== '') data-category-pill="{{ $categoryLabel }}" @endif
-              @if ($isMarketing) data-show-pricing="1" @endif
+              @if ($showPricing) data-show-pricing="1" @endif
               @if ($template->has_variables) data-pill="contain variables" @endif
             >
               {{ $template->name }}
@@ -64,14 +99,23 @@
       </div>
 
       <div
-        data-campaign-marketing-pricing
+        data-campaign-template-pricing
         @class([
           'flex flex-col gap-6',
-          'hidden' => ! $showMarketingPricing,
+          'hidden' => ! $showCampaignPricing,
         ])
       >
         <x-campaigns.pricing-notice />
-        <x-campaigns.cost-banner />
+        <x-campaigns.cost-banner
+          :recipients="$costEstimate['recipients']"
+          :plan-name="$costEstimate['plan_name']"
+          :unit-cost="$costEstimate['unit_cost']"
+          :total-cost="$costEstimate['total_cost']"
+          :template-name="$costEstimate['template_name']"
+          :template-type="$costEstimate['template_type']"
+          :currency="$costEstimate['currency']"
+          :category-rates="$costEstimate['category_rates']"
+        />
       </div>
     </div>
 

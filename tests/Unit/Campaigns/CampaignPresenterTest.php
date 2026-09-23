@@ -65,7 +65,7 @@ class CampaignPresenterTest extends TestCase
     {
         $sending = Campaign::factory()->sending()->create();
         $sending->load('audience', 'whatsappLine', 'template');
-        $this->assertSame('running', $this->presenter->indexCard($sending)['status_variant']);
+        $this->assertSame('sending', $this->presenter->indexCard($sending)['status_variant']);
 
         $completed = Campaign::factory()->completed()->create();
         $completed->load('audience', 'whatsappLine', 'template');
@@ -107,6 +107,23 @@ class CampaignPresenterTest extends TestCase
 
         $this->assertArrayHasKey('templates', $data);
         $this->assertArrayHasKey('previewData', $data);
+        $this->assertArrayHasKey('costEstimate', $data);
+        $this->assertArrayHasKey('recipients', $data['costEstimate']);
+    }
+
+    public function test_step_2_audiences_are_newest_first(): void
+    {
+        $older = MailList::factory()->create(['name' => 'AAA Older', 'created_at' => now()->subDay()]);
+        $newer = MailList::factory()->create(['name' => 'ZZZ Newer', 'created_at' => now()]);
+
+        $data = $this->presenter->stepData(2);
+        $ids = $data['audiences']->pluck('id')->all();
+
+        $this->assertSame($newer->id, $ids[0]);
+        $this->assertContains($older->id, $ids);
+        $this->assertTrue(
+            array_search($newer->id, $ids, true) < array_search($older->id, $ids, true),
+        );
     }
 
     public function test_step_data_returns_preview_for_step_5(): void
