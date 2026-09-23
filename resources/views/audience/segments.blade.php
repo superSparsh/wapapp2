@@ -56,7 +56,7 @@
                   data-segment-update-url="{{ route('audience.segments.update', $segment) }}"
                   data-segment-name="{{ $segment->name }}"
                   data-segment-match="{{ $segmentMatch }}"
-                  data-segment-conditions='@json(array_values($segmentRules))'
+                  data-segment-conditions="{{ e(json_encode(array_values($segmentRules))) }}"
                   class="flex size-5 items-center justify-center"
                   aria-label="Edit segment"
                   title="Edit"

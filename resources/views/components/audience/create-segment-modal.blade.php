@@ -233,13 +233,13 @@
 <script>
 document.addEventListener('DOMContentLoaded', () => {
   const modal = document.getElementById('modal-create-segment');
-  const form = document.querySelector('[data-segment-form]');
-  const container = document.querySelector('[data-segment-conditions]');
+  const form = modal?.querySelector('[data-segment-form]');
+  const container = modal?.querySelector('[data-segment-conditions]');
   const template = document.getElementById('segment-condition-template');
-  const addBtn = document.querySelector('[data-add-condition]');
+  const addBtn = modal?.querySelector('[data-add-condition]');
   const methodInput = form?.querySelector('[data-segment-method]');
-  const titleEl = document.querySelector('[data-segment-modal-title]');
-  const subtitleEl = document.querySelector('[data-segment-modal-subtitle]');
+  const titleEl = modal?.querySelector('[data-segment-modal-title]');
+  const subtitleEl = modal?.querySelector('[data-segment-modal-subtitle]');
   const nameInput = form?.querySelector('[data-segment-name]');
   const matchSelect = form?.querySelector('[data-segment-match]');
   const submitBtn = form?.querySelector('[data-segment-submit]');
@@ -275,7 +275,10 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   const parseConditions = (trigger) => {
-    const rawAttr = trigger.getAttribute('data-segment-conditions') || '[]';
+    // Prefer dataset (auto-decodes HTML entities) so apostrophes/quotes in values stay valid JSON.
+    const rawAttr = trigger.dataset.segmentConditions
+      || trigger.getAttribute('data-segment-conditions')
+      || '[]';
     let parsed = [];
     try {
       parsed = JSON.parse(rawAttr);
@@ -287,6 +290,19 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     return parsed.map((item) => normalizeCondition(item || {}));
+  };
+
+  const cleanupOrphanSelectMenus = () => {
+    document.querySelectorAll('body > .fd-select__menu').forEach((menu) => {
+      const wrapId = menu.getAttribute('data-select-wrap');
+      if (wrapId && document.getElementById(wrapId)) {
+        return;
+      }
+      // Menus portaled to body whose select row was removed stay stuck over the listing.
+      if (!menu.closest('.fd-select')) {
+        menu.remove();
+      }
+    });
   };
 
   const reindex = () => {
@@ -301,6 +317,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const clearConditions = () => {
     container.querySelectorAll('[data-condition-row]').forEach((row) => row.remove());
+    cleanupOrphanSelectMenus();
   };
 
   const appendCondition = (condition = {}) => {
