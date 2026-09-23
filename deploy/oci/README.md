@@ -31,3 +31,10 @@ v1 assumes workers share that filesystem (same VM or NFS). Separate worker VMs n
 ## Image
 
 `Dockerfile` builds a PHP-CLI worker image suitable for OCIR (`bmue9nxcdpso/wapapp-prod`).
+
+
+# Emergency rollback (OCI heavy band)
+1. .env → OCI_WORKERS_ENABLED=false , HORIZON_ROLE=all
+2. sudo supervisorctl stop horizon-oci
+3. sudo -u www-data php artisan config:cache
+4. sudo supervisorctl restart horizon
