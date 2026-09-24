@@ -60,6 +60,24 @@ class WhatsappFlowBuilderTest extends TestCase
         $this->assertNotNull($flow->json_asset_path);
     }
 
+    public function test_public_asset_route_serves_meta_json_without_auth(): void
+    {
+        $flow = WhatsappFlow::factory()->create([
+            'meta_json' => [
+                'version' => '3.0',
+                'screens' => [['id' => 'WELCOME', 'title' => 'Hi']],
+            ],
+        ]);
+
+        $this->get(route('whatsapp-flows.public-asset', [
+            'tenant' => $this->testTenant->id,
+            'uuid' => $flow->uuid,
+        ]))
+            ->assertOk()
+            ->assertJsonPath('version', '3.0')
+            ->assertJsonPath('screens.0.id', 'WELCOME');
+    }
+
     public function test_save_data_with_multiple_screens(): void
     {
         $flow = WhatsappFlow::factory()->create();

@@ -110,6 +110,12 @@ Route::middleware([InitializeTenancyByPath::class])
         Route::get('/{slug}/embed.js', [PublicFormController::class, 'embedJs'])->name('embed');
     });
 
+// Public WhatsApp Flow JSON for CAMS FilePath (no auth — tenant from path)
+Route::middleware([InitializeTenancyByPath::class])
+    ->get('/whatsapp-flow-assets/{tenant}/{uuid}.json', [\App\Domains\WhatsappFlow\Http\Controllers\WhatsappFlowPublicAssetController::class, 'show'])
+    ->where('uuid', '[0-9a-fA-F\-]{36}')
+    ->name('whatsapp-flows.public-asset');
+
 // Audience Embedded Form (list fields) — separate from Form Builder
 Route::middleware([InitializeTenancyByPath::class])
     ->prefix('lists/{tenant}/{list}')

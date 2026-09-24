@@ -1,0 +1,33 @@
+{
+    "version": "6.3",
+    "routing_model": {
+        "s1": []
+    },
+    "screens": [
+        {
+            "id": "s1",
+            "title": "Imported",
+            "layout": {
+                "type": "SingleColumnLayout",
+                "children": [
+                    {
+                        "type": "Form",
+                        "name": "flow_path",
+                        "children": [
+                            {
+                                "type": "Footer",
+                                "label": "Submit",
+                                "on-click-action": {
+                                    "name": "complete",
+                                    "payload": []
+                                }
+                            }
+                        ]
+                    }
+                ]
+            },
+            "terminal": true,
+            "success": true
+        }
+    ]
+}
