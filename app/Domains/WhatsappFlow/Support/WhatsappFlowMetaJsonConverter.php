@@ -6,10 +6,36 @@ namespace App\Domains\WhatsappFlow\Support;
 
 /**
  * Converts the internal builder JSON schema to Meta WhatsApp Flow JSON v6.3.
+ *
+ * Payload rules (aligned with legacy EditFlow):
+ * - Footer payload must always be a JSON object (`{}`), never an array (`[]`).
+ * - Only interactive input fields belong in payload (not headings / images / body text).
+ * - Navigate: current-screen inputs only. Complete: all screens' inputs.
  */
 final class WhatsappFlowMetaJsonConverter
 {
     private const VERSION = '6.3';
+
+    /** @var list<string> */
+    private const INPUT_TYPES = [
+        'text',
+        'email',
+        'phone',
+        'number',
+        'password',
+        'passcode',
+        'paragraph',
+        'textarea',
+        'date',
+        'date_picker',
+        'radio',
+        'single_choice',
+        'checkbox',
+        'multi_choice',
+        'dropdown',
+        'opt-in',
+        'opt_in',
+    ];
 
     /**
      * @param  array<string, mixed>  $flowJson
@@ -32,38 +58,26 @@ final class WhatsappFlowMetaJsonConverter
         $routingModel = [];
         foreach ($screens as $index => $screen) {
             $screenId = self::screenId($screen, $index);
-            $nextId = $screen['next_screen'] ?? null;
-
-            if (is_string($nextId) && $nextId !== '') {
-                $routingModel[$screenId] = [$nextId];
-            } else {
-                $next = $screens->get($index + 1);
-                $routingModel[$screenId] = $next !== null
-                    ? [self::screenId($next, $index + 1)]
-                    : [];
-            }
+            $routingModel[$screenId] = self::resolveNextScreenIds($screen, $index, $screens);
         }
 
         $metaScreens = $screens->map(function (array $screen, int $index) use ($screens): array {
             $screenId = self::screenId($screen, $index);
-            $isLast = $index === $screens->count() - 1;
+            $isLast = self::isTerminalScreen($screen, $index, $screens);
             $fields = collect($screen['fields'] ?? [])->filter(fn ($f) => is_array($f))->values();
-            $inputFields = $fields->filter(fn (array $f) => ($f['type'] ?? '') !== 'footer');
+            $contentFields = $fields->filter(fn (array $f) => ($f['type'] ?? '') !== 'footer');
             $footer = $fields->firstWhere('type', 'footer');
 
-            $children = $inputFields
+            $children = $contentFields
                 ->map(fn (array $field, int $fieldIndex) => self::mapField($field, $fieldIndex))
                 ->filter()
                 ->values()
                 ->all();
 
             if ($footer !== null) {
-                $children[] = self::mapFooter($footer, $screenId, $screen, $index, $screens, $inputFields);
-            } elseif (! $isLast) {
-                $nextScreen = $screens->get($index + 1);
-                $children[] = self::defaultFooter($screenId, $screen, $index, $screens, $inputFields, false);
+                $children[] = self::mapFooter($footer, $screenId, $index, $screens);
             } else {
-                $children[] = self::defaultFooter($screenId, $screen, $index, $screens, $inputFields, true);
+                $children[] = self::defaultFooter($screenId, $index, $screens, $isLast);
             }
 
             $metaScreen = [
@@ -107,6 +121,46 @@ final class WhatsappFlowMetaJsonConverter
     }
 
     /**
+     * @param  \Illuminate\Support\Collection<int, array<string, mixed>>  $screens
+     * @return list<string>
+     */
+    private static function resolveNextScreenIds(
+        array $screen,
+        int $index,
+        \Illuminate\Support\Collection $screens,
+    ): array {
+        $nextId = $screen['next_screen'] ?? null;
+
+        if (is_string($nextId) && $nextId !== '') {
+            return [$nextId];
+        }
+
+        $next = $screens->get($index + 1);
+
+        return $next !== null ? [self::screenId($next, $index + 1)] : [];
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, array<string, mixed>>  $screens
+     */
+    private static function isTerminalScreen(
+        array $screen,
+        int $index,
+        \Illuminate\Support\Collection $screens,
+    ): bool {
+        $nextIds = self::resolveNextScreenIds($screen, $index, $screens);
+
+        return $nextIds === [];
+    }
+
+    private static function isInputField(array $field): bool
+    {
+        $type = (string) ($field['type'] ?? '');
+
+        return in_array($type, self::INPUT_TYPES, true);
+    }
+
+    /**
      * @param  array<string, mixed>  $field
      * @return array<string, mixed>|null
      */
@@ -137,13 +191,15 @@ final class WhatsappFlowMetaJsonConverter
                 'helper-text' => $helperText,
             ], fn ($v) => $v !== null),
 
+            // Legacy EditFlow: phone as text + 10-digit pattern (Meta validates more reliably).
             'phone' => array_filter([
                 'type' => 'TextInput',
-                'input-type' => 'phone',
+                'input-type' => 'text',
                 'label' => $label,
                 'name' => $name,
                 'required' => $required,
-                'helper-text' => $helperText,
+                'pattern' => '^[0-9]{10}$',
+                'helper-text' => $helperText ?? 'Enter 10 digits only',
             ], fn ($v) => $v !== null),
 
             'number' => array_filter([
@@ -228,18 +284,7 @@ final class WhatsappFlowMetaJsonConverter
                 'text' => (string) ($field['text'] ?? $label),
             ],
 
-            'image' => [
-                'type' => 'Image',
-                // Meta / legacy expect raw base64 in src (not a public URL).
-                'src' => (string) (
-                    $field['base64image']
-                    ?? $field['src']
-                    ?? $field['url']
-                    ?? ''
-                ),
-                'width' => (int) ($field['width'] ?? 200),
-                'height' => (int) ($field['height'] ?? 200),
-            ],
+            'image' => self::mapImage($field),
 
             'text-display', 'body' => [
                 'type' => 'TextBody',
@@ -255,6 +300,54 @@ final class WhatsappFlowMetaJsonConverter
                 'helper-text' => $helperText,
             ], fn ($v) => $v !== null),
         };
+    }
+
+    /**
+     * Meta Image.src must be raw base64. Skip empty / URL-only sources to avoid 139002.
+     *
+     * @param  array<string, mixed>  $field
+     * @return array<string, mixed>|null
+     */
+    private static function mapImage(array $field): ?array
+    {
+        $src = (string) (
+            $field['base64image']
+            ?? $field['src']
+            ?? $field['url']
+            ?? ''
+        );
+        $src = trim($src);
+
+        if ($src === '') {
+            return null;
+        }
+
+        // Prefer explicit base64; reject bare http(s) URLs (invalid for Flow Image).
+        if (
+            ! isset($field['base64image'])
+            && preg_match('#^https?://#i', $src) === 1
+        ) {
+            return null;
+        }
+
+        // Strip data-URI prefix if the builder stored a full data URL.
+        if (str_starts_with($src, 'data:image')) {
+            $comma = strpos($src, ',');
+            if ($comma !== false) {
+                $src = substr($src, $comma + 1);
+            }
+        }
+
+        if ($src === '') {
+            return null;
+        }
+
+        return [
+            'type' => 'Image',
+            'src' => $src,
+            'width' => (int) ($field['width'] ?? 200),
+            'height' => (int) ($field['height'] ?? 200),
+        ];
     }
 
     /**
@@ -308,70 +401,61 @@ final class WhatsappFlowMetaJsonConverter
 
     /**
      * @param  \Illuminate\Support\Collection<int, array<string, mixed>>  $allScreens
-     * @param  \Illuminate\Support\Collection<int, array<string, mixed>>  $inputFields
      * @return array<string, mixed>
      */
     private static function mapFooter(
         array $footer,
         string $screenId,
-        array $screen,
         int $index,
         \Illuminate\Support\Collection $allScreens,
-        \Illuminate\Support\Collection $inputFields,
     ): array {
         $label = (string) ($footer['label'] ?? $footer['text'] ?? 'Continue');
-        $isLast = $index === $allScreens->count() - 1;
+        $isLast = self::isTerminalScreen($allScreens[$index] ?? [], $index, $allScreens);
 
         return [
             'type' => 'Footer',
             'label' => $label,
-            'on-click-action' => self::footerAction($screenId, $index, $allScreens, $inputFields, $isLast),
+            'on-click-action' => self::footerAction($screenId, $index, $allScreens, $isLast),
         ];
     }
 
     /**
      * @param  \Illuminate\Support\Collection<int, array<string, mixed>>  $allScreens
-     * @param  \Illuminate\Support\Collection<int, array<string, mixed>>  $inputFields
      * @return array<string, mixed>
      */
     private static function defaultFooter(
         string $screenId,
-        array $screen,
         int $index,
         \Illuminate\Support\Collection $allScreens,
-        \Illuminate\Support\Collection $inputFields,
         bool $isLast,
     ): array {
         return [
             'type' => 'Footer',
             'label' => $isLast ? 'Submit' : 'Continue',
-            'on-click-action' => self::footerAction($screenId, $index, $allScreens, $inputFields, $isLast),
+            'on-click-action' => self::footerAction($screenId, $index, $allScreens, $isLast),
         ];
     }
 
     /**
      * @param  \Illuminate\Support\Collection<int, array<string, mixed>>  $allScreens
-     * @param  \Illuminate\Support\Collection<int, array<string, mixed>>  $inputFields
      * @return array<string, mixed>
      */
     private static function footerAction(
         string $screenId,
         int $index,
         \Illuminate\Support\Collection $allScreens,
-        \Illuminate\Support\Collection $inputFields,
         bool $isLast,
     ): array {
-        $payload = self::buildPayload($allScreens, $inputFields);
-
         if ($isLast) {
             return [
                 'name' => 'complete',
-                'payload' => $payload,
+                'payload' => self::payloadObject(self::buildCompletePayload($allScreens)),
             ];
         }
 
-        $nextScreen = $allScreens->get($index + 1);
-        $nextId = $nextScreen !== null ? self::screenId($nextScreen, $index + 1) : 'SUCCESS';
+        $current = $allScreens->get($index) ?? [];
+        $nextIds = self::resolveNextScreenIds($current, $index, $allScreens);
+        $nextId = $nextIds[0] ?? 'SUCCESS';
 
         return [
             'name' => 'navigate',
@@ -379,32 +463,69 @@ final class WhatsappFlowMetaJsonConverter
                 'type' => 'screen',
                 'name' => $nextId,
             ],
-            'payload' => $payload,
+            'payload' => self::payloadObject(self::buildNavigatePayload($current, $screenId)),
         ];
     }
 
     /**
-     * @param  \Illuminate\Support\Collection<int, array<string, mixed>>  $allScreens
-     * @param  \Illuminate\Support\Collection<int, array<string, mixed>>  $inputFields
+     * Ensure empty payload encodes as `{}` (Meta rejects `[]`).
+     *
+     * @param  array<string, string>  $payload
+     * @return array<string, string>|\stdClass
+     */
+    private static function payloadObject(array $payload): array|\stdClass
+    {
+        return $payload === [] ? new \stdClass : $payload;
+    }
+
+    /**
+     * Navigate: only current screen input fields (legacy EditFlow).
+     *
+     * @param  array<string, mixed>  $screen
      * @return array<string, string>
      */
-    private static function buildPayload(
-        \Illuminate\Support\Collection $allScreens,
-        \Illuminate\Support\Collection $inputFields,
-    ): array {
+    private static function buildNavigatePayload(array $screen, string $screenId): array
+    {
+        $payload = [];
+
+        foreach (self::inputFieldsOnScreen($screen) as $fieldIndex => $field) {
+            $name = self::fieldName($field, (int) $fieldIndex);
+            $payload[$name] = "\${screen.{$screenId}.form.{$name}}";
+        }
+
+        return $payload;
+    }
+
+    /**
+     * Complete: all input fields across every screen.
+     *
+     * @param  \Illuminate\Support\Collection<int, array<string, mixed>>  $allScreens
+     * @return array<string, string>
+     */
+    private static function buildCompletePayload(\Illuminate\Support\Collection $allScreens): array
+    {
         $payload = [];
 
         foreach ($allScreens as $screenIndex => $screen) {
             $screenId = self::screenId($screen, (int) $screenIndex);
-            $fields = collect($screen['fields'] ?? [])
-                ->filter(fn ($f) => is_array($f) && ($f['type'] ?? '') !== 'footer');
 
-            foreach ($fields as $fieldIndex => $field) {
+            foreach (self::inputFieldsOnScreen($screen) as $fieldIndex => $field) {
                 $name = self::fieldName($field, (int) $fieldIndex);
                 $payload[$name] = "\${screen.{$screenId}.form.{$name}}";
             }
         }
 
         return $payload;
+    }
+
+    /**
+     * @param  array<string, mixed>  $screen
+     * @return \Illuminate\Support\Collection<int, array<string, mixed>>
+     */
+    private static function inputFieldsOnScreen(array $screen): \Illuminate\Support\Collection
+    {
+        return collect($screen['fields'] ?? [])
+            ->filter(fn ($f) => is_array($f) && self::isInputField($f))
+            ->values();
     }
 }
