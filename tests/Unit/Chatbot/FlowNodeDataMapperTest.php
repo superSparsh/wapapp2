@@ -63,12 +63,11 @@ class FlowNodeDataMapperTest extends TestCase
 
         $data = $result['nodes'][0]['data'];
 
-        $this->assertSame('/storage/chatbot/media/demo.jpg', $data['mediaUrl']);
-        $this->assertSame('/storage/chatbot/media/demo.jpg', $data['media_url']);
-        $this->assertSame('/storage/chatbot/media/demo.jpg', $data['fileUrl']);
         $this->assertSame('chatbot/media/demo.jpg', $data['media_path']);
         $this->assertSame('Hello photo', $data['caption']);
         $this->assertSame('image', $data['media_type']);
+        $this->assertStringContainsString('automation/chatbot/media/chatbot/media/demo.jpg', $data['fileUrl']);
+        $this->assertSame($data['fileUrl'], $data['mediaUrl']);
     }
 
     #[Test]

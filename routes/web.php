@@ -157,6 +157,9 @@ Route::middleware(['tenancy.session', 'auth:web,team', '2fa', 'team.redirect-das
             Route::get('/create', [ChatbotFlowController::class, 'create'])->name('create');
             Route::post('/', [ChatbotFlowController::class, 'store'])->name('store');
             Route::post('/import', [ChatbotFlowBuilderController::class, 'import'])->name('import');
+            Route::get('/media/{path}', [ChatbotBuilderSupportController::class, 'showMedia'])
+                ->where('path', '.*')
+                ->name('media.show');
 
             Route::get('/modals/list-message', fn () => view('automation.modals.list-message'))->name('modals.list-message');
             Route::get('/modals/buttons-message', fn () => view('automation.modals.buttons-message'))->name('modals.buttons-message');

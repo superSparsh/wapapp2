@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Domains\Chatbot\Support;
 
+use App\Domains\Chatbot\Services\ChatbotMediaService;
+
 /**
  * Maps chatbot builder field names to engine/runtime field names (and back for the editor).
  */
@@ -298,8 +300,19 @@ class FlowNodeDataMapper
         if ($path === '' && $url !== '') {
             if (preg_match('#(?:^|/)storage/(.+)$#', $url, $matches) === 1) {
                 $path = ltrim((string) $matches[1], '/');
+            } elseif (preg_match('#automation/chatbot/media/(.+)$#', $url, $matches) === 1) {
+                $path = ltrim(rawurldecode((string) $matches[1]), '/');
             } elseif (! str_contains($url, '://') && str_starts_with($url, 'chatbot/')) {
                 $path = ltrim($url, '/');
+            }
+        }
+
+        // Prefer tenant-aware preview route over broken /storage/... symlink URLs.
+        if ($path !== '' && str_starts_with($path, 'chatbot/media/')) {
+            try {
+                $url = app(ChatbotMediaService::class)->previewUrl($path);
+            } catch (\Throwable) {
+                // Keep existing URL if routing is unavailable (e.g. during early boot).
             }
         }
 

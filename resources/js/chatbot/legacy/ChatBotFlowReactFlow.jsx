@@ -4117,6 +4117,22 @@ const WhatsAppFlowTemplateNode = ({ data, selected, id }) => {
 };
 
 // Media Node Component
+const resolveMediaSrc = (raw) => {
+  const src = String(raw || "").trim();
+  if (!src) return "";
+  if (
+    src.startsWith("http") ||
+    src.startsWith("blob:") ||
+    src.startsWith("data:") ||
+    src.startsWith("/")
+  ) {
+    return src.startsWith("/") && !src.startsWith("//")
+      ? `${window.location.origin}${src}`
+      : src;
+  }
+  return `${window.location.origin}/${src}`;
+};
+
 const MediaNode = ({ data, selected, id }) => {
   const getMediaIcon = (mediaType) => {
     switch (mediaType) {
@@ -4147,6 +4163,12 @@ const MediaNode = ({ data, selected, id }) => {
         return "#666";
     }
   };
+
+  const mediaSrc = resolveMediaSrc(
+    data.fileUrl || data.mediaUrl || data.media_url || ""
+  );
+  const mediaType = data.mediaType || data.media_type || "document";
+  const hasMedia = Boolean(mediaSrc) && !data.isPlaceholder;
 
   return (
     <div
@@ -4210,7 +4232,7 @@ const MediaNode = ({ data, selected, id }) => {
         }}
       >
         {/* Show media preview if available, otherwise show icon */}
-        {((data.fileUrl || data.mediaUrl || data.media_url) && !data.isPlaceholder) ? (
+        {hasMedia ? (
           <div
             style={{
               width: "24px",
@@ -4219,59 +4241,39 @@ const MediaNode = ({ data, selected, id }) => {
               overflow: "hidden",
             }}
           >
-            {data.mediaType === "image" || data.media_type === "image" ? (
+            {mediaType === "image" ? (
               <Image
-                src={(() => {
-                  const src = data.fileUrl || data.mediaUrl || data.media_url || "";
-                  if (!src) return "";
-                  if (src.startsWith("http") || src.startsWith("blob:") || src.startsWith("data:")) {
-                    return src;
-                  }
-                  if (src.startsWith("/")) {
-                    return `${window.location.origin}${src}`;
-                  }
-                  return `${window.location.origin}/${src}`;
-                })()}
+                src={mediaSrc}
                 alt="Media preview"
                 style={{ width: "100%", height: "100%", objectFit: "cover" }}
                 preview={false}
                 fallback="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMIAAADDCAYAAADQvc6UAAABRWlDQ1BJQ0MgUHJvZmlsZQAAKJFjYGASSSwoyGFhYGDIzSspCnJ3UoiIjFJgf8LAwSDCIMogwMCcmFxc4BgQ4ANUwgCjUcG3awyMIPqyLsis7PPOq3QdDFcvjV3jOD1boQVTPQrgSkktTgbSf4A4LbmgqISBgTEFyFYuLykAsTuAbJEioKOA7DkgdjqEvQHEToKwj4DVhAQ5A9k3gGyB5IxEoBmML4BsnSQk8XQkNtReEOBxcfXxUQg1Mjc0dyHgXNJBSWpFCYh2zi+oLMpMzyhRcASGUqqCZ16yno6CkYGRAQMDKMwhqj/fAIcloxgHQqxAjIHBEugw5sUIsSQpBobtQPdLciLEVJYzMPBHMDBsayhILEqEO4DxG0txmrERhM29nYGBddr//5/DGRjYNRkY/l7////39v///y4Dmn+LgeHANwDrkl1AuO+pmgAAADhlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAAqACAAQAAAABAAAAwqADAAQAAAABAAAAwwAAAAD9b/HnAAAHlklEQVR4Ae3dP3Ik1RnG4W+FgYxN"
               />
-            ) : data.mediaType === "video" || data.media_type === "video" ? (
+            ) : mediaType === "video" ? (
               <video
-                src={(() => {
-                  const src = data.fileUrl || data.mediaUrl || data.media_url || "";
-                  if (!src) return "";
-                  if (src.startsWith("http") || src.startsWith("blob:") || src.startsWith("data:")) {
-                    return src;
-                  }
-                  if (src.startsWith("/")) {
-                    return `${window.location.origin}${src}`;
-                  }
-                  return `${window.location.origin}/${src}`;
-                })()}
+                src={mediaSrc}
                 style={{ width: "100%", height: "100%", objectFit: "cover" }}
                 muted
               />
             ) : (
               <span style={{ fontSize: "16px" }}>
-                {getMediaIcon(data.mediaType || data.media_type || "document")}
+                {getMediaIcon(mediaType)}
               </span>
             )}
           </div>
         ) : (
           <span style={{ fontSize: "16px" }}>
-            {getMediaIcon(data.mediaType || data.media_type || "document")}
+            {getMediaIcon(mediaType)}
           </span>
         )}
         {data.label || "Media Message"}
       </div>
       <div style={{ fontSize: "12px", color: "#666" }}>
-        {data.mediaType && (
+        {mediaType && (
           <div
-            style={{ color: getMediaColor(data.mediaType), fontWeight: "bold" }}
+            style={{ color: getMediaColor(mediaType), fontWeight: "bold" }}
           >
-            Type: {data.mediaType.toUpperCase()}
+            Type: {String(mediaType).toUpperCase()}
           </div>
         )}
         {data.caption && data.caption.trim() && (
@@ -4284,15 +4286,11 @@ const MediaNode = ({ data, selected, id }) => {
         ) : (
           <>
             {/* Show larger media preview if available */}
-            {data.fileUrl && data.mediaType === "image" && (
+            {hasMedia && mediaType === "image" && (
               <div style={{ margin: "4px 0", textAlign: "center" }}>
                 <div onClick={(e) => e.stopPropagation()}>
                   <Image
-                    src={
-                      data.fileUrl.startsWith("http")
-                        ? data.fileUrl
-                        : `${window.location.origin}/${data.fileUrl}`
-                    }
+                    src={mediaSrc}
                     alt="Media preview"
                     style={{
                       width: "100%",
@@ -4325,7 +4323,7 @@ const MediaNode = ({ data, selected, id }) => {
         id="default"
         style={{
           left: "50%",
-          background: getMediaColor(data.mediaType || "document"),
+          background: getMediaColor(mediaType),
           border: "2px solid white",
           boxShadow: "0 2px 4px rgba(0,0,0,0.3)",
           cursor: "crosshair",

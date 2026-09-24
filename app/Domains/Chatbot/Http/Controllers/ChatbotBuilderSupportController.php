@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domains\Chatbot\Http\Controllers;
 
 use App\Domains\Chatbot\Services\ChatbotBuilderDataService;
+use App\Domains\Chatbot\Services\ChatbotMediaService;
 use App\Domains\Commerce\Services\CatalogService;
 use App\Domains\Inbox\Services\InboxQueryService;
 use App\Domains\WhatsappFlow\Services\WhatsappFlowInteractiveService;
@@ -13,7 +14,7 @@ use App\Support\WhatsappMediaRules;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ChatbotBuilderSupportController
 {
@@ -22,6 +23,7 @@ class ChatbotBuilderSupportController
         private readonly InboxQueryService $inboxQueryService,
         private readonly ChatbotBuilderDataService $builderDataService,
         private readonly WhatsappFlowInteractiveService $flowInteractiveService,
+        private readonly ChatbotMediaService $mediaService,
     ) {}
 
     public function mediaUpload(Request $request): JsonResponse
@@ -42,25 +44,26 @@ class ChatbotBuilderSupportController
             is_string($expectedType) && $expectedType !== '' ? $expectedType : null,
         );
 
-        $path = $request->file('file')->store('chatbot/media', 'public');
-        $relativeUrl = Storage::disk('public')->url($path);
-        $absoluteUrl = str_starts_with((string) $relativeUrl, 'http')
-            ? (string) $relativeUrl
-            : url((string) $relativeUrl);
+        $stored = $this->mediaService->store($request->file('file'));
 
         return response()->json([
             'status' => 'success',
             'success' => true,
-            'path' => $path,
-            'url' => $absoluteUrl,
-            'fileUrl' => $absoluteUrl,
-            'mediaUrl' => $absoluteUrl,
-            'media_path' => $path,
-            'fileName' => $request->file('file')->getClientOriginalName() ?: basename($path),
-            'file_name' => $request->file('file')->getClientOriginalName() ?: basename($path),
-            'fileType' => (string) ($request->file('file')->getMimeType() ?? ''),
-            'file_type' => (string) ($request->file('file')->getMimeType() ?? ''),
+            'path' => $stored['path'],
+            'url' => $stored['url'],
+            'fileUrl' => $stored['url'],
+            'mediaUrl' => $stored['url'],
+            'media_path' => $stored['path'],
+            'fileName' => $stored['original_name'],
+            'file_name' => $stored['original_name'],
+            'fileType' => $stored['mime'],
+            'file_type' => $stored['mime'],
         ]);
+    }
+
+    public function showMedia(string $path): StreamedResponse
+    {
+        return $this->mediaService->stream($path);
     }
 
     public function publicFileUpload(Request $request): JsonResponse
