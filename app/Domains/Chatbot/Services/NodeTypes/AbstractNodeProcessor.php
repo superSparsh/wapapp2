@@ -7,8 +7,10 @@ namespace App\Domains\Chatbot\Services\NodeTypes;
 use App\Domains\Chatbot\Enums\NodeProcessResult;
 use App\Domains\Chatbot\Support\FlowVariableResolver;
 use App\Domains\Inbox\Services\InboxOutboundService;
+use App\Domains\Templates\Support\CamsTemplateIdentity;
 use App\Models\ChatbotFlowState;
 use App\Models\Conversation;
+use App\Models\Template;
 
 abstract class AbstractNodeProcessor implements NodeProcessorInterface
 {
@@ -131,6 +133,57 @@ abstract class AbstractNodeProcessor implements NodeProcessorInterface
         }
 
         $this->outboundService->sendText($conversation, $body, enforceWindow: false);
+    }
+
+    /**
+     * Resolve the CAMS TemplateCode from node data.
+     * Builder stores DB `templateId`; WhatsApp needs the provider TemplateCode.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    protected function resolveTemplateSendCode(array $data): string
+    {
+        $selected = is_array($data['selectedTemplate'] ?? null) ? $data['selectedTemplate'] : [];
+
+        $candidates = [
+            $data['templateCode'] ?? null,
+            $data['template_code'] ?? null,
+            $selected['template_code'] ?? null,
+            $selected['code'] ?? null,
+        ];
+
+        foreach ($candidates as $candidate) {
+            $value = trim((string) $candidate);
+            if ($value !== '' && CamsTemplateIdentity::isProviderCode($value)) {
+                return $value;
+            }
+        }
+
+        $dbId = $data['templateId'] ?? $selected['id'] ?? null;
+        if (filled($dbId) && is_numeric($dbId)) {
+            $template = Template::query()->find((int) $dbId);
+            if ($template !== null) {
+                $provider = $template->whatsappCode();
+                if (filled($provider)) {
+                    return (string) $provider;
+                }
+            }
+        }
+
+        // Legacy nodes sometimes stored the provider code in templateId.
+        $fallbackId = trim((string) ($data['templateId'] ?? $data['template_name'] ?? ''));
+        if ($fallbackId !== '' && CamsTemplateIdentity::isProviderCode($fallbackId)) {
+            return $fallbackId;
+        }
+
+        foreach ($candidates as $candidate) {
+            $value = trim((string) $candidate);
+            if ($value !== '' && $value !== '0') {
+                return $value;
+            }
+        }
+
+        return ($fallbackId !== '' && $fallbackId !== '0') ? $fallbackId : '';
     }
 
     /**

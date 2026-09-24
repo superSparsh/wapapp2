@@ -26,6 +26,9 @@ class ChatbotFlowSendTest extends TestCase
 
     private array $interactivePayloads = [];
 
+    /** @var list<array{0: mixed, 1: string, 2?: array}> */
+    private array $templateSends = [];
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -39,12 +42,17 @@ class ChatbotFlowSendTest extends TestCase
                 'direction' => MessageDirection::Outbound,
                 'message_type' => MessageType::Text,
             ]));
-            $mock->shouldReceive('sendTemplate')->andReturn(new Message([
-                'id' => 1000,
-                'body' => 'template',
-                'direction' => MessageDirection::Outbound,
-                'message_type' => MessageType::Template,
-            ]));
+            $mock->shouldReceive('sendTemplate')
+                ->andReturnUsing(function ($conversation, string $templateCode, array $params = []) {
+                    $this->templateSends[] = [$conversation, $templateCode, $params];
+
+                    return new Message([
+                        'id' => 1000,
+                        'body' => 'template',
+                        'direction' => MessageDirection::Outbound,
+                        'message_type' => MessageType::Template,
+                    ]);
+                });
             $mock->shouldReceive('sendInteractive')
                 ->andReturnUsing(function ($conversation, array $content) {
                     $this->interactivePayloads[] = $content;
@@ -194,5 +202,54 @@ class ChatbotFlowSendTest extends TestCase
         $this->assertNotNull($state);
         $this->assertSame(ChatbotFlowStateStatus::Waiting, $state->status);
         $this->assertSame('flow_template_1', $state->current_node_id);
+    }
+
+    public function test_template_message_node_resolves_db_id_to_provider_code(): void
+    {
+        $providerCode = '1234567890123';
+        $template = Template::factory()->create([
+            'code' => $providerCode,
+            'name' => 'Approved Promo',
+        ]);
+
+        ChatbotFlow::factory()->active()->create([
+            'exported_data' => [
+                'nodes' => [
+                    [
+                        'id' => 'welcome_1',
+                        'type' => 'welcomeMessage',
+                        'data' => [
+                            'messageType' => 'text',
+                            'triggerKeyword' => 'promo',
+                            'text' => 'Starting',
+                        ],
+                    ],
+                    [
+                        'id' => 'templateMessage-1',
+                        'type' => 'templateMessage',
+                        'data' => [
+                            // Builder historically stored only the DB id here.
+                            'messageType' => 'template',
+                            'templateId' => $template->id,
+                        ],
+                    ],
+                ],
+                'edges' => [
+                    ['source' => 'welcome_1', 'target' => 'templateMessage-1', 'sourceHandle' => 'output_1'],
+                ],
+            ],
+        ]);
+
+        $conversation = Conversation::factory()->create();
+        $engine = app(ChatbotFlowEngine::class);
+
+        $engine->processInbound($conversation, Message::factory()->create([
+            'conversation_id' => $conversation->id,
+            'body' => 'promo',
+            'direction' => MessageDirection::Inbound,
+        ]));
+
+        $this->assertNotEmpty($this->templateSends);
+        $this->assertSame($providerCode, $this->templateSends[0][1]);
     }
 }

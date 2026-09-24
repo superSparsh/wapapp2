@@ -28,7 +28,7 @@ class TemplateMessageProcessor extends AbstractNodeProcessor
                 $this->sendText($conversation, $this->resolveText($offline, $variables, $conversation));
             }
         } elseif ($messageType === 'template') {
-            $templateCode = (string) ($data['templateId'] ?? $data['templateCode'] ?? '');
+            $templateCode = $this->resolveTemplateSendCode($data);
             $params = $data['templateParams'] ?? [];
 
             if ($templateCode !== '') {

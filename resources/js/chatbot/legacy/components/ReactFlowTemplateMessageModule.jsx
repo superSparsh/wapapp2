@@ -155,14 +155,26 @@ const ReactFlowTemplateMessageModule = ({
         ...offlineHours,
         selectedTemplate: selectedTemplate,
         quickReplies: quickReplies,
-        triggerKeyword: values.triggerKeyword || "",
-        keywords: values.triggerKeyword || "",
         timeoutConfig: {
           unreadTimeout: timeoutConfig.unreadTimeout,
           undeliveredTimeout: timeoutConfig.undeliveredTimeout,
         },
-        // Ensure templateId is set if we have a selected template
+        // DB id for lookup + WhatsApp TemplateCode for sending
         templateId: selectedTemplate ? selectedTemplate.id : values.templateId,
+        templateCode:
+          selectedTemplate?.template_code ||
+          selectedTemplate?.code ||
+          values.templateCode ||
+          "",
+        template_code:
+          selectedTemplate?.template_code ||
+          selectedTemplate?.code ||
+          values.template_code ||
+          "",
+        template_name:
+          selectedTemplate?.template_name ||
+          values.template_name ||
+          "",
         label:
           values.messageType === "template"
             ? `Template Message - ${
@@ -377,22 +389,6 @@ const ReactFlowTemplateMessageModule = ({
                 </Radio.Button>
               </Space>
             </Radio.Group>
-          </Form.Item>
-        </Card>
-
-        <Card title="Trigger" size="small" style={{ marginBottom: 16 }}>
-          <Form.Item
-            name="triggerKeyword"
-            label="Trigger Keyword"
-            rules={[
-              {
-                required: true,
-                message: "Enter a keyword so WhatsApp can start this bot",
-              },
-            ]}
-            help="Customer must send this keyword (e.g. hi, hello, start) to begin the flow."
-          >
-            <Input placeholder="e.g., hi, hello, start" />
           </Form.Item>
         </Card>
 

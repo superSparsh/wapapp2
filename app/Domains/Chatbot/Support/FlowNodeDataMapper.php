@@ -213,15 +213,58 @@ class FlowNodeDataMapper
      */
     private function syncTemplateMessage(array $data): array
     {
-        $code = (string) ($data['templateCode'] ?? $data['templateId'] ?? $data['template_name'] ?? '');
+        $selected = is_array($data['selectedTemplate'] ?? null) ? $data['selectedTemplate'] : [];
+        $dbId = $data['templateId'] ?? $selected['id'] ?? null;
+        $code = trim((string) (
+            $data['templateCode']
+            ?? $data['template_code']
+            ?? $selected['template_code']
+            ?? $selected['code']
+            ?? ''
+        ));
+        $name = trim((string) (
+            $data['template_name']
+            ?? $selected['template_name']
+            ?? $selected['name']
+            ?? ''
+        ));
         $keyword = (string) ($data['triggerKeyword'] ?? $data['keywords'] ?? '');
 
-        $data['template_name'] = $code;
-        $data['templateCode'] = $code;
-        $data['templateId'] = $code;
+        // Builder saves DB id in templateId — resolve real CAMS TemplateCode.
+        if (($code === '' || ! \App\Domains\Templates\Support\CamsTemplateIdentity::isProviderCode($code))
+            && filled($dbId)
+            && is_numeric($dbId)
+        ) {
+            $template = \App\Models\Template::query()->find((int) $dbId);
+            if ($template !== null) {
+                $provider = $template->whatsappCode();
+                if (filled($provider)) {
+                    $code = (string) $provider;
+                }
+                $name = $name !== '' ? $name : (string) $template->name;
+                $data['templateId'] = $template->id;
+            }
+        }
+
+        if ($name !== '') {
+            $data['template_name'] = $name;
+        }
+        if ($code !== '') {
+            $data['templateCode'] = $code;
+            $data['template_code'] = $code;
+        }
+        // Keep numeric DB id in templateId when present — do not overwrite with code.
+        if (filled($dbId) && is_numeric($dbId)) {
+            $data['templateId'] = (int) $dbId;
+        } elseif ($code !== '' && ! isset($data['templateId'])) {
+            $data['templateId'] = $code;
+        }
+
         $data['triggerKeyword'] = $keyword;
         $data['keywords'] = $keyword;
-        $data['messageType'] = $code !== '' ? 'template' : (string) ($data['messageType'] ?? 'text');
+        $data['messageType'] = ($code !== '' || filled($dbId))
+            ? 'template'
+            : (string) ($data['messageType'] ?? 'text');
 
         return $this->syncOfflineHoursFields($data);
     }

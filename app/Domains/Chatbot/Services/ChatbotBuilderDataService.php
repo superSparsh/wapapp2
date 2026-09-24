@@ -34,6 +34,7 @@ class ChatbotBuilderDataService
             ->where('status', TemplateStatus::Approved)
             ->orderByDesc('id')
             ->get()
+            ->filter(fn (Template $template): bool => filled($template->whatsappCode()))
             ->map(fn (Template $template): array => $this->mapTemplate($template))
             ->values()
             ->all();
@@ -49,6 +50,7 @@ class ChatbotBuilderDataService
         $buttons = array_values($payload['buttons'] ?? []);
         $carousel = $payload['carousel'] ?? [];
         $isCarousel = ! empty($carousel['enabled']) && ! empty($carousel['cards']);
+        $providerCode = (string) ($template->whatsappCode() ?: '');
 
         $buttonType = 0;
         $buttonTextFlow = null;
@@ -73,7 +75,8 @@ class ChatbotBuilderDataService
         $mapped = [
             'id' => $template->id,
             'template_name' => $template->name,
-            'template_code' => $template->code,
+            'template_code' => $providerCode,
+            'code' => $providerCode,
             'category' => $template->category,
             'language' => $template->language,
             'template_type' => $payload['meta']['template_type'] ?? 'regular',

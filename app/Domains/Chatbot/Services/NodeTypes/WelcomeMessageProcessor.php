@@ -30,14 +30,7 @@ class WelcomeMessageProcessor extends AbstractNodeProcessor
                     $this->sendText($conversation, $this->resolveText($offline, $variables, $conversation));
                 }
             } else {
-                $templateCode = (string) ($data['templateId'] ?? $data['templateCode'] ?? $data['template_name'] ?? '');
-
-                if ($templateCode === '' && is_array($data['selectedTemplate'] ?? null)) {
-                    $templateCode = (string) ($data['selectedTemplate']['code']
-                        ?? $data['selectedTemplate']['template_code']
-                        ?? $data['selectedTemplate']['id']
-                        ?? '');
-                }
+                $templateCode = $this->resolveTemplateSendCode($data);
 
                 if ($templateCode !== '') {
                     $this->sendTemplate($conversation, $templateCode);

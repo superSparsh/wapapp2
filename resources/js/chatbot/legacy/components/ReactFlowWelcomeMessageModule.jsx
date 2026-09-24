@@ -106,7 +106,22 @@ const ReactFlowWelcomeMessageModule = ({
         ...offlineHours,
         selectedTemplate: selectedTemplate,
         quickReplies: quickReplies, // Ensure quickReplies are passed
-        templateId: selectedTemplate ? selectedTemplate.id : values.templateId, // Ensure templateId is set
+        // DB id for lookup + WhatsApp TemplateCode for sending
+        templateId: selectedTemplate ? selectedTemplate.id : values.templateId,
+        templateCode:
+          selectedTemplate?.template_code ||
+          selectedTemplate?.code ||
+          values.templateCode ||
+          "",
+        template_code:
+          selectedTemplate?.template_code ||
+          selectedTemplate?.code ||
+          values.template_code ||
+          "",
+        template_name:
+          selectedTemplate?.template_name ||
+          values.template_name ||
+          "",
         timeoutConfig: {
           unreadTimeout: timeoutConfig.unreadTimeout,
           undeliveredTimeout: timeoutConfig.undeliveredTimeout,
