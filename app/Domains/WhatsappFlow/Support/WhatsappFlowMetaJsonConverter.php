@@ -195,7 +195,7 @@ final class WhatsappFlowMetaJsonConverter
                 'input-type' => 'text',
                 'label' => $label,
                 'name' => $name,
-                'required' => $required,
+                'required' => $required ?: null,
                 'helper-text' => $helperText,
             ], fn ($v) => $v !== null),
 
@@ -204,7 +204,7 @@ final class WhatsappFlowMetaJsonConverter
                 'input-type' => 'email',
                 'label' => $label,
                 'name' => $name,
-                'required' => $required,
+                'required' => $required ?: null,
                 'helper-text' => $helperText,
             ], fn ($v) => $v !== null),
 
@@ -214,7 +214,7 @@ final class WhatsappFlowMetaJsonConverter
                 'input-type' => 'text',
                 'label' => $label,
                 'name' => $name,
-                'required' => $required,
+                'required' => $required ?: null,
                 'pattern' => '^[0-9]{10}$',
                 'helper-text' => $helperText ?? 'Enter 10 digits only',
             ], fn ($v) => $v !== null),
@@ -224,7 +224,7 @@ final class WhatsappFlowMetaJsonConverter
                 'input-type' => 'number',
                 'label' => $label,
                 'name' => $name,
-                'required' => $required,
+                'required' => $required ?: null,
                 'helper-text' => $helperText,
             ], fn ($v) => $v !== null),
 
@@ -233,7 +233,7 @@ final class WhatsappFlowMetaJsonConverter
                 'input-type' => 'password',
                 'label' => $label,
                 'name' => $name,
-                'required' => $required,
+                'required' => $required ?: null,
                 'helper-text' => $helperText,
             ], fn ($v) => $v !== null),
 
@@ -241,7 +241,7 @@ final class WhatsappFlowMetaJsonConverter
                 'type' => 'TextArea',
                 'label' => $label,
                 'name' => $name,
-                'required' => $required,
+                'required' => $required ?: null,
                 'helper-text' => $helperText,
             ], fn ($v) => $v !== null),
 
@@ -249,7 +249,7 @@ final class WhatsappFlowMetaJsonConverter
                 'type' => 'DatePicker',
                 'label' => $label,
                 'name' => $name,
-                'required' => $required,
+                'required' => $required ?: null,
                 'helper-text' => $helperText,
             ], fn ($v) => $v !== null),
 
@@ -257,7 +257,7 @@ final class WhatsappFlowMetaJsonConverter
                 'type' => 'RadioButtonsGroup',
                 'label' => $label,
                 'name' => $name,
-                'required' => $required,
+                'required' => $required ?: null,
                 'data-source' => self::options($field),
                 'description' => $helperText,
             ], fn ($v) => $v !== null),
@@ -266,7 +266,7 @@ final class WhatsappFlowMetaJsonConverter
                 'type' => 'CheckboxGroup',
                 'label' => $label,
                 'name' => $name,
-                'required' => $required,
+                'required' => $required ?: null,
                 'data-source' => self::options($field),
                 'description' => $helperText,
             ], fn ($v) => $v !== null),
@@ -275,16 +275,16 @@ final class WhatsappFlowMetaJsonConverter
                 'type' => 'Dropdown',
                 'label' => $label,
                 'name' => $name,
-                'required' => $required,
+                'required' => $required ?: null,
                 'data-source' => self::options($field),
             ], fn ($v) => $v !== null),
 
-            'opt-in', 'opt_in' => [
+            'opt-in', 'opt_in' => array_filter([
                 'type' => 'OptIn',
                 'label' => $label,
                 'name' => $name,
-                'required' => $required,
-            ],
+                'required' => $required ?: null,
+            ], fn ($v) => $v !== null),
 
             'large-heading', 'heading' => [
                 'type' => 'TextHeading',
@@ -313,7 +313,7 @@ final class WhatsappFlowMetaJsonConverter
                 'input-type' => 'text',
                 'label' => $label,
                 'name' => $name,
-                'required' => $required,
+                'required' => $required ?: null,
                 'helper-text' => $helperText,
             ], fn ($v) => $v !== null),
         };
@@ -364,6 +364,7 @@ final class WhatsappFlowMetaJsonConverter
             'src' => $src,
             'width' => (int) ($field['width'] ?? 200),
             'height' => (int) ($field['height'] ?? 200),
+            'scale-type' => 'contain',
         ];
     }
 
@@ -485,7 +486,8 @@ final class WhatsappFlowMetaJsonConverter
         if ($isLast) {
             return [
                 'name' => 'complete',
-                'payload' => self::payloadObject(self::buildCompletePayload($allScreens, $index, $screenId)),
+                // Legacy EditFlow: always ${screen.ID.form.name} for every input across all screens.
+                'payload' => self::payloadObject(self::buildLegacyPayload($allScreens)),
             ];
         }
 
@@ -493,16 +495,17 @@ final class WhatsappFlowMetaJsonConverter
         $nextIds = self::resolveNextScreenIds($current, $index, $allScreens);
         $nextId = $nextIds[0] ?? 'SUCCESS';
 
-        // Meta Flow JSON ≥4.0: form data is globally accessible — navigate payload may be {}.
-        // Legacy EditFlow still passed current-screen inputs; empty object is valid and avoids
-        // INVALID_ON_CLICK_ACTION_PAYLOAD when refs are wrong.
         return [
             'name' => 'navigate',
             'next' => [
                 'type' => 'screen',
                 'name' => $nextId,
             ],
-            'payload' => self::payloadObject(self::buildNavigatePayload($current, $screenId)),
+            // Legacy EditFlow: navigate payload = current screen inputs only.
+            'payload' => self::payloadObject(self::buildLegacyPayload(
+                collect([$current])->values(),
+                $screenId,
+            )),
         ];
     }
 
@@ -518,46 +521,25 @@ final class WhatsappFlowMetaJsonConverter
     }
 
     /**
-     * Navigate: current-screen inputs via ${form.field} (Meta docs + legacy EditFlow).
+     * Legacy-compatible payload: only interactive inputs, always
+     * `${screen.{screenId}.form.{fieldName}}` (never `${form.x}` — Alibaba/Meta
+     * publish validation has rejected that form for our flows).
      *
-     * @param  array<string, mixed>  $screen
+     * @param  \Illuminate\Support\Collection<int, array<string, mixed>>  $screens
      * @return array<string, string>
      */
-    private static function buildNavigatePayload(array $screen, string $screenId): array
-    {
-        $payload = [];
-
-        foreach (self::inputFieldsOnScreen($screen) as $fieldIndex => $field) {
-            $name = self::fieldName($field, (int) $fieldIndex);
-            // Prefer ${form.X} for the screen that owns the Footer (Meta 6.x examples).
-            $payload[$name] = '${form.'.$name.'}';
-        }
-
-        return $payload;
-    }
-
-    /**
-     * Complete: all input fields. Current screen → ${form.X}; earlier screens → ${screen.ID.form.X}.
-     *
-     * @param  \Illuminate\Support\Collection<int, array<string, mixed>>  $allScreens
-     * @return array<string, string>
-     */
-    private static function buildCompletePayload(
-        \Illuminate\Support\Collection $allScreens,
-        int $terminalIndex,
-        string $terminalScreenId,
+    private static function buildLegacyPayload(
+        \Illuminate\Support\Collection $screens,
+        ?string $forceScreenId = null,
     ): array {
         $payload = [];
 
-        foreach ($allScreens as $screenIndex => $screen) {
-            $screenId = self::screenId($screen, (int) $screenIndex);
-            $useFormBinding = ((int) $screenIndex) === $terminalIndex;
+        foreach ($screens as $screenIndex => $screen) {
+            $screenId = $forceScreenId ?? self::screenId($screen, (int) $screenIndex);
 
             foreach (self::inputFieldsOnScreen($screen) as $fieldIndex => $field) {
                 $name = self::fieldName($field, (int) $fieldIndex);
-                $payload[$name] = $useFormBinding
-                    ? '${form.'.$name.'}'
-                    : "\${screen.{$screenId}.form.{$name}}";
+                $payload[$name] = "\${screen.{$screenId}.form.{$name}}";
             }
         }
 
