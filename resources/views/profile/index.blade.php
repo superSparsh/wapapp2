@@ -95,7 +95,7 @@
             </x-form.input>
 
             <div class="flex flex-col gap-3">
-              <x-form.input id="password" name="password" type="password" placeholder="Leave blank to keep current password">
+              <x-form.input id="password" name="password" type="password" autocomplete="new-password" placeholder="Leave blank to keep current password">
                 <x-slot:label>New password</x-slot:label>
                 <x-slot:suffix>
                   <button type="button" data-password-toggle class="flex size-5 items-center justify-center" aria-label="Toggle password visibility">
@@ -103,7 +103,7 @@
                   </button>
                 </x-slot:suffix>
               </x-form.input>
-              <x-form.input id="password_confirmation" name="password_confirmation" type="password" placeholder="Confirm new password">
+              <x-form.input id="password_confirmation" name="password_confirmation" type="password" autocomplete="new-password" placeholder="Only required when changing password">
                 <x-slot:label>Confirm new password</x-slot:label>
                 <x-slot:suffix>
                   <button type="button" data-password-toggle class="flex size-5 items-center justify-center" aria-label="Toggle password visibility">

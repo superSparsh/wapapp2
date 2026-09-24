@@ -15,10 +15,22 @@ class UpdateProfileRequest extends FormRequest
         return $this->user('web') !== null;
     }
 
+    protected function prepareForValidation(): void
+    {
+        // Leave password blank = keep current. Drop empty values so confirm is not required.
+        if (blank($this->input('password'))) {
+            $this->merge([
+                'password' => null,
+                'password_confirmation' => null,
+            ]);
+        }
+    }
+
     /** @return array<string, mixed> */
     public function rules(): array
     {
         $user = $this->user('web');
+        $changingPassword = filled($this->input('password'));
 
         return [
             'first_name' => ['required', 'string', 'max:80'],
@@ -27,9 +39,28 @@ class UpdateProfileRequest extends FormRequest
             'timezone' => ['required', 'string', Rule::in(array_keys(config('account.timezones', [])))],
             'country_code' => ['required', 'string', Rule::in(array_keys(config('account.countries', [])))],
             'locale' => ['required', 'string', Rule::in(array_keys(config('account.locales', [])))],
-            'password' => ['nullable', 'confirmed', Password::min(8)->numbers()],
+            'password' => [
+                'nullable',
+                'string',
+                ...($changingPassword ? [Password::min(8)->numbers()] : []),
+            ],
+            'password_confirmation' => [
+                Rule::requiredIf($changingPassword),
+                'nullable',
+                'string',
+                'same:password',
+            ],
             'avatar' => ['nullable', 'image', 'mimes:'.implode(',', config('account.avatar.mimes', ['jpg', 'png'])), 'max:'.((int) config('account.avatar.max_kb', 2048))],
             'remove_avatar' => ['sometimes', 'boolean'],
+        ];
+    }
+
+    /** @return array<string, string> */
+    public function messages(): array
+    {
+        return [
+            'password_confirmation.required' => 'Please confirm your new password.',
+            'password_confirmation.same' => 'New password and confirmation do not match.',
         ];
     }
 }
