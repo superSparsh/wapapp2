@@ -182,6 +182,18 @@ class WhatsappFlowService
                 $flow->refresh();
             }
 
+            // Always re-convert + rewrite so CAMS never publishes a stale asset
+            // (e.g. payload [] from an older converter).
+            if (is_array($flow->flow_json) && $flow->flow_json !== []) {
+                $metaJson = WhatsappFlowMetaJsonConverter::convert($flow->flow_json);
+                $assetPath = $this->assetService->write($flow, $metaJson);
+                $flow->update([
+                    'meta_json' => $metaJson,
+                    'json_asset_path' => $assetPath,
+                ]);
+                $flow->refresh();
+            }
+
             // Legacy parity: UpdateFlowJSONAsset, then PublishFlow.
             $sync = $this->camsService->syncJsonAssetDetailed($flow);
             if (! $sync['ok']) {

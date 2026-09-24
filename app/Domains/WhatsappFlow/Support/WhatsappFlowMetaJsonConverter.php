@@ -74,6 +74,14 @@ final class WhatsappFlowMetaJsonConverter
                 ->values()
                 ->all();
 
+            // Meta rejects screens whose Form only has a Footer (no content widgets).
+            if ($children === []) {
+                $children[] = [
+                    'type' => 'TextBody',
+                    'text' => (string) ($screen['title'] ?? 'Continue'),
+                ];
+            }
+
             if ($footer !== null) {
                 $children[] = self::mapFooter($footer, $screenId, $index, $screens);
             } else {
@@ -117,7 +125,16 @@ final class WhatsappFlowMetaJsonConverter
     {
         $id = (string) ($screen['id'] ?? '');
 
-        return $id !== '' ? $id : 'SCREEN_'.($index + 1);
+        if ($id === '') {
+            $id = 'SCREEN_'.($index + 1);
+        }
+
+        $id = preg_replace('/[^a-zA-Z0-9_]/', '_', $id) ?? 'SCREEN_'.($index + 1);
+        if ($id === '' || ! preg_match('/^[a-zA-Z]/', $id)) {
+            $id = 'SCREEN_'.$id;
+        }
+
+        return $id;
     }
 
     /**
@@ -362,25 +379,39 @@ final class WhatsappFlowMetaJsonConverter
             return [];
         }
 
-        return collect($options)
+        $mapped = collect($options)
             ->filter(fn ($opt) => is_string($opt) || is_array($opt))
             ->values()
             ->map(function ($opt, int $index) {
                 if (is_array($opt)) {
                     $title = (string) ($opt['title'] ?? $opt['label'] ?? $opt['value'] ?? 'Option');
+                    $id = (string) ($opt['id'] ?? $index.'_'.str_replace(' ', '_', $title));
+                } else {
+                    $title = $opt;
+                    $id = $index.'_'.str_replace(' ', '_', $opt);
+                }
 
-                    return [
-                        'id' => (string) ($opt['id'] ?? $index.'_'.str_replace(' ', '_', $title)),
-                        'title' => $title,
-                    ];
+                $id = preg_replace('/[^a-zA-Z0-9_]/', '_', $id) ?? 'option_'.$index;
+                if ($id === '' || ! preg_match('/^[a-zA-Z]/', $id)) {
+                    $id = 'opt_'.$id;
                 }
 
                 return [
-                    'id' => $index.'_'.str_replace(' ', '_', $opt),
-                    'title' => $opt,
+                    'id' => $id,
+                    'title' => mb_substr($title, 0, 30),
                 ];
             })
             ->all();
+
+        // Empty data-source fails Meta validation.
+        if ($mapped === []) {
+            return [
+                ['id' => 'opt_0', 'title' => 'Option 1'],
+                ['id' => 'opt_1', 'title' => 'Option 2'],
+            ];
+        }
+
+        return $mapped;
     }
 
     /**
@@ -390,13 +421,18 @@ final class WhatsappFlowMetaJsonConverter
     {
         $name = (string) ($field['name'] ?? '');
 
-        if ($name !== '') {
-            return $name;
+        if ($name === '') {
+            $label = str_replace(' ', '_', (string) ($field['label'] ?? 'field'));
+            $name = $label.'_'.$index;
         }
 
-        $label = str_replace(' ', '_', (string) ($field['label'] ?? 'field'));
+        // Meta: ^[a-zA-Z][a-zA-Z0-9_]*$
+        $name = preg_replace('/[^a-zA-Z0-9_]/', '_', $name) ?? 'field_'.$index;
+        if ($name === '' || ! preg_match('/^[a-zA-Z]/', $name)) {
+            $name = 'field_'.$name;
+        }
 
-        return $label.'_'.$index;
+        return $name;
     }
 
     /**

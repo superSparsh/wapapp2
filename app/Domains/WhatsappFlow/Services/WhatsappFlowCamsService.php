@@ -94,7 +94,13 @@ class WhatsappFlowCamsService
             return ['ok' => false, 'message' => 'Cust Space ID is missing on the WhatsApp line.', 'file_path' => null, 'response' => null];
         }
 
-        $filePath = $this->assetService->publicUrl((string) $flow->json_asset_path);
+        $filePath = $this->assetService->publicUrl((string) $flow->json_asset_path, $flow);
+
+        Log::info('CAMS UpdateFlowJSONAsset starting', [
+            'flow_id' => $flow->id,
+            'meta_flow_id' => $flow->meta_flow_id,
+            'file_path' => $filePath,
+        ]);
 
         $response = $this->client->updateFlowJsonAsset([
             'FlowId' => (string) $flow->meta_flow_id,
@@ -106,11 +112,16 @@ class WhatsappFlowCamsService
         $code = is_array($json) ? ($json['Code'] ?? $json['code'] ?? null) : null;
         $codeOk = ! is_scalar($code) || strtoupper((string) $code) === 'OK';
         $ok = $response->successful() && $codeOk;
+        $validationMessage = $this->extractValidationErrorsMessage($json);
 
-        if (! $ok) {
+        if (! $ok || $validationMessage !== null) {
             $message = is_array($json)
                 ? (string) ($json['Message'] ?? $json['message'] ?? $response->body())
                 : $response->body();
+
+            if ($validationMessage !== null) {
+                $message = trim($message.' '.$validationMessage);
+            }
 
             Log::warning('CAMS UpdateFlowJSONAsset failed', [
                 'flow_id' => $flow->id,
@@ -118,6 +129,7 @@ class WhatsappFlowCamsService
                 'file_path' => $filePath,
                 'http_status' => $response->status(),
                 'code' => is_scalar($code) ? (string) $code : null,
+                'validation' => $validationMessage,
                 'body' => $response->body(),
             ]);
 
@@ -314,5 +326,60 @@ class WhatsappFlowCamsService
             ?? Arr::get($response->json(), 'data.flowId');
 
         return $flowId !== null ? (string) $flowId : null;
+    }
+
+    /**
+     * Meta / CAMS may accept the upload (Code=OK) while still returning validation_errors.
+     * Surface those so publish doesn't fail later with opaque 139002.
+     *
+     * @param  mixed  $json
+     */
+    private function extractValidationErrorsMessage(mixed $json): ?string
+    {
+        if (! is_array($json)) {
+            return null;
+        }
+
+        $candidates = [
+            Arr::get($json, 'Data.ValidationErrors'),
+            Arr::get($json, 'Data.validation_errors'),
+            Arr::get($json, 'Data.validationErrors'),
+            Arr::get($json, 'validation_errors'),
+            Arr::get($json, 'ValidationErrors'),
+            Arr::get($json, 'data.validation_errors'),
+            Arr::get($json, 'data.ValidationErrors'),
+        ];
+
+        foreach ($candidates as $errors) {
+            if (! is_array($errors) || $errors === []) {
+                continue;
+            }
+
+            $parts = [];
+            foreach ($errors as $error) {
+                if (is_string($error) && trim($error) !== '') {
+                    $parts[] = trim($error);
+
+                    continue;
+                }
+
+                if (! is_array($error)) {
+                    continue;
+                }
+
+                $msg = (string) ($error['message'] ?? $error['Message'] ?? $error['error'] ?? $error['Error'] ?? '');
+                $path = (string) ($error['path'] ?? $error['Path'] ?? '');
+                $line = trim($msg.($path !== '' ? ' ('.$path.')' : ''));
+                if ($line !== '') {
+                    $parts[] = $line;
+                }
+            }
+
+            if ($parts !== []) {
+                return 'Validation: '.implode('; ', array_slice($parts, 0, 5));
+            }
+        }
+
+        return null;
     }
 }

@@ -12,6 +12,9 @@ use Illuminate\Http\Response;
 /**
  * Public (no-auth) JSON asset for CAMS updateFlowJsonAsset FilePath.
  * Tenant is resolved from the URL path.
+ *
+ * Always regenerates from flow_json so converter fixes apply immediately
+ * (CAMS must never keep downloading a stale meta_json / static file).
  */
 class WhatsappFlowPublicAssetController extends Controller
 {
@@ -19,10 +22,16 @@ class WhatsappFlowPublicAssetController extends Controller
     {
         $flow = WhatsappFlow::query()->where('uuid', $uuid)->firstOrFail();
 
-        $metaJson = is_array($flow->meta_json) ? $flow->meta_json : [];
+        $metaJson = [];
 
-        if ($metaJson === [] && is_array($flow->flow_json) && $flow->flow_json !== []) {
+        $hasScreens = is_array($flow->flow_json)
+            && is_array($flow->flow_json['screens'] ?? null)
+            && $flow->flow_json['screens'] !== [];
+
+        if ($hasScreens) {
             $metaJson = WhatsappFlowMetaJsonConverter::convert($flow->flow_json);
+        } elseif (is_array($flow->meta_json) && $flow->meta_json !== []) {
+            $metaJson = $flow->meta_json;
         }
 
         abort_if($metaJson === [], 404);
@@ -32,7 +41,8 @@ class WhatsappFlowPublicAssetController extends Controller
             200,
             [
                 'Content-Type' => 'application/json; charset=UTF-8',
-                'Cache-Control' => 'public, max-age=60',
+                'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
+                'Pragma' => 'no-cache',
             ],
         );
     }

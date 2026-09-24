@@ -49,40 +49,56 @@ class WhatsappFlowAssetService
 
     /**
      * Absolute URL for CAMS UpdateFlowJSONAsset FilePath.
+     *
+     * Prefer the tenant public-asset route so CAMS always downloads freshly converted
+     * JSON (not a stale static file from before a converter fix).
      */
-    public function publicUrl(string $relativePath): string
+    public function publicUrl(string $relativePath, ?WhatsappFlow $flow = null): string
     {
         $relativePath = ltrim($relativePath, '/');
+        $uuid = $flow?->uuid;
 
-        // storage/flows/... → /storage/flows/...
-        if (str_starts_with($relativePath, 'storage/')) {
-            return url($relativePath);
+        if ($uuid === null || $uuid === '') {
+            if (
+                preg_match(
+                    '/flow_([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.json$/i',
+                    $relativePath,
+                    $matches,
+                )
+            ) {
+                $uuid = $matches[1];
+            }
         }
 
-        // Legacy / newly written public/flows file
-        if (File::exists(public_path($relativePath))) {
-            return url($relativePath);
-        }
-
-        // storage-backed file even if json_asset_path still uses legacy "flows/..." shape
-        $basename = basename($relativePath);
-        if ($basename !== '' && File::exists(base_path('storage/app/public/flows/'.$basename))) {
-            return url('storage/flows/'.$basename);
-        }
-
-        // DB-backed public route (no local file required)
         if (
-            preg_match('/flow_([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.json$/i', $relativePath, $matches)
+            $uuid !== null
+            && $uuid !== ''
             && tenancy()->initialized
             && filled(tenant('id'))
         ) {
             return route('whatsapp-flows.public-asset', [
                 'tenant' => tenant('id'),
-                'uuid' => $matches[1],
-            ]);
+                'uuid' => $uuid,
+            ]).'?v='.time();
         }
 
-        return url($relativePath);
+        // storage/flows/... → /storage/flows/...
+        if (str_starts_with($relativePath, 'storage/')) {
+            return url($relativePath).'?v='.time();
+        }
+
+        // Legacy / newly written public/flows file
+        if (File::exists(public_path($relativePath))) {
+            return url($relativePath).'?v='.time();
+        }
+
+        // storage-backed file even if json_asset_path still uses legacy "flows/..." shape
+        $basename = basename($relativePath);
+        if ($basename !== '' && File::exists(base_path('storage/app/public/flows/'.$basename))) {
+            return url('storage/flows/'.$basename).'?v='.time();
+        }
+
+        return url($relativePath).'?v='.time();
     }
 
     private function writeToDirectory(string $directory, string $filename, string $payload): bool
