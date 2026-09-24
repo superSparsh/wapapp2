@@ -118,9 +118,11 @@
                           <img src="{{ asset('images/automation/eye.svg') }}" alt="" class="size-5" width="20" height="20">
                         </button>
                       @endif
-                      <a href="{{ $flow['edit_url'] }}" class="flex size-5 items-center justify-center" aria-label="Edit" title="Edit Builder">
-                        <img src="{{ asset('images/automation/edit.svg') }}" alt="" class="size-5" width="20" height="20">
-                      </a>
+                      @if ($flow['status'] === 'draft')
+                        <a href="{{ $flow['edit_url'] }}" class="flex size-5 items-center justify-center" aria-label="Edit" title="Edit Builder">
+                          <img src="{{ asset('images/automation/edit.svg') }}" alt="" class="size-5" width="20" height="20">
+                        </a>
+                      @endif
                       @if ($flow['is_active'])
                         <form action="{{ $flow['archive_url'] }}" method="POST" class="inline" data-confirm="Deprecate / archive this published flow on WhatsApp?" data-confirm-title="Archive flow" data-confirm-label="Archive" data-confirm-variant="danger">
                           @csrf
