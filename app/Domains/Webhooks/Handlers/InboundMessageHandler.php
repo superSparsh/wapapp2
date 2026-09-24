@@ -10,7 +10,6 @@ use App\Domains\Audience\Services\StopKeywordService;
 use App\Domains\Campaigns\Services\CampaignInboundResponseService;
 use App\Domains\Chatbot\Services\ChatbotFlowEngine;
 use App\Domains\Commerce\Services\CommerceOrderIngestService;
-use App\Domains\Inbox\Contracts\InboxServiceClientInterface;
 use App\Domains\Inbox\Services\InboxConversationService;
 use App\Domains\Inbox\Services\InboxMessageService;
 use App\Domains\TriggerTemplate\Enums\TriggerFireResult;
@@ -242,26 +241,6 @@ class InboundMessageHandler
                 externalMessageId: $messageId,
                 messageId: $message->id,
             );
-
-            if (config('inbox-service.enabled')) {
-                try {
-                    app(InboxServiceClientInterface::class)->recordInbound(
-                        lineId: (int) $line->id,
-                        contactPhone: $contactPhone,
-                        body: $body,
-                        contactName: isset($item['Name']) ? (string) $item['Name'] : null,
-                        externalMessageId: $messageId,
-                        messageType: $messageType->value,
-                        linePhone: $line->phone,
-                        contactId: (int) $conversation->contact_id,
-                        metadata: $parsedReply['metadata'] !== [] ? $parsedReply['metadata'] : null,
-                    );
-                } catch (\Throwable $e) {
-                    Log::warning('Failed forwarding inbound message to inbox microservice', [
-                        'error' => $e->getMessage(),
-                    ]);
-                }
-            }
 
             $event->forceFill([
                 'tenant_id' => $resolved['tenant']->id,

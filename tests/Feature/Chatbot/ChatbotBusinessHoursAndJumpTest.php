@@ -642,6 +642,72 @@ class ChatbotBusinessHoursAndJumpTest extends TestCase
         $this->assertNotContains('We are open!', $sent);
     }
 
+    public function test_welcome_offline_hours_does_not_continue_to_next_node(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-08-19 23:30:00', 'Asia/Kolkata'));
+
+        $sent = [];
+        $this->mock(InboxOutboundService::class, function ($mock) use (&$sent): void {
+            $mock->shouldReceive('sendText')->andReturnUsing(function ($conversation, string $body) use (&$sent) {
+                $sent[] = $body;
+
+                return new Message([
+                    'id' => count($sent),
+                    'body' => $body,
+                    'direction' => MessageDirection::Outbound,
+                    'message_type' => MessageType::Text,
+                ]);
+            });
+            $mock->shouldReceive('sendTypingIndicator')->andReturn(true);
+        });
+
+        ChatbotFlow::factory()->active()->create([
+            'exported_data' => [
+                'nodes' => [
+                    [
+                        'id' => 'welcome_1',
+                        'type' => 'welcomeMessage',
+                        'data' => [
+                            'messageType' => 'text',
+                            'triggerKeyword' => 'hours',
+                            'welcomeMessage' => 'We are open!',
+                            'enableOfflineHours' => true,
+                            'timezone' => 'Asia/Kolkata',
+                            'onlineFrom' => '09:00',
+                            'onlineUntil' => '21:00',
+                            'offlineMessage' => 'We are offline right now.',
+                        ],
+                    ],
+                    [
+                        'id' => 'next_1',
+                        'type' => 'welcomeMessage',
+                        'data' => [
+                            'messageType' => 'text',
+                            'welcomeMessage' => 'NEXT NODE SHOULD NOT SEND',
+                        ],
+                    ],
+                ],
+                'edges' => [
+                    ['source' => 'welcome_1', 'target' => 'next_1', 'sourceHandle' => 'output_1'],
+                ],
+            ],
+        ]);
+
+        $conversation = Conversation::factory()->create();
+        $engine = app(ChatbotFlowEngine::class);
+
+        $result = $engine->processInbound($conversation, Message::factory()->create([
+            'conversation_id' => $conversation->id,
+            'body' => 'hours',
+            'direction' => MessageDirection::Inbound,
+        ]));
+
+        $this->assertSame('fired_allow_ai', $result->value);
+        $this->assertContains('We are offline right now.', $sent);
+        $this->assertNotContains('NEXT NODE SHOULD NOT SEND', $sent);
+        $this->assertNotContains('We are open!', $sent);
+    }
+
     public function test_welcome_offline_hours_sends_message_then_allows_ai(): void
     {
         Carbon::setTestNow(Carbon::parse('2026-08-19 23:30:00', 'Asia/Kolkata'));

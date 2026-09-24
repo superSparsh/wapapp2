@@ -115,20 +115,6 @@ class DeliveryStatusHandler
                 }
             }
 
-            if (config('inbox-service.enabled')) {
-                try {
-                    app(\App\Domains\Inbox\Contracts\InboxServiceClientInterface::class)->updateDeliveryStatus(
-                        externalMessageId: $messageId,
-                        status: strtolower($status),
-                        failedReason: $status === 'Failed' ? $this->extractFailureReason($item) : (string) ($item['ErrorDescription'] ?? null),
-                    );
-                } catch (\Throwable $e) {
-                    \Illuminate\Support\Facades\Log::warning('Failed forwarding delivery status to inbox microservice', [
-                        'error' => $e->getMessage(),
-                    ]);
-                }
-            }
-
             $event->forceFill([
                 'tenant_id' => $tenant->id,
             ])->save();

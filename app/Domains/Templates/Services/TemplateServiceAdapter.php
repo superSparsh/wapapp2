@@ -4,23 +4,13 @@ declare(strict_types=1);
 
 namespace App\Domains\Templates\Services;
 
-use App\Domains\Templates\Contracts\TemplateServiceClientInterface;
 use App\Domains\Templates\Support\InteractiveMessagePresenter;
-use App\Domains\Templates\Support\TemplateCategoryCatalog;
-use App\Domains\WhatsApp\Support\CamsComponentEncoder;
 use App\Models\Template;
 use App\Models\Variable;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
-use Illuminate\Http\UploadedFile;
-use Illuminate\Pagination\LengthAwarePaginator as ConcreteLengthAwarePaginator;
-use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Log;
-use Throwable;
 
 class TemplateServiceAdapter
 {
     public function __construct(
-        private readonly TemplateServiceClientInterface $client,
         private readonly TemplateCatalogService $localCatalogService,
         private readonly TemplateBuilderService $localBuilderService,
         private readonly TemplateRegistryService $localRegistryService,
@@ -29,16 +19,6 @@ class TemplateServiceAdapter
         private readonly TemplateVariableQueryService $localVariableQueryService,
         private readonly BuiltinVariableCatalog $localBuiltinCatalog,
     ) {}
-
-    public function isMicroserviceEnabled(): bool
-    {
-        return (bool) config('template-service.enabled', false);
-    }
-
-    private function shouldFallback(): bool
-    {
-        return (bool) config('template-service.fallback_to_local', true);
-    }
 
     /**
      * @return array<string, mixed>
@@ -59,126 +39,6 @@ class TemplateServiceAdapter
         string $sort = 'updated_at',
         string $direction = 'desc',
     ): array {
-        if ($this->isMicroserviceEnabled()) {
-            try {
-                $response = $this->client->listTemplates([
-                    'q' => $search,
-                    'category' => $category,
-                    'type' => $type,
-                    'page' => $page,
-                    'per_page' => $perPage,
-                    'sort' => $sort,
-                    'direction' => $direction,
-                ]);
-
-                $previewData = null;
-                if (filled($code)) {
-                    $previewData = $this->preview($code);
-                } elseif (filled($draftUuid)) {
-                    $tplResponse = $this->client->getTemplate($draftUuid);
-                    $previewData = $tplResponse['preview'] ?? null;
-                }
-
-                $freeRows = [];
-                $freeTypes = [];
-                if ($interactiveMessageService && $interactiveMessagePresenter) {
-                    $freeRows = $interactiveMessagePresenter->tableRows(
-                        $interactiveMessageService->list(
-                            $search !== '' ? $search : null,
-                            $freeType !== '' ? $freeType : null,
-                            $sort,
-                            $direction,
-                        )
-                    );
-                    $freeTypes = $interactiveMessageService->types();
-                }
-
-                $total = (int) ($response['meta']['total'] ?? 0);
-
-                $rows = collect($response['items'] ?? [])
-                    ->map(function (array $row, int $index) use ($page, $perPage): array {
-                        $isError = (bool) ($row['error'] ?? false);
-                        $presented = $isError
-                            ? CamsComponentEncoder::presentError($row['rejection_reason'] ?? null)
-                            : null;
-
-                        return [
-                        'serial' => $row['serial'] ?? str_pad((string) (($page - 1) * $perPage + $index + 1), 2, '0', STR_PAD_LEFT),
-                        'name' => $row['name'] ?? '',
-                        'code' => (string) ($row['code'] ?? ''),
-                        'created_at' => $row['created_at'] ?? '—',
-                        'type' => $row['type'] ?? 'Regular',
-                        'type_variant' => ($row['type'] ?? 'Regular') === 'Draft' ? 'fd-draft' : 'fd-type',
-                        'category' => TemplateCategoryCatalog::listLabel((string) ($row['category'] ?? 'MARKETING'), is_array($row['payload'] ?? null) ? $row['payload'] : []),
-                        'category_variant' => match (strtoupper((string) (
-                            TemplateCategoryCatalog::isCarousel((string) ($row['category'] ?? ''))
-                                ? TemplateCategoryCatalog::MARKETING
-                                : ($row['category'] ?? 'MARKETING')
-                        ))) {
-                            'UTILITY' => 'fd-category-utility',
-                            'AUTHENTICATION' => 'fd-category-auth',
-                            'LIMITED_TIME_OFFER' => 'fd-category-lto',
-                            default => 'fd-category-marketing',
-                        },
-                        'status' => $row['status'] ?? 'Approved',
-                        'status_variant' => $row['status_variant'] ?? 'fd-approved',
-                        'error' => $isError,
-                        'rejection_title' => $presented['title'] ?? null,
-                        'rejection_reason' => $presented['message'] ?? null,
-                        'rejection_hint' => $presented['hint'] ?? null,
-                        'preview_url' => route('templates.preview', array_filter([
-                            'code' => $row['code'] ?: null,
-                            'draft' => ! empty($row['code']) ? null : ($row['uuid'] ?? null),
-                            'preview' => 1,
-                        ])),
-                        'edit_url' => in_array($row['status_value'] ?? strtolower((string) ($row['status'] ?? '')), ['draft', 'pending_review', 'rejected'], true) && ! empty($row['uuid'])
-                            ? route('templates.builder.body', ['template' => $row['uuid']])
-                            : null,
-                        'copy_url' => ! empty($row['uuid'])
-                            ? route('templates.duplicate', ['template' => $row['uuid']])
-                            : '#',
-                        'uuid' => $row['uuid'] ?? '',
-                        'delete_url' => ! empty($row['uuid'])
-                            ? route('templates.destroy', ['template' => $row['uuid']])
-                            : null,
-                        ];
-                    })
-                    ->all();
-
-                return [
-                    'activeTab' => $activeTab,
-                    'templates' => $rows,
-                    'freeTemplates' => $freeRows,
-                    'categories' => $response['categories'] ?? $this->localCatalogService->categories(),
-                    'types' => $response['types'] ?? $this->localCatalogService->types(),
-                    'freeTypes' => $freeTypes,
-                    'search' => $search,
-                    'selectedCategory' => $category,
-                    'selectedType' => $type,
-                    'selectedFreeType' => $freeType,
-                    'showPreview' => $showPreviewParam || $previewData !== null,
-                    'previewData' => $previewData,
-                    'currentSort' => $sort,
-                    'currentDirection' => $direction,
-                    'pagination' => [
-                        'total' => $total,
-                        'per_page' => $perPage,
-                        'current' => $page,
-                        'pages' => max(1, (int) ceil($total / $perPage)),
-                    ],
-                ];
-            } catch (Throwable $e) {
-                Log::warning('Failed fetching templates from microservice, falling back to local', [
-                    'error' => $e->getMessage(),
-                ]);
-
-                if (! $this->shouldFallback()) {
-                    throw $e;
-                }
-            }
-        }
-
-        // Local fallback
         $previewData = null;
         if (filled($code)) {
             $previewData = $this->localPreviewService->forCode((string) $code);
@@ -245,78 +105,21 @@ class TemplateServiceAdapter
 
     public function options(): array
     {
-        if ($this->isMicroserviceEnabled()) {
-            try {
-                return $this->client->getOptions();
-            } catch (Throwable $e) {
-                Log::warning('Failed fetching template options from microservice, falling back to local', [
-                    'error' => $e->getMessage(),
-                ]);
-
-                if (! $this->shouldFallback()) {
-                    throw $e;
-                }
-            }
-        }
-
         return $this->localRegistryService->options();
     }
 
     public function preview(string $code): array
     {
-        if ($this->isMicroserviceEnabled()) {
-            try {
-                return $this->client->preview($code);
-            } catch (Throwable $e) {
-                Log::warning('Failed fetching template preview from microservice, falling back to local', [
-                    'error' => $e->getMessage(),
-                ]);
-
-                if (! $this->shouldFallback()) {
-                    throw $e;
-                }
-            }
-        }
-
         return $this->localPreviewService->forCode($code);
     }
 
     public function delete(Template $template): void
     {
-        if ($this->isMicroserviceEnabled()) {
-            try {
-                $uuid = $template->uuid ?? (string) $template->id;
-                $this->client->deleteTemplate($uuid);
-            } catch (Throwable $e) {
-                Log::warning('Failed deleting template in microservice, falling back to local', [
-                    'error' => $e->getMessage(),
-                ]);
-
-                if (! $this->shouldFallback()) {
-                    throw $e;
-                }
-            }
-        }
-
         $template->delete();
     }
 
     public function bulkDelete(array $uuids): int
     {
-        if ($this->isMicroserviceEnabled()) {
-            try {
-                return $this->client->bulkDelete($uuids);
-            } catch (Throwable $e) {
-                Log::warning('Failed bulk deleting templates in microservice, falling back to local', [
-                    'error' => $e->getMessage(),
-                ]);
-
-                if (! $this->shouldFallback()) {
-                    throw $e;
-                }
-            }
-        }
-
         $templates = Template::query()->whereIn('uuid', $uuids)->get();
         $count = 0;
         foreach ($templates as $template) {
@@ -329,20 +132,6 @@ class TemplateServiceAdapter
 
     public function variablesData(): array
     {
-        if ($this->isMicroserviceEnabled()) {
-            try {
-                return $this->client->allVariables();
-            } catch (Throwable $e) {
-                Log::warning('Failed fetching variables from microservice, falling back to local', [
-                    'error' => $e->getMessage(),
-                ]);
-
-                if (! $this->shouldFallback()) {
-                    throw $e;
-                }
-            }
-        }
-
         $custom = collect($this->localVariableQueryService->paginate(perPage: 100)->items())
             ->map(fn (Variable $variable): array => [
                 'name' => $variable->name,

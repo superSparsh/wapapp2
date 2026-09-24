@@ -37,30 +37,37 @@ class AiTestBotService
                     ? $payload['response']
                     : (string) json_encode($payload['response'] ?? $payload);
 
-                $tokens = (int) ($payload['total_tokens'] ?? $payload['tokens'] ?? 0);
-                $prompt = (int) ($payload['prompt_tokens'] ?? 0);
-                $completion = (int) ($payload['completion_tokens'] ?? 0);
-                if ($tokens <= 0) {
-                    $tokens = $prompt + $completion;
-                }
-
-                if ($tokens > 0) {
-                    $config = $bot->resolveProvider();
-                    $this->tokenUsageService->log([
-                        'ai_bot_id' => $bot->id,
-                        'provider' => $payload['provider'] ?? $config['provider'] ?? $bot->provider,
-                        'model' => (string) ($payload['model'] ?? $config['chat_model'] ?? 'unknown'),
-                        'request_type' => 'chat',
-                        'prompt_tokens' => $prompt,
-                        'completion_tokens' => $completion,
-                        'total_tokens' => $tokens,
+                if (filled($payload['_error'] ?? null) || AiChatService::isTransferFallbackMessage($text)) {
+                    Log::warning('AI process_query unusable in test-bot; falling back to direct chat', [
+                        'bot_id' => $bot->id,
+                        'error' => (string) ($payload['_error'] ?? 'transfer_fallback'),
                     ]);
-                }
+                } else {
+                    $tokens = (int) ($payload['total_tokens'] ?? $payload['tokens'] ?? 0);
+                    $prompt = (int) ($payload['prompt_tokens'] ?? 0);
+                    $completion = (int) ($payload['completion_tokens'] ?? 0);
+                    if ($tokens <= 0) {
+                        $tokens = $prompt + $completion;
+                    }
 
-                return [
-                    'response' => $text,
-                    'tokens' => $tokens,
-                ];
+                    if ($tokens > 0) {
+                        $config = $bot->resolveProvider();
+                        $this->tokenUsageService->log([
+                            'ai_bot_id' => $bot->id,
+                            'provider' => $payload['provider'] ?? $config['provider'] ?? $bot->provider,
+                            'model' => (string) ($payload['model'] ?? $config['chat_model'] ?? 'unknown'),
+                            'request_type' => 'chat',
+                            'prompt_tokens' => $prompt,
+                            'completion_tokens' => $completion,
+                            'total_tokens' => $tokens,
+                        ]);
+                    }
+
+                    return [
+                        'response' => $text,
+                        'tokens' => $tokens,
+                    ];
+                }
             } catch (\Throwable $e) {
                 Log::warning('AI process_query failed; falling back to direct chat', [
                     'bot_id' => $bot->id,

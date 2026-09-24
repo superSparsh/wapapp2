@@ -27,7 +27,12 @@ class TemplateMessageProcessor extends AbstractNodeProcessor
             if ($offline !== '') {
                 $this->sendText($conversation, $this->resolveText($offline, $variables, $conversation));
             }
-        } elseif ($messageType === 'template') {
+
+            // Outside hours: only the offline notice — do not continue to next nodes.
+            return NodeProcessResult::Completed;
+        }
+
+        if ($messageType === 'template') {
             $templateCode = $this->resolveTemplateSendCode($data);
 
             if ($templateCode !== '') {

@@ -159,7 +159,7 @@ const ReactFlowOfflineHoursFields = () => {
               <Form.Item
                 name="offlineMessage"
                 label="Offline message"
-                extra="Sent instead of the normal greeting. Menu still follows if wired."
+                extra="Sent instead of the normal greeting. Flow stops here so AI can reply after."
                 rules={
                   enabled
                     ? [{ required: true, message: "Enter offline message" }]
@@ -170,7 +170,7 @@ const ReactFlowOfflineHoursFields = () => {
               </Form.Item>
               <Text type="secondary" style={{ fontSize: 12 }}>
                 Inside these hours the normal welcome/text is sent. Outside
-                hours the offline message is sent instead.
+                hours only the offline message is sent (flow stops; AI may still reply).
               </Text>
             </div>
           );

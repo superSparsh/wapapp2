@@ -30,18 +30,6 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->bind(OutboundMessageGateway::class, DelegatingOutboundMessageGateway::class);
-        $this->app->bind(
-            \App\Domains\Inbox\Contracts\InboxServiceClientInterface::class,
-            \App\Domains\Inbox\Services\InboxServiceClient::class
-        );
-        $this->app->bind(
-            \App\Domains\Campaigns\Contracts\CampaignServiceClientInterface::class,
-            \App\Domains\Campaigns\Services\CampaignServiceClient::class
-        );
-        $this->app->bind(
-            \App\Domains\Templates\Contracts\TemplateServiceClientInterface::class,
-            \App\Domains\Templates\Services\TemplateServiceClient::class
-        );
     }
 
     /**

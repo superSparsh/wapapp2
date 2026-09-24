@@ -23,22 +23,34 @@ class WelcomeMessageProcessor extends AbstractNodeProcessor
         $variables = $state->variables ?? [];
 
         if ($messageType === 'template') {
-            // Offline hours: send text offlineMessage instead of the online template (legacy parity).
+            // Offline hours: send text offlineMessage instead of the online template.
+            // Stop the flow here — do not continue to menu/next nodes (AI may still reply).
             if (OfflineHoursEvaluator::shouldSendOfflineMessage($data)) {
                 $offline = OfflineHoursEvaluator::resolveSessionText($data, '');
                 if ($offline !== '') {
                     $this->sendText($conversation, $this->resolveText($offline, $variables, $conversation));
                 }
-            } else {
-                $templateCode = $this->resolveTemplateSendCode($data);
 
-                if ($templateCode !== '') {
-                    $params = $this->resolveTemplateSendParams($data, $conversation, $variables);
-                    $this->sendTemplate($conversation, $templateCode, $params);
-                }
+                return NodeProcessResult::Completed;
+            }
+
+            $templateCode = $this->resolveTemplateSendCode($data);
+
+            if ($templateCode !== '') {
+                $params = $this->resolveTemplateSendParams($data, $conversation, $variables);
+                $this->sendTemplate($conversation, $templateCode, $params);
             }
         } else {
-            $text = OfflineHoursEvaluator::resolveSessionText($data, $this->resolveWelcomeBody($data));
+            if (OfflineHoursEvaluator::shouldSendOfflineMessage($data)) {
+                $offline = OfflineHoursEvaluator::resolveSessionText($data, '');
+                if ($offline !== '') {
+                    $this->sendText($conversation, $this->resolveText($offline, $variables, $conversation));
+                }
+
+                return NodeProcessResult::Completed;
+            }
+
+            $text = $this->resolveWelcomeBody($data);
 
             if ($text !== '') {
                 $this->sendText($conversation, $this->resolveText($text, $variables, $conversation));

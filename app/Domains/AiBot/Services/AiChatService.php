@@ -13,6 +13,9 @@ use Illuminate\Support\Facades\Log;
 
 class AiChatService
 {
+    /** Python AI service returns this on RAG crash (HTTP 200 + _error). Never send as a real reply. */
+    public const TRANSFER_FALLBACK_MESSAGE = "I'm transferring your chat to our available executive.";
+
     public function __construct(
         private readonly AiProviderKeyService $providerKeyService,
         private readonly AiRagService $ragService,
@@ -38,18 +41,25 @@ class AiChatService
                         chatHistory: $history,
                     );
 
-                    $responseText = AiResponseFormatter::forWhatsApp(
-                        is_string($payload['response'] ?? null)
-                            ? $payload['response']
-                            : (string) ($payload['response'] ?? '')
-                    );
+                    if ($this->pythonPayloadLooksLikeFailure($payload)) {
+                        Log::warning('AI process_query unusable; falling back to local chat', [
+                            'bot_id' => $bot->id,
+                            'error' => (string) ($payload['_error'] ?? 'transfer_fallback_or_empty'),
+                        ]);
+                    } else {
+                        $responseText = AiResponseFormatter::forWhatsApp(
+                            is_string($payload['response'] ?? null)
+                                ? $payload['response']
+                                : (string) ($payload['response'] ?? '')
+                        );
 
-                    if (filled($responseText)) {
-                        $this->logPythonUsage($bot, $payload, $conversation->id);
+                        if (filled($responseText)) {
+                            $this->logPythonUsage($bot, $payload, $conversation->id);
 
-                        $this->outboundService->sendText($conversation, $responseText, enforceWindow: false);
+                            $this->outboundService->sendText($conversation, $responseText, enforceWindow: false);
 
-                        return $responseText;
+                            return $responseText;
+                        }
                     }
                 } catch (\Throwable $e) {
                     Log::warning('AI process_query failed; falling back to local chat', [
@@ -59,53 +69,7 @@ class AiChatService
                 }
             }
 
-            $config = $bot->resolveProvider();
-
-            if (empty($config['api_key'])) {
-                Log::warning('AI bot has no API key', ['bot_id' => $bot->id]);
-
-                return null;
-            }
-
-            $memory = ConversationMemory::build($conversation);
-            $memory[] = ['role' => 'user', 'content' => $userMessage];
-
-            $systemPrompt = $this->buildSystemPrompt($bot, $userMessage);
-            $messages = array_merge(
-                [['role' => 'system', 'content' => $systemPrompt]],
-                $memory,
-            );
-
-            $provider = $this->providerKeyService->resolveProvider($bot->provider);
-
-            $result = $provider->chat($messages, [
-                'api_key' => $config['api_key'],
-                'model' => $config['chat_model'],
-                'temperature' => $bot->temperature ?? 0.3,
-            ]);
-
-            $this->tokenUsageService->log([
-                'ai_bot_id' => $bot->id,
-                'provider' => is_string($config['provider'])
-                    ? $config['provider']
-                    : (string) ($config['provider']->value ?? $config['provider']),
-                'model' => $config['chat_model'],
-                'request_type' => 'chat',
-                'prompt_tokens' => $result['prompt_tokens'],
-                'completion_tokens' => $result['completion_tokens'],
-                'total_tokens' => $result['total_tokens'],
-                'conversation_id' => $conversation->id,
-            ]);
-
-            $responseText = AiResponseFormatter::forWhatsApp($result['text']);
-
-            if (blank($responseText)) {
-                return null;
-            }
-
-            $this->outboundService->sendText($conversation, $responseText, enforceWindow: false);
-
-            return $responseText;
+            return $this->replyViaLocalProvider($conversation, $bot, $userMessage);
         } catch (\Throwable $e) {
             Log::error('AI chat processing failed', [
                 'bot_id' => $bot->id,
@@ -115,6 +79,85 @@ class AiChatService
 
             return null;
         }
+    }
+
+    /**
+     * Direct OpenAI/Gemini (etc.) chat when RAG is down — still a real AI reply.
+     */
+    private function replyViaLocalProvider(Conversation $conversation, AiBot $bot, string $userMessage): ?string
+    {
+        $config = $bot->resolveProvider();
+
+        if (empty($config['api_key'])) {
+            Log::warning('AI bot has no API key', ['bot_id' => $bot->id]);
+
+            return null;
+        }
+
+        $memory = ConversationMemory::build($conversation);
+        $memory[] = ['role' => 'user', 'content' => $userMessage];
+
+        $systemPrompt = $this->buildSystemPrompt($bot, $userMessage);
+        $messages = array_merge(
+            [['role' => 'system', 'content' => $systemPrompt]],
+            $memory,
+        );
+
+        $provider = $this->providerKeyService->resolveProvider($bot->provider);
+
+        $result = $provider->chat($messages, [
+            'api_key' => $config['api_key'],
+            'model' => $config['chat_model'],
+            'temperature' => $bot->temperature ?? 0.3,
+        ]);
+
+        $this->tokenUsageService->log([
+            'ai_bot_id' => $bot->id,
+            'provider' => is_string($config['provider'])
+                ? $config['provider']
+                : (string) ($config['provider']->value ?? $config['provider']),
+            'model' => $config['chat_model'],
+            'request_type' => 'chat',
+            'prompt_tokens' => $result['prompt_tokens'],
+            'completion_tokens' => $result['completion_tokens'],
+            'total_tokens' => $result['total_tokens'],
+            'conversation_id' => $conversation->id,
+        ]);
+
+        $responseText = AiResponseFormatter::forWhatsApp($result['text']);
+
+        if (blank($responseText) || $this->isTransferFallbackMessage($responseText)) {
+            return null;
+        }
+
+        $this->outboundService->sendText($conversation, $responseText, enforceWindow: false);
+
+        return $responseText;
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    private function pythonPayloadLooksLikeFailure(array $payload): bool
+    {
+        if (filled($payload['_error'] ?? null)) {
+            return true;
+        }
+
+        $response = is_string($payload['response'] ?? null)
+            ? trim($payload['response'])
+            : trim((string) ($payload['response'] ?? ''));
+
+        return $response === '' || $this->isTransferFallbackMessage($response);
+    }
+
+    public static function isTransferFallbackMessage(string $text): bool
+    {
+        $normalized = mb_strtolower(trim($text));
+        $needle = mb_strtolower(self::TRANSFER_FALLBACK_MESSAGE);
+
+        return $normalized === $needle
+            || str_contains($normalized, 'transferring your chat to our available executive');
     }
 
     private function buildSystemPrompt(AiBot $bot, string $userMessage): string
