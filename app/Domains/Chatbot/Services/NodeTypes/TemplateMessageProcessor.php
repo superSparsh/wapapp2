@@ -29,10 +29,10 @@ class TemplateMessageProcessor extends AbstractNodeProcessor
             }
         } elseif ($messageType === 'template') {
             $templateCode = $this->resolveTemplateSendCode($data);
-            $params = $data['templateParams'] ?? [];
 
             if ($templateCode !== '') {
-                $this->sendTemplate($conversation, $templateCode, is_array($params) ? $params : []);
+                $params = $this->resolveTemplateSendParams($data, $conversation, $variables);
+                $this->sendTemplate($conversation, $templateCode, $params);
             }
         } else {
             $text = (string) ($data['text'] ?? $data['message'] ?? $data['welcomeMessage'] ?? '');

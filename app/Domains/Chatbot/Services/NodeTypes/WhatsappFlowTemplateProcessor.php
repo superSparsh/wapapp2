@@ -37,7 +37,8 @@ class WhatsappFlowTemplateProcessor extends AbstractNodeProcessor
                 ?: (filled($template?->code) ? (string) $template->code : '');
 
             if ($templateCode !== '') {
-                $this->sendTemplate($conversation, $templateCode);
+                $params = $this->resolveTemplateSendParams($data, $conversation, $variables);
+                $this->sendTemplate($conversation, $templateCode, $params);
 
                 $state->mergeVariables([
                     '_whatsapp_flow_template_id' => (string) $templateId,

@@ -210,6 +210,13 @@ class ChatbotFlowSendTest extends TestCase
         $template = Template::factory()->create([
             'code' => $providerCode,
             'name' => 'Approved Promo',
+            'body_preview' => 'Hi $(first_name), welcome!',
+            'payload' => array_merge(Template::defaultPayload(), [
+                'body' => [
+                    'text' => 'Hi $(first_name), welcome!',
+                    'samples' => ['Test'],
+                ],
+            ]),
         ]);
 
         ChatbotFlow::factory()->active()->create([
@@ -240,7 +247,10 @@ class ChatbotFlowSendTest extends TestCase
             ],
         ]);
 
-        $conversation = Conversation::factory()->create();
+        $conversation = Conversation::factory()->create([
+            'contact_name' => 'Sparsh Thakur',
+            'contact_phone' => '917018107871',
+        ]);
         $engine = app(ChatbotFlowEngine::class);
 
         $engine->processInbound($conversation, Message::factory()->create([
@@ -251,5 +261,55 @@ class ChatbotFlowSendTest extends TestCase
 
         $this->assertNotEmpty($this->templateSends);
         $this->assertSame($providerCode, $this->templateSends[0][1]);
+        $this->assertSame('Sparsh', $this->templateSends[0][2]['first_name'] ?? null);
+    }
+
+    public function test_welcome_template_auto_fills_contact_params(): void
+    {
+        $providerCode = '9876543210987';
+        $template = Template::factory()->create([
+            'code' => $providerCode,
+            'name' => 'Welcome Template',
+            'body_preview' => 'Hello $(full_name)',
+            'payload' => array_merge(Template::defaultPayload(), [
+                'body' => [
+                    'text' => 'Hello $(full_name)',
+                    'samples' => ['Friend'],
+                ],
+            ]),
+        ]);
+
+        ChatbotFlow::factory()->active()->create([
+            'exported_data' => [
+                'nodes' => [
+                    [
+                        'id' => 'welcome_1',
+                        'type' => 'welcomeMessage',
+                        'data' => [
+                            'messageType' => 'template',
+                            'triggerKeyword' => 'wapping',
+                            'templateId' => $template->id,
+                            'templateCode' => $providerCode,
+                        ],
+                    ],
+                ],
+                'edges' => [],
+            ],
+        ]);
+
+        $conversation = Conversation::factory()->create([
+            'contact_name' => 'Asha Kumar',
+            'contact_phone' => '919876543210',
+        ]);
+
+        app(ChatbotFlowEngine::class)->processInbound($conversation, Message::factory()->create([
+            'conversation_id' => $conversation->id,
+            'body' => 'wapping',
+            'direction' => MessageDirection::Inbound,
+        ]));
+
+        $this->assertNotEmpty($this->templateSends);
+        $this->assertSame($providerCode, $this->templateSends[0][1]);
+        $this->assertSame('Asha Kumar', $this->templateSends[0][2]['full_name'] ?? null);
     }
 }

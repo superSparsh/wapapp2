@@ -187,6 +187,208 @@ abstract class AbstractNodeProcessor implements NodeProcessorInterface
     }
 
     /**
+     * Build CAMS TemplateParams from node overrides + contact/flow context (legacy auto-fill).
+     *
+     * @param  array<string, mixed>  $data
+     * @param  array<string, mixed>  $flowVariables
+     * @return array<string, string>
+     */
+    protected function resolveTemplateSendParams(
+        array $data,
+        Conversation $conversation,
+        array $flowVariables = [],
+    ): array {
+        $explicit = $this->explicitTemplateParams($data);
+        $template = $this->resolveTemplateModel($data);
+        $context = $this->templateParamContext($conversation, $flowVariables);
+
+        $params = [];
+        foreach ($explicit as $key => $value) {
+            $resolved = $this->resolveText((string) $value, $context, $conversation);
+            $params[$key] = trim($resolved);
+        }
+
+        if ($template === null) {
+            return array_filter($params, static fn (string $value): bool => $value !== '');
+        }
+
+        $variableNames = app(\App\Domains\Templates\Services\TemplatePreviewService::class)
+            ->variablesForTemplate($template);
+
+        foreach ($variableNames as $variable) {
+            $name = trim((string) ($variable['name'] ?? ''));
+            if ($name === '') {
+                continue;
+            }
+
+            if (($params[$name] ?? '') !== '') {
+                continue;
+            }
+
+            $value = $this->lookupTemplateParamValue($name, $context);
+            if ($value === '') {
+                // CAMS rejects empty TemplateParams when the template has placeholders.
+                $value = $this->fallbackTemplateParamValue($name, $context);
+            }
+
+            $params[$name] = $value;
+        }
+
+        return $params;
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    protected function resolveTemplateModel(array $data): ?Template
+    {
+        $selected = is_array($data['selectedTemplate'] ?? null) ? $data['selectedTemplate'] : [];
+        $dbId = $data['templateId'] ?? $selected['id'] ?? null;
+
+        if (filled($dbId) && is_numeric($dbId)) {
+            $template = Template::query()->find((int) $dbId);
+            if ($template !== null) {
+                return $template;
+            }
+        }
+
+        $code = $this->resolveTemplateSendCode($data);
+        if ($code === '') {
+            return null;
+        }
+
+        return Template::query()
+            ->where('code', $code)
+            ->orderByDesc('id')
+            ->first();
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, string>
+     */
+    private function explicitTemplateParams(array $data): array
+    {
+        $raw = $data['templateParams']
+            ?? $data['template_params']
+            ?? $data['variables']
+            ?? [];
+
+        if (! is_array($raw)) {
+            return [];
+        }
+
+        $params = [];
+        foreach ($raw as $key => $value) {
+            if (! is_string($key) && ! is_int($key)) {
+                continue;
+            }
+            $name = trim((string) $key);
+            if ($name === '' || is_array($value)) {
+                continue;
+            }
+            if (! is_scalar($value) && $value !== null) {
+                continue;
+            }
+            $params[$name] = trim((string) ($value ?? ''));
+        }
+
+        return $params;
+    }
+
+    /**
+     * @param  array<string, mixed>  $flowVariables
+     * @return array<string, mixed>
+     */
+    private function templateParamContext(Conversation $conversation, array $flowVariables): array
+    {
+        $conversation->loadMissing('contact');
+        $context = $this->variableResolver->withConversationContext($flowVariables, $conversation);
+
+        $contact = $conversation->contact;
+        if ($contact !== null) {
+            $customFields = is_array($contact->custom_fields) ? $contact->custom_fields : [];
+            foreach ($customFields as $key => $value) {
+                if (! is_string($key) || $key === '' || array_key_exists($key, $context)) {
+                    continue;
+                }
+                if (! is_scalar($value) && $value !== null) {
+                    continue;
+                }
+                $stringValue = trim((string) ($value ?? ''));
+                if ($stringValue !== '') {
+                    $context[$key] = $stringValue;
+                }
+            }
+        }
+
+        // Common CAMS / campaign aliases.
+        if (! isset($context['name']) && filled($context['full_name'] ?? null)) {
+            $context['name'] = $context['full_name'];
+        }
+        if (! isset($context['phone']) && filled($context['phone_number'] ?? null)) {
+            $context['phone'] = $context['phone_number'];
+        }
+
+        return $context;
+    }
+
+    /**
+     * @param  array<string, mixed>  $context
+     */
+    private function lookupTemplateParamValue(string $name, array $context): string
+    {
+        $aliases = match ($name) {
+            'name', 'full_name', 'user_name', 'display_name' => [
+                'full_name', 'name', 'user_name', 'display_name', 'subscriber_full_name',
+            ],
+            'first_name' => ['first_name', 'subscriber_first_name'],
+            'last_name' => ['last_name', 'subscriber_last_name'],
+            'phone', 'phone_number', 'user_phone', 'mobile' => [
+                'phone_number', 'phone', 'user_phone', 'mobile',
+            ],
+            'email' => ['email', 'subscriber_email'],
+            default => [$name],
+        };
+
+        foreach ($aliases as $key) {
+            if (! array_key_exists($key, $context)) {
+                continue;
+            }
+            $value = trim((string) $context[$key]);
+            if ($value !== '') {
+                return $value;
+            }
+        }
+
+        return '';
+    }
+
+    /**
+     * @param  array<string, mixed>  $context
+     */
+    private function fallbackTemplateParamValue(string $name, array $context): string
+    {
+        $phone = trim((string) ($context['phone_number'] ?? $context['phone'] ?? ''));
+        $fullName = trim((string) ($context['full_name'] ?? $context['name'] ?? ''));
+
+        if (in_array($name, ['phone', 'phone_number', 'user_phone', 'mobile'], true) && $phone !== '') {
+            return $phone;
+        }
+
+        if ($fullName !== '') {
+            return $fullName;
+        }
+
+        if ($phone !== '') {
+            return $phone;
+        }
+
+        // Last resort so CAMS does not reject TemplateParamsNotEmpty.
+        return '-';
+    }
+
+    /**
      * Send a template message via the outbound service.
      *
      * @param  array<string, mixed>  $params
