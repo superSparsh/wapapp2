@@ -5,9 +5,15 @@ declare(strict_types=1);
 namespace App\Domains\Integration\Services;
 
 use App\Domains\Account\Services\ActivityLogService;
+use App\Domains\Auth\Services\TenantResolver;
+use App\Domains\Auth\Support\AuthSession;
+use App\Domains\Webhooks\Services\WhatsappLineRegistryService;
 use App\Enums\RecordStatus;
+use App\Enums\UserRole;
+use App\Models\User;
 use App\Models\WhatsappLine;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 
@@ -16,23 +22,30 @@ use Illuminate\Support\Facades\Hash;
  *  - Listing secondary lines (non-default)
  *  - Setting/changing the per-line Number Access password
  *  - Login-as-number (session lock to a single line context)
+ *  - Public number login (auth owner + lock to that line only)
  *  - Exiting number-specific context
  *  - Promoting a secondary line to default
  *
- * The line context is held in the session:
+ * Session keys:
  *   line_context_locked   → bool
  *   line_context_line_id  → int (WhatsappLine.id)
+ *   line_direct_login     → bool (public /line-login session; exit logs out)
  */
 class PhoneLineService
 {
     /** Session key: indicates the session is locked to a specific line */
-    public const SESSION_LOCKED    = 'line_context_locked';
+    public const SESSION_LOCKED = 'line_context_locked';
 
     /** Session key: the WhatsappLine.id for the locked context */
-    public const SESSION_LINE_ID   = 'line_context_line_id';
+    public const SESSION_LINE_ID = 'line_context_line_id';
+
+    /** Session key: true when signed in via public /line-login (not owner "Open Inbox") */
+    public const SESSION_DIRECT_LOGIN = 'line_direct_login';
 
     public function __construct(
         private readonly ActivityLogService $activityLogService,
+        private readonly WhatsappLineRegistryService $lineRegistry,
+        private readonly TenantResolver $tenantResolver,
     ) {}
 
     // ─── Queries ──────────────────────────────────────────────────────────────
@@ -96,10 +109,10 @@ class PhoneLineService
 
         $this->activityLogService->log('phone_line.password_set', [
             'subject_type' => WhatsappLine::class,
-            'subject_id'   => $line->id,
+            'subject_id' => $line->id,
         ]);
 
-        return $line->fresh();
+        return $line->fresh() ?? $line;
     }
 
     /**
@@ -115,17 +128,17 @@ class PhoneLineService
 
         $this->activityLogService->log('phone_line.default_changed', [
             'subject_type' => WhatsappLine::class,
-            'subject_id'   => $line->id,
+            'subject_id' => $line->id,
         ]);
 
-        return $line->fresh();
+        return $line->fresh() ?? $line;
     }
 
     // ─── Line context (session) ───────────────────────────────────────────────
 
     /**
-     * Lock the session to a specific line context (Login as this number).
-     * Verifies password before locking.
+     * Lock the session to a specific line context (owner "Open Inbox for this number").
+     * Verifies password before locking. Owner stays logged in as themselves.
      *
      * @throws \InvalidArgumentException on wrong password or line not connected
      */
@@ -136,35 +149,43 @@ class PhoneLineService
         }
 
         if (! $line->hasLinePassword()) {
-            throw new \InvalidArgumentException('Set a Number Access password for this number before using Login as this number.');
+            throw new \InvalidArgumentException('Set a Number Access password for this number before opening its Inbox.');
         }
 
         if (! $line->checkLinePassword($password)) {
             throw new \InvalidArgumentException('Incorrect password for this number.');
         }
 
-        session([
-            self::SESSION_LOCKED  => true,
-            self::SESSION_LINE_ID => $line->id,
-        ]);
+        $this->enterLineContext($line, directLogin: false);
 
         $this->activityLogService->log('phone_line.context_entered', [
             'subject_type' => WhatsappLine::class,
-            'subject_id'   => $line->id,
+            'subject_id' => $line->id,
         ]);
     }
 
     /**
-     * Exit number-specific context and return to all-lines mode.
+     * Exit number-specific context.
+     *
+     * @return bool True when the session was a public direct line login (caller should log out).
      */
-    public function exitLineContext(): void
+    public function exitLineContext(): bool
     {
-        session()->forget([self::SESSION_LOCKED, self::SESSION_LINE_ID]);
+        $wasDirect = self::isDirectLogin();
+
+        session()->forget([
+            self::SESSION_LOCKED,
+            self::SESSION_LINE_ID,
+            self::SESSION_DIRECT_LOGIN,
+            'inbox_selected_line_uuid',
+        ]);
+
+        return $wasDirect;
     }
 
     /**
      * Find a line by normalised phone number (strips non-digits, then matches).
-     * Used by the public Line Login page.
+     * Requires an initialized tenant connection.
      */
     public function findLineByPhone(string $rawPhone): ?WhatsappLine
     {
@@ -179,43 +200,52 @@ class PhoneLineService
             ->get()
             ->first(function (WhatsappLine $line) use ($digits): bool {
                 $lineDigits = preg_replace('/\D/', '', (string) $line->phone);
-                // Allow matching last N digits (e.g. 10 vs 12 digit forms)
+
                 return str_ends_with((string) $lineDigits, $digits)
                     || str_ends_with($digits, (string) $lineDigits);
             });
     }
 
     /**
-     * Public Line Login: look up a line by phone number and verify password.
-     * On success, locks the session to that line's context.
+     * Public /line-login: resolve tenant by phone registry, authenticate as owner,
+     * and lock the session so Inbox/campaigns only show that number.
      *
      * @throws \InvalidArgumentException when phone/password do not match
      */
     public function lineLoginByPhone(string $rawPhone, string $password): WhatsappLine
     {
-        $line = $this->findLineByPhone($rawPhone);
+        $resolved = $this->lineRegistry->resolveByBusinessPhone($rawPhone);
+
+        if ($resolved === null && tenancy()->initialized) {
+            // Tests / already-tenant context: fall back to local lookup.
+            $line = $this->findLineByPhone($rawPhone);
+            if ($line instanceof WhatsappLine) {
+                $this->assertLinePassword($line, $password);
+                $this->authenticateOwnerForLineLogin();
+                $this->enterLineContext($line, directLogin: true);
+                $this->logPublicLogin($line);
+
+                return $line;
+            }
+        }
+
+        if ($resolved === null) {
+            throw new \InvalidArgumentException('Invalid phone number or password.');
+        }
+
+        tenancy()->initialize($resolved['tenant']);
+
+        $line = WhatsappLine::query()->find($resolved['line_id'])
+            ?? $this->findLineByPhone($rawPhone);
 
         if (! $line instanceof WhatsappLine) {
-            throw new \InvalidArgumentException('No WhatsApp number found matching that phone number.');
+            throw new \InvalidArgumentException('Invalid phone number or password.');
         }
 
-        if (! $line->hasLinePassword()) {
-            throw new \InvalidArgumentException('This number does not have a Number Access password set. Contact the account owner.');
-        }
-
-        if (! $line->checkLinePassword($password)) {
-            throw new \InvalidArgumentException('Incorrect password for this number.');
-        }
-
-        session([
-            self::SESSION_LOCKED  => true,
-            self::SESSION_LINE_ID => $line->id,
-        ]);
-
-        $this->activityLogService->log('phone_line.public_login', [
-            'subject_type' => WhatsappLine::class,
-            'subject_id'   => $line->id,
-        ]);
+        $this->assertLinePassword($line, $password);
+        $this->authenticateOwnerForLineLogin($resolved['tenant']->id);
+        $this->enterLineContext($line, directLogin: true);
+        $this->logPublicLogin($line);
 
         return $line;
     }
@@ -229,6 +259,14 @@ class PhoneLineService
     }
 
     /**
+     * Whether this lock came from public /line-login (not owner Open Inbox).
+     */
+    public static function isDirectLogin(): bool
+    {
+        return filter_var(session(self::SESSION_DIRECT_LOGIN, false), FILTER_VALIDATE_BOOLEAN);
+    }
+
+    /**
      * The currently locked line, or null if not locked.
      */
     public function lockedLine(): ?WhatsappLine
@@ -236,5 +274,74 @@ class PhoneLineService
         $lineId = session(self::SESSION_LINE_ID);
 
         return $lineId ? WhatsappLine::query()->find((int) $lineId) : null;
+    }
+
+    /**
+     * Locked line id for inbox filtering, or null when not locked.
+     */
+    public static function lockedLineId(): ?int
+    {
+        if (! self::isLocked()) {
+            return null;
+        }
+
+        $lineId = (int) session(self::SESSION_LINE_ID, 0);
+
+        return $lineId > 0 ? $lineId : null;
+    }
+
+    private function enterLineContext(WhatsappLine $line, bool $directLogin): void
+    {
+        session([
+            self::SESSION_LOCKED => true,
+            self::SESSION_LINE_ID => $line->id,
+            self::SESSION_DIRECT_LOGIN => $directLogin,
+            'inbox_selected_line_uuid' => $line->uuid,
+        ]);
+    }
+
+    private function assertLinePassword(WhatsappLine $line, string $password): void
+    {
+        if (! $line->isConnected()) {
+            throw new \InvalidArgumentException('This number is not connected yet.');
+        }
+
+        if (! $line->hasLinePassword() || ! $line->checkLinePassword($password)) {
+            throw new \InvalidArgumentException('Invalid phone number or password.');
+        }
+    }
+
+    private function authenticateOwnerForLineLogin(?string $tenantId = null): void
+    {
+        $owner = User::query()
+            ->where('role', UserRole::Owner)
+            ->orderBy('id')
+            ->first()
+            ?? User::query()->orderBy('id')->first();
+
+        if (! $owner instanceof User) {
+            throw new \InvalidArgumentException('No account found for this number. Contact the account owner.');
+        }
+
+        Auth::guard('web')->login($owner);
+        session()->regenerate();
+
+        $tenantId ??= (string) (tenant('id') ?? '');
+        if ($tenantId !== '') {
+            $this->tenantResolver->storeInSession($tenantId, 'web');
+        }
+
+        // Number operators use line password — skip owner 2FA for this session.
+        session([AuthSession::TWO_FACTOR_VERIFIED => true]);
+
+        $owner->forceFill(['last_login_at' => now()])->save();
+    }
+
+    private function logPublicLogin(WhatsappLine $line): void
+    {
+        $this->activityLogService->log('phone_line.public_login', [
+            'subject_type' => WhatsappLine::class,
+            'subject_id' => $line->id,
+        ]);
     }
 }

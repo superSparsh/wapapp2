@@ -48,7 +48,9 @@
         <div class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
             <x-app.header />
             <x-app.impersonation-banner />
+            <x-app.line-context-banner />
             <x-app.admin-area-ribbon />
+            <x-app.line-context-exit-ribbon />
             <main @class(['min-h-0 flex-1 bg-surface', $mainOverflow])>
                 {{ $slot }}
             </main>

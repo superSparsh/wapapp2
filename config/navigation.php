@@ -59,7 +59,7 @@ return [
             ['label' => 'API', 'route' => 'profile.api', 'matches' => ['profile.api.docs']],
             ['label' => 'Subscription', 'route' => 'profile.subscription', 'matches' => ['profile.subscription.billing', 'profile.subscription.upgrade', 'profile.subscription.manage', 'profile.subscription.payment']],
             ['label' => 'Business Alerts Setup', 'route' => 'profile.alerts'],
-            ['label' => 'Data Deletion', 'route' => 'profile.data-deletion'],
+            // ['label' => 'Data Deletion', 'route' => 'profile.data-deletion'],
             ['label' => 'Activity Logs', 'route' => 'profile.activity-logs'],
         ],
     ],

@@ -127,7 +127,7 @@ Route::middleware([InitializeTenancyByPath::class])
         Route::post('/embedded-form-subscribe-captcha', [PublicEmbeddedFormController::class, 'subscribe'])->name('embedded-form.subscribe-captcha');
     });
 
-Route::middleware(['tenancy.session', 'auth:web,team', '2fa', 'team.redirect-dashboard', 'waba.bound'])->group(function () {
+Route::middleware(['tenancy.session', 'auth:web,team', '2fa', 'team.redirect-dashboard', 'waba.bound', 'line.context'])->group(function () {
     // WhatsApp Embedded Signup onboarding (allowlisted inside EnsureWabaBound)
     Route::middleware('team.owner')->group(function () {
         Route::get('/onboarding', [OnboardingController::class, 'show'])->name('onboarding.start');

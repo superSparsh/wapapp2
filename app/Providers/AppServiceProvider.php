@@ -73,6 +73,8 @@ class AppServiceProvider extends ServiceProvider
             'components.app.notifications-panel',
             'components.app.impersonation-banner',
             'components.app.admin-area-ribbon',
+            'components.app.line-context-banner',
+            'components.app.line-context-exit-ribbon',
         ], HeaderComposer::class);
 
         View::composer([

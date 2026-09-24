@@ -7,6 +7,7 @@ namespace App\View\Composers;
 use App\Domains\Account\Services\NotificationService;
 use App\Domains\Admin\Support\AdminSession;
 use App\Domains\Admin\Support\AdminViewAccess;
+use App\Domains\Integration\Support\LineContextGate;
 use App\Domains\Team\Services\TeamImpersonationService;
 use App\Models\TenantUserAccess;
 use App\Support\CurrentAccount;
@@ -36,6 +37,9 @@ class HeaderComposer
                     ->exists())
             );
 
+        $lineLocked = LineContextGate::isActive();
+        $lockedLine = LineContextGate::lockedLine();
+
         $view->with([
             'currentAccountName' => CurrentAccount::displayName(),
             'currentAccountEmail' => CurrentAccount::email(),
@@ -47,8 +51,11 @@ class HeaderComposer
             'isAdminImpersonating' => $adminImpersonation !== null,
             'adminImpersonatorName' => $adminImpersonation['admin_name'] ?? null,
             'adminImpersonatedTenantName' => $adminImpersonation['tenant_name'] ?? null,
-            'canAccessAdminView' => AdminViewAccess::canAccess(),
+            'canAccessAdminView' => $lineLocked ? false : AdminViewAccess::canAccess(),
             'isAdminOwnCustomer' => $isAdminOwnCustomer,
+            'isLineContextLocked' => $lineLocked,
+            'lineContextLockedLine' => $lockedLine,
+            'isLineDirectLogin' => \App\Domains\Integration\Services\PhoneLineService::isDirectLogin(),
         ]);
     }
 }

@@ -156,18 +156,28 @@ class PhoneLineController extends Controller
         }
 
         return redirect()->route('dashboard')
-            ->with('success', 'Now viewing ' . $line->displayPhone() . ' in number-specific access mode.');
+            ->with('success', 'Number workspace open for '.$line->displayPhone().'. Inbox, campaigns, templates, and automation are limited to this number.');
     }
 
     /**
      * POST /profile/phone-lines/exit-context — Exit number-specific access mode.
      */
-    public function exitContext(): RedirectResponse
+    public function exitContext(Request $request): RedirectResponse
     {
-        $this->phoneLineService->exitLineContext();
+        $wasDirect = $this->phoneLineService->exitLineContext();
+
+        if ($wasDirect) {
+            auth('web')->logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return redirect()
+                ->route('line.login')
+                ->with('status', 'Number access session closed. Sign in again with that number’s password to continue.');
+        }
 
         return redirect()->route('dashboard')
-            ->with('success', 'Number-specific access mode exited. You can now use all numbers.');
+            ->with('success', 'Exited number mode. You can use all WhatsApp numbers again.');
     }
 
     /**

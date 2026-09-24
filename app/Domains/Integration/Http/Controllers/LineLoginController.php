@@ -50,6 +50,6 @@ class LineLoginController extends Controller
         }
 
         return redirect()->route('dashboard')
-            ->with('success', 'Now viewing ' . $line->displayPhone() . ' in number-specific access mode.');
+            ->with('success', 'Signed in for '.$line->displayPhone().'. You are in a number workspace — only this line’s data is available.');
     }
 }

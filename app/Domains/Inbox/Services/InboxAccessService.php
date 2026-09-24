@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domains\Inbox\Services;
 
 use App\Domains\Inbox\Support\InboxActor;
+use App\Domains\Integration\Services\PhoneLineService;
 use App\Models\Conversation;
 use App\Models\TeamMember;
 
@@ -12,6 +13,11 @@ class InboxAccessService
 {
     public function canAccessConversation(Conversation $conversation): bool
     {
+        $lockedLineId = PhoneLineService::lockedLineId();
+        if ($lockedLineId !== null && (int) $conversation->whatsapp_line_id !== $lockedLineId) {
+            return false;
+        }
+
         $member = InboxActor::teamMember();
 
         if ($member === null) {
@@ -42,6 +48,11 @@ class InboxAccessService
     /** @return array<int, int> */
     public function assignedLineIds(): array
     {
+        $lockedLineId = PhoneLineService::lockedLineId();
+        if ($lockedLineId !== null) {
+            return [$lockedLineId];
+        }
+
         $member = InboxActor::teamMember();
 
         if ($member === null) {

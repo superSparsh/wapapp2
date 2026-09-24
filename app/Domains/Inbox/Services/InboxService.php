@@ -6,6 +6,7 @@ namespace App\Domains\Inbox\Services;
 
 use App\Domains\Billing\Services\WalletService;
 use App\Domains\Inbox\Support\InboxPresenter;
+use App\Domains\Integration\Services\PhoneLineService;
 use App\Models\Conversation;
 use App\Models\WhatsappLine;
 use Illuminate\Http\Request;
@@ -132,6 +133,16 @@ class InboxService
      */
     public function resolveActiveLine(Request $request, ?Conversation $selected = null): WhatsappLine
     {
+        // Number-specific access mode always wins — only that line is visible.
+        if (PhoneLineService::isLocked()) {
+            $locked = app(PhoneLineService::class)->lockedLine();
+            if ($locked instanceof WhatsappLine) {
+                $request->session()->put('inbox_selected_line_uuid', $locked->uuid);
+
+                return $locked;
+            }
+        }
+
         $line = null;
 
         $requestLineUuid = $request->string('line')->trim()->toString() ?: null;

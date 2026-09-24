@@ -1,6 +1,4 @@
 @php
-    $metaGuideline = "As per Meta's WhatsApp Business platform Phone Numbers Guidelines, business accounts are initially limited to 2 registered business WhatsApp phone numbers. This limit can be increased to up to 20.";
-    $requirementTitle = '1. Official Business Requirements for increasing the WhatsApp phone number limit from 2 to 20';
     $line = $business['line'] ?? null;
 @endphp
 
@@ -79,12 +77,82 @@
 
         <div class="flex w-full items-start gap-3 rounded-xl bg-stat-blue/15 p-3.5">
           <img src="{{ asset('images/profile/info-circle.svg') }}" alt="" class="size-6 shrink-0">
-          <div class="flex min-w-0 flex-1 flex-col gap-2.5 text-sm leading-[1.4]">
-            <p class="font-bold text-text-body">Note:</p>
-            <p class="font-bold text-text-body">{{ $requirementTitle }}</p>
-            <ul class="list-disc pl-[21px] font-normal text-text-muted">
-              <li>{{ $metaGuideline }}</li>
-            </ul>
+          <div class="flex min-w-0 flex-1 flex-col gap-3 text-sm leading-[1.5] text-text-body">
+            <p class="font-bold">Note:</p>
+
+            <div class="flex flex-col gap-2">
+              <p class="font-bold">
+                1. Official Business Requirements for increasing the number of WhatsApp Phone Number limit 2 to 20
+              </p>
+              <p class="font-normal text-text-muted">
+                As per Meta's WhatsApp Business platform's Phone Numbers Guidelines, Business accounts are
+                initially limited to 2 registered business WhatsApp phone numbers. However, this limit can be
+                increased to up to 20.
+              </p>
+              <ul class="list-disc space-y-2 pl-5 font-normal text-text-muted">
+                <li>
+                  <span class="font-bold text-text-body">Limit Increase:</span>
+                  If your business has been verified and your business WhatsApp phone number has an approved
+                  display name (or if you have two business WhatsApp phone numbers with approved display names),
+                  Meta will determine if your usage warrants a business WhatsApp phone number limit increase.
+                </li>
+                <li>
+                  <span class="font-bold text-text-body">Automatic Increase:</span>
+                  If Meta determines that an increase is necessary, they will automatically raise your limit and
+                  notify you through Meta Business Suite notifications regarding the updated limit.
+                </li>
+                <li>
+                  <span class="font-bold text-text-body">Limit Remaining at 2:</span>
+                  In cases where Meta determines that an increase is not warranted, your limit will remain at 2.
+                  If more than a week has passed since your business was verified and your limit remains at 2,
+                  kindly ensure that you are actively monitoring business WhatsApp phone numbers and message
+                  quality, and take appropriate actions to enhance your quality scores. After improving your
+                  quality scores, if it is determined that your business justifies an increase, your limit will
+                  be raised automatically. You will be notified of the new limit via Meta Business Suite notification.
+                </li>
+              </ul>
+              <p class="font-normal text-text-muted">
+                For those with access to Enterprise Support who require a limit greater than 20, you can initiate a
+                Direct Support Ticket, providing an explanation for why you need more than 20 numbers.
+              </p>
+              <p class="font-bold">
+                For further details, please refer to the information provided
+                <a
+                  href="https://developers.facebook.com/docs/whatsapp/phone-numbers"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="text-text-body underline decoration-solid underline-offset-2 hover:text-green-600"
+                >here</a>.
+              </p>
+            </div>
+
+            <hr class="border-divider">
+
+            <div class="flex flex-col gap-2">
+              <p class="font-bold">
+                2. Official Business Account Requirements and Application Process for Display Name and Green Tick
+              </p>
+              <ul class="list-disc space-y-2 pl-5 font-normal text-text-muted">
+                <li>
+                  <span class="font-bold text-text-body">Basic Prerequisites:</span>
+                  <ul class="mt-2 list-disc space-y-1.5 pl-5">
+                    <li>Ensure your business verification is done.</li>
+                    <li>Turn on two-step verification.</li>
+                    <li>Approval process for your profile display name and Green Tick.</li>
+                  </ul>
+                  <ol class="mt-2 list-[lower-alpha] space-y-1.5 pl-5">
+                    <li>Include links to articles, blog posts, or reviews from reputable sources.</li>
+                    <li>These should showcase your business as popular and trusted by customers.</li>
+                    <li>Avoid using links to your own website, Facebook, or Instagram pages.</li>
+                    <li>Exclude any content that has been paid for or created for promotional purposes.</li>
+                    <li>You must provide 5 such links.</li>
+                  </ol>
+                </li>
+              </ul>
+              <p class="font-normal text-text-muted">
+                Provide any additional supporting information that can help demonstrate your business's recognizability.
+              </p>
+            </div>
           </div>
         </div>
       </div>

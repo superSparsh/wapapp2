@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\View\Composers;
 
 use App\Domains\Inbox\Services\InboxQueryService;
+use App\Domains\Integration\Support\LineContextGate;
 use App\Domains\Team\Support\TeamActor;
 use App\Domains\Team\Support\TeamNavigation;
 use Illuminate\View\View;
@@ -29,6 +30,7 @@ class SidebarComposer
 
         $member = TeamActor::teamMember();
         $items = TeamNavigation::items($member);
+        $items = LineContextGate::filterNavItems($items);
 
         $navItems = collect($items)
             ->map(function (array $item) use ($unread): array {

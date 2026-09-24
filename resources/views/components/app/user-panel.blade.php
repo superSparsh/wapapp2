@@ -1,4 +1,5 @@
 @php
+    use App\Domains\Integration\Support\LineContextGate;
     use App\Domains\Team\Support\TeamActor;
 
     $teamItems = TeamActor::isOwner()
@@ -7,6 +8,8 @@
             ? [['route' => 'manager.team.index', 'label' => 'My Team', 'icon' => 'document-text']]
             : []);
 
+    $teamItems = LineContextGate::filterUserPanelItems($teamItems);
+
     $iconMap = [
         'smart-home' => 'smart-home',
         'document-text' => 'ticket',
@@ -14,7 +17,7 @@
         'task-square' => 'box',
     ];
 
-    $showAdminView = ! empty($canAccessAdminView);
+    $showAdminView = ! empty($canAccessAdminView) && ! LineContextGate::isActive();
 @endphp
 
 <div

@@ -56,7 +56,7 @@ class PhoneLineTest extends TestCase
         $this->actingAsTenantUser()
             ->get(route('profile.phone-lines.index'))
             ->assertOk()
-            ->assertSee('No additional phone numbers found');
+            ->assertSee('No extra numbers yet');
     }
 
     public function test_page_lists_secondary_lines(): void
@@ -75,7 +75,7 @@ class PhoneLineTest extends TestCase
         $this->actingAsTenantUser()
             ->get(route('profile.phone-lines.index'))
             ->assertOk()
-            ->assertSee('No additional phone numbers found.');
+            ->assertSee('No extra numbers yet');
     }
 
     // ─── Set Password ─────────────────────────────────────────────────────────
@@ -152,6 +152,7 @@ class PhoneLineTest extends TestCase
 
         $this->assertTrue(PhoneLineService::isLocked());
         $this->assertSame($line->id, session(PhoneLineService::SESSION_LINE_ID));
+        $this->assertFalse(PhoneLineService::isDirectLogin());
     }
 
     public function test_login_as_fails_with_wrong_password(): void
@@ -268,14 +269,13 @@ class PhoneLineTest extends TestCase
     {
         $secondary = WhatsappLine::factory()->connected()->create();
 
-        session([PhoneLineService::SESSION_LOCKED => true]);
+        session([PhoneLineService::SESSION_LOCKED => true, PhoneLineService::SESSION_LINE_ID => $secondary->id]);
 
         $this->actingAsTenantUser()
             ->post(route('profile.phone-lines.set-default'), [
                 'line' => $secondary->uuid,
             ])
-            ->assertRedirect(route('profile.phone-lines.index'))
-            ->assertSessionHas('error');
+            ->assertRedirect(route('dashboard'));
 
         $secondary->refresh();
         $this->assertFalse($secondary->is_default);
@@ -398,9 +398,13 @@ class PhoneLineTest extends TestCase
         $this->post(route('line.login.submit'), [
             'phone' => '919876543210',
             'password' => 'linepass99',
-        ])->assertRedirect(route('dashboard'));
+        ])
+            ->assertRedirect(route('dashboard'))
+            ->assertSessionHas('success');
 
         $this->assertTrue(PhoneLineService::isLocked());
+        $this->assertTrue(PhoneLineService::isDirectLogin());
+        $this->assertAuthenticated('web');
     }
 
     public function test_line_login_fails_with_wrong_password(): void
@@ -470,7 +474,7 @@ class PhoneLineTest extends TestCase
 
         $this->actingAsTenantUser()
             ->get(route('profile.phone-lines.index'))
-            ->assertSee('No password');
+            ->assertSee('Set password');
     }
 
     public function test_phone_lines_page_shows_disabled_open_inbox_when_no_password(): void
@@ -479,6 +483,42 @@ class PhoneLineTest extends TestCase
 
         $this->actingAsTenantUser()
             ->get(route('profile.phone-lines.index'))
-            ->assertSee('Set a Number Access password above first');
+            ->assertSee('Set a Number Access password in step 1 first');
+    }
+
+    public function test_locked_mode_blocks_security_but_allows_inbox(): void
+    {
+        $line = WhatsappLine::factory()->connected()->withPassword('password123')->create();
+
+        $this->actingAsTenantUser()
+            ->post(route('profile.phone-lines.login-as'), [
+                'line' => $line->uuid,
+                'password' => 'password123',
+            ])
+            ->assertRedirect(route('dashboard'));
+
+        $this->get(route('profile.security'))
+            ->assertRedirect(route('dashboard'));
+
+        $this->get(route('inbox.index'))
+            ->assertOk();
+    }
+
+    public function test_line_context_gate_hides_account_nav_when_locked(): void
+    {
+        session([
+            PhoneLineService::SESSION_LOCKED => true,
+            PhoneLineService::SESSION_LINE_ID => 1,
+        ]);
+
+        $filtered = \App\Domains\Integration\Support\LineContextGate::filterNavItems(config('navigation'));
+        $routes = collect($filtered)->pluck('route')->all();
+
+        $this->assertNotContains('profile.index', $routes);
+        $this->assertNotContains('integration.index', $routes);
+        $this->assertNotContains('commerce.index', $routes);
+        $this->assertContains('inbox.index', $routes);
+        $this->assertContains('campaigns.index', $routes);
+        $this->assertContains('openai-key.index', $routes);
     }
 }
