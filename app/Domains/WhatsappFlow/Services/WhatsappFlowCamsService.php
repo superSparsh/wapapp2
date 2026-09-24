@@ -96,10 +96,20 @@ class WhatsappFlowCamsService
 
         $filePath = $this->assetService->publicUrl((string) $flow->json_asset_path, $flow);
 
+        if ($this->isUnreachablePublicUrl($filePath)) {
+            return [
+                'ok' => false,
+                'message' => 'Flow JSON FilePath is not publicly reachable by CAMS (APP_URL looks like localhost). Set APP_URL to your public https domain, then Save Draft and Publish again. FilePath: '.$filePath,
+                'file_path' => $filePath,
+                'response' => null,
+            ];
+        }
+
         Log::info('CAMS UpdateFlowJSONAsset starting', [
             'flow_id' => $flow->id,
             'meta_flow_id' => $flow->meta_flow_id,
             'file_path' => $filePath,
+            'meta_json_bytes' => is_array($flow->meta_json) ? strlen((string) json_encode($flow->meta_json)) : 0,
         ]);
 
         $response = $this->client->updateFlowJsonAsset([
@@ -142,6 +152,19 @@ class WhatsappFlowCamsService
         }
 
         return ['ok' => true, 'message' => 'ok', 'file_path' => $filePath, 'response' => $json];
+    }
+
+    private function isUnreachablePublicUrl(string $filePath): bool
+    {
+        $host = parse_url($filePath, PHP_URL_HOST);
+
+        if (! is_string($host) || $host === '') {
+            return true;
+        }
+
+        $host = strtolower($host);
+
+        return in_array($host, ['localhost', '127.0.0.1', '::1', '0.0.0.0'], true);
     }
 
     public function publishRemote(WhatsappFlow $flow): bool

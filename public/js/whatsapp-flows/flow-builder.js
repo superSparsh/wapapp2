@@ -191,7 +191,7 @@ function setupScreenList() {
     if (addBtn) {
         addBtn.addEventListener('click', () => {
             screenCounter++;
-            const id = 'screen_' + screenCounter;
+            const id = 'SCREEN_' + screenCounter;
             const screen = { id, title: 'Screen ' + screenCounter, fields: [], next_screen: '', conditions: [] };
             if (!Array.isArray(state.screens)) state.screens = [];
             state.screens.push(screen);
@@ -1418,7 +1418,7 @@ function normalizeFlowState(raw) {
         .filter((screen) => screen && typeof screen === 'object')
         .map((screen, index) => ({
             ...screen,
-            id: screen.id || ('screen_' + (index + 1)),
+            id: screen.id || ('SCREEN_' + (index + 1)),
             title: screen.title || ('Screen ' + (index + 1)),
             fields: Array.isArray(screen.fields) ? screen.fields : [],
             next_screen: screen.next_screen ?? '',

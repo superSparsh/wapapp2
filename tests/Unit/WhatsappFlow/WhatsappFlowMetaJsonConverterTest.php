@@ -226,13 +226,13 @@ class WhatsappFlowMetaJsonConverterTest extends TestCase
 
         $navPayload = $result['screens'][0]['layout']['children'][0]['children'][2]['on-click-action']['payload'];
         $this->assertSame([
-            'field_a' => '${screen.screen_1.form.field_a}',
+            'field_a' => '${form.field_a}',
         ], $navPayload);
 
         $completePayload = $result['screens'][1]['layout']['children'][0]['children'][1]['on-click-action']['payload'];
         $this->assertSame([
             'field_a' => '${screen.screen_1.form.field_a}',
-            'field_b' => '${screen.screen_2.form.field_b}',
+            'field_b' => '${form.field_b}',
         ], $completePayload);
     }
 

@@ -485,7 +485,7 @@ final class WhatsappFlowMetaJsonConverter
         if ($isLast) {
             return [
                 'name' => 'complete',
-                'payload' => self::payloadObject(self::buildCompletePayload($allScreens)),
+                'payload' => self::payloadObject(self::buildCompletePayload($allScreens, $index, $screenId)),
             ];
         }
 
@@ -493,6 +493,9 @@ final class WhatsappFlowMetaJsonConverter
         $nextIds = self::resolveNextScreenIds($current, $index, $allScreens);
         $nextId = $nextIds[0] ?? 'SUCCESS';
 
+        // Meta Flow JSON ≥4.0: form data is globally accessible — navigate payload may be {}.
+        // Legacy EditFlow still passed current-screen inputs; empty object is valid and avoids
+        // INVALID_ON_CLICK_ACTION_PAYLOAD when refs are wrong.
         return [
             'name' => 'navigate',
             'next' => [
@@ -515,7 +518,7 @@ final class WhatsappFlowMetaJsonConverter
     }
 
     /**
-     * Navigate: only current screen input fields (legacy EditFlow).
+     * Navigate: current-screen inputs via ${form.field} (Meta docs + legacy EditFlow).
      *
      * @param  array<string, mixed>  $screen
      * @return array<string, string>
@@ -526,28 +529,35 @@ final class WhatsappFlowMetaJsonConverter
 
         foreach (self::inputFieldsOnScreen($screen) as $fieldIndex => $field) {
             $name = self::fieldName($field, (int) $fieldIndex);
-            $payload[$name] = "\${screen.{$screenId}.form.{$name}}";
+            // Prefer ${form.X} for the screen that owns the Footer (Meta 6.x examples).
+            $payload[$name] = '${form.'.$name.'}';
         }
 
         return $payload;
     }
 
     /**
-     * Complete: all input fields across every screen.
+     * Complete: all input fields. Current screen → ${form.X}; earlier screens → ${screen.ID.form.X}.
      *
      * @param  \Illuminate\Support\Collection<int, array<string, mixed>>  $allScreens
      * @return array<string, string>
      */
-    private static function buildCompletePayload(\Illuminate\Support\Collection $allScreens): array
-    {
+    private static function buildCompletePayload(
+        \Illuminate\Support\Collection $allScreens,
+        int $terminalIndex,
+        string $terminalScreenId,
+    ): array {
         $payload = [];
 
         foreach ($allScreens as $screenIndex => $screen) {
             $screenId = self::screenId($screen, (int) $screenIndex);
+            $useFormBinding = ((int) $screenIndex) === $terminalIndex;
 
             foreach (self::inputFieldsOnScreen($screen) as $fieldIndex => $field) {
                 $name = self::fieldName($field, (int) $fieldIndex);
-                $payload[$name] = "\${screen.{$screenId}.form.{$name}}";
+                $payload[$name] = $useFormBinding
+                    ? '${form.'.$name.'}'
+                    : "\${screen.{$screenId}.form.{$name}}";
             }
         }
 
