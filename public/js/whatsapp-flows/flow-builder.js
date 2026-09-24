@@ -1262,16 +1262,53 @@ function setupImportModal() {
 
 /* ── Save / Export / Publish ── */
 
+let isSavingFlow = false;
+
+function setSaveButtonsBusy(busy) {
+    document.querySelectorAll('[data-action="save-flow"]').forEach((btn) => {
+        btn.disabled = busy;
+        btn.classList.toggle('opacity-50', busy);
+        const label = btn.querySelector('[data-save-flow-label]');
+        if (label) {
+            if (busy && !label.dataset.idleLabel) {
+                label.dataset.idleLabel = label.textContent.trim() || 'Save Draft';
+            }
+            label.textContent = busy
+                ? 'Saving…'
+                : (label.dataset.idleLabel || 'Save Draft');
+        }
+    });
+}
+
+function notifyUser(message, type = 'info') {
+    showStatus(message, type);
+    if (typeof window.showAppToast === 'function') {
+        window.showAppToast({
+            type: type === 'error' ? 'error' : (type === 'success' ? 'success' : 'info'),
+            message,
+            title: type === 'error' ? 'Error' : (type === 'success' ? 'Saved' : 'Saving'),
+        });
+        return;
+    }
+    if (type === 'error' && typeof window.showAppAlert === 'function') {
+        window.showAppAlert(message, 'Error');
+    }
+}
+
 /**
  * @returns {Promise<boolean>}
  */
 async function saveFlow(options = {}) {
-    const { quiet = false } = options;
+    const { quiet = false, redirectToList = !quiet } = options;
     const saveUrl = canvasEl?.dataset.saveUrl;
     if (!saveUrl) return false;
 
+    if (isSavingFlow) return false;
+    isSavingFlow = true;
+
     if (!quiet) {
-        showStatus('Saving draft…');
+        setSaveButtonsBusy(true);
+        notifyUser('Saving draft…', 'info');
     }
 
     try {
@@ -1289,10 +1326,26 @@ async function saveFlow(options = {}) {
         const result = await resp.json().catch(() => ({}));
 
         if (resp.ok && result.success) {
-            if (!quiet) {
-                showStatus('Draft saved! Screens: ' + result.screen_count + ', Fields: ' + result.field_count, 'success');
-            }
             updateBadges();
+
+            if (!quiet) {
+                const successMsg = 'Draft saved! Screens: '
+                    + result.screen_count
+                    + ', Fields: '
+                    + result.field_count;
+                notifyUser(successMsg, 'success');
+            }
+
+            if (redirectToList) {
+                const listUrl = canvasEl?.dataset.listUrl || '/whatsapp-flows';
+                const sep = listUrl.includes('?') ? '&' : '?';
+                window.setTimeout(() => {
+                    window.location.href = listUrl + sep + 'saved=1';
+                }, 700);
+            } else if (!quiet) {
+                setSaveButtonsBusy(false);
+            }
+
             return true;
         }
 
@@ -1301,11 +1354,15 @@ async function saveFlow(options = {}) {
             || result.errors?.flow?.[0]
             || Object.values(result.errors || {}).flat()[0]
             || 'Failed to save draft.';
-        showStatus(String(message), 'error');
+        notifyUser(String(message), 'error');
+        if (!quiet) setSaveButtonsBusy(false);
         return false;
     } catch (err) {
-        showStatus('Error saving draft: ' + err.message, 'error');
+        notifyUser('Error saving draft: ' + err.message, 'error');
+        if (!quiet) setSaveButtonsBusy(false);
         return false;
+    } finally {
+        isSavingFlow = false;
     }
 }
 

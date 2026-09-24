@@ -8,9 +8,9 @@
         </p>
       </div>
 
-      @if (session('status'))
+      @if (session('status') || request()->boolean('saved'))
         <div class="rounded-lg bg-green-50 px-4 py-3 text-sm font-medium text-green-700">
-          {{ session('status') }}
+          {{ session('status') ?: 'Draft saved successfully.' }}
         </div>
       @endif
 

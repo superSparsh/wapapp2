@@ -96,11 +96,11 @@
           <button
             type="button"
             data-action="save-flow"
-            class="fd-btn inline-flex items-center justify-center gap-3 rounded border border-solid border-green-500 bg-green-50 px-4 py-3 text-sm font-semibold leading-[1.5] text-green-500 transition-colors hover:bg-green-50"
+            class="fd-btn inline-flex items-center justify-center gap-3 rounded border border-solid border-green-500 bg-green-50 px-4 py-3 text-sm font-semibold leading-[1.5] text-green-500 transition-colors hover:bg-green-50 disabled:cursor-not-allowed disabled:opacity-50"
             title="Save draft to WhatsApp (does not publish)"
           >
             <img src="{{ asset('images/automation/ram-save.svg') }}" alt="" class="size-5" width="20" height="20">
-            Save Draft
+            <span data-save-flow-label>Save Draft</span>
           </button>
           <button
             type="button"
@@ -221,6 +221,7 @@
             data-load-url="{{ route('whatsapp-flows.data', $flow) }}"
             data-export-url="{{ route('whatsapp-flows.export', $flow) }}"
             data-import-url="{{ route('whatsapp-flows.import') }}"
+            data-list-url="{{ route('whatsapp-flows.index') }}"
           >
             <div class="relative flex h-full min-h-[610px] flex-col justify-between overflow-hidden rounded-lg p-3">
               <div aria-hidden="true" class="pointer-events-none absolute inset-0 rounded-lg bg-elevated">
