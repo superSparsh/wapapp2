@@ -38,7 +38,7 @@
                         {{ $preview }}
                     @elseif ($liveTemplate)
                         <div
-                            class="mx-auto w-full max-w-[354px] rounded-br-[12px] rounded-tl-[12px] rounded-tr-[12px] border border-border bg-elevated p-2"
+                            class="mx-auto w-full max-w-[354px] mt-5 rounded-br-[12px] rounded-tl-[12px] rounded-tr-[12px] border border-border bg-elevated p-2"
                             data-inbox-template-preview
                         >
                             <img

@@ -105,6 +105,7 @@ function initStatusPolling(root) {
                 }
 
                 const chip = row.querySelector('[data-template-status-chip]');
+                const statusCell = row.querySelector('[data-template-status-cell]');
                 const previousStatus = (row.dataset.templateStatus || chip?.textContent || '').trim();
                 const nextStatus = String(item.status || '').trim();
                 const templateName =
@@ -146,6 +147,22 @@ function initStatusPolling(root) {
                         const hint = item.rejection_hint || '';
                         rejectionHint.textContent = hint;
                         rejectionHint.classList.toggle('hidden', hint === '');
+                    }
+                    let inline = row.querySelector('[data-template-rejection-inline]');
+                    if (show && item.rejection_reason) {
+                        if (!inline) {
+                            inline = document.createElement('p');
+                            inline.className = 'max-w-[280px] text-[11px] leading-[1.4] text-red-600';
+                            inline.setAttribute('data-template-rejection-inline', '');
+                            statusCell?.querySelector('.flex.flex-col')?.appendChild(inline)
+                                || statusCell?.appendChild(inline);
+                        }
+                        const text = String(item.rejection_reason);
+                        inline.textContent = text.length > 120 ? `${text.slice(0, 117)}...` : text;
+                        inline.title = text;
+                        inline.classList.remove('hidden');
+                    } else if (inline) {
+                        inline.classList.add('hidden');
                     }
                 }
             });

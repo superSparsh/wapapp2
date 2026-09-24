@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Domains\Templates\Support;
 
-use App\Domains\Templates\Support\TemplateCategoryCatalog;
 use App\Domains\Templates\Enums\TemplateSource;
 use App\Domains\Templates\Enums\TemplateStatus;
 use App\Domains\WhatsApp\Support\CamsComponentEncoder;
@@ -31,51 +30,52 @@ class TemplateCatalogPresenter
                     || filled($template->whatsappCode());
 
                 $isRejected = $template->status === TemplateStatus::Rejected;
-                $error = $isRejected
+                $hasRejectionText = filled($template->rejection_reason);
+                $error = ($isRejected || $hasRejectionText)
                     ? CamsComponentEncoder::presentError($template->rejection_reason)
                     : null;
 
                 return [
-                'serial' => str_pad((string) ($offset + $index + 1), 2, '0', STR_PAD_LEFT),
-                'name' => $template->name,
-                'code' => (string) ($template->code ?? ''),
-                'created_at' => $template->created_at?->format('Y-m-d h:i A') ?? '—',
-                'type' => $isRegular ? 'Regular' : 'Draft',
-                'type_variant' => $isRegular ? 'fd-type' : 'fd-draft',
-                'category' => TemplateCategoryCatalog::listLabel(
-                    (string) $template->category,
-                    is_array($template->payload) ? $template->payload : []
-                ),
-                'category_variant' => match (strtoupper((string) (
-                    (
-                        TemplateCategoryCatalog::isCarousel((string) $template->category)
-                        || (bool) data_get($template->payload, 'carousel.enabled', false)
-                    )
-                        ? TemplateCategoryCatalog::MARKETING
-                        : $template->category
-                ))) {
-                    'UTILITY' => 'fd-category-utility',
-                    'AUTHENTICATION' => 'fd-category-auth',
-                    'LIMITED_TIME_OFFER' => 'fd-category-lto',
-                    default => 'fd-category-marketing',
-                },
-                'status' => $template->status->label(),
-                'status_variant' => $template->status->chipVariant(),
-                'error' => $isRejected,
-                'rejection_title' => $error['title'] ?? null,
-                'rejection_reason' => $error['message'] ?? null,
-                'rejection_hint' => $error['hint'] ?? null,
-                'preview_url' => route('templates.preview', array_filter([
-                    'code' => $template->code,
-                    'draft' => $template->code ? null : $template->uuid,
-                    'preview' => 1,
-                ])),
-                'edit_url' => in_array($template->status, [TemplateStatus::Draft, TemplateStatus::PendingReview, TemplateStatus::Rejected], true)
-                    ? route('templates.builder.body', $template)
-                    : null,
-                'copy_url' => route('templates.duplicate', $template),
-                'uuid' => $template->uuid,
-                'delete_url' => route('templates.destroy', $template),
+                    'serial' => str_pad((string) ($offset + $index + 1), 2, '0', STR_PAD_LEFT),
+                    'name' => $template->name,
+                    'code' => (string) ($template->code ?? ''),
+                    'created_at' => $template->created_at?->format('Y-m-d h:i A') ?? '—',
+                    'type' => $isRegular ? 'Regular' : 'Draft',
+                    'type_variant' => $isRegular ? 'fd-type' : 'fd-draft',
+                    'category' => TemplateCategoryCatalog::listLabel(
+                        (string) $template->category,
+                        is_array($template->payload) ? $template->payload : []
+                    ),
+                    'category_variant' => match (strtoupper((string) (
+                        (
+                            TemplateCategoryCatalog::isCarousel((string) $template->category)
+                            || (bool) data_get($template->payload, 'carousel.enabled', false)
+                        )
+                            ? TemplateCategoryCatalog::MARKETING
+                            : $template->category
+                    ))) {
+                        'UTILITY' => 'fd-category-utility',
+                        'AUTHENTICATION' => 'fd-category-auth',
+                        'LIMITED_TIME_OFFER' => 'fd-category-lto',
+                        default => 'fd-category-marketing',
+                    },
+                    'status' => $template->status->label(),
+                    'status_variant' => $template->status->chipVariant(),
+                    'error' => $isRejected || $hasRejectionText,
+                    'rejection_title' => $error['title'] ?? null,
+                    'rejection_reason' => $error['message'] ?? $template->rejection_reason,
+                    'rejection_hint' => $error['hint'] ?? null,
+                    'preview_url' => route('templates.preview', array_filter([
+                        'code' => $template->code,
+                        'draft' => $template->code ? null : $template->uuid,
+                        'preview' => 1,
+                    ])),
+                    'edit_url' => in_array($template->status, [TemplateStatus::Draft, TemplateStatus::PendingReview, TemplateStatus::Rejected], true)
+                        ? route('templates.builder.body', $template)
+                        : null,
+                    'copy_url' => route('templates.duplicate', $template),
+                    'uuid' => $template->uuid,
+                    'delete_url' => route('templates.destroy', $template),
                 ];
             })
             ->all();

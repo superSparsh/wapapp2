@@ -115,10 +115,122 @@ final class WhatsappMediaRules
         return [
             "{$attribute}.required" => 'Please choose a file to send.',
             "{$attribute}.file" => 'Please choose a valid file to send.',
+            "{$attribute}.uploaded" => self::defaultUploadFailureMessage($type),
             "{$attribute}.mimes" => "This file type isn't allowed for {$label}s. Allowed formats: {$formats}.",
             "{$attribute}.extensions" => "This file type isn't allowed for {$label}s. Allowed formats: {$formats}.",
             "{$attribute}.max" => "This {$label} is too large. Maximum size is {$max}. Please compress it or choose a smaller file.",
         ];
+    }
+
+    /**
+     * Human message when PHP rejects the upload (upload_max_filesize / post_max_size / partial).
+     */
+    public static function uploadFailureMessage(?UploadedFile $file, string $type = 'image'): ?string
+    {
+        if ($file === null) {
+            return null;
+        }
+
+        if ($file->isValid()) {
+            return null;
+        }
+
+        $label = $type === 'audio' ? 'audio file' : $type;
+        $appMax = in_array($type, self::TYPES, true) ? self::maxMbLabel($type) : self::maxMbLabel('video');
+        $phpMax = self::phpUploadMaxLabel();
+
+        return match ($file->getError()) {
+            \UPLOAD_ERR_INI_SIZE, \UPLOAD_ERR_FORM_SIZE => "This {$label} is too large for the server to accept (PHP limit {$phpMax}). App limit for {$label}s is {$appMax}. Please compress it or choose a smaller file.",
+            \UPLOAD_ERR_PARTIAL => 'The upload was interrupted. Please try again.',
+            \UPLOAD_ERR_NO_FILE => 'Please choose a file to send.',
+            \UPLOAD_ERR_NO_TMP_DIR, \UPLOAD_ERR_CANT_WRITE => 'The server could not save the upload. Please try again or contact support.',
+            default => self::defaultUploadFailureMessage($type),
+        };
+    }
+
+    public static function defaultUploadFailureMessage(string $type = 'image'): string
+    {
+        $label = $type === 'audio' ? 'audio file' : (in_array($type, self::TYPES, true) ? $type : 'file');
+        $appMax = in_array($type, self::TYPES, true) ? self::maxMbLabel($type) : self::maxMbLabel('video');
+        $phpMax = self::phpUploadMaxLabel();
+
+        return "The {$label} failed to upload. Limits: {$label} {$appMax} (server upload cap {$phpMax}). Please try a smaller file.";
+    }
+
+    /**
+     * True when the request body exceeded PHP post_max_size (POST/FILES empty but Content-Length set).
+     */
+    public static function requestExceededPostMaxSize(): bool
+    {
+        $contentLength = (int) ($_SERVER['CONTENT_LENGTH'] ?? 0);
+        if ($contentLength <= 0) {
+            return false;
+        }
+
+        return empty($_POST) && empty($_FILES);
+    }
+
+    public static function postMaxExceededMessage(): string
+    {
+        return 'This upload is too large for the server (PHP post_max_size '.self::phpUploadMaxLabel().'). Limits: image 5 MB; video, audio, and documents 14 MB. Please choose a smaller file.';
+    }
+
+    /**
+     * Effective PHP upload ceiling in bytes (min of upload_max_filesize and post_max_size).
+     */
+    public static function phpUploadMaxBytes(): int
+    {
+        $upload = self::iniToBytes(ini_get('upload_max_filesize') ?: '0');
+        $post = self::iniToBytes(ini_get('post_max_size') ?: '0');
+
+        if ($upload <= 0 && $post <= 0) {
+            return self::absoluteMaxKb() * 1024;
+        }
+        if ($upload <= 0) {
+            return $post;
+        }
+        if ($post <= 0) {
+            return $upload;
+        }
+
+        return min($upload, $post);
+    }
+
+    public static function phpUploadMaxLabel(): string
+    {
+        $bytes = self::phpUploadMaxBytes();
+        if ($bytes <= 0) {
+            return 'unknown';
+        }
+
+        $mb = $bytes / (1024 * 1024);
+        if ($mb >= 1) {
+            return rtrim(rtrim(number_format($mb, 1, '.', ''), '0'), '.').' MB';
+        }
+
+        return (string) max(1, (int) round($bytes / 1024)).' KB';
+    }
+
+    private static function iniToBytes(string $value): int
+    {
+        $value = trim($value);
+        if ($value === '' || $value === '0') {
+            return 0;
+        }
+
+        if (! preg_match('/^(\d+(?:\.\d+)?)([KMG])?$/i', $value, $matches)) {
+            return (int) $value;
+        }
+
+        $num = (float) $matches[1];
+        $unit = strtoupper($matches[2] ?? '');
+
+        return (int) match ($unit) {
+            'G' => $num * 1024 * 1024 * 1024,
+            'M' => $num * 1024 * 1024,
+            'K' => $num * 1024,
+            default => $num,
+        };
     }
 
     /**
@@ -265,6 +377,8 @@ final class WhatsappMediaRules
         return [
             'types' => $types,
             'absolute_max_bytes' => self::absoluteMaxKb() * 1024,
+            'php_upload_max_bytes' => self::phpUploadMaxBytes(),
+            'php_upload_max_label' => self::phpUploadMaxLabel(),
         ];
     }
 }

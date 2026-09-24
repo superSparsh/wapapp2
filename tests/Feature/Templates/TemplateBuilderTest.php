@@ -134,6 +134,47 @@ class TemplateBuilderTest extends TestCase
             ->assertSessionHasErrors(['name']);
     }
 
+    public function test_draft_template_name_can_be_renamed_after_setup(): void
+    {
+        $this->actingAsTenantUser()->get(route('templates.builder.create'));
+        $template = Template::query()->latest('id')->firstOrFail();
+
+        $this->actingAsTenantUser()
+            ->post(route('templates.builder.body.save', $template), [
+                'name' => 'first_name_here',
+                'category' => 'MARKETING',
+                'language' => 'en_GB',
+                'template_type' => 'regular',
+                'body_text' => 'Hello world',
+            ])
+            ->assertRedirect();
+
+        $template->refresh();
+        $this->assertTrue($template->isSetupComplete());
+        $this->assertTrue($template->canEditIdentity());
+
+        $this->actingAsTenantUser()
+            ->get(route('templates.builder.body', $template))
+            ->assertOk()
+            ->assertSee('name="name"', false)
+            ->assertSee('first_name_here', false);
+
+        $this->actingAsTenantUser()
+            ->post(route('templates.builder.body.save', $template), [
+                'name' => 'renamed_template',
+                'category' => 'UTILITY',
+                'language' => 'en_US',
+                'template_type' => 'regular',
+                'body_text' => 'Hello again',
+            ])
+            ->assertRedirect();
+
+        $template->refresh();
+        $this->assertSame('renamed_template', $template->name);
+        $this->assertSame('UTILITY', $template->category);
+        $this->assertSame('en_US', $template->language);
+    }
+
     public function test_soft_deleted_template_name_can_be_reused(): void
     {
         $deleted = Template::factory()->draft()->create([

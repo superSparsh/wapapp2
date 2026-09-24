@@ -327,6 +327,14 @@ class InboxServiceAdapter
             contact: $request->validated(),
         );
 
+        $message->refresh();
+
+        if ($message->status === MessageStatus::Failed) {
+            return response()->json([
+                'message' => (string) ($message->failed_reason ?: 'Unable to send contact via WhatsApp.'),
+            ], 422);
+        }
+
         return response()->json($this->messagePayload($message), 201);
     }
 

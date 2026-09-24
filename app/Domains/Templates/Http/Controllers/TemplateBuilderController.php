@@ -4,37 +4,41 @@ declare(strict_types=1);
 
 namespace App\Domains\Templates\Http\Controllers;
 
+use App\Domains\Templates\Enums\TemplateStatus;
 use App\Domains\Templates\Http\Requests\SaveAuthRequest;
 use App\Domains\Templates\Http\Requests\SaveBodyRequest;
-use App\Domains\WhatsappFlow\Services\WhatsappFlowInteractiveService;
 use App\Domains\Templates\Http\Requests\SaveButtonsRequest;
 use App\Domains\Templates\Http\Requests\SaveCarouselRequest;
 use App\Domains\Templates\Http\Requests\SaveFooterRequest;
 use App\Domains\Templates\Http\Requests\SaveHeaderRequest;
 use App\Domains\Templates\Http\Requests\SaveLtoRequest;
 use App\Domains\Templates\Http\Requests\SaveSubmitRequest;
-use App\Domains\Templates\Enums\TemplateStatus;
 use App\Domains\Templates\Services\BuiltinVariableCatalog;
 use App\Domains\Templates\Services\TemplateBuilderService;
 use App\Domains\Templates\Services\TemplateMediaService;
 use App\Domains\Templates\Services\TemplatePreviewService;
 use App\Domains\Templates\Services\TemplateVariableQueryService;
-use App\Domains\Templates\Support\TemplateCategoryCatalog;
 use App\Domains\Templates\Support\TemplateBuilderFlow;
+use App\Domains\Templates\Support\TemplateCategoryCatalog;
 use App\Domains\Templates\Support\TemplateVariableSyntax;
+use App\Domains\WhatsApp\Support\CamsComponentEncoder;
+use App\Domains\WhatsappFlow\Services\WhatsappFlowInteractiveService;
 use App\Http\Controllers\Controller;
 use App\Models\Template;
 use App\Support\WhatsappMediaRules;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class TemplateBuilderController extends Controller
 {
     public function __construct(
         private readonly TemplateBuilderFlow $builderFlow,
     ) {}
+
     public function create(TemplateBuilderService $builderService): RedirectResponse
     {
         $template = $builderService->createDraft();
@@ -84,7 +88,24 @@ class TemplateBuilderController extends Controller
         TemplateBuilderService $builderService,
         TemplateMediaService $mediaService,
     ): JsonResponse {
+        if (WhatsappMediaRules::requestExceededPostMaxSize()) {
+            return response()->json([
+                'message' => WhatsappMediaRules::postMaxExceededMessage(),
+            ], 422);
+        }
+
         $file = $request->file('header_media');
+        if ($file instanceof UploadedFile && ! $file->isValid()) {
+            $typeHint = WhatsappMediaRules::detectType($file) ?? 'video';
+            $message = WhatsappMediaRules::uploadFailureMessage($file, $typeHint)
+                ?? WhatsappMediaRules::defaultUploadFailureMessage($typeHint);
+
+            return response()->json([
+                'message' => $message,
+                'errors' => ['header_media' => [$message]],
+            ], 422);
+        }
+
         $mime = (string) ($file?->getMimeType() ?? '');
         $headerType = match (true) {
             str_starts_with($mime, 'image/') => 'image',
@@ -98,13 +119,21 @@ class TemplateBuilderController extends Controller
             ? WhatsappMediaRules::constraintRules($headerType)
             : ['mimes:'.implode(',', WhatsappMediaRules::allExtensions()), 'max:'.WhatsappMediaRules::absoluteMaxKb()];
 
+        $messages = array_merge(
+            [
+                'header_media.required' => 'Please choose a file to upload.',
+            ],
+            $headerType && in_array($headerType, WhatsappMediaRules::types(), true)
+                ? WhatsappMediaRules::validationMessages($headerType, 'header_media')
+                : [
+                    'header_media.mimes' => 'This file type is not supported for the header.',
+                    'header_media.max' => 'The file is too large for this header type.',
+                ],
+        );
+
         $request->validate([
             'header_media' => array_merge(['required', 'file'], $typeRules),
-        ], [
-            'header_media.required' => 'Please choose a file to upload.',
-            'header_media.mimes' => 'This file type is not supported for the header.',
-            'header_media.max' => 'The file is too large for this header type.',
-        ]);
+        ], $messages);
 
         WhatsappMediaRules::assertValid($request->file('header_media'), $headerType, 'header_media');
 
@@ -133,7 +162,7 @@ class TemplateBuilderController extends Controller
         ]);
     }
 
-    public function showMedia(string $path, TemplateMediaService $mediaService): \Symfony\Component\HttpFoundation\StreamedResponse
+    public function showMedia(string $path, TemplateMediaService $mediaService): StreamedResponse
     {
         return $mediaService->stream($path);
     }
@@ -157,7 +186,7 @@ class TemplateBuilderController extends Controller
     {
         $bodyText = TemplateVariableSyntax::normalizeBodyText((string) $request->input('body_text', ''));
 
-        if (! $template->isSetupComplete()) {
+        if ($template->canEditIdentity()) {
             $category = strtoupper((string) $request->input('category'));
 
             if (TemplateCategoryCatalog::isCarousel($category) && ! $this->builderFlow->canUseCarousel()) {
@@ -458,7 +487,7 @@ class TemplateBuilderController extends Controller
         $template->refresh();
 
         if ($template->status === TemplateStatus::Rejected) {
-            $presented = \App\Domains\WhatsApp\Support\CamsComponentEncoder::presentError($template->rejection_reason);
+            $presented = CamsComponentEncoder::presentError($template->rejection_reason);
             $flash = $presented['message'];
             if (filled($presented['hint'])) {
                 $flash .= ' '.$presented['hint'];

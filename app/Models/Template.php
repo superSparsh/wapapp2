@@ -74,6 +74,19 @@ class Template extends TenantModel
         return (bool) ($this->wizardPayload()['meta']['setup_completed'] ?? false);
     }
 
+    /**
+     * Name / category / language stay editable until WhatsApp has a provider template code
+     * (or the template is already pending/approved). Draft & failed submissions can rename.
+     */
+    public function canEditIdentity(): bool
+    {
+        if ($this->status === TemplateStatus::Approved || $this->status === TemplateStatus::PendingReview) {
+            return false;
+        }
+
+        return ! filled($this->whatsappCode());
+    }
+
     public function whatsappCode(): ?string
     {
         if (CamsTemplateIdentity::isProviderCode($this->code)) {

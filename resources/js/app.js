@@ -2961,7 +2961,19 @@ function initInboxOutboundModals() {
                 return `This ${label} is too large. Maximum size is ${maxMb} MB. Please compress it or choose a smaller file.`;
             }
 
-            // Guard against PHP "POST data is too large" before the request leaves the browser.
+            // Guard against PHP upload_max_filesize / post_max_size before the request leaves.
+            const phpMax = Number(mediaRules.php_upload_max_bytes || 0);
+            if (phpMax > 0 && file.size > phpMax) {
+                const phpLabel = mediaRules.php_upload_max_label || `${Math.round(phpMax / (1024 * 1024))} MB`;
+                const maxBytes = Number(config?.max_bytes || 0);
+                const appMb = maxBytes > 0 ? Math.round((maxBytes / (1024 * 1024)) * 10) / 10 : null;
+                const label = type === 'audio' ? 'audio file' : type;
+                if (appMb) {
+                    return `This ${label} is too large for the server to accept (PHP limit ${phpLabel}). App limit is ${appMb} MB. Please compress it or choose a smaller file.`;
+                }
+                return `This file is too large for the server to accept (PHP limit ${phpLabel}). Please choose a smaller file.`;
+            }
+
             const absoluteMax = Number(mediaRules.absolute_max_bytes || 0);
             if (absoluteMax > 0 && file.size > absoluteMax) {
                 return 'This file is too large to upload. Please choose a smaller file.';

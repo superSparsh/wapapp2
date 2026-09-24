@@ -27,7 +27,7 @@ class SaveBodyRequest extends FormRequest
 
         $template = $this->route('template');
 
-        if ($template instanceof Template && ! $template->isSetupComplete()) {
+        if ($template instanceof Template && $template->canEditIdentity()) {
             $categories = TemplateCategoryCatalog::builderValues();
 
             $rules = array_merge($rules, [
@@ -46,7 +46,7 @@ class SaveBodyRequest extends FormRequest
         $validator->after(function ($validator) {
             $template = $this->route('template');
 
-            if (! $template instanceof Template || $template->isSetupComplete()) {
+            if (! $template instanceof Template || ! $template->canEditIdentity()) {
                 return;
             }
 
@@ -59,7 +59,7 @@ class SaveBodyRequest extends FormRequest
             if (TemplateNameValidator::nameExistsForLine($name, $template->whatsapp_line_id, $template->id)) {
                 $validator->errors()->add(
                     'name',
-                    'A template with this name already exists. Please choose a different name.',
+                    'A template with this name already exists on this WhatsApp number. Please choose a different name.',
                 );
             }
         });

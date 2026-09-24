@@ -42,7 +42,7 @@ class SaveHeaderRequest extends FormRequest
             if ($mediaUrl !== '' && (preg_match('/\{\{[a-zA-Z0-9_]+\}\}/', $mediaUrl) || preg_match('/\$\([a-zA-Z0-9_]+\)/', $mediaUrl))) {
                 $rules['media_url'] = ['required', 'string'];
             } elseif ($mediaUrl !== '') {
-                $rules['media_url'] = ['required', 'url'];
+                $rules['media_url'] = ['required', 'url', 'regex:/^https:\/\//i'];
             } else {
                 $rules['media_url'] = ['required', 'string'];
             }
@@ -88,6 +88,7 @@ class SaveHeaderRequest extends FormRequest
             'header_media.required' => 'Please upload a file for the header.',
             'media_url.required' => 'Please provide a URL for the header media.',
             'media_url.url' => 'Enter a valid URL for the header media.',
+            'media_url.regex' => 'Header media URL must start with https:// so WhatsApp can download it.',
         ];
     }
 }

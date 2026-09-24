@@ -56,6 +56,8 @@ class AlibabaOutboundMessageGateway implements \App\Domains\Inbox\Contracts\Outb
                 'To' => $payload['To'] ?? null,
                 'CustSpaceId' => $payload['CustSpaceId'] ?? null,
                 'Type' => $payload['Type'] ?? null,
+                'MessageType' => $payload['MessageType'] ?? null,
+                'Content' => $payload['Content'] ?? null,
             ]);
 
             $response = $this->client->sendChatappMessage($payload);
@@ -67,7 +69,7 @@ class AlibabaOutboundMessageGateway implements \App\Domains\Inbox\Contracts\Outb
                 Log::warning('CAMS outbound send rejected', [
                     'message_id' => $message->id,
                     'reason' => $reason,
-                    'payload' => Arr::only($payload, ['TemplateCode', 'Language', 'From', 'To', 'CustSpaceId', 'Type']),
+                    'payload' => Arr::only($payload, ['TemplateCode', 'Language', 'From', 'To', 'CustSpaceId', 'Type', 'MessageType', 'Content']),
                     'response' => $response->body(),
                 ]);
 

@@ -6,7 +6,9 @@ namespace App\Domains\Inbox\Http\Requests;
 
 use App\Support\WhatsappMediaRules;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Validation\Validator;
 
 class SendInboxMediaRequest extends FormRequest
@@ -36,14 +38,36 @@ class SendInboxMediaRequest extends FormRequest
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator): void {
+            $type = (string) $this->input('media_type', 'image');
+            if (! in_array($type, WhatsappMediaRules::types(), true)) {
+                $type = 'image';
+            }
+
+            if (WhatsappMediaRules::requestExceededPostMaxSize()) {
+                $validator->errors()->forget('file');
+                $validator->errors()->add('file', WhatsappMediaRules::postMaxExceededMessage());
+
+                return;
+            }
+
+            $file = $this->file('file');
+            if ($file instanceof UploadedFile) {
+                $uploadMessage = WhatsappMediaRules::uploadFailureMessage($file, $type);
+                if ($uploadMessage !== null) {
+                    $validator->errors()->forget('file');
+                    $validator->errors()->add('file', $uploadMessage);
+
+                    return;
+                }
+            }
+
             if ($validator->errors()->isNotEmpty()) {
                 return;
             }
 
-            $type = (string) $this->input('media_type');
             try {
                 WhatsappMediaRules::assertValid($this->file('file'), $type, 'file');
-            } catch (\Illuminate\Validation\ValidationException $e) {
+            } catch (ValidationException $e) {
                 foreach ($e->errors() as $key => $messages) {
                     foreach ($messages as $message) {
                         $validator->errors()->add($key, $message);

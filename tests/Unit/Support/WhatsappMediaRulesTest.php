@@ -34,4 +34,20 @@ class WhatsappMediaRulesTest extends TestCase
 
         $this->assertSame('document', WhatsappMediaRules::detectType($file));
     }
+
+    public function test_validation_messages_include_uploaded_key(): void
+    {
+        $messages = WhatsappMediaRules::validationMessages('image');
+
+        $this->assertArrayHasKey('file.uploaded', $messages);
+        $this->assertStringContainsString('failed to upload', strtolower($messages['file.uploaded']));
+    }
+
+    public function test_client_config_exposes_php_upload_ceiling(): void
+    {
+        $config = WhatsappMediaRules::clientConfig();
+
+        $this->assertArrayHasKey('php_upload_max_bytes', $config);
+        $this->assertGreaterThan(0, $config['php_upload_max_bytes']);
+    }
 }

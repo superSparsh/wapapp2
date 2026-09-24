@@ -7,8 +7,9 @@
   $meta = $payload['meta'] ?? [];
   $isSetupComplete = $setupComplete ?? ($meta['setup_completed'] ?? false);
   $categoryLabels = TemplateCategoryCatalog::labels();
-  $editableMeta = ! $isSetupComplete && $active === 'body' && filled($bodyFormId);
-  $displayName = old('name', $isSetupComplete ? ($template?->name ?? '') : ($meta['name'] ?: ''));
+  $canEditIdentity = $template?->canEditIdentity() ?? ! $isSetupComplete;
+  $editableMeta = $canEditIdentity && $active === 'body' && filled($bodyFormId);
+  $displayName = old('name', $canEditIdentity && ! $isSetupComplete ? ($meta['name'] ?: '') : ($template?->name ?? $meta['name'] ?? ''));
   $storedCategory = $isSetupComplete ? ($template?->category ?? 'MARKETING') : ($meta['category'] ?: 'MARKETING');
   $displayCategory = old('category', TemplateCategoryCatalog::uiCategory((string) $storedCategory, is_array($payload) ? $payload : []));
   $displayLanguage = old('language', $isSetupComplete ? ($template?->language ?? 'en_GB') : ($meta['language'] ?: 'en_GB'));

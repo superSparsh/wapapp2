@@ -17,6 +17,7 @@ use App\Models\Template;
 use App\Models\TemplateStatusLog;
 use App\Models\Variable;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class TemplateBuilderService
 {
@@ -50,8 +51,8 @@ class TemplateBuilderService
         $lineId = $this->actorContext->whatsappLineId();
 
         if (TemplateNameValidator::nameExistsForLine($name, $lineId)) {
-            throw \Illuminate\Validation\ValidationException::withMessages([
-                'name' => 'A template with this name already exists. Please choose a different name.',
+            throw ValidationException::withMessages([
+                'name' => 'A template with this name already exists on this WhatsApp number. Please choose a different name.',
             ]);
         }
 
@@ -124,8 +125,8 @@ class TemplateBuilderService
                 $requestedName = (string) ($stepData['name'] ?? $template->name);
 
                 if (TemplateNameValidator::nameExistsForLine($requestedName, $template->whatsapp_line_id, $template->id)) {
-                    throw \Illuminate\Validation\ValidationException::withMessages([
-                        'name' => 'A template with this name already exists. Please choose a different name.',
+                    throw ValidationException::withMessages([
+                        'name' => 'A template with this name already exists on this WhatsApp number. Please choose a different name.',
                     ]);
                 }
 

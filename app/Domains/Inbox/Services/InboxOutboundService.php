@@ -285,6 +285,7 @@ class InboxOutboundService
             'wa_id' => $waId,
         ];
 
+        // Store full card in metadata for UI; CAMS payload builder sends name+phones only.
         $contactPayload = [
             'name' => $namePayload,
             'phones' => [$phonePayload],
@@ -310,6 +311,7 @@ class InboxOutboundService
             metadata: [
                 'contacts' => [$contactPayload],
             ],
+            sendImmediately: true,
         );
     }
 

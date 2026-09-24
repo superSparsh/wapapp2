@@ -964,6 +964,34 @@ function initHeaderSections(scheduleUpdate) {
                 const enableUrl = isActive && useUrl;
                 urlInput.disabled = !enableUrl;
                 urlInput.name = enableUrl ? 'media_url' : '';
+                if (enableUrl && !urlInput.dataset.headerUrlBound) {
+                    urlInput.dataset.headerUrlBound = '1';
+                    urlInput.addEventListener('input', () => {
+                        const value = urlInput.value.trim();
+                        scheduleUpdate?.();
+                        if (!value.startsWith('https://')) {
+                            return;
+                        }
+                        const previewRoot = section.querySelector('[data-header-media-preview]');
+                        const imageEl = section.querySelector('[data-header-media-image]');
+                        const videoEl = section.querySelector('[data-header-media-video]');
+                        const kind = section.dataset.headerSection;
+                        if (previewRoot && kind === 'image' && imageEl) {
+                            previewRoot.classList.remove('hidden');
+                            imageEl.classList.remove('hidden');
+                            imageEl.src = value;
+                            imageEl.dataset.previewUrl = value;
+                            videoEl?.classList.add('hidden');
+                        }
+                        if (previewRoot && kind === 'video' && videoEl) {
+                            previewRoot.classList.remove('hidden');
+                            videoEl.classList.remove('hidden');
+                            videoEl.src = value;
+                            videoEl.dataset.previewUrl = value;
+                            imageEl?.classList.add('hidden');
+                        }
+                    });
+                }
             }
 
             if (docName) {
@@ -2044,7 +2072,7 @@ function initCarouselBuilder(scheduleUpdate) {
         const isVideo = String(card.header || 'IMAGE').toUpperCase() === 'VIDEO';
         const accept = isVideo ? 'video/mp4,video/3gpp' : 'image/png,image/jpeg';
         const hint = isVideo ? 'Only .mp4 or .3gp (max 16 MB)' : 'Only .png or .jpg (max 5 MB)';
-        const maxBytes = isVideo ? 16777216 : 5242880;
+        const maxBytes = isVideo ? 14680064 : 5242880; // 14 MB video / 5 MB image
         const hasPreview = Boolean(previewUrl);
 
         return `

@@ -201,10 +201,10 @@ class CamsOutboundPayloadBuilder
         $metadata = $message->metadata ?? [];
         $contacts = is_array($metadata['contacts'] ?? null) ? $metadata['contacts'] : [];
 
-        // Legacy TeamInboxMessageService::sendContactsWithResponse + Alibaba docs:
-        // Content for MessageType=contacts MUST be a JSON array of contact objects
-        // (not a single object, not {"contacts":[...]}).
-        // Each contact requires name.formatted_name + ≥1 of first_name/last_name/…
+        // Alibaba SendChatappMessage: when MessageType=contacts, Content MUST include a
+        // top-level `name` field → a single contact object (not a bare array, not
+        // {"contacts":[...]}). Bare arrays also break over GET query encoding.
+        // Docs still require formatted_name + ≥1 of first_name/last_name/….
         $normalized = [];
         foreach ($contacts as $contact) {
             if (! is_array($contact)) {
@@ -217,10 +217,13 @@ class CamsOutboundPayloadBuilder
             throw new \InvalidArgumentException('Contact details are incomplete. Add a name and phone number.');
         }
 
+        // Legacy never sent Language on free-form contact sends.
+        unset($payload['Language']);
+
         return array_merge($payload, [
             'Type' => 'message',
             'MessageType' => 'contacts',
-            'Content' => json_encode(array_values($normalized), JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR),
+            'Content' => json_encode($normalized[0], JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR),
         ]);
     }
 
@@ -278,8 +281,9 @@ class CamsOutboundPayloadBuilder
             if (! in_array($type, ['CELL', 'MAIN', 'IPHONE', 'HOME', 'WORK'], true)) {
                 $type = 'CELL';
             }
+            // Meta/CAMS: phone may be display-formatted; wa_id is digits-only WhatsApp ID.
+            // Keep phone digits-only too — InvalidParameter.ContactPhonesError / ContactsOnlyNumeric.
             $phones[] = [
-                // CAMS: contact phones must be digits only (InvalidParameter.ContactsOnlyNumeric).
                 'phone' => $digits,
                 'type' => $type,
                 'wa_id' => $digits,
@@ -290,79 +294,12 @@ class CamsOutboundPayloadBuilder
             throw new \InvalidArgumentException('Contact details are incomplete. Add a name and phone number.');
         }
 
-        $normalized = [
+        // Keep payload minimal like a working WhatsApp contact card (name + phones only).
+        // Optional emails/org/urls/addresses caused ContentError on some CAMS validations.
+        return [
             'name' => $namePayload,
             'phones' => $phones,
         ];
-
-        if (is_array($contact['emails'] ?? null) && $contact['emails'] !== []) {
-            $emails = [];
-            foreach ($contact['emails'] as $emailRow) {
-                if (! is_array($emailRow)) {
-                    continue;
-                }
-                $email = trim((string) ($emailRow['email'] ?? ''));
-                if ($email === '') {
-                    continue;
-                }
-                $emailType = strtoupper(trim((string) ($emailRow['type'] ?? 'WORK')));
-                if (! in_array($emailType, ['HOME', 'WORK'], true)) {
-                    $emailType = 'WORK';
-                }
-                $emails[] = [
-                    'email' => $email,
-                    'type' => $emailType,
-                ];
-            }
-            if ($emails !== []) {
-                $normalized['emails'] = $emails;
-            }
-        }
-
-        if (is_array($contact['org'] ?? null) && $contact['org'] !== []) {
-            $org = array_filter([
-                'company' => filled($contact['org']['company'] ?? null) ? trim((string) $contact['org']['company']) : null,
-                'department' => filled($contact['org']['department'] ?? null) ? trim((string) $contact['org']['department']) : null,
-                'title' => filled($contact['org']['title'] ?? null) ? trim((string) $contact['org']['title']) : null,
-            ], fn ($value) => $value !== null && $value !== '');
-            if ($org !== []) {
-                $normalized['org'] = $org;
-            }
-        }
-
-        if (is_array($contact['urls'] ?? null) && $contact['urls'] !== []) {
-            $urls = [];
-            foreach ($contact['urls'] as $urlRow) {
-                if (! is_array($urlRow)) {
-                    continue;
-                }
-                $url = trim((string) ($urlRow['url'] ?? ''));
-                if ($url === '') {
-                    continue;
-                }
-                $urlType = strtoupper(trim((string) ($urlRow['type'] ?? 'WORK')));
-                if (! in_array($urlType, ['HOME', 'WORK'], true)) {
-                    $urlType = 'WORK';
-                }
-                $urls[] = [
-                    'url' => $url,
-                    'type' => $urlType,
-                ];
-            }
-            if ($urls !== []) {
-                $normalized['urls'] = $urls;
-            }
-        }
-
-        if (is_array($contact['addresses'] ?? null) && $contact['addresses'] !== []) {
-            $normalized['addresses'] = $contact['addresses'];
-        }
-
-        if (filled($contact['birthday'] ?? null)) {
-            $normalized['birthday'] = (string) $contact['birthday'];
-        }
-
-        return $normalized;
     }
 
     private function formatRecipient(string $phone): string

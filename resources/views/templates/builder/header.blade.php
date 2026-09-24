@@ -1,10 +1,17 @@
 @php
+  use App\Support\WhatsappMediaRules;
+
   $headerType = old('header_type', $payload['header']['type'] ?? 'none');
   $mediaPath = $payload['header']['media_path'] ?? null;
   $mediaUrl = $payload['header']['media_url'] ?? null;
   $useUrl = (bool) old('use_url', $payload['header']['use_url'] ?? false);
   $previewUrl = $mediaPath ? url('storage/'.$mediaPath) : $mediaUrl;
   $previousStepUrl = $previousStepUrl ?? route('templates.index');
+
+  $imageMaxBytes = (int) config('templates.header_image_max', WhatsappMediaRules::maxKb('image') * 1024);
+  $videoMaxBytes = (int) config('templates.header_video_max', WhatsappMediaRules::maxKb('video') * 1024);
+  $documentMaxBytes = (int) config('templates.header_document_max', WhatsappMediaRules::maxKb('document') * 1024);
+  $audioMaxBytes = (int) config('templates.header_audio_max', WhatsappMediaRules::maxKb('audio') * 1024);
 @endphp
 
 <x-templates.builder-layout
@@ -81,17 +88,18 @@
       <div data-header-url-wrap @class(['hidden' => ! $useUrl])>
         <div data-validate-field>
           <input type="url" name="media_url" value="{{ old('media_url', $mediaUrl ?? '') }}" placeholder="https://example.com/image.png" class="fd-input w-full rounded-xl border border-solid border-border bg-elevated p-3.5 text-text-muted focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500 @error('media_url') border-red-500 @enderror" data-header-url-input @disabled(! $useUrl || $headerType !== 'image')>
+          <p class="mt-1 text-xs text-text-subtle">Use a public HTTPS image URL (JPEG/PNG).</p>
           <x-ui.field-error field="media_url" />
         </div>
       </div>
       <div data-header-file-wrap @class(['hidden' => $useUrl])>
         <x-templates.upload-zone
           id="header_image"
-          accept="image/png,image/jpeg"
-          hint="Only .png or .jpg (max 5 MB)"
+          accept="{{ WhatsappMediaRules::accept('image') }}"
+          :hint="WhatsappMediaRules::hint('image')"
           :preview-url="$headerType === 'image' ? $previewUrl : null"
           :enabled="$headerType === 'image' && ! $useUrl"
-          :max-bytes="5242880"
+          :max-bytes="$imageMaxBytes"
         />
         <x-ui.field-error field="header_media" />
         <p class="hidden text-xs text-red-500" data-header-upload-error></p>
@@ -105,17 +113,22 @@
     <div data-header-section="video" @class(['flex w-full flex-col gap-3', 'hidden' => $headerType !== 'video'])>
       <label class="fd-label">Video</label>
       <div data-header-url-wrap @class(['hidden' => ! $useUrl])>
-        <input type="url" name="media_url" value="{{ old('media_url', $mediaUrl ?? '') }}" placeholder="https://example.com/video.mp4" class="fd-input w-full rounded-xl border border-solid border-border bg-elevated p-3.5 text-text-muted focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500" data-header-url-input @disabled(! $useUrl || $headerType !== 'video')>
+        <div data-validate-field>
+          <input type="url" name="media_url" value="{{ old('media_url', $mediaUrl ?? '') }}" placeholder="https://example.com/video.mp4" class="fd-input w-full rounded-xl border border-solid border-border bg-elevated p-3.5 text-text-muted focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500 @error('media_url') border-red-500 @enderror" data-header-url-input @disabled(! $useUrl || $headerType !== 'video')>
+          <p class="mt-1 text-xs text-text-subtle">Use a public HTTPS video URL (MP4/3GP).</p>
+          <x-ui.field-error field="media_url" />
+        </div>
       </div>
       <div data-header-file-wrap @class(['hidden' => $useUrl])>
         <x-templates.upload-zone
           id="header_video"
-          accept="video/mp4,video/3gpp"
-          hint="Only .mp4 or .3gp (max 16 MB)"
+          accept="{{ WhatsappMediaRules::accept('video') }}"
+          :hint="WhatsappMediaRules::hint('video')"
           :preview-url="$headerType === 'video' ? $previewUrl : null"
           :enabled="$headerType === 'video' && ! $useUrl"
-          :max-bytes="16777216"
+          :max-bytes="$videoMaxBytes"
         />
+        <x-ui.field-error field="header_media" />
         <p class="hidden text-xs text-red-500" data-header-upload-error></p>
       </div>
       <label class="flex items-center gap-2 text-sm text-text-muted">
@@ -127,17 +140,21 @@
     <div data-header-section="document" @class(['flex w-full flex-col gap-3', 'hidden' => $headerType !== 'document'])>
       <label class="fd-label">Document</label>
       <div data-header-url-wrap @class(['hidden' => ! $useUrl])>
-        <input type="url" name="media_url" value="{{ old('media_url', $mediaUrl ?? '') }}" placeholder="https://example.com/doc.pdf" class="fd-input w-full rounded-xl border border-solid border-border bg-elevated p-3.5 text-text-muted focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500" data-header-url-input @disabled(! $useUrl || $headerType !== 'document')>
+        <div data-validate-field>
+          <input type="url" name="media_url" value="{{ old('media_url', $mediaUrl ?? '') }}" placeholder="https://example.com/doc.pdf" class="fd-input w-full rounded-xl border border-solid border-border bg-elevated p-3.5 text-text-muted focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500 @error('media_url') border-red-500 @enderror" data-header-url-input @disabled(! $useUrl || $headerType !== 'document')>
+          <x-ui.field-error field="media_url" />
+        </div>
       </div>
       <div data-header-file-wrap @class(['hidden' => $useUrl])>
         <x-templates.upload-zone
           id="header_document"
-          accept="application/pdf"
-          hint="Only .pdf (max 10 MB)"
+          accept="application/pdf,.pdf"
+          :hint="'PDF — max '.WhatsappMediaRules::maxMbLabel('document')"
           :preview-url="$headerType === 'document' ? $previewUrl : null"
           :enabled="$headerType === 'document' && ! $useUrl"
-          :max-bytes="10485760"
+          :max-bytes="$documentMaxBytes"
         />
+        <x-ui.field-error field="header_media" />
         <p class="hidden text-xs text-red-500" data-header-upload-error></p>
       </div>
       <label class="flex items-center gap-2 text-sm text-text-muted">
@@ -150,17 +167,21 @@
     <div data-header-section="audio" @class(['flex w-full flex-col gap-3', 'hidden' => $headerType !== 'audio'])>
       <label class="fd-label">Audio</label>
       <div data-header-url-wrap @class(['hidden' => ! $useUrl])>
-        <input type="url" name="media_url" value="{{ old('media_url', $mediaUrl ?? '') }}" placeholder="https://example.com/audio.mp3" class="fd-input w-full rounded-xl border border-solid border-border bg-elevated p-3.5 text-text-muted focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500" data-header-url-input @disabled(! $useUrl || $headerType !== 'audio')>
+        <div data-validate-field>
+          <input type="url" name="media_url" value="{{ old('media_url', $mediaUrl ?? '') }}" placeholder="https://example.com/audio.mp3" class="fd-input w-full rounded-xl border border-solid border-border bg-elevated p-3.5 text-text-muted focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500 @error('media_url') border-red-500 @enderror" data-header-url-input @disabled(! $useUrl || $headerType !== 'audio')>
+          <x-ui.field-error field="media_url" />
+        </div>
       </div>
       <div data-header-file-wrap @class(['hidden' => $useUrl])>
         <x-templates.upload-zone
           id="header_audio"
-          accept="audio/mpeg,audio/wav,audio/aac,audio/ogg,audio/mp4"
-          hint=".mp3, .wav, .aac, .ogg, .m4a (max 16 MB)"
+          accept="{{ WhatsappMediaRules::accept('audio') }}"
+          :hint="WhatsappMediaRules::hint('audio')"
           :preview-url="$headerType === 'audio' ? $previewUrl : null"
           :enabled="$headerType === 'audio' && ! $useUrl"
-          :max-bytes="16777216"
+          :max-bytes="$audioMaxBytes"
         />
+        <x-ui.field-error field="header_media" />
         <p class="hidden text-xs text-red-500" data-header-upload-error></p>
       </div>
       <label class="flex items-center gap-2 text-sm text-text-muted">
