@@ -191,7 +191,7 @@ function setupScreenList() {
     if (addBtn) {
         addBtn.addEventListener('click', () => {
             screenCounter++;
-            const id = 'SCREEN_' + screenCounter;
+            const id = makeScreenId(screenCounter);
             const screen = { id, title: 'Screen ' + screenCounter, fields: [], next_screen: '', conditions: [] };
             if (!Array.isArray(state.screens)) state.screens = [];
             state.screens.push(screen);
@@ -1412,20 +1412,64 @@ function updateBadges() {
 
 /* ── Helpers ── */
 
+/** Meta screen ids: alphabets + underscores only (NO digits). */
+const SCREEN_ID_WORDS = [
+    'ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT', 'NINE', 'TEN',
+    'ELEVEN', 'TWELVE', 'THIRTEEN', 'FOURTEEN', 'FIFTEEN', 'SIXTEEN', 'SEVENTEEN', 'EIGHTEEN', 'NINETEEN', 'TWENTY',
+];
+
+function makeScreenId(oneBasedIndex) {
+    const word = SCREEN_ID_WORDS[oneBasedIndex - 1] || ('S' + String.fromCharCode(64 + ((oneBasedIndex - 1) % 26) + 1));
+    return 'SCREEN_' + word;
+}
+
+/** Strip digits — Meta rejects screen ids like screen_2 / SCREEN_1. */
+function sanitizeScreenId(id, fallbackIndex) {
+    let clean = String(id || '').replace(/[^a-zA-Z_]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
+    if (!clean || !/^[a-zA-Z]/.test(clean)) {
+        clean = makeScreenId(fallbackIndex);
+    }
+    return clean;
+}
+
 function normalizeFlowState(raw) {
     const screens = Array.isArray(raw?.screens) ? raw.screens : [];
+    const used = new Set();
+    const idRemap = {};
+
     const normalizedScreens = screens
         .filter((screen) => screen && typeof screen === 'object')
-        .map((screen, index) => ({
+        .map((screen, index) => {
+            const oldId = screen.id || makeScreenId(index + 1);
+            let newId = sanitizeScreenId(oldId, index + 1);
+            let base = newId;
+            let n = 0;
+            while (used.has(newId.toUpperCase())) {
+                n += 1;
+                newId = base + '_' + (SCREEN_ID_WORDS[n - 1] || ('X' + n));
+            }
+            used.add(newId.toUpperCase());
+            idRemap[oldId] = newId;
+            return {
+                ...screen,
+                id: newId,
+                title: screen.title || ('Screen ' + (index + 1)),
+                fields: Array.isArray(screen.fields) ? screen.fields : [],
+                next_screen: screen.next_screen ?? '',
+                conditions: Array.isArray(screen.conditions) ? screen.conditions : [],
+            };
+        })
+        .map((screen) => ({
             ...screen,
-            id: screen.id || ('SCREEN_' + (index + 1)),
-            title: screen.title || ('Screen ' + (index + 1)),
-            fields: Array.isArray(screen.fields) ? screen.fields : [],
-            next_screen: screen.next_screen ?? '',
-            conditions: Array.isArray(screen.conditions) ? screen.conditions : [],
+            next_screen: screen.next_screen && idRemap[screen.next_screen]
+                ? idRemap[screen.next_screen]
+                : (screen.next_screen ? sanitizeScreenId(screen.next_screen, 1) : ''),
         }));
 
     let firstScreen = raw?.first_screen ?? null;
+    if (firstScreen && idRemap[firstScreen]) {
+        firstScreen = idRemap[firstScreen];
+    }
     if (firstScreen && !normalizedScreens.some((s) => s.id === firstScreen)) {
         firstScreen = normalizedScreens[0]?.id ?? null;
     }

@@ -37,6 +37,12 @@ final class WhatsappFlowMetaJsonConverter
         'opt_in',
     ];
 
+    /** @var list<string> */
+    private const INDEX_WORDS = [
+        'ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT', 'NINE', 'TEN',
+        'ELEVEN', 'TWELVE', 'THIRTEEN', 'FOURTEEN', 'FIFTEEN', 'SIXTEEN', 'SEVENTEEN', 'EIGHTEEN', 'NINETEEN', 'TWENTY',
+    ];
+
     /**
      * @param  array<string, mixed>  $flowJson
      * @return array<string, mixed>
@@ -55,15 +61,18 @@ final class WhatsappFlowMetaJsonConverter
             ];
         }
 
+        // Meta: screen ids / routing keys may contain ONLY alphabets + underscores (no digits).
+        $idMap = self::buildScreenIdMap($screens);
+
         $routingModel = [];
         foreach ($screens as $index => $screen) {
-            $screenId = self::screenId($screen, $index);
-            $routingModel[$screenId] = self::resolveNextScreenIds($screen, $index, $screens);
+            $screenId = $idMap['__index_'.$index];
+            $routingModel[$screenId] = self::resolveNextScreenIds($screen, $index, $screens, $idMap);
         }
 
-        $metaScreens = $screens->map(function (array $screen, int $index) use ($screens): array {
-            $screenId = self::screenId($screen, $index);
-            $isLast = self::isTerminalScreen($screen, $index, $screens);
+        $metaScreens = $screens->map(function (array $screen, int $index) use ($screens, $idMap): array {
+            $screenId = $idMap['__index_'.$index];
+            $isLast = self::isTerminalScreen($screen, $index, $screens, $idMap);
             $fields = collect($screen['fields'] ?? [])->filter(fn ($f) => is_array($f))->values();
             $contentFields = $fields->filter(fn (array $f) => ($f['type'] ?? '') !== 'footer');
             $footer = $fields->firstWhere('type', 'footer');
@@ -94,9 +103,9 @@ final class WhatsappFlowMetaJsonConverter
             }
 
             if ($footer !== null) {
-                $formChildren[] = self::mapFooter($footer, $screenId, $index, $screens);
+                $formChildren[] = self::mapFooter($footer, $screenId, $index, $screens, $idMap);
             } else {
-                $formChildren[] = self::defaultFooter($screenId, $index, $screens, $isLast);
+                $formChildren[] = self::defaultFooter($screenId, $index, $screens, $isLast, $idMap);
             }
 
             $layoutChildren[] = [
@@ -130,55 +139,102 @@ final class WhatsappFlowMetaJsonConverter
     }
 
     /**
+     * Map builder screen ids (may contain digits like screen_2) → Meta-safe ids.
+     *
+     * @param  \Illuminate\Support\Collection<int, array<string, mixed>>  $screens
+     * @return array<string, string>
+     */
+    private static function buildScreenIdMap(\Illuminate\Support\Collection $screens): array
+    {
+        $map = [];
+        $used = [];
+
+        foreach ($screens as $index => $screen) {
+            $oldId = (string) ($screen['id'] ?? '');
+            if ($oldId === '') {
+                $oldId = 'SCREEN_'.($index + 1);
+            }
+
+            $candidate = self::stripToAlphaUnderscore($oldId);
+            if ($candidate === '' || ! preg_match('/^[A-Za-z]/', $candidate)) {
+                $candidate = 'SCREEN_'.self::indexWord((int) $index);
+            }
+
+            $base = $candidate;
+            $suffix = 0;
+            while (isset($used[strtoupper($candidate)])) {
+                $suffix++;
+                $candidate = $base.'_'.self::indexWord($suffix - 1);
+            }
+
+            $used[strtoupper($candidate)] = true;
+            $map[$oldId] = $candidate;
+            $map['__index_'.$index] = $candidate;
+        }
+
+        return $map;
+    }
+
+    private static function stripToAlphaUnderscore(string $id): string
+    {
+        // Meta FB error: "should only consist of alphabets and underscores" — digits forbidden.
+        $clean = preg_replace('/[^a-zA-Z_]/', '_', $id) ?? '';
+        $clean = preg_replace('/_+/', '_', $clean) ?? '';
+
+        return trim($clean, '_');
+    }
+
+    private static function indexWord(int $index): string
+    {
+        return self::INDEX_WORDS[$index] ?? ('S'.chr(65 + ($index % 26)));
+    }
+
+    /**
      * @param  array<string, mixed>  $screen
+     * @deprecated Use id map via buildScreenIdMap / __index_
      */
     private static function screenId(array $screen, int $index): string
     {
-        $id = (string) ($screen['id'] ?? '');
-
-        if ($id === '') {
-            $id = 'SCREEN_'.($index + 1);
-        }
-
-        $id = preg_replace('/[^a-zA-Z0-9_]/', '_', $id) ?? 'SCREEN_'.($index + 1);
-        if ($id === '' || ! preg_match('/^[a-zA-Z]/', $id)) {
-            $id = 'SCREEN_'.$id;
-        }
-
-        return $id;
+        return self::buildScreenIdMap(collect([$screen]))['__index_0'] ?? ('SCREEN_'.self::indexWord($index));
     }
 
     /**
      * @param  \Illuminate\Support\Collection<int, array<string, mixed>>  $screens
+     * @param  array<string, string>  $idMap
      * @return list<string>
      */
     private static function resolveNextScreenIds(
         array $screen,
         int $index,
         \Illuminate\Support\Collection $screens,
+        array $idMap = [],
     ): array {
+        if ($idMap === []) {
+            $idMap = self::buildScreenIdMap($screens);
+        }
+
         $nextId = $screen['next_screen'] ?? null;
 
         if (is_string($nextId) && $nextId !== '') {
-            return [$nextId];
+            return [$idMap[$nextId] ?? self::stripToAlphaUnderscore($nextId) ?: $nextId];
         }
 
         $next = $screens->get($index + 1);
 
-        return $next !== null ? [self::screenId($next, $index + 1)] : [];
+        return $next !== null ? [$idMap['__index_'.($index + 1)]] : [];
     }
 
     /**
      * @param  \Illuminate\Support\Collection<int, array<string, mixed>>  $screens
+     * @param  array<string, string>  $idMap
      */
     private static function isTerminalScreen(
         array $screen,
         int $index,
         \Illuminate\Support\Collection $screens,
+        array $idMap = [],
     ): bool {
-        $nextIds = self::resolveNextScreenIds($screen, $index, $screens);
-
-        return $nextIds === [];
+        return self::resolveNextScreenIds($screen, $index, $screens, $idMap) === [];
     }
 
     private static function isInputField(array $field): bool
@@ -448,6 +504,7 @@ final class WhatsappFlowMetaJsonConverter
 
     /**
      * @param  \Illuminate\Support\Collection<int, array<string, mixed>>  $allScreens
+     * @param  array<string, string>  $idMap
      * @return array<string, mixed>
      */
     private static function mapFooter(
@@ -455,19 +512,21 @@ final class WhatsappFlowMetaJsonConverter
         string $screenId,
         int $index,
         \Illuminate\Support\Collection $allScreens,
+        array $idMap,
     ): array {
         $label = (string) ($footer['label'] ?? $footer['text'] ?? 'Continue');
-        $isLast = self::isTerminalScreen($allScreens[$index] ?? [], $index, $allScreens);
+        $isLast = self::isTerminalScreen($allScreens[$index] ?? [], $index, $allScreens, $idMap);
 
         return [
             'type' => 'Footer',
             'label' => $label,
-            'on-click-action' => self::footerAction($screenId, $index, $allScreens, $isLast),
+            'on-click-action' => self::footerAction($screenId, $index, $allScreens, $isLast, $idMap),
         ];
     }
 
     /**
      * @param  \Illuminate\Support\Collection<int, array<string, mixed>>  $allScreens
+     * @param  array<string, string>  $idMap
      * @return array<string, mixed>
      */
     private static function defaultFooter(
@@ -475,16 +534,18 @@ final class WhatsappFlowMetaJsonConverter
         int $index,
         \Illuminate\Support\Collection $allScreens,
         bool $isLast,
+        array $idMap,
     ): array {
         return [
             'type' => 'Footer',
             'label' => $isLast ? 'Submit' : 'Continue',
-            'on-click-action' => self::footerAction($screenId, $index, $allScreens, $isLast),
+            'on-click-action' => self::footerAction($screenId, $index, $allScreens, $isLast, $idMap),
         ];
     }
 
     /**
      * @param  \Illuminate\Support\Collection<int, array<string, mixed>>  $allScreens
+     * @param  array<string, string>  $idMap
      * @return array<string, mixed>
      */
     private static function footerAction(
@@ -492,17 +553,18 @@ final class WhatsappFlowMetaJsonConverter
         int $index,
         \Illuminate\Support\Collection $allScreens,
         bool $isLast,
+        array $idMap,
     ): array {
         if ($isLast) {
             return [
                 'name' => 'complete',
                 // Legacy EditFlow: always ${screen.ID.form.name} for every input across all screens.
-                'payload' => self::payloadObject(self::buildLegacyPayload($allScreens)),
+                'payload' => self::payloadObject(self::buildLegacyPayload($allScreens, null, $idMap)),
             ];
         }
 
         $current = $allScreens->get($index) ?? [];
-        $nextIds = self::resolveNextScreenIds($current, $index, $allScreens);
+        $nextIds = self::resolveNextScreenIds($current, $index, $allScreens, $idMap);
         $nextId = $nextIds[0] ?? 'SUCCESS';
 
         return [
@@ -515,6 +577,7 @@ final class WhatsappFlowMetaJsonConverter
             'payload' => self::payloadObject(self::buildLegacyPayload(
                 collect([$current])->values(),
                 $screenId,
+                $idMap,
             )),
         ];
     }
@@ -536,16 +599,23 @@ final class WhatsappFlowMetaJsonConverter
      * publish validation has rejected that form for our flows).
      *
      * @param  \Illuminate\Support\Collection<int, array<string, mixed>>  $screens
+     * @param  array<string, string>  $idMap
      * @return array<string, string>
      */
     private static function buildLegacyPayload(
         \Illuminate\Support\Collection $screens,
         ?string $forceScreenId = null,
+        array $idMap = [],
     ): array {
         $payload = [];
 
+        if ($idMap === [] && $forceScreenId === null) {
+            $idMap = self::buildScreenIdMap($screens);
+        }
+
         foreach ($screens as $screenIndex => $screen) {
-            $screenId = $forceScreenId ?? self::screenId($screen, (int) $screenIndex);
+            $screenId = $forceScreenId
+                ?? ($idMap['__index_'.$screenIndex] ?? self::screenId($screen, (int) $screenIndex));
 
             foreach (self::inputFieldsOnScreen($screen) as $fieldIndex => $field) {
                 $name = self::fieldName($field, (int) $fieldIndex);

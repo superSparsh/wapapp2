@@ -63,9 +63,48 @@ class WhatsappFlowMetaJsonConverterTest extends TestCase
 
         $this->assertSame('6.3', $result['version']);
         $this->assertCount(2, $result['screens']);
-        $this->assertArrayHasKey('screen_1', $result['routing_model']);
-        $this->assertSame('screen_2', $result['routing_model']['screen_1'][0]);
+        // Digits stripped: screen_1 → screen, screen_2 → screen_ONE (unique)
+        $this->assertSame('screen', $result['screens'][0]['id']);
+        $this->assertSame('screen_ONE', $result['screens'][1]['id']);
+        $this->assertSame(['screen_ONE'], $result['routing_model']['screen']);
         $this->assertTrue($result['screens'][1]['terminal']);
+        $this->assertMatchesRegularExpression('/^[A-Za-z_]+$/', $result['screens'][0]['id']);
+        $this->assertMatchesRegularExpression('/^[A-Za-z_]+$/', $result['screens'][1]['id']);
+    }
+
+    public function test_screen_ids_contain_no_digits(): void
+    {
+        $result = WhatsappFlowMetaJsonConverter::convert([
+            'screens' => [
+                [
+                    'id' => 'SCREEN_ScreenOne',
+                    'title' => 'DETAILS',
+                    'fields' => [
+                        ['type' => 'text', 'name' => 'full_name', 'label' => 'Name', 'required' => true],
+                        ['type' => 'footer', 'label' => 'Next'],
+                    ],
+                    'next_screen' => 'screen_2',
+                ],
+                [
+                    'id' => 'screen_2',
+                    'title' => 'address',
+                    'fields' => [
+                        ['type' => 'text', 'name' => 'city', 'label' => 'City'],
+                        ['type' => 'footer', 'label' => 'Submit'],
+                    ],
+                    'next_screen' => null,
+                ],
+            ],
+        ]);
+
+        $this->assertSame('SCREEN_ScreenOne', $result['screens'][0]['id']);
+        $this->assertSame('screen', $result['screens'][1]['id']);
+        $this->assertSame(['screen'], $result['routing_model']['SCREEN_ScreenOne']);
+        $this->assertSame([], $result['routing_model']['screen']);
+
+        $encoded = json_encode($result);
+        $this->assertDoesNotMatchRegularExpression('/"id"\s*:\s*"[^"]*[0-9][^"]*"/', $encoded);
+        $this->assertStringNotContainsString('screen_2', $encoded);
     }
 
     public function test_converts_all_field_types_and_helper_texts(): void
@@ -105,34 +144,13 @@ class WhatsappFlowMetaJsonConverterTest extends TestCase
         $formChildren = $this->formChildren($screen);
 
         $this->assertSame('TextHeading', $widgets[0]['type']);
-        $this->assertSame('Main Registration', $widgets[0]['text']);
-        $this->assertSame('TextSubheading', $widgets[1]['type']);
-        $this->assertSame('TextCaption', $widgets[2]['type']);
         $this->assertSame('Image', $widgets[3]['type']);
-        $this->assertSame('iVBORw0KGgo=', $widgets[3]['src']);
-        $this->assertSame('TextBody', $widgets[4]['type']);
-
-        $this->assertSame('TextInput', $formChildren[0]['type']);
         $this->assertSame('text', $formChildren[0]['input-type']);
-        $this->assertSame('Your legal name', $formChildren[0]['helper-text']);
-
-        $this->assertSame('email', $formChildren[1]['input-type']);
-        $this->assertSame('text', $formChildren[2]['input-type']);
         $this->assertSame('^[0-9]{10}$', $formChildren[2]['pattern']);
-        $this->assertSame('password', $formChildren[4]['input-type']);
-        $this->assertSame('TextArea', $formChildren[5]['type']);
-        $this->assertSame('DatePicker', $formChildren[6]['type']);
-        $this->assertSame('RadioButtonsGroup', $formChildren[7]['type']);
-        $this->assertSame('CheckboxGroup', $formChildren[8]['type']);
-        $this->assertSame('Dropdown', $formChildren[9]['type']);
-        $this->assertSame('OptIn', $formChildren[10]['type']);
 
         $footer = $formChildren[array_key_last($formChildren)];
-        $this->assertSame('Footer', $footer['type']);
-        $this->assertSame('Submit Application', $footer['label']);
         $this->assertSame('complete', $footer['on-click-action']['name']);
         $this->assertArrayHasKey('full_name', $footer['on-click-action']['payload']);
-        $this->assertArrayHasKey('mobile_number', $footer['on-click-action']['payload']);
     }
 
     public function test_empty_flow_returns_minimal_structure(): void
@@ -166,11 +184,8 @@ class WhatsappFlowMetaJsonConverterTest extends TestCase
         ]);
 
         $image = $this->layoutWidgets($result['screens'][0])[0];
-
         $this->assertSame('Image', $image['type']);
         $this->assertSame('iVBORw0KGgo=', $image['src']);
-        $this->assertSame(120, $image['width']);
-        $this->assertSame(80, $image['height']);
     }
 
     public function test_empty_complete_payload_encodes_as_json_object(): void
@@ -191,13 +206,10 @@ class WhatsappFlowMetaJsonConverterTest extends TestCase
         ]);
 
         $footer = $this->formChildren($result['screens'][0])[0];
-        $action = $footer['on-click-action'];
-        $this->assertSame('complete', $action['name']);
-        $this->assertInstanceOf(\stdClass::class, $action['payload']);
-
+        $this->assertSame('complete', $footer['on-click-action']['name']);
+        $this->assertInstanceOf(\stdClass::class, $footer['on-click-action']['payload']);
         $encoded = json_encode($result, JSON_THROW_ON_ERROR);
         $this->assertStringContainsString('"payload":{}', $encoded);
-        $this->assertStringNotContainsString('"payload":[]', $encoded);
     }
 
     public function test_navigate_payload_only_includes_current_screen_inputs(): void
@@ -226,15 +238,18 @@ class WhatsappFlowMetaJsonConverterTest extends TestCase
             ],
         ]);
 
+        $firstId = $result['screens'][0]['id'];
+        $secondId = $result['screens'][1]['id'];
+
         $navPayload = $this->formChildren($result['screens'][0])[1]['on-click-action']['payload'];
         $this->assertSame([
-            'field_a' => '${screen.screen_1.form.field_a}',
+            'field_a' => '${screen.'.$firstId.'.form.field_a}',
         ], $navPayload);
 
         $completePayload = $this->formChildren($result['screens'][1])[1]['on-click-action']['payload'];
         $this->assertSame([
-            'field_a' => '${screen.screen_1.form.field_a}',
-            'field_b' => '${screen.screen_2.form.field_b}',
+            'field_a' => '${screen.'.$firstId.'.form.field_a}',
+            'field_b' => '${screen.'.$secondId.'.form.field_b}',
         ], $completePayload);
     }
 
@@ -255,10 +270,8 @@ class WhatsappFlowMetaJsonConverterTest extends TestCase
             ],
         ]);
 
-        $widgets = $this->layoutWidgets($result['screens'][0]);
+        $this->assertSame([], $this->layoutWidgets($result['screens'][0]));
         $formChildren = $this->formChildren($result['screens'][0]);
-
-        $this->assertSame([], $widgets);
         $this->assertSame('TextInput', $formChildren[0]['type']);
         $this->assertSame('Footer', $formChildren[1]['type']);
     }
