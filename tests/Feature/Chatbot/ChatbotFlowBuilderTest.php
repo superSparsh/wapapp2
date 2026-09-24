@@ -149,7 +149,6 @@ class ChatbotFlowBuilderTest extends TestCase
         $flow->refresh();
         $this->assertSame('pikaboo', $flow->exported_data['nodes'][0]['data']['triggerKeyword']);
         $this->assertSame('active', $flow->status->value);
-        $this->assertNotNull($flow->whatsapp_line_id);
     }
 
     public function test_legacy_save_binds_selected_whatsapp_line(): void

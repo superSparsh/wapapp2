@@ -308,6 +308,25 @@ const ReactFlowWelcomeMessageModule = ({
           </Form.Item>
         </Card>
 
+        <Card title="Trigger" size="small" style={{ marginBottom: 16 }}>
+          <Form.Item
+            name="triggerKeyword"
+            label="Trigger Keyword"
+            rules={[
+              {
+                required: true,
+                message: "Please enter a trigger keyword",
+              },
+            ]}
+            help="Any word or phrase works. Customer must send this to start the bot."
+          >
+            <Input
+              placeholder="e.g., hello, start, offer, menu"
+              maxLength={100}
+            />
+          </Form.Item>
+        </Card>
+
         <Form.Item
           noStyle
           shouldUpdate={(prevValues, currentValues) =>
@@ -324,23 +343,6 @@ const ReactFlowWelcomeMessageModule = ({
                   size="small"
                   style={{ marginBottom: 16 }}
                 >
-                  <Form.Item
-                    name="triggerKeyword"
-                    label="Trigger Keyword"
-                    rules={[
-                      {
-                        required: true,
-                        message: "Please enter trigger keyword",
-                      },
-                    ]}
-                    help="Enter the keyword that will trigger this welcome message when a customer sends it"
-                  >
-                    <Input
-                      placeholder="e.g., hello, start, help"
-                      maxLength={100}
-                    />
-                  </Form.Item>
-
                   <Form.Item
                     name="welcomeMessage"
                     label="Welcome Message"

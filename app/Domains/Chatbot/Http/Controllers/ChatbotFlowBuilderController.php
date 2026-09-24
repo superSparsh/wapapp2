@@ -223,21 +223,30 @@ class ChatbotFlowBuilderController
 
     private function applyWhatsappLineFromRequest(Request $request, ChatbotFlow $chatbotFlow): void
     {
-        if ($request->filled('whatsapp_line_id')) {
-            $line = PublicId::find(WhatsappLine::class, (string) $request->input('whatsapp_line_id'));
+        if (! $request->exists('whatsapp_line_id')) {
+            return;
+        }
 
-            if ($line === null) {
-                return;
-            }
+        $raw = $request->input('whatsapp_line_id');
 
+        // Empty string / null = account-wide (legacy parity).
+        if ($raw === null || $raw === '') {
             $this->flowService->update($chatbotFlow, [
-                'whatsapp_line_id' => $line->id,
+                'whatsapp_line_id' => null,
             ]);
 
             return;
         }
 
-        $this->flowService->ensureDefaultWhatsappLine($chatbotFlow);
+        $line = PublicId::find(WhatsappLine::class, (string) $raw);
+
+        if ($line === null) {
+            return;
+        }
+
+        $this->flowService->update($chatbotFlow, [
+            'whatsapp_line_id' => $line->id,
+        ]);
     }
 
     /**

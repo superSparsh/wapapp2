@@ -553,7 +553,7 @@ class ChatbotFlowEngine
         $best = null;
 
         foreach ($nodeMap as $nodeId => $node) {
-            $nodeType = (string) ($node['class'] ?? 'unknown');
+            $nodeType = (string) ($node['class'] ?? $node['type'] ?? 'unknown');
 
             if (! in_array($nodeType, ['welcomeMessage', 'templateMessage', 'textMessage'], true)) {
                 continue;

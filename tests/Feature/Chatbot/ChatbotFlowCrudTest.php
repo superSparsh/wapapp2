@@ -52,17 +52,21 @@ class ChatbotFlowCrudTest extends TestCase
 
         $flow = ChatbotFlow::query()->where('name', 'Test Bot')->first();
         $this->assertNotNull($flow);
-        // Single connected line is auto-bound.
-        $this->assertNotNull($flow->whatsapp_line_id);
+        // Account-wide like legacy — not hard-bound to a line on create.
+        $this->assertNull($flow->whatsapp_line_id);
     }
 
-    public function test_store_requires_whatsapp_line_when_multiple_lines_exist(): void
+    public function test_store_allows_missing_whatsapp_line_when_multiple_lines_exist(): void
     {
         WhatsappLine::factory()->create();
 
         $this->actingAsTenantUser()
             ->post(route('chatbot.store'), ['name' => 'Multi Line Bot'])
-            ->assertSessionHasErrors('whatsapp_line_id');
+            ->assertRedirect();
+
+        $flow = ChatbotFlow::query()->where('name', 'Multi Line Bot')->first();
+        $this->assertNotNull($flow);
+        $this->assertNull($flow->whatsapp_line_id);
     }
 
     public function test_store_validates_name_required(): void

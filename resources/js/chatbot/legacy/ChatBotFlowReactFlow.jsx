@@ -6010,27 +6010,45 @@ const ChatBotFlowReactFlow = () => {
       let whatsappLineUuid = builderConfig.whatsappLineUuid || null;
 
       if (whatsappLines.length > 1) {
+        const labeledLines = whatsappLines.map((line) => ({
+          ...line,
+          label:
+            line.label ||
+            [line.display_name, line.phone].filter(Boolean).join(" · ") ||
+            line.uuid,
+        }));
+
         whatsappLineUuid = await promptChatbotLineChoice({
-          lines: whatsappLines,
-          selectedUuid: whatsappLineUuid,
+          lines: [
+            {
+              uuid: "",
+              label: "All WhatsApp numbers (recommended)",
+            },
+            ...labeledLines,
+          ],
+          selectedUuid: whatsappLineUuid || "",
           title: "Choose WhatsApp number",
           message:
-            "Multiple WhatsApp numbers are connected. Pick which number this chatbot should reply on.",
+            "Pick a number, or leave All numbers so this bot replies on every connected line (same as legacy bots).",
         });
 
-        if (!whatsappLineUuid) {
+        // Empty string = account-wide; null only when user cancelled the dialog.
+        if (whatsappLineUuid === null) {
           message.info("Save cancelled — choose a WhatsApp number to continue.");
           return;
         }
-      } else if (whatsappLines.length === 1) {
-        whatsappLineUuid = whatsappLines[0].uuid;
       }
+      // Single line: keep account-wide (null) like legacy — do not hard-bind.
 
       const savePayload = {
         customData: JSON.stringify(flowData),
       };
-      if (whatsappLineUuid) {
-        savePayload.whatsapp_line_id = whatsappLineUuid;
+      if (whatsappLines.length > 1) {
+        // Always send so "All numbers" can clear a previous hard-bind.
+        savePayload.whatsapp_line_id = whatsappLineUuid || "";
+      } else {
+        // Single line: force account-wide like legacy-synced bots.
+        savePayload.whatsapp_line_id = "";
       }
 
       const response = await axios.post(
