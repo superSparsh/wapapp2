@@ -35,35 +35,44 @@ const ReactFlowMediaModule = ({
   variables = [],
 }) => {
   const [form] = Form.useForm();
-  const [selectedMediaType, setSelectedMediaType] = useState("document");
+  const [selectedMediaType, setSelectedMediaType] = useState("image");
   const [fileList, setFileList] = useState([]);
   const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     if (visible && nodeData) {
+      const existingUrl =
+        nodeData.fileUrl || nodeData.mediaUrl || nodeData.media_url || "";
+      const existingName =
+        nodeData.fileName ||
+        (existingUrl ? existingUrl.split("/").pop() : "") ||
+        "";
+
       // Pre-populate form with existing node data
       form.setFieldsValue({
         label: nodeData.label || "Media Message",
-        mediaType: nodeData.mediaType || "document",
+        mediaType: nodeData.mediaType || nodeData.media_type || "image",
         caption: nodeData.caption || "",
-        fileName: nodeData.fileName || "",
+        fileName: existingName,
         fileSize: nodeData.fileSize || null,
         duration: nodeData.duration || null,
         fileType: nodeData.fileType || "",
       });
 
-      setSelectedMediaType(nodeData.mediaType || "document");
+      setSelectedMediaType(nodeData.mediaType || nodeData.media_type || "image");
 
       // Set file list if there's existing file data
-      if (nodeData.fileName) {
+      if (existingName || existingUrl) {
         setFileList([
           {
             uid: "-1",
-            name: nodeData.fileName,
+            name: existingName || "uploaded-media",
             status: "done",
-            url: nodeData.fileUrl || "",
+            url: existingUrl,
           },
         ]);
+      } else {
+        setFileList([]);
       }
     }
   }, [visible, nodeData, form]);
@@ -85,6 +94,7 @@ const ReactFlowMediaModule = ({
       const formData = new FormData();
       formData.append("file", file);
       formData.append("mediaType", selectedMediaType);
+      formData.append("media_type", selectedMediaType);
 
       const csrfToken =
         localStorage.getItem("csrfToken") ||
@@ -104,10 +114,14 @@ const ReactFlowMediaModule = ({
         const result = await response.json();
         if (result.success) {
           message.success("File uploaded successfully!");
+          const uploadedUrl =
+            result.fileUrl || result.mediaUrl || result.url || result.path || "";
           return {
             fileName: result.file_name || result.fileName,
             fileSize: result.file_size || result.fileSize,
-            fileUrl: result.path || result.fileUrl,
+            fileUrl: uploadedUrl,
+            mediaUrl: uploadedUrl,
+            mediaPath: result.media_path || result.path || "",
             fileType: result.file_type || result.fileType,
             duration: result.duration,
             thumbnail: result.thumbnail_path,
@@ -129,43 +143,63 @@ const ReactFlowMediaModule = ({
 
   const onFinish = async (values) => {
     try {
-      // Check if file is uploaded (REQUIRED VALIDATION)
-      if (fileList.length === 0 || !fileList[0].originFileObj) {
+      const existingUrl =
+        nodeData?.fileUrl || nodeData?.mediaUrl || nodeData?.media_url || "";
+      const existingPath =
+        nodeData?.mediaPath || nodeData?.media_path || "";
+      const hasExistingMedia = Boolean(existingUrl || existingPath);
+      const newFile = fileList[0]?.originFileObj;
+
+      if (fileList.length === 0 && !hasExistingMedia) {
         message.error(`Please upload a ${selectedMediaType} file`);
         return;
       }
 
       let fileData = null;
 
-      // Handle file upload (required for all media types)
-      if (fileList.length > 0 && fileList[0].originFileObj) {
-        fileData = await handleUpload(fileList[0].originFileObj);
+      if (newFile) {
+        fileData = await handleUpload(newFile);
         if (!fileData) {
           message.error("Failed to upload file");
           return;
         }
+      } else if (hasExistingMedia) {
+        fileData = {
+          fileName: nodeData.fileName || fileList[0]?.name || "",
+          fileSize: nodeData.fileSize || null,
+          fileUrl: existingUrl,
+          mediaUrl: existingUrl,
+          mediaPath: existingPath,
+          fileType: nodeData.fileType || "",
+          duration: nodeData.duration || null,
+          thumbnail: nodeData.thumbnail || "",
+        };
       }
 
+      const mediaUrl = fileData?.fileUrl || fileData?.mediaUrl || "";
       const mediaData = {
         label: values.label,
         mediaType: values.mediaType,
-        caption: selectedMediaType !== "audio" ? values.caption || "" : "", // Hide caption for audio
+        media_type: values.mediaType,
+        caption: selectedMediaType !== "audio" ? values.caption || "" : "",
         fileName: fileData?.fileName || values.fileName || "",
         fileSize: fileData?.fileSize || values.fileSize || null,
         fileType: fileData?.fileType || values.fileType || "",
-        fileUrl: fileData?.fileUrl || "",
+        fileUrl: mediaUrl,
+        mediaUrl: mediaUrl,
+        media_url: mediaUrl,
+        mediaPath: fileData?.mediaPath || existingPath || "",
+        media_path: fileData?.mediaPath || existingPath || "",
         duration: fileData?.duration || values.duration || null,
-        // Add any additional media-specific data
         ...(values.mediaType === "video" && {
           thumbnail: fileData?.thumbnail || values.thumbnail || "",
         }),
-        // Mark if this is a placeholder node (no file uploaded)
-        isPlaceholder: !fileData,
+        isPlaceholder: !mediaUrl && !(fileData?.mediaPath || existingPath),
       };
 
       onSave(mediaData);
       message.success("Media message configured successfully!");
-      onClose(); // Close the drawer after successful save
+      onClose();
     } catch (error) {
       console.error("Error saving media message:", error);
       message.error("Failed to save media message");

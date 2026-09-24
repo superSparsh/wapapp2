@@ -4210,7 +4210,7 @@ const MediaNode = ({ data, selected, id }) => {
         }}
       >
         {/* Show media preview if available, otherwise show icon */}
-        {data.fileUrl && !data.isPlaceholder ? (
+        {((data.fileUrl || data.mediaUrl || data.media_url) && !data.isPlaceholder) ? (
           <div
             style={{
               width: "24px",
@@ -4219,37 +4219,49 @@ const MediaNode = ({ data, selected, id }) => {
               overflow: "hidden",
             }}
           >
-            {data.mediaType === "image" ? (
+            {data.mediaType === "image" || data.media_type === "image" ? (
               <Image
-                src={
-                  data.fileUrl.startsWith("http")
-                    ? data.fileUrl
-                    : `${window.location.origin}/${data.fileUrl}`
-                }
+                src={(() => {
+                  const src = data.fileUrl || data.mediaUrl || data.media_url || "";
+                  if (!src) return "";
+                  if (src.startsWith("http") || src.startsWith("blob:") || src.startsWith("data:")) {
+                    return src;
+                  }
+                  if (src.startsWith("/")) {
+                    return `${window.location.origin}${src}`;
+                  }
+                  return `${window.location.origin}/${src}`;
+                })()}
                 alt="Media preview"
                 style={{ width: "100%", height: "100%", objectFit: "cover" }}
                 preview={false}
                 fallback="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMIAAADDCAYAAADQvc6UAAABRWlDQ1BJQ0MgUHJvZmlsZQAAKJFjYGASSSwoyGFhYGDIzSspCnJ3UoiIjFJgf8LAwSDCIMogwMCcmFxc4BgQ4ANUwgCjUcG3awyMIPqyLsis7PPOq3QdDFcvjV3jOD1boQVTPQrgSkktTgbSf4A4LbmgqISBgTEFyFYuLykAsTuAbJEioKOA7DkgdjqEvQHEToKwj4DVhAQ5A9k3gGyB5IxEoBmML4BsnSQk8XQkNtReEOBxcfXxUQg1Mjc0dyHgXNJBSWpFCYh2zi+oLMpMzyhRcASGUqqCZ16yno6CkYGRAQMDKMwhqj/fAIcloxgHQqxAjIHBEugw5sUIsSQpBobtQPdLciLEVJYzMPBHMDBsayhILEqEO4DxG0txmrERhM29nYGBddr//5/DGRjYNRkY/l7////39v///y4Dmn+LgeHANwDrkl1AuO+pmgAAADhlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAAqACAAQAAAABAAAAwqADAAQAAAABAAAAwwAAAAD9b/HnAAAHlklEQVR4Ae3dP3Ik1RnG4W+FgYxN"
               />
-            ) : data.mediaType === "video" ? (
+            ) : data.mediaType === "video" || data.media_type === "video" ? (
               <video
-                src={
-                  data.fileUrl.startsWith("http")
-                    ? data.fileUrl
-                    : `${window.location.origin}/${data.fileUrl}`
-                }
+                src={(() => {
+                  const src = data.fileUrl || data.mediaUrl || data.media_url || "";
+                  if (!src) return "";
+                  if (src.startsWith("http") || src.startsWith("blob:") || src.startsWith("data:")) {
+                    return src;
+                  }
+                  if (src.startsWith("/")) {
+                    return `${window.location.origin}${src}`;
+                  }
+                  return `${window.location.origin}/${src}`;
+                })()}
                 style={{ width: "100%", height: "100%", objectFit: "cover" }}
                 muted
               />
             ) : (
               <span style={{ fontSize: "16px" }}>
-                {getMediaIcon(data.mediaType || "document")}
+                {getMediaIcon(data.mediaType || data.media_type || "document")}
               </span>
             )}
           </div>
         ) : (
           <span style={{ fontSize: "16px" }}>
-            {getMediaIcon(data.mediaType || "document")}
+            {getMediaIcon(data.mediaType || data.media_type || "document")}
           </span>
         )}
         {data.label || "Media Message"}

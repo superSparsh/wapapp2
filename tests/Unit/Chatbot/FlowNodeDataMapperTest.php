@@ -42,6 +42,36 @@ class FlowNodeDataMapperTest extends TestCase
     }
 
     #[Test]
+    public function it_syncs_media_message_file_url_aliases_for_runtime(): void
+    {
+        $result = $this->mapper->prepareForStorage([
+            'nodes' => [
+                [
+                    'id' => 'media_1',
+                    'type' => 'mediaMessage',
+                    'data' => [
+                        'label' => 'Image',
+                        'mediaType' => 'image',
+                        'caption' => 'Hello photo',
+                        'fileUrl' => '/storage/chatbot/media/demo.jpg',
+                        'fileName' => 'demo.jpg',
+                    ],
+                ],
+            ],
+            'edges' => [],
+        ]);
+
+        $data = $result['nodes'][0]['data'];
+
+        $this->assertSame('/storage/chatbot/media/demo.jpg', $data['mediaUrl']);
+        $this->assertSame('/storage/chatbot/media/demo.jpg', $data['media_url']);
+        $this->assertSame('/storage/chatbot/media/demo.jpg', $data['fileUrl']);
+        $this->assertSame('chatbot/media/demo.jpg', $data['media_path']);
+        $this->assertSame('Hello photo', $data['caption']);
+        $this->assertSame('image', $data['media_type']);
+    }
+
+    #[Test]
     public function it_converts_interactive_options_into_buttons(): void
     {
         $result = $this->mapper->prepareForStorage([

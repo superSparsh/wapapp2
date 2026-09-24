@@ -280,14 +280,38 @@ class FlowNodeDataMapper
     private function syncMediaMessage(array $data): array
     {
         $caption = (string) ($data['text'] ?? $data['message'] ?? $data['caption'] ?? '');
-        $url = (string) ($data['mediaUrl'] ?? $data['media_url'] ?? '');
-        $type = (string) ($data['mediaType'] ?? $data['media_type'] ?? 'image');
+        $url = trim((string) (
+            $data['mediaUrl']
+            ?? $data['media_url']
+            ?? $data['fileUrl']
+            ?? $data['file_url']
+            ?? $data['url']
+            ?? ''
+        ));
+        $path = trim((string) ($data['mediaPath'] ?? $data['media_path'] ?? ''));
+        $type = strtolower(trim((string) ($data['mediaType'] ?? $data['media_type'] ?? 'image')));
+        if ($type === '') {
+            $type = 'image';
+        }
+
+        // Recover disk path from /storage/... URLs when the builder only saved a URL.
+        if ($path === '' && $url !== '') {
+            if (preg_match('#(?:^|/)storage/(.+)$#', $url, $matches) === 1) {
+                $path = ltrim((string) $matches[1], '/');
+            } elseif (! str_contains($url, '://') && str_starts_with($url, 'chatbot/')) {
+                $path = ltrim($url, '/');
+            }
+        }
 
         $data['text'] = $caption;
         $data['message'] = $caption;
         $data['caption'] = $caption;
         $data['mediaUrl'] = $url;
         $data['media_url'] = $url;
+        $data['fileUrl'] = $url;
+        $data['file_url'] = $url;
+        $data['mediaPath'] = $path !== '' ? $path : null;
+        $data['media_path'] = $path !== '' ? $path : null;
         $data['mediaType'] = $type;
         $data['media_type'] = $type;
 

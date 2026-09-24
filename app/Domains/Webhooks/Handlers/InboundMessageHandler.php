@@ -222,10 +222,10 @@ class InboundMessageHandler
                     }
                 }
 
-                $this->newLeadWebhookListener->handle($message, $conversation->refresh());
+            $this->newLeadWebhookListener->handle($message, $conversation->refresh());
 
-                if ($message->message_type === MessageType::Interactive) {
-                    $this->whatsappFlowInboundService->handleInteractiveMessage($message);
+            if ($message->message_type === MessageType::Interactive) {
+                $this->whatsappFlowInboundService->handleInteractiveMessage($message);
                 }
             }
 
@@ -263,7 +263,7 @@ class InboundMessageHandler
             return 'processed';
         } finally {
             if (! $wasInitialized) {
-                tenancy()->end();
+            tenancy()->end();
             } elseif ($previousTenant !== null && (string) $previousTenant->id !== (string) $resolved['tenant']->id) {
                 tenancy()->initialize($previousTenant);
             }

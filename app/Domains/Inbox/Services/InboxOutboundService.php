@@ -81,13 +81,26 @@ class InboxOutboundService
         ?string $caption = null,
         ?string $fileName = null,
         bool $enforceWindow = false,
+        ?string $mediaPath = null,
     ): Message {
         if ($enforceWindow) {
             $this->windowService->assertWithinServiceWindow($conversation);
         }
 
         $mediaUrl = trim($mediaUrl);
-        abort_if($mediaUrl === '', 422, 'Media URL is required.');
+        $mediaPath = $mediaPath !== null ? trim($mediaPath) : '';
+        abort_if($mediaUrl === '' && $mediaPath === '', 422, 'Media URL is required.');
+
+        if ($mediaPath === '' && $mediaUrl !== '' && preg_match('#(?:^|/)storage/(.+)$#', $mediaUrl, $matches) === 1) {
+            $mediaPath = ltrim((string) $matches[1], '/');
+        }
+
+        // Relative /storage/... URLs fail provider download — prefer absolute APP_URL.
+        if ($mediaUrl !== '' && preg_match('#^https?://#i', $mediaUrl) !== 1) {
+            $mediaUrl = str_starts_with($mediaUrl, '/')
+                ? url($mediaUrl)
+                : url('/storage/'.ltrim($mediaUrl, '/'));
+        }
 
         $messageType = $this->resolveMediaMessageType($mediaType);
 
@@ -96,8 +109,9 @@ class InboxOutboundService
             body: $caption,
             messageType: $messageType,
             metadata: [
-                'media_url' => $mediaUrl,
-                'file_name' => $fileName ?? basename(parse_url($mediaUrl, PHP_URL_PATH) ?: 'media'),
+                'media_url' => $mediaUrl !== '' ? $mediaUrl : null,
+                'media_path' => $mediaPath !== '' ? $mediaPath : null,
+                'file_name' => $fileName ?? basename(parse_url($mediaUrl !== '' ? $mediaUrl : $mediaPath, PHP_URL_PATH) ?: 'media'),
             ],
         );
     }

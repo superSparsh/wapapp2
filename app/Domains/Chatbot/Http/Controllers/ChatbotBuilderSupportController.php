@@ -26,6 +26,11 @@ class ChatbotBuilderSupportController
 
     public function mediaUpload(Request $request): JsonResponse
     {
+        // Builder historically posted mediaType (camelCase); accept both.
+        if (! $request->filled('media_type') && $request->filled('mediaType')) {
+            $request->merge(['media_type' => $request->input('mediaType')]);
+        }
+
         $request->validate([
             'file' => WhatsappMediaRules::anyFileRules(),
             'media_type' => ['nullable', 'string', 'in:'.implode(',', WhatsappMediaRules::types())],
@@ -38,14 +43,23 @@ class ChatbotBuilderSupportController
         );
 
         $path = $request->file('file')->store('chatbot/media', 'public');
-        $url = Storage::disk('public')->url($path);
+        $relativeUrl = Storage::disk('public')->url($path);
+        $absoluteUrl = str_starts_with((string) $relativeUrl, 'http')
+            ? (string) $relativeUrl
+            : url((string) $relativeUrl);
 
         return response()->json([
             'status' => 'success',
             'success' => true,
-            'url' => $url,
-            'fileUrl' => $url,
-            'fileName' => basename($path),
+            'path' => $path,
+            'url' => $absoluteUrl,
+            'fileUrl' => $absoluteUrl,
+            'mediaUrl' => $absoluteUrl,
+            'media_path' => $path,
+            'fileName' => $request->file('file')->getClientOriginalName() ?: basename($path),
+            'file_name' => $request->file('file')->getClientOriginalName() ?: basename($path),
+            'fileType' => (string) ($request->file('file')->getMimeType() ?? ''),
+            'file_type' => (string) ($request->file('file')->getMimeType() ?? ''),
         ]);
     }
 
