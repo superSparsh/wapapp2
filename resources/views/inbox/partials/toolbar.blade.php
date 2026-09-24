@@ -19,6 +19,9 @@
     ? route('inbox.show', $selectedConversation)
     : route('inbox.index');
 
+  // Changing WhatsApp line must leave the open chat — that conversation belongs to another line.
+  $lineFormAction = route('inbox.index');
+
   $currentScope = $filters['scope'] ?? 'all';
   $currentAssignee = $filters['assignee'] ?? 'all';
   $currentDays = (int) ($filters['lookback_days'] ?? config('inbox.default_lookback_days', 7));
@@ -63,7 +66,7 @@
     @if ($showLineFilter)
       @include('inbox.partials.filter-select', [
         'name' => 'line',
-        'action' => $formAction,
+        'action' => $lineFormAction,
         'options' => collect($availableLines)->map(fn (array $line) => [
           'value' => $line['uuid'],
           'label' => $line['label'] ?: ($line['phone'] ?? $line['uuid']),

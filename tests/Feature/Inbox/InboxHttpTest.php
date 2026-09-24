@@ -6,10 +6,12 @@ use App\Domains\Inbox\Services\InboxMessageService;
 use App\Enums\MessageDirection;
 use App\Enums\MessageStatus;
 use App\Enums\MessageType;
+use App\Enums\RecordStatus;
 use App\Models\Contact;
 use App\Models\Conversation;
 use App\Models\Message;
 use App\Models\WalletAccount;
+use App\Models\WhatsappLine;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\InteractsWithTenants;
 use Tests\TestCase;
@@ -90,6 +92,50 @@ class InboxHttpTest extends TestCase
             ->assertViewHas('messagesHasMore')
             ->assertViewHas('messagesOldestId')
             ->assertViewHas('activeLine', fn ($line) => $line->id === $this->testLine->id);
+    }
+
+    public function test_line_query_param_wins_over_open_conversation_line(): void
+    {
+        $otherLine = WhatsappLine::query()->create([
+            'phone' => '918888888800',
+            'display_name' => 'Other Line',
+            'status' => RecordStatus::Active,
+            'is_default' => false,
+        ]);
+
+        $contact = Contact::factory()->create(['name' => 'Line A Contact', 'phone' => '918888888811']);
+        $conversation = Conversation::factory()->create([
+            'whatsapp_line_id' => $this->testLine->id,
+            'contact_id' => $contact->id,
+            'contact_phone' => $contact->phone,
+            'line_phone' => $this->testLine->phone,
+            'contact_name' => $contact->name,
+            'last_message_at' => now(),
+        ]);
+
+        $otherContact = Contact::factory()->create(['name' => 'Line B Contact', 'phone' => '918888888822']);
+        Conversation::factory()->create([
+            'whatsapp_line_id' => $otherLine->id,
+            'contact_id' => $otherContact->id,
+            'contact_phone' => $otherContact->phone,
+            'line_phone' => $otherLine->phone,
+            'contact_name' => $otherContact->name,
+            'last_message_at' => now(),
+        ]);
+
+        $this->actingAsTenantUser()
+            ->get(route('inbox.index', ['line' => $otherLine->uuid]))
+            ->assertOk()
+            ->assertViewHas('activeLine', fn ($line) => $line->id === $otherLine->id)
+            ->assertSee('Line B Contact')
+            ->assertDontSee('Line A Contact');
+
+        // Opening a chat on line A must not keep line A when ?line= points at B —
+        // toolbar filter submits to index, but also cover show+line for safety.
+        $this->actingAsTenantUser()
+            ->get(route('inbox.show', ['conversation' => $conversation, 'line' => $otherLine->uuid]))
+            ->assertOk()
+            ->assertViewHas('activeLine', fn ($line) => $line->id === $otherLine->id);
     }
 
     public function test_user_can_send_message_via_api(): void

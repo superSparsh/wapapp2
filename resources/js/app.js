@@ -1158,7 +1158,7 @@ function buildThreadRowHtml(thread, selectedUuid = null) {
     `;
 }
 
-function upsertThreadRow(thread, { notify = true } = {}) {
+function upsertThreadRow(thread, { notify = true, bump = false } = {}) {
     if (!thread?.uuid) {
         return;
     }
@@ -1253,8 +1253,8 @@ function upsertThreadRow(thread, { notify = true } = {}) {
             }
         }
 
-        // Keep the freshest conversation at the top (legacy parity).
-        if (list.firstElementChild !== row) {
+        // Only bump on real activity (new message) — not on mark-read / poll merges.
+        if (bump && list.firstElementChild !== row) {
             list.insertBefore(row, list.firstElementChild);
         }
     }
@@ -1817,7 +1817,8 @@ function initInboxRealtime() {
     if (realtimeEnabled && tenantId && window.Echo) {
         subscribeInboxEcho(`inbox.${tenantId}`, {
             '.thread.updated': (payload) => {
-                upsertThreadRow(payload.thread);
+                // Mark-read / assignee / AI toggles — update in place, do not reorder.
+                upsertThreadRow(payload.thread, { bump: false });
             },
             '.message.created': (payload) => {
                 const message = payload.message || {};
@@ -1840,7 +1841,7 @@ function initInboxRealtime() {
 
                 // Suppress badge-based notify here — showInboxWebNotification below
                 // has the real message body and correct open-chat/focus checks.
-                upsertThreadRow(thread, { notify: false });
+                upsertThreadRow(thread, { notify: false, bump: true });
 
                 if (!isOutbound) {
                     showInboxWebNotification(thread, message);
@@ -1904,6 +1905,8 @@ function initInboxRealtime() {
             };
 
             if (threadsAppended) {
+                // User already loaded older pages — update in place only.
+                // Do not prepend known rows (that caused the selected chat to jump).
                 const selectedUuid = inboxSelectedConversationUuid();
                 [...threads].reverse().forEach((thread) => {
                     if (!thread?.uuid) {
@@ -1912,8 +1915,7 @@ function initInboxRealtime() {
 
                     const existing = list.querySelector(`[data-thread-uuid="${thread.uuid}"]`);
                     if (existing) {
-                        upsertThreadRow(thread);
-                        list.insertBefore(existing, list.firstChild);
+                        upsertThreadRow(thread, { bump: false });
                     } else {
                         list.insertAdjacentHTML('afterbegin', buildThreadRowHtml(thread, selectedUuid));
                         rememberThreadUnread(thread, { notify: true });
@@ -1939,39 +1941,24 @@ function initInboxRealtime() {
             }
 
             const selectedUuid = inboxSelectedConversationUuid();
-            // Merge: update known rows + insert missing, preserve order from API.
-            const existing = new Map(
-                [...list.querySelectorAll('[data-thread-uuid]')].map((el) => [el.dataset.threadUuid, el]),
-            );
-            const frag = document.createDocumentFragment();
+            // Atomic rebuild — moving rows one-by-one into a fragment made the
+            // open chat visibly climb to the top before settling.
             const seen = new Set();
+            const html = [];
 
             threads.forEach((thread) => {
                 if (!thread?.uuid || seen.has(thread.uuid)) {
                     return;
                 }
                 seen.add(thread.uuid);
-
-                let row = existing.get(thread.uuid);
-                if (row) {
-                    upsertThreadRow(thread);
-                    row = list.querySelector(`[data-thread-uuid="${thread.uuid}"]`);
-                    if (row) {
-                        frag.appendChild(row);
-                    }
-                } else {
-                    const wrap = document.createElement('div');
-                    wrap.innerHTML = buildThreadRowHtml(thread, selectedUuid).trim();
-                    if (wrap.firstElementChild) {
-                        frag.appendChild(wrap.firstElementChild);
-                    }
-                    rememberThreadUnread(thread, { notify: true });
-                    maybeRefreshOpenChat(thread);
-                }
+                html.push(buildThreadRowHtml(thread, selectedUuid));
+                rememberThreadUnread(thread, { notify: true });
+                maybeRefreshOpenChat(thread);
             });
 
-            list.innerHTML = '';
-            list.appendChild(frag);
+            const prevScroll = list.scrollTop;
+            list.innerHTML = html.join('');
+            list.scrollTop = prevScroll;
             applyUnreadTotal();
         } catch {
             // Ignore transient poll errors.
@@ -2554,7 +2541,7 @@ function initInboxChat() {
                         uuid: conversationUuid,
                         unread: isOutbound || viewing ? 0 : Number(payload.thread?.unread || 1),
                     },
-                    { notify: false },
+                    { notify: false, bump: true },
                 );
 
                 if (!isOutbound) {

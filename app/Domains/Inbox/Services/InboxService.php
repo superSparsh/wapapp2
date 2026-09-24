@@ -128,22 +128,21 @@ class InboxService
 
     /**
      * Resolve which WhatsApp line the inbox should use for this request.
+     * Explicit ?line= wins over the open conversation so the toolbar filter works.
      */
     public function resolveActiveLine(Request $request, ?Conversation $selected = null): WhatsappLine
     {
         $line = null;
 
-        if ($selected !== null && $selected->whatsapp_line_id) {
+        $requestLineUuid = $request->string('line')->trim()->toString() ?: null;
+        if ($requestLineUuid !== null) {
+            $line = $this->findAccessibleLineByUuid($requestLineUuid);
+        }
+
+        if ($line === null && $selected !== null && $selected->whatsapp_line_id) {
             $candidate = WhatsappLine::query()->find((int) $selected->whatsapp_line_id);
             if ($candidate instanceof WhatsappLine && $this->lineIsAccessible($candidate)) {
                 $line = $candidate;
-            }
-        }
-
-        if ($line === null) {
-            $requestLineUuid = $request->string('line')->trim()->toString() ?: null;
-            if ($requestLineUuid !== null) {
-                $line = $this->findAccessibleLineByUuid($requestLineUuid);
             }
         }
 
