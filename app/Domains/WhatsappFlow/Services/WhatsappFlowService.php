@@ -282,13 +282,37 @@ class WhatsappFlowService
             'meta_json' => $metaJson,
             'json_asset_path' => $assetPath,
         ]);
+        $flow->refresh();
 
-        $synced = $this->camsService->syncJsonAsset($flow->refresh());
+        if ($this->camsService->isConfigured()) {
+            if (blank($flow->meta_flow_id)) {
+                $categories = (array) ($flow->categories ?? ['OTHER']);
+                $metaFlowId = $this->camsService->createRemote($flow, $categories);
 
-        if ($this->camsService->isConfigured() && ! $synced) {
-            throw ValidationException::withMessages([
-                'flow_json' => 'Draft saved locally but WhatsApp (CAMS) JSON upload failed. Fix CAMS config and save again.',
-            ]);
+                if ($metaFlowId === null) {
+                    throw ValidationException::withMessages([
+                        'flow_json' => 'Draft saved locally but WhatsApp flow could not be registered on CAMS. Check credentials / Cust Space ID.',
+                    ]);
+                }
+
+                $flow->update(['meta_flow_id' => $metaFlowId]);
+                $flow->refresh();
+            }
+
+            $sync = $this->camsService->syncJsonAssetDetailed($flow);
+
+            if (! $sync['ok']) {
+                $detail = trim((string) ($sync['message'] ?? ''));
+                $filePath = trim((string) ($sync['file_path'] ?? ''));
+                $hint = $detail !== '' ? $detail : 'Check CAMS credentials and that APP_URL is publicly reachable.';
+                if ($filePath !== '') {
+                    $hint .= ' FilePath: '.$filePath;
+                }
+
+                throw ValidationException::withMessages([
+                    'flow_json' => 'Draft saved locally but WhatsApp (CAMS) JSON upload failed. '.$hint,
+                ]);
+            }
         }
 
         $flow->update([

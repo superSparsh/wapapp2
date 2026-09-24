@@ -230,7 +230,8 @@ class AlibabaCamsClient
      */
     public function updateFlowJsonAsset(array $params): Response
     {
-        return $this->signedRequest(array_merge([
+        // POST form avoids mangling long FilePath URLs in GET query strings.
+        return $this->signedFormPost(array_merge([
             'Action' => 'UpdateFlowJSONAsset',
         ], $params));
     }

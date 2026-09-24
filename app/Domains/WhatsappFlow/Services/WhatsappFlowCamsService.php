@@ -68,23 +68,68 @@ class WhatsappFlowCamsService
 
     public function syncJsonAsset(WhatsappFlow $flow): bool
     {
-        if (! $this->isConfigured() || blank($flow->meta_flow_id) || blank($flow->json_asset_path)) {
-            return false;
+        return $this->syncJsonAssetDetailed($flow)['ok'];
+    }
+
+    /**
+     * @return array{ok: bool, message: string, file_path: string|null, response: mixed}
+     */
+    public function syncJsonAssetDetailed(WhatsappFlow $flow): array
+    {
+        if (! $this->isConfigured()) {
+            return ['ok' => false, 'message' => 'CAMS credentials are not configured.', 'file_path' => null, 'response' => null];
+        }
+
+        if (blank($flow->meta_flow_id)) {
+            return ['ok' => false, 'message' => 'Remote WhatsApp Flow ID is missing. Re-create the flow or check CAMS CreateFlow.', 'file_path' => null, 'response' => null];
+        }
+
+        if (blank($flow->json_asset_path)) {
+            return ['ok' => false, 'message' => 'Flow JSON asset path is missing. Save the draft again.', 'file_path' => null, 'response' => null];
         }
 
         $custSpaceId = $this->resolveCustSpaceId($flow);
 
         if ($custSpaceId === null) {
-            return false;
+            return ['ok' => false, 'message' => 'Cust Space ID is missing on the WhatsApp line.', 'file_path' => null, 'response' => null];
         }
+
+        $filePath = $this->assetService->publicUrl((string) $flow->json_asset_path);
 
         $response = $this->client->updateFlowJsonAsset([
             'FlowId' => (string) $flow->meta_flow_id,
-            'FilePath' => $this->assetService->publicUrl((string) $flow->json_asset_path),
+            'FilePath' => $filePath,
             'CustSpaceId' => $custSpaceId,
         ]);
 
-        return $response->successful();
+        $json = $response->json();
+        $code = is_array($json) ? ($json['Code'] ?? $json['code'] ?? null) : null;
+        $codeOk = ! is_scalar($code) || strtoupper((string) $code) === 'OK';
+        $ok = $response->successful() && $codeOk;
+
+        if (! $ok) {
+            $message = is_array($json)
+                ? (string) ($json['Message'] ?? $json['message'] ?? $response->body())
+                : $response->body();
+
+            Log::warning('CAMS UpdateFlowJSONAsset failed', [
+                'flow_id' => $flow->id,
+                'meta_flow_id' => $flow->meta_flow_id,
+                'file_path' => $filePath,
+                'http_status' => $response->status(),
+                'code' => is_scalar($code) ? (string) $code : null,
+                'body' => $response->body(),
+            ]);
+
+            return [
+                'ok' => false,
+                'message' => $message !== '' ? $message : 'CAMS UpdateFlowJSONAsset failed.',
+                'file_path' => $filePath,
+                'response' => $json,
+            ];
+        }
+
+        return ['ok' => true, 'message' => 'ok', 'file_path' => $filePath, 'response' => $json];
     }
 
     public function publishRemote(WhatsappFlow $flow): bool

@@ -7,7 +7,7 @@ namespace App\Domains\WhatsappFlow\Http\Controllers;
 use App\Domains\WhatsappFlow\Support\WhatsappFlowMetaJsonConverter;
 use App\Http\Controllers\Controller;
 use App\Models\WhatsappFlow;
-use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Response;
 
 /**
  * Public (no-auth) JSON asset for CAMS updateFlowJsonAsset FilePath.
@@ -15,7 +15,7 @@ use Illuminate\Http\JsonResponse;
  */
 class WhatsappFlowPublicAssetController extends Controller
 {
-    public function show(string $uuid): JsonResponse
+    public function show(string $uuid): Response
     {
         $flow = WhatsappFlow::query()->where('uuid', $uuid)->firstOrFail();
 
@@ -27,8 +27,13 @@ class WhatsappFlowPublicAssetController extends Controller
 
         abort_if($metaJson === [], 404);
 
-        return response()->json($metaJson, 200, [
-            'Cache-Control' => 'public, max-age=60',
-        ]);
+        return response(
+            json_encode($metaJson, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
+            200,
+            [
+                'Content-Type' => 'application/json; charset=UTF-8',
+                'Cache-Control' => 'public, max-age=60',
+            ],
+        );
     }
 }

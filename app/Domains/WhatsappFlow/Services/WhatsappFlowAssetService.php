@@ -12,36 +12,65 @@ use Throwable;
 class WhatsappFlowAssetService
 {
     /**
-     * Persist a public-facing asset reference for CAMS FilePath.
-     * Local public/flows cache is best-effort (servers often lock public/).
-     * CAMS fetches via the tenant public asset route (DB-backed).
+     * Persist flow JSON where CAMS can download it via a public URL.
+     * Prefer central storage/app/public (usually writable by php-fpm) over public/flows.
      *
      * @param  array<string, mixed>  $metaJson
      */
     public function write(WhatsappFlow $flow, array $metaJson): string
     {
-        $relativePath = 'flows/flow_'.$flow->uuid.'.json';
+        $filename = 'flow_'.$flow->uuid.'.json';
+        $payload = json_encode($metaJson, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
 
-        try {
-            $this->writePublicCache($relativePath, $metaJson);
-        } catch (Throwable $exception) {
-            Log::warning('WhatsApp Flow public/flows cache write skipped', [
-                'flow_id' => $flow->id,
-                'path' => $relativePath,
-                'error' => $exception->getMessage(),
-            ]);
+        // 1) Central public storage — served at /storage/flows/... (storage:link)
+        $storageRelative = 'storage/flows/'.$filename;
+        if ($this->writeToDirectory(base_path('storage/app/public/flows'), $filename, $payload)) {
+            return $storageRelative;
         }
 
-        return $relativePath;
+        // 2) Legacy public/flows — served at /flows/...
+        $publicRelative = 'flows/'.$filename;
+        if ($this->writeToDirectory(public_path('flows'), $filename, $payload)) {
+            return $publicRelative;
+        }
+
+        Log::warning('WhatsApp Flow JSON could not be written to a public directory', [
+            'flow_id' => $flow->id,
+            'uuid' => $flow->uuid,
+            'tried' => [
+                base_path('storage/app/public/flows'),
+                public_path('flows'),
+            ],
+        ]);
+
+        // Path still recorded so publicUrl() can fall back to the DB-backed route.
+        return $publicRelative;
     }
 
     /**
-     * Absolute URL CAMS can download (no auth). Prefer DB-backed route over /flows/*.json.
+     * Absolute URL for CAMS UpdateFlowJSONAsset FilePath.
      */
     public function publicUrl(string $relativePath): string
     {
         $relativePath = ltrim($relativePath, '/');
 
+        // storage/flows/... → /storage/flows/...
+        if (str_starts_with($relativePath, 'storage/')) {
+            return url($relativePath);
+        }
+
+        // Legacy / newly written public/flows file
+        if (File::exists(public_path($relativePath))) {
+            return url($relativePath);
+        }
+
+        // storage-backed file even if json_asset_path still uses legacy "flows/..." shape
+        $basename = basename($relativePath);
+        if ($basename !== '' && File::exists(base_path('storage/app/public/flows/'.$basename))) {
+            return url('storage/flows/'.$basename);
+        }
+
+        // DB-backed public route (no local file required)
         if (
             preg_match('/flow_([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.json$/i', $relativePath, $matches)
             && tenancy()->initialized
@@ -53,31 +82,37 @@ class WhatsappFlowAssetService
             ]);
         }
 
-        // Legacy static files under public/flows/
         return url($relativePath);
     }
 
-    /**
-     * @param  array<string, mixed>  $metaJson
-     */
-    private function writePublicCache(string $relativePath, array $metaJson): void
+    private function writeToDirectory(string $directory, string $filename, string $payload): bool
     {
-        $directory = public_path('flows');
+        try {
+            if (! File::isDirectory($directory)) {
+                File::makeDirectory($directory, 0775, true);
+            }
 
-        if (! File::isDirectory($directory)) {
-            File::makeDirectory($directory, 0775, true);
+            if (! is_writable($directory)) {
+                @chmod($directory, 0775);
+            }
+
+            if (! is_writable($directory)) {
+                return false;
+            }
+
+            $absolute = rtrim($directory, DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR.$filename;
+            File::put($absolute, $payload);
+            @chmod($absolute, 0664);
+
+            return File::exists($absolute);
+        } catch (Throwable $exception) {
+            Log::warning('WhatsApp Flow asset directory write failed', [
+                'directory' => $directory,
+                'filename' => $filename,
+                'error' => $exception->getMessage(),
+            ]);
+
+            return false;
         }
-
-        if (! is_writable($directory)) {
-            @chmod($directory, 0775);
-        }
-
-        if (! is_writable($directory)) {
-            throw new \RuntimeException("Directory not writable: {$directory}");
-        }
-
-        $absolutePath = public_path($relativePath);
-        File::put($absolutePath, json_encode($metaJson, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT));
-        @chmod($absolutePath, 0664);
     }
 }
