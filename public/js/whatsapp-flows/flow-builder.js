@@ -37,9 +37,11 @@ const FIELD_LABELS = {
 
 export function initWhatsappFlowBuilder(config) {
     flowId = config.flowId;
-    state = config.flowJson && config.flowJson.screens
-        ? config.flowJson
-        : { screens: [], first_screen: null };
+    state = normalizeFlowState(
+        config.flowJson && Array.isArray(config.flowJson.screens)
+            ? config.flowJson
+            : { screens: [], first_screen: null },
+    );
     canvasEl = document.getElementById('flow-canvas');
     if (!canvasEl) return;
 
@@ -184,6 +186,7 @@ function setupScreenList() {
             screenCounter++;
             const id = 'screen_' + screenCounter;
             const screen = { id, title: 'Screen ' + screenCounter, fields: [], next_screen: '', conditions: [] };
+            if (!Array.isArray(state.screens)) state.screens = [];
             state.screens.push(screen);
             if (!state.first_screen) state.first_screen = id;
             renderScreenList();
@@ -287,8 +290,16 @@ function renderScreenList() {
     const list = document.getElementById('screen-list');
     if (!list) return;
 
+    if (!Array.isArray(state.screens)) {
+        state.screens = [];
+    }
+
     list.innerHTML = '';
     state.screens.forEach((screen, i) => {
+        if (!screen || typeof screen !== 'object') return;
+        if (!Array.isArray(screen.fields)) screen.fields = [];
+        if (!Array.isArray(screen.conditions)) screen.conditions = [];
+
         const el = document.createElement('button');
         el.type = 'button';
         el.className = 'flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition-colors '
@@ -297,7 +308,7 @@ function renderScreenList() {
 
         const label = document.createElement('span');
         label.className = 'truncate';
-        label.textContent = (i === 0 && state.first_screen === screen.id ? '★ ' : '') + screen.title;
+        label.textContent = (i === 0 && state.first_screen === screen.id ? '★ ' : '') + (screen.title || ('Screen ' + (i + 1)));
         el.appendChild(label);
 
         const badge = document.createElement('span');
@@ -1017,8 +1028,39 @@ function updateBadges() {
 
 /* ── Helpers ── */
 
+function normalizeFlowState(raw) {
+    const screens = Array.isArray(raw?.screens) ? raw.screens : [];
+    const normalizedScreens = screens
+        .filter((screen) => screen && typeof screen === 'object')
+        .map((screen, index) => ({
+            ...screen,
+            id: screen.id || ('screen_' + (index + 1)),
+            title: screen.title || ('Screen ' + (index + 1)),
+            fields: Array.isArray(screen.fields) ? screen.fields : [],
+            next_screen: screen.next_screen ?? '',
+            conditions: Array.isArray(screen.conditions) ? screen.conditions : [],
+        }));
+
+    let firstScreen = raw?.first_screen ?? null;
+    if (firstScreen && !normalizedScreens.some((s) => s.id === firstScreen)) {
+        firstScreen = normalizedScreens[0]?.id ?? null;
+    }
+    if (!firstScreen && normalizedScreens.length > 0) {
+        firstScreen = normalizedScreens[0].id;
+    }
+
+    return {
+        ...raw,
+        screens: normalizedScreens,
+        first_screen: firstScreen,
+    };
+}
+
 function getScreen(id) {
-    return state.screens.find(s => s.id === id) || null;
+    const screen = state.screens.find(s => s.id === id) || null;
+    if (screen && !Array.isArray(screen.fields)) screen.fields = [];
+    if (screen && !Array.isArray(screen.conditions)) screen.conditions = [];
+    return screen;
 }
 
 function showStatus(message, type) {

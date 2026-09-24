@@ -38,7 +38,6 @@ class WhatsappFlowPresenter
                 'delete_url' => route('whatsapp-flows.destroy', $flow),
                 'publish_url' => route('whatsapp-flows.publish', $flow),
                 'archive_url' => route('whatsapp-flows.archive', $flow),
-                'duplicate_url' => route('whatsapp-flows.duplicate', $flow),
                 'stats_url' => route('whatsapp-flows.stats', $flow),
                 'preview_url' => route('whatsapp-flows.preview', $flow),
             ];

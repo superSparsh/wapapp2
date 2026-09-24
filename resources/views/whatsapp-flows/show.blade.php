@@ -34,10 +34,6 @@
                 <button type="submit" class="fd-btn inline-flex items-center justify-center gap-2 rounded border border-solid border-red-400 bg-red-50 px-4 py-3 text-sm font-semibold leading-[1.5] text-red-500 transition-colors hover:bg-red-100">Archive</button>
               </form>
             @endif
-            <form action="{{ route('whatsapp-flows.duplicate', $flow) }}" method="POST" class="inline">
-              @csrf
-              <button type="submit" class="fd-btn inline-flex items-center justify-center gap-2 rounded border border-solid border-green-500 bg-green-50 px-4 py-3 text-sm font-semibold leading-[1.5] text-green-500 transition-colors hover:bg-green-50">Duplicate</button>
-            </form>
           </div>
         </div>
       </div>
