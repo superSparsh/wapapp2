@@ -235,11 +235,27 @@ class ChatbotFlowEngine
         if ($nextNodeId === null && $this->nodeRequiresMatchedReply($currentNode, $variables)) {
             // Waiting on interactive / QR — do NOT default-continue on random text
             // (that ate "pikaboo" and jumped into a broken WhatsApp Flow send).
+            //
+            // If AI Assistant would handle this chat, release ownership so free-text
+            // is not swallowed forever (refreshExpiry used to keep the wait alive).
+            if (app(AiInboundReplyService::class)->isEligibleForAutoReply($conversation)) {
+                $state->markExpired();
+
+                Log::info('Chatbot released unmatched wait to AI', [
+                    'conversation_id' => $conversation->id,
+                    'flow_id' => $flow->id,
+                    'node_id' => $currentNodeId,
+                    'reply' => $replyBody,
+                ]);
+
+                return TriggerFireResult::NoMatch;
+            }
+
             $state->forceFill([
                 'status' => ChatbotFlowStateStatus::Waiting,
                 'current_node_id' => $currentNodeId,
             ])->save();
-            $this->refreshExpiry($state);
+            // Do not refresh expiry — unmatched free-text should not extend the wait forever.
 
             Log::info('Chatbot waiting reply unmatched; staying on node', [
                 'conversation_id' => $conversation->id,
@@ -770,35 +786,37 @@ class ChatbotFlowEngine
             'message' => $messageLower,
         ]);
 
-        // Outside business hours + AI Assistant eligible → do not send the canned
-        // chatbot offline reply (it would Fired-claim the turn and silence AI).
-        if ($this->shouldDeferOfflineHoursTriggerToAi($best, $conversation)) {
-            Log::info('Chatbot deferred offline-hours keyword to AI', [
-                'conversation_id' => $conversation->id,
-                'flow_id' => $best['flow']->id,
-                'node_id' => $best['node_id'],
-                'keyword' => $best['keyword'],
-            ]);
-
-            return TriggerFireResult::NoMatch;
-        }
-
         // Legacy resetConversationForStart — clear other bots mid-flight.
         $this->resetConversationStates($conversation);
 
-        return $this->startFlow(
+        $result = $this->startFlow(
             $best['flow'],
             $best['node_map'],
             $conversation,
             $best['node_id'],
             $body,
         );
+
+        // Offline hours reply was sent → still allow AI Assistant on the same turn
+        // when configured. Customers without AI simply keep the offline message.
+        if ($result === TriggerFireResult::Fired && $this->startNodeSendsOfflineHours($best)) {
+            Log::info('Chatbot offline-hours fired; allowing AI on same turn', [
+                'conversation_id' => $conversation->id,
+                'flow_id' => $best['flow']->id,
+                'node_id' => $best['node_id'],
+                'keyword' => $best['keyword'],
+            ]);
+
+            return TriggerFireResult::FiredAllowAi;
+        }
+
+        return $result;
     }
 
     /**
      * @param  array{flow: ChatbotFlow, node_map: array<string, array<string, mixed>>, node_id: string}  $best
      */
-    private function shouldDeferOfflineHoursTriggerToAi(array $best, Conversation $conversation): bool
+    private function startNodeSendsOfflineHours(array $best): bool
     {
         $node = $best['node_map'][$best['node_id']] ?? null;
         if (! is_array($node)) {
@@ -807,11 +825,7 @@ class ChatbotFlowEngine
 
         $data = is_array($node['data'] ?? null) ? $node['data'] : [];
 
-        if (! OfflineHoursEvaluator::shouldSendOfflineMessage($data)) {
-            return false;
-        }
-
-        return app(AiInboundReplyService::class)->isEligibleForAutoReply($conversation);
+        return OfflineHoursEvaluator::shouldSendOfflineMessage($data);
     }
 
     /**

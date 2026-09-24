@@ -127,7 +127,12 @@
           <p class="text-sm text-text-subtle opacity-50">Balance: ₹ {{ number_format($walletBalance, 2) }}</p>
         </div>
 
-        <form id="wallet-recharge-form" class="w-full rounded-xl border border-border-light bg-muted-surface p-4">
+        <form
+          id="wallet-recharge-form"
+          class="w-full rounded-xl border border-border-light bg-muted-surface p-4"
+          data-wallet-recharge
+          data-gst-rate="{{ (float) $rechargeTotals['gst_rate'] }}"
+        >
           <label for="recharge_amount" class="text-sm font-semibold text-text-primary">Recharge Amount</label>
           <input
             id="recharge_amount"
@@ -135,12 +140,20 @@
             type="number"
             min="{{ config('billing.wallet.min_recharge_amount') }}"
             max="{{ config('billing.wallet.max_recharge_amount') }}"
+            step="1"
             value="{{ (int) $rechargeAmount }}"
             class="mt-2 w-full rounded-xl border border-border bg-elevated p-3.5 text-base font-medium text-text-body"
+            data-recharge-amount-input
           >
           <div class="mt-4 flex flex-col gap-2 text-sm">
-            <div class="flex justify-between"><span class="text-text-muted">GST ({{ $rechargeTotals['gst_rate'] }}%)</span><span>₹ {{ number_format($rechargeTotals['tax'], 2) }}</span></div>
-            <div class="flex justify-between font-semibold text-green-700"><span>Total Payable</span><span>₹ {{ number_format($rechargeTotals['total'], 2) }}</span></div>
+            <div class="flex justify-between">
+              <span class="text-text-muted">GST ({{ $rechargeTotals['gst_rate'] }}%)</span>
+              <span data-recharge-tax>₹ {{ number_format($rechargeTotals['tax'], 2) }}</span>
+            </div>
+            <div class="flex justify-between font-semibold text-green-700">
+              <span>Total Payable</span>
+              <span data-recharge-total>₹ {{ number_format($rechargeTotals['total'], 2) }}</span>
+            </div>
           </div>
         </form>
 
@@ -160,14 +173,45 @@
         @push('scripts')
           <script>
             document.addEventListener('DOMContentLoaded', () => {
+              const form = document.querySelector('[data-wallet-recharge]');
               const input = document.getElementById('recharge_amount');
               const btn = document.getElementById('wallet-recharge-btn');
-              if (input && btn) {
-                input.addEventListener('input', () => {
-                  btn.dataset.amount = input.value;
-                });
-                btn.dataset.amount = input.value;
+              const taxEl = form?.querySelector('[data-recharge-tax]');
+              const totalEl = form?.querySelector('[data-recharge-total]');
+              const gstRate = Number(form?.dataset.gstRate || 18);
+
+              if (!input) {
+                return;
               }
+
+              const formatInr = (value) =>
+                Number(value || 0).toLocaleString('en-IN', {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                });
+
+              const updateTotals = () => {
+                const amount = Math.max(0, Number(input.value || 0));
+                const tax = Math.round(amount * (gstRate / 100) * 100) / 100;
+                const total = Math.round((amount + tax) * 100) / 100;
+
+                if (taxEl) {
+                  taxEl.textContent = `₹ ${formatInr(tax)}`;
+                }
+                if (totalEl) {
+                  totalEl.textContent = `₹ ${formatInr(total)}`;
+                }
+                if (btn) {
+                  btn.dataset.amount = String(amount);
+                  btn.textContent = amount > 0
+                    ? `Pay ₹ ${formatInr(total)} Securely`
+                    : 'Pay Securely';
+                }
+              };
+
+              input.addEventListener('input', updateTotals);
+              input.addEventListener('change', updateTotals);
+              updateTotals();
             });
           </script>
         @endpush

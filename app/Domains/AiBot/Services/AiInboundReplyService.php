@@ -25,9 +25,12 @@ class AiInboundReplyService
         private readonly AiBotRouterService $router,
     ) {}
 
-    public function handle(Conversation $conversation, Message $message): bool
-    {
-        if (! $this->shouldTrigger($conversation, $message)) {
+    public function handle(
+        Conversation $conversation,
+        Message $message,
+        bool $ignoreChatbotOwnership = false,
+    ): bool {
+        if (! $this->shouldTrigger($conversation, $message, $ignoreChatbotOwnership)) {
             return false;
         }
 
@@ -51,8 +54,11 @@ class AiInboundReplyService
         }
     }
 
-    public function shouldTrigger(Conversation $conversation, Message $message): bool
-    {
+    public function shouldTrigger(
+        Conversation $conversation,
+        Message $message,
+        bool $ignoreChatbotOwnership = false,
+    ): bool {
         // Media-only / system noise — AI needs text (or interactive title stored as body).
         if (! in_array($message->message_type, [
             MessageType::Text,
@@ -65,8 +71,9 @@ class AiInboundReplyService
             }
         }
 
-        // Chatbot keyword flows / mid-flow waiting own the turn — never let AI steal.
-        if ($this->chatbotOwnsConversation($conversation)) {
+        // Chatbot keyword flows / mid-flow waiting own the turn — never let AI steal
+        // unless this inbound already got an offline-hours (FiredAllowAi) chatbot reply.
+        if (! $ignoreChatbotOwnership && $this->chatbotOwnsConversation($conversation)) {
             return false;
         }
 

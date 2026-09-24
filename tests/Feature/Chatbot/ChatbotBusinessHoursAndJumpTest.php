@@ -637,12 +637,12 @@ class ChatbotBusinessHoursAndJumpTest extends TestCase
             'direction' => MessageDirection::Inbound,
         ]));
 
-        $this->assertSame('fired', $result->value);
+        $this->assertSame('fired_allow_ai', $result->value);
         $this->assertContains('We are offline right now.', $sent);
         $this->assertNotContains('We are open!', $sent);
     }
 
-    public function test_welcome_offline_hours_defers_to_ai_when_auto_reply_enabled(): void
+    public function test_welcome_offline_hours_sends_message_then_allows_ai(): void
     {
         Carbon::setTestNow(Carbon::parse('2026-08-19 23:30:00', 'Asia/Kolkata'));
 
@@ -690,6 +690,20 @@ class ChatbotBusinessHoursAndJumpTest extends TestCase
         $conversation = Conversation::factory()->create([
             'response_type' => \App\Enums\ConversationResponseType::Human,
         ]);
+
+        // Leftover Waiting ownership should be cleared by keyword restart.
+        ChatbotFlowState::query()->create([
+            'conversation_id' => $conversation->id,
+            'chatbot_flow_id' => ChatbotFlow::factory()->active()->create()->id,
+            'current_node_id' => 'templateMessage-stale',
+            'status' => ChatbotFlowStateStatus::Waiting,
+            'expires_at' => now()->addHour(),
+            'variables' => [
+                '_quick_replies' => ['Option A'],
+                '_wait_variable_name' => 'user_response',
+            ],
+        ]);
+
         $engine = app(ChatbotFlowEngine::class);
 
         $result = $engine->processInbound($conversation, Message::factory()->create([
@@ -698,8 +712,9 @@ class ChatbotBusinessHoursAndJumpTest extends TestCase
             'direction' => MessageDirection::Inbound,
         ]));
 
-        $this->assertSame('no_match', $result->value);
-        $this->assertSame([], $sent);
+        $this->assertSame('fired_allow_ai', $result->value);
+        $this->assertContains('We are offline right now.', $sent);
+        $this->assertNotContains('We are open!', $sent);
 
         $ai = app(\App\Domains\AiBot\Services\AiInboundReplyService::class);
         $followUp = Message::factory()->create([
@@ -708,7 +723,131 @@ class ChatbotBusinessHoursAndJumpTest extends TestCase
             'direction' => MessageDirection::Inbound,
             'message_type' => MessageType::Text,
         ]);
-        $this->assertTrue($ai->shouldTrigger($conversation->refresh(), $followUp));
+        // Mid-flow ownership may exist, but FiredAllowAi path ignores it.
+        $this->assertTrue($ai->shouldTrigger($conversation->refresh(), $followUp, ignoreChatbotOwnership: true));
+        $this->assertTrue($ai->isEligibleForAutoReply($conversation->refresh()));
+    }
+
+    public function test_welcome_offline_hours_without_ai_still_sends_offline_only(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-08-19 23:30:00', 'Asia/Kolkata'));
+
+        $sent = [];
+        $this->mock(InboxOutboundService::class, function ($mock) use (&$sent): void {
+            $mock->shouldReceive('sendText')->andReturnUsing(function ($conversation, string $body) use (&$sent) {
+                $sent[] = $body;
+
+                return new Message([
+                    'id' => count($sent),
+                    'body' => $body,
+                    'direction' => MessageDirection::Outbound,
+                    'message_type' => MessageType::Text,
+                ]);
+            });
+            $mock->shouldReceive('sendTypingIndicator')->andReturn(true);
+        });
+
+        \App\Models\AiSetting::set('ai_auto_response_enabled', false);
+
+        ChatbotFlow::factory()->active()->create([
+            'exported_data' => [
+                'nodes' => [
+                    [
+                        'id' => 'welcome_1',
+                        'type' => 'welcomeMessage',
+                        'data' => [
+                            'messageType' => 'text',
+                            'triggerKeyword' => 'hours',
+                            'welcomeMessage' => 'We are open!',
+                            'enableOfflineHours' => true,
+                            'timezone' => 'Asia/Kolkata',
+                            'onlineFrom' => '09:00',
+                            'onlineUntil' => '21:00',
+                            'offlineMessage' => 'We are offline right now.',
+                        ],
+                    ],
+                ],
+                'edges' => [],
+            ],
+        ]);
+
+        $conversation = Conversation::factory()->create([
+            'response_type' => \App\Enums\ConversationResponseType::Human,
+        ]);
+        $engine = app(ChatbotFlowEngine::class);
+
+        $result = $engine->processInbound($conversation, Message::factory()->create([
+            'conversation_id' => $conversation->id,
+            'body' => 'hours',
+            'direction' => MessageDirection::Inbound,
+        ]));
+
+        $this->assertSame('fired_allow_ai', $result->value);
+        $this->assertContains('We are offline right now.', $sent);
+
+        $ai = app(\App\Domains\AiBot\Services\AiInboundReplyService::class);
+        $this->assertFalse($ai->isEligibleForAutoReply($conversation->refresh()));
+    }
+
+    public function test_unmatched_wait_releases_to_ai_when_auto_reply_enabled(): void
+    {
+        \App\Models\AiProviderKey::factory()->create(['is_active' => true, 'is_validated' => true]);
+        \App\Models\AiBot::factory()->active()->create();
+        \App\Models\AiSetting::set('ai_auto_response_enabled', true);
+
+        $flow = ChatbotFlow::factory()->active()->create([
+            'exported_data' => [
+                'nodes' => [
+                    [
+                        'id' => 'template_1',
+                        'type' => 'templateMessage',
+                        'data' => [
+                            'messageType' => 'text',
+                            'text' => 'Pick one',
+                            'quickReplies' => ['Alpha', 'Beta'],
+                        ],
+                    ],
+                ],
+                'edges' => [],
+            ],
+        ]);
+
+        $conversation = Conversation::factory()->create([
+            'response_type' => \App\Enums\ConversationResponseType::Human,
+        ]);
+
+        ChatbotFlowState::query()->create([
+            'conversation_id' => $conversation->id,
+            'chatbot_flow_id' => $flow->id,
+            'current_node_id' => 'template_1',
+            'status' => ChatbotFlowStateStatus::Waiting,
+            'expires_at' => now()->addHour(),
+            'variables' => [
+                '_quick_replies' => ['Alpha', 'Beta'],
+                '_quick_reply_node_id' => 'template_1',
+                '_wait_variable_name' => 'user_response',
+            ],
+        ]);
+
+        $engine = app(ChatbotFlowEngine::class);
+        $result = $engine->processInbound($conversation, Message::factory()->create([
+            'conversation_id' => $conversation->id,
+            'body' => 'hey',
+            'direction' => MessageDirection::Inbound,
+        ]));
+
+        $this->assertSame('no_match', $result->value);
+
+        $ai = app(\App\Domains\AiBot\Services\AiInboundReplyService::class);
+        $this->assertTrue($ai->shouldTrigger(
+            $conversation->refresh(),
+            Message::factory()->create([
+                'conversation_id' => $conversation->id,
+                'body' => 'hey',
+                'direction' => MessageDirection::Inbound,
+                'message_type' => MessageType::Text,
+            ])
+        ));
     }
 
     public function test_keyword_trigger_blocks_ai_ownership_while_flow_active(): void

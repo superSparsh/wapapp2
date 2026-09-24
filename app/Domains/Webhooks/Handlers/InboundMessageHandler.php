@@ -209,11 +209,19 @@ class InboundMessageHandler
                     $triggerResult = TriggerFireResult::NoMatch;
                 }
 
-                // AI only when chatbot / trigger-template did not fire a turn (legacy).
+                // AI when chatbot did not exclusively claim the turn.
+                // FiredAllowAi = offline-hours (etc.) already sent; AI may still answer.
                 // WalletBlocked / SendFailed must not permanently silence AI Assistant.
-                if ($chatbotResult !== TriggerFireResult::Fired && $triggerResult !== TriggerFireResult::Fired) {
+                $allowAi = ! $chatbotResult->consumedTurn() && ! $triggerResult->consumedTurn();
+
+                if ($allowAi) {
                     try {
-                        $this->aiInboundReplyService->handle($conversation->refresh(), $message);
+                        $this->aiInboundReplyService->handle(
+                            $conversation->refresh(),
+                            $message,
+                            ignoreChatbotOwnership: $chatbotResult === TriggerFireResult::FiredAllowAi
+                                || $triggerResult === TriggerFireResult::FiredAllowAi,
+                        );
                     } catch (\Throwable $e) {
                         Log::warning('AI inbound reply hook failed', [
                             'message_id' => $messageId,
