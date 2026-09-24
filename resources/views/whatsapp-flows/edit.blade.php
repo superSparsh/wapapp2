@@ -301,12 +301,15 @@
           </div>
 
           {{-- Right Panel: Field Config --}}
-          <div id="field-config-panel" class="hidden w-[320px] shrink-0 rounded-xl bg-elevated p-4 shadow-[0px_4px_6px_rgba(0,0,0,0.04)]">
+          <div id="field-config-panel" class="hidden w-[340px] shrink-0 rounded-xl border border-border-light bg-elevated p-4 shadow-[0px_4px_6px_rgba(0,0,0,0.04)]">
             <div class="flex items-center justify-between border-b border-divider pb-3">
-              <h3 id="config-panel-title" class="text-sm font-semibold text-text-primary">Field Config</h3>
-              <button type="button" id="close-config-panel" class="text-text-muted hover:text-text-body">&times;</button>
+              <div>
+                <p class="text-xs font-medium uppercase tracking-wide text-text-muted">Field</p>
+                <h3 id="config-panel-title" class="text-base font-semibold leading-[1.4] text-text-primary">Field settings</h3>
+              </div>
+              <button type="button" id="close-config-panel" class="flex size-8 items-center justify-center rounded-lg text-text-muted hover:bg-muted-surface hover:text-text-body" aria-label="Close">&times;</button>
             </div>
-            <div id="config-panel-body" class="mt-3 flex flex-col gap-3">
+            <div id="config-panel-body" class="mt-4 flex flex-col gap-4">
               {{-- Dynamic config rendered by JS --}}
             </div>
           </div>

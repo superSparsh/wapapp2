@@ -13,6 +13,7 @@ let flowId = null;
 let canvasEl = null;
 let screenCounter = 0;
 let isDraggingFromPalette = false;
+let reorderDragIndex = null;
 let previewVisible = false;
 
 const FIELD_LABELS = {
@@ -157,9 +158,15 @@ function setupFieldDropTarget() {
     if (!container) return;
 
     container.addEventListener('dragover', (e) => {
-        if (!isDraggingFromPalette) return;
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'copy';
+        if (isDraggingFromPalette) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'copy';
+            return;
+        }
+        if (reorderDragIndex !== null) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+        }
     });
 
     container.addEventListener('drop', (e) => {
@@ -441,57 +448,133 @@ function renderFields() {
 
     screen.fields.forEach((field, idx) => {
         const row = document.createElement('div');
-        row.className = 'flex items-center gap-3 rounded-lg border border-divider bg-surface p-3 transition-colors cursor-pointer '
-            + (idx === currentFieldIndex ? 'border-green-500 ring-1 ring-green-500' : 'hover:border-green-300');
-        row.addEventListener('click', () => { currentFieldIndex = idx; showConfigPanel(field, idx); renderFields(); });
-
-        // Drag handle for reordering
-        const handle = document.createElement('span');
-        handle.className = 'cursor-grab text-text-muted select-none';
-        handle.textContent = '⠿';
-        handle.draggable = true;
-        handle.addEventListener('dragstart', e => { e.dataTransfer.setData('text/plain', String(idx)); });
-        handle.addEventListener('dragover', e => e.preventDefault());
-        handle.addEventListener('drop', e => {
-            e.preventDefault();
-            const from = parseInt(e.dataTransfer.getData('text/plain'), 10);
-            if (from === idx) return;
-            const [moved] = screen.fields.splice(from, 1);
-            screen.fields.splice(idx, 0, moved);
+        row.className = 'field-row group flex items-center gap-2 rounded-xl border border-border-light bg-elevated p-3 shadow-[0px_1px_2px_rgba(0,0,0,0.04)] transition-colors cursor-pointer '
+            + (idx === currentFieldIndex
+                ? 'border-green-500 ring-1 ring-green-500'
+                : 'hover:border-green-100');
+        row.dataset.fieldIndex = String(idx);
+        row.addEventListener('click', () => {
+            currentFieldIndex = idx;
+            showConfigPanel(field, idx);
             renderFields();
-            renderPreview();
+        });
+
+        // Drag handle — whole-row reorder targets live on the row itself
+        const handle = document.createElement('button');
+        handle.type = 'button';
+        handle.className = 'flex size-8 shrink-0 cursor-grab items-center justify-center rounded-lg text-text-muted hover:bg-muted-surface active:cursor-grabbing';
+        handle.title = 'Drag to reorder';
+        handle.setAttribute('aria-label', 'Drag to reorder');
+        handle.innerHTML = '<svg class="size-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>';
+        handle.draggable = true;
+        handle.addEventListener('click', (e) => e.stopPropagation());
+        handle.addEventListener('dragstart', (e) => {
+            e.stopPropagation();
+            reorderDragIndex = idx;
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('application/x-flow-field-index', String(idx));
+            e.dataTransfer.setData('text/plain', 'reorder:' + idx);
+            row.classList.add('opacity-50');
+        });
+        handle.addEventListener('dragend', () => {
+            reorderDragIndex = null;
+            container.querySelectorAll('.field-row').forEach((el) => {
+                el.classList.remove('opacity-50', 'border-green-500', 'ring-1', 'ring-green-500', 'border-t-2', 'border-t-green-500');
+            });
+            renderFields();
         });
         row.appendChild(handle);
 
+        row.addEventListener('dragover', (e) => {
+            if (reorderDragIndex === null || isDraggingFromPalette) return;
+            e.preventDefault();
+            e.stopPropagation();
+            e.dataTransfer.dropEffect = 'move';
+            row.classList.add('border-t-2', 'border-t-green-500');
+        });
+        row.addEventListener('dragleave', () => {
+            row.classList.remove('border-t-2', 'border-t-green-500');
+        });
+        row.addEventListener('drop', (e) => {
+            if (reorderDragIndex === null || isDraggingFromPalette) return;
+            e.preventDefault();
+            e.stopPropagation();
+            row.classList.remove('border-t-2', 'border-t-green-500');
+
+            const from = reorderDragIndex;
+            const to = idx;
+            if (from === to || from < 0 || from >= screen.fields.length) return;
+
+            const [moved] = screen.fields.splice(from, 1);
+            screen.fields.splice(to, 0, moved);
+
+            if (currentFieldIndex === from) currentFieldIndex = to;
+            else if (from < currentFieldIndex && to >= currentFieldIndex) currentFieldIndex -= 1;
+            else if (from > currentFieldIndex && to <= currentFieldIndex) currentFieldIndex += 1;
+
+            reorderDragIndex = null;
+            renderFields();
+            renderPreview();
+            if (currentFieldIndex !== null && screen.fields[currentFieldIndex]) {
+                showConfigPanel(screen.fields[currentFieldIndex], currentFieldIndex);
+            }
+        });
+
         // Type badge
         const typeBadge = document.createElement('span');
-        typeBadge.className = 'shrink-0 rounded bg-green-50 px-2 py-0.5 text-[10px] font-semibold text-green-600';
+        typeBadge.className = 'shrink-0 rounded-md bg-green-50 px-2 py-1 text-[10px] font-semibold leading-[1.4] text-green-700';
         typeBadge.textContent = FIELD_LABELS[field.type] || field.type;
         row.appendChild(typeBadge);
 
         // Label
         const labelEl = document.createElement('span');
-        labelEl.className = 'min-w-0 flex-1 truncate text-sm text-text-body';
+        labelEl.className = 'min-w-0 flex-1 truncate text-sm font-medium text-text-body';
         labelEl.textContent = field.label || field.name;
         row.appendChild(labelEl);
 
         // Required indicator
         if (field.required) {
             const req = document.createElement('span');
-            req.className = 'text-[10px] font-medium text-red-400';
+            req.className = 'rounded bg-red-50 px-1.5 py-0.5 text-[10px] font-semibold text-danger';
             req.textContent = 'REQ';
             row.appendChild(req);
         }
 
+        // Move up / down (reliable reorder without HTML5 DnD quirks)
+        const moveWrap = document.createElement('div');
+        moveWrap.className = 'flex shrink-0 flex-col gap-0.5';
+        moveWrap.addEventListener('click', (e) => e.stopPropagation());
+
+        const upBtn = document.createElement('button');
+        upBtn.type = 'button';
+        upBtn.className = 'flex size-6 items-center justify-center rounded text-text-muted hover:bg-muted-surface hover:text-text-body disabled:opacity-30';
+        upBtn.title = 'Move up';
+        upBtn.disabled = idx === 0;
+        upBtn.innerHTML = '<svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 15l-6-6-6 6"/></svg>';
+        upBtn.addEventListener('click', () => moveField(idx, idx - 1));
+        moveWrap.appendChild(upBtn);
+
+        const downBtn = document.createElement('button');
+        downBtn.type = 'button';
+        downBtn.className = 'flex size-6 items-center justify-center rounded text-text-muted hover:bg-muted-surface hover:text-text-body disabled:opacity-30';
+        downBtn.title = 'Move down';
+        downBtn.disabled = idx === screen.fields.length - 1;
+        downBtn.innerHTML = '<svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>';
+        downBtn.addEventListener('click', () => moveField(idx, idx + 1));
+        moveWrap.appendChild(downBtn);
+        row.appendChild(moveWrap);
+
         // Remove button
         const removeBtn = document.createElement('button');
         removeBtn.type = 'button';
-        removeBtn.className = 'shrink-0 rounded p-1 text-text-muted hover:bg-red-50 hover:text-red-500';
+        removeBtn.className = 'flex size-8 shrink-0 items-center justify-center rounded-lg text-text-muted hover:bg-red-50 hover:text-danger';
+        removeBtn.setAttribute('aria-label', 'Remove field');
         removeBtn.innerHTML = '&times;';
-        removeBtn.addEventListener('click', e => {
+        removeBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             screen.fields.splice(idx, 1);
             if (currentFieldIndex === idx) { currentFieldIndex = null; hideConfigPanel(); }
+            else if (currentFieldIndex !== null && currentFieldIndex > idx) currentFieldIndex -= 1;
             renderFields();
             renderScreenList();
             updateBadges();
@@ -503,6 +586,26 @@ function renderFields() {
     });
 }
 
+function moveField(from, to) {
+    const screen = getScreen(currentScreenId);
+    if (!screen || from === to || from < 0 || to < 0 || from >= screen.fields.length || to >= screen.fields.length) {
+        return;
+    }
+
+    const [moved] = screen.fields.splice(from, 1);
+    screen.fields.splice(to, 0, moved);
+
+    if (currentFieldIndex === from) currentFieldIndex = to;
+    else if (from < currentFieldIndex && to >= currentFieldIndex) currentFieldIndex -= 1;
+    else if (from > currentFieldIndex && to <= currentFieldIndex) currentFieldIndex += 1;
+
+    renderFields();
+    renderPreview();
+    if (currentFieldIndex !== null && screen.fields[currentFieldIndex]) {
+        showConfigPanel(screen.fields[currentFieldIndex], currentFieldIndex);
+    }
+}
+
 /* ── Field Config Panel ── */
 
 function showConfigPanel(field, idx) {
@@ -512,20 +615,23 @@ function showConfigPanel(field, idx) {
     if (!panel || !body) return;
 
     panel.classList.remove('hidden');
-    if (title) title.textContent = (FIELD_LABELS[field.type] || field.type) + ' Config';
+    if (title) title.textContent = (FIELD_LABELS[field.type] || field.type) + ' settings';
 
     body.innerHTML = '';
 
+    const section = document.createElement('div');
+    section.className = 'rounded-[12px] border border-border-light bg-muted-surface p-4 flex flex-col gap-4';
+
     // Label / Title
     if (['large-heading', 'small-heading', 'caption', 'text-display', 'footer'].includes(field.type)) {
-        body.appendChild(createTextarea('Text Content', field.text || field.label || '', v => {
+        section.appendChild(createTextarea('Text content', field.text || field.label || '', (v) => {
             field.text = v;
             field.label = v;
             renderFields();
             renderPreview();
         }));
     } else {
-        body.appendChild(createInput('Label', field.label || '', v => {
+        section.appendChild(createInput('Label', field.label || '', (v) => {
             field.label = v;
             renderFields();
             renderPreview();
@@ -534,21 +640,24 @@ function showConfigPanel(field, idx) {
 
     // Field Name (Identifier)
     const nameRow = document.createElement('div');
-    nameRow.className = 'flex flex-col gap-1';
-    nameRow.innerHTML = '<label class="text-xs font-medium text-text-muted">Field Name (Payload Key)</label><p class="text-xs text-text-body bg-surface rounded px-2 py-1.5 font-mono">' + escapeHtml(field.name) + '</p>';
-    body.appendChild(nameRow);
+    nameRow.className = 'flex flex-col gap-2';
+    nameRow.innerHTML = '<label class="text-sm font-semibold leading-[1.4] text-text-primary">Field name (payload key)</label>'
+        + '<p class="rounded-lg border border-border-light bg-elevated px-4 py-3 text-sm font-mono text-text-body">'
+        + escapeHtml(field.name)
+        + '</p>';
+    section.appendChild(nameRow);
 
     // Placeholder
     if (['text', 'email', 'phone', 'number', 'password', 'paragraph'].includes(field.type)) {
-        body.appendChild(createInput('Placeholder', field.placeholder || '', v => {
+        section.appendChild(createInput('Placeholder', field.placeholder || '', (v) => {
             field.placeholder = v;
             renderPreview();
         }));
     }
 
-    // Helper Text (optional description for user)
+    // Helper Text
     if (!['large-heading', 'small-heading', 'caption', 'text-display', 'footer', 'image'].includes(field.type)) {
-        body.appendChild(createInput('Helper Text (optional description)', field.helper_text || '', v => {
+        section.appendChild(createInput('Helper text (optional)', field.helper_text || '', (v) => {
             field.helper_text = v;
             renderPreview();
         }));
@@ -556,7 +665,7 @@ function showConfigPanel(field, idx) {
 
     // Image URL
     if (field.type === 'image') {
-        body.appendChild(createInput('Image URL', field.src || '', v => {
+        section.appendChild(createInput('Image URL', field.src || '', (v) => {
             field.src = v;
             renderPreview();
         }));
@@ -564,22 +673,24 @@ function showConfigPanel(field, idx) {
 
     // Required toggle
     if (!['large-heading', 'small-heading', 'caption', 'text-display', 'footer', 'image'].includes(field.type)) {
-        body.appendChild(createToggle('Required', !!field.required, v => {
+        section.appendChild(createToggle('Required field', !!field.required, (v) => {
             field.required = v;
             renderFields();
             renderPreview();
         }));
     }
 
-    // Options editor for selection types
+    // Options editor
     if (['radio', 'checkbox', 'dropdown'].includes(field.type)) {
-        body.appendChild(createOptionsEditor(field));
+        section.appendChild(createOptionsEditor(field));
     }
+
+    body.appendChild(section);
 
     const removeBtn = document.createElement('button');
     removeBtn.type = 'button';
-    removeBtn.className = 'mt-2 w-full rounded-lg bg-red-50 py-2 text-xs font-semibold text-red-500 hover:bg-red-100';
-    removeBtn.textContent = 'Remove Field';
+    removeBtn.className = 'fd-btn inline-flex w-full items-center justify-center rounded border border-solid border-red-400 bg-red-50 px-4 py-3 text-sm font-semibold leading-[1.5] text-danger transition-colors hover:bg-red-100';
+    removeBtn.textContent = 'Remove field';
     removeBtn.addEventListener('click', () => {
         const screen = getScreen(currentScreenId);
         if (screen) {
@@ -602,15 +713,15 @@ function hideConfigPanel() {
 
 function createInput(labelText, value, onChange) {
     const wrap = document.createElement('div');
-    wrap.className = 'flex flex-col gap-1';
+    wrap.className = 'flex flex-col gap-2';
     const lbl = document.createElement('label');
-    lbl.className = 'text-xs font-medium text-text-muted';
+    lbl.className = 'text-sm font-semibold leading-[1.4] text-text-primary';
     lbl.textContent = labelText;
     wrap.appendChild(lbl);
     const input = document.createElement('input');
     input.type = 'text';
     input.value = value;
-    input.className = 'w-full rounded border border-divider bg-surface px-3 py-2 text-xs text-text-body focus:border-green-500 focus:outline-none';
+    input.className = 'w-full rounded-lg border border-border-light bg-elevated px-4 py-3 text-sm text-text-body placeholder:text-text-muted focus:border-green-500 focus:outline-none';
     input.addEventListener('input', () => onChange(input.value));
     wrap.appendChild(input);
     return wrap;
@@ -618,15 +729,15 @@ function createInput(labelText, value, onChange) {
 
 function createTextarea(labelText, value, onChange) {
     const wrap = document.createElement('div');
-    wrap.className = 'flex flex-col gap-1';
+    wrap.className = 'flex flex-col gap-2';
     const lbl = document.createElement('label');
-    lbl.className = 'text-xs font-medium text-text-muted';
+    lbl.className = 'text-sm font-semibold leading-[1.4] text-text-primary';
     lbl.textContent = labelText;
     wrap.appendChild(lbl);
     const ta = document.createElement('textarea');
     ta.value = value;
     ta.rows = 3;
-    ta.className = 'w-full rounded border border-divider bg-surface px-3 py-2 text-xs text-text-body focus:border-green-500 focus:outline-none';
+    ta.className = 'w-full rounded-lg border border-border-light bg-elevated px-4 py-3 text-sm text-text-body placeholder:text-text-muted focus:border-green-500 focus:outline-none';
     ta.addEventListener('input', () => onChange(ta.value));
     wrap.appendChild(ta);
     return wrap;
@@ -634,17 +745,36 @@ function createTextarea(labelText, value, onChange) {
 
 function createToggle(labelText, checked, onChange) {
     const wrap = document.createElement('div');
-    wrap.className = 'flex items-center justify-between';
+    wrap.className = 'flex items-center justify-between gap-3';
+
     const lbl = document.createElement('label');
-    lbl.className = 'text-xs font-medium text-text-muted';
+    lbl.className = 'text-sm font-semibold leading-[1.4] text-text-primary';
     lbl.textContent = labelText;
     wrap.appendChild(lbl);
-    const cb = document.createElement('input');
-    cb.type = 'checkbox';
-    cb.checked = checked;
-    cb.className = 'size-4 accent-green-500';
-    cb.addEventListener('change', () => onChange(cb.checked));
-    wrap.appendChild(cb);
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.setAttribute('role', 'switch');
+    btn.setAttribute('aria-checked', checked ? 'true' : 'false');
+    btn.className = 'relative inline-flex h-[18px] w-10 shrink-0 cursor-pointer rounded-full shadow-[inset_0px_6px_8px_3px_rgba(0,0,0,0.1)] transition-colors '
+        + (checked ? 'bg-green-500' : 'bg-green-50');
+
+    const knob = document.createElement('span');
+    knob.className = 'pointer-events-none absolute top-[2px] size-[14px] rounded-full bg-gradient-to-b from-white to-[#e8eaea] shadow-[2px_1px_3px_rgba(0,0,0,0.25)] transition-[left] '
+        + (checked ? 'left-[24px]' : 'left-[2px]');
+    btn.appendChild(knob);
+
+    btn.addEventListener('click', () => {
+        const next = btn.getAttribute('aria-checked') !== 'true';
+        btn.setAttribute('aria-checked', next ? 'true' : 'false');
+        btn.className = 'relative inline-flex h-[18px] w-10 shrink-0 cursor-pointer rounded-full shadow-[inset_0px_6px_8px_3px_rgba(0,0,0,0.1)] transition-colors '
+            + (next ? 'bg-green-500' : 'bg-green-50');
+        knob.className = 'pointer-events-none absolute top-[2px] size-[14px] rounded-full bg-gradient-to-b from-white to-[#e8eaea] shadow-[2px_1px_3px_rgba(0,0,0,0.25)] transition-[left] '
+            + (next ? 'left-[24px]' : 'left-[2px]');
+        onChange(next);
+    });
+
+    wrap.appendChild(btn);
     return wrap;
 }
 
@@ -652,12 +782,12 @@ function createOptionsEditor(field) {
     const wrap = document.createElement('div');
     wrap.className = 'flex flex-col gap-2';
     const lbl = document.createElement('label');
-    lbl.className = 'text-xs font-medium text-text-muted';
+    lbl.className = 'text-sm font-semibold leading-[1.4] text-text-primary';
     lbl.textContent = 'Options';
     wrap.appendChild(lbl);
 
     const list = document.createElement('div');
-    list.className = 'flex flex-col gap-1';
+    list.className = 'flex flex-col gap-2';
 
     function render() {
         list.innerHTML = '';
@@ -667,12 +797,13 @@ function createOptionsEditor(field) {
             const input = document.createElement('input');
             input.type = 'text';
             input.value = opt;
-            input.className = 'flex-1 rounded border border-divider bg-surface px-2 py-1.5 text-xs text-text-body focus:border-green-500 focus:outline-none';
+            input.className = 'flex-1 rounded-lg border border-border-light bg-elevated px-3 py-2.5 text-sm text-text-body focus:border-green-500 focus:outline-none';
             input.addEventListener('input', () => { field.options[i] = input.value; renderPreview(); });
             row.appendChild(input);
             const rm = document.createElement('button');
             rm.type = 'button';
-            rm.className = 'text-text-muted hover:text-red-500 text-xs';
+            rm.className = 'flex size-9 shrink-0 items-center justify-center rounded-lg text-text-muted hover:bg-red-50 hover:text-danger';
+            rm.setAttribute('aria-label', 'Remove option');
             rm.textContent = '✕';
             rm.addEventListener('click', () => { field.options.splice(i, 1); render(); renderPreview(); });
             row.appendChild(rm);
@@ -683,8 +814,8 @@ function createOptionsEditor(field) {
 
     const addBtn = document.createElement('button');
     addBtn.type = 'button';
-    addBtn.className = 'rounded bg-green-50 px-2 py-1 text-xs font-semibold text-green-500 hover:bg-green-100';
-    addBtn.textContent = '+ Add Option';
+    addBtn.className = 'fd-btn inline-flex items-center justify-center gap-2 rounded border border-solid border-green-500 bg-green-50 px-4 py-2.5 text-sm font-semibold leading-[1.5] text-green-500 transition-colors hover:bg-green-100';
+    addBtn.textContent = '+ Add option';
     addBtn.addEventListener('click', () => {
         if (!field.options) field.options = [];
         field.options.push('Option ' + (field.options.length + 1));
