@@ -69,7 +69,6 @@
               <tr class="bg-elevated">
                 <th class="w-[54px] p-2 text-[13px] font-medium leading-[1.5] whitespace-nowrap text-text-body">SI. No</th>
                 <th class="w-[280px] p-2 text-[13px] font-medium leading-[1.5] text-text-body">Flow Name</th>
-                <th class="p-2 text-[13px] font-medium leading-[1.5] text-text-body">Submissions</th>
                 <th class="p-2 text-[13px] font-medium leading-[1.5] text-text-body">Status</th>
                 <th class="p-2 text-[13px] font-medium leading-[1.5] text-text-body">Published</th>
                 <th class="p-2 text-[13px] font-medium leading-[1.5] text-text-body">Actions</th>
@@ -82,9 +81,6 @@
                   <td class="w-[280px] p-2">
                     <a href="{{ $flow['show_url'] }}" class="text-[13px] font-semibold leading-[1.5] text-text-subtle hover:text-green-500">{{ $flow['name'] }}</a>
                     <p class="text-xs font-normal leading-[1.5] text-text-body">Screens: {{ $flow['screen_count'] }}</p>
-                  </td>
-                  <td class="p-2">
-                    <a href="{{ $flow['stats_url'] }}" class="text-[13px] font-medium leading-[1.5] text-text-body hover:text-green-500">{{ $flow['submission_count'] }}</a>
                   </td>
                   <td class="p-2">
                     @if ($flow['status'] === 'active')
@@ -143,7 +139,7 @@
                 </tr>
               @empty
                 <tr class="border-t border-divider bg-elevated">
-                  <td colspan="6" class="p-8 text-center text-sm text-text-muted">
+                  <td colspan="5" class="p-8 text-center text-sm text-text-muted">
                     No WhatsApp Flows found. Click <strong>Create Flow</strong> to build one.
                   </td>
                 </tr>
