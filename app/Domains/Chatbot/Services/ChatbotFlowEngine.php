@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Domains\Chatbot\Services;
 
+use App\Domains\AiBot\Services\AiInboundReplyService;
 use App\Domains\Billing\Services\WalletService;
 use App\Domains\Chatbot\Enums\NodeProcessResult;
 use App\Domains\Chatbot\Support\FlowVariableResolver;
+use App\Domains\Chatbot\Support\OfflineHoursEvaluator;
 use App\Domains\Inbox\Services\InboxOutboundService;
 use App\Domains\TriggerTemplate\Enums\TriggerFireResult;
 use App\Enums\ChatbotFlowStateStatus;
@@ -768,6 +770,19 @@ class ChatbotFlowEngine
             'message' => $messageLower,
         ]);
 
+        // Outside business hours + AI Assistant eligible → do not send the canned
+        // chatbot offline reply (it would Fired-claim the turn and silence AI).
+        if ($this->shouldDeferOfflineHoursTriggerToAi($best, $conversation)) {
+            Log::info('Chatbot deferred offline-hours keyword to AI', [
+                'conversation_id' => $conversation->id,
+                'flow_id' => $best['flow']->id,
+                'node_id' => $best['node_id'],
+                'keyword' => $best['keyword'],
+            ]);
+
+            return TriggerFireResult::NoMatch;
+        }
+
         // Legacy resetConversationForStart — clear other bots mid-flight.
         $this->resetConversationStates($conversation);
 
@@ -778,6 +793,25 @@ class ChatbotFlowEngine
             $best['node_id'],
             $body,
         );
+    }
+
+    /**
+     * @param  array{flow: ChatbotFlow, node_map: array<string, array<string, mixed>>, node_id: string}  $best
+     */
+    private function shouldDeferOfflineHoursTriggerToAi(array $best, Conversation $conversation): bool
+    {
+        $node = $best['node_map'][$best['node_id']] ?? null;
+        if (! is_array($node)) {
+            return false;
+        }
+
+        $data = is_array($node['data'] ?? null) ? $node['data'] : [];
+
+        if (! OfflineHoursEvaluator::shouldSendOfflineMessage($data)) {
+            return false;
+        }
+
+        return app(AiInboundReplyService::class)->isEligibleForAutoReply($conversation);
     }
 
     /**

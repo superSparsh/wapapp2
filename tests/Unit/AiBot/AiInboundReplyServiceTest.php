@@ -184,6 +184,37 @@ class AiInboundReplyServiceTest extends TestCase
         $this->assertTrue($service->handle($conversation, $message));
     }
 
+    public function test_is_eligible_for_auto_reply_ignores_chatbot_ownership(): void
+    {
+        AiProviderKey::factory()->create(['is_active' => true, 'is_validated' => true]);
+        AiBot::factory()->active()->create();
+        AiSetting::set('ai_auto_response_enabled', true);
+
+        $conversation = Conversation::factory()->create([
+            'response_type' => ConversationResponseType::Human,
+        ]);
+        \App\Models\ChatbotFlowState::query()->create([
+            'conversation_id' => $conversation->id,
+            'chatbot_flow_id' => \App\Models\ChatbotFlow::factory()->create()->id,
+            'current_node_id' => 'n1',
+            'status' => \App\Enums\ChatbotFlowStateStatus::Waiting,
+            'expires_at' => now()->addHour(),
+            'variables' => [],
+        ]);
+
+        $service = app(AiInboundReplyService::class);
+
+        $this->assertTrue($service->isEligibleForAutoReply($conversation));
+        $this->assertFalse($service->shouldTrigger(
+            $conversation,
+            Message::factory()->create([
+                'conversation_id' => $conversation->id,
+                'message_type' => MessageType::Text,
+                'body' => 'Hello',
+            ])
+        ));
+    }
+
     public function test_ai_setting_bool_round_trip(): void
     {
         AiSetting::set('ai_auto_response_enabled', false);

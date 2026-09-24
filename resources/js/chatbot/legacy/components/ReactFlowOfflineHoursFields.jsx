@@ -33,7 +33,8 @@ export const toOfflineTimeValue = (value) => {
 
 /** Flatten TimePicker dayjs → HH:mm before persisting node data. */
 export const normalizeOfflineHoursForSave = (values = {}) => {
-  const enabled = !!values.enableOfflineHours;
+  // Strict boolean — avoid string "false"/undefined flipping the Switch path on.
+  const enabled = values.enableOfflineHours === true || values.enableOfflineHours === 1;
   const fromRaw = values.onlineFrom;
   const untilRaw = values.onlineUntil;
 
@@ -44,14 +45,19 @@ export const normalizeOfflineHoursForSave = (values = {}) => {
     ? untilRaw.format(TIME_FORMAT)
     : String(untilRaw || OFFLINE_HOURS_DEFAULTS.onlineUntil).slice(0, 5);
 
+  const trimmedMessage = values.offlineMessage
+    ? String(values.offlineMessage).trim()
+    : "";
+
   return {
     enableOfflineHours: enabled,
     timezone: values.timezone || OFFLINE_HOURS_DEFAULTS.timezone,
     onlineFrom: onlineFrom || OFFLINE_HOURS_DEFAULTS.onlineFrom,
     onlineUntil: onlineUntil || OFFLINE_HOURS_DEFAULTS.onlineUntil,
-    offlineMessage:
-      (values.offlineMessage && String(values.offlineMessage).trim()) ||
-      OFFLINE_HOURS_DEFAULTS.offlineMessage,
+    // Only keep / default the offline copy when the feature is actually on.
+    offlineMessage: enabled
+      ? trimmedMessage || OFFLINE_HOURS_DEFAULTS.offlineMessage
+      : trimmedMessage,
   };
 };
 
@@ -97,7 +103,9 @@ const ReactFlowOfflineHoursFields = () => {
         }
       >
         {({ getFieldValue }) => {
-          const enabled = !!getFieldValue("enableOfflineHours");
+          const enabled =
+            getFieldValue("enableOfflineHours") === true ||
+            getFieldValue("enableOfflineHours") === 1;
           return (
             <div style={{ display: enabled ? "block" : "none" }}>
               <Form.Item

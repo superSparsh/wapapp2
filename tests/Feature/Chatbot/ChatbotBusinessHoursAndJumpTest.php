@@ -642,6 +642,75 @@ class ChatbotBusinessHoursAndJumpTest extends TestCase
         $this->assertNotContains('We are open!', $sent);
     }
 
+    public function test_welcome_offline_hours_defers_to_ai_when_auto_reply_enabled(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-08-19 23:30:00', 'Asia/Kolkata'));
+
+        $sent = [];
+        $this->mock(InboxOutboundService::class, function ($mock) use (&$sent): void {
+            $mock->shouldReceive('sendText')->andReturnUsing(function ($conversation, string $body) use (&$sent) {
+                $sent[] = $body;
+
+                return new Message([
+                    'id' => count($sent),
+                    'body' => $body,
+                    'direction' => MessageDirection::Outbound,
+                    'message_type' => MessageType::Text,
+                ]);
+            });
+            $mock->shouldReceive('sendTypingIndicator')->andReturn(true);
+        });
+
+        \App\Models\AiProviderKey::factory()->create(['is_active' => true, 'is_validated' => true]);
+        \App\Models\AiBot::factory()->active()->create();
+        \App\Models\AiSetting::set('ai_auto_response_enabled', true);
+
+        ChatbotFlow::factory()->active()->create([
+            'exported_data' => [
+                'nodes' => [
+                    [
+                        'id' => 'welcome_1',
+                        'type' => 'welcomeMessage',
+                        'data' => [
+                            'messageType' => 'text',
+                            'triggerKeyword' => 'hours',
+                            'welcomeMessage' => 'We are open!',
+                            'enableOfflineHours' => true,
+                            'timezone' => 'Asia/Kolkata',
+                            'onlineFrom' => '09:00',
+                            'onlineUntil' => '21:00',
+                            'offlineMessage' => 'We are offline right now.',
+                        ],
+                    ],
+                ],
+                'edges' => [],
+            ],
+        ]);
+
+        $conversation = Conversation::factory()->create([
+            'response_type' => \App\Enums\ConversationResponseType::Human,
+        ]);
+        $engine = app(ChatbotFlowEngine::class);
+
+        $result = $engine->processInbound($conversation, Message::factory()->create([
+            'conversation_id' => $conversation->id,
+            'body' => 'hours',
+            'direction' => MessageDirection::Inbound,
+        ]));
+
+        $this->assertSame('no_match', $result->value);
+        $this->assertSame([], $sent);
+
+        $ai = app(\App\Domains\AiBot\Services\AiInboundReplyService::class);
+        $followUp = Message::factory()->create([
+            'conversation_id' => $conversation->id,
+            'body' => 'hours',
+            'direction' => MessageDirection::Inbound,
+            'message_type' => MessageType::Text,
+        ]);
+        $this->assertTrue($ai->shouldTrigger($conversation->refresh(), $followUp));
+    }
+
     public function test_keyword_trigger_blocks_ai_ownership_while_flow_active(): void
     {
         ChatbotFlow::factory()->active()->create([

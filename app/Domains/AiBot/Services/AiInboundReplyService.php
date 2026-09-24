@@ -70,6 +70,16 @@ class AiInboundReplyService
             return false;
         }
 
+        return $this->isEligibleForAutoReply($conversation);
+    }
+
+    /**
+     * Whether AI would answer this chat if chatbot does not own the turn.
+     * Used by chatbot offline-hours deferral so a canned offline reply does not
+     * block a configured AI Assistant outside business hours.
+     */
+    public function isEligibleForAutoReply(Conversation $conversation): bool
+    {
         if (! $this->hasConfiguredProvider()) {
             return false;
         }

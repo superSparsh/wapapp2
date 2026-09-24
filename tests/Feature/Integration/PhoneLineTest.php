@@ -520,5 +520,23 @@ class PhoneLineTest extends TestCase
         $this->assertContains('inbox.index', $routes);
         $this->assertContains('campaigns.index', $routes);
         $this->assertContains('openai-key.index', $routes);
+        $this->assertTrue(
+            \App\Domains\Integration\Support\LineContextGate::allowsRoute('openai-key.test-bot')
+        );
+        $this->assertTrue(
+            \App\Domains\Integration\Support\LineContextGate::allowsRoute('ai-bots.index')
+        );
+        $this->assertTrue(
+            \App\Domains\Integration\Support\LineContextGate::allowsRoute('ai-bots.edit')
+        );
+        $this->assertTrue(
+            \App\Domains\Integration\Support\LineContextGate::allowsRoute('process_query')
+        );
+        $this->assertTrue(
+            \App\Domains\Integration\Support\LineContextGate::allowsRoute('knowledge_base')
+        );
+        $this->assertFalse(
+            \App\Domains\Integration\Support\LineContextGate::allowsRoute('profile.security')
+        );
     }
 }
