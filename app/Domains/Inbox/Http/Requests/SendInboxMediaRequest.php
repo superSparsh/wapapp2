@@ -21,11 +21,14 @@ class SendInboxMediaRequest extends FormRequest
      */
     public function rules(): array
     {
-        $type = (string) $this->input('media_type', '');
+        $type = (string) $this->input('media_type', 'image');
+        if (! in_array($type, WhatsappMediaRules::types(), true)) {
+            $type = 'image';
+        }
 
         return [
             'media_type' => ['required', 'string', Rule::in(WhatsappMediaRules::types())],
-            'file' => WhatsappMediaRules::fileRules($type !== '' ? $type : 'image'),
+            'file' => WhatsappMediaRules::fileRules($type),
             'caption' => ['nullable', 'string', 'max:1024'],
         ];
     }
@@ -55,15 +58,17 @@ class SendInboxMediaRequest extends FormRequest
      */
     public function messages(): array
     {
-        $type = (string) $this->input('media_type', 'file');
-        $hint = in_array($type, WhatsappMediaRules::types(), true)
-            ? WhatsappMediaRules::hint($type)
-            : 'Check the allowed format and size for this media type.';
+        $type = (string) $this->input('media_type', 'image');
+        if (! in_array($type, WhatsappMediaRules::types(), true)) {
+            $type = 'image';
+        }
 
-        return [
-            'file.required' => 'Please choose a file to upload.',
-            'file.mimes' => 'Invalid file format. '.$hint,
-            'file.max' => 'File is too large. '.$hint,
-        ];
+        return array_merge(
+            [
+                'media_type.required' => 'Please select a media type (image, video, audio, or document).',
+                'media_type.in' => 'Please select a valid media type (image, video, audio, or document).',
+            ],
+            WhatsappMediaRules::validationMessages($type),
+        );
     }
 }

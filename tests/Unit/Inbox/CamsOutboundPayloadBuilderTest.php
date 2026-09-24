@@ -106,7 +106,7 @@ class CamsOutboundPayloadBuilderTest extends TestCase
         $this->assertSame('Caption', $content['text']);
     }
 
-    public function test_contact_payload_is_cams_contacts_array_with_name_fields(): void
+    public function test_contact_payload_is_legacy_cams_contacts_array(): void
     {
         $line = $this->testLine;
         $conversation = Conversation::factory()->create([
@@ -131,6 +131,13 @@ class CamsOutboundPayloadBuilderTest extends TestCase
                         'phone' => '+91 88888 88902',
                         'type' => 'CELL',
                     ]],
+                    'emails' => [[
+                        'email' => 'ada@example.com',
+                        'type' => 'work',
+                    ]],
+                    'org' => [
+                        'company' => 'Analytical Engine Co',
+                    ],
                 ]],
             ],
         ]);
@@ -144,14 +151,18 @@ class CamsOutboundPayloadBuilderTest extends TestCase
         $content = json_decode($payload['Content'], true, 512, JSON_THROW_ON_ERROR);
 
         $this->assertSame('contacts', $payload['MessageType']);
+        // Legacy Content = json_encode([$contact, ...]) — a bare array.
         $this->assertIsArray($content);
-        $this->assertArrayHasKey(0, $content);
         $this->assertArrayNotHasKey('contacts', $content);
+        $this->assertArrayNotHasKey('name', $content);
         $this->assertSame('Ada Lovelace', $content[0]['name']['formatted_name']);
         $this->assertSame('Ada', $content[0]['name']['first_name']);
         $this->assertSame('Lovelace', $content[0]['name']['last_name']);
         $this->assertSame('918888888902', $content[0]['phones'][0]['phone']);
         $this->assertSame('918888888902', $content[0]['phones'][0]['wa_id']);
         $this->assertSame('CELL', $content[0]['phones'][0]['type']);
+        $this->assertSame('ada@example.com', $content[0]['emails'][0]['email']);
+        $this->assertSame('WORK', $content[0]['emails'][0]['type']);
+        $this->assertSame('Analytical Engine Co', $content[0]['org']['company']);
     }
 }

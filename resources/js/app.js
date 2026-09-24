@@ -1377,10 +1377,6 @@ function inboxApiErrorMessage(payload, fallback) {
         return fallback;
     }
 
-    if (typeof payload.message === 'string' && payload.message.trim() !== '') {
-        return payload.message;
-    }
-
     if (payload.errors && typeof payload.errors === 'object') {
         const first = Object.values(payload.errors)
             .flat()
@@ -1388,6 +1384,10 @@ function inboxApiErrorMessage(payload, fallback) {
         if (first) {
             return first;
         }
+    }
+
+    if (typeof payload.message === 'string' && payload.message.trim() !== '') {
+        return payload.message;
     }
 
     return fallback;
@@ -2941,7 +2941,7 @@ function initInboxOutboundModals() {
         const validateMediaFile = (file, type) => {
             const config = mediaTypeConfig(type);
             if (!file) {
-                return 'Please choose a file to upload.';
+                return 'Please choose a file to send.';
             }
             if (!config) {
                 return null;
@@ -2950,19 +2950,21 @@ function initInboxOutboundModals() {
             const ext = (file.name.split('.').pop() || '').toLowerCase();
             const allowed = Array.isArray(config.extensions) ? config.extensions : [];
             if (allowed.length > 0 && !allowed.includes(ext)) {
-                return `Invalid ${type} format. ${config.hint || ''}`.trim();
+                const formats = allowed.map((item) => String(item).toUpperCase()).join(', ');
+                return `This file type isn't allowed for ${type}s. Allowed formats: ${formats}.`;
             }
 
             const maxBytes = Number(config.max_bytes || 0);
             if (maxBytes > 0 && file.size > maxBytes) {
                 const maxMb = Math.round((maxBytes / (1024 * 1024)) * 10) / 10;
-                return `${type.charAt(0).toUpperCase()}${type.slice(1)} must be ${maxMb} MB or smaller.`;
+                const label = type === 'audio' ? 'audio file' : type;
+                return `This ${label} is too large. Maximum size is ${maxMb} MB. Please compress it or choose a smaller file.`;
             }
 
             // Guard against PHP "POST data is too large" before the request leaves the browser.
             const absoluteMax = Number(mediaRules.absolute_max_bytes || 0);
             if (absoluteMax > 0 && file.size > absoluteMax) {
-                return 'File is too large to upload. Choose a smaller file.';
+                return 'This file is too large to upload. Please choose a smaller file.';
             }
 
             return null;
@@ -3074,7 +3076,7 @@ function initInboxOutboundModals() {
                     if (response.status === 413 || (!error.message && !error.errors && response.status >= 400)) {
                         showFormError(
                             mediaForm,
-                            extractApiError(error, 'Upload failed — file may be too large. Max: image 5 MB; video/audio/document 14 MB.'),
+                            'Upload failed — the file may be too large. Limits: image 5 MB; video, audio, and documents 14 MB.',
                         );
                         return;
                     }

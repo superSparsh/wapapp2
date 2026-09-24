@@ -14,9 +14,11 @@
   <img
     src="{{ asset('images/inbox/menu/' . $item['image']) }}"
     alt=""
-    class="size-8 shrink-0 rounded-lg object-cover"
+    class="size-8 shrink-0 rounded-lg bg-green-50 object-contain p-0.5"
     width="32"
     height="32"
+    loading="eager"
+    onerror="this.onerror=null;this.src='{{ asset('images/inbox/menu/contact.png') }}';"
   >
   {{ $item['label'] }}
 </button>

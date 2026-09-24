@@ -38,13 +38,13 @@
 <form
   method="{{ $method }}"
   action="{{ $action }}"
-  class="flex w-full items-center justify-between gap-3"
+  class="flex w-full flex-wrap items-center justify-between gap-3"
   data-listing-toolbar
   {{ $attributes }}
 >
   {{ $hidden ?? '' }}
 
-  <div class="flex min-w-0 flex-1 items-center gap-2 overflow-visible" data-listing-controls>
+  <div class="flex min-w-0 flex-1 flex-wrap items-center gap-2 overflow-visible" data-listing-controls>
     @if ($showSort && count($sortOptions) > 0)
       <input type="hidden" name="{{ $sortName }}" value="{{ $currentSort }}" data-listing-sort-field>
       <input type="hidden" name="{{ $directionName }}" value="{{ $currentDirection }}" data-listing-sort-direction>
@@ -54,25 +54,27 @@
         <span class="text-sm font-semibold leading-[1.4] whitespace-nowrap text-primary-2">Sort by</span>
       </div>
 
-      <x-ui.select
-        variant="listing"
-        data-listing-sort
-        data-listing-sort-current="{{ $sortComposite }}"
-        class="w-[148px] shrink-0"
-        aria-label="Sort by"
-      >
-        @foreach ($sortOptions as $option)
-          @php
-            $value = is_array($option) ? ($option['value'] ?? '') : $option;
-            $label = is_array($option) ? ($option['label'] ?? $value) : $option;
-            $direction = is_array($option)
-                ? ($option['direction'] ?? ($value === 'name' ? 'asc' : 'desc'))
-                : ($value === 'name' ? 'asc' : 'desc');
-            $composite = $value . ':' . $direction;
-          @endphp
-          <option value="{{ $composite }}" @selected($sortComposite === $composite)>{{ $label }}</option>
-        @endforeach
-      </x-ui.select>
+      <div class="w-[148px] shrink-0" data-listing-sort-wrap>
+        <x-ui.select
+          variant="listing"
+          data-listing-sort
+          data-listing-sort-current="{{ $sortComposite }}"
+          class="w-full"
+          aria-label="Sort by"
+        >
+          @foreach ($sortOptions as $option)
+            @php
+              $value = is_array($option) ? ($option['value'] ?? '') : $option;
+              $label = is_array($option) ? ($option['label'] ?? $value) : $option;
+              $direction = is_array($option)
+                  ? ($option['direction'] ?? ($value === 'name' ? 'asc' : 'desc'))
+                  : ($value === 'name' ? 'asc' : 'desc');
+              $composite = $value . ':' . $direction;
+            @endphp
+            <option value="{{ $composite }}" @selected($sortComposite === $composite)>{{ $label }}</option>
+          @endforeach
+        </x-ui.select>
+      </div>
     @endif
 
     {{ $filters ?? '' }}

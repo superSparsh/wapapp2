@@ -336,6 +336,25 @@ function buildTriggerClasses(select, variant) {
     return classes.join(' ');
 }
 
+/**
+ * Copy layout sizing utilities from the native <select> onto the themed wrapper.
+ * Without this, listing toolbars lose w-[148px]/shrink-0 and the control collapses.
+ */
+function copyLayoutClasses(from, to) {
+    Array.from(from.classList).forEach((className) => {
+        if (
+            className === 'w-full'
+            || className === 'shrink-0'
+            || className === 'grow'
+            || className === 'min-w-0'
+            || /^(w|min-w|max-w)-\[/.test(className)
+            || /^(w|min-w|max-w)-(full|auto|screen|min|max|fit|\d+)/.test(className)
+        ) {
+            to.classList.add(className);
+        }
+    });
+}
+
 function stopMenuScrollPropagation(event) {
     event.stopPropagation();
 }
@@ -468,10 +487,7 @@ export function enhanceSelect(select) {
 
     const wrap = document.createElement('div');
     wrap.className = 'fd-select';
-
-    if (cleanedSelect.classList.contains('w-full')) {
-        wrap.classList.add('w-full');
-    }
+    copyLayoutClasses(cleanedSelect, wrap);
 
     mountParent.insertBefore(wrap, cleanedSelect);
     wrap.appendChild(cleanedSelect);

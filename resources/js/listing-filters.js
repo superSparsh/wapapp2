@@ -1,9 +1,48 @@
 /**
  * Shared listing page filters: sort, enter-to-search, filter auto-submit.
  */
+
+function submitListingForm(form) {
+    if (!(form instanceof HTMLFormElement)) {
+        return;
+    }
+
+    // Drop page so a sort/filter change always returns to results page 1.
+    form.querySelectorAll('input[name="page"]').forEach((input) => input.remove());
+
+    if (typeof form.requestSubmit === 'function') {
+        try {
+            form.requestSubmit();
+            return;
+        } catch {
+            // Fall through — some environments reject requestSubmit without a submitter.
+        }
+    }
+
+    const method = (form.getAttribute('method') || form.method || 'get').toLowerCase();
+    if (method === 'get') {
+        const action = form.getAttribute('action') || window.location.pathname;
+        const url = new URL(action, window.location.origin);
+        const params = new URLSearchParams(new FormData(form));
+
+        // Keep URL tidy: omit empty filter values.
+        Array.from(params.keys()).forEach((key) => {
+            if (params.get(key) === '') {
+                params.delete(key);
+            }
+        });
+
+        url.search = params.toString();
+        window.location.assign(url.toString());
+        return;
+    }
+
+    form.submit();
+}
+
 export function initListingFilters() {
     document.querySelectorAll('[data-listing-sort]').forEach((select) => {
-        if (select.dataset.listingSortBound) {
+        if (!(select instanceof HTMLSelectElement) || select.dataset.listingSortBound) {
             return;
         }
 
@@ -32,7 +71,7 @@ export function initListingFilters() {
                 directionInput.value = direction;
             }
 
-            form.requestSubmit();
+            submitListingForm(form);
         });
     });
 
@@ -44,7 +83,10 @@ export function initListingFilters() {
         control.dataset.listingFilterBound = '1';
 
         control.addEventListener('change', () => {
-            control.closest('form')?.requestSubmit();
+            const form = control.closest('form');
+            if (form) {
+                submitListingForm(form);
+            }
         });
     });
 
@@ -66,7 +108,7 @@ export function initListingFilters() {
             }
 
             event.preventDefault();
-            form.requestSubmit();
+            submitListingForm(form);
         });
 
         const debounceMs = Number(input.dataset.listingSearchDebounce || 0);
@@ -76,7 +118,7 @@ export function initListingFilters() {
             input.addEventListener('input', () => {
                 window.clearTimeout(timer);
                 timer = window.setTimeout(() => {
-                    form.requestSubmit();
+                    submitListingForm(form);
                 }, debounceMs);
             });
         }

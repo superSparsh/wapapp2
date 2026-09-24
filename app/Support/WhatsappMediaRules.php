@@ -90,7 +90,34 @@ final class WhatsappMediaRules
 
         return [
             'mimes:'.implode(',', $extensions),
+            'extensions:'.implode(',', $extensions),
             'max:'.self::maxKb($type),
+        ];
+    }
+
+    /**
+     * Human-friendly validation messages for a media type.
+     *
+     * @return array<string, string>
+     */
+    public static function validationMessages(string $type, string $attribute = 'file'): array
+    {
+        $label = match ($type) {
+            'image' => 'image',
+            'video' => 'video',
+            'audio' => 'audio file',
+            'document' => 'document',
+            default => 'file',
+        };
+        $formats = strtoupper(implode(', ', self::extensions($type) ?: self::allExtensions()));
+        $max = in_array($type, self::TYPES, true) ? self::maxMbLabel($type) : self::maxMbLabel('video');
+
+        return [
+            "{$attribute}.required" => 'Please choose a file to send.',
+            "{$attribute}.file" => 'Please choose a valid file to send.',
+            "{$attribute}.mimes" => "This file type isn't allowed for {$label}s. Allowed formats: {$formats}.",
+            "{$attribute}.extensions" => "This file type isn't allowed for {$label}s. Allowed formats: {$formats}.",
+            "{$attribute}.max" => "This {$label} is too large. Maximum size is {$max}. Please compress it or choose a smaller file.",
         ];
     }
 
@@ -196,22 +223,24 @@ final class WhatsappMediaRules
 
         if ($type === null || ! in_array($type, self::TYPES, true)) {
             throw ValidationException::withMessages([
-                $attribute => ['Unsupported file type. Use image, video, audio, or document formats allowed for WhatsApp.'],
+                $attribute => ['This file type is not supported. Please upload an image (JPEG/PNG/WEBP), video (MP4/3GP), audio (MP3/OGG/AMR/AAC/M4A), or document (PDF/DOCX/XLSX/PPTX/TXT).'],
             ]);
         }
 
         $extensions = self::extensions($type);
         $ext = strtolower((string) $file->getClientOriginalExtension());
         if ($extensions !== [] && ($ext === '' || ! in_array($ext, $extensions, true))) {
+            $formats = strtoupper(implode(', ', $extensions));
             throw ValidationException::withMessages([
-                $attribute => ['Invalid '.$type.' format. Allowed: '.strtoupper(implode(', ', $extensions)).'.'],
+                $attribute => ["This file type isn't allowed for {$type}s. Allowed formats: {$formats}."],
             ]);
         }
 
         $maxBytes = self::maxKb($type) * 1024;
         if ($file->getSize() > $maxBytes) {
+            $label = $type === 'audio' ? 'audio file' : $type;
             throw ValidationException::withMessages([
-                $attribute => [ucfirst($type).' must be '.self::maxMbLabel($type).' or smaller.'],
+                $attribute => ["This {$label} is too large. Maximum size is ".self::maxMbLabel($type).'. Please compress it or choose a smaller file.'],
             ]);
         }
     }

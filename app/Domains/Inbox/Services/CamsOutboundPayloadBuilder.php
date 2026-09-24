@@ -201,9 +201,10 @@ class CamsOutboundPayloadBuilder
         $metadata = $message->metadata ?? [];
         $contacts = is_array($metadata['contacts'] ?? null) ? $metadata['contacts'] : [];
 
-        // Alibaba CAMS: Content for MessageType=contacts must be a contacts array
-        // (not {"contacts":[...]}). Each contact requires name.formatted_name plus
-        // at least one of first_name/last_name/…; phone values must be digits only.
+        // Legacy TeamInboxMessageService::sendContactsWithResponse + Alibaba docs:
+        // Content for MessageType=contacts MUST be a JSON array of contact objects
+        // (not a single object, not {"contacts":[...]}).
+        // Each contact requires name.formatted_name + ≥1 of first_name/last_name/…
         $normalized = [];
         foreach ($contacts as $contact) {
             if (! is_array($contact)) {
@@ -212,10 +213,14 @@ class CamsOutboundPayloadBuilder
             $normalized[] = $this->normalizeContactForCams($contact);
         }
 
+        if ($normalized === []) {
+            throw new \InvalidArgumentException('Contact details are incomplete. Add a name and phone number.');
+        }
+
         return array_merge($payload, [
             'Type' => 'message',
             'MessageType' => 'contacts',
-            'Content' => json_encode(array_values($normalized), JSON_THROW_ON_ERROR),
+            'Content' => json_encode(array_values($normalized), JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR),
         ]);
     }
 
@@ -241,7 +246,12 @@ class CamsOutboundPayloadBuilder
         if ($first === '' && $last === '' && $middle === '' && $prefix === '' && $suffix === '' && $formatted !== '') {
             $parts = preg_split('/\s+/', $formatted, 2) ?: [];
             $first = (string) ($parts[0] ?? $formatted);
-            $last = isset($parts[1]) ? (string) $parts[1] : '';
+            $last = isset($parts[1]) ? trim((string) $parts[1]) : '';
+        }
+
+        // Single-word names still need a companion field — reuse as first_name.
+        if ($first === '' && $formatted !== '') {
+            $first = $formatted;
         }
 
         $namePayload = array_filter([
@@ -269,30 +279,79 @@ class CamsOutboundPayloadBuilder
                 $type = 'CELL';
             }
             $phones[] = [
+                // CAMS: contact phones must be digits only (InvalidParameter.ContactsOnlyNumeric).
                 'phone' => $digits,
                 'type' => $type,
                 'wa_id' => $digits,
             ];
         }
 
-        $normalized = [
-            'name' => $namePayload,
-        ];
-
-        if ($phones !== []) {
-            $normalized['phones'] = $phones;
+        if ($phones === [] || ($namePayload['formatted_name'] ?? '') === '') {
+            throw new \InvalidArgumentException('Contact details are incomplete. Add a name and phone number.');
         }
 
+        $normalized = [
+            'name' => $namePayload,
+            'phones' => $phones,
+        ];
+
         if (is_array($contact['emails'] ?? null) && $contact['emails'] !== []) {
-            $normalized['emails'] = $contact['emails'];
+            $emails = [];
+            foreach ($contact['emails'] as $emailRow) {
+                if (! is_array($emailRow)) {
+                    continue;
+                }
+                $email = trim((string) ($emailRow['email'] ?? ''));
+                if ($email === '') {
+                    continue;
+                }
+                $emailType = strtoupper(trim((string) ($emailRow['type'] ?? 'WORK')));
+                if (! in_array($emailType, ['HOME', 'WORK'], true)) {
+                    $emailType = 'WORK';
+                }
+                $emails[] = [
+                    'email' => $email,
+                    'type' => $emailType,
+                ];
+            }
+            if ($emails !== []) {
+                $normalized['emails'] = $emails;
+            }
         }
 
         if (is_array($contact['org'] ?? null) && $contact['org'] !== []) {
-            $normalized['org'] = $contact['org'];
+            $org = array_filter([
+                'company' => filled($contact['org']['company'] ?? null) ? trim((string) $contact['org']['company']) : null,
+                'department' => filled($contact['org']['department'] ?? null) ? trim((string) $contact['org']['department']) : null,
+                'title' => filled($contact['org']['title'] ?? null) ? trim((string) $contact['org']['title']) : null,
+            ], fn ($value) => $value !== null && $value !== '');
+            if ($org !== []) {
+                $normalized['org'] = $org;
+            }
         }
 
         if (is_array($contact['urls'] ?? null) && $contact['urls'] !== []) {
-            $normalized['urls'] = $contact['urls'];
+            $urls = [];
+            foreach ($contact['urls'] as $urlRow) {
+                if (! is_array($urlRow)) {
+                    continue;
+                }
+                $url = trim((string) ($urlRow['url'] ?? ''));
+                if ($url === '') {
+                    continue;
+                }
+                $urlType = strtoupper(trim((string) ($urlRow['type'] ?? 'WORK')));
+                if (! in_array($urlType, ['HOME', 'WORK'], true)) {
+                    $urlType = 'WORK';
+                }
+                $urls[] = [
+                    'url' => $url,
+                    'type' => $urlType,
+                ];
+            }
+            if ($urls !== []) {
+                $normalized['urls'] = $urls;
+            }
         }
 
         if (is_array($contact['addresses'] ?? null) && $contact['addresses'] !== []) {

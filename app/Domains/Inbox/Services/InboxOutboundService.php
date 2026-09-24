@@ -269,6 +269,10 @@ class InboxOutboundService
                 : null;
         }
 
+        if ($firstName === null || $firstName === '') {
+            $firstName = $formattedName;
+        }
+
         $namePayload = array_filter([
             'formatted_name' => $formattedName,
             'first_name' => $firstName,
