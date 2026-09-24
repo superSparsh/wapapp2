@@ -67,6 +67,10 @@
           <p class="max-w-[854px] text-sm font-normal leading-[1.4] text-text-subtle opacity-50">
             Build screens with form fields &bull; Define navigation rules &bull; Preview as it appears in WhatsApp
           </p>
+          <p class="max-w-[854px] text-xs font-medium leading-[1.4] text-text-muted">
+            Tip: Use <span class="font-semibold text-text-body">Save Draft</span> anytime.
+            <span class="font-semibold text-text-body">Publish Flow</span> automatically saves first, then publishes to WhatsApp.
+          </p>
         </div>
 
         <div class="flex flex-wrap items-center gap-3 shrink-0 xl:justify-end">
@@ -93,9 +97,10 @@
             type="button"
             data-action="save-flow"
             class="fd-btn inline-flex items-center justify-center gap-3 rounded border border-solid border-green-500 bg-green-50 px-4 py-3 text-sm font-semibold leading-[1.5] text-green-500 transition-colors hover:bg-green-50"
+            title="Save draft to WhatsApp (does not publish)"
           >
             <img src="{{ asset('images/automation/ram-save.svg') }}" alt="" class="size-5" width="20" height="20">
-            Save Flow
+            Save Draft
           </button>
           <button
             type="button"
@@ -125,10 +130,10 @@
             <form action="{{ route('whatsapp-flows.publish', $flow) }}" method="POST" class="inline" id="publish-flow-form">
               @csrf
               <button
-                type="submit"
+                type="button"
                 id="publish-flow-btn"
-                @disabled(! $flow->isDraftSynced() || $screenCount === 0)
-                title="{{ $flow->isDraftSynced() ? 'Publish to WhatsApp' : 'Save as draft before publishing' }}"
+                data-action="publish-flow"
+                title="Saves draft first, then publishes to WhatsApp"
                 class="fd-btn inline-flex items-center justify-center gap-2 rounded bg-[#0356fb] px-4 py-3 text-sm font-semibold leading-[1.5] text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <img src="{{ asset('images/automation/send-flow.svg') }}" alt="" class="size-5" width="20" height="20">

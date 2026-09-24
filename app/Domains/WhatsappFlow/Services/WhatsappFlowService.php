@@ -182,15 +182,22 @@ class WhatsappFlowService
                 $flow->refresh();
             }
 
-            if (! $this->camsService->syncJsonAsset($flow)) {
+            // Legacy parity: UpdateFlowJSONAsset, then PublishFlow.
+            $sync = $this->camsService->syncJsonAssetDetailed($flow);
+            if (! $sync['ok']) {
+                $detail = trim((string) ($sync['message'] ?? ''));
                 throw ValidationException::withMessages([
-                    'flow' => 'Unable to upload flow JSON to WhatsApp before publish. Save draft again and retry.',
+                    'flow' => 'Unable to upload flow JSON to WhatsApp before publish'
+                        .($detail !== '' ? ': '.$detail : '. Save draft again and retry.'),
                 ]);
             }
 
-            if (! $this->camsService->publishRemote($flow)) {
+            $publish = $this->camsService->publishRemoteDetailed($flow);
+            if (! $publish['ok']) {
+                $detail = trim((string) ($publish['message'] ?? ''));
                 throw ValidationException::withMessages([
-                    'flow' => 'Remote publish failed. Check CAMS configuration and try again.',
+                    'flow' => 'Remote publish failed'
+                        .($detail !== '' ? ': '.$detail : '. Check CAMS configuration and try again.'),
                 ]);
             }
         }

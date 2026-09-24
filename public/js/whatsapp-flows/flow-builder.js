@@ -398,6 +398,14 @@ function addFieldToScreen(type, label) {
         return;
     }
 
+    if (type === 'image') {
+        const imageCount = (screen.fields || []).filter((field) => field.type === 'image').length;
+        if (imageCount >= 3) {
+            alert('Maximum 3 images allowed per screen.');
+            return;
+        }
+    }
+
     const name = type.replace(/-/g, '_') + '_' + Date.now();
     const field = {
         name,
@@ -422,6 +430,10 @@ function addFieldToScreen(type, label) {
     }
     if (type === 'image') {
         field.src = '';
+        field.base64image = null;
+        field.width = 200;
+        field.height = 200;
+        field.file_name = '';
     }
     if (type === 'footer') {
         field.text = '';
@@ -663,12 +675,9 @@ function showConfigPanel(field, idx) {
         }));
     }
 
-    // Image URL
+    // Image upload (legacy parity: base64 for Meta Flow JSON src)
     if (field.type === 'image') {
-        section.appendChild(createInput('Image URL', field.src || '', (v) => {
-            field.src = v;
-            renderPreview();
-        }));
+        section.appendChild(createImageUpload(field, idx));
     }
 
     // Required toggle
@@ -826,6 +835,166 @@ function createOptionsEditor(field) {
     wrap.appendChild(list);
     wrap.appendChild(addBtn);
     return wrap;
+}
+
+const IMAGE_UPLOAD_MAX_BYTES = 300 * 1024;
+const IMAGE_UPLOAD_TYPES = ['image/jpeg', 'image/jpg', 'image/png'];
+
+function imagePreviewSrc(field) {
+    if (field?.base64image) {
+        return 'data:image/jpeg;base64,' + field.base64image;
+    }
+
+    const src = typeof field?.src === 'string' ? field.src.trim() : '';
+    if (src === '') {
+        return '';
+    }
+    if (src.startsWith('http://') || src.startsWith('https://') || src.startsWith('data:')) {
+        return src;
+    }
+
+    // Raw base64 stored in src (legacy Meta Flow parity)
+    return 'data:image/jpeg;base64,' + src;
+}
+
+function createImageUpload(field, idx) {
+    const wrap = document.createElement('div');
+    wrap.className = 'flex flex-col gap-3';
+
+    const lbl = document.createElement('label');
+    lbl.className = 'text-sm font-semibold leading-[1.4] text-text-primary';
+    lbl.textContent = 'Upload image';
+    wrap.appendChild(lbl);
+
+    const hint = document.createElement('p');
+    hint.className = 'text-xs text-text-muted';
+    hint.textContent = 'JPEG or PNG · max 300 KB · up to 3 images per screen';
+    wrap.appendChild(hint);
+
+    const previewBox = document.createElement('div');
+    previewBox.className = 'flex min-h-[120px] items-center justify-center overflow-hidden rounded-[12px] border border-dashed border-border-light bg-elevated';
+
+    const previewSrc = imagePreviewSrc(field);
+    if (previewSrc) {
+        previewBox.innerHTML = '<img src="' + escapeHtml(previewSrc) + '" alt="" class="max-h-40 max-w-full object-contain p-2">';
+    } else {
+        previewBox.innerHTML = '<span class="px-4 text-center text-sm text-text-muted">No image uploaded yet</span>';
+    }
+    wrap.appendChild(previewBox);
+
+    if (field.file_name) {
+        const nameEl = document.createElement('p');
+        nameEl.className = 'truncate text-xs font-medium text-text-body';
+        nameEl.textContent = field.file_name
+            + (field.width && field.height ? ` · ${field.width}×${field.height}` : '');
+        wrap.appendChild(nameEl);
+    }
+
+    const actions = document.createElement('div');
+    actions.className = 'flex flex-wrap items-center gap-2';
+
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = 'image/jpeg,image/png,.jpg,.jpeg,.png';
+    fileInput.className = 'hidden';
+
+    const uploadBtn = document.createElement('button');
+    uploadBtn.type = 'button';
+    uploadBtn.className = 'fd-btn inline-flex items-center justify-center gap-2 rounded bg-green-500 px-4 py-3 text-sm font-semibold leading-[1.5] text-primary-2 transition-opacity hover:opacity-90';
+    uploadBtn.textContent = previewSrc ? 'Replace image' : 'Choose file';
+    uploadBtn.addEventListener('click', () => fileInput.click());
+
+    const status = document.createElement('p');
+    status.className = 'hidden text-xs font-medium';
+
+    fileInput.addEventListener('change', async () => {
+        const file = fileInput.files?.[0];
+        fileInput.value = '';
+        if (!file) return;
+
+        status.classList.remove('hidden', 'text-danger', 'text-green-700');
+        status.classList.add('text-text-muted');
+        status.textContent = 'Uploading…';
+
+        try {
+            await applyImageFileToField(field, file);
+            status.classList.remove('text-text-muted');
+            status.classList.add('text-green-700');
+            status.textContent = 'Image ready';
+            renderFields();
+            renderPreview();
+            showConfigPanel(field, idx);
+        } catch (error) {
+            status.classList.remove('text-text-muted', 'text-green-700');
+            status.classList.add('text-danger');
+            status.textContent = error?.message || 'Upload failed';
+        }
+    });
+
+    actions.appendChild(uploadBtn);
+
+    if (previewSrc) {
+        const clearBtn = document.createElement('button');
+        clearBtn.type = 'button';
+        clearBtn.className = 'fd-btn inline-flex items-center justify-center rounded border border-solid border-divider bg-elevated px-4 py-3 text-sm font-semibold text-text-body hover:bg-muted-surface';
+        clearBtn.textContent = 'Remove';
+        clearBtn.addEventListener('click', () => {
+            field.base64image = null;
+            field.src = '';
+            field.width = 200;
+            field.height = 200;
+            field.file_name = '';
+            field.isValid = false;
+            renderFields();
+            renderPreview();
+            showConfigPanel(field, idx);
+        });
+        actions.appendChild(clearBtn);
+    }
+
+    wrap.appendChild(actions);
+    wrap.appendChild(fileInput);
+    wrap.appendChild(status);
+
+    return wrap;
+}
+
+function applyImageFileToField(field, file) {
+    return new Promise((resolve, reject) => {
+        if (!IMAGE_UPLOAD_TYPES.includes(file.type)) {
+            reject(new Error('Only JPEG or PNG images are allowed.'));
+            return;
+        }
+        if (file.size > IMAGE_UPLOAD_MAX_BYTES) {
+            reject(new Error('Image must be 300 KB or smaller.'));
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onerror = () => reject(new Error('Could not read the image file.'));
+        reader.onload = () => {
+            const result = String(reader.result || '');
+            const base64 = result.includes(',') ? result.split(',')[1] : result;
+            if (!base64) {
+                reject(new Error('Invalid image data.'));
+                return;
+            }
+
+            const img = new Image();
+            img.onload = () => {
+                field.base64image = base64;
+                field.src = base64; // Meta Flow JSON expects raw base64 in src (legacy parity)
+                field.width = img.naturalWidth || img.width || 200;
+                field.height = img.naturalHeight || img.height || 200;
+                field.file_name = file.name || 'image.jpg';
+                field.isValid = true;
+                resolve(field);
+            };
+            img.onerror = () => reject(new Error('Could not load image preview.'));
+            img.src = 'data:' + (file.type || 'image/jpeg') + ';base64,' + base64;
+        };
+        reader.readAsDataURL(file);
+    });
 }
 
 /* ── Navigation Rules ── */
@@ -1000,11 +1169,15 @@ function renderPreviewField(field) {
             return '<div class="mb-3 rounded bg-[#d9fdd3] p-2.5 text-xs text-[#111b21]">'
                 + escapeHtml(field.text || 'Display text') + '</div>';
 
-        case 'image':
+        case 'image': {
+            const previewSrc = imagePreviewSrc(field);
             return '<div class="mb-3">' + label
                 + '<div class="flex h-20 items-center justify-center rounded bg-[#f0f2f5] text-[10px] text-[#667781] overflow-hidden">'
-                + (field.src ? '<img src="' + escapeHtml(field.src) + '" class="max-h-full max-w-full object-contain" alt="">' : '[Image Placeholder]')
+                + (previewSrc
+                    ? '<img src="' + escapeHtml(previewSrc) + '" class="max-h-full max-w-full object-contain" alt="">'
+                    : '[Image Placeholder]')
                 + '</div></div>';
+        }
 
         case 'footer':
             return '<div class="mt-2 border-t border-[#d1d7db] pt-2 text-center text-[10px] text-[#667781]">'
@@ -1026,7 +1199,9 @@ function setupToolbarActions() {
     document.querySelectorAll('[data-action]').forEach(btn => {
         const action = btn.dataset.action;
         if (action === 'save-flow') {
-            btn.addEventListener('click', saveFlow);
+            btn.addEventListener('click', () => { void saveFlow(); });
+        } else if (action === 'publish-flow') {
+            btn.addEventListener('click', () => { void publishFlow(); });
         } else if (action === 'export-flow') {
             btn.addEventListener('click', exportFlow);
         } else if (action === 'import-flow') {
@@ -1085,13 +1260,19 @@ function setupImportModal() {
     });
 }
 
-/* ── Save / Export ── */
+/* ── Save / Export / Publish ── */
 
-async function saveFlow() {
+/**
+ * @returns {Promise<boolean>}
+ */
+async function saveFlow(options = {}) {
+    const { quiet = false } = options;
     const saveUrl = canvasEl?.dataset.saveUrl;
-    if (!saveUrl) return;
+    if (!saveUrl) return false;
 
-    showStatus('Saving flow...');
+    if (!quiet) {
+        showStatus('Saving draft…');
+    }
 
     try {
         const csrf = document.querySelector('meta[name="csrf-token"]').content;
@@ -1105,23 +1286,95 @@ async function saveFlow() {
             body: JSON.stringify({ flow_json: state }),
         });
 
-        const result = await resp.json();
+        const result = await resp.json().catch(() => ({}));
 
-        if (result.success) {
-            showStatus('Flow saved! Screens: ' + result.screen_count + ', Fields: ' + result.field_count, 'success');
-            updateBadges();
-            if (result.draft_synced) {
-                const publishBtn = document.getElementById('publish-flow-btn');
-                if (publishBtn) {
-                    publishBtn.disabled = false;
-                    publishBtn.title = 'Publish to WhatsApp';
-                }
+        if (resp.ok && result.success) {
+            if (!quiet) {
+                showStatus('Draft saved! Screens: ' + result.screen_count + ', Fields: ' + result.field_count, 'success');
             }
-        } else {
-            showStatus('Failed to save flow.', 'error');
+            updateBadges();
+            return true;
         }
+
+        const message = result.message
+            || result.errors?.flow_json?.[0]
+            || result.errors?.flow?.[0]
+            || Object.values(result.errors || {}).flat()[0]
+            || 'Failed to save draft.';
+        showStatus(String(message), 'error');
+        return false;
     } catch (err) {
-        showStatus('Error saving flow: ' + err.message, 'error');
+        showStatus('Error saving draft: ' + err.message, 'error');
+        return false;
+    }
+}
+
+/**
+ * Legacy parity: save draft (UpdateFlowJSONAsset) then PublishFlow.
+ */
+async function publishFlow() {
+    const form = document.getElementById('publish-flow-form');
+    const btn = document.getElementById('publish-flow-btn');
+    if (!form) return;
+
+    if (!Array.isArray(state.screens) || state.screens.length === 0) {
+        showStatus('Add at least one screen before publishing.', 'error');
+        return;
+    }
+
+    if (btn) {
+        btn.disabled = true;
+        btn.classList.add('opacity-50');
+    }
+
+    showStatus('Saving draft, then publishing to WhatsApp…');
+
+    const saved = await saveFlow({ quiet: true });
+    if (!saved) {
+        if (btn) {
+            btn.disabled = false;
+            btn.classList.remove('opacity-50');
+        }
+        return;
+    }
+
+    try {
+        const csrf = document.querySelector('meta[name="csrf-token"]')?.content
+            || form.querySelector('input[name="_token"]')?.value
+            || '';
+        const resp = await fetch(form.action, {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': csrf,
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            body: new FormData(form),
+        });
+
+        const result = await resp.json().catch(() => ({}));
+
+        if (resp.ok && result.success) {
+            showStatus('Flow published successfully!', 'success');
+            window.setTimeout(() => {
+                window.location.href = form.action.replace(/\/publish$/, '') || window.location.href;
+            }, 800);
+            return;
+        }
+
+        const message = result.message
+            || result.errors?.flow?.[0]
+            || result.errors?.flow_json?.[0]
+            || Object.values(result.errors || {}).flat()[0]
+            || 'Remote publish failed. Check CAMS configuration and try again.';
+        showStatus(String(message), 'error');
+    } catch (err) {
+        showStatus('Publish error: ' + err.message, 'error');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.classList.remove('opacity-50');
+        }
     }
 }
 

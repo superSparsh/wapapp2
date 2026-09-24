@@ -230,7 +230,13 @@ final class WhatsappFlowMetaJsonConverter
 
             'image' => [
                 'type' => 'Image',
-                'src' => (string) ($field['src'] ?? $field['url'] ?? ''),
+                // Meta / legacy expect raw base64 in src (not a public URL).
+                'src' => (string) (
+                    $field['base64image']
+                    ?? $field['src']
+                    ?? $field['url']
+                    ?? ''
+                ),
                 'width' => (int) ($field['width'] ?? 200),
                 'height' => (int) ($field['height'] ?? 200),
             ],

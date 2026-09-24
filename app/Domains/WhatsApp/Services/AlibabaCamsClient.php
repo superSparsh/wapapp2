@@ -241,7 +241,7 @@ class AlibabaCamsClient
      */
     public function publishFlow(array $params): Response
     {
-        return $this->signedRequest(array_merge([
+        return $this->signedFormPost(array_merge([
             'Action' => 'PublishFlow',
         ], $params));
     }

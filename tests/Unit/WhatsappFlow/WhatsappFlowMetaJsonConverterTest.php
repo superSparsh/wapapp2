@@ -147,4 +147,33 @@ class WhatsappFlowMetaJsonConverterTest extends TestCase
         $this->assertSame('6.3', $result['version']);
         $this->assertSame([], $result['screens']);
     }
+
+    public function test_image_prefers_base64image_over_url(): void
+    {
+        $result = WhatsappFlowMetaJsonConverter::convert([
+            'screens' => [
+                [
+                    'id' => 's1',
+                    'title' => 'Media',
+                    'fields' => [
+                        [
+                            'type' => 'image',
+                            'base64image' => 'iVBORw0KGgo=',
+                            'src' => 'https://example.com/ignored.png',
+                            'width' => 120,
+                            'height' => 80,
+                        ],
+                    ],
+                    'next_screen' => null,
+                ],
+            ],
+        ]);
+
+        $image = $result['screens'][0]['layout']['children'][0]['children'][0];
+
+        $this->assertSame('Image', $image['type']);
+        $this->assertSame('iVBORw0KGgo=', $image['src']);
+        $this->assertSame(120, $image['width']);
+        $this->assertSame(80, $image['height']);
+    }
 }

@@ -134,14 +134,26 @@ class WhatsappFlowCamsService
 
     public function publishRemote(WhatsappFlow $flow): bool
     {
-        if (! $this->isConfigured() || blank($flow->meta_flow_id)) {
-            return false;
+        return $this->publishRemoteDetailed($flow)['ok'];
+    }
+
+    /**
+     * @return array{ok: bool, message: string, response: mixed}
+     */
+    public function publishRemoteDetailed(WhatsappFlow $flow): array
+    {
+        if (! $this->isConfigured()) {
+            return ['ok' => false, 'message' => 'CAMS credentials are not configured.', 'response' => null];
+        }
+
+        if (blank($flow->meta_flow_id)) {
+            return ['ok' => false, 'message' => 'Remote WhatsApp Flow ID is missing.', 'response' => null];
         }
 
         $custSpaceId = $this->resolveCustSpaceId($flow);
 
         if ($custSpaceId === null) {
-            return false;
+            return ['ok' => false, 'message' => 'Cust Space ID is missing on the WhatsApp line.', 'response' => null];
         }
 
         $response = $this->client->publishFlow([
@@ -149,7 +161,51 @@ class WhatsappFlowCamsService
             'CustSpaceId' => $custSpaceId,
         ]);
 
-        return $response->successful();
+        $parsed = $this->parseCamsResponse($response);
+
+        if (! $parsed['ok']) {
+            Log::warning('CAMS PublishFlow failed', [
+                'flow_id' => $flow->id,
+                'meta_flow_id' => $flow->meta_flow_id,
+                'cust_space_id' => $custSpaceId,
+                'http_status' => $response->status(),
+                'code' => $parsed['code'],
+                'body' => $response->body(),
+            ]);
+        }
+
+        return [
+            'ok' => $parsed['ok'],
+            'message' => $parsed['message'],
+            'response' => $parsed['json'],
+        ];
+    }
+
+    /**
+     * @return array{ok: bool, code: string|null, message: string, json: mixed}
+     */
+    private function parseCamsResponse(\Illuminate\Http\Client\Response $response): array
+    {
+        $json = $response->json();
+        $code = is_array($json) ? ($json['Code'] ?? $json['code'] ?? null) : null;
+        $codeOk = ! is_scalar($code) || strtoupper((string) $code) === 'OK';
+        $ok = $response->successful() && $codeOk;
+        $message = is_array($json)
+            ? (string) ($json['Message'] ?? $json['message'] ?? $response->body())
+            : $response->body();
+
+        if ($ok) {
+            $message = 'ok';
+        } elseif ($message === '') {
+            $message = 'CAMS request failed.';
+        }
+
+        return [
+            'ok' => $ok,
+            'code' => is_scalar($code) ? (string) $code : null,
+            'message' => $message,
+            'json' => $json,
+        ];
     }
 
     public function deprecateRemote(WhatsappFlow $flow): bool
