@@ -119,6 +119,11 @@ class WhatsappFlowCamsService
         ]);
 
         $json = $response->json();
+        Log::info('CAMS UpdateFlowJSONAsset response', [
+            'flow_id' => $flow->id,
+            'http_status' => $response->status(),
+            'body' => $response->body(),
+        ]);
         $code = is_array($json) ? ($json['Code'] ?? $json['code'] ?? null) : null;
         $codeOk = ! is_scalar($code) || strtoupper((string) $code) === 'OK';
         $ok = $response->successful() && $codeOk;

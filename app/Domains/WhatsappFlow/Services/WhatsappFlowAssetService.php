@@ -54,6 +54,9 @@ class WhatsappFlowAssetService
 
     /**
      * Absolute URL for CAMS UpdateFlowJSONAsset FilePath.
+     *
+     * Prefer the live public-asset route (fresh convert + no-cache) so CAMS never
+     * gets a stale static file. Fall back to written static paths.
      */
     public function publicUrl(string $relativePath, ?WhatsappFlow $flow = null): string
     {
@@ -73,7 +76,18 @@ class WhatsappFlowAssetService
             }
         }
 
-        // Prefer the path we actually wrote (json_asset_path), not a stale public/flows copy.
+        if (
+            $uuid !== null
+            && $uuid !== ''
+            && tenancy()->initialized
+            && filled(tenant('id'))
+        ) {
+            return route('whatsapp-flows.public-asset', [
+                'tenant' => tenant('id'),
+                'uuid' => $uuid,
+            ]).$bust;
+        }
+
         if (str_starts_with($relativePath, 'storage/')) {
             return url($relativePath).$bust;
         }
@@ -90,18 +104,6 @@ class WhatsappFlowAssetService
 
         if ($basename !== '' && File::exists(public_path('flows/'.$basename))) {
             return url('flows/'.$basename).$bust;
-        }
-
-        if (
-            $uuid !== null
-            && $uuid !== ''
-            && tenancy()->initialized
-            && filled(tenant('id'))
-        ) {
-            return route('whatsapp-flows.public-asset', [
-                'tenant' => tenant('id'),
-                'uuid' => $uuid,
-            ]).$bust;
         }
 
         return url($relativePath).$bust;

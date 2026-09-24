@@ -68,38 +68,49 @@ final class WhatsappFlowMetaJsonConverter
             $contentFields = $fields->filter(fn (array $f) => ($f['type'] ?? '') !== 'footer');
             $footer = $fields->firstWhere('type', 'footer');
 
-            $children = $contentFields
-                ->map(fn (array $field, int $fieldIndex) => self::mapField($field, $fieldIndex))
-                ->filter()
-                ->values()
-                ->all();
+            // Split display widgets (Image/headings/body) from interactive inputs.
+            // Meta examples keep display components as layout siblings; Form holds inputs + Footer.
+            $layoutChildren = [];
+            $formChildren = [];
 
-            // Meta rejects screens whose Form only has a Footer (no content widgets).
-            if ($children === []) {
-                $children[] = [
+            foreach ($contentFields as $fieldIndex => $field) {
+                $mapped = self::mapField($field, (int) $fieldIndex);
+                if ($mapped === null) {
+                    continue;
+                }
+
+                if (self::isInputField($field)) {
+                    $formChildren[] = $mapped;
+                } else {
+                    $layoutChildren[] = $mapped;
+                }
+            }
+
+            if ($formChildren === [] && $layoutChildren === []) {
+                $formChildren[] = [
                     'type' => 'TextBody',
                     'text' => (string) ($screen['title'] ?? 'Continue'),
                 ];
             }
 
             if ($footer !== null) {
-                $children[] = self::mapFooter($footer, $screenId, $index, $screens);
+                $formChildren[] = self::mapFooter($footer, $screenId, $index, $screens);
             } else {
-                $children[] = self::defaultFooter($screenId, $index, $screens, $isLast);
+                $formChildren[] = self::defaultFooter($screenId, $index, $screens, $isLast);
             }
+
+            $layoutChildren[] = [
+                'type' => 'Form',
+                'name' => 'flow_path',
+                'children' => $formChildren,
+            ];
 
             $metaScreen = [
                 'id' => $screenId,
                 'title' => (string) ($screen['title'] ?? 'Screen '.($index + 1)),
                 'layout' => [
                     'type' => 'SingleColumnLayout',
-                    'children' => [
-                        [
-                            'type' => 'Form',
-                            'name' => 'flow_path',
-                            'children' => $children,
-                        ],
-                    ],
+                    'children' => $layoutChildren,
                 ],
             ];
 
@@ -364,7 +375,6 @@ final class WhatsappFlowMetaJsonConverter
             'src' => $src,
             'width' => (int) ($field['width'] ?? 200),
             'height' => (int) ($field['height'] ?? 200),
-            'scale-type' => 'contain',
         ];
     }
 

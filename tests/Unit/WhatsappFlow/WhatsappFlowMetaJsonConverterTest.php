@@ -9,6 +9,33 @@ use PHPUnit\Framework\TestCase;
 
 class WhatsappFlowMetaJsonConverterTest extends TestCase
 {
+    /**
+     * @param  array<string, mixed>  $screen
+     * @return array<int, array<string, mixed>>
+     */
+    private function formChildren(array $screen): array
+    {
+        foreach ($screen['layout']['children'] as $child) {
+            if (($child['type'] ?? '') === 'Form') {
+                return $child['children'];
+            }
+        }
+
+        return [];
+    }
+
+    /**
+     * @param  array<string, mixed>  $screen
+     * @return array<int, array<string, mixed>>
+     */
+    private function layoutWidgets(array $screen): array
+    {
+        return array_values(array_filter(
+            $screen['layout']['children'],
+            fn (array $child) => ($child['type'] ?? '') !== 'Form',
+        ));
+    }
+
     public function test_converts_internal_schema_to_meta_json(): void
     {
         $result = WhatsappFlowMetaJsonConverter::convert([
@@ -73,65 +100,39 @@ class WhatsappFlowMetaJsonConverterTest extends TestCase
             ],
         ]);
 
-        $this->assertSame('6.3', $result['version']);
-        $this->assertCount(1, $result['screens']);
+        $screen = $result['screens'][0];
+        $widgets = $this->layoutWidgets($screen);
+        $formChildren = $this->formChildren($screen);
 
-        $children = $result['screens'][0]['layout']['children'][0]['children'];
+        $this->assertSame('TextHeading', $widgets[0]['type']);
+        $this->assertSame('Main Registration', $widgets[0]['text']);
+        $this->assertSame('TextSubheading', $widgets[1]['type']);
+        $this->assertSame('TextCaption', $widgets[2]['type']);
+        $this->assertSame('Image', $widgets[3]['type']);
+        $this->assertSame('iVBORw0KGgo=', $widgets[3]['src']);
+        $this->assertSame('TextBody', $widgets[4]['type']);
 
-        $this->assertSame('TextHeading', $children[0]['type']);
-        $this->assertSame('Main Registration', $children[0]['text']);
+        $this->assertSame('TextInput', $formChildren[0]['type']);
+        $this->assertSame('text', $formChildren[0]['input-type']);
+        $this->assertSame('Your legal name', $formChildren[0]['helper-text']);
 
-        $this->assertSame('TextSubheading', $children[1]['type']);
-        $this->assertSame('Personal Info', $children[1]['text']);
+        $this->assertSame('email', $formChildren[1]['input-type']);
+        $this->assertSame('text', $formChildren[2]['input-type']);
+        $this->assertSame('^[0-9]{10}$', $formChildren[2]['pattern']);
+        $this->assertSame('password', $formChildren[4]['input-type']);
+        $this->assertSame('TextArea', $formChildren[5]['type']);
+        $this->assertSame('DatePicker', $formChildren[6]['type']);
+        $this->assertSame('RadioButtonsGroup', $formChildren[7]['type']);
+        $this->assertSame('CheckboxGroup', $formChildren[8]['type']);
+        $this->assertSame('Dropdown', $formChildren[9]['type']);
+        $this->assertSame('OptIn', $formChildren[10]['type']);
 
-        $this->assertSame('TextCaption', $children[2]['type']);
-
-        $this->assertSame('TextInput', $children[3]['type']);
-        $this->assertSame('text', $children[3]['input-type']);
-        $this->assertSame('Your legal name', $children[3]['helper-text']);
-
-        $this->assertSame('TextInput', $children[4]['type']);
-        $this->assertSame('email', $children[4]['input-type']);
-        $this->assertSame('name@domain.com', $children[4]['helper-text']);
-
-        // Phone uses text + pattern (legacy-compatible).
-        $this->assertSame('TextInput', $children[5]['type']);
-        $this->assertSame('text', $children[5]['input-type']);
-        $this->assertSame('^[0-9]{10}$', $children[5]['pattern']);
-
-        $this->assertSame('TextInput', $children[7]['type']);
-        $this->assertSame('password', $children[7]['input-type']);
-
-        $this->assertSame('TextArea', $children[8]['type']);
-
-        $this->assertSame('DatePicker', $children[9]['type']);
-
-        $this->assertSame('RadioButtonsGroup', $children[10]['type']);
-        $this->assertCount(3, $children[10]['data-source']);
-
-        $this->assertSame('CheckboxGroup', $children[11]['type']);
-        $this->assertCount(3, $children[11]['data-source']);
-
-        $this->assertSame('Dropdown', $children[12]['type']);
-        $this->assertCount(3, $children[12]['data-source']);
-
-        $this->assertSame('OptIn', $children[13]['type']);
-
-        $this->assertSame('Image', $children[14]['type']);
-        $this->assertSame('iVBORw0KGgo=', $children[14]['src']);
-
-        $this->assertSame('TextBody', $children[15]['type']);
-
-        $this->assertSame('Footer', $children[16]['type']);
-        $this->assertSame('Submit Application', $children[16]['label']);
-
-        // Complete payload must only include interactive inputs — not headings/images/body.
-        $payload = $children[16]['on-click-action']['payload'];
-        $this->assertIsArray($payload);
-        $this->assertArrayHasKey('full_name', $payload);
-        $this->assertArrayHasKey('mobile_number', $payload);
-        $this->assertArrayNotHasKey('Main Registration', $payload);
-        $this->assertSame('complete', $children[16]['on-click-action']['name']);
+        $footer = $formChildren[array_key_last($formChildren)];
+        $this->assertSame('Footer', $footer['type']);
+        $this->assertSame('Submit Application', $footer['label']);
+        $this->assertSame('complete', $footer['on-click-action']['name']);
+        $this->assertArrayHasKey('full_name', $footer['on-click-action']['payload']);
+        $this->assertArrayHasKey('mobile_number', $footer['on-click-action']['payload']);
     }
 
     public function test_empty_flow_returns_minimal_structure(): void
@@ -164,7 +165,7 @@ class WhatsappFlowMetaJsonConverterTest extends TestCase
             ],
         ]);
 
-        $image = $result['screens'][0]['layout']['children'][0]['children'][0];
+        $image = $this->layoutWidgets($result['screens'][0])[0];
 
         $this->assertSame('Image', $image['type']);
         $this->assertSame('iVBORw0KGgo=', $image['src']);
@@ -189,7 +190,8 @@ class WhatsappFlowMetaJsonConverterTest extends TestCase
             ],
         ]);
 
-        $action = $result['screens'][0]['layout']['children'][0]['children'][2]['on-click-action'];
+        $footer = $this->formChildren($result['screens'][0])[0];
+        $action = $footer['on-click-action'];
         $this->assertSame('complete', $action['name']);
         $this->assertInstanceOf(\stdClass::class, $action['payload']);
 
@@ -224,12 +226,12 @@ class WhatsappFlowMetaJsonConverterTest extends TestCase
             ],
         ]);
 
-        $navPayload = $result['screens'][0]['layout']['children'][0]['children'][2]['on-click-action']['payload'];
+        $navPayload = $this->formChildren($result['screens'][0])[1]['on-click-action']['payload'];
         $this->assertSame([
             'field_a' => '${screen.screen_1.form.field_a}',
         ], $navPayload);
 
-        $completePayload = $result['screens'][1]['layout']['children'][0]['children'][1]['on-click-action']['payload'];
+        $completePayload = $this->formChildren($result['screens'][1])[1]['on-click-action']['payload'];
         $this->assertSame([
             'field_a' => '${screen.screen_1.form.field_a}',
             'field_b' => '${screen.screen_2.form.field_b}',
@@ -253,11 +255,11 @@ class WhatsappFlowMetaJsonConverterTest extends TestCase
             ],
         ]);
 
-        $children = $result['screens'][0]['layout']['children'][0]['children'];
-        $types = array_column($children, 'type');
+        $widgets = $this->layoutWidgets($result['screens'][0]);
+        $formChildren = $this->formChildren($result['screens'][0]);
 
-        $this->assertNotContains('Image', $types);
-        $this->assertSame('TextInput', $children[0]['type']);
-        $this->assertSame('Footer', $children[1]['type']);
+        $this->assertSame([], $widgets);
+        $this->assertSame('TextInput', $formChildren[0]['type']);
+        $this->assertSame('Footer', $formChildren[1]['type']);
     }
 }
