@@ -28,7 +28,7 @@
   $introBody = old('carousel_body', $payload['carousel']['body'] ?? ($payload['body']['text'] ?? ''));
 @endphp
 
-<x-templates.builder-layout active="carousel" :card="false" :template="$template" :payload="$payload" :preview-data="$previewData ?? null" :setup-complete="$setupComplete ?? true" :builder-steps="$builderSteps ?? null" :can-use-carousel="true">
+<x-templates.builder-layout active="carousel" :card="false" :template="$template" :payload="$payload" :preview-data="$previewData ?? null" :setup-complete="$setupComplete ?? true" :builder-steps="$builderSteps ?? null" :can-use-carousel="true" identity-form-id="carousel-builder-form">
   <form
     method="post"
     action="{{ route('templates.builder.carousel.save', $template) }}"

@@ -1077,6 +1077,7 @@ function initHeaderMedia(scheduleUpdate) {
         const imageEl = zone.querySelector('[data-header-media-image]');
         const videoEl = zone.querySelector('[data-header-media-video]');
         const nameEl = zone.querySelector('[data-header-media-name]');
+        const statusEl = zone.querySelector('[data-header-media-status]');
         const maxBytes = Number(zone.dataset.maxBytes || 0);
 
         if (!input) {
@@ -1105,6 +1106,9 @@ function initHeaderMedia(scheduleUpdate) {
             previewWrap?.classList.remove('hidden');
             if (nameEl) {
                 nameEl.textContent = file.name;
+            }
+            if (statusEl) {
+                statusEl.textContent = 'Uploaded';
             }
 
             if (isVideo) {
@@ -1186,6 +1190,12 @@ function initHeaderMedia(scheduleUpdate) {
                 const remoteUrl = data.url || '';
                 if (mediaPathInput && data.path) {
                     mediaPathInput.value = data.path;
+                }
+                if (nameEl && data.name) {
+                    nameEl.textContent = data.name;
+                }
+                if (statusEl) {
+                    statusEl.textContent = 'Uploaded';
                 }
 
                 // Prefer server URL for preview; if it 403/fails, keep local blob preview.

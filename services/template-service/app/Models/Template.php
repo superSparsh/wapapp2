@@ -125,6 +125,7 @@ class Template extends Model
                 'text' => '',
                 'media_path' => null,
                 'media_url' => null,
+                'media_name' => null,
                 'use_url' => false,
                 'doc_name' => null,
             ],

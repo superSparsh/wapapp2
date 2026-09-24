@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace App\Domains\Templates\Http\Requests;
 
+use App\Domains\Templates\Http\Requests\Concerns\ValidatesEditableTemplateName;
 use Illuminate\Foundation\Http\FormRequest;
 
 class SaveButtonsRequest extends FormRequest
 {
+    use ValidatesEditableTemplateName;
+
     public function authorize(): bool
     {
         return true;
@@ -19,7 +22,7 @@ class SaveButtonsRequest extends FormRequest
         $textLimit = (int) config('templates.button_text_limit', 25);
         $urlLimit = (int) config('templates.button_url_limit', 2000);
 
-        return [
+        return array_merge($this->editableNameRules(), [
             'button_mode' => ['required', 'in:none,call_to_action,quick_reply,whatsapp_flows,mixed,authentication,lto'],
             'is_opt_out' => ['nullable', 'boolean'],
             'buttons' => ['nullable', 'array', "max:{$maxButtons}"],
@@ -27,12 +30,14 @@ class SaveButtonsRequest extends FormRequest
             'buttons.*.type' => ['nullable', 'in:url,phone,unsubscribe,quick_reply,flow,copy_code'],
             'buttons.*.url' => ['nullable', 'string', "max:{$urlLimit}"],
             'buttons.*.flow_id' => ['nullable', 'string'],
-        ];
+        ]);
     }
 
     public function withValidator($validator): void
     {
         $validator->after(function ($validator) {
+            $this->validateEditableNameUnique($validator);
+
             $mode = (string) $this->input('button_mode', 'none');
 
             if ($mode === 'none') {
@@ -95,5 +100,10 @@ class SaveButtonsRequest extends FormRequest
                 }
             }
         });
+    }
+
+    public function messages(): array
+    {
+        return $this->editableNameMessages();
     }
 }

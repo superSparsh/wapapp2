@@ -4,9 +4,16 @@
     'id' => 'header_media',
     'accept' => 'image/png,image/jpeg,video/mp4,video/3gpp',
     'previewUrl' => null,
+    'fileName' => null,
+    'previewKind' => 'image',
     'enabled' => true,
     'maxBytes' => null,
 ])
+
+@php
+  $hasPreview = filled($previewUrl) || filled($fileName);
+  $kind = in_array($previewKind, ['image', 'video', 'document', 'audio'], true) ? $previewKind : 'image';
+@endphp
 
 <div class="flex flex-col gap-3" data-header-upload @if ($maxBytes) data-max-bytes="{{ (int) $maxBytes }}" @endif>
   <label
@@ -30,19 +37,43 @@
     data-header-media-input
     @disabled(! $enabled)
   >
-  <div data-header-media-preview @class(['hidden' => blank($previewUrl)])>
-    <img
-      src="{{ $previewUrl }}"
-      alt=""
-      class="max-h-40 w-full rounded-lg object-cover"
-      data-header-media-image
-      @if (blank($previewUrl)) hidden @endif
-    >
-    <video
-      @class(['max-h-40 w-full rounded-lg', 'hidden' => true])
-      controls
-      data-header-media-video
-    ></video>
-    <p class="mt-1 text-xs text-text-subtle" data-header-media-name></p>
+  <div
+    data-header-media-preview
+    @class([
+      'flex items-start gap-3 rounded-lg border border-border bg-muted-surface p-3',
+      'hidden' => ! $hasPreview,
+    ])
+  >
+    <div class="min-w-0 flex-1">
+      <p class="text-sm font-medium leading-5 text-text-body break-all" data-header-media-name>
+        {{ $fileName ?: '' }}
+      </p>
+      <p class="mt-1 text-xs text-text-subtle" data-header-media-status>
+        {{ $hasPreview ? 'Uploaded' : '' }}
+      </p>
+    </div>
+    <div class="w-36 shrink-0">
+      <img
+        src="{{ $kind === 'image' && filled($previewUrl) ? $previewUrl : '' }}"
+        alt=""
+        class="max-h-28 w-full rounded-md object-cover"
+        data-header-media-image
+        @if ($kind !== 'image' || blank($previewUrl)) hidden @endif
+      >
+      <video
+        @class(['max-h-28 w-full rounded-md', 'hidden' => $kind !== 'video' || blank($previewUrl)])
+        @if ($kind === 'video' && filled($previewUrl)) src="{{ $previewUrl }}" @endif
+        controls
+        muted
+        playsinline
+        preload="metadata"
+        data-header-media-video
+      ></video>
+      @if ($kind === 'document' || $kind === 'audio')
+        <div class="flex h-16 items-center justify-center rounded-md border border-dashed border-divider bg-elevated text-xs text-text-subtle" data-header-media-file-badge>
+          {{ $kind === 'audio' ? 'Audio' : 'Document' }}
+        </div>
+      @endif
+    </div>
   </div>
 </div>

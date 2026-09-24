@@ -2,8 +2,8 @@
   $lto = $payload['lto'] ?? [];
 @endphp
 
-<x-templates.builder-layout active="lto" :card="false" :template="$template" :payload="$payload" :preview-data="$previewData ?? null" :setup-complete="$setupComplete ?? true" :builder-steps="$builderSteps ?? null">
-  <form method="post" action="{{ route('templates.builder.lto.save', $template) }}" class="flex flex-col gap-4" data-validate-form>
+<x-templates.builder-layout active="lto" :card="false" :template="$template" :payload="$payload" :preview-data="$previewData ?? null" :setup-complete="$setupComplete ?? true" :builder-steps="$builderSteps ?? null" identity-form-id="builder-lto-form">
+  <form id="builder-lto-form" method="post" action="{{ route('templates.builder.lto.save', $template) }}" class="flex flex-col gap-4" data-validate-form>
     @csrf
 
     <div class="rounded-lg bg-elevated p-4 flex flex-col gap-4">

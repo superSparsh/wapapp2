@@ -22,7 +22,9 @@ class AlibabaCamsClient
      */
     public function sendChatappMessage(array $params): Response
     {
-        return $this->signedRequest(array_merge([
+        // Prefer POST formData — GET query strings mangle complex Content JSON
+        // (contacts arrays with "[", "]", "+") and cause InvalidParameter.ContentError.
+        return $this->signedFormPost(array_merge([
             'Action' => 'SendChatappMessage',
             'ChannelType' => 'whatsapp',
         ], $params));

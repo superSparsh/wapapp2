@@ -1,11 +1,18 @@
 @php
+  use App\Domains\Templates\Services\TemplateMediaService;
   use App\Support\WhatsappMediaRules;
 
   $headerType = old('header_type', $payload['header']['type'] ?? 'none');
   $mediaPath = $payload['header']['media_path'] ?? null;
   $mediaUrl = $payload['header']['media_url'] ?? null;
+  $mediaName = $payload['header']['media_name']
+    ?? $payload['header']['doc_name']
+    ?? (filled($mediaPath) ? basename((string) $mediaPath) : null);
   $useUrl = (bool) old('use_url', $payload['header']['use_url'] ?? false);
-  $previewUrl = $mediaPath ? url('storage/'.$mediaPath) : $mediaUrl;
+  $mediaService = app(TemplateMediaService::class);
+  $previewUrl = filled($mediaPath)
+    ? $mediaService->previewUrl((string) $mediaPath)
+    : (filled($mediaUrl) ? $mediaUrl : null);
   $previousStepUrl = $previousStepUrl ?? route('templates.index');
 
   $imageMaxBytes = (int) config('templates.header_image_max', WhatsappMediaRules::maxKb('image') * 1024);
@@ -20,6 +27,7 @@
   :payload="$payload"
   :preview-data="$previewData ?? null"
   :builder-steps="$builderSteps ?? null"
+  identity-form-id="builder-header-form"
 >
   <form
     id="builder-header-form"
@@ -97,7 +105,9 @@
           id="header_image"
           accept="{{ WhatsappMediaRules::accept('image') }}"
           :hint="WhatsappMediaRules::hint('image')"
+          preview-kind="image"
           :preview-url="$headerType === 'image' ? $previewUrl : null"
+          :file-name="$headerType === 'image' ? $mediaName : null"
           :enabled="$headerType === 'image' && ! $useUrl"
           :max-bytes="$imageMaxBytes"
         />
@@ -124,7 +134,9 @@
           id="header_video"
           accept="{{ WhatsappMediaRules::accept('video') }}"
           :hint="WhatsappMediaRules::hint('video')"
+          preview-kind="video"
           :preview-url="$headerType === 'video' ? $previewUrl : null"
+          :file-name="$headerType === 'video' ? $mediaName : null"
           :enabled="$headerType === 'video' && ! $useUrl"
           :max-bytes="$videoMaxBytes"
         />
@@ -150,7 +162,9 @@
           id="header_document"
           accept="application/pdf,.pdf"
           :hint="'PDF — max '.WhatsappMediaRules::maxMbLabel('document')"
+          preview-kind="document"
           :preview-url="$headerType === 'document' ? $previewUrl : null"
+          :file-name="$headerType === 'document' ? $mediaName : null"
           :enabled="$headerType === 'document' && ! $useUrl"
           :max-bytes="$documentMaxBytes"
         />
@@ -177,7 +191,9 @@
           id="header_audio"
           accept="{{ WhatsappMediaRules::accept('audio') }}"
           :hint="WhatsappMediaRules::hint('audio')"
+          preview-kind="audio"
           :preview-url="$headerType === 'audio' ? $previewUrl : null"
+          :file-name="$headerType === 'audio' ? $mediaName : null"
           :enabled="$headerType === 'audio' && ! $useUrl"
           :max-bytes="$audioMaxBytes"
         />

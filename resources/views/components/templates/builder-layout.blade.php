@@ -1,4 +1,4 @@
-@props(['active' => 'body', 'title' => 'Create Template', 'card' => true, 'template' => null, 'payload' => [], 'previewData' => null, 'setupComplete' => null, 'bodyFormId' => null, 'builderSteps' => null, 'canUseCarousel' => false])
+@props(['active' => 'body', 'title' => 'Create Template', 'card' => true, 'template' => null, 'payload' => [], 'previewData' => null, 'setupComplete' => null, 'bodyFormId' => null, 'identityFormId' => null, 'builderSteps' => null, 'canUseCarousel' => false])
 
 @php
   use App\Domains\Templates\Support\TemplateCategoryCatalog;
@@ -8,8 +8,12 @@
   $isSetupComplete = $setupComplete ?? ($meta['setup_completed'] ?? false);
   $categoryLabels = TemplateCategoryCatalog::labels();
   $canEditIdentity = $template?->canEditIdentity() ?? ! $isSetupComplete;
-  $editableMeta = $canEditIdentity && $active === 'body' && filled($bodyFormId);
-  $displayName = old('name', $canEditIdentity && ! $isSetupComplete ? ($meta['name'] ?: '') : ($template?->name ?? $meta['name'] ?? ''));
+  $identityForm = $identityFormId ?: $bodyFormId;
+  // Name is editable on every builder step while identity is unlocked.
+  $editableName = $canEditIdentity && filled($identityForm);
+  // Category / language / type stay on the body step (full identity setup).
+  $editableMeta = $editableName && $active === 'body';
+  $displayName = old('name', $template?->name ?? $meta['name'] ?? '');
   $storedCategory = $isSetupComplete ? ($template?->category ?? 'MARKETING') : ($meta['category'] ?: 'MARKETING');
   $displayCategory = old('category', TemplateCategoryCatalog::uiCategory((string) $storedCategory, is_array($payload) ? $payload : []));
   $displayLanguage = old('language', $isSetupComplete ? ($template?->language ?? 'en_GB') : ($meta['language'] ?: 'en_GB'));
@@ -25,7 +29,7 @@
   $previewDefaults = $previewData ?? [
     'header_type' => $headerType,
     'header_text' => $payload['header']['text'] ?? '',
-    'header_image' => $headerType === 'image' ? asset('images/templates/preview-header-image.png') : null,
+    'header_image' => null,
     'header_video' => null,
     'header_document' => null,
     'body' => $payload['body']['text'] ?? '',
@@ -67,16 +71,16 @@
           <div class="flex min-w-0 flex-col gap-3 lg:col-span-4">
             <label for="template_name" class="fd-label">
               Template Name
-              @if ($editableMeta)
+              @if ($editableName)
                 <span class="text-[red]">*</span>
               @endif
             </label>
-            @if ($editableMeta)
+            @if ($editableName)
               <div data-validate-field>
                 <input
                   id="template_name"
                   name="name"
-                  form="{{ $bodyFormId }}"
+                  form="{{ $identityForm }}"
                   type="text"
                   value="{{ $displayName }}"
                   required
@@ -104,7 +108,7 @@
             </label>
             @if ($editableMeta)
               <div data-validate-field>
-                <x-ui.select id="template_category" name="category" form="{{ $bodyFormId }}" variant="default" class="w-full" required>
+                <x-ui.select id="template_category" name="category" form="{{ $identityForm }}" variant="default" class="w-full" required>
                   @foreach ($categoryLabels as $categoryValue => $categoryLabel)
                     @if ($categoryValue === TemplateCategoryCatalog::CAROUSEL && ! $canUseCarousel)
                       <option value="{{ $categoryValue }}" disabled @selected($displayCategory === $categoryValue)>
@@ -133,7 +137,7 @@
             </label>
             @if ($editableMeta)
               <div data-validate-field>
-                <x-ui.select id="template_language" name="language" form="{{ $bodyFormId }}" variant="default" class="w-full" required>
+                <x-ui.select id="template_language" name="language" form="{{ $identityForm }}" variant="default" class="w-full" required>
                   <option value="en_GB" @selected($displayLanguage === 'en_GB')>English (UK)</option>
                   <option value="en_US" @selected($displayLanguage === 'en_US')>English (US)</option>
                 </x-ui.select>
@@ -155,7 +159,7 @@
             </label>
             @if ($editableMeta)
               <div data-validate-field>
-                <x-ui.select id="template_type" name="template_type" form="{{ $bodyFormId }}" variant="default" class="w-full" required>
+                <x-ui.select id="template_type" name="template_type" form="{{ $identityForm }}" variant="default" class="w-full" required>
                   <option value="regular" @selected($displayType === 'regular')>Regular</option>
                   <option value="auto_response" @selected($displayType === 'auto_response')>Auto Response</option>
                 </x-ui.select>

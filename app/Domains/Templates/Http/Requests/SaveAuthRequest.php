@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace App\Domains\Templates\Http\Requests;
 
+use App\Domains\Templates\Http\Requests\Concerns\ValidatesEditableTemplateName;
 use Illuminate\Foundation\Http\FormRequest;
 
 class SaveAuthRequest extends FormRequest
 {
+    use ValidatesEditableTemplateName;
+
     public function authorize(): bool
     {
         return true;
@@ -15,7 +18,7 @@ class SaveAuthRequest extends FormRequest
 
     public function rules(): array
     {
-        return [
+        return array_merge($this->editableNameRules(), [
             'copy_button_text' => ['required', 'string', 'max:25'],
             'auto_fill' => ['nullable', 'boolean'],
             'zero_tap' => ['nullable', 'boolean'],
@@ -28,6 +31,16 @@ class SaveAuthRequest extends FormRequest
             'supported_apps' => ['nullable', 'array', 'max:55'],
             'supported_apps.*.package_name' => ['nullable', 'string', 'max:255'],
             'supported_apps.*.signature_hash' => ['nullable', 'string', 'max:255'],
-        ];
+        ]);
+    }
+
+    public function withValidator($validator): void
+    {
+        $validator->after(fn ($validator) => $this->validateEditableNameUnique($validator));
+    }
+
+    public function messages(): array
+    {
+        return $this->editableNameMessages();
     }
 }

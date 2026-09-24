@@ -201,10 +201,10 @@ class CamsOutboundPayloadBuilder
         $metadata = $message->metadata ?? [];
         $contacts = is_array($metadata['contacts'] ?? null) ? $metadata['contacts'] : [];
 
-        // Alibaba SendChatappMessage: when MessageType=contacts, Content MUST include a
-        // top-level `name` field → a single contact object (not a bare array, not
-        // {"contacts":[...]}). Bare arrays also break over GET query encoding.
-        // Docs still require formatted_name + ≥1 of first_name/last_name/….
+        // Legacy TeamInboxMessageService::sendContactsWithResponse:
+        // Content = json_encode([$contact, ...]) — bare JSON array of contact objects.
+        // Alibaba params page: "Contacts must be passed as an array".
+        // Each contact needs name.formatted_name + ≥1 optional name field.
         $normalized = [];
         foreach ($contacts as $contact) {
             if (! is_array($contact)) {
@@ -217,13 +217,13 @@ class CamsOutboundPayloadBuilder
             throw new \InvalidArgumentException('Contact details are incomplete. Add a name and phone number.');
         }
 
-        // Legacy never sent Language on free-form contact sends.
+        // Match legacy free-form contact request (no Language on SendChatappMessageRequest).
         unset($payload['Language']);
 
         return array_merge($payload, [
             'Type' => 'message',
             'MessageType' => 'contacts',
-            'Content' => json_encode($normalized[0], JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR),
+            'Content' => json_encode(array_values($normalized), JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR),
         ]);
     }
 
@@ -281,10 +281,9 @@ class CamsOutboundPayloadBuilder
             if (! in_array($type, ['CELL', 'MAIN', 'IPHONE', 'HOME', 'WORK'], true)) {
                 $type = 'CELL';
             }
-            // Meta/CAMS: phone may be display-formatted; wa_id is digits-only WhatsApp ID.
-            // Keep phone digits-only too — InvalidParameter.ContactPhonesError / ContactsOnlyNumeric.
+            // Meta Cloud API examples use display phone with "+" and digits-only wa_id.
             $phones[] = [
-                'phone' => $digits,
+                'phone' => '+'.$digits,
                 'type' => $type,
                 'wa_id' => $digits,
             ];
@@ -294,8 +293,7 @@ class CamsOutboundPayloadBuilder
             throw new \InvalidArgumentException('Contact details are incomplete. Add a name and phone number.');
         }
 
-        // Keep payload minimal like a working WhatsApp contact card (name + phones only).
-        // Optional emails/org/urls/addresses caused ContentError on some CAMS validations.
+        // Minimal card: name + phones only (emails/org optional and previously noisy).
         return [
             'name' => $namePayload,
             'phones' => $phones,

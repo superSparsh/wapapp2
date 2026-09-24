@@ -106,7 +106,7 @@ class CamsOutboundPayloadBuilderTest extends TestCase
         $this->assertSame('Caption', $content['text']);
     }
 
-    public function test_contact_payload_is_single_object_with_name(): void
+    public function test_contact_payload_is_legacy_bare_contacts_array(): void
     {
         $line = $this->testLine;
         $conversation = Conversation::factory()->create([
@@ -153,19 +153,18 @@ class CamsOutboundPayloadBuilderTest extends TestCase
         $this->assertSame('contacts', $payload['MessageType']);
         $this->assertSame('message', $payload['Type']);
         $this->assertArrayNotHasKey('Language', $payload);
-        // Alibaba: Content must include top-level `name` (single contact object).
+        // Legacy Content = bare contacts array.
         $this->assertIsArray($content);
-        $this->assertArrayHasKey('name', $content);
         $this->assertArrayNotHasKey('contacts', $content);
-        $this->assertArrayNotHasKey(0, $content);
-        $this->assertSame('Ada Lovelace', $content['name']['formatted_name']);
-        $this->assertSame('Ada', $content['name']['first_name']);
-        $this->assertSame('Lovelace', $content['name']['last_name']);
-        $this->assertSame('918888888902', $content['phones'][0]['phone']);
-        $this->assertSame('918888888902', $content['phones'][0]['wa_id']);
-        $this->assertSame('CELL', $content['phones'][0]['type']);
-        // CAMS Content stays minimal (name + phones only).
-        $this->assertArrayNotHasKey('emails', $content);
-        $this->assertArrayNotHasKey('org', $content);
+        $this->assertArrayNotHasKey('name', $content);
+        $this->assertArrayHasKey(0, $content);
+        $this->assertSame('Ada Lovelace', $content[0]['name']['formatted_name']);
+        $this->assertSame('Ada', $content[0]['name']['first_name']);
+        $this->assertSame('Lovelace', $content[0]['name']['last_name']);
+        $this->assertSame('+918888888902', $content[0]['phones'][0]['phone']);
+        $this->assertSame('918888888902', $content[0]['phones'][0]['wa_id']);
+        $this->assertSame('CELL', $content[0]['phones'][0]['type']);
+        $this->assertArrayNotHasKey('emails', $content[0]);
+        $this->assertArrayNotHasKey('org', $content[0]);
     }
 }

@@ -70,6 +70,7 @@ class TemplateBuilderTest extends TestCase
 
         $this->actingAsTenantUser()
             ->post(route('templates.builder.header.save', $template), [
+                'name' => 'welcome_message',
                 'header_type' => 'text',
                 'header_text' => 'Welcome',
             ])
@@ -238,10 +239,100 @@ class TemplateBuilderTest extends TestCase
 
         $this->actingAsTenantUser()
             ->post(route('templates.builder.header.save', $template), [
+                'name' => 'header_test',
                 'header_type' => 'text',
                 'header_text' => '',
             ])
             ->assertSessionHasErrors(['header_text']);
+    }
+
+    public function test_template_name_can_be_renamed_from_header_step(): void
+    {
+        $template = Template::factory()->draft()->create([
+            'whatsapp_line_id' => $this->testLine->id,
+            'name' => 'old_header_name',
+            'category' => 'MARKETING',
+            'language' => 'en_GB',
+            'payload' => array_merge(Template::defaultPayload(), [
+                'meta' => [
+                    'name' => 'old_header_name',
+                    'category' => 'MARKETING',
+                    'language' => 'en_GB',
+                    'template_type' => 'regular',
+                    'setup_completed' => true,
+                ],
+                'body' => ['text' => 'Hello', 'samples' => []],
+            ]),
+        ]);
+
+        $this->actingAsTenantUser()
+            ->get(route('templates.builder.header', $template))
+            ->assertOk()
+            ->assertSee('name="name"', false)
+            ->assertSee('old_header_name', false);
+
+        $this->actingAsTenantUser()
+            ->post(route('templates.builder.header.save', $template), [
+                'name' => 'new_header_name',
+                'header_type' => 'none',
+            ])
+            ->assertRedirect(route('templates.builder.footer', $template));
+
+        $template->refresh();
+        $this->assertSame('new_header_name', $template->name);
+        $this->assertSame('new_header_name', $template->wizardPayload()['meta']['name']);
+    }
+
+    public function test_header_media_is_preserved_and_previewable_on_edit(): void
+    {
+        $template = Template::factory()->draft()->create([
+            'whatsapp_line_id' => $this->testLine->id,
+            'name' => 'media_header',
+            'category' => 'MARKETING',
+            'language' => 'en_GB',
+            'payload' => array_merge(Template::defaultPayload(), [
+                'meta' => [
+                    'name' => 'media_header',
+                    'category' => 'MARKETING',
+                    'language' => 'en_GB',
+                    'template_type' => 'regular',
+                    'setup_completed' => true,
+                ],
+                'header' => [
+                    'type' => 'image',
+                    'text' => '',
+                    'media_path' => 'templates/headers/sample.jpg',
+                    'media_url' => null,
+                    'media_name' => 'sample.jpg',
+                    'use_url' => false,
+                    'doc_name' => null,
+                ],
+                'body' => ['text' => 'Hello', 'samples' => []],
+            ]),
+        ]);
+
+        $previewPath = route('templates.media.show', ['path' => 'templates/headers/sample.jpg'], false);
+
+        $this->actingAsTenantUser()
+            ->get(route('templates.builder.header', $template))
+            ->assertOk()
+            ->assertSee('sample.jpg', false)
+            ->assertSee($previewPath, false)
+            ->assertDontSee('/storage/templates/headers/sample.jpg', false);
+
+        $this->actingAsTenantUser()
+            ->post(route('templates.builder.header.save', $template), [
+                'name' => 'media_header',
+                'header_type' => 'image',
+                'media_path' => 'templates/headers/sample.jpg',
+            ])
+            ->assertRedirect(route('templates.builder.footer', $template));
+
+        $template->refresh();
+        $header = $template->wizardPayload()['header'];
+        $this->assertSame('image', $header['type']);
+        $this->assertSame('templates/headers/sample.jpg', $header['media_path']);
+        $this->assertSame('sample.jpg', $header['media_name']);
     }
 
     public function test_owner_can_skip_optional_header_footer_and_buttons(): void
@@ -266,18 +357,21 @@ class TemplateBuilderTest extends TestCase
 
         $this->actingAsTenantUser()
             ->post(route('templates.builder.header.save', $template), [
+                'name' => 'optional_steps',
                 'header_type' => 'none',
             ])
             ->assertRedirect(route('templates.builder.footer', $template));
 
         $this->actingAsTenantUser()
             ->post(route('templates.builder.footer.save', $template), [
+                'name' => 'optional_steps',
                 'footer_text' => '',
             ])
             ->assertRedirect(route('templates.builder.buttons', $template));
 
         $this->actingAsTenantUser()
             ->post(route('templates.builder.buttons.save', $template), [
+                'name' => 'optional_steps',
                 'button_mode' => 'none',
             ])
             ->assertRedirect(route('templates.builder.submit', $template));
@@ -309,6 +403,7 @@ class TemplateBuilderTest extends TestCase
 
         $this->actingAsTenantUser()
             ->post(route('templates.builder.submit.save', $template), [
+                'name' => 'submit_test',
                 'confirm' => '1',
             ])
             ->assertRedirect(route('templates.index'))
@@ -350,6 +445,7 @@ class TemplateBuilderTest extends TestCase
 
         $this->actingAsTenantUser()
             ->post(route('templates.builder.buttons.save', $template), [
+                'name' => 'flow_button_test',
                 'button_mode' => 'whatsapp_flows',
                 'buttons' => [
                     [

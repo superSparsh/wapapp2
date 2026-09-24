@@ -88,7 +88,7 @@ class InboxMessageService
             ? $metadata['interactive']
             : null;
 
-        $mediaUrl = isset($metadata['media_url']) ? (string) $metadata['media_url'] : null;
+        $mediaUrl = InboxPresenter::displayMediaUrl($metadata);
         $fileName = isset($metadata['file_name']) ? (string) $metadata['file_name'] : null;
 
         // Backfill from raw webhook payload when older inbound media lacked media_url.

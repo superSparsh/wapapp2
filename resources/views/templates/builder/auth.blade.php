@@ -2,8 +2,8 @@
   $auth = $payload['auth'] ?? [];
 @endphp
 
-<x-templates.builder-layout active="auth" :card="false" :template="$template" :payload="$payload" :preview-data="$previewData ?? null" :setup-complete="$setupComplete ?? true" :builder-steps="$builderSteps ?? null">
-  <form method="post" action="{{ route('templates.builder.auth.save', $template) }}" class="flex flex-col gap-4" data-validate-form>
+<x-templates.builder-layout active="auth" :card="false" :template="$template" :payload="$payload" :preview-data="$previewData ?? null" :setup-complete="$setupComplete ?? true" :builder-steps="$builderSteps ?? null" identity-form-id="builder-auth-form">
+  <form id="builder-auth-form" method="post" action="{{ route('templates.builder.auth.save', $template) }}" class="flex flex-col gap-4" data-validate-form>
     @csrf
 
     <div class="rounded-lg bg-elevated p-4 flex flex-col gap-4">

@@ -128,6 +128,26 @@ final class InboxPresenter
         return $phone;
     }
 
+    /**
+     * URL to show in the inbox UI.
+     * Outbound media is uploaded to Alibaba OSS for WhatsApp delivery (media_url),
+     * but browsers often cannot load that private/hosted object — prefer the local
+     * public disk copy (media_url_local) for display.
+     *
+     * @param  array<string, mixed>  $metadata
+     */
+    public static function displayMediaUrl(array $metadata): ?string
+    {
+        foreach (['media_url_local', 'media_url'] as $key) {
+            $value = trim((string) ($metadata[$key] ?? ''));
+            if ($value !== '') {
+                return $value;
+            }
+        }
+
+        return null;
+    }
+
     public static function encodeCursor(?\DateTimeInterface $at, int $id): ?string
     {
         if ($at === null) {

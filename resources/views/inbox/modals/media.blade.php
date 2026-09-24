@@ -46,7 +46,7 @@
     <x-inbox.phone-preview title="Media Preview" subtitle="Preview how the media will appear">
         <x-slot:preview>
             <div
-                class="mx-auto flex w-full max-w-[354px] flex-col gap-2 rounded-br-[12px] rounded-tl-[12px] rounded-tr-[12px] border border-border bg-elevated p-2"
+                class="mx-auto flex w-full max-w-[354px] mt-5 flex-col gap-2 rounded-br-[12px] rounded-tl-[12px] rounded-tr-[12px] border border-border bg-elevated p-2"
                 data-inbox-media-preview
             >
                 <div

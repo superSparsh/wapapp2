@@ -106,6 +106,37 @@ class TemplateBuilderService
     }
 
     /**
+     * Rename a draft/failed template without touching category/language/type.
+     */
+    public function saveEditableName(Template $template, ?string $name): Template
+    {
+        if (! $template->canEditIdentity() || $name === null) {
+            return $template;
+        }
+
+        $requestedName = trim($name);
+        if ($requestedName === '' || $requestedName === $template->name) {
+            return $template;
+        }
+
+        if (TemplateNameValidator::nameExistsForLine($requestedName, $template->whatsapp_line_id, $template->id)) {
+            throw ValidationException::withMessages([
+                'name' => 'A template with this name already exists on this WhatsApp number. Please choose a different name.',
+            ]);
+        }
+
+        return DB::transaction(function () use ($template, $requestedName): Template {
+            $payload = $template->wizardPayload();
+            $template->name = $requestedName;
+            $payload['meta']['name'] = $requestedName;
+            $template->payload = $payload;
+            $template->save();
+
+            return $template->refresh();
+        });
+    }
+
+    /**
      * @param  array<string, mixed>  $stepData
      */
     public function saveStep(Template $template, string $step, array $stepData): Template

@@ -801,6 +801,8 @@ class InboxServiceAdapter
      */
     private function messagePayload(Message $message): array
     {
+        $metadata = is_array($message->metadata) ? $message->metadata : [];
+
         return [
             'message' => [
                 'uuid' => $message->uuid,
@@ -810,15 +812,15 @@ class InboxServiceAdapter
                 'message_type' => $message->message_type->value,
                 'time' => \App\Domains\Inbox\Support\InboxPresenter::relativeTime($message->created_at),
                 'is_outbound' => true,
-                'media_url' => is_array($message->metadata) ? ($message->metadata['media_url'] ?? null) : null,
-                'file_name' => is_array($message->metadata) ? ($message->metadata['file_name'] ?? null) : null,
-                'latitude' => is_array($message->metadata) ? ($message->metadata['latitude'] ?? null) : null,
-                'longitude' => is_array($message->metadata) ? ($message->metadata['longitude'] ?? null) : null,
-                'contacts' => is_array($message->metadata) ? ($message->metadata['contacts'] ?? null) : null,
-                'template_code' => is_array($message->metadata) ? ($message->metadata['template_code'] ?? null) : null,
-                'template_name' => is_array($message->metadata) ? ($message->metadata['template_name'] ?? null) : null,
-                'template_buttons' => is_array($message->metadata) ? ($message->metadata['template_buttons'] ?? []) : [],
-                'interactive' => is_array($message->metadata) ? ($message->metadata['interactive'] ?? null) : null,
+                'media_url' => \App\Domains\Inbox\Support\InboxPresenter::displayMediaUrl($metadata),
+                'file_name' => $metadata['file_name'] ?? null,
+                'latitude' => $metadata['latitude'] ?? null,
+                'longitude' => $metadata['longitude'] ?? null,
+                'contacts' => $metadata['contacts'] ?? null,
+                'template_code' => $metadata['template_code'] ?? null,
+                'template_name' => $metadata['template_name'] ?? null,
+                'template_buttons' => $metadata['template_buttons'] ?? [],
+                'interactive' => $metadata['interactive'] ?? null,
                 'sent_at' => $message->sent_at?->toIso8601String(),
                 'delivered_at' => $message->delivered_at?->toIso8601String(),
                 'read_at' => $message->read_at?->toIso8601String(),

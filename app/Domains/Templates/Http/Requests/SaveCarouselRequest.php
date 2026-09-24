@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace App\Domains\Templates\Http\Requests;
 
+use App\Domains\Templates\Http\Requests\Concerns\ValidatesEditableTemplateName;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
 
 class SaveCarouselRequest extends FormRequest
 {
+    use ValidatesEditableTemplateName;
+
     public function authorize(): bool
     {
         return true;
@@ -52,7 +55,7 @@ class SaveCarouselRequest extends FormRequest
         $bodyLimit = (int) config('templates.carousel_card_body_limit', 150);
         $buttonTextLimit = (int) config('templates.carousel_button_text_limit', 25);
 
-        return [
+        return array_merge($this->editableNameRules(), [
             'cards' => ['required', 'array', "min:{$min}", "max:{$max}"],
             'carousel_body' => ['nullable', 'string', 'max:'.(int) config('templates.body_limit', 1024)],
             'cards.*.body' => ['required', 'string', "max:{$bodyLimit}"],
@@ -64,14 +67,14 @@ class SaveCarouselRequest extends FormRequest
             'cards.*.buttons.*.text' => ['nullable', 'string', "max:{$buttonTextLimit}"],
             'cards.*.buttons.*.type' => ['nullable', 'string', 'in:QUICK_REPLY,URL,PHONE_NUMBER'],
             'cards.*.buttons.*.url' => ['nullable', 'string', 'max:2000'],
-        ];
+        ]);
     }
 
     public function messages(): array
     {
         $bodyLimit = (int) config('templates.carousel_card_body_limit', 150);
 
-        return [
+        return array_merge($this->editableNameMessages(), [
             'cards.required' => 'At least one card is required.',
             'cards.min' => 'Carousel needs at least :min cards.',
             'cards.max' => 'Carousel can have at most :max cards.',
@@ -81,12 +84,14 @@ class SaveCarouselRequest extends FormRequest
             'cards.*.buttons.required' => 'Each card must have at least one button.',
             'cards.*.buttons.min' => 'Each card must have at least one button.',
             'cards.*.buttons.max' => 'A card can have a maximum of 2 buttons only.',
-        ];
+        ]);
     }
 
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator): void {
+            $this->validateEditableNameUnique($validator);
+
             $cards = $this->input('cards', []);
             if (! is_array($cards) || $cards === []) {
                 return;

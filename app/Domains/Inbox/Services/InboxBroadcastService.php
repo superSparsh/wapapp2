@@ -122,7 +122,7 @@ class InboxBroadcastService
     private function messagePayload(Message $message): array
     {
         $metadata = is_array($message->metadata) ? $message->metadata : [];
-        $mediaUrl = isset($metadata['media_url']) ? (string) $metadata['media_url'] : null;
+        $mediaUrl = InboxPresenter::displayMediaUrl($metadata);
         $fileName = isset($metadata['file_name']) ? (string) $metadata['file_name'] : null;
 
         if (($mediaUrl === null || $mediaUrl === '') && is_array($metadata['raw_message'] ?? null)) {

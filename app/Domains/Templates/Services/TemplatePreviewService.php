@@ -81,14 +81,22 @@ class TemplatePreviewService
             isset($payload['header']['media_url']) ? (string) $payload['header']['media_url'] : null,
         );
 
+        // Prefer local media_path (auth preview route) over remote media_url so edit
+        // previews stay reliable when OSS/public URLs are unavailable in-browser.
         if ($headerType === 'image' && (filled($mediaPath) || filled($mediaUrl))) {
-            $headerImage = filled($mediaUrl) ? $mediaUrl : ($mediaPath ? $this->mediaService->previewUrl((string) $mediaPath) : null);
+            $headerImage = filled($mediaPath)
+                ? $this->mediaService->previewUrl((string) $mediaPath)
+                : $mediaUrl;
         }
         if ($headerType === 'video' && (filled($mediaPath) || filled($mediaUrl))) {
-            $headerVideo = filled($mediaUrl) ? $mediaUrl : ($mediaPath ? $this->mediaService->previewUrl((string) $mediaPath) : null);
+            $headerVideo = filled($mediaPath)
+                ? $this->mediaService->previewUrl((string) $mediaPath)
+                : $mediaUrl;
         }
         if ($headerType === 'document' && (filled($mediaPath) || filled($mediaUrl))) {
-            $headerDocument = filled($mediaUrl) ? $mediaUrl : ($mediaPath ? $this->mediaService->previewUrl((string) $mediaPath) : null);
+            $headerDocument = filled($mediaPath)
+                ? $this->mediaService->previewUrl((string) $mediaPath)
+                : $mediaUrl;
         }
 
         // Authentication template preview data

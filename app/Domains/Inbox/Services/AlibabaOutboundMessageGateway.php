@@ -62,7 +62,13 @@ class AlibabaOutboundMessageGateway implements \App\Domains\Inbox\Contracts\Outb
 
             $response = $this->client->sendChatappMessage($payload);
 
-            if (! $response->successful()) {
+            $body = $response->json();
+            $code = is_array($body)
+                ? strtoupper((string) ($body['Code'] ?? $body['code'] ?? ''))
+                : '';
+            $camsOk = $response->successful() && ($code === '' || $code === 'OK');
+
+            if (! $camsOk) {
                 $reason = $this->extractCamsError($response->body());
                 $debug = $this->payloadDebugSuffix($payload);
 
@@ -84,7 +90,6 @@ class AlibabaOutboundMessageGateway implements \App\Domains\Inbox\Contracts\Outb
                 return;
             }
 
-            $body = $response->json();
             $externalId = (string) Arr::get($body, 'MessageId', Arr::get($body, 'messageId', ''));
 
             $message->forceFill([

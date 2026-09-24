@@ -5,8 +5,9 @@
   :payload="$payload"
   :preview-data="$previewData ?? null"
   :builder-steps="$builderSteps ?? null"
+  identity-form-id="builder-footer-form"
 >
-  <form method="post" action="{{ route('templates.builder.footer.save', $template) }}" class="flex flex-col gap-4" data-validate-form>
+  <form id="builder-footer-form" method="post" action="{{ route('templates.builder.footer.save', $template) }}" class="flex flex-col gap-4" data-validate-form>
     @csrf
     <div class="rounded-lg bg-elevated p-2">
       <div class="relative flex h-[87px] w-full items-start rounded-xl border border-solid border-border bg-elevated p-3">

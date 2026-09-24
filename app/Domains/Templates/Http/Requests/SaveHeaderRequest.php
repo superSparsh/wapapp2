@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace App\Domains\Templates\Http\Requests;
 
+use App\Domains\Templates\Http\Requests\Concerns\ValidatesEditableTemplateName;
 use App\Models\Template;
 use App\Support\WhatsappMediaRules;
 use Illuminate\Foundation\Http\FormRequest;
 
 class SaveHeaderRequest extends FormRequest
 {
+    use ValidatesEditableTemplateName;
+
     public function authorize(): bool
     {
         return true;
@@ -19,14 +22,14 @@ class SaveHeaderRequest extends FormRequest
     {
         $type = (string) $this->input('header_type', 'none');
 
-        $rules = [
+        $rules = array_merge($this->editableNameRules(), [
             'header_type' => ['required', 'in:none,text,image,video,document,audio,location'],
             'header_text' => ['nullable', 'string', 'max:'.config('templates.header_text_limit', 60)],
             'media_url' => ['nullable', 'string'],
             'media_path' => ['nullable', 'string', 'max:500'],
             'doc_name' => ['nullable', 'string', 'max:255'],
             'use_url' => ['nullable', 'boolean'],
-        ];
+        ]);
 
         if ($type === 'none') {
             return $rules;
@@ -59,6 +62,8 @@ class SaveHeaderRequest extends FormRequest
     public function withValidator($validator): void
     {
         $validator->after(function ($validator) {
+            $this->validateEditableNameUnique($validator);
+
             $type = (string) $this->input('header_type', 'none');
 
             if (! in_array($type, ['image', 'video', 'document', 'audio'], true)) {
@@ -83,12 +88,12 @@ class SaveHeaderRequest extends FormRequest
 
     public function messages(): array
     {
-        return [
+        return array_merge($this->editableNameMessages(), [
             'header_text.required' => 'Header text is required when header type is not None.',
             'header_media.required' => 'Please upload a file for the header.',
             'media_url.required' => 'Please provide a URL for the header media.',
             'media_url.url' => 'Enter a valid URL for the header media.',
             'media_url.regex' => 'Header media URL must start with https:// so WhatsApp can download it.',
-        ];
+        ]);
     }
 }

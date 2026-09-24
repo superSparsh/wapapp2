@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace App\Domains\Templates\Http\Requests;
 
+use App\Domains\Templates\Http\Requests\Concerns\ValidatesEditableTemplateName;
 use Illuminate\Foundation\Http\FormRequest;
 
 class SaveFooterRequest extends FormRequest
 {
+    use ValidatesEditableTemplateName;
+
     public function authorize(): bool
     {
         return true;
@@ -15,15 +18,20 @@ class SaveFooterRequest extends FormRequest
 
     public function rules(): array
     {
-        return [
+        return array_merge($this->editableNameRules(), [
             'footer_text' => ['nullable', 'string', 'max:'.config('templates.footer_limit', 60)],
-        ];
+        ]);
+    }
+
+    public function withValidator($validator): void
+    {
+        $validator->after(fn ($validator) => $this->validateEditableNameUnique($validator));
     }
 
     public function messages(): array
     {
-        return [
+        return array_merge($this->editableNameMessages(), [
             'footer_text.max' => 'Footer text exceeds the maximum length allowed by WhatsApp.',
-        ];
+        ]);
     }
 }

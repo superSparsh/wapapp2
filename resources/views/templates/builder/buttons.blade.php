@@ -17,7 +17,7 @@
   $maxPhoneButtons = (int) config('templates.max_phone_buttons', 1);
 @endphp
 
-<x-templates.builder-layout active="buttons" :card="false" :template="$template" :payload="$payload" :preview-data="$previewData ?? null" :setup-complete="$setupComplete ?? true" :builder-steps="$builderSteps ?? null">
+<x-templates.builder-layout active="buttons" :card="false" :template="$template" :payload="$payload" :preview-data="$previewData ?? null" :setup-complete="$setupComplete ?? true" :builder-steps="$builderSteps ?? null" identity-form-id="template-buttons-form">
   <form method="post" action="{{ route('templates.builder.buttons.save', $template) }}" class="flex flex-col gap-4" id="template-buttons-form">
     @csrf
 

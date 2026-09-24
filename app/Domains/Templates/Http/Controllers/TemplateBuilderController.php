@@ -53,9 +53,13 @@ class TemplateBuilderController extends Controller
 
     public function saveHeader(SaveHeaderRequest $request, Template $template, TemplateBuilderService $builderService): RedirectResponse
     {
+        $builderService->saveEditableName($template, $request->input('name'));
+        $template->refresh();
+
         $payload = $template->wizardPayload();
         $mediaPath = $payload['header']['media_path'] ?? null;
         $mediaUrl = $payload['header']['media_url'] ?? null;
+        $mediaName = $payload['header']['media_name'] ?? null;
 
         if ($request->filled('media_path') && ! $request->hasFile('header_media') && ! $request->boolean('use_url')) {
             $mediaPath = (string) $request->input('media_path');
@@ -65,17 +69,22 @@ class TemplateBuilderController extends Controller
             $stored = app(TemplateMediaService::class)->storeHeaderMedia($request->file('header_media'));
             $mediaPath = $stored['path'];
             $mediaUrl = null;
+            $mediaName = $stored['original_name'];
         } elseif ($request->boolean('use_url')) {
             $mediaUrl = (string) $request->input('media_url', '');
             $mediaPath = null;
+            $mediaName = null;
         }
 
+        $headerType = (string) $request->input('header_type', 'none');
+
         $builderService->saveStep($template, 'header', [
-            'type' => (string) $request->input('header_type', 'none'),
+            'type' => $headerType,
             'text' => (string) $request->input('header_text', ''),
-            'media_path' => $request->input('header_type') === 'none' ? null : $mediaPath,
-            'media_url' => $request->input('header_type') === 'none' ? null : $mediaUrl,
-            'use_url' => $request->input('header_type') === 'none' ? false : $request->boolean('use_url'),
+            'media_path' => $headerType === 'none' ? null : $mediaPath,
+            'media_url' => $headerType === 'none' ? null : $mediaUrl,
+            'media_name' => $headerType === 'none' ? null : $mediaName,
+            'use_url' => $headerType === 'none' ? false : $request->boolean('use_url'),
             'doc_name' => (string) $request->input('doc_name', ''),
         ]);
 
@@ -151,12 +160,14 @@ class TemplateBuilderController extends Controller
             'type' => $headerType,
             'media_path' => $stored['path'],
             'media_url' => null,
+            'media_name' => $stored['original_name'],
             'use_url' => false,
         ]);
 
         return response()->json([
             'path' => $stored['path'],
             'url' => $stored['url'],
+            'name' => $stored['original_name'],
             'type' => $headerType,
             'message' => 'Media uploaded successfully.',
         ]);
@@ -228,6 +239,8 @@ class TemplateBuilderController extends Controller
 
     public function saveAuth(SaveAuthRequest $request, Template $template, TemplateBuilderService $builderService): RedirectResponse
     {
+        $builderService->saveEditableName($template, $request->input('name'));
+
         $apps = collect($request->input('supported_apps', []))
             ->filter(fn ($app) => is_array($app) && filled($app['package_name'] ?? null) && filled($app['signature_hash'] ?? null))
             ->values()
@@ -261,6 +274,8 @@ class TemplateBuilderController extends Controller
 
     public function saveLto(SaveLtoRequest $request, Template $template, TemplateBuilderService $builderService): RedirectResponse
     {
+        $builderService->saveEditableName($template, $request->input('name'));
+
         $builderService->saveStep($template, 'lto', [
             'enabled' => true,
             'discount_introduction' => (string) $request->input('discount_introduction'),
@@ -289,6 +304,8 @@ class TemplateBuilderController extends Controller
     public function saveCarousel(SaveCarouselRequest $request, Template $template, TemplateBuilderService $builderService): RedirectResponse
     {
         abort_unless($this->builderFlow->canUseCarousel(), 403);
+
+        $builderService->saveEditableName($template, $request->input('name'));
 
         $cards = collect($request->input('cards', []))
             ->map(function (array $card): array {
@@ -398,6 +415,8 @@ class TemplateBuilderController extends Controller
 
     public function saveFooter(SaveFooterRequest $request, Template $template, TemplateBuilderService $builderService): RedirectResponse
     {
+        $builderService->saveEditableName($template, $request->input('name'));
+
         $builderService->saveStep($template, 'footer', [
             'text' => (string) $request->input('footer_text', ''),
         ]);
@@ -421,6 +440,9 @@ class TemplateBuilderController extends Controller
         TemplateBuilderService $builderService,
         WhatsappFlowInteractiveService $flowInteractiveService,
     ): RedirectResponse {
+        $builderService->saveEditableName($template, $request->input('name'));
+        $template->refresh();
+
         $mode = (string) $request->input('button_mode', 'none');
 
         if ($mode === 'lto') {
@@ -483,6 +505,9 @@ class TemplateBuilderController extends Controller
 
     public function saveSubmit(SaveSubmitRequest $request, Template $template, TemplateBuilderService $builderService): RedirectResponse
     {
+        $builderService->saveEditableName($template, $request->input('name'));
+        $template->refresh();
+
         $builderService->submit($template);
         $template->refresh();
 
