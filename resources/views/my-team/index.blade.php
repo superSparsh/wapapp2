@@ -12,18 +12,24 @@
         </div>
       @endif
 
-      <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <form method="get" action="{{ route('my-team.index') }}" class="flex w-full max-w-[550px] items-center gap-3 overflow-hidden rounded-lg bg-elevated p-3">
-          <x-icons.nav-icon name="search" class="size-5 shrink-0 opacity-60" />
-          <input
-            type="search"
-            name="q"
-            value="{{ $search ?? '' }}"
-            placeholder="Search by name, email or phone"
-            class="fd-filter-placeholder min-w-0 flex-1 bg-transparent focus:outline-none"
-          >
-        </form>
-        <div class="flex flex-wrap items-center justify-end gap-3">
+      <x-ui.listing-toolbar
+        :action="route('my-team.index')"
+        search-name="q"
+        :search-value="$search ?? ''"
+        search-placeholder="Search by name, email or phone"
+        :current-sort="$currentSort ?? 'created_at'"
+        :current-direction="$currentDirection ?? 'desc'"
+        :sort-options="[
+          ['value' => 'created_at', 'label' => 'Newest first', 'direction' => 'desc'],
+          ['value' => 'created_at', 'label' => 'Oldest first', 'direction' => 'asc'],
+          ['value' => 'name', 'label' => 'Name A–Z', 'direction' => 'asc'],
+          ['value' => 'name', 'label' => 'Name Z–A', 'direction' => 'desc'],
+          ['value' => 'phone', 'label' => 'Phone A–Z', 'direction' => 'asc'],
+          ['value' => 'email', 'label' => 'Email A–Z', 'direction' => 'asc'],
+          ['value' => 'status', 'label' => 'Active first', 'direction' => 'desc'],
+        ]"
+      >
+        <x-slot:actions>
           <a
             href="{{ route('my-team.settings') }}"
             class="fd-btn inline-flex items-center justify-center gap-2 rounded border border-border-light bg-elevated px-4 py-3 text-sm font-semibold leading-[1.5] text-primary-2 transition-colors hover:bg-surface"
@@ -39,8 +45,8 @@
               Create
             </a>
           @endif
-        </div>
-      </div>
+        </x-slot:actions>
+      </x-ui.listing-toolbar>
     </div>
 
     <section class="bg-surface p-4 pt-0" data-team-root>

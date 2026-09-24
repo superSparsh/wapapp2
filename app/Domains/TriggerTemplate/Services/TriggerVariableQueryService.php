@@ -5,16 +5,27 @@ declare(strict_types=1);
 namespace App\Domains\TriggerTemplate\Services;
 
 use App\Models\TriggerVariable;
+use App\Support\ListingSort;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 
 class TriggerVariableQueryService
 {
-    public function paginate(int $perPage = 10): LengthAwarePaginator
-    {
-        return TriggerVariable::query()
-            ->orderByDesc('id')
-            ->paginate($perPage);
+    public function paginate(
+        int $perPage = 10,
+        string $sort = 'id',
+        string $direction = 'desc',
+    ): LengthAwarePaginator {
+        $query = TriggerVariable::query();
+
+        ListingSort::apply($query, $sort, $direction, [
+            'id' => 'id',
+            'variable_name' => 'variable_name',
+            'template_name' => 'template_name',
+            'list_name' => 'list_name',
+        ], 'id');
+
+        return $query->paginate($perPage)->withQueryString();
     }
 
     /**

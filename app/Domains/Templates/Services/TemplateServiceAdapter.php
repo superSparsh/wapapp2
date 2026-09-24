@@ -56,6 +56,8 @@ class TemplateServiceAdapter
         ?string $freeType = null,
         ?InteractiveMessageService $interactiveMessageService = null,
         ?InteractiveMessagePresenter $interactiveMessagePresenter = null,
+        string $sort = 'updated_at',
+        string $direction = 'desc',
     ): array {
         if ($this->isMicroserviceEnabled()) {
             try {
@@ -65,6 +67,8 @@ class TemplateServiceAdapter
                     'type' => $type,
                     'page' => $page,
                     'per_page' => $perPage,
+                    'sort' => $sort,
+                    'direction' => $direction,
                 ]);
 
                 $previewData = null;
@@ -79,7 +83,12 @@ class TemplateServiceAdapter
                 $freeTypes = [];
                 if ($interactiveMessageService && $interactiveMessagePresenter) {
                     $freeRows = $interactiveMessagePresenter->tableRows(
-                        $interactiveMessageService->list($search !== '' ? $search : null, $freeType !== '' ? $freeType : null)
+                        $interactiveMessageService->list(
+                            $search !== '' ? $search : null,
+                            $freeType !== '' ? $freeType : null,
+                            $sort,
+                            $direction,
+                        )
                     );
                     $freeTypes = $interactiveMessageService->types();
                 }
@@ -149,6 +158,8 @@ class TemplateServiceAdapter
                     'selectedFreeType' => $freeType,
                     'showPreview' => $showPreviewParam || $previewData !== null,
                     'previewData' => $previewData,
+                    'currentSort' => $sort,
+                    'currentDirection' => $direction,
                     'pagination' => [
                         'total' => $total,
                         'per_page' => $perPage,
@@ -189,7 +200,12 @@ class TemplateServiceAdapter
         $freeTypes = [];
         if ($interactiveMessageService && $interactiveMessagePresenter) {
             $freeRows = $interactiveMessagePresenter->tableRows(
-                $interactiveMessageService->list($search !== '' ? $search : null, $freeType !== '' ? $freeType : null)
+                $interactiveMessageService->list(
+                    $search !== '' ? $search : null,
+                    $freeType !== '' ? $freeType : null,
+                    $sort,
+                    $direction,
+                )
             );
             $freeTypes = $interactiveMessageService->types();
         }
@@ -203,6 +219,8 @@ class TemplateServiceAdapter
                 approvedOnly: false,
                 page: $page,
                 perPage: $perPage,
+                sort: $sort,
+                direction: $direction,
             ),
             'freeTemplates' => $freeRows,
             'categories' => $this->localCatalogService->categories(),
@@ -214,6 +232,8 @@ class TemplateServiceAdapter
             'selectedFreeType' => $freeType,
             'showPreview' => $showPreviewParam || $previewData !== null,
             'previewData' => $previewData,
+            'currentSort' => $sort,
+            'currentDirection' => $direction,
             'pagination' => [
                 'total' => $total,
                 'per_page' => $perPage,

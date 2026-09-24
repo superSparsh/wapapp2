@@ -7,6 +7,7 @@ namespace App\Domains\Audience\Http\Controllers;
 use App\Domains\Audience\Http\Requests\Blacklist\StoreBlacklistRequest;
 use App\Domains\Audience\Models\Blacklist;
 use App\Domains\Audience\Services\BlacklistService;
+use App\Support\ListingSort;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
@@ -20,8 +21,17 @@ class BlacklistController extends Controller
 
     public function index(Request $request): View
     {
+        $parsed = ListingSort::fromRequest($request, ['created_at', 'phone', 'email'], 'created_at', 'desc');
+
         return view('audience.blacklist', [
-            'entries' => $this->service->index($request->get('search')),
+            'entries' => $this->service->index(
+                search: $request->get('search'),
+                sort: $parsed['sort'],
+                direction: $parsed['direction'],
+            ),
+            'search' => $request->get('search', ''),
+            'currentSort' => $parsed['sort'],
+            'currentDirection' => $parsed['direction'],
         ]);
     }
 

@@ -13,6 +13,7 @@ use App\Domains\Templates\Support\TemplateCategoryCatalog;
 use App\Domains\Templates\Support\VariableActorContext;
 use App\Models\Template;
 use App\Models\WhatsappLine;
+use App\Support\ListingSort;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -106,8 +107,14 @@ class TemplateRegistryService
     /**
      * @return Collection<int, Template>
      */
-    public function listForTable(?string $keyword = null, ?string $category = null, ?string $type = null, bool $approvedOnly = false): Collection
-    {
+    public function listForTable(
+        ?string $keyword = null,
+        ?string $category = null,
+        ?string $type = null,
+        bool $approvedOnly = false,
+        string $sort = 'updated_at',
+        string $direction = 'desc',
+    ): Collection {
         // Drop CAMS clones that shadow a legacy/local template (same name + line).
         $this->pruneCamsDuplicatesOfLocal();
 
@@ -122,8 +129,7 @@ class TemplateRegistryService
 
         // Legacy-imported + locally created templates only. CAMS sync is explicit via refresh().
         $query = Template::query()
-            ->whereIn('status', $statuses)
-            ->orderByDesc('updated_at');
+            ->whereIn('status', $statuses);
 
         $keyword = trim((string) $keyword);
         if ($keyword !== '') {
@@ -144,6 +150,13 @@ class TemplateRegistryService
         } elseif ($type === 'Draft') {
             $this->scopeDraftType($query);
         }
+
+        ListingSort::apply($query, $sort, $direction, [
+            'updated_at' => 'updated_at',
+            'created_at' => 'created_at',
+            'name' => 'name',
+            'status' => 'status',
+        ], 'updated_at');
 
         return $query->get();
     }

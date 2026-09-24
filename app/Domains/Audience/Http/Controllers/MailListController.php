@@ -8,6 +8,7 @@ use App\Domains\Audience\Http\Requests\MailList\StoreMailListRequest;
 use App\Domains\Audience\Http\Requests\MailList\UpdateMailListRequest;
 use App\Domains\Audience\Services\MailListService;
 use App\Models\MailList;
+use App\Support\ListingSort;
 use App\Support\PublicId;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -26,9 +27,19 @@ class MailListController extends Controller
      */
     public function index(Request $request): View
     {
-        $lists = $this->service->index($request->get('search'));
+        $parsed = ListingSort::fromRequest($request, ['created_at', 'name'], 'created_at', 'desc');
+        $lists = $this->service->index(
+            search: $request->get('search'),
+            sort: $parsed['sort'],
+            direction: $parsed['direction'],
+        );
 
-        return view('audience.index', ['lists' => $lists]);
+        return view('audience.index', [
+            'lists' => $lists,
+            'search' => $request->get('search', ''),
+            'currentSort' => $parsed['sort'],
+            'currentDirection' => $parsed['direction'],
+        ]);
     }
 
     /**

@@ -17,6 +17,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Template;
 use App\Models\Tenant;
 use App\Models\WhatsappLine;
+use App\Support\ListingSort;
 use App\Support\PublicId;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -90,15 +91,29 @@ class CommerceController extends Controller
      */
     public function orders(Request $request): View
     {
+        $parsed = ListingSort::fromRequest(
+            $request,
+            ['id', 'created_at', 'customer_name', 'customer_phone', 'total_price', 'order_status', 'payment_status'],
+            'id',
+            'desc',
+        );
         $orders = $this->orderService->paginate(
             search:        $request->query('q'),
             orderStatus:   $request->query('order_status'),
             paymentStatus: $request->query('payment_status'),
+            sort:          $parsed['sort'],
+            direction:     $parsed['direction'],
         );
 
         $stats = $this->orderService->getStats();
 
-        return view('commerce.orders', compact('orders', 'stats'));
+        return view('commerce.orders', [
+            'orders' => $orders,
+            'stats' => $stats,
+            'search' => $request->query('q', ''),
+            'currentSort' => $parsed['sort'],
+            'currentDirection' => $parsed['direction'],
+        ]);
     }
 
     /**

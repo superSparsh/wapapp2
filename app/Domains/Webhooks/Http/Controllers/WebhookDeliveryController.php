@@ -7,6 +7,7 @@ namespace App\Domains\Webhooks\Http\Controllers;
 use App\Domains\Webhooks\Services\WebhookDeliveryService;
 use App\Models\WebhookDelivery;
 use App\Models\WebhookSubscription;
+use App\Support\ListingSort;
 use App\Support\PublicId;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -28,14 +29,28 @@ class WebhookDeliveryController extends Controller
             ? PublicId::find(WebhookSubscription::class, (string) $request->input('subscription_id'))
             : null;
 
+        $parsed = ListingSort::fromRequest(
+            $request,
+            ['created_at', 'status', 'event_type'],
+            'created_at',
+            'desc',
+        );
         $metrics = $this->service->metrics($subscription?->id);
-        $deliveries = $this->service->logs($request, subscriptionId: $subscription?->id);
+        $deliveries = $this->service->logs(
+            $request,
+            subscriptionId: $subscription?->id,
+            sort: $parsed['sort'],
+            direction: $parsed['direction'],
+        );
         $subscriptions = WebhookSubscription::query()->select(['id', 'uuid', 'description'])->orderBy('description')->get();
 
         return view('webhooks.logs', [
             'metrics' => $metrics,
             'deliveries' => $deliveries,
             'subscriptions' => $subscriptions,
+            'search' => $request->get('search', ''),
+            'currentSort' => $parsed['sort'],
+            'currentDirection' => $parsed['direction'],
         ]);
     }
 

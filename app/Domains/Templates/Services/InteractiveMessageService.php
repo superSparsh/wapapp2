@@ -6,6 +6,7 @@ namespace App\Domains\Templates\Services;
 
 use App\Domains\Templates\Support\VariableActorContext;
 use App\Models\InteractiveMessage;
+use App\Support\ListingSort;
 use Illuminate\Support\Collection;
 
 class InteractiveMessageService
@@ -17,10 +18,13 @@ class InteractiveMessageService
     /**
      * @return Collection<int, InteractiveMessage>
      */
-    public function list(?string $keyword = null, ?string $type = null): Collection
-    {
-        $query = InteractiveMessage::query()
-            ->orderByDesc('updated_at');
+    public function list(
+        ?string $keyword = null,
+        ?string $type = null,
+        string $sort = 'updated_at',
+        string $direction = 'desc',
+    ): Collection {
+        $query = InteractiveMessage::query();
 
         $keyword = trim((string) $keyword);
         if ($keyword !== '') {
@@ -31,6 +35,12 @@ class InteractiveMessageService
         if ($type !== '') {
             $query->where('type', $type);
         }
+
+        ListingSort::apply($query, $sort, $direction, [
+            'updated_at' => 'updated_at',
+            'created_at' => 'created_at',
+            'name' => 'name',
+        ], 'updated_at');
 
         return $query->get();
     }

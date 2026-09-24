@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domains\Admin\Http\Controllers;
 
 use App\Domains\Admin\Services\CrossTenantScanner;
+use App\Domains\Admin\Support\AdminListQuery;
 use App\Http\Controllers\Controller;
 use App\Models\Subscription;
 use App\Models\Tenant;
@@ -20,6 +21,12 @@ class RazorpaySubscriptionAdminController extends Controller
 
     public function index(Request $request): View
     {
+        $parsed = AdminListQuery::fromRequest(
+            $request,
+            allowedSorts: ['starts_at', 'ends_at', 'amount', 'status', 'id'],
+            defaultSort: 'starts_at',
+            defaultDirection: 'desc',
+        );
         $tenantId = trim((string) $request->query('tenant', ''));
         $rows = $this->scanner->map(function (): array {
             return Subscription::query()
@@ -41,19 +48,36 @@ class RazorpaySubscriptionAdminController extends Controller
 
         $page = max(1, (int) $request->integer('page', 1));
         $perPage = 25;
-        $sorted = $rows->sortByDesc('starts_at')->values();
+        $sorted = AdminListQuery::sortRows(
+            $rows,
+            $parsed['sort'],
+            $parsed['direction'],
+            ['starts_at', 'ends_at', 'amount', 'status', 'id'],
+            'starts_at',
+        );
+        $filters = [
+            'tenant' => $tenantId,
+            'sort' => $parsed['sort'],
+            'direction' => $parsed['direction'],
+        ];
         $paginator = new LengthAwarePaginator(
             $sorted->forPage($page, $perPage)->values(),
             $sorted->count(),
             $perPage,
             $page,
-            ['path' => LengthAwarePaginator::resolveCurrentPath(), 'query' => array_filter(['tenant' => $tenantId])],
+            ['path' => LengthAwarePaginator::resolveCurrentPath(), 'query' => array_filter($filters)],
         );
 
         return view('admin.razorpay.index', [
             'items' => $paginator,
-            'filters' => ['tenant' => $tenantId],
+            'filters' => $filters,
             'tenants' => Tenant::query()->orderBy('name')->limit(500)->get(['id', 'name', 'company_name']),
+            'sortOptions' => [
+                ['value' => 'starts_at', 'label' => 'Starts newest', 'direction' => 'desc'],
+                ['value' => 'starts_at', 'label' => 'Starts oldest', 'direction' => 'asc'],
+                ['value' => 'amount', 'label' => 'Highest amount', 'direction' => 'desc'],
+                ['value' => 'status', 'label' => 'Status', 'direction' => 'asc'],
+            ],
         ]);
     }
 }

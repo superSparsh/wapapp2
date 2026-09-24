@@ -14,21 +14,24 @@
         </p>
       </div>
 
-      <form method="get" action="{{ route('templates.variables') }}" class="flex flex-wrap items-center justify-between gap-4">
-        <label class="flex w-full max-w-[550px] items-center gap-3 overflow-hidden rounded-lg bg-elevated p-3">
-          <img src="{{ asset('images/templates/search.svg') }}" alt="" class="size-5 shrink-0" width="20" height="20">
-          <input
-            type="search"
-            name="q"
-            value="{{ $search }}"
-            placeholder="Search variables"
-            class="min-w-0 flex-1 bg-transparent text-sm font-medium leading-[1.4] text-text-body placeholder:text-text-body/60 focus:outline-none"
-          >
-        </label>
-
-        <div class="flex items-center gap-2">
+      <x-ui.listing-toolbar
+        :action="route('templates.variables')"
+        search-name="q"
+        :search-value="$search"
+        search-placeholder="Search variables"
+        :current-sort="$currentSort ?? 'id'"
+        :current-direction="$currentDirection ?? 'desc'"
+        :sort-options="[
+          ['value' => 'id', 'label' => 'Newest first', 'direction' => 'desc'],
+          ['value' => 'id', 'label' => 'Oldest first', 'direction' => 'asc'],
+          ['value' => 'created_at', 'label' => 'Created date', 'direction' => 'desc'],
+          ['value' => 'name', 'label' => 'Name A–Z', 'direction' => 'asc'],
+          ['value' => 'name', 'label' => 'Name Z–A', 'direction' => 'desc'],
+        ]"
+      >
+        <x-slot:actions>
           <a
-            href="{{ route('templates.variables', array_filter(['q' => $search !== '' ? $search : null])) }}"
+            href="{{ route('templates.variables', array_filter(['q' => $search !== '' ? $search : null, 'sort' => $currentSort ?? null, 'direction' => $currentDirection ?? null])) }}"
             class="fd-btn inline-flex shrink-0 items-center justify-center gap-3 rounded border border-border-light bg-elevated px-4 py-3 text-green-500"
           >
             <img src="{{ asset('images/templates/refresh-2.svg') }}" alt="" class="size-4" width="16" height="16">
@@ -41,8 +44,8 @@
             <img src="{{ asset('images/icons/add-linear.svg') }}" alt="" class="size-5" width="20" height="20">
             Add New
           </a>
-        </div>
-      </form>
+        </x-slot:actions>
+      </x-ui.listing-toolbar>
     </div>
 
     <section class="bg-surface p-4 pt-0">

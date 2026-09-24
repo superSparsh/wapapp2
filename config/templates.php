@@ -20,11 +20,11 @@ return [
     'header_text_limit' => (int) env('TEMPLATE_HEADER_TEXT_LIMIT', 60),
     'body_limit' => (int) env('TEMPLATE_BODY_LIMIT', 1024),
 
-    // Header media limits (bytes)
-    'header_image_max' => (int) env('TEMPLATE_HEADER_IMAGE_MAX', 5242880),   // 5 MB
-    'header_video_max' => (int) env('TEMPLATE_HEADER_VIDEO_MAX', 16777216),    // 16 MB
-    'header_document_max' => (int) env('TEMPLATE_HEADER_DOC_MAX', 10485760),  // 10 MB
-    'header_audio_max' => (int) env('TEMPLATE_HEADER_AUDIO_MAX', 16777216),   // 16 MB
+    // Header media limits (bytes) — aligned with WhatsApp media rules (config/whatsapp.php)
+    'header_image_max' => (int) env('TEMPLATE_HEADER_IMAGE_MAX', 5 * 1024 * 1024),      // 5 MB
+    'header_video_max' => (int) env('TEMPLATE_HEADER_VIDEO_MAX', 14 * 1024 * 1024),     // 14 MB
+    'header_document_max' => (int) env('TEMPLATE_HEADER_DOC_MAX', 14 * 1024 * 1024),   // 14 MB
+    'header_audio_max' => (int) env('TEMPLATE_HEADER_AUDIO_MAX', 14 * 1024 * 1024),    // 14 MB
 
     // Template categories in builder (CAROUSEL may require advance plan)
     'categories' => [

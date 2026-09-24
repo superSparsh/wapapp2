@@ -18,9 +18,15 @@ class TemplateCatalogService
     /**
      * @return Collection<int, Template>
      */
-    public function filtered(?string $keyword = null, ?string $category = null, ?string $type = null, bool $approvedOnly = false): Collection
-    {
-        return $this->registry->listForTable($keyword, $category, $type, $approvedOnly);
+    public function filtered(
+        ?string $keyword = null,
+        ?string $category = null,
+        ?string $type = null,
+        bool $approvedOnly = false,
+        string $sort = 'updated_at',
+        string $direction = 'desc',
+    ): Collection {
+        return $this->registry->listForTable($keyword, $category, $type, $approvedOnly, $sort, $direction);
     }
 
     /** @return list<string> */
@@ -43,9 +49,21 @@ class TemplateCatalogService
     /**
      * @return list<array<string, mixed>>
      */
-    public function tableRows(?string $keyword = null, ?string $category = null, ?string $type = null, bool $approvedOnly = false, int $page = 1, int $perPage = 10): array
-    {
-        return $this->presenter->tableRows($this->filtered($keyword, $category, $type, $approvedOnly), $page, $perPage);
+    public function tableRows(
+        ?string $keyword = null,
+        ?string $category = null,
+        ?string $type = null,
+        bool $approvedOnly = false,
+        int $page = 1,
+        int $perPage = 10,
+        string $sort = 'updated_at',
+        string $direction = 'desc',
+    ): array {
+        return $this->presenter->tableRows(
+            $this->filtered($keyword, $category, $type, $approvedOnly, $sort, $direction),
+            $page,
+            $perPage,
+        );
     }
 
     /**

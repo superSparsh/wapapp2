@@ -6,18 +6,28 @@ namespace App\Domains\Admin\Services;
 
 use App\Enums\TenantStatus;
 use App\Models\Tenant;
+use App\Domains\Admin\Support\AdminListQuery;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
 
 class DataPurgeService
 {
     /**
-     * @param  array{q?: string}  $filters
+     * @param  array{q?: string, sort?: string, direction?: string}  $filters
      * @return array{items: LengthAwarePaginator<int, array<string, mixed>>, filters: array<string, string>}
      */
     public function candidates(array $filters = [], int $page = 1, int $perPage = 20): array
     {
         $q = trim((string) ($filters['q'] ?? ''));
+        $sort = (string) ($filters['sort'] ?? 'name');
+        $direction = strtolower((string) ($filters['direction'] ?? 'asc'));
+        if (! in_array($sort, ['name', 'valid_until', 'status', 'reason'], true)) {
+            $sort = 'name';
+        }
+        if (! in_array($direction, ['asc', 'desc'], true)) {
+            $direction = 'asc';
+        }
+
         $rows = Tenant::query()
             ->with('plan:id,name')
             ->orderBy('name')
@@ -60,16 +70,19 @@ class DataPurgeService
             $rows = $rows->filter(fn (array $row) => str_contains(strtolower($row['id'].$row['name'].$row['email']), $needle))->values();
         }
 
+        $rows = AdminListQuery::sortRows($rows, $sort, $direction, ['name', 'valid_until', 'status', 'reason'], 'name');
+
         $page = max(1, $page);
+        $filterBag = ['q' => $q, 'sort' => $sort, 'direction' => $direction];
         $paginator = new LengthAwarePaginator(
             $rows->forPage($page, $perPage)->values(),
             $rows->count(),
             $perPage,
             $page,
-            ['path' => LengthAwarePaginator::resolveCurrentPath(), 'query' => array_filter(['q' => $q])],
+            ['path' => LengthAwarePaginator::resolveCurrentPath(), 'query' => array_filter($filterBag)],
         );
 
-        return ['items' => $paginator, 'filters' => ['q' => $q]];
+        return ['items' => $paginator, 'filters' => $filterBag];
     }
 
     /**

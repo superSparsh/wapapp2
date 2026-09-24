@@ -8,6 +8,7 @@ use App\Domains\Audience\Enums\ContactStatus;
 use App\Models\Contact;
 use App\Models\MailList;
 use App\Models\SignupForm;
+use App\Support\ListingSort;
 use Illuminate\Pagination\LengthAwarePaginator;
 
 class MailListService
@@ -15,18 +16,27 @@ class MailListService
     /**
      * Paginated list of mail lists with contact counts.
      */
-    public function index(?string $search = null, int $perPage = 15): LengthAwarePaginator
-    {
-        return MailList::query()
+    public function index(
+        ?string $search = null,
+        int $perPage = 15,
+        string $sort = 'created_at',
+        string $direction = 'desc',
+    ): LengthAwarePaginator {
+        $query = MailList::query()
             ->when($search, fn ($q) => $q->where('name', 'LIKE', "%{$search}%"))
             ->withCount([
                 'contacts',
                 'contacts as subscribed_count' => fn ($q) => $q->where('status', ContactStatus::Subscribed),
                 'contacts as unsubscribed_count' => fn ($q) => $q->where('status', ContactStatus::Unsubscribed),
                 'contacts as blacklisted_count' => fn ($q) => $q->where('status', ContactStatus::Blacklisted),
-            ])
-            ->latest()
-            ->paginate($perPage);
+            ]);
+
+        ListingSort::apply($query, $sort, $direction, [
+            'created_at' => 'created_at',
+            'name' => 'name',
+        ], 'created_at');
+
+        return $query->paginate($perPage)->withQueryString();
     }
 
     /**

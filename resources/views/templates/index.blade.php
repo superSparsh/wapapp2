@@ -18,6 +18,8 @@
     'category' => ! $isFreeTab && $selectedCategory !== '' ? $selectedCategory : null,
     'type' => ! $isFreeTab && $selectedType !== '' ? $selectedType : null,
     'free_type' => $isFreeTab && $selectedFreeType !== '' ? $selectedFreeType : null,
+    'sort' => ($currentSort ?? 'updated_at') !== 'updated_at' ? ($currentSort ?? null) : null,
+    'direction' => ($currentDirection ?? 'desc') !== 'desc' ? ($currentDirection ?? null) : null,
   ]);
 @endphp
 
@@ -39,28 +41,30 @@
 
       <x-ui.validation-errors class="max-w-[854px]" />
 
-      <div class="flex flex-wrap items-center justify-between gap-4">
-        <form method="get" action="{{ route('templates.index') }}" class="flex flex-wrap items-center gap-4" data-templates-filter-form>
+      <x-ui.listing-toolbar
+        :action="route('templates.index')"
+        search-name="q"
+        :search-value="$search"
+        search-placeholder="Search"
+        :current-sort="$currentSort ?? 'updated_at'"
+        :current-direction="$currentDirection ?? 'desc'"
+        :sort-options="[
+          ['value' => 'updated_at', 'label' => 'Recently updated', 'direction' => 'desc'],
+          ['value' => 'created_at', 'label' => 'Newest first', 'direction' => 'desc'],
+          ['value' => 'created_at', 'label' => 'Oldest first', 'direction' => 'asc'],
+          ['value' => 'name', 'label' => 'Name A–Z', 'direction' => 'asc'],
+          ['value' => 'name', 'label' => 'Name Z–A', 'direction' => 'desc'],
+          ['value' => 'status', 'label' => 'Status A–Z', 'direction' => 'asc'],
+        ]"
+        data-templates-filter-form
+      >
+        <x-slot:hidden>
           <input type="hidden" name="tab" value="{{ $activeTab }}">
-          <div class="flex w-[280px] shrink-0 items-center gap-3 overflow-hidden rounded-lg bg-elevated p-3">
-            <button type="submit" class="shrink-0 rounded p-0.5 hover:opacity-80" aria-label="Search templates">
-              <img src="{{ asset('images/templates/search.svg') }}" alt="" class="size-5" width="20" height="20">
-            </button>
-            <input
-              type="search"
-              name="q"
-              value="{{ $search }}"
-              placeholder="Search"
-              autocomplete="off"
-              data-listing-search-enter
-              data-listing-search-debounce="400"
-              class="fd-filter-placeholder min-w-0 flex-1 bg-transparent opacity-60 focus:opacity-100 focus:outline-none"
-            >
-          </div>
-
+        </x-slot:hidden>
+        <x-slot:filters>
           @if ($isFreeTab)
             <div class="min-w-[140px] shrink-0">
-              <x-ui.select name="free_type" variant="filter" class="min-w-[140px]" data-listing-filter>
+              <x-ui.select name="free_type" variant="listing" class="min-w-[140px]" data-listing-filter>
                 <option value="">Type</option>
                 @foreach ($freeTypes as $freeType)
                   <option value="{{ $freeType }}" @selected($selectedFreeType === $freeType)>{{ ucfirst($freeType) }}</option>
@@ -69,7 +73,7 @@
             </div>
           @else
             <div class="min-w-[140px] shrink-0">
-              <x-ui.select name="type" variant="filter" class="min-w-[140px]" data-listing-filter>
+              <x-ui.select name="type" variant="listing" class="min-w-[140px]" data-listing-filter>
                 <option value="">Type</option>
                 @foreach ($types as $typeOption)
                   <option value="{{ $typeOption }}" @selected($selectedType === $typeOption)>{{ $typeOption }}</option>
@@ -77,7 +81,7 @@
               </x-ui.select>
             </div>
             <div class="min-w-[140px] shrink-0">
-              <x-ui.select name="category" variant="filter" class="min-w-[140px]" data-listing-filter>
+              <x-ui.select name="category" variant="listing" class="min-w-[140px]" data-listing-filter>
                 <option value="">Category</option>
                 @foreach ($categories as $category)
                   <option value="{{ $category }}" @selected($selectedCategory === $category)>{{ \App\Domains\Templates\Support\TemplateCategoryCatalog::label((string) $category) }}</option>
@@ -85,15 +89,14 @@
               </x-ui.select>
             </div>
           @endif
-        </form>
-
-        <div class="flex shrink-0 flex-wrap items-center gap-4">
+        </x-slot:filters>
+        <x-slot:actions>
           @if (! $isFreeTab)
             <div id="templates-bulk-actions" class="hidden items-center gap-3">
               <span class="text-sm text-text-muted"><span data-bulk-count>0</span> selected</span>
               <button type="button" id="templates-bulk-delete" class="fd-btn-sm rounded border border-red-500 px-4 py-2 text-sm text-red-600">Delete selected</button>
             </div>
-            <x-templates.refresh-button :action="route('templates.index', array_merge($tabQuery, ['tab' => $activeTab]))" />
+            <x-templates.refresh-button :action="route('templates.index', array_merge($tabQuery, ['tab' => $activeTab, 'sort' => $currentSort ?? 'updated_at', 'direction' => $currentDirection ?? 'desc']))" />
           @endif
           <a
             href="{{ $isFreeTab ? route('templates.free.create') : route('templates.builder.create') }}"
@@ -102,12 +105,12 @@
             <img src="{{ asset('images/icons/add-linear.svg') }}" alt="" class="size-5" width="20" height="20">
             {{ $isFreeTab ? 'Create New' : 'Create New Template' }}
           </a>
-        </div>
-      </div>
+        </x-slot:actions>
+      </x-ui.listing-toolbar>
 
       <div class="flex gap-0 border-b-2 border-blue-50">
-        <a href="{{ route('templates.index', array_merge($tabQuery, ['tab' => 'free'])) }}" @class(['fd-tab px-9 py-2.5 transition-colors', 'border-b-2 border-green-500 bg-green-100' => $isFreeTab, 'hover:bg-surface' => ! $isFreeTab])>Free Templates</a>
-        <a href="{{ route('templates.index', array_merge($tabQuery, ['tab' => 'approved'])) }}" @class(['fd-tab px-9 py-2.5 transition-colors', 'border-b-2 border-green-500 bg-green-100' => ! $isFreeTab, 'hover:bg-surface' => $isFreeTab])>Regular Templates</a>
+        <a href="{{ route('templates.index', array_merge($tabQuery, ['tab' => 'free', 'sort' => $currentSort ?? 'updated_at', 'direction' => $currentDirection ?? 'desc'])) }}" @class(['fd-tab px-9 py-2.5 transition-colors', 'border-b-2 border-green-500 bg-green-100' => $isFreeTab, 'hover:bg-surface' => ! $isFreeTab])>Free Templates</a>
+        <a href="{{ route('templates.index', array_merge($tabQuery, ['tab' => 'approved', 'sort' => $currentSort ?? 'updated_at', 'direction' => $currentDirection ?? 'desc'])) }}" @class(['fd-tab px-9 py-2.5 transition-colors', 'border-b-2 border-green-500 bg-green-100' => ! $isFreeTab, 'hover:bg-surface' => $isFreeTab])>Regular Templates</a>
       </div>
     </div>
 

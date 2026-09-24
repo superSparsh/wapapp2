@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domains\Admin\Http\Controllers;
 
 use App\Domains\Admin\Services\RetentionService;
+use App\Domains\Admin\Support\AdminListQuery;
 use App\Http\Controllers\Controller;
 use App\Models\Tenant;
 use Illuminate\Http\RedirectResponse;
@@ -20,10 +21,28 @@ class RetentionController extends Controller
 
     public function index(Request $request): View
     {
-        $filters = $request->only(['q', 'window', 'status']);
+        $parsed = AdminListQuery::fromRequest(
+            $request,
+            allowedSorts: ['name', 'days_left', 'valid_until', 'status'],
+            defaultSort: 'name',
+            defaultDirection: 'asc',
+        );
+        $filters = array_merge($request->only(['q', 'window', 'status']), [
+            'sort' => $parsed['sort'],
+            'direction' => $parsed['direction'],
+        ]);
         $report = $this->retention->report($filters, (int) $request->integer('page', 1));
 
-        return view('admin.retention.index', $report);
+        return view('admin.retention.index', [
+            ...$report,
+            'sortOptions' => [
+                ['value' => 'name', 'label' => 'Name A–Z', 'direction' => 'asc'],
+                ['value' => 'name', 'label' => 'Name Z–A', 'direction' => 'desc'],
+                ['value' => 'days_left', 'label' => 'Days left (soonest)', 'direction' => 'asc'],
+                ['value' => 'valid_until', 'label' => 'Valid until', 'direction' => 'asc'],
+                ['value' => 'status', 'label' => 'Status', 'direction' => 'asc'],
+            ],
+        ]);
     }
 
     public function show(Tenant $tenant): View
@@ -50,6 +69,6 @@ class RetentionController extends Controller
 
     public function export(Request $request): StreamedResponse
     {
-        return $this->retention->exportCsv($request->only(['q', 'window', 'status']));
+        return $this->retention->exportCsv($request->only(['q', 'window', 'status', 'sort', 'direction']));
     }
 }

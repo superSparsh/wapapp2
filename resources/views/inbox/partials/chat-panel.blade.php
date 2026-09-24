@@ -2,7 +2,7 @@
   $menuOpen = $menuOpen ?? false;
   $contact = $contact ?? [
     'initials' => '??',
-    'name' => 'Unknown',
+    'name' => 'Contact',
     'phone' => '',
     'ai_enabled' => false,
   ];

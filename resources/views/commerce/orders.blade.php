@@ -9,39 +9,43 @@
       <x-commerce.sub-nav />
 
       {{-- Filters row --}}
-      <form method="GET" action="{{ route('commerce.orders') }}" class="flex flex-wrap items-center gap-3">
-        <div class="flex w-full max-w-[380px] items-center gap-3 rounded-lg bg-elevated p-3">
-          <x-icons.nav-icon name="search" class="size-5 shrink-0 text-text-body/60" />
-          <input
-            type="search"
-            name="q"
-            value="{{ request('q') }}"
-            placeholder="Search by name, phone, catalog ID…"
-            class="fd-filter-placeholder min-w-0 flex-1 bg-transparent focus:outline-none"
-          >
-        </div>
-
-        <select name="order_status" class="rounded-lg border border-border bg-elevated px-3 py-2.5 text-sm text-text-body focus:outline-none">
-          <option value="">All Order Status</option>
-          @foreach (\App\Domains\Commerce\Enums\OrderStatus::cases() as $status)
-            <option value="{{ $status->value }}" @selected(request('order_status') === $status->value)>{{ $status->label() }}</option>
-          @endforeach
-        </select>
-
-        <select name="payment_status" class="rounded-lg border border-border bg-elevated px-3 py-2.5 text-sm text-text-body focus:outline-none">
-          <option value="">All Payment Status</option>
-          @foreach (\App\Domains\Commerce\Enums\PaymentStatus::cases() as $status)
-            <option value="{{ $status->value }}" @selected(request('payment_status') === $status->value)>{{ $status->label() }}</option>
-          @endforeach
-        </select>
-
-        <button type="submit" class="fd-btn rounded bg-green-500 px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90">
-          Filter
-        </button>
-        @if (request()->hasAny(['q', 'order_status', 'payment_status']))
-          <a href="{{ route('commerce.orders') }}" class="text-sm text-text-subtle underline">Clear</a>
-        @endif
-      </form>
+      <x-ui.listing-toolbar
+        :action="route('commerce.orders')"
+        search-name="q"
+        :search-value="$search ?? ''"
+        search-placeholder="Search by name, phone, catalog ID…"
+        :current-sort="$currentSort ?? 'id'"
+        :current-direction="$currentDirection ?? 'desc'"
+        :sort-options="[
+          ['value' => 'id', 'label' => 'Newest first', 'direction' => 'desc'],
+          ['value' => 'id', 'label' => 'Oldest first', 'direction' => 'asc'],
+          ['value' => 'customer_name', 'label' => 'Customer A–Z', 'direction' => 'asc'],
+          ['value' => 'customer_phone', 'label' => 'Phone A–Z', 'direction' => 'asc'],
+          ['value' => 'total_price', 'label' => 'Highest total', 'direction' => 'desc'],
+          ['value' => 'order_status', 'label' => 'Order status', 'direction' => 'asc'],
+          ['value' => 'payment_status', 'label' => 'Payment status', 'direction' => 'asc'],
+        ]"
+      >
+        <x-slot:filters>
+          <x-ui.select name="order_status" variant="listing" data-listing-filter class="w-[160px] shrink-0" aria-label="Order status">
+            <option value="">All Order Status</option>
+            @foreach (\App\Domains\Commerce\Enums\OrderStatus::cases() as $status)
+              <option value="{{ $status->value }}" @selected(request('order_status') === $status->value)>{{ $status->label() }}</option>
+            @endforeach
+          </x-ui.select>
+          <x-ui.select name="payment_status" variant="listing" data-listing-filter class="w-[160px] shrink-0" aria-label="Payment status">
+            <option value="">All Payment Status</option>
+            @foreach (\App\Domains\Commerce\Enums\PaymentStatus::cases() as $status)
+              <option value="{{ $status->value }}" @selected(request('payment_status') === $status->value)>{{ $status->label() }}</option>
+            @endforeach
+          </x-ui.select>
+        </x-slot:filters>
+        <x-slot:actions>
+          @if (request()->hasAny(['q', 'order_status', 'payment_status', 'sort', 'direction']))
+            <a href="{{ route('commerce.orders') }}" class="text-sm text-text-subtle underline">Clear</a>
+          @endif
+        </x-slot:actions>
+      </x-ui.listing-toolbar>
 
       {{-- Stats bar --}}
       <div class="flex flex-wrap gap-3 text-sm">

@@ -6,13 +6,14 @@
         <p class="fd-page-note">Welcome back! Here's your loan business overview.</p>
       </div>
 
-      <div class="flex flex-wrap items-center justify-between gap-3">
-        <form method="GET" action="{{ route('audience.index') }}" class="flex w-full max-w-[550px] items-center gap-3 rounded-lg bg-elevated p-3">
-          <img src="{{ asset('images/icons/sidebar/059a8053c8ef2ad2aae8a0b9c28cef8b48c5e37b.svg') }}" alt="" class="size-5 shrink-0" width="20" height="20">
-          <input type="search" name="search" value="{{ request('search') }}" placeholder="Search" class="fd-filter-placeholder min-w-0 flex-1 bg-transparent focus:outline-none">
-        </form>
-
-        <div class="flex flex-wrap items-center gap-2">
+      <x-ui.listing-toolbar
+        :action="route('audience.index')"
+        :search-value="$search ?? ''"
+        :current-sort="$currentSort ?? 'created_at'"
+        :current-direction="$currentDirection ?? 'desc'"
+        :sort-options="\App\Support\ListingSort::defaultOptions()"
+      >
+        <x-slot:actions>
           <a href="{{ route('audience.index') }}" class="fd-btn inline-flex items-center justify-center gap-3 rounded border border-border-light bg-elevated px-4 py-3 text-sm font-semibold text-green-500 transition-colors hover:bg-surface">
             <img src="{{ asset('images/automation/refresh.svg') }}" alt="" class="size-4" width="16" height="16">
             Refresh
@@ -21,8 +22,8 @@
             <img src="{{ asset('images/icons/sidebar/dbfd6f4cd73e6e1ecbcca79a8be160d3f18f5172.svg') }}" alt="" class="size-5" width="20" height="20">
             Create List
           </button>
-        </div>
-      </div>
+        </x-slot:actions>
+      </x-ui.listing-toolbar>
     </div>
 
     <section class="p-4 pt-0">

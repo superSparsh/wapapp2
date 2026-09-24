@@ -11,6 +11,7 @@ use App\Domains\TriggerTemplate\Services\TriggerVariableService;
 use App\Domains\TriggerTemplate\Support\TriggerPresenter;
 use App\Http\Controllers\Controller;
 use App\Models\TriggerVariable;
+use App\Support\ListingSort;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -23,7 +24,17 @@ class TriggerTemplateController extends Controller
         TriggerTemplateOptionService $optionService,
         TriggerPresenter $presenter,
     ): View {
-        $paginator = $queryService->paginate((int) config('trigger-template.per_page', 10));
+        $parsed = ListingSort::fromRequest(
+            $request,
+            ['id', 'variable_name', 'template_name', 'list_name'],
+            'id',
+            'desc',
+        );
+        $paginator = $queryService->paginate(
+            (int) config('trigger-template.per_page', 10),
+            $parsed['sort'],
+            $parsed['direction'],
+        );
         $templates = $optionService->templates();
         $mailLists = $optionService->mailLists();
 
@@ -33,6 +44,8 @@ class TriggerTemplateController extends Controller
             'templateOptions' => $presenter->templateOptions($templates),
             'mailListOptions' => $presenter->mailListOptions($mailLists),
             'openModal' => $request->query('modal') === 'add-trigger',
+            'currentSort' => $parsed['sort'],
+            'currentDirection' => $parsed['direction'],
         ]);
     }
 

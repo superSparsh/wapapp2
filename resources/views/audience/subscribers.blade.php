@@ -61,34 +61,27 @@
       </div>
 
       <div class="flex flex-wrap items-center gap-3">
-        <div class="flex items-center gap-2">
-          <div class="size-4 shrink-0 border-[1.5px] border-border-light bg-elevated"></div>
-          <span class="fd-filter-label font-semibold text-primary-2">Sort by</span>
-        </div>
-        <div class="relative" data-sort-dropdown>
-          <button type="button" class="flex w-[221px] items-center justify-between rounded-lg bg-elevated p-3" data-sort-toggle>
-            <span class="fd-filter-label">
-              @php
-                $sortLabels = ['created_at' => 'Created at', 'updated_at' => 'Updated at', 'name' => 'Name', 'phone' => 'Phone'];
-                $currentSort = request('sort_by', 'created_at');
-                $currentDir = request('sort_dir', 'desc');
-              @endphp
-              {{ $sortLabels[$currentSort] ?? 'Created at' }} {{ $currentDir === 'asc' ? '↑' : '↓' }}
-            </span>
-            <x-icons.nav-icon name="arrow-down" class="size-4 shrink-0" />
-          </button>
-          <div class="absolute right-0 z-30 mt-1 hidden w-52 rounded-lg border border-border-light bg-elevated py-1 shadow-lg" data-sort-menu>
-            @foreach(['created_at' => 'Created at', 'updated_at' => 'Updated at', 'name' => 'Name', 'phone' => 'Phone'] as $sortKey => $sortLabel)
-              <a href="{{ route('audience.subscribers', array_merge(request()->query(), ['sort_by' => $sortKey, 'sort_dir' => ($currentSort === $sortKey && $currentDir === 'desc') ? 'asc' : 'desc'])) }}" class="block px-4 py-2 text-sm text-text-body hover:bg-muted-surface {{ $currentSort === $sortKey ? 'bg-green-50 text-green-600 font-semibold' : '' }}">{{ $sortLabel }} {{ $currentSort === $sortKey ? ($currentDir === 'asc' ? '↑' : '↓') : '' }}</a>
-            @endforeach
-          </div>
-        </div>
-        <form method="GET" action="{{ route('audience.subscribers') }}" class="flex w-full max-w-[550px] flex-1 items-center gap-3 rounded-lg bg-elevated p-3">
-          @if($mailListId)<input type="hidden" name="list" value="{{ $mailListId }}">@endif
-          @if(request('status'))<input type="hidden" name="status" value="{{ request('status') }}">@endif
-          <img src="{{ asset('images/icons/sidebar/059a8053c8ef2ad2aae8a0b9c28cef8b48c5e37b.svg') }}" alt="" class="size-5 shrink-0" width="20" height="20">
-          <input type="search" name="search" value="{{ request('search') }}" placeholder="Search" class="fd-filter-placeholder min-w-0 flex-1 bg-transparent focus:outline-none">
-        </form>
+        <x-ui.listing-toolbar
+          class="flex-1"
+          :action="route('audience.subscribers')"
+          :search-value="$search ?? ''"
+          :current-sort="$currentSort ?? 'created_at'"
+          :current-direction="$currentDirection ?? 'desc'"
+          :sort-options="[
+            ['value' => 'created_at', 'label' => 'Newest first', 'direction' => 'desc'],
+            ['value' => 'created_at', 'label' => 'Oldest first', 'direction' => 'asc'],
+            ['value' => 'updated_at', 'label' => 'Recently updated', 'direction' => 'desc'],
+            ['value' => 'name', 'label' => 'Name A–Z', 'direction' => 'asc'],
+            ['value' => 'name', 'label' => 'Name Z–A', 'direction' => 'desc'],
+            ['value' => 'phone', 'label' => 'Phone A–Z', 'direction' => 'asc'],
+            ['value' => 'phone', 'label' => 'Phone Z–A', 'direction' => 'desc'],
+          ]"
+        >
+          <x-slot:hidden>
+            @if($mailListId)<input type="hidden" name="list" value="{{ $mailListId }}">@endif
+            @if(request('status'))<input type="hidden" name="status" value="{{ request('status') }}">@endif
+          </x-slot:hidden>
+        </x-ui.listing-toolbar>
       </div>
 
       <x-ui.data-table :headers="['SI. No', 'Whatsapp Number', 'Status', 'Name', 'Opt-in Message', 'Created At', 'Updated At', 'Un/Subcribe', 'Actions']" :paginator="$contacts">

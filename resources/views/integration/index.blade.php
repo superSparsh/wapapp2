@@ -11,6 +11,25 @@
           Add Trigger Scopes
         </a>
       </div>
+
+      <div class="mt-4">
+        <x-ui.listing-toolbar
+          :action="route('integration.index')"
+          :show-sort="true"
+          :search-value="''"
+          search-placeholder="Search"
+          :current-sort="$currentSort ?? 'created_at'"
+          :current-direction="$currentDirection ?? 'desc'"
+          :sort-options="[
+            ['value' => 'created_at', 'label' => 'Newest first', 'direction' => 'desc'],
+            ['value' => 'created_at', 'label' => 'Oldest first', 'direction' => 'asc'],
+            ['value' => 'sent_at', 'label' => 'Sent date', 'direction' => 'desc'],
+            ['value' => 'event_type', 'label' => 'Event type A–Z', 'direction' => 'asc'],
+            ['value' => 'status', 'label' => 'Status', 'direction' => 'asc'],
+            ['value' => 'whatsapp_number', 'label' => 'Phone A–Z', 'direction' => 'asc'],
+          ]"
+        />
+      </div>
     </div>
 
     @if (session('success'))

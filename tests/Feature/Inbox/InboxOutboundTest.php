@@ -248,6 +248,38 @@ class InboxOutboundTest extends TestCase
         ]);
     }
 
+    public function test_media_send_rejects_oversized_image(): void
+    {
+        $conversation = $this->createConversation();
+        $this->messageService->recordInbound($conversation, 'Recent hello');
+
+        $file = UploadedFile::fake()->create('huge.jpg', 6 * 1024, 'image/jpeg'); // 6 MB > 5 MB
+
+        $this->actingAsTenantUser()
+            ->postJson(route('inbox.api.send-media', $conversation), [
+                'media_type' => 'image',
+                'file' => $file,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['file']);
+    }
+
+    public function test_media_send_rejects_wrong_extension_for_type(): void
+    {
+        $conversation = $this->createConversation();
+        $this->messageService->recordInbound($conversation, 'Recent hello');
+
+        $file = UploadedFile::fake()->create('notes.pdf', 100, 'application/pdf');
+
+        $this->actingAsTenantUser()
+            ->postJson(route('inbox.api.send-media', $conversation), [
+                'media_type' => 'image',
+                'file' => $file,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['file']);
+    }
+
     public function test_alibaba_gateway_marks_message_sent_on_success(): void
     {
         config([

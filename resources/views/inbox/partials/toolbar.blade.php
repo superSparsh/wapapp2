@@ -26,6 +26,7 @@
   $currentAssignee = $filters['assignee'] ?? 'all';
   $currentDays = (int) ($filters['lookback_days'] ?? config('inbox.default_lookback_days', 7));
   $lookbackLabels = config('inbox.lookback_labels', []);
+  $lookbackLabel = $lookbackLabels[$currentDays] ?? ('Last '.$currentDays.' day'.($currentDays === 1 ? '' : 's'));
   $aiForAll = (bool) ($aiForAll ?? false);
 
   $scopeHidden = array_filter([
@@ -105,8 +106,15 @@
       'selected' => $currentDays,
       'hidden' => $daysHidden,
       'formClass' => 'min-w-0 w-full',
+      'title' => 'Chats and filters only include activity inside this date range',
     ])
   </div>
+
+  <p class="text-xs leading-relaxed text-text-body/55">
+    Inbox shows chats from
+    <span class="font-medium text-text-body">{{ $lookbackLabel }}</span>
+    only. Search, unread, assignee, and mark-all-read also use this same window — pick a longer range above to see older conversations.
+  </p>
 
   <div class="flex flex-wrap items-center gap-2">
     <button

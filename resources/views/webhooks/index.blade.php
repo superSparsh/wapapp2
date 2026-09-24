@@ -259,6 +259,21 @@ TXT;
       <div class="flex flex-col gap-4 rounded-xl bg-elevated p-5">
         <h2 class="text-2xl font-bold leading-[1.5] text-text-primary">Your Webhooks</h2>
 
+        <x-ui.listing-toolbar
+          :action="route('webhooks.index')"
+          :search-value="$search ?? ''"
+          search-placeholder="Search webhooks"
+          :current-sort="$currentSort ?? 'created_at'"
+          :current-direction="$currentDirection ?? 'desc'"
+          :sort-options="[
+            ['value' => 'created_at', 'label' => 'Newest first', 'direction' => 'desc'],
+            ['value' => 'created_at', 'label' => 'Oldest first', 'direction' => 'asc'],
+            ['value' => 'description', 'label' => 'Description A–Z', 'direction' => 'asc'],
+            ['value' => 'status', 'label' => 'Status', 'direction' => 'asc'],
+            ['value' => 'last_triggered_at', 'label' => 'Last triggered', 'direction' => 'desc'],
+          ]"
+        />
+
         @if ($subscriptions->isEmpty())
           <div class="flex flex-col items-center justify-center gap-2 py-12 text-center">
             <p class="text-base font-medium text-text-muted">No webhooks created yet</p>

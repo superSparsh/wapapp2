@@ -180,23 +180,27 @@ const ReactFlowMediaModule = ({
   const mediaConstraints = {
     image: {
       size: 5,
-      types: "image/jpeg,image/png,image/gif,image/webp",
+      types: "image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp",
       maxSize: 5 * 1024 * 1024, // 5MB
+      extensions: ["jpg", "jpeg", "png", "webp"],
     },
     video: {
-      size: 16,
-      types: "video/mp4,video/mpeg,video/quicktime,video/x-msvideo",
-      maxSize: 16 * 1024 * 1024, // 16MB
+      size: 14,
+      types: "video/mp4,video/3gpp,.mp4,.3gp",
+      maxSize: 14 * 1024 * 1024, // 14MB
+      extensions: ["mp4", "3gp"],
     },
     audio: {
-      size: 16,
-      types: "audio/mpeg,audio/wav,audio/ogg,audio/mp3",
-      maxSize: 16 * 1024 * 1024, // 16MB
+      size: 14,
+      types: "audio/mpeg,audio/ogg,audio/amr,audio/aac,audio/mp4,.mp3,.ogg,.amr,.aac,.m4a",
+      maxSize: 14 * 1024 * 1024, // 14MB
+      extensions: ["mp3", "ogg", "amr", "aac", "m4a"],
     },
     document: {
-      size: 95,
-      types: ".pdf,.doc,.docx,.txt,.xls,.xlsx,.ppt,.pptx",
-      maxSize: 95 * 1024 * 1024, // 95MB
+      size: 14,
+      types: ".pdf,.docx,.xlsx,.pptx,.txt,application/pdf,text/plain",
+      maxSize: 14 * 1024 * 1024, // 14MB
+      extensions: ["pdf", "docx", "xlsx", "pptx", "txt"],
     },
   };
 
@@ -333,14 +337,26 @@ const ReactFlowMediaModule = ({
             <Upload
               accept={mediaConstraints[selectedMediaType]?.types}
               beforeUpload={(file) => {
-                // Check file size
-                const maxSize = mediaConstraints[selectedMediaType]?.maxSize;
-                if (file.size > maxSize) {
+                const constraints = mediaConstraints[selectedMediaType];
+                const maxSize = constraints?.maxSize;
+                if (maxSize && file.size > maxSize) {
                   message.error(
                     `File size must be less than ${maxSize / 1024 / 1024}MB`
                   );
-                  return false;
+                  return Upload.LIST_IGNORE;
                 }
+
+                const ext = (file.name.split(".").pop() || "").toLowerCase();
+                const allowed = constraints?.extensions || [];
+                if (allowed.length > 0 && !allowed.includes(ext)) {
+                  message.error(
+                    `Invalid ${selectedMediaType} format. Allowed: ${allowed
+                      .join(", ")
+                      .toUpperCase()}`
+                  );
+                  return Upload.LIST_IGNORE;
+                }
+
                 return false; // Prevent auto upload
               }}
               listType="picture"

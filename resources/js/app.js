@@ -743,7 +743,21 @@ let lastInboxNotifyKey = '';
 let lastInboxNotifyAt = 0;
 
 function threadDisplayName(thread) {
-    return String(thread?.name || thread?.phone || 'Unknown');
+    const name = String(thread?.name || '').trim();
+    if (name !== '' && !/^unknown(\s+user)?$/i.test(name)) {
+        return name;
+    }
+
+    const phone = String(thread?.phone || '').trim();
+    if (phone !== '' && !/^unknown(\s+user)?$/i.test(phone)) {
+        return phone;
+    }
+
+    return '';
+}
+
+function threadHasIdentity(thread) {
+    return threadDisplayName(thread) !== '';
 }
 
 function threadPhoneSubtitle(thread) {
@@ -1127,6 +1141,7 @@ function buildThreadRowHtml(thread, selectedUuid = null) {
         : '';
     const phone = threadPhoneSubtitle(thread);
     const phoneClass = phone ? '' : 'hidden';
+    const displayName = threadDisplayName(thread) || 'Contact';
 
     return `
         <a
@@ -1138,7 +1153,7 @@ function buildThreadRowHtml(thread, selectedUuid = null) {
                 <div class="fd-btn-sm flex size-8 shrink-0 items-center justify-center rounded-2xl bg-green-50 text-green-500">${escapeHtml(thread.initials || '?')}</div>
                 <div class="min-w-0 flex-1">
                     <div class="flex items-center justify-between gap-2">
-                        <span class="fd-table-name truncate" data-thread-name>${escapeHtml(threadDisplayName(thread))}</span>
+                        <span class="fd-table-name truncate" data-thread-name>${escapeHtml(displayName)}</span>
                         <div class="flex shrink-0 items-center gap-1.5">
                             ${stopBadge}
                             <span class="fd-status-chip text-text-body/60" data-thread-time>${escapeHtml(thread.time || '')}</span>
@@ -1188,6 +1203,11 @@ function upsertThreadRow(thread, { notify = true, bump = false } = {}) {
     let row = list.querySelector(`[data-thread-uuid="${thread.uuid}"]`);
 
     if (!row) {
+        // Partial updates (mark-read / assignee) must not create ghost "Unknown" rows.
+        if (!threadHasIdentity(thread)) {
+            return;
+        }
+
         list.insertAdjacentHTML('afterbegin', buildThreadRowHtml(thread, selectedUuid));
         row = list.querySelector(`[data-thread-uuid="${thread.uuid}"]`);
     } else {
@@ -1197,8 +1217,9 @@ function upsertThreadRow(thread, { notify = true, bump = false } = {}) {
         const name = row.querySelector('[data-thread-name]') || row.querySelector('.fd-table-name');
         const phoneEl = row.querySelector('[data-thread-phone]');
 
-        if (name && thread.name) {
-            name.textContent = thread.name;
+        const nextName = threadDisplayName(thread);
+        if (name && nextName) {
+            name.textContent = nextName;
         }
 
         if (phoneEl && thread.phone !== undefined) {
@@ -1916,7 +1937,7 @@ function initInboxRealtime() {
                     const existing = list.querySelector(`[data-thread-uuid="${thread.uuid}"]`);
                     if (existing) {
                         upsertThreadRow(thread, { bump: false });
-                    } else {
+                    } else if (threadHasIdentity(thread)) {
                         list.insertAdjacentHTML('afterbegin', buildThreadRowHtml(thread, selectedUuid));
                         rememberThreadUnread(thread, { notify: true });
                         maybeRefreshOpenChat(thread);
@@ -1934,7 +1955,7 @@ function initInboxRealtime() {
 
             if (threads.length === 0) {
                 if (!list.querySelector('[data-thread-uuid]')) {
-                    list.innerHTML = '<div class="p-6 text-center text-sm text-text-body/70" data-inbox-thread-empty>No conversations yet.</div>';
+                    list.innerHTML = '<div class="flex flex-col items-center gap-1 p-6 text-center" data-inbox-thread-empty><p class="text-sm text-text-body/70">No conversations in this date range.</p><p class="text-xs text-text-body/50">Try a longer date range in the filters above.</p></div>';
                 }
                 applyUnreadTotal();
                 return;
@@ -1947,7 +1968,7 @@ function initInboxRealtime() {
             const html = [];
 
             threads.forEach((thread) => {
-                if (!thread?.uuid || seen.has(thread.uuid)) {
+                if (!thread?.uuid || seen.has(thread.uuid) || !threadHasIdentity(thread)) {
                     return;
                 }
                 seen.add(thread.uuid);
@@ -1955,6 +1976,12 @@ function initInboxRealtime() {
                 rememberThreadUnread(thread, { notify: true });
                 maybeRefreshOpenChat(thread);
             });
+
+            if (html.length === 0) {
+                list.innerHTML = '<div class="flex flex-col items-center gap-1 p-6 text-center" data-inbox-thread-empty><p class="text-sm text-text-body/70">No conversations in this date range.</p><p class="text-xs text-text-body/50">Try a longer date range in the filters above.</p></div>';
+                applyUnreadTotal();
+                return;
+            }
 
             const prevScroll = list.scrollTop;
             list.innerHTML = html.join('');
@@ -2856,11 +2883,175 @@ function initInboxOutboundModals() {
 
     const mediaForm = document.querySelector('[data-inbox-media-form]');
     if (mediaForm && mediaUrl) {
+        const mediaTypeSelect = mediaForm.querySelector('[data-inbox-media-type]');
+        const mediaFileInput = mediaForm.querySelector('[data-inbox-media-file]');
+        const mediaHint = mediaForm.querySelector('[data-inbox-media-hint]');
+        const mediaPreview = document.querySelector('[data-inbox-media-preview]');
+        let mediaPreviewObjectUrl = null;
+
+        let mediaRules = {};
+        try {
+            mediaRules = JSON.parse(mediaForm.dataset.mediaRules || '{}');
+        } catch {
+            mediaRules = {};
+        }
+
+        const mediaTypeConfig = (type) => mediaRules?.types?.[type] || null;
+
+        const revokeMediaPreviewUrl = () => {
+            if (mediaPreviewObjectUrl) {
+                URL.revokeObjectURL(mediaPreviewObjectUrl);
+                mediaPreviewObjectUrl = null;
+            }
+        };
+
+        const resetMediaPreview = () => {
+            revokeMediaPreviewUrl();
+            if (!mediaPreview) {
+                return;
+            }
+
+            mediaPreview.querySelectorAll(
+                '[data-inbox-media-preview-image], [data-inbox-media-preview-video], [data-inbox-media-preview-audio], [data-inbox-media-preview-document]',
+            ).forEach((el) => {
+                el.classList.add('hidden');
+                if (el instanceof HTMLMediaElement || el instanceof HTMLImageElement) {
+                    el.removeAttribute('src');
+                }
+            });
+            const empty = mediaPreview.querySelector('[data-inbox-media-preview-empty]');
+            empty?.classList.remove('hidden');
+            const nameEl = mediaPreview.querySelector('[data-inbox-media-preview-filename]');
+            if (nameEl) {
+                nameEl.textContent = '';
+            }
+        };
+
+        const syncMediaTypeUi = () => {
+            const type = mediaTypeSelect?.value || 'image';
+            const config = mediaTypeConfig(type);
+            if (mediaFileInput && config?.accept) {
+                mediaFileInput.setAttribute('accept', config.accept);
+            }
+            if (mediaHint) {
+                mediaHint.textContent = config?.hint || '';
+            }
+        };
+
+        const validateMediaFile = (file, type) => {
+            const config = mediaTypeConfig(type);
+            if (!file) {
+                return 'Please choose a file to upload.';
+            }
+            if (!config) {
+                return null;
+            }
+
+            const ext = (file.name.split('.').pop() || '').toLowerCase();
+            const allowed = Array.isArray(config.extensions) ? config.extensions : [];
+            if (allowed.length > 0 && !allowed.includes(ext)) {
+                return `Invalid ${type} format. ${config.hint || ''}`.trim();
+            }
+
+            const maxBytes = Number(config.max_bytes || 0);
+            if (maxBytes > 0 && file.size > maxBytes) {
+                const maxMb = Math.round((maxBytes / (1024 * 1024)) * 10) / 10;
+                return `${type.charAt(0).toUpperCase()}${type.slice(1)} must be ${maxMb} MB or smaller.`;
+            }
+
+            // Guard against PHP "POST data is too large" before the request leaves the browser.
+            const absoluteMax = Number(mediaRules.absolute_max_bytes || 0);
+            if (absoluteMax > 0 && file.size > absoluteMax) {
+                return 'File is too large to upload. Choose a smaller file.';
+            }
+
+            return null;
+        };
+
+        const renderMediaPreview = (file, type) => {
+            if (!mediaPreview || !file) {
+                resetMediaPreview();
+                return;
+            }
+
+            revokeMediaPreviewUrl();
+            mediaPreviewObjectUrl = URL.createObjectURL(file);
+
+            const empty = mediaPreview.querySelector('[data-inbox-media-preview-empty]');
+            empty?.classList.add('hidden');
+
+            const imageEl = mediaPreview.querySelector('[data-inbox-media-preview-image]');
+            const videoEl = mediaPreview.querySelector('[data-inbox-media-preview-video]');
+            const audioEl = mediaPreview.querySelector('[data-inbox-media-preview-audio]');
+            const docEl = mediaPreview.querySelector('[data-inbox-media-preview-document]');
+            const nameEl = mediaPreview.querySelector('[data-inbox-media-preview-filename]');
+
+            [imageEl, videoEl, audioEl, docEl].forEach((el) => el?.classList.add('hidden'));
+
+            if (type === 'image' && imageEl) {
+                imageEl.src = mediaPreviewObjectUrl;
+                imageEl.classList.remove('hidden');
+            } else if (type === 'video' && videoEl) {
+                videoEl.src = mediaPreviewObjectUrl;
+                videoEl.classList.remove('hidden');
+            } else if (type === 'audio' && audioEl) {
+                audioEl.src = mediaPreviewObjectUrl;
+                audioEl.classList.remove('hidden');
+            } else if (docEl) {
+                if (nameEl) {
+                    nameEl.textContent = file.name;
+                }
+                docEl.classList.remove('hidden');
+                docEl.classList.add('flex');
+            }
+        };
+
+        syncMediaTypeUi();
+        resetMediaPreview();
+
+        mediaTypeSelect?.addEventListener('change', () => {
+            syncMediaTypeUi();
+            if (mediaFileInput) {
+                mediaFileInput.value = '';
+            }
+            resetMediaPreview();
+            showFormError(mediaForm, '');
+        });
+
+        mediaFileInput?.addEventListener('change', () => {
+            const type = mediaTypeSelect?.value || 'image';
+            const file = mediaFileInput.files?.[0];
+            showFormError(mediaForm, '');
+
+            if (!file) {
+                resetMediaPreview();
+                return;
+            }
+
+            const error = validateMediaFile(file, type);
+            if (error) {
+                mediaFileInput.value = '';
+                resetMediaPreview();
+                showFormError(mediaForm, error);
+                return;
+            }
+
+            renderMediaPreview(file, type);
+        });
+
         mediaForm.addEventListener('submit', async (event) => {
             event.preventDefault();
             showFormError(mediaForm, '');
 
             if (!assertWithinWindow()) {
+                return;
+            }
+
+            const type = mediaTypeSelect?.value || 'image';
+            const file = mediaFileInput?.files?.[0];
+            const clientError = validateMediaFile(file, type);
+            if (clientError) {
+                showFormError(mediaForm, clientError);
                 return;
             }
 
@@ -2879,6 +3070,14 @@ function initInboxOutboundModals() {
 
                 if (!response.ok) {
                     const error = await response.json().catch(() => ({}));
+                    // Empty body often means PHP rejected the post (post_max_size).
+                    if (response.status === 413 || (!error.message && !error.errors && response.status >= 400)) {
+                        showFormError(
+                            mediaForm,
+                            extractApiError(error, 'Upload failed — file may be too large. Max: image 5 MB; video/audio/document 14 MB.'),
+                        );
+                        return;
+                    }
                     showFormError(mediaForm, extractApiError(error, 'Unable to send media.'));
 
                     return;
@@ -2887,6 +3086,8 @@ function initInboxOutboundModals() {
                 const data = await response.json();
                 appendMessage(data.message);
                 mediaForm.reset();
+                syncMediaTypeUi();
+                resetMediaPreview();
                 closeModal(mediaForm);
             } catch {
                 showFormError(mediaForm, 'Unable to send media.');

@@ -12,19 +12,22 @@
         <div class="rounded-lg bg-green-50 px-4 py-3 text-sm font-medium text-green-700">{{ session('status') }}</div>
       @endif
 
-      <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <form action="{{ route('ai-bots.index') }}" method="GET" class="flex w-full max-w-[550px] items-center gap-3 overflow-hidden rounded-lg bg-elevated p-3">
-          <img src="{{ asset('images/automation/search.svg') }}" alt="" class="size-5 shrink-0" width="20" height="20">
-          <input type="search" name="search" value="{{ request('search') }}" placeholder="Search bots" class="min-w-0 flex-1 bg-transparent text-sm font-medium leading-[1.4] text-text-body/60 placeholder:text-text-body/60 placeholder:opacity-60 focus:outline-none">
-        </form>
-        <div class="flex flex-wrap items-center gap-6">
+      <x-ui.listing-toolbar
+        :action="route('ai-bots.index')"
+        :search-value="$search ?? ''"
+        search-placeholder="Search bots"
+        :current-sort="$currentSort ?? 'created_at'"
+        :current-direction="$currentDirection ?? 'desc'"
+        :sort-options="\App\Support\ListingSort::defaultOptions()"
+      >
+        <x-slot:actions>
           <a href="{{ route('ai-bots.provider-keys.index') }}" class="inline-flex items-center justify-center gap-3 rounded-lg border border-solid border-green-500 bg-green-50 px-4 py-3 text-sm font-semibold leading-[1.5] text-green-500">API Keys</a>
           <a href="{{ route('ai-bots.create') }}" class="inline-flex items-center justify-center gap-2 rounded bg-green-500 px-4 py-3 text-sm font-semibold leading-[1.5] text-primary-2 transition-opacity hover:opacity-90">
             <img src="{{ asset('images/automation/add.svg') }}" alt="" class="size-5" width="20" height="20">
             Create Bot
           </a>
-        </div>
-      </div>
+        </x-slot:actions>
+      </x-ui.listing-toolbar>
     </div>
 
     <section class="bg-surface p-4 pt-0">

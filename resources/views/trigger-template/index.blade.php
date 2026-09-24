@@ -16,15 +16,29 @@
         </p>
       </div>
 
-      <div class="flex items-center justify-end">
-        <a
-          href="{{ route('trigger-template.index', ['modal' => 'add-trigger']) }}"
-          class="fd-btn inline-flex items-center justify-center gap-2 rounded bg-green-500 px-4 py-3 text-sm font-semibold leading-[1.5] text-primary-2 transition-opacity hover:opacity-90"
-        >
-          <img src="{{ asset('images/team/add.svg') }}" alt="" class="size-5" width="20" height="20">
-          Add New
-        </a>
-      </div>
+      <x-ui.listing-toolbar
+        :action="route('trigger-template.index')"
+        :current-sort="$currentSort ?? 'id'"
+        :current-direction="$currentDirection ?? 'desc'"
+        :sort-options="[
+          ['value' => 'id', 'label' => 'Newest first', 'direction' => 'desc'],
+          ['value' => 'id', 'label' => 'Oldest first', 'direction' => 'asc'],
+          ['value' => 'variable_name', 'label' => 'Trigger A–Z', 'direction' => 'asc'],
+          ['value' => 'variable_name', 'label' => 'Trigger Z–A', 'direction' => 'desc'],
+          ['value' => 'template_name', 'label' => 'Template A–Z', 'direction' => 'asc'],
+          ['value' => 'list_name', 'label' => 'List A–Z', 'direction' => 'asc'],
+        ]"
+      >
+        <x-slot:actions>
+          <a
+            href="{{ route('trigger-template.index', ['modal' => 'add-trigger']) }}"
+            class="fd-btn inline-flex items-center justify-center gap-2 rounded bg-green-500 px-4 py-3 text-sm font-semibold leading-[1.5] text-primary-2 transition-opacity hover:opacity-90"
+          >
+            <img src="{{ asset('images/team/add.svg') }}" alt="" class="size-5" width="20" height="20">
+            Add New
+          </a>
+        </x-slot:actions>
+      </x-ui.listing-toolbar>
     </div>
 
     <section class="bg-surface p-4 pt-0">

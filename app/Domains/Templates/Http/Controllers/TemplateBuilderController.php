@@ -24,6 +24,7 @@ use App\Domains\Templates\Support\TemplateBuilderFlow;
 use App\Domains\Templates\Support\TemplateVariableSyntax;
 use App\Http\Controllers\Controller;
 use App\Models\Template;
+use App\Support\WhatsappMediaRules;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -90,19 +91,12 @@ class TemplateBuilderController extends Controller
             str_starts_with($mime, 'video/') => 'video',
             str_starts_with($mime, 'audio/') => 'audio',
             str_starts_with($mime, 'application/pdf') => 'document',
-            default => null,
+            default => WhatsappMediaRules::detectType($file),
         };
 
-        $limits = [
-            'image' => ['mimes:jpeg,jpg,png', 'max:'.(int) (config('templates.header_image_max', 5242880) / 1024)],
-            'video' => ['mimes:mp4,3gp', 'max:'.(int) (config('templates.header_video_max', 16777216) / 1024)],
-            'document' => ['mimes:pdf', 'max:'.(int) (config('templates.header_document_max', 10485760) / 1024)],
-            'audio' => ['mimes:mp3,wav,aac,ogg,m4a', 'max:'.(int) (config('templates.header_audio_max', 16777216) / 1024)],
-        ];
-
-        $typeRules = $headerType && isset($limits[$headerType])
-            ? $limits[$headerType]
-            : ['mimes:jpeg,jpg,png,mp4,3gp,pdf,mp3,wav,aac,ogg,m4a', 'max:16384'];
+        $typeRules = $headerType && in_array($headerType, WhatsappMediaRules::types(), true)
+            ? WhatsappMediaRules::constraintRules($headerType)
+            : ['mimes:'.implode(',', WhatsappMediaRules::allExtensions()), 'max:'.WhatsappMediaRules::absoluteMaxKb()];
 
         $request->validate([
             'header_media' => array_merge(['required', 'file'], $typeRules),
@@ -111,6 +105,8 @@ class TemplateBuilderController extends Controller
             'header_media.mimes' => 'This file type is not supported for the header.',
             'header_media.max' => 'The file is too large for this header type.',
         ]);
+
+        WhatsappMediaRules::assertValid($request->file('header_media'), $headerType, 'header_media');
 
         $stored = $mediaService->storeHeaderMedia($request->file('header_media'));
         $mime = $stored['mime'];
@@ -328,26 +324,28 @@ class TemplateBuilderController extends Controller
         $mediaType = match (true) {
             str_starts_with($mime, 'image/') => 'image',
             str_starts_with($mime, 'video/') => 'video',
-            default => null,
+            default => WhatsappMediaRules::detectType($file),
         };
 
-        $limits = [
-            'image' => ['mimes:jpeg,jpg,png', 'max:'.(int) (config('templates.header_image_max', 5242880) / 1024)],
-            'video' => ['mimes:mp4,3gp', 'max:'.(int) (config('templates.header_video_max', 16777216) / 1024)],
-        ];
+        if (! in_array($mediaType, ['image', 'video'], true)) {
+            return response()->json([
+                'message' => 'Only image or video files are supported for carousel cards.',
+                'errors' => ['carousel_media' => ['Only image (.jpg/.png/.webp) or video (.mp4/.3gp) files are supported.']],
+            ], 422);
+        }
 
-        $typeRules = $mediaType && isset($limits[$mediaType])
-            ? $limits[$mediaType]
-            : ['mimes:jpeg,jpg,png,mp4,3gp', 'max:16384'];
+        $typeRules = WhatsappMediaRules::constraintRules($mediaType);
 
         $field = $request->hasFile('carousel_media') ? 'carousel_media' : 'header_media';
         $request->validate([
             $field => array_merge(['required', 'file'], $typeRules),
         ], [
             "{$field}.required" => 'Please choose a file to upload.',
-            "{$field}.mimes" => 'Only image (.jpg/.png) or video (.mp4/.3gp) files are supported.',
+            "{$field}.mimes" => 'Only image (.jpg/.png/.webp) or video (.mp4/.3gp) files are supported.',
             "{$field}.max" => 'The file is too large for this media type.',
         ]);
+
+        WhatsappMediaRules::assertValid($file, $mediaType, $field);
 
         $stored = $mediaService->storeHeaderMedia($file);
         $mime = $stored['mime'];

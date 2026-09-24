@@ -10,6 +10,7 @@ use App\Domains\Webhooks\Http\Requests\UpdateWebhookSubscriptionRequest;
 use App\Domains\Webhooks\Services\WebhookSubscriptionService;
 use App\Models\MailList;
 use App\Models\WebhookSubscription;
+use App\Support\ListingSort;
 use App\Support\PublicId;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -29,7 +30,17 @@ class WebhookSubscriptionController extends Controller
      */
     public function index(Request $request): View
     {
-        $subscriptions = $this->service->index($request->get('search'));
+        $parsed = ListingSort::fromRequest(
+            $request,
+            ['created_at', 'description', 'status', 'last_triggered_at'],
+            'created_at',
+            'desc',
+        );
+        $subscriptions = $this->service->index(
+            search: $request->get('search'),
+            sort: $parsed['sort'],
+            direction: $parsed['direction'],
+        );
         $mailLists = MailList::query()->select(['id', 'uuid', 'name'])->orderBy('name')->get();
         $activeLine = PhoneLineService::isLocked()
             ? $this->phoneLineService->lockedLine()
@@ -39,6 +50,9 @@ class WebhookSubscriptionController extends Controller
             'subscriptions' => $subscriptions,
             'mailLists' => $mailLists,
             'activeLine' => $activeLine,
+            'search' => $request->get('search', ''),
+            'currentSort' => $parsed['sort'],
+            'currentDirection' => $parsed['direction'],
         ]);
     }
 

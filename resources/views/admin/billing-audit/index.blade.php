@@ -7,21 +7,35 @@
     <a href="{{ route('admin.billing-audit.export', request()->query()) }}" class="rounded-lg border border-border px-3 py-2 text-xs font-semibold hover:bg-surface">Export CSV</a>
   </div>
 
-  <form method="GET" class="mx-4 mb-4 flex flex-wrap gap-3 rounded-[20px] border border-border bg-elevated p-4">
-    <input type="search" name="q" value="{{ $filters['q'] }}" placeholder="Search reference" class="min-w-[180px] flex-1 rounded-lg border border-border px-3 py-2 text-sm">
-    <select name="type" class="rounded-lg border border-border px-3 py-2 text-sm">
-      @foreach (['all' => 'All', 'wallet' => 'Wallet', 'razorpay' => 'Razorpay', 'subscriptions' => 'Subscriptions'] as $value => $label)
-        <option value="{{ $value }}" @selected(($filters['type'] ?: 'all') === $value)>{{ $label }}</option>
-      @endforeach
-    </select>
-    <select name="tenant" class="rounded-lg border border-border px-3 py-2 text-sm">
-      <option value="">All customers</option>
-      @foreach ($tenants as $tenant)
-        <option value="{{ $tenant->id }}" @selected($filters['tenant'] === $tenant->id)>{{ $tenant->company_name ?: $tenant->name }}</option>
-      @endforeach
-    </select>
-    <button class="rounded-lg bg-green-500 px-4 py-2 text-sm font-semibold text-white">Filter</button>
-  </form>
+  <x-admin.filter-bar
+    :action="route('admin.billing-audit.index')"
+    :search="$filters['q'] ?? ''"
+    search-placeholder="Search reference"
+    :show-dates="false"
+    :sort="$filters['sort'] ?? 'created_at'"
+    :direction="$filters['direction'] ?? 'desc'"
+    :sort-options="$sortOptions"
+  >
+    <x-slot:filters>
+      <label class="flex min-w-[120px] flex-col gap-1.5 text-sm">
+        <span class="font-semibold text-text-primary">Type</span>
+        <select name="type" class="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary" data-listing-filter>
+          @foreach (['all' => 'All', 'wallet' => 'Wallet', 'razorpay' => 'Razorpay', 'subscriptions' => 'Subscriptions'] as $value => $label)
+            <option value="{{ $value }}" @selected(($filters['type'] ?: 'all') === $value)>{{ $label }}</option>
+          @endforeach
+        </select>
+      </label>
+      <label class="flex min-w-[150px] flex-col gap-1.5 text-sm">
+        <span class="font-semibold text-text-primary">Customer</span>
+        <select name="tenant" class="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary" data-listing-filter>
+          <option value="">All customers</option>
+          @foreach ($tenants as $tenant)
+            <option value="{{ $tenant->id }}" @selected(($filters['tenant'] ?? '') === $tenant->id)>{{ $tenant->company_name ?: $tenant->name }}</option>
+          @endforeach
+        </select>
+      </label>
+    </x-slot:filters>
+  </x-admin.filter-bar>
 
   <div class="p-4 pt-0">
     <x-ui.data-table :headers="['Customer', 'Source', 'Amount', 'Description', 'Reference', 'When']" :paginator="$items">

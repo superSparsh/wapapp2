@@ -120,13 +120,22 @@ class ActivityLogService
         return filled($ua) ? (string) $ua : null;
     }
 
-    public function paginate(?string $scope = null, int $perPage = 25): LengthAwarePaginator
-    {
-        return ActivityLog::query()
-            ->when($scope, fn ($q) => $q->where('scope', $scope))
-            ->latest('created_at')
-            ->paginate($perPage)
-            ->withQueryString();
+    public function paginate(
+        ?string $scope = null,
+        int $perPage = 25,
+        string $sort = 'created_at',
+        string $direction = 'desc',
+    ): LengthAwarePaginator {
+        $query = ActivityLog::query()
+            ->when($scope, fn ($q) => $q->where('scope', $scope));
+
+        \App\Domains\Admin\Support\AdminListQuery::applySort($query, $sort, $direction, [
+            'created_at' => 'created_at',
+            'action' => 'action',
+            'scope' => 'scope',
+        ], 'created_at');
+
+        return $query->paginate($perPage)->withQueryString();
     }
 
     private function scopeForAction(string $action): string

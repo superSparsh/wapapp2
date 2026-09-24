@@ -8,6 +8,7 @@ use App\Enums\WalletTransactionType;
 use App\Models\RazorpayOrder;
 use App\Models\Subscription;
 use App\Models\WalletTransaction;
+use App\Domains\Admin\Support\AdminListQuery;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -19,7 +20,7 @@ class BillingAuditService
     ) {}
 
     /**
-     * @param  array{q?: string, tenant_id?: string, type?: string}  $filters
+     * @param  array{q?: string, tenant?: string, type?: string, sort?: string, direction?: string}  $filters
      * @return array{items: LengthAwarePaginator<int, array<string, mixed>>, filters: array<string, string>}
      */
     public function walletRecharges(array $filters = [], int $page = 1, int $perPage = 25): array
@@ -52,7 +53,15 @@ class BillingAuditService
             ])->all();
         }, $filters['tenant'] ?: null);
 
-        return $this->paginate($rows->sortByDesc('created_at')->values(), $filters, $page, $perPage);
+        $sorted = AdminListQuery::sortRows(
+            $rows,
+            $filters['sort'],
+            $filters['direction'],
+            ['created_at', 'amount', 'id'],
+            'created_at',
+        );
+
+        return $this->paginate($sorted, $filters, $page, $perPage);
     }
 
     /**
@@ -112,11 +121,22 @@ class BillingAuditService
             }, $filters['tenant'] ?: null));
         }
 
-        return $this->paginate($rows->sortByDesc('created_at')->values(), $filters, $page, $perPage);
+        return $this->paginate(
+            AdminListQuery::sortRows(
+                $rows,
+                $filters['sort'],
+                $filters['direction'],
+                ['created_at', 'amount', 'id', 'source'],
+                'created_at',
+            ),
+            $filters,
+            $page,
+            $perPage,
+        );
     }
 
     /**
-     * @param  array{q?: string, tenant_id?: string, type?: string}  $filters
+     * @param  array{q?: string, tenant_id?: string, type?: string, sort?: string, direction?: string}  $filters
      */
     public function exportCsv(array $filters = []): StreamedResponse
     {
@@ -146,14 +166,25 @@ class BillingAuditService
     }
 
     /**
-     * @return array{q: string, tenant: string, type: string}
+     * @return array{q: string, tenant: string, type: string, sort: string, direction: string}
      */
     private function normalize(array $filters): array
     {
+        $sort = (string) ($filters['sort'] ?? 'created_at');
+        $direction = strtolower((string) ($filters['direction'] ?? 'desc'));
+        if (! in_array($sort, ['created_at', 'amount', 'id', 'source'], true)) {
+            $sort = 'created_at';
+        }
+        if (! in_array($direction, ['asc', 'desc'], true)) {
+            $direction = 'desc';
+        }
+
         return [
             'q' => trim((string) ($filters['q'] ?? '')),
             'tenant' => trim((string) ($filters['tenant'] ?? $filters['tenant_id'] ?? '')),
             'type' => trim((string) ($filters['type'] ?? '')),
+            'sort' => $sort,
+            'direction' => $direction,
         ];
     }
 

@@ -7,32 +7,61 @@ namespace App\Domains\Team\Services;
 use App\Domains\Team\Support\TeamPresenter;
 use App\Models\TeamMember;
 use App\Models\User;
+use App\Support\ListingSort;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 
 class TeamQueryService
 {
-    public function paginateForOwner(User $owner, ?string $search = null, int $perPage = 10): LengthAwarePaginator
-    {
+    public function paginateForOwner(
+        User $owner,
+        ?string $search = null,
+        int $perPage = 10,
+        string $sort = 'created_at',
+        string $direction = 'desc',
+    ): LengthAwarePaginator {
         $perPage = max(1, min(50, $perPage));
 
-        return $this->baseQuery($owner->id, $search)
-            ->withCount('assignedConversations')
-            ->orderByDesc('created_at')
+        $query = $this->baseQuery($owner->id, $search)
+            ->withCount('assignedConversations');
+
+        ListingSort::apply($query, $sort, $direction, [
+            'created_at' => 'created_at',
+            'name' => 'first_name',
+            'phone' => 'phone',
+            'email' => 'email',
+            'status' => 'status',
+        ], 'created_at');
+
+        return $query
             ->paginate($perPage)
             ->withQueryString()
             ->through(fn (TeamMember $member): array => TeamPresenter::listRow($member));
     }
 
-    public function paginateForManager(TeamMember $manager, ?string $search = null, int $perPage = 10): LengthAwarePaginator
-    {
+    public function paginateForManager(
+        TeamMember $manager,
+        ?string $search = null,
+        int $perPage = 10,
+        string $sort = 'created_at',
+        string $direction = 'desc',
+    ): LengthAwarePaginator {
         $perPage = max(1, min(50, $perPage));
         $memberIds = app(ManagerScopeService::class)->assignedMemberIds($manager);
 
-        return $this->baseQuery($manager->parent_user_id, $search)
+        $query = $this->baseQuery($manager->parent_user_id, $search)
             ->whereIn('id', $memberIds !== [] ? $memberIds : [0])
-            ->withCount('assignedConversations')
-            ->orderByDesc('created_at')
+            ->withCount('assignedConversations');
+
+        ListingSort::apply($query, $sort, $direction, [
+            'created_at' => 'created_at',
+            'name' => 'first_name',
+            'phone' => 'phone',
+            'email' => 'email',
+            'status' => 'status',
+        ], 'created_at');
+
+        return $query
             ->paginate($perPage)
             ->withQueryString()
             ->through(fn (TeamMember $member): array => TeamPresenter::managerListRow($member));

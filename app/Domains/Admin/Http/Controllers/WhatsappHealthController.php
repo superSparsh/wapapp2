@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domains\Admin\Http\Controllers;
 
 use App\Domains\Admin\Services\WhatsappHealthAdminService;
+use App\Domains\Admin\Support\AdminListQuery;
 use App\Domains\Operations\Services\WhatsAppHealthDigestService;
 use App\Http\Controllers\Controller;
 use App\Models\Tenant;
@@ -23,20 +24,42 @@ class WhatsappHealthController extends Controller
     public function index(Request $request): View
     {
         $tab = (string) $request->query('tab', 'fleet');
-        $report = $this->health->fleet($request->only(['q', 'tenant', 'quality']), (int) $request->integer('page', 1));
+        $fleetParsed = AdminListQuery::fromRequest(
+            $request,
+            allowedSorts: ['failed', 'delivered', 'read', 'phone', 'quality_rating', 'tenant_name'],
+            defaultSort: 'failed',
+            defaultDirection: 'desc',
+        );
+        $report = $this->health->fleet(
+            array_merge($request->only(['q', 'tenant', 'quality']), [
+                'sort' => $fleetParsed['sort'],
+                'direction' => $fleetParsed['direction'],
+            ]),
+            (int) $request->integer('page', 1),
+        );
 
         $alerts = null;
         $unreadAlerts = 0;
+        $alertFilters = $fleetParsed;
         $central = (string) config('tenancy.database.central_connection', config('database.default'));
         if (\Illuminate\Support\Facades\Schema::connection($central)->hasTable('wa_health_alerts')) {
             $unreadAlerts = WaHealthAlert::query()->where('is_read', false)->count();
             if ($tab === 'alerts') {
-                $alerts = WaHealthAlert::query()
+                $alertFilters = AdminListQuery::fromRequest(
+                    $request,
+                    allowedSorts: ['occurred_at', 'severity', 'is_read'],
+                    defaultSort: 'occurred_at',
+                    defaultDirection: 'desc',
+                );
+                $query = WaHealthAlert::query()
                     ->when($request->filled('severity'), fn ($q) => $q->where('severity', $request->string('severity')->toString()))
-                    ->when($request->boolean('unread_only'), fn ($q) => $q->where('is_read', false))
-                    ->latest('occurred_at')
-                    ->paginate(25)
-                    ->withQueryString();
+                    ->when($request->boolean('unread_only'), fn ($q) => $q->where('is_read', false));
+                AdminListQuery::applySort($query, $alertFilters['sort'], $alertFilters['direction'], [
+                    'occurred_at' => 'occurred_at',
+                    'severity' => 'severity',
+                    'is_read' => 'is_read',
+                ], 'occurred_at');
+                $alerts = $query->paginate(25)->withQueryString();
             }
         }
 
@@ -46,6 +69,22 @@ class WhatsappHealthController extends Controller
             'alerts' => $alerts,
             'unreadAlerts' => $unreadAlerts,
             'tenants' => Tenant::query()->orderBy('name')->limit(500)->get(['id', 'name', 'company_name']),
+            'sortOptions' => $tab === 'alerts'
+                ? [
+                    ['value' => 'occurred_at', 'label' => 'Newest first', 'direction' => 'desc'],
+                    ['value' => 'occurred_at', 'label' => 'Oldest first', 'direction' => 'asc'],
+                    ['value' => 'severity', 'label' => 'Severity', 'direction' => 'desc'],
+                    ['value' => 'is_read', 'label' => 'Unread first', 'direction' => 'asc'],
+                ]
+                : [
+                    ['value' => 'failed', 'label' => 'Most failed', 'direction' => 'desc'],
+                    ['value' => 'delivered', 'label' => 'Most delivered', 'direction' => 'desc'],
+                    ['value' => 'read', 'label' => 'Most read', 'direction' => 'desc'],
+                    ['value' => 'phone', 'label' => 'Phone A–Z', 'direction' => 'asc'],
+                    ['value' => 'quality_rating', 'label' => 'Quality', 'direction' => 'asc'],
+                    ['value' => 'tenant_name', 'label' => 'Customer A–Z', 'direction' => 'asc'],
+                ],
+            'filters' => array_merge($report['filters'], $tab === 'alerts' ? $alertFilters : []),
         ]);
     }
 

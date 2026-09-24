@@ -15,7 +15,34 @@ return [
     'media' => [
         'disk' => env('WHATSAPP_MEDIA_DISK', 'public'),
         'directory' => env('WHATSAPP_MEDIA_DIRECTORY', 'inbox/outbound'),
-        'max_size_kb' => (int) env('WHATSAPP_MEDIA_MAX_SIZE_KB', 16384),
+        // Absolute ceiling (largest type). Prefer per-type limits below.
+        'max_size_kb' => (int) env('WHATSAPP_MEDIA_MAX_SIZE_KB', 14336),
+        'types' => [
+            'image' => [
+                'max_kb' => (int) env('WHATSAPP_MEDIA_IMAGE_MAX_KB', 5120), // 5 MB
+                'extensions' => ['jpeg', 'jpg', 'png', 'webp'],
+                'accept' => 'image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp',
+                'hint' => 'JPEG, PNG, WEBP (max 5 MB)',
+            ],
+            'video' => [
+                'max_kb' => (int) env('WHATSAPP_MEDIA_VIDEO_MAX_KB', 14336), // 14 MB
+                'extensions' => ['mp4', '3gp'],
+                'accept' => 'video/mp4,video/3gpp,.mp4,.3gp',
+                'hint' => 'MP4, 3GPP — H.264 + AAC preferred (max 14 MB)',
+            ],
+            'document' => [
+                'max_kb' => (int) env('WHATSAPP_MEDIA_DOCUMENT_MAX_KB', 14336), // 14 MB
+                'extensions' => ['pdf', 'docx', 'xlsx', 'pptx', 'txt'],
+                'accept' => '.pdf,.docx,.xlsx,.pptx,.txt,application/pdf,text/plain',
+                'hint' => 'PDF, DOCX, XLSX, PPTX, TXT (max 14 MB)',
+            ],
+            'audio' => [
+                'max_kb' => (int) env('WHATSAPP_MEDIA_AUDIO_MAX_KB', 14336), // 14 MB
+                'extensions' => ['mp3', 'ogg', 'amr', 'aac', 'm4a'],
+                'accept' => 'audio/mpeg,audio/ogg,audio/amr,audio/aac,audio/mp4,.mp3,.ogg,.amr,.aac,.m4a',
+                'hint' => 'MP3, OGG, AMR, AAC, M4A (max 14 MB)',
+            ],
+        ],
     ],
 
     'outbound_queue' => env('WHATSAPP_OUTBOUND_QUEUE', 'default'),

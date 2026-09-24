@@ -6,6 +6,7 @@
   'hidden' => [],
   'minWidth' => 'min-w-[148px]',
   'formClass' => null,
+  'title' => null,
 ])
 
 <form method="get" action="{{ $action }}" @class([$minWidth, 'shrink-0' => ! $formClass, $formClass => filled($formClass)])>
@@ -18,6 +19,7 @@
   <select
     name="{{ $name }}"
     data-select-variant="filter"
+    @if (filled($title)) title="{{ $title }}" @endif
     class="fd-filter-label w-full cursor-pointer rounded-lg bg-elevated py-3 pl-3 text-sm focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
     onchange="this.form.submit()"
   >

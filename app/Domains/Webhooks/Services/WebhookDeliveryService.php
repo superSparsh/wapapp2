@@ -7,6 +7,7 @@ namespace App\Domains\Webhooks\Services;
 use App\Enums\WebhookDeliveryStatus;
 use App\Models\WebhookDelivery;
 use App\Models\WebhookSubscription;
+use App\Support\ListingSort;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Http;
@@ -218,9 +219,14 @@ class WebhookDeliveryService
     /**
      * Paginated delivery logs with filters.
      */
-    public function logs(Request $request, int $perPage = 15, ?int $subscriptionId = null): LengthAwarePaginator
-    {
-        return WebhookDelivery::query()
+    public function logs(
+        Request $request,
+        int $perPage = 15,
+        ?int $subscriptionId = null,
+        string $sort = 'created_at',
+        string $direction = 'desc',
+    ): LengthAwarePaginator {
+        $query = WebhookDelivery::query()
             ->with('subscription:id,description,url')
             ->when($request->filled('status'), fn ($q) => $q->where('status', $request->input('status')))
             ->when($subscriptionId !== null, fn ($q) => $q->where('webhook_subscription_id', $subscriptionId))
@@ -233,10 +239,15 @@ class WebhookDeliveryService
                 });
             })
             ->when($request->filled('date_from'), fn ($q) => $q->where('created_at', '>=', $request->input('date_from')))
-            ->when($request->filled('date_to'), fn ($q) => $q->where('created_at', '<=', $request->input('date_to').' 23:59:59'))
-            ->latest()
-            ->paginate($perPage)
-            ->withQueryString();
+            ->when($request->filled('date_to'), fn ($q) => $q->where('created_at', '<=', $request->input('date_to').' 23:59:59'));
+
+        ListingSort::apply($query, $sort, $direction, [
+            'created_at' => 'created_at',
+            'status' => 'status',
+            'event_type' => 'event_type',
+        ], 'created_at');
+
+        return $query->paginate($perPage)->withQueryString();
     }
 
     /**

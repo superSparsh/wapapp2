@@ -19,6 +19,7 @@ use App\Models\TeamMember;
 use App\Models\User;
 use App\Models\WhatsappLine;
 use App\Enums\RecordStatus;
+use App\Support\ListingSort;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -34,14 +35,24 @@ class ManagerTeamController extends Controller
         $manager = $accessService->manager();
         $owner = User::query()->findOrFail($manager->parent_user_id);
         $usage = $accessService->usageForOwner($owner);
+        $parsed = ListingSort::fromRequest(
+            $request,
+            ['created_at', 'name', 'phone', 'email', 'status'],
+            'created_at',
+            'desc',
+        );
 
         return view('manager.team.index', [
             'members' => $queryService->paginateForManager(
                 manager: $manager,
                 search: $request->string('q')->trim()->toString() ?: null,
                 perPage: (int) config('team.per_page', 10),
+                sort: $parsed['sort'],
+                direction: $parsed['direction'],
             ),
             'search' => $request->string('q')->trim()->toString(),
+            'currentSort' => $parsed['sort'],
+            'currentDirection' => $parsed['direction'],
             'canCreate' => ! $usage['is_full'],
             'usage' => $usage,
         ]);

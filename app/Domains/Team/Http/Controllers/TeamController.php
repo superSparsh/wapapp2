@@ -16,6 +16,7 @@ use App\Enums\TeamMemberRole;
 use App\Http\Controllers\Controller;
 use App\Models\TeamMember;
 use App\Models\WhatsappLine;
+use App\Support\ListingSort;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -30,16 +31,26 @@ class TeamController extends Controller
     ): View {
         $owner = $accessService->owner();
         $usage = $accessService->usageForOwner($owner);
+        $parsed = ListingSort::fromRequest(
+            $request,
+            ['created_at', 'name', 'phone', 'email', 'status'],
+            'created_at',
+            'desc',
+        );
 
         return view('my-team.index', [
             'members' => $queryService->paginateForOwner(
                 owner: $owner,
                 search: $request->string('q')->trim()->toString() ?: null,
                 perPage: (int) config('team.per_page', 10),
+                sort: $parsed['sort'],
+                direction: $parsed['direction'],
             ),
             'search' => $request->string('q')->trim()->toString(),
             'canCreate' => ! $usage['is_full'],
             'usage' => $usage,
+            'currentSort' => $parsed['sort'],
+            'currentDirection' => $parsed['direction'],
         ]);
     }
 

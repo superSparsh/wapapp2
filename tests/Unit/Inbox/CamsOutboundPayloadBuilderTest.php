@@ -105,4 +105,53 @@ class CamsOutboundPayloadBuilderTest extends TestCase
         $this->assertSame('https://bucket.oss-ap-southeast-1.aliyuncs.com/path/photo.jpg', $content['link']);
         $this->assertSame('Caption', $content['text']);
     }
+
+    public function test_contact_payload_is_cams_contacts_array_with_name_fields(): void
+    {
+        $line = $this->testLine;
+        $conversation = Conversation::factory()->create([
+            'whatsapp_line_id' => $line->id,
+            'line_phone' => $line->phone,
+            'contact_phone' => '918888888902',
+        ]);
+
+        $message = Message::query()->create([
+            'conversation_id' => $conversation->id,
+            'body' => 'Ada Lovelace',
+            'direction' => MessageDirection::Outbound,
+            'message_type' => MessageType::Contact,
+            'status' => MessageStatus::Queued,
+            'metadata' => [
+                'contacts' => [[
+                    'name' => [
+                        'formatted_name' => 'Ada Lovelace',
+                        // Intentionally omit first/last — builder must derive them.
+                    ],
+                    'phones' => [[
+                        'phone' => '+91 88888 88902',
+                        'type' => 'CELL',
+                    ]],
+                ]],
+            ],
+        ]);
+
+        $payload = app(CamsOutboundPayloadBuilder::class)->build(
+            $message,
+            $conversation,
+            $line,
+        );
+
+        $content = json_decode($payload['Content'], true, 512, JSON_THROW_ON_ERROR);
+
+        $this->assertSame('contacts', $payload['MessageType']);
+        $this->assertIsArray($content);
+        $this->assertArrayHasKey(0, $content);
+        $this->assertArrayNotHasKey('contacts', $content);
+        $this->assertSame('Ada Lovelace', $content[0]['name']['formatted_name']);
+        $this->assertSame('Ada', $content[0]['name']['first_name']);
+        $this->assertSame('Lovelace', $content[0]['name']['last_name']);
+        $this->assertSame('918888888902', $content[0]['phones'][0]['phone']);
+        $this->assertSame('918888888902', $content[0]['phones'][0]['wa_id']);
+        $this->assertSame('CELL', $content[0]['phones'][0]['type']);
+    }
 }

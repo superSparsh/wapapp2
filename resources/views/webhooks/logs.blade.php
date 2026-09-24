@@ -39,82 +39,44 @@
       </div>
 
       {{-- Filters --}}
-      <form action="{{ route('webhooks.logs') }}" method="GET" class="flex flex-col gap-4 lg:flex-row lg:items-center">
-        <div class="flex min-w-0 flex-1 items-center overflow-hidden rounded-lg bg-elevated p-3">
-          <input
-            type="search"
-            name="search"
-            value="{{ request('search') }}"
-            placeholder="Search by event, payload, or error"
-            class="w-full bg-transparent text-sm font-medium leading-[1.4] text-text-body placeholder:text-text-body placeholder:opacity-40 focus:outline-none"
-          >
-        </div>
-
-        <div class="relative min-w-0 flex-1">
-          <select name="status" class="w-full appearance-none rounded-lg bg-elevated p-3 pr-10 text-sm font-medium leading-[1.4] text-text-body focus:outline-none">
+      <x-ui.listing-toolbar
+        :action="route('webhooks.logs')"
+        :search-value="$search ?? ''"
+        search-placeholder="Search by event, payload, or error"
+        :current-sort="$currentSort ?? 'created_at'"
+        :current-direction="$currentDirection ?? 'desc'"
+        :sort-options="[
+          ['value' => 'created_at', 'label' => 'Newest first', 'direction' => 'desc'],
+          ['value' => 'created_at', 'label' => 'Oldest first', 'direction' => 'asc'],
+          ['value' => 'status', 'label' => 'Status', 'direction' => 'asc'],
+          ['value' => 'event_type', 'label' => 'Event type A–Z', 'direction' => 'asc'],
+        ]"
+      >
+        <x-slot:filters>
+          <x-ui.select name="status" variant="listing" data-listing-filter class="w-[148px] shrink-0" aria-label="Filter by status">
             <option value="">All Statuses</option>
             @foreach (['sent' => 'Successful', 'failed' => 'Failed', 'pending' => 'Pending', 'retrying' => 'Retrying'] as $val => $label)
               <option value="{{ $val }}" @selected(request('status') === $val)>{{ $label }}</option>
             @endforeach
-          </select>
-          <img
-            src="{{ asset('images/webhooks/arrow-down.svg') }}"
-            alt=""
-            class="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2"
-            width="16" height="16"
-          >
-        </div>
-
-        <div class="relative min-w-0 flex-1">
-          <select name="subscription_id" class="w-full appearance-none rounded-lg bg-elevated p-3 pr-10 text-sm font-medium leading-[1.4] text-text-body focus:outline-none">
+          </x-ui.select>
+          <x-ui.select name="subscription_id" variant="listing" data-listing-filter class="w-[180px] shrink-0" aria-label="Filter by webhook">
             <option value="">All Webhooks</option>
             @foreach ($subscriptions as $sub)
               <option value="{{ $sub->uuid }}" @selected(request('subscription_id') == $sub->uuid)>{{ $sub->description }}</option>
             @endforeach
-          </select>
-          <img
-            src="{{ asset('images/webhooks/arrow-down.svg') }}"
-            alt=""
-            class="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2"
-            width="16" height="16"
-          >
-        </div>
-
-        <div class="flex min-w-0 flex-1 items-center justify-between rounded-lg bg-elevated p-3">
-          <input
-            type="date"
-            name="date_from"
-            value="{{ request('date_from') }}"
-            class="w-full bg-transparent text-sm font-medium leading-[1.4] text-text-body focus:outline-none"
-            placeholder="Date From"
-          >
-        </div>
-
-        <div class="flex min-w-0 flex-1 items-center justify-between rounded-lg bg-elevated p-3">
-          <input
-            type="date"
-            name="date_to"
-            value="{{ request('date_to') }}"
-            class="w-full bg-transparent text-sm font-medium leading-[1.4] text-text-body focus:outline-none"
-            placeholder="Date To"
-          >
-        </div>
-
-        <div class="flex gap-2">
-          <button
-            type="submit"
-            class="fd-btn inline-flex shrink-0 items-center justify-center rounded bg-green-500 px-4 py-3 text-sm font-semibold leading-[1.5] text-primary-2 transition-opacity hover:opacity-90"
-          >
-            Filter
-          </button>
+          </x-ui.select>
+          <input type="date" name="date_from" value="{{ request('date_from') }}" class="rounded-lg bg-elevated px-3 py-2 text-sm" data-listing-filter>
+          <input type="date" name="date_to" value="{{ request('date_to') }}" class="rounded-lg bg-elevated px-3 py-2 text-sm" data-listing-filter>
+        </x-slot:filters>
+        <x-slot:actions>
           <a
             href="{{ route('webhooks.logs') }}"
             class="fd-btn inline-flex shrink-0 items-center justify-center rounded border border-solid border-border-light bg-elevated px-4 py-3 text-sm font-semibold leading-[1.5] text-green-500 transition-colors hover:bg-green-50"
           >
             Clear
           </a>
-        </div>
-      </form>
+        </x-slot:actions>
+      </x-ui.listing-toolbar>
 
       {{-- Recent Logs Table --}}
       <div class="flex flex-col gap-4 rounded-xl bg-elevated p-5">

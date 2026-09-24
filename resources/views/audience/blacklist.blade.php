@@ -8,8 +8,17 @@
 
       <x-ui.listing-toolbar
         :action="route('audience.blacklist')"
-        :search-value="request('search')"
-        :show-sort="false"
+        :search-value="$search ?? ''"
+        :current-sort="$currentSort ?? 'created_at'"
+        :current-direction="$currentDirection ?? 'desc'"
+        :sort-options="[
+          ['value' => 'created_at', 'label' => 'Newest first', 'direction' => 'desc'],
+          ['value' => 'created_at', 'label' => 'Oldest first', 'direction' => 'asc'],
+          ['value' => 'phone', 'label' => 'Phone A–Z', 'direction' => 'asc'],
+          ['value' => 'phone', 'label' => 'Phone Z–A', 'direction' => 'desc'],
+          ['value' => 'email', 'label' => 'Email A–Z', 'direction' => 'asc'],
+          ['value' => 'email', 'label' => 'Email Z–A', 'direction' => 'desc'],
+        ]"
       >
         <x-slot:actions>
           <button type="button" data-open-modal="add-blacklist" class="fd-btn inline-flex items-center justify-center gap-2 rounded bg-green-500 px-4 py-3 text-sm font-semibold text-primary-2 transition-colors hover:opacity-90">

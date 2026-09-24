@@ -317,6 +317,19 @@ class InboxQueryService
         return Conversation::query()
             ->where('whatsapp_line_id', $line->id)
             ->where('last_message_at', '>=', $since)
+            ->where(function (Builder $builder): void {
+                // Drop placeholder / empty-identity chats (show up as "Unknown" in the UI).
+                $builder
+                    ->where(function (Builder $phone): void {
+                        $phone->whereNotNull('contact_phone')->where('contact_phone', '!=', '');
+                    })
+                    ->orWhere(function (Builder $named): void {
+                        $named
+                            ->whereNotNull('contact_name')
+                            ->where('contact_name', '!=', '')
+                            ->whereRaw('LOWER(contact_name) NOT IN (?, ?)', ['unknown', 'unknown user']);
+                    });
+            })
             ->when(true, fn (Builder $builder) => $this->applyTeamMemberScope($builder))
             ->when($unreadOnly || $scope === 'unread', fn (Builder $builder) => $builder->where('unread_count', '>', 0))
             ->when($scope === 'mine', fn (Builder $builder) => $this->applyMineScope($builder))

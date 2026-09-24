@@ -103,13 +103,17 @@ final class InboxPresenter
     {
         $name = trim((string) $name);
 
-        if ($name !== '') {
+        if ($name !== '' && ! preg_match('/^unknown(\s+user)?$/i', $name)) {
             return $name;
         }
 
         $phone = trim((string) $phone);
 
-        return $phone !== '' ? $phone : 'Unknown';
+        if ($phone !== '' && ! preg_match('/^unknown(\s+user)?$/i', $phone)) {
+            return $phone;
+        }
+
+        return '';
     }
 
     public static function threadPhoneSubtitle(?string $name, ?string $phone): ?string

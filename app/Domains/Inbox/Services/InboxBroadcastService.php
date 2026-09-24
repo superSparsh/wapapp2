@@ -175,14 +175,6 @@ class InboxBroadcastService
      */
     private function threadPayload(Conversation $conversation): array
     {
-        $assigneeKey = null;
-
-        if ($conversation->assignedUser) {
-            $assigneeKey = 'user:'.$conversation->assignedUser->uuid;
-        } elseif ($conversation->assignedTeamMember) {
-            $assigneeKey = 'member:'.$conversation->assignedTeamMember->uuid;
-        }
-
         $phone = $this->settingsService->shouldMaskPhone($conversation->contact_phone);
 
         return [
@@ -193,10 +185,27 @@ class InboxBroadcastService
             'time' => InboxPresenter::relativeTime($conversation->last_message_at),
             'preview' => InboxPresenter::preview($conversation->latestMessage?->body),
             'unread' => (int) $conversation->unread_count,
-            'assignee' => $assigneeKey,
+            'assignee' => $this->assigneeLabel($conversation),
             'ai_enabled' => $conversation->response_type?->isAi() ?? false,
             'stopped' => $conversation->contact?->hasStoppedMessaging() ?? false,
         ];
+    }
+
+    private function assigneeLabel(Conversation $conversation): ?string
+    {
+        if ($conversation->assignedTeamMember) {
+            $member = $conversation->assignedTeamMember;
+
+            return trim($member->first_name.' '.$member->last_name) ?: $member->email;
+        }
+
+        if ($conversation->assignedUser) {
+            $user = $conversation->assignedUser;
+
+            return trim((string) ($user->first_name ?: $user->name)) ?: null;
+        }
+
+        return null;
     }
 
     private function safeBroadcast(ShouldBroadcastNow $event): void

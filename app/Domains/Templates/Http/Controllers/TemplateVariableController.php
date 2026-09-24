@@ -13,6 +13,7 @@ use App\Domains\Templates\Support\TemplateVariablePresenter;
 use App\Domains\Templates\Enums\VariableDataType;
 use App\Http\Controllers\Controller;
 use App\Models\Variable;
+use App\Support\ListingSort;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -26,12 +27,19 @@ class TemplateVariableController extends Controller
         TemplateVariablePresenter $presenter,
     ): View {
         $search = $request->string('q')->trim()->toString();
-        $paginator = $queryService->paginate($search !== '' ? $search : null);
+        $parsed = ListingSort::fromRequest($request, ['id', 'name', 'created_at'], 'id', 'desc');
+        $paginator = $queryService->paginate(
+            $search !== '' ? $search : null,
+            sort: $parsed['sort'],
+            direction: $parsed['direction'],
+        );
 
         return view('templates.variables', [
             'variables' => $presenter->tableRows($paginator),
             'paginator' => $paginator,
             'search' => $search,
+            'currentSort' => $parsed['sort'],
+            'currentDirection' => $parsed['direction'],
         ]);
     }
 

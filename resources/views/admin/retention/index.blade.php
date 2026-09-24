@@ -24,21 +24,35 @@
     @endforeach
   </section>
 
-  <form method="GET" class="mx-4 mb-4 flex flex-wrap gap-3 rounded-[20px] border border-border bg-elevated p-4">
-    <input type="search" name="q" value="{{ $filters['q'] }}" placeholder="Search customer" class="min-w-[200px] flex-1 rounded-lg border border-border px-3 py-2 text-sm">
-    <select name="window" class="rounded-lg border border-border px-3 py-2 text-sm">
-      @foreach (['all' => 'All', '7' => '≤ 7 days', '30' => '≤ 30 days', '90' => '≤ 90 days', 'expired' => 'Expired', 'none' => 'No validity', 'suspended' => 'Suspended'] as $value => $label)
-        <option value="{{ $value }}" @selected($filters['window'] === $value)>{{ $label }}</option>
-      @endforeach
-    </select>
-    <select name="status" class="rounded-lg border border-border px-3 py-2 text-sm">
-      <option value="">Any status</option>
-      @foreach (['active', 'suspended', 'pending'] as $status)
-        <option value="{{ $status }}" @selected($filters['status'] === $status)>{{ ucfirst($status) }}</option>
-      @endforeach
-    </select>
-    <button class="rounded-lg bg-green-500 px-4 py-2 text-sm font-semibold text-white">Filter</button>
-  </form>
+  <x-admin.filter-bar
+    :action="route('admin.retention.index')"
+    :search="$filters['q'] ?? ''"
+    search-placeholder="Search customer"
+    :show-dates="false"
+    :sort="$filters['sort'] ?? 'name'"
+    :direction="$filters['direction'] ?? 'asc'"
+    :sort-options="$sortOptions"
+  >
+    <x-slot:filters>
+      <label class="flex min-w-[150px] flex-col gap-1.5 text-sm">
+        <span class="font-semibold text-text-primary">Window</span>
+        <select name="window" class="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary" data-listing-filter>
+          @foreach (['all' => 'All', '7' => '≤ 7 days', '30' => '≤ 30 days', '90' => '≤ 90 days', 'expired' => 'Expired', 'none' => 'No validity', 'suspended' => 'Suspended'] as $value => $label)
+            <option value="{{ $value }}" @selected(($filters['window'] ?? '') === $value)>{{ $label }}</option>
+          @endforeach
+        </select>
+      </label>
+      <label class="flex min-w-[150px] flex-col gap-1.5 text-sm">
+        <span class="font-semibold text-text-primary">Status</span>
+        <select name="status" class="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary" data-listing-filter>
+          <option value="">Any status</option>
+          @foreach (['active', 'suspended', 'pending'] as $status)
+            <option value="{{ $status }}" @selected(($filters['status'] ?? '') === $status)>{{ ucfirst($status) }}</option>
+          @endforeach
+        </select>
+      </label>
+    </x-slot:filters>
+  </x-admin.filter-bar>
 
   <div class="p-4 pt-0">
     <x-ui.data-table :headers="['Customer', 'Plan', 'Valid until', 'Days left', 'Status', 'Notes', 'Actions']" :paginator="$items">

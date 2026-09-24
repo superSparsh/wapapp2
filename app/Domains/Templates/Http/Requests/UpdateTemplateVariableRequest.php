@@ -6,6 +6,7 @@ namespace App\Domains\Templates\Http\Requests;
 
 use App\Domains\Templates\Enums\VariableDataType;
 use App\Models\Variable;
+use App\Support\WhatsappMediaRules;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\File;
@@ -73,9 +74,9 @@ class UpdateTemplateVariableRequest extends FormRequest
         }
 
         return match ($dataType) {
-            VariableDataType::Image => ['nullable', File::image()->max(5120)],
-            VariableDataType::Video => ['nullable', File::types(['mp4', 'mov'])->max(20480)],
-            VariableDataType::Pdf => ['nullable', File::types(['pdf'])->max(10240)],
+            VariableDataType::Image => ['nullable', File::types(WhatsappMediaRules::extensions('image'))->max(WhatsappMediaRules::maxKb('image'))],
+            VariableDataType::Video => ['nullable', File::types(WhatsappMediaRules::extensions('video'))->max(WhatsappMediaRules::maxKb('video'))],
+            VariableDataType::Pdf => ['nullable', File::types(['pdf'])->max(WhatsappMediaRules::maxKb('document'))],
             default => ['nullable'],
         };
     }

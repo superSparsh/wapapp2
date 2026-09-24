@@ -9,6 +9,7 @@ use App\Domains\Audience\Models\Blacklist;
 use App\Domains\Drip\Services\DripTriggerDispatcher;
 use App\Enums\ContactOptInStatus;
 use App\Models\Contact;
+use App\Support\ListingSort;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Validation\ValidationException;
 
@@ -33,19 +34,23 @@ class ContactService
         string $sortDir = 'desc',
         int $perPage = 25,
     ): LengthAwarePaginator {
-        $allowedSorts = ['created_at', 'updated_at', 'name', 'phone', 'email'];
-        $sortBy = in_array($sortBy, $allowedSorts, true) ? $sortBy : 'created_at';
-        $sortDir = strtolower($sortDir) === 'asc' ? 'asc' : 'desc';
-
-        return Contact::query()
+        $query = Contact::query()
             ->when($mailListId, fn ($q) => $q->where('mail_list_id', $mailListId))
             ->search($search)
             ->filterByStatus($status)
             ->filterByOptIn($optIn)
             ->filterByDateRange($dateFrom, $dateTo)
-            ->with('tags')
-            ->orderBy($sortBy, $sortDir)
-            ->paginate($perPage);
+            ->with('tags');
+
+        ListingSort::apply($query, (string) $sortBy, $sortDir, [
+            'created_at' => 'created_at',
+            'updated_at' => 'updated_at',
+            'name' => 'name',
+            'phone' => 'phone',
+            'email' => 'email',
+        ], 'created_at');
+
+        return $query->paginate($perPage)->withQueryString();
     }
 
     /**

@@ -4,10 +4,15 @@
     <p class="text-sm text-text-subtle opacity-70">Suspended, expired, or purge-marked customers.</p>
   </div>
 
-  <form method="GET" class="mx-4 mb-4 flex gap-3 rounded-[20px] border border-border bg-elevated p-4">
-    <input type="search" name="q" value="{{ $filters['q'] }}" placeholder="Search" class="flex-1 rounded-lg border border-border px-3 py-2 text-sm">
-    <button class="rounded-lg bg-green-500 px-4 py-2 text-sm font-semibold text-white">Filter</button>
-  </form>
+  <x-admin.filter-bar
+    :action="route('admin.data-purge.index')"
+    :search="$filters['q'] ?? ''"
+    search-placeholder="Search"
+    :show-dates="false"
+    :sort="$filters['sort'] ?? 'name'"
+    :direction="$filters['direction'] ?? 'asc'"
+    :sort-options="$sortOptions"
+  />
 
   <div class="p-4 pt-0">
     <x-ui.data-table :headers="['Customer', 'Reason', 'Valid until', 'Status', 'Actions']" :paginator="$items">

@@ -8,6 +8,7 @@ use App\Domains\Audience\Enums\ContactStatus;
 use App\Domains\Audience\Models\Blacklist;
 use App\Enums\ContactOptInStatus;
 use App\Models\Contact;
+use App\Support\ListingSort;
 use Illuminate\Pagination\LengthAwarePaginator;
 
 class BlacklistService
@@ -15,17 +16,26 @@ class BlacklistService
     /**
      * Paginated blacklist entries.
      */
-    public function index(?string $search = null, int $perPage = 15): LengthAwarePaginator
-    {
-        return Blacklist::query()
+    public function index(
+        ?string $search = null,
+        int $perPage = 15,
+        string $sort = 'created_at',
+        string $direction = 'desc',
+    ): LengthAwarePaginator {
+        $query = Blacklist::query()
             ->when($search, fn ($q) => $q->where(function ($q) use ($search): void {
                 $q->where('phone', 'LIKE', "%{$search}%")
                     ->orWhere('email', 'LIKE', "%{$search}%")
                     ->orWhere('reason', 'LIKE', "%{$search}%");
-            }))
-            ->latest()
-            ->paginate($perPage)
-            ->withQueryString();
+            }));
+
+        ListingSort::apply($query, $sort, $direction, [
+            'created_at' => 'created_at',
+            'phone' => 'phone',
+            'email' => 'email',
+        ], 'created_at');
+
+        return $query->paginate($perPage)->withQueryString();
     }
 
     /**

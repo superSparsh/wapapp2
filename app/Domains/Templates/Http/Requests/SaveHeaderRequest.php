@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domains\Templates\Http\Requests;
 
 use App\Models\Template;
+use App\Support\WhatsappMediaRules;
 use Illuminate\Foundation\Http\FormRequest;
 
 class SaveHeaderRequest extends FormRequest
@@ -48,17 +49,8 @@ class SaveHeaderRequest extends FormRequest
         }
 
         if (! $this->boolean('use_url') && in_array($type, ['image', 'video', 'document', 'audio'], true)) {
-            $limits = [
-                'image' => 'mimes:jpeg,jpg,png|max:'.(int) (config('templates.header_image_max', 5242880) / 1024),
-                'video' => 'mimes:mp4,3gp|max:'.(int) (config('templates.header_video_max', 16777216) / 1024),
-                'document' => 'mimes:pdf|max:'.(int) (config('templates.header_document_max', 10485760) / 1024),
-                'audio' => 'mimes:mp3,wav,aac,ogg,m4a|max:'.(int) (config('templates.header_audio_max', 16777216) / 1024),
-            ];
-
-            if (isset($limits[$type])) {
-                // File is optional when a previous AJAX upload already stored media_path.
-                $rules['header_media'] = ['nullable', 'file', $limits[$type]];
-            }
+            // File is optional when a previous AJAX upload already stored media_path.
+            $rules['header_media'] = array_merge(['nullable', 'file'], WhatsappMediaRules::constraintRules($type));
         }
 
         return $rules;

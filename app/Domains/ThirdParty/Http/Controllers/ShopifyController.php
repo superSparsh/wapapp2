@@ -7,6 +7,7 @@ namespace App\Domains\ThirdParty\Http\Controllers;
 use App\Domains\ThirdParty\Http\Requests\Shopify\SaveShopifyDomainRequest;
 use App\Domains\ThirdParty\Http\Requests\Shopify\SaveShopifyScopesRequest;
 use App\Domains\ThirdParty\Services\ShopifyService;
+use App\Support\ListingSort;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -21,11 +22,27 @@ class ShopifyController extends Controller
 
     public function index(Request $request): View
     {
-        $userId      = (int) auth()->id();
-        $sendData    = $this->shopify->sendData($userId, 50);
+        $userId = (int) auth()->id();
+        $parsed = ListingSort::fromRequest(
+            $request,
+            ['created_at', 'sent_at', 'event_type', 'status', 'whatsapp_number'],
+            'created_at',
+            'desc',
+        );
+        $sendData = $this->shopify->sendData(
+            $userId,
+            50,
+            $parsed['sort'],
+            $parsed['direction'],
+        );
         $integration = $this->shopify->findOrCreate($userId);
 
-        return view('integration.index', compact('sendData', 'integration'));
+        return view('integration.index', [
+            'sendData' => $sendData,
+            'integration' => $integration,
+            'currentSort' => $parsed['sort'],
+            'currentDirection' => $parsed['direction'],
+        ]);
     }
 
     public function scopes(Request $request): View

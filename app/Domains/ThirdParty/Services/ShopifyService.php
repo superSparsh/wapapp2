@@ -8,6 +8,7 @@ use App\Domains\ThirdParty\Enums\IntegrationStatus;
 use App\Domains\ThirdParty\Models\ShopifyIntegration;
 use App\Domains\ThirdParty\Models\ShopifySendData;
 use App\Domains\ThirdParty\Services\ShopifyWebhookIngestService;
+use App\Support\ListingSort;
 use Illuminate\Pagination\LengthAwarePaginator;
 
 class ShopifyService
@@ -91,12 +92,23 @@ class ShopifyService
     /**
      * Get paginated send data for a user.
      */
-    public function sendData(int $userId, int $perPage = 50): LengthAwarePaginator
-    {
-        return ShopifySendData::query()
-            ->where('user_id', $userId)
-            ->orderBy('created_at', 'desc')
-            ->paginate($perPage);
+    public function sendData(
+        int $userId,
+        int $perPage = 50,
+        string $sort = 'created_at',
+        string $direction = 'desc',
+    ): LengthAwarePaginator {
+        $query = ShopifySendData::query()->where('user_id', $userId);
+
+        ListingSort::apply($query, $sort, $direction, [
+            'created_at' => 'created_at',
+            'sent_at' => 'sent_at',
+            'event_type' => 'event_type',
+            'status' => 'status',
+            'whatsapp_number' => 'whatsapp_number',
+        ], 'created_at');
+
+        return $query->paginate($perPage)->withQueryString();
     }
 
     /**

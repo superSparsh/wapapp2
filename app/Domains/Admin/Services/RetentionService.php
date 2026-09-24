@@ -6,6 +6,7 @@ namespace App\Domains\Admin\Services;
 
 use App\Enums\TenantStatus;
 use App\Models\Tenant;
+use App\Domains\Admin\Support\AdminListQuery;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Pagination\LengthAwarePaginator as Paginator;
 use Illuminate\Support\Carbon;
@@ -15,15 +16,26 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 class RetentionService
 {
     /**
-     * @param  array{q?: string, window?: string, status?: string}  $filters
+     * @param  array{q?: string, window?: string, status?: string, sort?: string, direction?: string}  $filters
      * @return array{kpi: array<string, int>, items: LengthAwarePaginator<int, array<string, mixed>>, filters: array<string, string>}
      */
     public function report(array $filters = [], int $page = 1, int $perPage = 20): array
     {
+        $sort = (string) ($filters['sort'] ?? 'name');
+        $direction = strtolower((string) ($filters['direction'] ?? 'asc'));
+        if (! in_array($sort, ['name', 'days_left', 'valid_until', 'status'], true)) {
+            $sort = 'name';
+        }
+        if (! in_array($direction, ['asc', 'desc'], true)) {
+            $direction = 'asc';
+        }
+
         $filters = [
             'q' => trim((string) ($filters['q'] ?? '')),
             'window' => (string) ($filters['window'] ?? '90'),
             'status' => (string) ($filters['status'] ?? ''),
+            'sort' => $sort,
+            'direction' => $direction,
         ];
 
         $rows = $this->buildRows();
@@ -37,7 +49,13 @@ class RetentionService
             'no_validity' => $rows->whereNull('valid_until')->count(),
         ];
 
-        $filtered = $this->applyFilters($rows, $filters);
+        $filtered = AdminListQuery::sortRows(
+            $this->applyFilters($rows, $filters),
+            $filters['sort'],
+            $filters['direction'],
+            ['name', 'days_left', 'valid_until', 'status'],
+            'name',
+        );
         $page = max(1, $page);
         $slice = $filtered->forPage($page, $perPage)->values();
 

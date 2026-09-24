@@ -10,6 +10,7 @@ use App\Domains\Audience\Http\Requests\Contact\UpdateContactRequest;
 use App\Domains\Audience\Services\ContactService;
 use App\Models\Contact;
 use App\Models\MailList;
+use App\Support\ListingSort;
 use App\Support\PublicId;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -32,6 +33,13 @@ class ContactController extends Controller
             ? PublicId::findOrFail(MailList::class, (string) $request->input('list'))
             : null;
 
+        $parsed = ListingSort::fromRequest(
+            $request,
+            ['created_at', 'updated_at', 'name', 'phone', 'email'],
+            'created_at',
+            'desc',
+        );
+
         $contacts = $this->service->index(
             mailListId: $mailList?->id,
             search: $request->get('search'),
@@ -39,8 +47,8 @@ class ContactController extends Controller
             optIn: $request->get('opt_in'),
             dateFrom: $request->get('date_from'),
             dateTo: $request->get('date_to'),
-            sortBy: $request->get('sort_by', 'created_at'),
-            sortDir: $request->get('sort_dir', 'desc'),
+            sortBy: $parsed['sort'],
+            sortDir: $parsed['direction'],
         );
 
         return view('audience.subscribers', [
@@ -48,6 +56,9 @@ class ContactController extends Controller
             'mailListId' => $mailList?->uuid,
             'mailList' => $mailList,
             'mailLists' => MailList::query()->orderBy('name')->get(['id', 'uuid', 'name']),
+            'search' => $request->get('search', ''),
+            'currentSort' => $parsed['sort'],
+            'currentDirection' => $parsed['direction'],
         ]);
     }
 

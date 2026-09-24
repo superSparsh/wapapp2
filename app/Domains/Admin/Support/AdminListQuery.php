@@ -123,4 +123,36 @@ final class AdminListQuery
         $dir = strtolower($direction) === 'asc' ? 'asc' : 'desc';
         $query->orderBy($column, $dir);
     }
+
+    /**
+     * In-memory sort for cross-tenant merged collections (array rows or objects).
+     *
+     * @param  \Illuminate\Support\Collection<int, mixed>  $rows
+     * @param  list<string>  $allowedSorts
+     * @return \Illuminate\Support\Collection<int, mixed>
+     */
+    public static function sortRows(
+        \Illuminate\Support\Collection $rows,
+        string $sort,
+        string $direction,
+        array $allowedSorts,
+        string $fallback = 'id',
+    ): \Illuminate\Support\Collection {
+        $key = in_array($sort, $allowedSorts, true) ? $sort : $fallback;
+        $asc = strtolower($direction) === 'asc';
+
+        $sorted = $rows->sortBy(
+            function (mixed $row) use ($key) {
+                if (is_array($row)) {
+                    return $row[$key] ?? null;
+                }
+
+                return data_get($row, $key);
+            },
+            SORT_NATURAL,
+            ! $asc,
+        );
+
+        return $sorted->values();
+    }
 }

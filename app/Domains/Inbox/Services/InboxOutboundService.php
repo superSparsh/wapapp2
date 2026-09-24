@@ -255,18 +255,31 @@ class InboxOutboundService
         }
 
         $waId = PhoneNormalizer::normalize($phone) ?? (preg_replace('/\D+/', '', $phone) ?: null);
+        abort_if($waId === null || $waId === '', 422, 'Contact phone must contain digits.');
+
+        $firstName = filled($contact['first_name'] ?? null) ? trim((string) $contact['first_name']) : null;
+        $lastName = filled($contact['last_name'] ?? null) ? trim((string) $contact['last_name']) : null;
+
+        // CAMS/Meta require ≥1 optional name field alongside formatted_name.
+        if ($firstName === null && $lastName === null) {
+            $parts = preg_split('/\s+/', $formattedName, 2) ?: [];
+            $firstName = (string) ($parts[0] ?? $formattedName);
+            $lastName = isset($parts[1]) && trim((string) $parts[1]) !== ''
+                ? trim((string) $parts[1])
+                : null;
+        }
 
         $namePayload = array_filter([
             'formatted_name' => $formattedName,
-            'first_name' => filled($contact['first_name'] ?? null) ? trim((string) $contact['first_name']) : null,
-            'last_name' => filled($contact['last_name'] ?? null) ? trim((string) $contact['last_name']) : null,
+            'first_name' => $firstName,
+            'last_name' => $lastName,
         ], fn ($value) => $value !== null && $value !== '');
 
-        $phonePayload = array_filter([
-            'phone' => $phone,
+        $phonePayload = [
+            'phone' => $waId,
             'type' => $phoneType,
             'wa_id' => $waId,
-        ], fn ($value) => $value !== null && $value !== '');
+        ];
 
         $contactPayload = [
             'name' => $namePayload,

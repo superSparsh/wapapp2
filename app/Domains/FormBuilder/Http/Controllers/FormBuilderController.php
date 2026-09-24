@@ -14,6 +14,7 @@ use App\Http\Controllers\Controller;
 use App\Models\MailList;
 use App\Models\SignupForm;
 use App\Models\Template;
+use App\Support\ListingSort;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -34,27 +35,34 @@ class FormBuilderController extends Controller
         $search = $request->string('q')->trim()->toString();
         $page = max(1, (int) $request->string('page')->toString());
         $perPage = (int) config('form-builder.per_page', 10);
+        $parsed = ListingSort::fromRequest($request, ['created_at', 'name', 'status'], 'created_at', 'desc');
 
         $query = SignupForm::query()
-            ->when($search !== '', fn ($q) => $q->where('name', 'like', "%{$search}%"))
-            ->orderByDesc('created_at');
+            ->when($search !== '', fn ($q) => $q->where('name', 'like', "%{$search}%"));
 
-        $total = $query->count();
-        $forms = $query->offset(($page - 1) * $perPage)->limit($perPage + 1)->get();
+        ListingSort::apply($query, $parsed['sort'], $parsed['direction'], [
+            'created_at' => 'created_at',
+            'name' => 'name',
+            'status' => 'status',
+        ], 'created_at');
 
-        $rows = $this->presenter->tableRows($forms, $page, $perPage);
+        $paginator = $query->paginate($perPage)->withQueryString();
+        $rows = $this->presenter->tableRows($paginator->getCollection(), $page, $perPage);
 
         $pagination = [
-            'total' => $total,
+            'total' => $paginator->total(),
             'per_page' => $perPage,
-            'current' => $page,
-            'pages' => max(1, (int) ceil($total / $perPage)),
+            'current' => $paginator->currentPage(),
+            'pages' => $paginator->lastPage(),
         ];
 
         return view('form-builder.index', [
             'rows' => $rows,
             'pagination' => $pagination,
             'search' => $search,
+            'currentSort' => $parsed['sort'],
+            'currentDirection' => $parsed['direction'],
+            'paginator' => $paginator,
         ]);
     }
 

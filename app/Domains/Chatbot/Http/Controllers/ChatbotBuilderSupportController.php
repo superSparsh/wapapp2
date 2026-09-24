@@ -9,6 +9,7 @@ use App\Domains\Commerce\Services\CatalogService;
 use App\Domains\Inbox\Services\InboxQueryService;
 use App\Domains\WhatsappFlow\Services\WhatsappFlowInteractiveService;
 use App\Models\Template;
+use App\Support\WhatsappMediaRules;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
@@ -26,8 +27,15 @@ class ChatbotBuilderSupportController
     public function mediaUpload(Request $request): JsonResponse
     {
         $request->validate([
-            'file' => ['required', 'file', 'max:16384'],
+            'file' => WhatsappMediaRules::anyFileRules(),
+            'media_type' => ['nullable', 'string', 'in:'.implode(',', WhatsappMediaRules::types())],
         ]);
+
+        $expectedType = $request->input('media_type');
+        WhatsappMediaRules::assertValid(
+            $request->file('file'),
+            is_string($expectedType) && $expectedType !== '' ? $expectedType : null,
+        );
 
         $path = $request->file('file')->store('chatbot/media', 'public');
         $url = Storage::disk('public')->url($path);

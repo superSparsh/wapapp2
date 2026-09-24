@@ -7,17 +7,26 @@
     </div>
   </div>
 
-  <div class="px-4 pb-2">
-    <form method="GET" class="flex flex-wrap items-center gap-3">
-      <label for="scope" class="text-sm font-semibold text-text-primary">Scope</label>
-      <select id="scope" name="scope" class="rounded-lg border border-border bg-surface px-3 py-2 text-sm" onchange="this.form.submit()">
-        <option value="">All</option>
-        @foreach ($scopes as $value => $label)
-          <option value="{{ $value }}" @selected($activeScope === $value)>{{ $label }}</option>
-        @endforeach
-      </select>
-    </form>
-  </div>
+  <x-admin.filter-bar
+    :action="route('admin.customers.activity-logs', $tenant)"
+    :search="''"
+    :show-dates="false"
+    :sort="$filters['sort'] ?? 'created_at'"
+    :direction="$filters['direction'] ?? 'desc'"
+    :sort-options="$sortOptions"
+  >
+    <x-slot:filters>
+      <label class="flex min-w-[150px] flex-col gap-1.5 text-sm">
+        <span class="font-semibold text-text-primary">Scope</span>
+        <select name="scope" class="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary" data-listing-filter>
+          <option value="">All</option>
+          @foreach ($scopes as $value => $label)
+            <option value="{{ $value }}" @selected(($filters['scope'] ?? $activeScope ?? '') === $value)>{{ $label }}</option>
+          @endforeach
+        </select>
+      </label>
+    </x-slot:filters>
+  </x-admin.filter-bar>
 
   <div class="p-4 pt-0">
     <x-ui.data-table

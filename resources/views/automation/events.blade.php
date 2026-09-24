@@ -41,7 +41,23 @@
       </form>
 
       <div class="rounded-xl border border-border bg-elevated p-5">
-        <h2 class="fd-card-title mb-4">Scheduled Events</h2>
+        <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <h2 class="fd-card-title">Scheduled Events</h2>
+          <x-ui.listing-toolbar
+            class="sm:w-auto"
+            :action="route('automation.events.index')"
+            :current-sort="$currentSort ?? 'id'"
+            :current-direction="$currentDirection ?? 'desc'"
+            :sort-options="[
+              ['value' => 'id', 'label' => 'Newest first', 'direction' => 'desc'],
+              ['value' => 'id', 'label' => 'Oldest first', 'direction' => 'asc'],
+              ['value' => 'name', 'label' => 'Name A–Z', 'direction' => 'asc'],
+              ['value' => 'event_type', 'label' => 'Event type', 'direction' => 'asc'],
+              ['value' => 'status', 'label' => 'Status', 'direction' => 'asc'],
+              ['value' => 'scheduled_at', 'label' => 'Scheduled date', 'direction' => 'desc'],
+            ]"
+          />
+        </div>
 
         @if ($events->isEmpty())
           <p class="text-sm text-text-muted">No automation events yet.</p>

@@ -14,6 +14,7 @@ use App\Domains\Templates\Support\InteractiveMessagePresenter;
 use App\Http\Controllers\Controller;
 use App\Models\Campaign;
 use App\Models\Template;
+use App\Support\ListingSort;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -48,6 +49,12 @@ class TemplateController extends Controller
         $code = $request->filled('code') ? $request->string('code')->toString() : null;
         $draftUuid = $request->filled('draft') ? $request->string('draft')->toString() : null;
         $showPreview = $request->boolean('preview');
+        $parsed = ListingSort::fromRequest(
+            $request,
+            ['updated_at', 'created_at', 'name', 'status'],
+            'updated_at',
+            'desc',
+        );
 
         $viewData = $this->adapter->indexViewData(
             search: $search !== '' ? $search : null,
@@ -62,6 +69,8 @@ class TemplateController extends Controller
             freeType: $freeType,
             interactiveMessageService: $interactiveMessageService,
             interactiveMessagePresenter: $interactiveMessagePresenter,
+            sort: $parsed['sort'],
+            direction: $parsed['direction'],
         );
 
         return view('templates.index', $viewData);

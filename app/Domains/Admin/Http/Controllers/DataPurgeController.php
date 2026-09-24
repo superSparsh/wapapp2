@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domains\Admin\Http\Controllers;
 
 use App\Domains\Admin\Services\DataPurgeService;
+use App\Domains\Admin\Support\AdminListQuery;
 use App\Http\Controllers\Controller;
 use App\Models\Tenant;
 use Illuminate\Http\RedirectResponse;
@@ -19,10 +20,28 @@ class DataPurgeController extends Controller
 
     public function index(Request $request): View
     {
-        return view('admin.data-purge.index', $this->purge->candidates(
-            $request->only(['q']),
-            (int) $request->integer('page', 1),
-        ));
+        $parsed = AdminListQuery::fromRequest(
+            $request,
+            allowedSorts: ['name', 'valid_until', 'status', 'reason'],
+            defaultSort: 'name',
+            defaultDirection: 'asc',
+        );
+
+        return view('admin.data-purge.index', [
+            ...$this->purge->candidates(
+                array_merge($request->only(['q']), [
+                    'sort' => $parsed['sort'],
+                    'direction' => $parsed['direction'],
+                ]),
+                (int) $request->integer('page', 1),
+            ),
+            'sortOptions' => [
+                ['value' => 'name', 'label' => 'Name A–Z', 'direction' => 'asc'],
+                ['value' => 'valid_until', 'label' => 'Valid until', 'direction' => 'asc'],
+                ['value' => 'status', 'label' => 'Status', 'direction' => 'asc'],
+                ['value' => 'reason', 'label' => 'Reason', 'direction' => 'asc'],
+            ],
+        ]);
     }
 
     public function show(Tenant $tenant): View

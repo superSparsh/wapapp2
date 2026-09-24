@@ -5,19 +5,30 @@ declare(strict_types=1);
 namespace App\Domains\AiBot\Services;
 
 use App\Models\AiBot;
+use App\Support\ListingSort;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 class AiBotQueryService
 {
-    public function paginate(int $perPage = 10, ?string $search = null): LengthAwarePaginator
-    {
-        $query = AiBot::query()->orderByDesc('created_at');
+    public function paginate(
+        int $perPage = 10,
+        ?string $search = null,
+        string $sort = 'created_at',
+        string $direction = 'desc',
+    ): LengthAwarePaginator {
+        $query = AiBot::query();
 
         if ($search !== null && $search !== '') {
             $query->where('name', 'like', "%{$search}%");
         }
 
-        return $query->paginate($perPage);
+        ListingSort::apply($query, $sort, $direction, [
+            'created_at' => 'created_at',
+            'name' => 'name',
+            'status' => 'status',
+        ], 'created_at');
+
+        return $query->paginate($perPage)->withQueryString();
     }
 
     /**

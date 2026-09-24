@@ -5,15 +5,28 @@ declare(strict_types=1);
 namespace App\Domains\AutomationEvents\Services;
 
 use App\Models\AutomationEvent;
+use App\Support\ListingSort;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 class AutomationEventService
 {
-    public function paginate(int $perPage = 15): LengthAwarePaginator
-    {
-        return AutomationEvent::query()
-            ->latest('id')
-            ->paginate($perPage);
+    public function paginate(
+        int $perPage = 15,
+        string $sort = 'id',
+        string $direction = 'desc',
+    ): LengthAwarePaginator {
+        $query = AutomationEvent::query();
+
+        ListingSort::apply($query, $sort, $direction, [
+            'id' => 'id',
+            'name' => 'name',
+            'event_type' => 'event_type',
+            'status' => 'status',
+            'scheduled_at' => 'scheduled_at',
+            'created_at' => 'created_at',
+        ], 'id');
+
+        return $query->paginate($perPage)->withQueryString();
     }
 
     /**

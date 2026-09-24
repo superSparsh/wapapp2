@@ -216,10 +216,15 @@ class CustomerAdminService
     }
 
     /**
-     * @return array{tenant: Tenant, logs: \Illuminate\Contracts\Pagination\LengthAwarePaginator, scopes: array<string, string>, activeScope: string}
+     * @return array{tenant: Tenant, logs: \Illuminate\Contracts\Pagination\LengthAwarePaginator, scopes: array<string, string>, activeScope: string, filters: array<string, string>, sortOptions: list<array{value: string, label: string, direction: string}>}
      */
-    public function activityLogs(Tenant $tenant, ?string $scope = null, int $perPage = 25): array
-    {
+    public function activityLogs(
+        Tenant $tenant,
+        ?string $scope = null,
+        int $perPage = 25,
+        string $sort = 'created_at',
+        string $direction = 'desc',
+    ): array {
         $wasInitialized = tenancy()->initialized;
         $previous = $wasInitialized ? tenant() : null;
         $logs = null;
@@ -233,6 +238,8 @@ class CustomerAdminService
             $logs = app(\App\Domains\Account\Services\ActivityLogService::class)->paginate(
                 $scope !== null && $scope !== '' ? $scope : null,
                 $perPage,
+                $sort,
+                $direction,
             );
         } finally {
             if (tenancy()->initialized) {
@@ -252,6 +259,17 @@ class CustomerAdminService
             'logs' => $logs,
             'scopes' => (array) config('billing.activity_log.scopes', []),
             'activeScope' => (string) ($scope ?? ''),
+            'filters' => [
+                'sort' => $sort,
+                'direction' => $direction,
+                'scope' => (string) ($scope ?? ''),
+            ],
+            'sortOptions' => [
+                ['value' => 'created_at', 'label' => 'Newest first', 'direction' => 'desc'],
+                ['value' => 'created_at', 'label' => 'Oldest first', 'direction' => 'asc'],
+                ['value' => 'action', 'label' => 'Action A–Z', 'direction' => 'asc'],
+                ['value' => 'scope', 'label' => 'Scope', 'direction' => 'asc'],
+            ],
         ];
     }
 

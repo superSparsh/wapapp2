@@ -6,6 +6,7 @@ namespace App\Domains\Templates\Services;
 
 use App\Domains\Templates\Support\VariableActorContext;
 use App\Models\Variable;
+use App\Support\ListingSort;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -15,12 +16,22 @@ class TemplateVariableQueryService
         private readonly VariableActorContext $actorContext,
     ) {}
 
-    public function paginate(?string $keyword = null, ?int $perPage = null): LengthAwarePaginator
-    {
+    public function paginate(
+        ?string $keyword = null,
+        ?int $perPage = null,
+        string $sort = 'id',
+        string $direction = 'desc',
+    ): LengthAwarePaginator {
         $perPage = $perPage ?? (int) config('templates.variables_per_page', 10);
 
-        return $this->scopedQuery($keyword)
-            ->orderByDesc('id')
+        $query = $this->scopedQuery($keyword);
+        ListingSort::apply($query, $sort, $direction, [
+            'id' => 'id',
+            'name' => 'name',
+            'created_at' => 'created_at',
+        ], 'id');
+
+        return $query
             ->paginate($perPage)
             ->withQueryString();
     }

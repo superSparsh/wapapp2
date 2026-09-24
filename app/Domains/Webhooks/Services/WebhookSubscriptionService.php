@@ -8,6 +8,7 @@ use App\Enums\WebhookDeliveryStatus;
 use App\Enums\WebhookSubscriptionStatus;
 use App\Models\WebhookDelivery;
 use App\Models\WebhookSubscription;
+use App\Support\ListingSort;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Str;
 
@@ -20,9 +21,13 @@ class WebhookSubscriptionService
     /**
      * Paginated subscriptions with delivery counts.
      */
-    public function index(?string $search = null, int $perPage = 15): LengthAwarePaginator
-    {
-        return WebhookSubscription::query()
+    public function index(
+        ?string $search = null,
+        int $perPage = 15,
+        string $sort = 'created_at',
+        string $direction = 'desc',
+    ): LengthAwarePaginator {
+        $query = WebhookSubscription::query()
             ->when($search, function ($q) use ($search): void {
                 $q->where(function ($inner) use ($search): void {
                     $inner->where('description', 'LIKE', "%{$search}%")
@@ -33,9 +38,16 @@ class WebhookSubscriptionService
                 'deliveries',
                 'deliveries as sent_count' => fn ($q) => $q->where('status', WebhookDeliveryStatus::Sent),
                 'deliveries as failed_count' => fn ($q) => $q->where('status', WebhookDeliveryStatus::Failed),
-            ])
-            ->latest()
-            ->paginate($perPage);
+            ]);
+
+        ListingSort::apply($query, $sort, $direction, [
+            'created_at' => 'created_at',
+            'description' => 'description',
+            'status' => 'status',
+            'last_triggered_at' => 'last_triggered_at',
+        ], 'created_at');
+
+        return $query->paginate($perPage)->withQueryString();
     }
 
     /**

@@ -15,15 +15,24 @@
         <p class="fd-page-note">Create and manage signup forms for lead generation.</p>
       </div>
 
-      <div class="flex flex-wrap items-center justify-between gap-3">
-        <form method="get" action="{{ route('form-builder.index') }}" class="flex w-full max-w-[550px] items-center gap-3 rounded-lg bg-elevated p-3">
-          <img src="{{ asset('images/form-builder/search.svg') }}" alt="" class="size-5 shrink-0" width="20" height="20">
-          <input type="search" name="q" value="{{ $search ?? '' }}" placeholder="Search forms..." class="fd-filter-placeholder min-w-0 flex-1 bg-transparent text-sm font-medium leading-[1.4] text-text-body/60 focus:outline-none">
-        </form>
-
-        <div class="flex flex-wrap items-center gap-2">
+      <x-ui.listing-toolbar
+        :action="route('form-builder.index')"
+        search-name="q"
+        :search-value="$search ?? ''"
+        search-placeholder="Search forms..."
+        :current-sort="$currentSort ?? 'created_at'"
+        :current-direction="$currentDirection ?? 'desc'"
+        :sort-options="[
+          ['value' => 'created_at', 'label' => 'Newest first', 'direction' => 'desc'],
+          ['value' => 'created_at', 'label' => 'Oldest first', 'direction' => 'asc'],
+          ['value' => 'name', 'label' => 'Name A–Z', 'direction' => 'asc'],
+          ['value' => 'name', 'label' => 'Name Z–A', 'direction' => 'desc'],
+          ['value' => 'status', 'label' => 'Status', 'direction' => 'asc'],
+        ]"
+      >
+        <x-slot:actions>
           <a
-            href="{{ route('form-builder.index', array_filter(['q' => $search ?? '', 'page' => 1, 'refresh' => 1])) }}"
+            href="{{ route('form-builder.index', array_filter(['q' => $search ?? '', 'sort' => $currentSort ?? null, 'direction' => $currentDirection ?? null, 'page' => 1])) }}"
             class="fd-btn inline-flex items-center justify-center gap-3 rounded border border-border-light bg-elevated px-4 py-3 text-sm font-semibold leading-[1.5] text-green-500 transition-colors hover:bg-surface"
           >
             <img src="{{ asset('images/form-builder/refresh.svg') }}" alt="" class="size-4 shrink-0" width="16" height="16">
@@ -36,8 +45,8 @@
             <img src="{{ asset('images/form-builder/add.svg') }}" alt="" class="size-5 shrink-0" width="20" height="20">
             Create Form
           </a>
-        </div>
-      </div>
+        </x-slot:actions>
+      </x-ui.listing-toolbar>
     </div>
 
     <section class="p-4 pt-0">

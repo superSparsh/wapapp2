@@ -7,6 +7,7 @@ namespace App\Domains\AutomationEvents\Http\Controllers;
 use App\Domains\AutomationEvents\Services\AutomationEventService;
 use App\Http\Controllers\Controller;
 use App\Models\AutomationEvent;
+use App\Support\ListingSort;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -20,10 +21,22 @@ class AutomationEventController extends Controller
 
     public function index(Request $request): View
     {
-        $events = $this->service->paginate((int) $request->integer('per_page', 15));
+        $parsed = ListingSort::fromRequest(
+            $request,
+            ['id', 'name', 'event_type', 'status', 'scheduled_at', 'created_at'],
+            'id',
+            'desc',
+        );
+        $events = $this->service->paginate(
+            (int) $request->integer('per_page', 15),
+            $parsed['sort'],
+            $parsed['direction'],
+        );
 
         return view('automation.events', [
             'events' => $events,
+            'currentSort' => $parsed['sort'],
+            'currentDirection' => $parsed['direction'],
         ]);
     }
 

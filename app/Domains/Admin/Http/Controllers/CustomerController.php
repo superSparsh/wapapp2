@@ -154,9 +154,21 @@ class CustomerController extends Controller
 
     public function activityLogs(Request $request, Tenant $tenant): View
     {
+        $parsed = AdminListQuery::fromRequest(
+            $request,
+            allowedSorts: ['created_at', 'action', 'scope'],
+            defaultSort: 'created_at',
+            defaultDirection: 'desc',
+        );
+
         return view(
             'admin.customers.activity-logs',
-            $this->customers->activityLogs($tenant, $request->query('scope')),
+            $this->customers->activityLogs(
+                $tenant,
+                $request->query('scope'),
+                sort: $parsed['sort'],
+                direction: $parsed['direction'],
+            ),
         );
     }
 

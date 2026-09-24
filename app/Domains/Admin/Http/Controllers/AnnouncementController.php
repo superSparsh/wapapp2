@@ -50,16 +50,35 @@ class AnnouncementController extends Controller
         ]);
     }
 
-    public function requests(Announcement $announcement): View
+    public function requests(Request $request, Announcement $announcement): View
     {
-        $requests = AnnouncementFeatureRequest::query()
-            ->where('announcement_id', $announcement->id)
-            ->latest('id')
-            ->paginate(25);
+        $parsed = AdminListQuery::fromRequest(
+            $request,
+            allowedSorts: ['id', 'created_at', 'customer_name', 'is_acknowledged'],
+            defaultSort: 'id',
+            defaultDirection: 'desc',
+        );
+
+        $query = AnnouncementFeatureRequest::query()
+            ->where('announcement_id', $announcement->id);
+
+        AdminListQuery::applySort($query, $parsed['sort'], $parsed['direction'], [
+            'id' => 'id',
+            'created_at' => 'created_at',
+            'customer_name' => 'customer_name',
+            'is_acknowledged' => 'is_acknowledged',
+        ], 'id');
 
         return view('admin.announcements.requests', [
             'announcement' => $announcement,
-            'requests' => $requests,
+            'requests' => $query->paginate(25)->withQueryString(),
+            'filters' => $parsed,
+            'sortOptions' => [
+                ['value' => 'id', 'label' => 'Newest first', 'direction' => 'desc'],
+                ['value' => 'created_at', 'label' => 'Requested date', 'direction' => 'desc'],
+                ['value' => 'customer_name', 'label' => 'Customer A–Z', 'direction' => 'asc'],
+                ['value' => 'is_acknowledged', 'label' => 'Acknowledged first', 'direction' => 'desc'],
+            ],
         ]);
     }
 

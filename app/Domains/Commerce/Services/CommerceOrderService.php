@@ -7,6 +7,7 @@ namespace App\Domains\Commerce\Services;
 use App\Domains\Commerce\Enums\OrderStatus;
 use App\Domains\Commerce\Enums\PaymentStatus;
 use App\Domains\Commerce\Models\CommerceOrder;
+use App\Support\ListingSort;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 
@@ -23,12 +24,14 @@ class CommerceOrderService
         ?string $orderStatus = null,
         ?string $paymentStatus = null,
         int $perPage = 25,
+        string $sort = 'id',
+        string $direction = 'desc',
     ): LengthAwarePaginator {
         $search        = trim((string) $search);
         $orderStatus   = filled($orderStatus) ? $orderStatus : null;
         $paymentStatus = filled($paymentStatus) ? $paymentStatus : null;
 
-        return CommerceOrder::query()
+        $query = CommerceOrder::query()
             ->when($search !== '', function ($q) use ($search): void {
                 $q->where(function ($nested) use ($search): void {
                     $nested->where('customer_name', 'like', "%{$search}%")
@@ -37,10 +40,19 @@ class CommerceOrderService
                 });
             })
             ->when($orderStatus !== null, fn ($q) => $q->where('order_status', $orderStatus))
-            ->when($paymentStatus !== null, fn ($q) => $q->where('payment_status', $paymentStatus))
-            ->latest('id')
-            ->paginate($perPage)
-            ->withQueryString();
+            ->when($paymentStatus !== null, fn ($q) => $q->where('payment_status', $paymentStatus));
+
+        ListingSort::apply($query, $sort, $direction, [
+            'id' => 'id',
+            'created_at' => 'created_at',
+            'customer_name' => 'customer_name',
+            'customer_phone' => 'customer_phone',
+            'total_price' => 'total_price',
+            'order_status' => 'order_status',
+            'payment_status' => 'payment_status',
+        ], 'id');
+
+        return $query->paginate($perPage)->withQueryString();
     }
 
     /**

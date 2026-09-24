@@ -4,15 +4,26 @@
     <p class="text-sm text-text-subtle opacity-70">Tenant subscriptions linked to Razorpay.</p>
   </div>
 
-  <form method="GET" class="mx-4 mb-4 flex flex-wrap gap-3 rounded-[20px] border border-border bg-elevated p-4">
-    <select name="tenant" class="rounded-lg border border-border px-3 py-2 text-sm">
-      <option value="">All customers</option>
-      @foreach ($tenants as $tenant)
-        <option value="{{ $tenant->id }}" @selected(($filters['tenant'] ?? '') === $tenant->id)>{{ $tenant->company_name ?: $tenant->name }}</option>
-      @endforeach
-    </select>
-    <button class="rounded-lg bg-green-500 px-4 py-2 text-sm font-semibold text-white">Filter</button>
-  </form>
+  <x-admin.filter-bar
+    :action="route('admin.razorpay.index')"
+    :search="''"
+    :show-dates="false"
+    :sort="$filters['sort'] ?? 'starts_at'"
+    :direction="$filters['direction'] ?? 'desc'"
+    :sort-options="$sortOptions"
+  >
+    <x-slot:filters>
+      <label class="flex min-w-[150px] flex-col gap-1.5 text-sm">
+        <span class="font-semibold text-text-primary">Customer</span>
+        <select name="tenant" class="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary" data-listing-filter>
+          <option value="">All customers</option>
+          @foreach ($tenants as $tenant)
+            <option value="{{ $tenant->id }}" @selected(($filters['tenant'] ?? '') === $tenant->id)>{{ $tenant->company_name ?: $tenant->name }}</option>
+          @endforeach
+        </select>
+      </label>
+    </x-slot:filters>
+  </x-admin.filter-bar>
 
   <div class="p-4 pt-0">
     <x-ui.data-table :headers="['Customer', 'Razorpay ID', 'Status', 'Amount', 'Starts', 'Ends']" :paginator="$items">

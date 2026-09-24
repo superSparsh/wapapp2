@@ -11,6 +11,7 @@ use App\Domains\AiBot\Services\AiBotService;
 use App\Domains\AiBot\Services\AiTokenUsageService;
 use App\Http\Controllers\Controller;
 use App\Models\AiBot;
+use App\Support\ListingSort;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -24,13 +25,19 @@ class AiBotController extends Controller
 
     public function index(Request $request): View
     {
+        $parsed = ListingSort::fromRequest($request, ['created_at', 'name', 'status'], 'created_at', 'desc');
         $bots = $this->queryService->paginate(
             perPage: 10,
             search: $request->query('search'),
+            sort: $parsed['sort'],
+            direction: $parsed['direction'],
         );
 
         return view('ai-bots.index', [
             'bots' => $bots,
+            'search' => $request->query('search', ''),
+            'currentSort' => $parsed['sort'],
+            'currentDirection' => $parsed['direction'],
         ]);
     }
 

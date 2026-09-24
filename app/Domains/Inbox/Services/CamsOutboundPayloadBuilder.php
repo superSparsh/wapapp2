@@ -201,13 +201,109 @@ class CamsOutboundPayloadBuilder
         $metadata = $message->metadata ?? [];
         $contacts = is_array($metadata['contacts'] ?? null) ? $metadata['contacts'] : [];
 
+        // Alibaba CAMS: Content for MessageType=contacts must be a contacts array
+        // (not {"contacts":[...]}). Each contact requires name.formatted_name plus
+        // at least one of first_name/last_name/…; phone values must be digits only.
+        $normalized = [];
+        foreach ($contacts as $contact) {
+            if (! is_array($contact)) {
+                continue;
+            }
+            $normalized[] = $this->normalizeContactForCams($contact);
+        }
+
         return array_merge($payload, [
             'Type' => 'message',
             'MessageType' => 'contacts',
-            'Content' => json_encode([
-                'contacts' => $contacts,
-            ], JSON_THROW_ON_ERROR),
+            'Content' => json_encode(array_values($normalized), JSON_THROW_ON_ERROR),
         ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $contact
+     * @return array<string, mixed>
+     */
+    private function normalizeContactForCams(array $contact): array
+    {
+        $name = is_array($contact['name'] ?? null) ? $contact['name'] : [];
+        $formatted = trim((string) ($name['formatted_name'] ?? ''));
+        $first = trim((string) ($name['first_name'] ?? ''));
+        $last = trim((string) ($name['last_name'] ?? ''));
+        $middle = trim((string) ($name['middle_name'] ?? ''));
+        $prefix = trim((string) ($name['prefix'] ?? ''));
+        $suffix = trim((string) ($name['suffix'] ?? ''));
+
+        if ($formatted === '' && ($first !== '' || $last !== '')) {
+            $formatted = trim($first.' '.$last);
+        }
+
+        // CAMS/Meta: formatted_name must include ≥1 optional name field.
+        if ($first === '' && $last === '' && $middle === '' && $prefix === '' && $suffix === '' && $formatted !== '') {
+            $parts = preg_split('/\s+/', $formatted, 2) ?: [];
+            $first = (string) ($parts[0] ?? $formatted);
+            $last = isset($parts[1]) ? (string) $parts[1] : '';
+        }
+
+        $namePayload = array_filter([
+            'formatted_name' => $formatted,
+            'first_name' => $first !== '' ? $first : null,
+            'last_name' => $last !== '' ? $last : null,
+            'middle_name' => $middle !== '' ? $middle : null,
+            'prefix' => $prefix !== '' ? $prefix : null,
+            'suffix' => $suffix !== '' ? $suffix : null,
+        ], fn ($value) => $value !== null && $value !== '');
+
+        $phones = [];
+        foreach (is_array($contact['phones'] ?? null) ? $contact['phones'] : [] as $phoneRow) {
+            if (! is_array($phoneRow)) {
+                continue;
+            }
+            $raw = (string) ($phoneRow['phone'] ?? $phoneRow['wa_id'] ?? '');
+            $digits = PhoneNormalizer::normalize($raw)
+                ?? (preg_replace('/\D+/', '', $raw) ?: '');
+            if ($digits === '') {
+                continue;
+            }
+            $type = strtoupper(trim((string) ($phoneRow['type'] ?? 'CELL')));
+            if (! in_array($type, ['CELL', 'MAIN', 'IPHONE', 'HOME', 'WORK'], true)) {
+                $type = 'CELL';
+            }
+            $phones[] = [
+                'phone' => $digits,
+                'type' => $type,
+                'wa_id' => $digits,
+            ];
+        }
+
+        $normalized = [
+            'name' => $namePayload,
+        ];
+
+        if ($phones !== []) {
+            $normalized['phones'] = $phones;
+        }
+
+        if (is_array($contact['emails'] ?? null) && $contact['emails'] !== []) {
+            $normalized['emails'] = $contact['emails'];
+        }
+
+        if (is_array($contact['org'] ?? null) && $contact['org'] !== []) {
+            $normalized['org'] = $contact['org'];
+        }
+
+        if (is_array($contact['urls'] ?? null) && $contact['urls'] !== []) {
+            $normalized['urls'] = $contact['urls'];
+        }
+
+        if (is_array($contact['addresses'] ?? null) && $contact['addresses'] !== []) {
+            $normalized['addresses'] = $contact['addresses'];
+        }
+
+        if (filled($contact['birthday'] ?? null)) {
+            $normalized['birthday'] = (string) $contact['birthday'];
+        }
+
+        return $normalized;
     }
 
     private function formatRecipient(string $phone): string

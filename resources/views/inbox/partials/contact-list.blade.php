@@ -14,6 +14,9 @@
     'days' => $filters['lookback_days'] ?? null,
     'line' => $activeLineUuid,
   ], fn ($value) => $value !== null && $value !== '');
+  $lookbackDays = (int) ($filters['lookback_days'] ?? config('inbox.default_lookback_days', 7));
+  $lookbackLabel = config('inbox.lookback_labels.'.$lookbackDays)
+    ?? ('Last '.$lookbackDays.' day'.($lookbackDays === 1 ? '' : 's'));
 @endphp
 
 <div
@@ -94,7 +97,10 @@
           </div>
         </a>
       @empty
-        <div class="p-6 text-center text-sm text-text-body/70" data-inbox-thread-empty>No conversations yet.</div>
+        <div class="flex flex-col items-center gap-1 p-6 text-center" data-inbox-thread-empty>
+          <p class="text-sm text-text-body/70">No conversations in {{ $lookbackLabel }}.</p>
+          <p class="text-xs text-text-body/50">Try a longer date range in the filters above to load older chats.</p>
+        </div>
       @endforelse
     </div>
   </div>
