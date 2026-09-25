@@ -146,9 +146,11 @@ class ProcessFormSubmissionJob implements ShouldQueue
 
             $externalId = trim((string) ($message->external_message_id ?? ''));
             $submissionService->updateMessageStatus(
-                $submission,
-                'sent',
-                $externalId !== '' ? $externalId : (string) $message->id,
+                submission: $submission,
+                status: 'sent',
+                externalId: $externalId !== '' ? $externalId : null,
+                failedReason: null,
+                outboundMessageId: (int) $message->id,
             );
         } catch (Throwable $e) {
             $submissionService->updateMessageStatus(

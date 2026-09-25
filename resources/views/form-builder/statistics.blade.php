@@ -94,7 +94,7 @@
               <tbody>
                 @foreach ($recentSubmissions as $submission)
                   @php
-                    $status = (string) ($submission->message_status ?? 'pending');
+                    $status = $submission->displayStatus();
                     $statusClass = match ($status) {
                       'sent' => 'bg-green-50 text-green-700',
                       'delivered' => 'bg-teal-50 text-teal-700',

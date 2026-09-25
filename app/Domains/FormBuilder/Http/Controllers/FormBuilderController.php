@@ -112,11 +112,13 @@ class FormBuilderController extends Controller
 
     /**
      * Show form statistics (submissions + WhatsApp delivery).
+     * Counts are live from form_submissions timestamps (legacy conversations parity).
      */
     public function statistics(SignupForm $form): View
     {
         $form->load(['mailList', 'template']);
-        $stats = $form->statsArray();
+
+        $stats = $this->formBuilderService->liveSubmissionStats($form);
         $total = max(1, (int) ($stats['total'] ?? 0));
         $pct = static fn (int $count): string => (string) round(($count / $total) * 100, 1);
 

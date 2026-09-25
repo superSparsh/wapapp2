@@ -8,6 +8,7 @@ use App\Domains\FormBuilder\Enums\FormStatus;
 use App\Domains\FormBuilder\Enums\FieldType;
 use App\Domains\FormBuilder\Support\FormActorContext;
 use App\Domains\FormBuilder\Support\FormFieldNormalizer;
+use App\Models\FormSubmission;
 use App\Models\SignupForm;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -145,6 +146,33 @@ class FormBuilderService
     public function delete(SignupForm $form): bool
     {
         return $form->delete();
+    }
+
+    /**
+     * Live form delivery stats from submission timestamps (legacy conversations parity).
+     *
+     * @return array{total: int, sent: int, delivered: int, read: int, failed: int}
+     */
+    public function liveSubmissionStats(SignupForm $form): array
+    {
+        $counts = FormSubmission::query()
+            ->where('signup_form_id', $form->id)
+            ->selectRaw("
+                COUNT(*) as total,
+                SUM(CASE WHEN sent_at IS NOT NULL THEN 1 ELSE 0 END) as sent,
+                SUM(CASE WHEN delivered_at IS NOT NULL THEN 1 ELSE 0 END) as delivered,
+                SUM(CASE WHEN read_at IS NOT NULL THEN 1 ELSE 0 END) as read_count,
+                SUM(CASE WHEN message_status = 'failed' OR (failed_at IS NOT NULL AND delivered_at IS NULL) THEN 1 ELSE 0 END) as failed
+            ")
+            ->first();
+
+        return [
+            'total' => (int) ($counts->total ?? 0),
+            'sent' => (int) ($counts->sent ?? 0),
+            'delivered' => (int) ($counts->delivered ?? 0),
+            'read' => (int) ($counts->read_count ?? 0),
+            'failed' => (int) ($counts->failed ?? 0),
+        ];
     }
 
     /**

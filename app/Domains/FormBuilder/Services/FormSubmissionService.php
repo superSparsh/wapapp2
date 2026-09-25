@@ -60,15 +60,30 @@ class FormSubmissionService
 
     /**
      * Update submission status when WhatsApp message callback arrives.
+     *
+     * @param  string|null  $externalId  Provider MessageId (legacy conversations.msg_id)
+     * @param  int|null  $outboundMessageId  Local messages.id link for webhook matching
      */
-    public function updateMessageStatus(FormSubmission $submission, string $status, ?string $externalId = null, ?string $failedReason = null): void
-    {
+    public function updateMessageStatus(
+        FormSubmission $submission,
+        string $status,
+        ?string $externalId = null,
+        ?string $failedReason = null,
+        ?int $outboundMessageId = null,
+    ): void {
         $status = strtolower(trim($status));
         $current = strtolower((string) ($submission->message_status ?? 'pending'));
 
         if (! $this->shouldApplyStatus($current, $status)) {
+            $patch = [];
             if ($externalId && blank($submission->external_message_id)) {
-                $submission->update(['external_message_id' => $externalId]);
+                $patch['external_message_id'] = $externalId;
+            }
+            if ($outboundMessageId && blank($submission->outbound_message_id)) {
+                $patch['outbound_message_id'] = $outboundMessageId;
+            }
+            if ($patch !== []) {
+                $submission->update($patch);
             }
 
             return;
@@ -78,6 +93,10 @@ class FormSubmissionService
 
         if ($externalId) {
             $updates['external_message_id'] = $externalId;
+        }
+
+        if ($outboundMessageId) {
+            $updates['outbound_message_id'] = $outboundMessageId;
         }
 
         $now = now();
@@ -284,10 +303,10 @@ class FormSubmissionService
             ->where('signup_form_id', $form->id)
             ->selectRaw("
                 COUNT(*) as total,
-                SUM(CASE WHEN message_status IN ('sent', 'delivered', 'read') THEN 1 ELSE 0 END) as sent,
-                SUM(CASE WHEN message_status = 'read' THEN 1 ELSE 0 END) as read_count,
-                SUM(CASE WHEN message_status IN ('delivered', 'read') THEN 1 ELSE 0 END) as delivered,
-                SUM(CASE WHEN message_status = 'failed' THEN 1 ELSE 0 END) as failed
+                SUM(CASE WHEN sent_at IS NOT NULL THEN 1 ELSE 0 END) as sent,
+                SUM(CASE WHEN read_at IS NOT NULL THEN 1 ELSE 0 END) as read_count,
+                SUM(CASE WHEN delivered_at IS NOT NULL THEN 1 ELSE 0 END) as delivered,
+                SUM(CASE WHEN message_status = 'failed' OR (failed_at IS NOT NULL AND delivered_at IS NULL) THEN 1 ELSE 0 END) as failed
             ")
             ->first();
 

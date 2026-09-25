@@ -97,7 +97,12 @@ class DeliveryStatusHandler
             }
 
             $this->syncCampaignRecipient($item, $messageId, $status, $now);
-            $this->syncFormSubmission($message, $messageId, $status, $item);
+            $this->syncFormSubmission(
+                $message !== null ? $message->fresh(['conversation']) : null,
+                $messageId,
+                $status,
+                $item,
+            );
 
             if ($message !== null && $message->message_type === MessageType::Template) {
                 $recipient = CampaignRecipient::query()->where('message_id', $messageId)->first()
@@ -383,10 +388,11 @@ class DeliveryStatusHandler
 
         try {
             app(FormSubmissionService::class)->updateMessageStatus(
-                $submission,
-                $formStatus,
-                $messageId,
-                $formStatus === 'failed' ? $this->extractFailureReason($item) : null,
+                submission: $submission,
+                status: $formStatus,
+                externalId: $messageId,
+                failedReason: $formStatus === 'failed' ? $this->extractFailureReason($item) : null,
+                outboundMessageId: $message?->id,
             );
         } catch (\Throwable $e) {
             Log::warning('Form submission status sync failed', [
@@ -402,17 +408,47 @@ class DeliveryStatusHandler
      */
     private function findFormSubmission(?Message $message, string $messageId, array $item): ?FormSubmission
     {
+        // 1) Legacy-style: link via local outbound message id (conversations.msg_id parity).
         if ($message !== null) {
+            $byOutbound = FormSubmission::query()
+                ->where('outbound_message_id', $message->id)
+                ->orderByDesc('id')
+                ->first();
+            if ($byOutbound !== null) {
+                return $byOutbound;
+            }
+
             $meta = is_array($message->metadata) ? $message->metadata : [];
             $submissionId = (int) ($meta['form_submission_id'] ?? 0);
             if ($submissionId > 0) {
                 $submission = FormSubmission::query()->find($submissionId);
                 if ($submission !== null) {
+                    if (blank($submission->outbound_message_id)) {
+                        $submission->forceFill(['outbound_message_id' => $message->id])->save();
+                    }
+
                     return $submission;
+                }
+            }
+
+            $signupFormId = (int) ($meta['signup_form_id'] ?? 0);
+            if ($signupFormId > 0) {
+                $phone = PhoneNormalizer::normalize((string) ($item['To'] ?? $item['to'] ?? $message->conversation?->contact_phone ?? ''));
+                if ($phone !== null) {
+                    $byFormPhone = FormSubmission::query()
+                        ->where('signup_form_id', $signupFormId)
+                        ->whereIn('phone', PhoneNormalizer::lookupVariants($phone))
+                        ->whereIn('message_status', ['pending', 'sent', 'delivered'])
+                        ->orderByDesc('id')
+                        ->first();
+                    if ($byFormPhone !== null) {
+                        return $byFormPhone;
+                    }
                 }
             }
         }
 
+        // 2) Provider MessageId stored on submission (legacy msg_id).
         $byExternalId = FormSubmission::query()
             ->where('external_message_id', $messageId)
             ->orderByDesc('id')

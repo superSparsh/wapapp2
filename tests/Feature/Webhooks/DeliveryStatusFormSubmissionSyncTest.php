@@ -84,6 +84,10 @@ class DeliveryStatusFormSubmissionSyncTest extends TestCase
             ],
         ]);
 
+        $submission->forceFill([
+            'outbound_message_id' => $message->id,
+        ])->save();
+
         app(\App\Domains\Webhooks\Services\WhatsappLineRegistryService::class)
             ->indexMessage($this->testTenant->id, $externalId, (int) $message->id);
 
