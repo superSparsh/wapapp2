@@ -72,7 +72,9 @@ class LoginService
         string $password,
     ): Authenticatable {
         if ($access->account_type === TenantUserAccountType::Team) {
-            $member = TeamMember::query()->where('email', $email)->first();
+            $member = TeamMember::query()
+                ->whereRaw('LOWER(email) = ?', [strtolower($email)])
+                ->first();
 
             if ($member === null || ! Hash::check($password, $member->password)) {
                 throw InvalidCredentialsException::make();
@@ -81,7 +83,9 @@ class LoginService
             return $member;
         }
 
-        $user = User::query()->where('email', $email)->first();
+        $user = User::query()
+            ->whereRaw('LOWER(email) = ?', [strtolower($email)])
+            ->first();
 
         if ($user === null || ! Hash::check($password, $user->password)) {
             throw InvalidCredentialsException::make();

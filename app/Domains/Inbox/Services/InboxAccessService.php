@@ -70,10 +70,12 @@ class InboxAccessService
     {
         $lineIds = collect($member->assigned_whatsapp_line_ids ?? [])
             ->map(fn ($id): int => (int) $id)
+            ->filter(fn (int $id): bool => $id > 0)
             ->all();
 
+        // No line restriction configured → member can use any account line.
         if ($lineIds === []) {
-            return false;
+            return true;
         }
 
         return in_array($lineId, $lineIds, true);

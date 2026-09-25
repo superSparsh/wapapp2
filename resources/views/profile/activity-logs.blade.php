@@ -33,7 +33,15 @@
             @forelse ($logs as $log)
               <tr class="border-t border-divider">
                 <td class="p-2 whitespace-nowrap">{{ $log->created_at?->format('M d, Y g:i A') }}</td>
-                <td class="p-2">{{ $log->actor_email ?? 'System' }}</td>
+                <td class="p-2">
+                  @php
+                    $actorName = is_array($log->metadata) ? ($log->metadata['actor_name'] ?? null) : null;
+                  @endphp
+                  <span class="block font-medium text-text-primary">{{ $actorName ?: ($log->actor_email ?? 'System') }}</span>
+                  @if ($actorName && $log->actor_email)
+                    <span class="text-xs text-text-muted">{{ $log->actor_email }}</span>
+                  @endif
+                </td>
                 <td class="p-2">
                   <span class="rounded bg-green-50 px-2 py-1 text-[10px] font-medium text-primary-2">{{ $log->scope }}</span>
                   <span class="mt-1 block text-text-subtle">{{ \App\Domains\Account\Services\ActivityLogService::labelFor((string) $log->action) }}</span>

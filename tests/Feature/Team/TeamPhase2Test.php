@@ -40,6 +40,18 @@ class TeamPhase2Test extends TestCase
             ->assertForbidden();
     }
 
+    public function test_module_read_permission_grants_write_access(): void
+    {
+        $this->assertTrue(TeamPermissions::isEnabled(
+            ['template_read' => true],
+            'template_write',
+        ));
+        $this->assertFalse(TeamPermissions::isEnabled(
+            ['template_read' => false],
+            'template_write',
+        ));
+    }
+
     public function test_team_member_with_inbox_permission_can_access_inbox(): void
     {
         $member = TeamMember::factory()->create([

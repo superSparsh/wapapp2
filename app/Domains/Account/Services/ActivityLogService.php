@@ -81,19 +81,38 @@ class ActivityLogService
         $user = auth('web')->user() ?? auth('team')->user();
         $request = request();
 
+        $actorEmail = $user?->email ?? ($context['actor_email'] ?? null);
+        $actorName = $context['actor_name'] ?? null;
+
+        if ($actorName === null && $user !== null) {
+            $actorName = method_exists($user, 'displayName')
+                ? (string) $user->displayName()
+                : (string) ($user->name ?? $user->email ?? '');
+        }
+
+        $metadata = is_array($context['metadata'] ?? null) ? $context['metadata'] : [];
+        if ($actorName !== null && $actorName !== '') {
+            $metadata['actor_name'] = $actorName;
+        }
+
+        $description = $context['description'] ?? self::labelFor($action);
+        if ($actorName !== null && $actorName !== '' && ! str_contains((string) $description, $actorName)) {
+            $description = $description.' (by '.$actorName.')';
+        }
+
         return ActivityLog::query()->create([
             'uid' => Str::random(32),
             'scope' => $context['scope'] ?? $this->scopeForAction($action),
             'actor_type' => $user ? $user::class : null,
             'actor_id' => $user?->getKey(),
-            'actor_email' => $user?->email ?? ($context['actor_email'] ?? null),
+            'actor_email' => $actorEmail,
             'action' => $action,
-            'description' => $context['description'] ?? self::labelFor($action),
+            'description' => $description,
             'subject_type' => $context['subject_type'] ?? null,
             'subject_id' => $context['subject_id'] ?? null,
             'ip_address' => $context['ip_address'] ?? $this->resolveClientIp($request),
             'user_agent' => $context['user_agent'] ?? $this->resolveUserAgent($request),
-            'metadata' => $context['metadata'] ?? null,
+            'metadata' => $metadata !== [] ? $metadata : ($context['metadata'] ?? null),
             'created_at' => now(),
         ]);
     }

@@ -42,6 +42,7 @@ use App\Domains\Integration\Http\Middleware\RestrictLineContextRoutes;
 use App\Domains\Team\Http\Middleware\EnsureAccountOwner;
 use App\Domains\Team\Http\Middleware\EnsureManager;
 use App\Domains\Team\Http\Middleware\EnsureTeamPermission;
+use App\Domains\Team\Http\Middleware\LogTeamMemberMutations;
 use App\Domains\Team\Http\Middleware\RedirectTeamMemberDashboard;
 use App\Domains\Templates\Console\Commands\DeleteSoftDeletedTemplates;
 use App\Domains\Templates\Console\Commands\SubmitPendingTemplates;
@@ -123,6 +124,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 InitializeTenancyFromSession::class,
                 AuthenticateSession::class,
                 EnsureCustomerSiteAvailable::class,
+                LogTeamMemberMutations::class,
             ],
         );
 

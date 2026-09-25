@@ -22,7 +22,7 @@
                 <p class="text-[13px] font-semibold leading-[1.5] text-text-subtle">{{ $label }}</p>
               </div>
               <div class="min-w-0 flex-1 p-2">
-                <p class="text-[13px] font-normal leading-[1.5] text-text-body">Allow read access</p>
+                <p class="text-[13px] font-normal leading-[1.5] text-text-body">Allow full access (view, create, update, delete)</p>
               </div>
               <div class="flex min-w-0 flex-1 items-center justify-center gap-2.5 p-2">
                 <span class="flex-1 text-right text-[13px] text-text-body">No</span>

@@ -37,9 +37,23 @@ final class TeamPermissions
         return $normalized;
     }
 
+    /**
+     * Module assign (e.g. template_read) grants full CRUD for that module,
+     * matching legacy WapApp where only *_read toggles existed.
+     */
     public static function isEnabled(?array $permissions, string $key): bool
     {
-        return self::normalize($permissions)[$key] ?? false;
+        $normalized = self::normalize($permissions);
+
+        if ($normalized[$key] ?? false) {
+            return true;
+        }
+
+        if (preg_match('/^(?P<module>.+)_(?:write|create|update|delete)$/', $key, $matches) === 1) {
+            return (bool) ($normalized[$matches['module'].'_read'] ?? false);
+        }
+
+        return false;
     }
 
     /** @param array<string, bool> $input */
