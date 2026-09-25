@@ -330,11 +330,37 @@
         event.preventDefault();
         return;
       }
-      if (action === 'delete' && !confirm('Delete selected subscribers?')) {
-        event.preventDefault();
+
+      bulkForm.setAttribute('action', routes[action]);
+
+      if (action !== 'delete' || bulkForm.dataset.confirmBypass === 'true') {
         return;
       }
-      bulkForm.setAttribute('action', routes[action]);
+
+      event.preventDefault();
+
+      const ask = typeof window.showAppConfirm === 'function'
+        ? window.showAppConfirm({
+            title: 'Delete subscribers',
+            message: 'Delete selected subscribers? This cannot be undone.',
+            variant: 'danger',
+            confirmLabel: 'Delete',
+          })
+        : Promise.resolve(window.confirm('Delete selected subscribers?'));
+
+      ask.then((confirmed) => {
+        if (!confirmed) {
+          return;
+        }
+
+        bulkForm.dataset.confirmBypass = 'true';
+        if (typeof bulkForm.requestSubmit === 'function') {
+          bulkForm.requestSubmit();
+        } else {
+          bulkForm.submit();
+        }
+        delete bulkForm.dataset.confirmBypass;
+      });
     });
   });
   </script>

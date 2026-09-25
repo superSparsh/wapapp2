@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domains\FormBuilder\Jobs;
 
 use App\Domains\FormBuilder\Services\FormSubmissionService;
+use App\Domains\FormBuilder\Services\FormTemplateParamsResolver;
 use App\Domains\Inbox\Services\InboxConversationService;
 use App\Domains\Inbox\Services\InboxOutboundService;
 use App\Domains\Templates\Support\CamsTemplateIdentity;
@@ -41,8 +42,9 @@ class ProcessFormSubmissionJob implements ShouldQueue
         FormSubmissionService $submissionService,
         InboxConversationService $conversationService,
         InboxOutboundService $outboundService,
+        FormTemplateParamsResolver $paramsResolver,
     ): void {
-        $submission = FormSubmission::query()->find($this->submissionId);
+        $submission = FormSubmission::query()->with('contact')->find($this->submissionId);
 
         if (! $submission instanceof FormSubmission) {
             return;
@@ -103,7 +105,12 @@ class ProcessFormSubmissionJob implements ShouldQueue
             return;
         }
 
-        $templateParams = $this->buildTemplateParams($submission->submission_data ?? [], $phone);
+        $templateParams = $paramsResolver->forSubmission(
+            $template,
+            $submission->submission_data ?? [],
+            $submission->contact,
+            $phone,
+        );
 
         try {
             $conversation = $conversationService->findOrCreateConversation(
@@ -156,41 +163,5 @@ class ProcessFormSubmissionJob implements ShouldQueue
                 'error' => $e->getMessage(),
             ]);
         }
-    }
-
-    /**
-     * Flat CAMS TemplateParams map (same shape as campaigns / inbox).
-     *
-     * @param  array<string, mixed>  $data
-     * @return array<string, string>
-     */
-    private function buildTemplateParams(array $data, string $phone): array
-    {
-        $params = [];
-
-        foreach ($data as $key => $value) {
-            if (! is_scalar($value) && $value !== null) {
-                continue;
-            }
-
-            $params[(string) $key] = trim((string) $value);
-        }
-
-        $firstName = trim((string) ($params['first_name'] ?? ''));
-        $lastName = trim((string) ($params['last_name'] ?? ''));
-        $fullName = trim($firstName.' '.$lastName);
-
-        if ($fullName !== '') {
-            $params['full_name'] = $params['full_name'] ?? $fullName;
-            $params['name'] = $params['name'] ?? $fullName;
-        }
-
-        $params['phone'] = $params['phone'] ?? $phone;
-        $params['phone_number'] = $params['phone_number'] ?? $phone;
-
-        return array_filter(
-            $params,
-            static fn (string $value): bool => $value !== '',
-        );
     }
 }

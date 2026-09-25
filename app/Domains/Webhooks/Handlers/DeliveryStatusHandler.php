@@ -7,6 +7,7 @@ namespace App\Domains\Webhooks\Handlers;
 use App\Domains\Audience\Services\NonWhatsAppNumberService;
 use App\Domains\Audience\Services\OptInMessageService;
 use App\Domains\Billing\Services\TemplateWalletChargeService;
+use App\Domains\FormBuilder\Services\FormSubmissionService;
 use App\Domains\Webhooks\Parsers\AlibabaWebhookParser;
 use App\Domains\Webhooks\Services\WhatsappLineRegistryService;
 use App\Enums\CampaignRecipientStatus;
@@ -14,6 +15,7 @@ use App\Enums\MessageStatus;
 use App\Enums\MessageType;
 use App\Models\CampaignRecipient;
 use App\Models\Contact;
+use App\Models\FormSubmission;
 use App\Models\InboundWebhookEvent;
 use App\Models\Message;
 use App\Support\PhoneNormalizer;
@@ -95,6 +97,7 @@ class DeliveryStatusHandler
             }
 
             $this->syncCampaignRecipient($item, $messageId, $status, $now);
+            $this->syncFormSubmission($message, $messageId, $status, $item);
 
             if ($message !== null && $message->message_type === MessageType::Template) {
                 $recipient = CampaignRecipient::query()->where('message_id', $messageId)->first()
@@ -351,6 +354,96 @@ class DeliveryStatusHandler
             ->where(function ($query) use ($variants): void {
                 $query->whereIn('contact_phone', $variants);
             })
+            ->first();
+    }
+
+    /**
+     * Keep form-builder submission delivery stats in sync with WhatsApp status webhooks.
+     *
+     * @param  array<string, mixed>  $item
+     */
+    private function syncFormSubmission(?Message $message, string $messageId, string $status, array $item): void
+    {
+        $formStatus = match ($status) {
+            'Sent' => 'sent',
+            'Delivered' => 'delivered',
+            'Read' => 'read',
+            'Failed' => 'failed',
+            default => null,
+        };
+
+        if ($formStatus === null) {
+            return;
+        }
+
+        $submission = $this->findFormSubmission($message, $messageId, $item);
+        if ($submission === null) {
+            return;
+        }
+
+        try {
+            app(FormSubmissionService::class)->updateMessageStatus(
+                $submission,
+                $formStatus,
+                $messageId,
+                $formStatus === 'failed' ? $this->extractFailureReason($item) : null,
+            );
+        } catch (\Throwable $e) {
+            Log::warning('Form submission status sync failed', [
+                'message_id' => $messageId,
+                'status' => $status,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $item
+     */
+    private function findFormSubmission(?Message $message, string $messageId, array $item): ?FormSubmission
+    {
+        if ($message !== null) {
+            $meta = is_array($message->metadata) ? $message->metadata : [];
+            $submissionId = (int) ($meta['form_submission_id'] ?? 0);
+            if ($submissionId > 0) {
+                $submission = FormSubmission::query()->find($submissionId);
+                if ($submission !== null) {
+                    return $submission;
+                }
+            }
+        }
+
+        $byExternalId = FormSubmission::query()
+            ->where('external_message_id', $messageId)
+            ->orderByDesc('id')
+            ->first();
+        if ($byExternalId !== null) {
+            return $byExternalId;
+        }
+
+        if ($message !== null) {
+            $byLocalId = FormSubmission::query()
+                ->where('external_message_id', (string) $message->id)
+                ->orderByDesc('id')
+                ->first();
+            if ($byLocalId !== null) {
+                return $byLocalId;
+            }
+        }
+
+        $to = PhoneNormalizer::normalize((string) ($item['To'] ?? $item['to'] ?? ''));
+        if ($to === null) {
+            return null;
+        }
+
+        $variants = PhoneNormalizer::lookupVariants($to);
+
+        return FormSubmission::query()
+            ->whereIn('phone', $variants)
+            ->whereIn('message_status', ['pending', 'sent', 'delivered'])
+            ->whereNotNull('sent_at')
+            ->where('sent_at', '>=', now()->subDay())
+            ->orderByDesc('id')
             ->first();
     }
 

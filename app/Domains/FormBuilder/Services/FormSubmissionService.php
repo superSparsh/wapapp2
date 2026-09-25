@@ -63,26 +63,70 @@ class FormSubmissionService
      */
     public function updateMessageStatus(FormSubmission $submission, string $status, ?string $externalId = null, ?string $failedReason = null): void
     {
+        $status = strtolower(trim($status));
+        $current = strtolower((string) ($submission->message_status ?? 'pending'));
+
+        if (! $this->shouldApplyStatus($current, $status)) {
+            if ($externalId && blank($submission->external_message_id)) {
+                $submission->update(['external_message_id' => $externalId]);
+            }
+
+            return;
+        }
+
         $updates = ['message_status' => $status];
 
         if ($externalId) {
             $updates['external_message_id'] = $externalId;
         }
 
-        if ($status === 'sent') {
-            $updates['sent_at'] = now();
-        } elseif ($status === 'delivered') {
-            $updates['delivered_at'] = now();
-        } elseif ($status === 'read') {
-            $updates['read_at'] = now();
-        } elseif ($status === 'failed') {
-            $updates['failed_at'] = now();
+        $now = now();
+
+        if (in_array($status, ['sent', 'delivered', 'read'], true)) {
+            $updates['sent_at'] = $submission->sent_at ?? $now;
+        }
+
+        if (in_array($status, ['delivered', 'read'], true)) {
+            $updates['delivered_at'] = $submission->delivered_at ?? $now;
+        }
+
+        if ($status === 'read') {
+            $updates['read_at'] = $submission->read_at ?? $now;
+        }
+
+        if ($status === 'failed') {
+            $updates['failed_at'] = $submission->failed_at ?? $now;
             $updates['failed_reason'] = $failedReason;
         }
 
         $submission->update($updates);
 
         $this->syncFormStats($submission);
+    }
+
+    private function shouldApplyStatus(string $current, string $next): bool
+    {
+        if ($current === $next) {
+            return true;
+        }
+
+        $order = [
+            'pending' => 0,
+            'sent' => 1,
+            'delivered' => 2,
+            'read' => 3,
+        ];
+
+        if ($next === 'failed') {
+            // Don't overwrite a successful delivery/read with a late failure noise.
+            return ! in_array($current, ['delivered', 'read'], true);
+        }
+
+        if (! array_key_exists($next, $order) || ! array_key_exists($current, $order)) {
+            return true;
+        }
+
+        return $order[$next] >= $order[$current];
     }
 
     /**
@@ -240,9 +284,9 @@ class FormSubmissionService
             ->where('signup_form_id', $form->id)
             ->selectRaw("
                 COUNT(*) as total,
-                SUM(CASE WHEN message_status = 'sent' THEN 1 ELSE 0 END) as sent,
+                SUM(CASE WHEN message_status IN ('sent', 'delivered', 'read') THEN 1 ELSE 0 END) as sent,
                 SUM(CASE WHEN message_status = 'read' THEN 1 ELSE 0 END) as read_count,
-                SUM(CASE WHEN message_status = 'delivered' THEN 1 ELSE 0 END) as delivered,
+                SUM(CASE WHEN message_status IN ('delivered', 'read') THEN 1 ELSE 0 END) as delivered,
                 SUM(CASE WHEN message_status = 'failed' THEN 1 ELSE 0 END) as failed
             ")
             ->first();
