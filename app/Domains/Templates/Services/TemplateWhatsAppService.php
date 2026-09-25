@@ -46,6 +46,15 @@ class TemplateWhatsAppService
             return $this->modifyTemplate($template);
         }
 
+        // Same name may already exist on Meta (soft-deleted locally, or created outside).
+        // Prefer modify over create to avoid Meta "language is being deleted" / duplicate errors.
+        $existingCode = $this->resolveExistingProviderCode($template, $line);
+        if ($existingCode !== null) {
+            $template->forceFill(['code' => $existingCode])->save();
+
+            return $this->modifyTemplate($template->refresh());
+        }
+
         $name = $this->normalizeName($template->name);
         $extra = ['CustSpaceId' => $line->alibaba_cust_space_id];
 
@@ -692,6 +701,76 @@ class TemplateWhatsAppService
     private function normalizeName(string $name): string
     {
         return str_replace(' ', '_', strtolower(trim($name)));
+    }
+
+    /**
+     * Find an existing CAMS TemplateCode for this local draft (soft-deleted archive or remote list).
+     */
+    private function resolveExistingProviderCode(Template $template, WhatsappLine $line): ?string
+    {
+        $archived = Template::onlyTrashed()
+            ->where('whatsapp_line_id', $line->id)
+            ->whereRaw('LOWER(TRIM(name)) = ?', [strtolower(trim((string) $template->name))])
+            ->orderByDesc('deleted_at')
+            ->get(['payload']);
+
+        foreach ($archived as $row) {
+            $code = data_get($row->payload, 'meta.archived_code');
+            if (CamsTemplateIdentity::isProviderCode(is_string($code) ? $code : null)) {
+                return (string) $code;
+            }
+        }
+
+        if (! $this->camsClient->isConfigured() || blank($line->alibaba_cust_space_id)) {
+            return null;
+        }
+
+        try {
+            $response = $this->camsClient->listTemplates([
+                'CustSpaceId' => $line->alibaba_cust_space_id,
+                'Name' => $this->normalizeName((string) $template->name),
+                'Language' => CamsTemplateIdentity::language($template->language),
+                'PageSize' => '10',
+                'PageIndex' => '1',
+            ]);
+
+            if (! $response->successful()) {
+                return null;
+            }
+
+            $body = $response->json() ?? [];
+            if (! is_array($body)) {
+                return null;
+            }
+
+            $list = $body['List']
+                ?? $body['Data']['List']
+                ?? $body['data']['list']
+                ?? $body['TemplateList']
+                ?? [];
+
+            if (! is_array($list)) {
+                return null;
+            }
+
+            foreach ($list as $item) {
+                if (! is_array($item)) {
+                    continue;
+                }
+
+                $code = $item['TemplateCode'] ?? $item['templateCode'] ?? $item['Code'] ?? null;
+                if (CamsTemplateIdentity::isProviderCode(is_string($code) ? $code : null)) {
+                    return (string) $code;
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Failed to resolve existing CAMS template code before create', [
+                'template_id' => $template->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        return null;
     }
 
     private function handleSubmissionError(Template $template, string $error): void

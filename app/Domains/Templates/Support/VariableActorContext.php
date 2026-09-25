@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domains\Templates\Support;
 
 use App\Domains\Team\Support\TeamActor;
+use App\Enums\RecordStatus;
 use App\Models\TeamMember;
 use App\Models\WhatsappLine;
 
@@ -30,9 +31,26 @@ final class VariableActorContext
 
     public function whatsappLineId(): ?int
     {
-        return WhatsappLine::query()
+        $member = TeamActor::teamMember();
+        $assignedIds = [];
+
+        if ($member instanceof TeamMember) {
+            $assignedIds = collect($member->assigned_whatsapp_line_ids ?? [])
+                ->map(fn ($id): int => (int) $id)
+                ->filter(fn (int $id): bool => $id > 0)
+                ->values()
+                ->all();
+        }
+
+        $query = WhatsappLine::query()
+            ->where('status', RecordStatus::Active)
             ->orderByDesc('is_default')
-            ->orderBy('id')
-            ->value('id');
+            ->orderBy('id');
+
+        if ($assignedIds !== []) {
+            $query->whereIn('id', $assignedIds);
+        }
+
+        return $query->value('id');
     }
 }

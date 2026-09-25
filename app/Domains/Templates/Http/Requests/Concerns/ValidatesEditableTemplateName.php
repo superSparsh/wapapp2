@@ -40,10 +40,11 @@ trait ValidatesEditableTemplateName
         }
 
         if (TemplateNameValidator::nameExistsForLine($name, $template->whatsapp_line_id, $template->id)) {
-            $validator->errors()->add(
-                'name',
-                'A template with this name already exists on this WhatsApp number. Please choose a different name.',
-            );
+            $message = TemplateNameValidator::nameBlockedByMetaCooldown($name, $template->whatsapp_line_id, $template->id)
+                ? TemplateNameValidator::metaCooldownMessage()
+                : 'A template with this name already exists on this WhatsApp number. Please choose a different name.';
+
+            $validator->errors()->add('name', $message);
         }
     }
 

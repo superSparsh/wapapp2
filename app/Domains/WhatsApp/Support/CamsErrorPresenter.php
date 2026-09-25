@@ -70,6 +70,19 @@ final class CamsErrorPresenter
             return ['Duplicate template name', 'Use a different template name and language combination.', null];
         }
 
+        if (
+            str_contains($haystack, 'BEING DELETED')
+            || str_contains($haystack, 'LANGUAGE IS BEING DELETED')
+            || str_contains($haystack, 'TRY AGAIN IN 4 WEEKS')
+            || str_contains($haystack, '4 WEEKS')
+        ) {
+            return [
+                'Template name on cooldown',
+                'WhatsApp blocks reusing a deleted template name + language for up to 4 weeks. Create the template under a new name.',
+                null,
+            ];
+        }
+
         return match ($codeKey) {
             'MISSINGTYPE' => ['Missing template type', 'Re-check header, body, and buttons, then submit again.', 'Type is mandatory for this action.'],
             'MISSINGCOMPONENTS' => ['Missing template components', 'Save each builder step, then submit again.', 'Components are mandatory for this action.'],

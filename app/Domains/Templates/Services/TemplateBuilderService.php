@@ -51,8 +51,12 @@ class TemplateBuilderService
         $lineId = $this->actorContext->whatsappLineId();
 
         if (TemplateNameValidator::nameExistsForLine($name, $lineId)) {
+            $message = TemplateNameValidator::nameBlockedByMetaCooldown($name, $lineId)
+                ? TemplateNameValidator::metaCooldownMessage()
+                : 'A template with this name already exists on this WhatsApp number. Please choose a different name.';
+
             throw ValidationException::withMessages([
-                'name' => 'A template with this name already exists on this WhatsApp number. Please choose a different name.',
+                'name' => $message,
             ]);
         }
 

@@ -38,7 +38,7 @@ class TemplateNameValidatorTest extends TestCase
         );
     }
 
-    public function test_it_ignores_soft_deleted_templates(): void
+    public function test_it_ignores_soft_deleted_never_submitted_drafts(): void
     {
         $deleted = Template::factory()->draft()->create([
             'whatsapp_line_id' => $this->testLine->id,
@@ -63,6 +63,35 @@ class TemplateNameValidatorTest extends TestCase
 
         $this->assertFalse(
             TemplateNameValidator::nameExistsForLine('welcome_offer', $this->testLine->id),
+        );
+    }
+
+    public function test_it_blocks_names_soft_deleted_with_provider_code_within_cooldown(): void
+    {
+        $deleted = Template::factory()->draft()->create([
+            'whatsapp_line_id' => $this->testLine->id,
+            'name' => 'promo_blast',
+            'code' => '1263007766488379392',
+            'synced_at' => now()->subDay(),
+            'payload' => array_merge(Template::defaultPayload(), [
+                'meta' => [
+                    'name' => 'promo_blast',
+                    'category' => 'MARKETING',
+                    'language' => 'en_GB',
+                    'template_type' => 'regular',
+                    'setup_completed' => true,
+                ],
+            ]),
+        ]);
+
+        $deleted->delete();
+        $deleted->refresh();
+
+        $this->assertTrue(
+            TemplateNameValidator::nameBlockedByMetaCooldown('promo_blast', $this->testLine->id),
+        );
+        $this->assertTrue(
+            TemplateNameValidator::nameExistsForLine('promo_blast', $this->testLine->id),
         );
     }
 }

@@ -25,7 +25,7 @@ final class TemplateNameValidator
             return false;
         }
 
-        return Template::query()
+        $activeExists = Template::query()
             ->whereNull('deleted_at')
             ->where('whatsapp_line_id', $whatsappLineId)
             ->where(function ($query) use ($name, $normalized): void {
@@ -35,6 +35,49 @@ final class TemplateNameValidator
             })
             ->when($exceptTemplateId !== null, fn ($query) => $query->where('id', '!=', $exceptTemplateId))
             ->exists();
+
+        if ($activeExists) {
+            return true;
+        }
+
+        return self::nameBlockedByMetaCooldown($name, $whatsappLineId, $exceptTemplateId);
+    }
+
+    /**
+     * Meta blocks recreating the same template name + language for ~4 weeks after delete.
+     * Soft-deleted local rows with a real CAMS TemplateCode (or recent sync) must block reuse.
+     */
+    public static function nameBlockedByMetaCooldown(string $name, ?int $whatsappLineId, ?int $exceptTemplateId = null): bool
+    {
+        $trimmed = strtolower(trim($name));
+        if ($trimmed === '') {
+            return false;
+        }
+
+        $candidates = Template::onlyTrashed()
+            ->where('whatsapp_line_id', $whatsappLineId)
+            ->whereRaw('LOWER(TRIM(name)) = ?', [$trimmed])
+            ->where('deleted_at', '>=', now()->subWeeks(4))
+            ->when($exceptTemplateId !== null, fn ($query) => $query->where('id', '!=', $exceptTemplateId))
+            ->get(['id', 'payload', 'synced_at', 'deleted_at']);
+
+        foreach ($candidates as $template) {
+            $archived = data_get($template->payload, 'meta.archived_code');
+            if (CamsTemplateIdentity::isProviderCode(is_string($archived) ? $archived : null)) {
+                return true;
+            }
+
+            if ($template->synced_at !== null) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public static function metaCooldownMessage(): string
+    {
+        return 'This template name was recently deleted on WhatsApp. Meta blocks reusing the same name with English (UK) for up to 4 weeks. Choose a new name, or wait and try again.';
     }
 
     /**
