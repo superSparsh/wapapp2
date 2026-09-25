@@ -352,39 +352,70 @@ class CatalogService
     /** @param array<string,mixed> $catalog */
     private function formatCatalog(array $catalog): array
     {
-        $business = $catalog['business'] ?? [];
+        $business = $catalog['business'] ?? $catalog['Business'] ?? [];
+        if (is_string($business) && $business !== '') {
+            $decoded = json_decode($business, true);
+            $business = is_array($decoded) ? $decoded : [];
+        }
         if (! is_array($business)) {
             $business = [];
         }
 
+        $businessId = $business['id']
+            ?? $business['Id']
+            ?? $catalog['business_id']
+            ?? $catalog['BusinessId']
+            ?? '';
+        $businessName = $business['name']
+            ?? $business['Name']
+            ?? $catalog['business_name']
+            ?? $catalog['BusinessName']
+            ?? '';
+
         return [
-            'id' => (string) ($catalog['id'] ?? ''),
-            'name' => (string) ($catalog['name'] ?? 'Unknown'),
-            'product_count' => (int) ($catalog['product_count'] ?? 0),
-            'vertical' => (string) ($catalog['vertical'] ?? ''),
-            'image_url' => (string) ($catalog['default_image_url'] ?? ''),
-            'business_name' => (string) ($business['name'] ?? ''),
-            'business_id' => (string) ($business['id'] ?? ''),
+            'id' => (string) ($catalog['id'] ?? $catalog['Id'] ?? ''),
+            'name' => (string) ($catalog['name'] ?? $catalog['Name'] ?? 'Unknown'),
+            'product_count' => (int) ($catalog['product_count'] ?? $catalog['ProductCount'] ?? 0),
+            'vertical' => (string) ($catalog['vertical'] ?? $catalog['Vertical'] ?? ''),
+            'image_url' => (string) ($catalog['default_image_url'] ?? $catalog['DefaultImageUrl'] ?? $catalog['image_url'] ?? ''),
+            'business_name' => (string) $businessName,
+            'business_id' => (string) $businessId,
         ];
     }
 
     /** @param array<string,mixed> $product */
     private function formatProduct(array $product): array
     {
-        $rawPrice = (string) ($product['price'] ?? '');
-        $price = $rawPrice !== '' ? '₹ '.ltrim($rawPrice, '₹ ') : 'N/A';
-
         return [
-            'id' => (string) ($product['id'] ?? ''),
-            'retailer_id' => (string) ($product['retailer_id'] ?? $product['id'] ?? ''),
-            'name' => (string) ($product['name'] ?? 'No Name'),
-            'description' => (string) ($product['description'] ?? ''),
-            'brand' => (string) ($product['brand'] ?? ''),
-            'price' => $price,
-            'condition' => (string) ($product['condition'] ?? ''),
-            'availability' => (string) ($product['availability'] ?? ''),
-            'image_url' => (string) ($product['image_url'] ?? ''),
-            'inventory' => (int) ($product['inventory'] ?? 0),
+            'id' => (string) ($product['id'] ?? $product['Id'] ?? ''),
+            'retailer_id' => (string) ($product['retailer_id'] ?? $product['RetailerId'] ?? $product['id'] ?? $product['Id'] ?? ''),
+            'name' => (string) ($product['name'] ?? $product['Name'] ?? 'No Name'),
+            'description' => (string) ($product['description'] ?? $product['Description'] ?? ''),
+            'brand' => (string) ($product['brand'] ?? $product['Brand'] ?? ''),
+            'price' => $this->formatPrice((string) ($product['price'] ?? $product['Price'] ?? '')),
+            'condition' => (string) ($product['condition'] ?? $product['Condition'] ?? ''),
+            'availability' => (string) ($product['availability'] ?? $product['Availability'] ?? ''),
+            'image_url' => (string) ($product['image_url'] ?? $product['ImageUrl'] ?? ''),
+            'inventory' => (int) ($product['inventory'] ?? $product['Inventory'] ?? 0),
         ];
+    }
+
+    /**
+     * Normalize Meta/CAMS price strings like "999", "999 INR", "INR 1,234.00".
+     */
+    private function formatPrice(string $raw): string
+    {
+        $raw = trim($raw);
+        if ($raw === '') {
+            return 'N/A';
+        }
+
+        if (preg_match('/([\d]+(?:[.,]\d+)?)/', str_replace(',', '', $raw), $matches) !== 1) {
+            return '₹ '.$raw;
+        }
+
+        $amount = (float) str_replace(',', '.', $matches[1]);
+
+        return '₹ '.number_format($amount, $amount == floor($amount) ? 0 : 2);
     }
 }

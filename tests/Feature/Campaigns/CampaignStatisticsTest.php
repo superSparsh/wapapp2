@@ -121,6 +121,19 @@ class CampaignStatisticsTest extends TestCase
             ->assertSee('Template rejected by provider');
     }
 
+    public function test_delivered_detail_hides_failure_columns(): void
+    {
+        $campaign = Campaign::factory()->create();
+        CampaignRecipient::factory()->for($campaign)->delivered()->create();
+
+        $this->actingAsTenantUser()
+            ->get(route('campaigns.statistics.detail', ['bulkCampaign' => $campaign, 'status' => 'delivered']))
+            ->assertOk()
+            ->assertSee('Delivered At')
+            ->assertDontSee('Reason')
+            ->assertDontSee('Failed At');
+    }
+
     public function test_statistics_detail_paginates(): void
     {
         $campaign = Campaign::factory()->create();

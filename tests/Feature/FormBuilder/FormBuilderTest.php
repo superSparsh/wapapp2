@@ -416,9 +416,36 @@ class FormBuilderTest extends TestCase
         $response->assertViewHas('submissions', function ($submissions) {
             return $submissions->total() === 2;
         });
-        $response->assertSee('Provider rejected')
+        $response->assertSee('Reason')
+            ->assertSee('Failed At')
+            ->assertSee('Provider rejected')
             ->assertSee('Wallet empty')
             ->assertDontSee('+911111111111');
+    }
+
+    public function test_statistics_detail_hides_failure_columns_for_non_failed_filters(): void
+    {
+        $form = SignupForm::factory()->create([
+            'whatsapp_line_id' => $this->testLine->id,
+            'list_id' => $this->mailList->id,
+            'template_id' => $this->template->id,
+        ]);
+
+        FormSubmission::query()->create([
+            'signup_form_id' => $form->id,
+            'phone' => '+911111111111',
+            'submission_data' => [],
+            'message_status' => 'delivered',
+            'sent_at' => now(),
+            'delivered_at' => now(),
+        ]);
+
+        $this->actingAsTenantUser()
+            ->get(route('form-builder.statistics.detail', ['form' => $form, 'status' => 'delivered']))
+            ->assertOk()
+            ->assertSee('Delivered At')
+            ->assertDontSee('Reason')
+            ->assertDontSee('Failed At');
     }
 
     public function test_statistics_detail_paginates(): void

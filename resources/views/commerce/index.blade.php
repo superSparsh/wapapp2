@@ -1,4 +1,4 @@
-<x-layouts.app title="Facebook Catalogue - WapApp" active="commerce.index">
+<x-layouts.app title="Facebook Catalogue - Products - WapApp" active="commerce.index">
   <div class="flex flex-col bg-surface">
     <div class="flex flex-col gap-4 p-4">
       <div class="flex flex-col gap-1">
@@ -8,31 +8,33 @@
 
       <x-commerce.sub-nav />
 
-      {{-- Catalog selector --}}
       @if (count($catalogs) > 0)
-        <div class="flex flex-wrap items-center gap-3">
-          <span class="text-sm font-semibold leading-[1.5] text-primary-2">Select a Catalog:</span>
-          <div class="flex flex-wrap gap-2">
+        <div class="flex w-full max-w-[320px] flex-col gap-2">
+          <label for="catalog_id" class="text-sm font-semibold leading-[1.4] text-text-primary">Select a Catalog:</label>
+          <x-ui.select
+            id="catalog_id"
+            variant="default"
+            class="w-full"
+            aria-label="Select a catalog"
+            onchange="window.location.href=this.value"
+          >
             @foreach ($catalogs as $catalog)
-              <a
-                href="{{ route('commerce.index', ['catalog_id' => $catalog['id']]) }}"
-                @class([
-                  'inline-flex items-center rounded-lg px-4 py-2 text-sm font-medium transition-colors',
-                  'bg-green-500 text-white' => $catalogId === $catalog['id'],
-                  'bg-elevated border border-border text-text-body hover:bg-border' => $catalogId !== $catalog['id'],
-                ])
+              <option
+                value="{{ route('commerce.index', ['catalog_id' => $catalog['id']]) }}"
+                @selected((string) $catalogId === (string) $catalog['id'])
               >
-                {{ $catalog['name'] }}
-                <span class="ml-1.5 text-xs opacity-70">({{ $catalog['product_count'] }})</span>
-              </a>
+                {{ $catalog['name'] }} ({{ number_format((int) $catalog['product_count']) }})
+              </option>
             @endforeach
-          </div>
+          </x-ui.select>
         </div>
       @endif
 
       <x-commerce.search-row>
         <a
-          href="{{ route('commerce.settings') }}"
+          href="https://business.facebook.com/commerce"
+          target="_blank"
+          rel="noopener noreferrer"
           class="fd-btn inline-flex items-center justify-center gap-2 rounded bg-green-500 px-4 py-3 text-sm font-semibold leading-[1.5] text-primary-2 transition-colors hover:opacity-90"
         >
           <img src="{{ asset('images/commerce/add.svg') }}" alt="" class="size-5 shrink-0" width="20" height="20">
@@ -42,8 +44,6 @@
     </div>
 
     <section class="flex flex-col gap-4 p-4 pt-0">
-      <x-commerce.catalog-tabs active="products" />
-
       @if ($error)
         <div class="rounded-lg bg-danger/10 p-4 text-sm text-red-600">{{ $error }}</div>
       @elseif (count($products) > 0)
@@ -53,7 +53,7 @@
         >
           @foreach ($products as $index => $product)
             <tr class="bg-elevated">
-              <td class="fd-table-cell w-[54px] p-2 align-middle">{{ str_pad($index + 1, 2, '0', STR_PAD_LEFT) }}</td>
+              <td class="fd-table-cell w-[54px] p-2 align-middle">{{ str_pad((string) ($index + 1), 2, '0', STR_PAD_LEFT) }}</td>
               <td class="w-[80px] p-2 align-middle">
                 @if ($product['image_url'])
                   <img src="{{ $product['image_url'] }}" alt="{{ $product['name'] }}" class="size-16 rounded object-cover">
@@ -61,7 +61,7 @@
                   <div class="size-16 rounded bg-border"></div>
                 @endif
               </td>
-              <td class="w-[160px] whitespace-nowrap p-2 align-middle text-[13px] font-semibold leading-[1.5] text-text-subtle">{{ $product['retailer_id'] }}</td>
+              <td class="w-[160px] whitespace-nowrap p-2 align-middle text-[13px] font-semibold leading-[1.5] text-text-subtle">{{ $product['retailer_id'] ?: '—' }}</td>
               <td class="fd-table-cell w-[140px] p-2 align-middle">{{ $product['name'] }}</td>
               <td class="fd-table-cell max-w-[188px] p-2 align-middle">
                 <span class="line-clamp-2 text-xs">{{ $product['description'] ?: '—' }}</span>

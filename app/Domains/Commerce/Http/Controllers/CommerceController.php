@@ -36,15 +36,22 @@ class CommerceController extends Controller
     // ─── Catalog / Products ───────────────────────────────────────────────────
 
     /**
-     * GET /commerce — Catalog + Products listing
+     * GET /commerce — Products listing for a selected catalog
      */
-    public function index(Request $request): View
+    public function index(Request $request): View|RedirectResponse
     {
-        $line      = WhatsappLine::query()->where('is_default', true)->first();
-        $catalogs  = [];
-        $products  = [];
+        $line = WhatsappLine::query()->where('is_default', true)->first();
         $catalogId = $request->query('catalog_id');
-        $error     = null;
+
+        if ($request->boolean('refresh')) {
+            $this->flushCommerceCaches($line, filled($catalogId) ? [(string) $catalogId] : null);
+
+            return redirect()->to($request->fullUrlWithoutQuery(['refresh']));
+        }
+
+        $catalogs = [];
+        $products = [];
+        $error = null;
 
         if ($line) {
             $catalogResult = $this->catalogService->getCatalogs($line);
@@ -52,7 +59,6 @@ class CommerceController extends Controller
             if ($catalogResult['success']) {
                 $catalogs = $catalogResult['catalogs'];
 
-                // Default to first catalog if no explicit selection
                 if (! $catalogId && count($catalogs) > 0) {
                     $catalogId = $catalogs[0]['id'];
                 }
@@ -77,11 +83,64 @@ class CommerceController extends Controller
     }
 
     /**
-     * GET /commerce/catalog — Alias: delegates to index (catalog + products)
+     * GET /commerce/catalog — Catalogues listing (ListProductCatalog only)
      */
-    public function catalogList(Request $request): View
+    public function catalogList(Request $request): View|RedirectResponse
     {
-        return $this->index($request);
+        $line = WhatsappLine::query()->where('is_default', true)->first();
+
+        if ($request->boolean('refresh')) {
+            $this->flushCommerceCaches($line, productCatalogIds: []);
+
+            return redirect()->to($request->fullUrlWithoutQuery(['refresh']));
+        }
+
+        $catalogs = [];
+        $error = null;
+
+        if ($line) {
+            $catalogResult = $this->catalogService->getCatalogs($line);
+
+            if ($catalogResult['success']) {
+                $catalogs = $catalogResult['catalogs'];
+            } else {
+                $error = $catalogResult['message'];
+            }
+        } else {
+            $error = 'No WhatsApp line configured.';
+        }
+
+        return view('commerce.catalog', compact('catalogs', 'error'));
+    }
+
+    /**
+     * @param  list<string>|null  $productCatalogIds  null = flush products for all known catalogs; [] = catalogs only
+     */
+    private function flushCommerceCaches(?WhatsappLine $line, ?array $productCatalogIds = null): void
+    {
+        if (! $line) {
+            return;
+        }
+
+        $this->catalogService->flushCatalogCache($line);
+
+        if ($productCatalogIds === []) {
+            return;
+        }
+
+        if ($productCatalogIds === null) {
+            $catalogResult = $this->catalogService->getCatalogs($line);
+            $productCatalogIds = array_map(
+                static fn (array $catalog): string => (string) $catalog['id'],
+                $catalogResult['catalogs'] ?? [],
+            );
+        }
+
+        foreach ($productCatalogIds as $id) {
+            if ($id !== '') {
+                $this->catalogService->flushProductCache($line, $id);
+            }
+        }
     }
 
     // ─── Orders ───────────────────────────────────────────────────────────────

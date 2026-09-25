@@ -44,7 +44,80 @@ class CommerceTest extends TestCase
         $this->actingAsTenantUser()
             ->get(route('commerce.index'))
             ->assertOk()
-            ->assertViewIs('commerce.index');
+            ->assertViewIs('commerce.index')
+            ->assertDontSee('Collections');
+    }
+
+    public function test_owner_can_view_catalogues_page(): void
+    {
+        $this->actingAsTenantUser()
+            ->get(route('commerce.catalog'))
+            ->assertOk()
+            ->assertViewIs('commerce.catalog')
+            ->assertSee('Facebook Catalogue')
+            ->assertDontSee('Retailer ID');
+    }
+
+    public function test_commerce_refresh_redirects_and_clears_query(): void
+    {
+        $this->actingAsTenantUser()
+            ->get(route('commerce.index', ['refresh' => 1, 'catalog_id' => 'CAT001']))
+            ->assertRedirect(route('commerce.index', ['catalog_id' => 'CAT001']));
+    }
+
+    public function test_commerce_index_shows_working_refresh_link(): void
+    {
+        $this->actingAsTenantUser()
+            ->get(route('commerce.index'))
+            ->assertOk()
+            ->assertSee('Refresh')
+            ->assertSee('refresh=1', false);
+    }
+
+    public function test_catalogues_page_lists_catalog_rows(): void
+    {
+        config([
+            'whatsapp.alibaba.access_key_id' => 'test_key',
+            'whatsapp.alibaba.access_key_secret' => 'test_secret',
+        ]);
+
+        $this->testLine->update([
+            'is_default' => true,
+            'alibaba_cust_space_id' => 'SP123456',
+            'waba_id' => 'WABA001',
+            'metadata' => ['business_id' => '1050489708630001'],
+        ]);
+
+        app(CatalogService::class)->flushCatalogCache($this->testLine);
+
+        Http::fake([
+            'cams.ap-southeast-1.aliyuncs.com/*' => Http::response([
+                'Code' => 'OK',
+                'Success' => true,
+                'Model' => [
+                    'Data' => [
+                        [
+                            'id' => 'CAT001',
+                            'name' => 'Our Services',
+                            'product_count' => 5,
+                            'vertical' => 'commerce',
+                            'default_image_url' => '',
+                            'business' => ['id' => 'B001', 'name' => 'Test Business'],
+                        ],
+                    ],
+                ],
+            ], 200),
+        ]);
+
+        $this->actingAsTenantUser()
+            ->get(route('commerce.catalog'))
+            ->assertOk()
+            ->assertViewIs('commerce.catalog')
+            ->assertSee('Our Services')
+            ->assertSee('CAT001')
+            ->assertSee('B001')
+            ->assertSee('commerce')
+            ->assertDontSee('Retailer ID');
     }
 
     public function test_owner_can_view_orders_page(): void

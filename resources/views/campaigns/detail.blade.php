@@ -41,6 +41,10 @@
 
     <section class="bg-surface p-4 pt-0">
       <div class="overflow-hidden rounded-xl bg-elevated shadow-[0px_4px_6px_rgba(0,0,0,0.04)]">
+        @php
+          $showFailureColumns = $currentStatus === '' || $currentStatus === 'failed';
+          $colspan = $showFailureColumns ? 8 : 6;
+        @endphp
         <div class="overflow-x-auto">
           <table class="w-full min-w-[1100px] text-left">
             <thead>
@@ -49,10 +53,14 @@
                 <th class="w-[160px] p-2 text-[13px] font-medium leading-[1.5] text-text-body">Contact Phone</th>
                 <th class="w-[160px] p-2 text-[13px] font-medium leading-[1.5] text-text-body">Contact Name</th>
                 <th class="p-2 text-center text-[13px] font-medium leading-[1.5] text-text-body">Status</th>
-                <th class="min-w-[220px] p-2 text-[13px] font-medium leading-[1.5] text-text-body">Reason</th>
+                @if ($showFailureColumns)
+                  <th class="min-w-[220px] p-2 text-[13px] font-medium leading-[1.5] text-text-body">Reason</th>
+                @endif
                 <th class="p-2 text-[13px] font-medium leading-[1.5] text-text-body">Sent At</th>
                 <th class="p-2 text-[13px] font-medium leading-[1.5] text-text-body">Delivered At</th>
-                <th class="p-2 text-[13px] font-medium leading-[1.5] text-text-body">Failed At</th>
+                @if ($showFailureColumns)
+                  <th class="p-2 text-[13px] font-medium leading-[1.5] text-text-body">Failed At</th>
+                @endif
               </tr>
             </thead>
             <tbody>
@@ -82,16 +90,20 @@
                       {{ $statusLabel }}
                     </span>
                   </td>
-                  <td class="min-w-[220px] max-w-[360px] p-2 text-[13px] font-normal leading-[1.5] break-words text-text-body" title="{{ $recipient->displayReason() }}">
-                    {{ $recipient->displayReason() }}
-                  </td>
+                  @if ($showFailureColumns)
+                    <td class="min-w-[220px] max-w-[360px] p-2 text-[13px] font-normal leading-[1.5] break-words text-text-body" title="{{ $recipient->displayReason() }}">
+                      {{ $recipient->displayReason() }}
+                    </td>
+                  @endif
                   <td class="p-2 text-[13px] font-normal leading-[1.5] text-text-body">{{ $recipient->sent_at?->format('d M Y h:i A') ?? '—' }}</td>
                   <td class="p-2 text-[13px] font-normal leading-[1.5] text-text-body">{{ $recipient->delivered_at?->format('d M Y h:i A') ?? '—' }}</td>
-                  <td class="p-2 text-[13px] font-normal leading-[1.5] text-text-body">{{ $recipient->failed_at?->format('d M Y h:i A') ?? '—' }}</td>
+                  @if ($showFailureColumns)
+                    <td class="p-2 text-[13px] font-normal leading-[1.5] text-text-body">{{ $recipient->failed_at?->format('d M Y h:i A') ?? '—' }}</td>
+                  @endif
                 </tr>
               @empty
                 <tr class="border-t border-divider bg-elevated">
-                  <td colspan="8" class="p-8 text-center text-sm text-text-body">No recipients recorded yet.</td>
+                  <td colspan="{{ $colspan }}" class="p-8 text-center text-sm text-text-body">No recipients recorded yet.</td>
                 </tr>
               @endforelse
             </tbody>
