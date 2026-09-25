@@ -65,7 +65,7 @@ Route::get('/', function () {
 });
 
 Route::get('/tutorial-video/{filename}', [TutorialController::class, 'stream'])
-    ->where('filename', '.+')
+    ->where('filename', '[^/]+')
     ->name('tutorials.stream');
 
 // Profile routes moved to routes/account.php

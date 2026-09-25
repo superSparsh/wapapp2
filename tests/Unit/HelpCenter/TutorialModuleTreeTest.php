@@ -5,6 +5,7 @@ namespace Tests\Unit\HelpCenter;
 use App\Domains\HelpCenter\Support\TutorialModuleTree;
 use App\Models\TutorialVideo;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\File;
 use Tests\TestCase;
 
 class TutorialModuleTreeTest extends TestCase
@@ -25,22 +26,60 @@ class TutorialModuleTreeTest extends TestCase
             TutorialVideo::factory()->make([
                 'id' => 1,
                 'title' => 'Dashboard Overview',
-                'module_name' => 'DASHBOARD - Sub-module 1: Getting Started',
+                'module_name' => 'Module 3: Automation - Sub-module 1: Chatbot',
             ]),
             TutorialVideo::factory()->make([
                 'id' => 2,
                 'title' => 'Inbox Basics',
-                'module_name' => 'INBOX',
+                'module_name' => 'Module 2: Inbox',
             ]),
         ]);
 
         $categories = $this->tree->build($videos, 1);
 
         $this->assertCount(2, $categories);
-        $this->assertSame('DASHBOARD', $categories[0]['label']);
-        $this->assertNotNull($categories[0]['children']);
-        $this->assertSame('INBOX', $categories[1]['label']);
-        $this->assertNotNull($categories[1]['videos']);
+        $this->assertSame('Inbox', $categories[0]['label']);
+        $this->assertNotNull($categories[0]['videos']);
+        $this->assertSame('Automation', $categories[1]['label']);
+        $this->assertNotNull($categories[1]['children']);
+        $this->assertSame('Chatbot', $categories[1]['children'][0]['label']);
+    }
+
+    public function test_merges_legacy_dashboard_labels_into_one_category(): void
+    {
+        $videos = collect([
+            TutorialVideo::factory()->make([
+                'id' => 1,
+                'title' => 'Old Dashboard',
+                'module_name' => 'DASHBOARD - Sub-module 1: Getting Started',
+            ]),
+            TutorialVideo::factory()->make([
+                'id' => 2,
+                'title' => 'New Dashboard',
+                'module_name' => 'Module 1: Dashboard',
+            ]),
+        ]);
+
+        $categories = $this->tree->build($videos);
+
+        $this->assertCount(1, $categories);
+        $this->assertSame('Dashboard', $categories[0]['label']);
+    }
+
+    public function test_local_playback_url_uses_public_asset_when_file_exists(): void
+    {
+        $directory = (string) config('help-center.video_path');
+        File::ensureDirectoryExists($directory);
+        $filename = 'Video_1_Dashboard_Overview.mp4';
+        $path = $directory.DIRECTORY_SEPARATOR.$filename;
+        File::put($path, 'fake-video');
+
+        try {
+            $url = $this->tree->localPlaybackUrl($filename);
+            $this->assertStringContainsString('/assets/videos/tutorials/'.$filename, $url);
+        } finally {
+            File::delete($path);
+        }
     }
 
     public function test_navigation_returns_previous_and_next_ids(): void
