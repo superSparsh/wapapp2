@@ -34,6 +34,69 @@ class TriggerTemplateTest extends TestCase
         parent::tearDown();
     }
 
+    public function test_add_trigger_modal_lists_all_approved_templates_latest_first(): void
+    {
+        $older = Template::factory()->create([
+            'name' => 'Older Approved',
+            'code' => '111111111111111111',
+            'whatsapp_line_id' => $this->testLine->id,
+            'updated_at' => now()->subDay(),
+            'payload' => array_merge(Template::defaultPayload(), [
+                'body' => ['text' => 'Hello $(first_name), older template.'],
+            ]),
+        ]);
+
+        $newer = Template::factory()->create([
+            'name' => 'Newer Approved',
+            'code' => '222222222222222222',
+            'whatsapp_line_id' => $this->testLine->id,
+            'updated_at' => now(),
+            'payload' => array_merge(Template::defaultPayload(), [
+                'body' => ['text' => 'Hello, newer template with no vars.'],
+            ]),
+        ]);
+
+        Template::factory()->draft()->create([
+            'name' => 'Draft Hidden',
+            'whatsapp_line_id' => $this->testLine->id,
+        ]);
+
+        $response = $this->actingAsTenantUser()
+            ->get(route('trigger-template.index', ['modal' => 'add-trigger']))
+            ->assertOk()
+            ->assertSee('Newer Approved')
+            ->assertSee('Older Approved')
+            ->assertDontSee('Draft Hidden');
+
+        $options = $response->viewData('templateOptions');
+        $this->assertSame('Newer Approved', $options[0]['name']);
+        $this->assertSame('Older Approved', $options[1]['name']);
+        $this->assertTrue(collect($options)->contains('code', (string) $older->code) || collect($options)->contains('name', 'Older Approved'));
+        $this->assertTrue(collect($options)->contains('name', 'Newer Approved'));
+    }
+
+    public function test_add_trigger_modal_lists_mail_lists_latest_first(): void
+    {
+        $older = MailList::factory()->create([
+            'name' => 'Older List',
+            'updated_at' => now()->subDay(),
+        ]);
+        $newer = MailList::factory()->create([
+            'name' => 'Newer List',
+            'updated_at' => now(),
+        ]);
+
+        $response = $this->actingAsTenantUser()
+            ->get(route('trigger-template.index', ['modal' => 'add-trigger']))
+            ->assertOk()
+            ->assertSee('Newer List')
+            ->assertSee('Older List');
+
+        $options = $response->viewData('mailListOptions');
+        $this->assertSame($newer->id, $options[0]['id']);
+        $this->assertSame($older->id, $options[1]['id']);
+    }
+
     public function test_owner_can_view_trigger_template_index(): void
     {
         TriggerVariable::factory()->create([

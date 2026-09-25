@@ -4,20 +4,21 @@ declare(strict_types=1);
 
 namespace App\Domains\TriggerTemplate\Services;
 
+use App\Domains\Templates\Enums\TemplateStatus;
 use App\Domains\Templates\Services\TemplatePreviewService;
-use App\Domains\Templates\Services\TemplateRegistryService;
+use App\Domains\Templates\Support\CamsTemplateIdentity;
 use App\Models\MailList;
+use App\Models\Template;
 use Illuminate\Support\Collection;
 
 class TriggerTemplateOptionService
 {
     public function __construct(
-        private readonly TemplateRegistryService $registry,
         private readonly TemplatePreviewService $previewService,
     ) {}
 
     /**
-     * Approved templates without body/header variables (legacy UI warning parity).
+     * All approved templates (latest first), including those with body variables.
      *
      * @return array<int, array{
      *     code: string,
@@ -29,54 +30,47 @@ class TriggerTemplateOptionService
      */
     public function templates(): array
     {
-        return collect($this->registry->options())
-            ->filter(function (array $option): bool {
-                $code = (string) ($option['code'] ?? '');
-                if ($code === '') {
-                    return false;
+        return Template::query()
+            ->where('status', TemplateStatus::Approved)
+            ->whereNotNull('code')
+            ->where('code', '!=', '')
+            ->with('variables')
+            ->orderByDesc('updated_at')
+            ->orderByDesc('id')
+            ->get()
+            ->map(function (Template $template): array {
+                $preview = $this->previewService->forTemplate($template, [], true);
+                $body = trim((string) ($preview['raw_body'] ?? $preview['body'] ?? ''));
+                if ($body === '' || $body === (string) $template->name) {
+                    $payloadBody = trim((string) ($template->wizardPayload()['body']['text'] ?? ''));
+                    $storedPreview = trim((string) ($template->body_preview ?? ''));
+                    $body = $payloadBody !== '' ? $payloadBody
+                        : ($storedPreview !== '' && $storedPreview !== (string) $template->name ? $storedPreview : $body);
                 }
 
-                $template = $this->registry->findForSend($code);
-                if ($template === null) {
-                    return false;
-                }
+                $providerCode = $template->whatsappCode();
+                $sendCode = $providerCode ?? (string) $template->code;
 
-                return ! $this->previewService->templateHasVariables($template);
-            })
-            ->map(function (array $option): array {
-                $code = (string) $option['code'];
-                $template = $this->registry->findForSend($code);
-                $preview = is_array($option['preview'] ?? null) ? $option['preview'] : [];
-
-                // Prefer live preview from the template row so CAMS/synced bodies
-                // (often only on body_preview) are not lost if catalog preview is empty.
-                if ($template !== null) {
-                    $resolved = $this->previewService->forTemplate($template, [], true);
-                    $body = trim((string) ($resolved['raw_body'] ?? $resolved['body'] ?? ''));
-                    if ($body === '' || $body === (string) $template->name) {
-                        $payloadBody = trim((string) ($template->wizardPayload()['body']['text'] ?? ''));
-                        $storedPreview = trim((string) ($template->body_preview ?? ''));
-                        $body = $payloadBody !== '' ? $payloadBody
-                            : ($storedPreview !== '' && $storedPreview !== (string) $template->name ? $storedPreview : $body);
-                    }
-
-                    $preview = [
+                return [
+                    'code' => $sendCode,
+                    'name' => (string) $template->name,
+                    'language' => (string) $template->language,
+                    'category' => (string) $template->category,
+                    'preview' => [
                         'body' => $body,
-                        'footer' => (string) ($resolved['footer'] ?? $preview['footer'] ?? ''),
-                        'header_type' => (string) ($resolved['header_type'] ?? $preview['header_type'] ?? 'none'),
-                        'header_text' => (string) ($resolved['header_text'] ?? $preview['header_text'] ?? ''),
-                        'header_image' => $resolved['header_image'] ?? $preview['header_image'] ?? null,
-                        'header_video' => $resolved['header_video'] ?? $preview['header_video'] ?? null,
-                        'buttons' => is_array($resolved['buttons'] ?? null)
-                            ? $resolved['buttons']
-                            : (is_array($preview['buttons'] ?? null) ? $preview['buttons'] : []),
-                    ];
-                }
-
-                $option['preview'] = $preview;
-
-                return $option;
+                        'footer' => (string) ($preview['footer'] ?? ''),
+                        'header_type' => (string) ($preview['header_type'] ?? 'none'),
+                        'header_text' => (string) ($preview['header_text'] ?? ''),
+                        'header_image' => $preview['header_image'] ?? null,
+                        'header_video' => $preview['header_video'] ?? null,
+                        'buttons' => is_array($preview['buttons'] ?? null) ? $preview['buttons'] : [],
+                    ],
+                    'sendable' => $providerCode !== null || CamsTemplateIdentity::isProviderCode($sendCode),
+                ];
             })
+            ->filter(fn (array $row): bool => $row['code'] !== '')
+            // Prefer unique codes; keep the newest row when duplicates exist.
+            ->unique('code')
             ->values()
             ->all();
     }
@@ -87,7 +81,8 @@ class TriggerTemplateOptionService
     public function mailLists(): Collection
     {
         return MailList::query()
-            ->orderBy('name')
+            ->orderByDesc('updated_at')
+            ->orderByDesc('id')
             ->get(['id', 'name'])
             ->map(fn (MailList $list): array => [
                 'id' => (int) $list->id,
