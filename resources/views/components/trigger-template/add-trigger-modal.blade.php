@@ -164,12 +164,12 @@
           </div>
         </div>
 
-        <div class="w-full shrink-0 lg:w-[320px]">
+        <div class="w-full shrink-0" style="width: 419px;">
           <x-templates.phone-preview title="Template Preview" size="compact">
             <div
               id="trigger-template-preview"
               class="mx-auto flex w-full max-w-full flex-col gap-3 rounded-br-[12px] rounded-tl-[12px] rounded-tr-[12px] border border-solid border-border bg-elevated p-2"
-            >
+            style="margin-top:57%">
               <img
                 data-preview-header-image
                 src=""
@@ -211,7 +211,7 @@
         </div>
       </div>
 
-      <div class="flex w-full items-center justify-end gap-2.5">
+      <div class="flex w-full items-center justify-start gap-2.5">
         @if (! empty($closeHref))
           <a
             href="{{ $closeHref }}"
