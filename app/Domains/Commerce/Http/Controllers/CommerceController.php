@@ -42,6 +42,7 @@ class CommerceController extends Controller
     {
         $line = WhatsappLine::query()->where('is_default', true)->first();
         $catalogId = $request->query('catalog_id');
+        $search = trim((string) $request->query('q', ''));
 
         if ($request->boolean('refresh')) {
             $this->flushCommerceCaches($line, filled($catalogId) ? [(string) $catalogId] : null);
@@ -67,7 +68,7 @@ class CommerceController extends Controller
                     $productResult = $this->catalogService->getProducts($line, (string) $catalogId);
 
                     if ($productResult['success']) {
-                        $products = $productResult['products'];
+                        $products = $this->filterProducts($productResult['products'], $search);
                     } else {
                         $error = $productResult['message'];
                     }
@@ -79,7 +80,13 @@ class CommerceController extends Controller
             $error = 'No WhatsApp line configured.';
         }
 
-        return view('commerce.index', compact('catalogs', 'products', 'catalogId', 'error'));
+        return view('commerce.index', [
+            'catalogs' => $catalogs,
+            'products' => $products,
+            'catalogId' => $catalogId,
+            'error' => $error,
+            'search' => $search,
+        ]);
     }
 
     /**
@@ -88,6 +95,7 @@ class CommerceController extends Controller
     public function catalogList(Request $request): View|RedirectResponse
     {
         $line = WhatsappLine::query()->where('is_default', true)->first();
+        $search = trim((string) $request->query('q', ''));
 
         if ($request->boolean('refresh')) {
             $this->flushCommerceCaches($line, productCatalogIds: []);
@@ -102,7 +110,7 @@ class CommerceController extends Controller
             $catalogResult = $this->catalogService->getCatalogs($line);
 
             if ($catalogResult['success']) {
-                $catalogs = $catalogResult['catalogs'];
+                $catalogs = $this->filterCatalogs($catalogResult['catalogs'], $search);
             } else {
                 $error = $catalogResult['message'];
             }
@@ -110,7 +118,66 @@ class CommerceController extends Controller
             $error = 'No WhatsApp line configured.';
         }
 
-        return view('commerce.catalog', compact('catalogs', 'error'));
+        return view('commerce.catalog', [
+            'catalogs' => $catalogs,
+            'error' => $error,
+            'search' => $search,
+        ]);
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $products
+     * @return list<array<string, mixed>>
+     */
+    private function filterProducts(array $products, string $search): array
+    {
+        if ($search === '') {
+            return $products;
+        }
+
+        $needle = mb_strtolower($search);
+
+        return array_values(array_filter(
+            $products,
+            static function (array $product) use ($needle): bool {
+                $haystack = mb_strtolower(implode(' ', [
+                    (string) ($product['id'] ?? ''),
+                    (string) ($product['retailer_id'] ?? ''),
+                    (string) ($product['name'] ?? ''),
+                    (string) ($product['description'] ?? ''),
+                    (string) ($product['brand'] ?? ''),
+                ]));
+
+                return str_contains($haystack, $needle);
+            },
+        ));
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $catalogs
+     * @return list<array<string, mixed>>
+     */
+    private function filterCatalogs(array $catalogs, string $search): array
+    {
+        if ($search === '') {
+            return $catalogs;
+        }
+
+        $needle = mb_strtolower($search);
+
+        return array_values(array_filter(
+            $catalogs,
+            static function (array $catalog) use ($needle): bool {
+                $haystack = mb_strtolower(implode(' ', [
+                    (string) ($catalog['id'] ?? ''),
+                    (string) ($catalog['name'] ?? ''),
+                    (string) ($catalog['business_id'] ?? ''),
+                    (string) ($catalog['vertical'] ?? ''),
+                ]));
+
+                return str_contains($haystack, $needle);
+            },
+        ));
     }
 
     /**

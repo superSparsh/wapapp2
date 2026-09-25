@@ -376,7 +376,7 @@ class CatalogService
             'id' => (string) ($catalog['id'] ?? $catalog['Id'] ?? ''),
             'name' => (string) ($catalog['name'] ?? $catalog['Name'] ?? 'Unknown'),
             'product_count' => (int) ($catalog['product_count'] ?? $catalog['ProductCount'] ?? 0),
-            'vertical' => (string) ($catalog['vertical'] ?? $catalog['Vertical'] ?? ''),
+            'vertical' => $this->formatVertical((string) ($catalog['vertical'] ?? $catalog['Vertical'] ?? '')),
             'image_url' => (string) ($catalog['default_image_url'] ?? $catalog['DefaultImageUrl'] ?? $catalog['image_url'] ?? ''),
             'business_name' => (string) $businessName,
             'business_id' => (string) $businessId,
@@ -417,5 +417,18 @@ class CatalogService
         $amount = (float) str_replace(',', '.', $matches[1]);
 
         return '₹ '.number_format($amount, $amount == floor($amount) ? 0 : 2);
+    }
+
+    /**
+     * Display verticals like "commerce" → "Commerce".
+     */
+    private function formatVertical(string $vertical): string
+    {
+        $vertical = trim($vertical);
+        if ($vertical === '') {
+            return '';
+        }
+
+        return ucwords(str_replace(['_', '-'], ' ', mb_strtolower($vertical)));
     }
 }

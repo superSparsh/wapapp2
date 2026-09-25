@@ -109,7 +109,7 @@
                     <img src="{{ asset('images/campaigns/chart.svg') }}" alt="" class="size-5" width="20" height="20">
                   </a>
                   <a href="{{ route('campaigns.export-report', $campaign) }}" class="flex size-5 items-center justify-center" aria-label="Download Report" title="Download Report">
-                    <img src="{{ asset('images/automation/export-csv.svg') }}" alt="" class="size-5" width="20" height="20">
+                    <img src="{{ asset('images/campaigns/download-report.svg') }}" alt="" class="size-5" width="20" height="20">
                   </a>
                   <form method="POST" action="{{ route('campaigns.duplicate', $campaign) }}" class="inline">
                     @csrf

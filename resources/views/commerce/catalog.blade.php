@@ -8,7 +8,11 @@
 
       <x-commerce.sub-nav />
 
-      <x-commerce.search-row />
+      <x-commerce.search-row
+        :search-action="route('commerce.catalog')"
+        :search-value="$search ?? ''"
+        search-placeholder="Search catalogues…"
+      />
     </div>
 
     <section class="flex flex-col gap-4 p-4 pt-0">
@@ -42,6 +46,10 @@
             </tr>
           @endforeach
         </x-ui.data-table>
+      @elseif (($search ?? '') !== '')
+        <div class="rounded-lg bg-elevated p-8 text-center text-text-subtle">
+          No catalogues match “{{ $search }}”.
+        </div>
       @else
         <div class="rounded-lg bg-elevated p-8 text-center text-text-subtle">
           No catalogues found. Connect a Facebook catalogue to your WhatsApp Business account.

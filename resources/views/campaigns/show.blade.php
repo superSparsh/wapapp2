@@ -58,7 +58,7 @@
           href="{{ route('campaigns.export-report', $campaign) }}"
           class="fd-btn flex items-center justify-center gap-2 rounded border border-green-500 bg-elevated px-4 py-3 text-xs font-semibold text-green-500 transition-colors hover:bg-surface"
         >
-          <img src="{{ asset('images/automation/export-csv.svg') }}" alt="" class="size-4" width="16" height="16">
+          <img src="{{ asset('images/campaigns/download-report.svg') }}" alt="" class="size-4" width="16" height="16">
           Download Report
         </a>
         <a

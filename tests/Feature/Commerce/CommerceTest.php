@@ -116,8 +116,86 @@ class CommerceTest extends TestCase
             ->assertSee('Our Services')
             ->assertSee('CAT001')
             ->assertSee('B001')
-            ->assertSee('commerce')
+            ->assertSee('Commerce')
             ->assertDontSee('Retailer ID');
+    }
+
+    public function test_products_search_filters_by_name(): void
+    {
+        config([
+            'whatsapp.alibaba.access_key_id' => 'test_key',
+            'whatsapp.alibaba.access_key_secret' => 'test_secret',
+        ]);
+
+        $this->testLine->update([
+            'is_default' => true,
+            'alibaba_cust_space_id' => 'SP123456',
+            'waba_id' => 'WABA001',
+            'metadata' => ['business_id' => '1050489708630001'],
+        ]);
+
+        $service = app(CatalogService::class);
+        $service->flushCatalogCache($this->testLine);
+        $service->flushProductCache($this->testLine, 'CAT001');
+
+        Http::fake([
+            'cams.ap-southeast-1.aliyuncs.com/*' => Http::sequence()
+                ->push([
+                    'Code' => 'OK',
+                    'Success' => true,
+                    'Model' => [
+                        'Data' => [
+                            [
+                                'id' => 'CAT001',
+                                'name' => 'Our Services',
+                                'product_count' => 2,
+                                'vertical' => 'commerce',
+                                'default_image_url' => '',
+                                'business' => ['id' => 'B001', 'name' => 'Test Business'],
+                            ],
+                        ],
+                    ],
+                ], 200)
+                ->push([
+                    'Code' => 'OK',
+                    'Success' => true,
+                    'Model' => [
+                        'Data' => [
+                            [
+                                'id' => 'P001',
+                                'retailer_id' => 'RET001',
+                                'name' => 'Widget Pro',
+                                'description' => 'Great widget',
+                                'brand' => 'Acme',
+                                'price' => '999',
+                                'condition' => 'new',
+                                'availability' => 'in stock',
+                                'image_url' => '',
+                                'inventory' => 50,
+                            ],
+                            [
+                                'id' => 'P002',
+                                'retailer_id' => 'RET002',
+                                'name' => 'Gadget Plus',
+                                'description' => 'Other item',
+                                'brand' => 'Acme',
+                                'price' => '100',
+                                'condition' => 'new',
+                                'availability' => 'in stock',
+                                'image_url' => '',
+                                'inventory' => 10,
+                            ],
+                        ],
+                    ],
+                ], 200),
+        ]);
+
+        $this->actingAsTenantUser()
+            ->get(route('commerce.index', ['catalog_id' => 'CAT001', 'q' => 'Widget']))
+            ->assertOk()
+            ->assertSee('Widget Pro')
+            ->assertSee('P001')
+            ->assertDontSee('Gadget Plus');
     }
 
     public function test_owner_can_view_orders_page(): void
@@ -644,6 +722,7 @@ class CommerceTest extends TestCase
         $this->assertSame('CAT001', $result['catalogs'][0]['id']);
         $this->assertSame('Our Services', $result['catalogs'][0]['name']);
         $this->assertSame(5, $result['catalogs'][0]['product_count']);
+        $this->assertSame('Commerce', $result['catalogs'][0]['vertical']);
 
         Http::assertSent(function (Request $request): bool {
             $data = collect($request->data());

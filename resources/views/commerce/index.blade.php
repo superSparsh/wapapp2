@@ -20,7 +20,7 @@
           >
             @foreach ($catalogs as $catalog)
               <option
-                value="{{ route('commerce.index', ['catalog_id' => $catalog['id']]) }}"
+                value="{{ route('commerce.index', array_filter(['catalog_id' => $catalog['id'], 'q' => ($search ?? '') !== '' ? $search : null])) }}"
                 @selected((string) $catalogId === (string) $catalog['id'])
               >
                 {{ $catalog['name'] }} ({{ number_format((int) $catalog['product_count']) }})
@@ -30,7 +30,12 @@
         </div>
       @endif
 
-      <x-commerce.search-row>
+      <x-commerce.search-row
+        :search-action="route('commerce.index')"
+        :search-value="$search ?? ''"
+        search-placeholder="Search products…"
+        :hidden="['catalog_id' => $catalogId]"
+      >
         <a
           href="https://business.facebook.com/commerce"
           target="_blank"
@@ -61,7 +66,8 @@
                   <div class="size-16 rounded bg-border"></div>
                 @endif
               </td>
-              <td class="w-[160px] whitespace-nowrap p-2 align-middle text-[13px] font-semibold leading-[1.5] text-text-subtle">{{ $product['retailer_id'] ?: '—' }}</td>
+              {{-- Legacy UI bound "Retailer ID" to Facebook product id --}}
+              <td class="w-[160px] whitespace-nowrap p-2 align-middle text-[13px] font-semibold leading-[1.5] text-text-subtle">{{ $product['id'] ?: '—' }}</td>
               <td class="fd-table-cell w-[140px] p-2 align-middle">{{ $product['name'] }}</td>
               <td class="fd-table-cell max-w-[188px] p-2 align-middle">
                 <span class="line-clamp-2 text-xs">{{ $product['description'] ?: '—' }}</span>
@@ -78,6 +84,10 @@
             </tr>
           @endforeach
         </x-ui.data-table>
+      @elseif ($catalogId && ($search ?? '') !== '')
+        <div class="rounded-lg bg-elevated p-8 text-center text-text-subtle">
+          No products match “{{ $search }}”.
+        </div>
       @elseif ($catalogId)
         <div class="rounded-lg bg-elevated p-8 text-center text-text-subtle">
           No products found for this catalog.
