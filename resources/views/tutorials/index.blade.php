@@ -37,25 +37,20 @@
             </div>
 
             <div class="relative aspect-video w-full shrink-0 overflow-hidden rounded-xl bg-black shadow-sm">
-              @if ($current['is_local'] && $current['stream_url'])
+              @if (! empty($current['stream_url']))
                 <video
                   controls
+                  playsinline
+                  preload="metadata"
                   class="absolute inset-0 size-full object-contain"
                   src="{{ $current['stream_url'] }}"
                 >
                   Your browser does not support the video tag.
                 </video>
-              @elseif ($current['embed_url'])
-                <iframe
-                  class="absolute inset-0 size-full border-0"
-                  src="{{ $current['embed_url'] }}"
-                  title="{{ $current['title'] }}"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowfullscreen
-                ></iframe>
               @else
-                <div class="absolute inset-0 flex items-center justify-center text-sm text-white/80">
-                  Video preview unavailable.
+                <div class="absolute inset-0 flex flex-col items-center justify-center gap-1 px-6 text-center text-sm text-white/80">
+                  <p>Video file not found on server.</p>
+                  <p class="text-xs text-white/60">Upload the MP4 to <code class="text-white/80">public/assets/videos/tutorials/</code> with the exact filename from admin.</p>
                 </div>
               @endif
             </div>

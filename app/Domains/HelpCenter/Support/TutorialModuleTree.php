@@ -169,11 +169,13 @@ class TutorialModuleTree
     }
 
     /**
-     * @return array{id: int, title: string, module_name: string, description: string|null, duration: string|null, active: bool, url: string, embed_url: string|null, stream_url: string|null, is_local: bool}
+     * @return array{id: int, title: string, module_name: string, description: string|null, duration: string|null, active: bool, url: string, embed_url: null, stream_url: string|null, is_local: bool, has_file: bool}
      */
     public function videoRow(TutorialVideo $video, ?int $activeVideoId): array
     {
         $isLocal = $video->isLocalFile();
+        $localPath = $isLocal ? $this->resolveLocalVideoPath((string) $video->youtube_id) : null;
+        $hasLocalFile = $localPath !== null;
 
         return [
             'id' => $video->id,
@@ -183,9 +185,11 @@ class TutorialModuleTree
             'duration' => $video->duration,
             'active' => $activeVideoId === $video->id,
             'url' => route('tutorials.index', ['video_id' => $video->id]),
-            'embed_url' => $isLocal ? null : $this->youtubeEmbedUrl((string) $video->youtube_id),
-            'stream_url' => $isLocal ? $this->localPlaybackUrl((string) $video->youtube_id) : null,
+            // Customer tutorials are local MP4s only — never fall back to YouTube embeds.
+            'embed_url' => null,
+            'stream_url' => $hasLocalFile ? $this->localPlaybackUrl((string) $video->youtube_id) : null,
             'is_local' => $isLocal,
+            'has_file' => $hasLocalFile,
         ];
     }
 
@@ -284,15 +288,6 @@ class TutorialModuleTree
     private function encodePathSegment(string $filename): string
     {
         return rawurlencode($filename);
-    }
-
-    private function youtubeEmbedUrl(string $youtubeId): string
-    {
-        if ($youtubeId === 'PLACEHOLDER') {
-            return 'https://www.youtube.com/embed/dQw4w9WgXcQ';
-        }
-
-        return 'https://www.youtube.com/embed/'.$youtubeId;
     }
 
     private function matchesSearch(TutorialVideo $video, string $search): bool

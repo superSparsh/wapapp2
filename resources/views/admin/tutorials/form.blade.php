@@ -27,9 +27,9 @@
         <input name="module_name" value="{{ old('module_name', $row->module_name ?? '') }}" required class="rounded-lg border border-border px-3 py-2" placeholder="e.g. Module 1: Dashboard">
       </label>
       <label class="flex flex-col gap-1.5 text-sm">
-        <span class="font-semibold">YouTube ID or local filename</span>
-        <input name="youtube_id" value="{{ old('youtube_id', $row->youtube_id ?? '') }}" required class="rounded-lg border border-border px-3 py-2 font-mono text-xs" placeholder="dQw4w9WgXcQ or Video_1_Dashboard_Overview.mp4">
-        <span class="text-xs text-text-subtle">Local MP4 files live under <code>public/assets/videos/tutorials/</code>. Filenames with a dot are treated as local videos.</span>
+        <span class="font-semibold">Local video filename</span>
+        <input name="youtube_id" value="{{ old('youtube_id', $row->youtube_id ?? '') }}" required class="rounded-lg border border-border px-3 py-2 font-mono text-xs" placeholder="Video_1_Dashboard_Overview.mp4">
+        <span class="text-xs text-text-subtle">Put the MP4 in <code>public/assets/videos/tutorials/</code>. Filename must match exactly (including spaces / &amp;).</span>
       </label>
       <label class="flex flex-col gap-1.5 text-sm">
         <span class="font-semibold">Description (optional)</span>
