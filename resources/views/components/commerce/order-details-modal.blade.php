@@ -49,6 +49,7 @@
             <span class="text-base font-medium leading-[1.5] text-text-body">Order Status</span>
             <select
               data-order-status-select
+              data-native-select="true"
               class="rounded-lg border border-border bg-elevated px-2 py-1.5 text-sm text-text-body focus:outline-none"
             ></select>
           </div>

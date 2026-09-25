@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Domains\LegacyMigration\Importers;
 
 use App\Domains\Commerce\Enums\OrderStatus;
+use App\Domains\Commerce\Enums\PaymentLinkStatus;
 use App\Domains\Commerce\Enums\PaymentStatus;
 use App\Domains\Commerce\Models\CommerceOrder;
+use App\Domains\Commerce\Models\CommercePayment;
 use App\Domains\Commerce\Models\PaymentConfig;
 use App\Domains\LegacyMigration\DTO\LegacyCustomerSnapshot;
 use App\Domains\LegacyMigration\Support\LegacyConnection;
@@ -18,7 +20,8 @@ use App\Models\WhatsappLine;
 use Illuminate\Support\Carbon;
 
 /**
- * Legacy payment configs + WhatsApp commerce orders → tenant commerce tables.
+ * Legacy payment configs, WhatsApp commerce orders, and payment transactions
+ * → tenant commerce tables (orders + payments power the Payments dashboard stats).
  */
 final class CommerceImporter implements LegacyImporter
 {
@@ -40,6 +43,7 @@ final class CommerceImporter implements LegacyImporter
     ): void {
         $this->importPaymentConfigs($customer, $ids, $report, $dryRun);
         $this->importOrders($customer, $ids, $report, $dryRun);
+        $this->importPayments($customer, $ids, $report, $dryRun);
     }
 
     private function importPaymentConfigs(
@@ -180,6 +184,97 @@ final class CommerceImporter implements LegacyImporter
         }
     }
 
+    private function importPayments(
+        LegacyCustomerSnapshot $customer,
+        MigrationIdMap $ids,
+        MigrationReport $report,
+        bool $dryRun,
+    ): void {
+        if (! $this->legacy->tableExists('payments')) {
+            return;
+        }
+
+        $rows = $this->legacy->db()->table('payments')
+            ->where('customer_id', $customer->id)
+            ->orderBy('id')
+            ->get();
+
+        foreach ($rows as $row) {
+            $legacyId = (int) $row->id;
+            $ref = 'LEGACY-'.$legacyId;
+            $razorpayPaymentId = filled($row->razorpay_payment_id ?? null)
+                ? (string) $row->razorpay_payment_id
+                : null;
+            $paymentLink = filled($row->payment_link ?? null) ? (string) $row->payment_link : null;
+
+            $existingId = $ids->getInt('commerce_payment', $legacyId);
+            $existing = $existingId
+                ? CommercePayment::query()->find($existingId)
+                : CommercePayment::query()->where('internal_order_ref', $ref)->first();
+
+            if ($existing === null && $razorpayPaymentId !== null) {
+                $existing = CommercePayment::query()
+                    ->where('razorpay_payment_id', $razorpayPaymentId)
+                    ->first();
+            }
+
+            if ($dryRun) {
+                $report->bump($this->key(), $existing ? 'updated' : 'created');
+
+                continue;
+            }
+
+            $legacyOrderId = isset($row->order_id) ? (int) $row->order_id : 0;
+            $commerceOrderId = $legacyOrderId > 0
+                ? ($ids->getInt('commerce_order', $legacyOrderId)
+                    ?? CommerceOrder::query()->where('metadata->legacy_order_id', $legacyOrderId)->value('id'))
+                : null;
+
+            $status = $this->mapPaymentLinkStatus($row->payment_status ?? null);
+            $attributes = [
+                'commerce_order_id' => $commerceOrderId ? (int) $commerceOrderId : null,
+                'internal_order_ref' => $ref,
+                'customer_name' => filled($row->customer_name ?? null) ? (string) $row->customer_name : 'Unknown',
+                'customer_phone' => filled($row->customer_phone ?? null) ? (string) $row->customer_phone : null,
+                'amount' => (float) ($row->amount ?? 0),
+                'currency' => strtoupper(substr((string) ($row->currency ?? 'INR'), 0, 3)) ?: 'INR',
+                'razorpay_payment_link_id' => null,
+                'payment_link' => $paymentLink,
+                'status' => $status,
+                'razorpay_payment_id' => $razorpayPaymentId,
+                'paid_at' => $status === PaymentLinkStatus::Paid
+                    ? ($this->parseTimestamp($row->updated_at ?? null) ?? $this->parseTimestamp($row->created_at ?? null))
+                    : null,
+                'expires_at' => null,
+                'metadata' => [
+                    'legacy_payment_id' => $legacyId,
+                    'legacy_order_id' => $legacyOrderId > 0 ? $legacyOrderId : null,
+                ],
+            ];
+
+            if ($existing !== null) {
+                // Keep a stable unique ref if the row already has one.
+                $attributes['internal_order_ref'] = $existing->internal_order_ref ?: $ref;
+                $existing->forceFill($attributes)->save();
+                $payment = $existing;
+                $report->bump($this->key(), 'updated');
+            } else {
+                $payment = CommercePayment::query()->create($attributes);
+                $report->bump($this->key(), 'created');
+            }
+
+            $this->preservePaymentTimestamps($payment, $row->created_at ?? null, $row->updated_at ?? null);
+            $ids->put('commerce_payment', $legacyId, $payment->id);
+
+            if ($commerceOrderId && $status === PaymentLinkStatus::Paid) {
+                CommerceOrder::query()->whereKey($commerceOrderId)->update([
+                    'payment_status' => PaymentStatus::Paid,
+                    'payment_link' => $paymentLink ?? CommerceOrder::query()->whereKey($commerceOrderId)->value('payment_link'),
+                ]);
+            }
+        }
+    }
+
     /**
      * @return list<string>
      */
@@ -244,6 +339,18 @@ final class CommerceImporter implements LegacyImporter
         };
     }
 
+    private function mapPaymentLinkStatus(mixed $raw): PaymentLinkStatus
+    {
+        return match (strtolower(trim((string) $raw))) {
+            'paid', 'captured', 'success' => PaymentLinkStatus::Paid,
+            'failed' => PaymentLinkStatus::Failed,
+            'expired' => PaymentLinkStatus::Expired,
+            'cancelled', 'canceled' => PaymentLinkStatus::Cancelled,
+            'sent' => PaymentLinkStatus::Sent,
+            default => PaymentLinkStatus::Created,
+        };
+    }
+
     private function preserveTimestamps(CommerceOrder $order, mixed $createdAt, mixed $updatedAt): void
     {
         $created = $this->parseTimestamp($createdAt);
@@ -254,6 +361,21 @@ final class CommerceImporter implements LegacyImporter
         }
 
         CommerceOrder::query()->whereKey($order->id)->update([
+            'created_at' => $created,
+            'updated_at' => $updated ?? $created,
+        ]);
+    }
+
+    private function preservePaymentTimestamps(CommercePayment $payment, mixed $createdAt, mixed $updatedAt): void
+    {
+        $created = $this->parseTimestamp($createdAt);
+        $updated = $this->parseTimestamp($updatedAt) ?? $created;
+
+        if ($created === null) {
+            return;
+        }
+
+        CommercePayment::query()->whereKey($payment->id)->update([
             'created_at' => $created,
             'updated_at' => $updated ?? $created,
         ]);

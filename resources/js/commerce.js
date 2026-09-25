@@ -76,9 +76,19 @@ export function initCommerceOrderModal() {
 
     const fillStatusSelect = (statuses, current) => {
         if (!statusSelect) return;
-        statusSelect.innerHTML = (statuses || []).map((status) => (
-            `<option value="${status.value}" ${status.value === current ? 'selected' : ''}>${status.label}</option>`
-        )).join('');
+
+        const currentValue = String(current || '');
+        statusSelect.innerHTML = (statuses || []).map((status) => {
+            const value = String(status.value || '');
+            const selected = value === currentValue ? ' selected' : '';
+
+            return `<option value="${value}"${selected}>${status.label}</option>`;
+        }).join('');
+
+        // Explicitly set value so the native select stays in sync with current status.
+        if (currentValue !== '' && Array.from(statusSelect.options).some((option) => option.value === currentValue)) {
+            statusSelect.value = currentValue;
+        }
     };
 
     const loadOrder = async (uuid) => {

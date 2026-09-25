@@ -318,10 +318,11 @@ class CommerceTest extends TestCase
             ->assertOk()
             ->assertJsonPath('customer_name', 'Test User')
             ->assertJsonPath('customer_phone', '919876543210')
+            ->assertJsonPath('order_status', $order->order_status->value)
             ->assertJsonStructure([
                 'id', 'uuid', 'customer_name', 'customer_phone',
                 'product_items', 'total_price', 'currency',
-                'order_status', 'payment_status', 'created_at',
+                'order_status', 'payment_status', 'statuses', 'created_at',
             ]);
     }
 
