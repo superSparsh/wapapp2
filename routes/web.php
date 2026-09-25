@@ -364,6 +364,7 @@ Route::middleware(['tenancy.session', 'auth:web,team', '2fa', 'team.redirect-das
             Route::post('/shopify/domain', [ShopifyController::class, 'storeDomain'])->name('shopify.domain.store');
             Route::get('/shopify/domain', [ShopifyController::class, 'getDomain'])->name('shopify.domain.get');
             Route::post('/shopify/scopes', [ShopifyController::class, 'saveScopes'])->name('shopify.scopes.save');
+            Route::delete('/shopify/scopes', [ShopifyController::class, 'removeScope'])->name('shopify.scopes.remove');
             Route::get('/shopify/scopes/data', [ShopifyController::class, 'getScopes'])->name('shopify.scopes.get');
             Route::get('/shopify/data', [ShopifyController::class, 'getSendData'])->name('shopify.data');
             Route::get('/shopify/maillists', [ShopifyController::class, 'getMailLists'])->name('shopify.maillists');

@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Domains\ThirdParty\Services;
 
 use App\Domains\Campaigns\Services\CampaignTestMessageService;
+use App\Domains\Templates\Enums\TemplateStatus;
 use App\Domains\ThirdParty\Enums\IntegrationStatus;
+use App\Domains\ThirdParty\Enums\MessageLogStatus;
 use App\Domains\ThirdParty\Models\ShopifyIntegration;
 use App\Domains\ThirdParty\Models\ShopifySendData;
 use App\Models\Contact;
@@ -121,6 +123,16 @@ class ShopifyWebhookProcessorService
                 return;
             }
 
+            if ($template->status !== TemplateStatus::Approved) {
+                $event->update([
+                    'status' => 'skipped',
+                    'error_message' => 'Template #'.$templateId.' is not approved.',
+                    'processed_at' => now(),
+                ]);
+
+                return;
+            }
+
             $line = WhatsappLine::query()->where('is_default', true)->first()
                 ?? WhatsappLine::query()->first();
             if ($line === null) {
@@ -134,6 +146,34 @@ class ShopifyWebhookProcessorService
             }
 
             $phones = $this->resolvePhones($event, $settings);
+            if ($phones === []) {
+                ShopifySendData::query()->create([
+                    'user_id' => $integration->user_id,
+                    'event_type' => $event->topic,
+                    'payload' => [
+                        'shopify_webhook_event_id' => $event->id,
+                        'shop_domain' => $event->shop_domain,
+                        'template_id' => $template->id,
+                        'template_name' => $template->name,
+                        'reason' => 'No WhatsApp number found on webhook payload / mail list.',
+                    ],
+                    'whatsapp_number' => null,
+                    'status' => MessageLogStatus::Skipped->value,
+                    'sent_at' => now(),
+                ]);
+
+                $event->update([
+                    'status' => 'skipped',
+                    'error_message' => 'No recipients found for topic '.$event->topic,
+                    'processed_at' => now(),
+                ]);
+
+                return;
+            }
+
+            $payload = is_array($event->payload) ? $event->payload : [];
+            $templateVariables = $this->extractTemplateVariables($template, $payload);
+
             $sent = 0;
             foreach ($phones as $phone) {
                 try {
@@ -141,7 +181,7 @@ class ShopifyWebhookProcessorService
                         line: $line,
                         template: $template,
                         phone: $phone,
-                        templateVariables: [],
+                        templateVariables: $templateVariables,
                     );
                     $sent++;
 
@@ -151,9 +191,12 @@ class ShopifyWebhookProcessorService
                         'payload' => [
                             'shopify_webhook_event_id' => $event->id,
                             'shop_domain' => $event->shop_domain,
+                            'template_id' => $template->id,
+                            'template_name' => $template->name,
+                            'source' => 'shopify_webhook',
                         ],
                         'whatsapp_number' => $phone,
-                        'status' => 'sent',
+                        'status' => MessageLogStatus::Sent->value,
                         'sent_at' => now(),
                     ]);
                 } catch (Throwable $e) {
@@ -168,10 +211,13 @@ class ShopifyWebhookProcessorService
                         'event_type' => $event->topic,
                         'payload' => [
                             'shopify_webhook_event_id' => $event->id,
+                            'template_id' => $template->id,
+                            'template_name' => $template->name,
                             'error' => $e->getMessage(),
+                            'source' => 'shopify_webhook',
                         ],
                         'whatsapp_number' => $phone,
-                        'status' => 'failed',
+                        'status' => MessageLogStatus::Failed->value,
                         'sent_at' => now(),
                     ]);
                 }
@@ -228,6 +274,58 @@ class ShopifyWebhookProcessorService
         }
 
         return null;
+    }
+
+    /**
+     * Resolve $(path) placeholders from the template body against the Shopify webhook payload.
+     *
+     * @param  array<string, mixed>  $payload
+     * @return array<string, string>
+     */
+    private function extractTemplateVariables(Template $template, array $payload): array
+    {
+        $body = (string) data_get($template->payload, 'body.text', '');
+        if ($body === '' && filled($template->body_preview)) {
+            $body = (string) $template->body_preview;
+        }
+
+        preg_match_all('/\$\(([^)]+)\)/', $body, $matches);
+        $keys = $matches[1] ?? [];
+        $variables = [];
+
+        foreach ($keys as $key) {
+            $path = str_replace('->', '.', (string) $key);
+            $value = Arr::get($payload, $path);
+            $variables[$key] = is_scalar($value) && (string) $value !== ''
+                ? (string) $value
+                : 'default';
+
+            if (str_contains($path, '.')) {
+                $short = last(explode('.', $path));
+                if (is_string($short) && $short !== '' && ! array_key_exists($short, $variables)) {
+                    $variables[$short] = $variables[$key];
+                }
+            }
+        }
+
+        $customerName = trim(implode(' ', array_filter([
+            Arr::get($payload, 'customer.first_name'),
+            Arr::get($payload, 'customer.last_name'),
+        ])));
+        if ($customerName === '') {
+            $customerName = (string) (Arr::get($payload, 'billing_address.name')
+                ?? Arr::get($payload, 'shipping_address.name')
+                ?? 'Customer');
+        }
+
+        $variables['full_name'] = $variables['full_name'] ?? $customerName;
+        $variables['first_name'] = $variables['first_name'] ?? (string) (Arr::get($payload, 'customer.first_name') ?: 'Customer');
+        $variables['last_name'] = $variables['last_name'] ?? (string) (Arr::get($payload, 'customer.last_name') ?: '');
+        $variables['name'] = $variables['name'] ?? $customerName;
+        $variables['order_id'] = $variables['order_id'] ?? (string) (Arr::get($payload, 'name') ?? Arr::get($payload, 'order_number') ?? Arr::get($payload, 'id') ?? '');
+        $variables['total_price'] = $variables['total_price'] ?? (string) (Arr::get($payload, 'total_price') ?? '');
+
+        return $variables;
     }
 
     /**

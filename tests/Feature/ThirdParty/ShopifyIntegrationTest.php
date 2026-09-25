@@ -108,15 +108,62 @@ class ShopifyIntegrationTest extends TestCase
 
     public function test_save_scopes_updates_access_scope_check(): void
     {
-        $this->actingAsTenantUser()
-            ->post(route('integration.shopify.scopes.save'), [
-                'access_scope_check' => true,
-                'products_create'    => true,
-            ])
-            ->assertRedirect(route('integration.shopify.scopes'));
+        $userId = (int) $this->testUser->id;
+        app(ShopifyService::class)->saveDomainUrl($userId, 'https://mystore.myshopify.com');
 
-        $integration = ShopifyIntegration::query()->where('user_id', $this->testUser->id)->first();
+        $template = \App\Models\Template::factory()->create([
+            'status' => \App\Domains\Templates\Enums\TemplateStatus::Approved,
+        ]);
+
+        $this->actingAsTenantUser()
+            ->postJson(route('integration.shopify.scopes.save'), [
+                'scope_key' => 'orders_create',
+                'enabled' => true,
+                'template_id' => (string) $template->id,
+            ])
+            ->assertOk()
+            ->assertJson(['success' => true]);
+
+        $integration = ShopifyIntegration::query()->where('user_id', $userId)->first();
         $this->assertNotNull($integration);
+        $this->assertSame('yes', collect($integration->settings['access_scope_check'] ?? [])
+            ->firstWhere('key', 'orders_create')['value'] ?? null);
+        $this->assertSame((string) $template->id, collect($integration->settings['template_selected'] ?? [])
+            ->firstWhere('key', 'orders_create')['value'] ?? null);
+    }
+
+    public function test_save_scopes_requires_domain(): void
+    {
+        $template = \App\Models\Template::factory()->create([
+            'status' => \App\Domains\Templates\Enums\TemplateStatus::Approved,
+        ]);
+
+        $this->actingAsTenantUser()
+            ->postJson(route('integration.shopify.scopes.save'), [
+                'scope_key' => 'orders_create',
+                'enabled' => true,
+                'template_id' => (string) $template->id,
+            ])
+            ->assertStatus(422)
+            ->assertJson(['success' => false]);
+    }
+
+    public function test_remove_scope_disables_webhook(): void
+    {
+        $userId = (int) $this->testUser->id;
+        app(ShopifyService::class)->saveDomainUrl($userId, 'https://mystore.myshopify.com');
+        app(ShopifyService::class)->upsertScope($userId, 'orders_paid', true, '12', null);
+
+        $this->actingAsTenantUser()
+            ->deleteJson(route('integration.shopify.scopes.remove'), [
+                'scope_key' => 'orders_paid',
+            ])
+            ->assertOk()
+            ->assertJson(['success' => true]);
+
+        $integration = ShopifyIntegration::query()->where('user_id', $userId)->first();
+        $this->assertSame('no', collect($integration->settings['access_scope_check'] ?? [])
+            ->firstWhere('key', 'orders_paid')['value'] ?? null);
     }
 
     public function test_get_scopes_returns_json(): void
