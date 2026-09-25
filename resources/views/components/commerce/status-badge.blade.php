@@ -4,7 +4,10 @@
   $styles = match ($variant) {
     'green' => 'bg-[rgba(0,128,0,0.1)] text-[10px] text-green-600',
     'orange' => 'bg-[rgba(255,165,0,0.1)] text-[10px] text-orange-500',
-    default => 'bg-[rgba(59,130,246,0.1)] text-[13px] text-stat-blue',
+    'red' => 'bg-[rgba(239,68,68,0.1)] text-[10px] text-red-600',
+    'purple' => 'bg-[rgba(142,68,173,0.1)] text-[10px] text-purple-700',
+    'gray' => 'bg-[rgba(0,0,0,0.05)] text-[10px] text-text-muted',
+    default => 'bg-[rgba(59,130,246,0.1)] text-[10px] text-stat-blue',
   };
 @endphp
 

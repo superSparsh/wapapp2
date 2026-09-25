@@ -9,6 +9,8 @@ use App\Domains\Commerce\Enums\PaymentStatus;
 use App\Domains\Commerce\Models\CommerceOrder;
 use App\Domains\Commerce\Models\CommercePayment;
 use App\Domains\Commerce\Models\PaymentConfig;
+use App\Support\ListingSort;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -56,6 +58,44 @@ class CommercePaymentService
     public function getConfig(): ?PaymentConfig
     {
         return PaymentConfig::query()->first();
+    }
+
+    /**
+     * Paginate payment transactions with optional search and status filter.
+     */
+    public function paginate(
+        ?string $search = null,
+        ?string $status = null,
+        int $perPage = 25,
+        string $sort = 'id',
+        string $direction = 'desc',
+    ): LengthAwarePaginator {
+        $search = trim((string) $search);
+        $status = filled($status) ? $status : null;
+
+        $query = CommercePayment::query()
+            ->when($search !== '', function ($q) use ($search): void {
+                $q->where(function ($nested) use ($search): void {
+                    $nested->where('customer_name', 'like', "%{$search}%")
+                        ->orWhere('customer_phone', 'like', "%{$search}%")
+                        ->orWhere('internal_order_ref', 'like', "%{$search}%")
+                        ->orWhere('razorpay_payment_id', 'like', "%{$search}%")
+                        ->orWhere('razorpay_payment_link_id', 'like', "%{$search}%");
+                });
+            })
+            ->when($status !== null, fn ($q) => $q->where('status', $status));
+
+        ListingSort::apply($query, $sort, $direction, [
+            'id' => 'id',
+            'created_at' => 'created_at',
+            'customer_name' => 'customer_name',
+            'customer_phone' => 'customer_phone',
+            'amount' => 'amount',
+            'status' => 'status',
+            'internal_order_ref' => 'internal_order_ref',
+        ], 'id');
+
+        return $query->paginate($perPage)->withQueryString();
     }
 
     /**

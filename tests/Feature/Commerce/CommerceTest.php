@@ -279,6 +279,32 @@ class CommerceTest extends TestCase
             ->assertDontSee('John Doe');
     }
 
+    public function test_payments_can_be_searched_and_filtered(): void
+    {
+        CommercePayment::factory()->create([
+            'customer_name' => 'Paid Buyer',
+            'internal_order_ref' => 'WP-PAID-1',
+            'status' => PaymentLinkStatus::Paid,
+        ]);
+        CommercePayment::factory()->create([
+            'customer_name' => 'Pending Buyer',
+            'internal_order_ref' => 'WP-PENDING-1',
+            'status' => PaymentLinkStatus::Created,
+        ]);
+
+        $this->actingAsTenantUser()
+            ->get(route('commerce.settings', ['q' => 'Paid']))
+            ->assertOk()
+            ->assertSee('Paid Buyer')
+            ->assertDontSee('Pending Buyer');
+
+        $this->actingAsTenantUser()
+            ->get(route('commerce.settings', ['status' => 'created']))
+            ->assertOk()
+            ->assertSee('Pending Buyer')
+            ->assertDontSee('Paid Buyer');
+    }
+
     public function test_order_detail_returns_json(): void
     {
         $order = CommerceOrder::factory()->create([

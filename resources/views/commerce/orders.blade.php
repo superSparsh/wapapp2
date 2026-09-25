@@ -59,7 +59,13 @@
 
     <section class="flex flex-col gap-4 p-4 pt-0">
       @if ($orders->isEmpty())
-        <div class="rounded-lg bg-elevated p-8 text-center text-text-subtle">No orders found.</div>
+        <div class="rounded-lg bg-elevated p-8 text-center text-text-subtle">
+          @if (request()->hasAny(['q', 'order_status', 'payment_status']))
+            No orders match your search or filters.
+          @else
+            No orders found.
+          @endif
+        </div>
       @else
         <x-ui.data-table
           :headers="['SI. No', 'Customer', 'Phone', 'Products', 'Total', 'Order Status', 'Payment Status', 'Payment Link', 'Date']"

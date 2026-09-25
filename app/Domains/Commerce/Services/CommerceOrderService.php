@@ -36,7 +36,9 @@ class CommerceOrderService
                 $q->where(function ($nested) use ($search): void {
                     $nested->where('customer_name', 'like', "%{$search}%")
                         ->orWhere('customer_phone', 'like', "%{$search}%")
-                        ->orWhere('catalog_id', 'like', "%{$search}%");
+                        ->orWhere('catalog_id', 'like', "%{$search}%")
+                        ->orWhere('external_message_id', 'like', "%{$search}%")
+                        ->orWhere('payment_link', 'like', "%{$search}%");
                 });
             })
             ->when($orderStatus !== null, fn ($q) => $q->where('order_status', $orderStatus))

@@ -133,6 +133,19 @@ class InboundMessageHandler
                     'whatsapp_line_id' => $line->id,
                 ])->save();
 
+                // Inbox row may exist from a prior attempt that failed commerce ingest.
+                $existingType = $this->mapMessageType((string) ($item['Type'] ?? 'TEXT'));
+                if ($existingType === MessageType::Order) {
+                    try {
+                        $this->commerceOrderIngest->ingest($item, $line);
+                    } catch (\Throwable $e) {
+                        Log::warning('Commerce order ingest failed on duplicate message', [
+                            'message_id' => $messageId,
+                            'error' => $e->getMessage(),
+                        ]);
+                    }
+                }
+
                 return 'processed';
             }
 

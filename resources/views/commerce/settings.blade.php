@@ -16,23 +16,50 @@
         <div class="rounded-lg bg-red-50 p-3 text-sm text-red-600">{{ $message }}</div>
       @enderror
 
-      <x-commerce.search-row :show-refresh="false">
-        <button
-          type="button"
-          data-open-modal="payment-configuration"
-          class="fd-btn inline-flex items-center justify-center rounded bg-green-500 px-4 py-3 text-sm font-semibold leading-[1.5] text-primary-2 transition-colors hover:opacity-90"
-        >
-          Payment Configuration
-        </button>
-        <button
-          type="button"
-          data-open-modal="create-payment"
-          class="fd-btn inline-flex items-center justify-center gap-2 rounded bg-green-500 px-4 py-3 text-sm font-semibold leading-[1.5] text-primary-2 transition-colors hover:opacity-90"
-        >
-          <img src="{{ asset('images/commerce/add.svg') }}" alt="" class="size-5 shrink-0" width="20" height="20">
-          Create New Payment
-        </button>
-      </x-commerce.search-row>
+      <x-ui.listing-toolbar
+        :action="route('commerce.settings')"
+        search-name="q"
+        :search-value="$search ?? ''"
+        search-placeholder="Search by name, phone, order ref…"
+        :current-sort="$currentSort ?? 'id'"
+        :current-direction="$currentDirection ?? 'desc'"
+        :sort-options="[
+          ['value' => 'id', 'label' => 'Newest first', 'direction' => 'desc'],
+          ['value' => 'id', 'label' => 'Oldest first', 'direction' => 'asc'],
+          ['value' => 'amount', 'label' => 'Highest amount', 'direction' => 'desc'],
+          ['value' => 'customer_name', 'label' => 'Customer A–Z', 'direction' => 'asc'],
+          ['value' => 'status', 'label' => 'Status', 'direction' => 'asc'],
+        ]"
+      >
+        <x-slot:filters>
+          <x-ui.select name="status" variant="listing" data-listing-filter class="w-[160px] shrink-0" aria-label="Payment status">
+            <option value="">All Statuses</option>
+            @foreach (\App\Domains\Commerce\Enums\PaymentLinkStatus::cases() as $status)
+              <option value="{{ $status->value }}" @selected(($currentStatus ?? '') === $status->value)>{{ $status->label() }}</option>
+            @endforeach
+          </x-ui.select>
+        </x-slot:filters>
+        <x-slot:actions>
+          @if (request()->hasAny(['q', 'status', 'sort', 'direction']))
+            <a href="{{ route('commerce.settings') }}" class="text-sm text-text-subtle underline">Clear</a>
+          @endif
+          <button
+            type="button"
+            data-open-modal="payment-configuration"
+            class="fd-btn inline-flex items-center justify-center rounded bg-green-500 px-4 py-3 text-sm font-semibold leading-[1.5] text-primary-2 transition-colors hover:opacity-90"
+          >
+            Payment Configuration
+          </button>
+          <button
+            type="button"
+            data-open-modal="create-payment"
+            class="fd-btn inline-flex items-center justify-center gap-2 rounded bg-green-500 px-4 py-3 text-sm font-semibold leading-[1.5] text-primary-2 transition-colors hover:opacity-90"
+          >
+            <img src="{{ asset('images/commerce/add.svg') }}" alt="" class="size-5 shrink-0" width="20" height="20">
+            Create New Payment
+          </button>
+        </x-slot:actions>
+      </x-ui.listing-toolbar>
 
       {{-- Stats cards --}}
       <div class="grid gap-4 md:grid-cols-2">
@@ -115,7 +142,13 @@
       </div>
 
       @if ($payments->isEmpty())
-        <div class="rounded-lg bg-elevated p-8 text-center text-text-subtle">No transactions yet.</div>
+        <div class="rounded-lg bg-elevated p-8 text-center text-text-subtle">
+          @if (request()->hasAny(['q', 'status']))
+            No transactions match your search or filters.
+          @else
+            No transactions yet.
+          @endif
+        </div>
       @else
         <x-ui.data-table
           :headers="['SI. No', 'Order Ref', 'Customer Name', 'Customer Phone', 'Amount', 'Currency', 'Razorpay Ref ID', 'Status', 'Payment Link', 'Created At (IST)']"

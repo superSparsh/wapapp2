@@ -8,8 +8,6 @@ use App\Domains\Commerce\Enums\OrderStatus;
 use App\Domains\Commerce\Http\Requests\CreatePaymentRequest;
 use App\Domains\Commerce\Http\Requests\SavePaymentConfigRequest;
 use App\Domains\Commerce\Jobs\SendPaymentLinkJob;
-use App\Domains\Commerce\Models\CommerceOrder;
-use App\Domains\Commerce\Models\CommercePayment;
 use App\Domains\Commerce\Services\CatalogService;
 use App\Domains\Commerce\Services\CommerceOrderService;
 use App\Domains\Commerce\Services\CommercePaymentService;
@@ -306,14 +304,35 @@ class CommerceController extends Controller
     /**
      * GET /commerce/settings — Payment dashboard
      */
-    public function settings(): View
+    public function settings(Request $request): View
     {
-        $config       = $this->paymentService->getConfig();
-        $stats        = $this->paymentService->getStats();
-        $payments     = CommercePayment::query()->latest('id')->paginate(25);
-        $templates    = Template::query()->select(['id', 'uuid', 'name', 'code'])->orderBy('name')->get();
+        $parsed = ListingSort::fromRequest(
+            $request,
+            ['id', 'created_at', 'customer_name', 'customer_phone', 'amount', 'status', 'internal_order_ref'],
+            'id',
+            'desc',
+        );
 
-        return view('commerce.settings', compact('config', 'stats', 'payments', 'templates'));
+        $config = $this->paymentService->getConfig();
+        $stats = $this->paymentService->getStats();
+        $payments = $this->paymentService->paginate(
+            search: $request->query('q'),
+            status: $request->query('status'),
+            sort: $parsed['sort'],
+            direction: $parsed['direction'],
+        );
+        $templates = Template::query()->select(['id', 'uuid', 'name', 'code'])->orderBy('name')->get();
+
+        return view('commerce.settings', [
+            'config' => $config,
+            'stats' => $stats,
+            'payments' => $payments,
+            'templates' => $templates,
+            'search' => $request->query('q', ''),
+            'currentStatus' => $request->query('status', ''),
+            'currentSort' => $parsed['sort'],
+            'currentDirection' => $parsed['direction'],
+        ]);
     }
 
     /**
