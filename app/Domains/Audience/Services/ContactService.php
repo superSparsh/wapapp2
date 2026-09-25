@@ -54,7 +54,7 @@ class ContactService
     }
 
     /**
-     * Create a new contact.
+     * Create a new contact (or restore a soft-deleted row on the same list).
      */
     public function store(array $data, ?array $tags = null): Contact
     {
@@ -69,7 +69,18 @@ class ContactService
         $data['opted_in_at'] ??= now();
         $data['send_opt_in_message'] = (($data['send_opt_in_message'] ?? 'no') === 'yes') ? 'yes' : 'no';
 
-        $contact = Contact::query()->create($data);
+        $trashed = $this->findTrashedOnList(
+            phone: isset($data['phone']) ? (string) $data['phone'] : null,
+            mailListId: isset($data['mail_list_id']) ? (int) $data['mail_list_id'] : null,
+        );
+
+        if ($trashed !== null) {
+            $trashed->restore();
+            $trashed->update($data);
+            $contact = $trashed->fresh();
+        } else {
+            $contact = Contact::query()->create($data);
+        }
 
         if ($tags) {
             $contact->syncTags($tags);
@@ -82,6 +93,18 @@ class ContactService
         }
 
         return $contact->fresh()->load('tags');
+    }
+
+    private function findTrashedOnList(?string $phone, ?int $mailListId): ?Contact
+    {
+        if ($phone === null || $phone === '' || $mailListId === null) {
+            return null;
+        }
+
+        return Contact::onlyTrashed()
+            ->where('phone', $phone)
+            ->where('mail_list_id', $mailListId)
+            ->first();
     }
 
     /**

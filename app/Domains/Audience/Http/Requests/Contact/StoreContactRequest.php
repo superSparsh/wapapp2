@@ -29,9 +29,11 @@ class StoreContactRequest extends FormRequest
                 'string',
                 'max:20',
                 'regex:/^\+?[0-9]{7,20}$/',
-                Rule::unique('contacts', 'phone')->where(
-                    static fn ($query) => $query->where('mail_list_id', $mailListId),
-                ),
+                Rule::unique('contacts', 'phone')
+                    ->where(
+                        static fn ($query) => $query->where('mail_list_id', $mailListId),
+                    )
+                    ->withoutTrashed(),
             ],
             'name' => ['nullable', 'string', 'max:150'],
             'email' => ['nullable', 'email', 'max:191'],

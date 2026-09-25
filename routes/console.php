@@ -4,6 +4,7 @@ use App\Console\Commands\ProcessDataDeletionSchedules;
 use App\Domains\Alerts\Console\Commands\SendAccountExpirationReportCommand;
 use App\Domains\Alerts\Console\Commands\SendCalendarRemindersCommand;
 use App\Domains\Alerts\Console\Commands\SendPlanExpirationAlertsCommand;
+use App\Domains\Audience\Console\Commands\PurgeSoftDeletedContactsCommand;
 use App\Domains\Audience\Console\Commands\VerifyListContactsCommand;
 use App\Domains\AutomationEvents\Console\Commands\ProcessAutomationEventsCommand;
 use App\Domains\Billing\Console\Commands\CheckWalletAutoRechargeCommand;
@@ -68,6 +69,7 @@ Schedule::command(SendCalendarRemindersCommand::class)->everyFiveMinutes();
 Schedule::command(SyncMetaPricingCommand::class)->dailyAt('03:00');
 Schedule::command(SyncFreeUicQuotaCommand::class)->hourly();
 Schedule::command(VerifyListContactsCommand::class)->dailyAt('04:00');
+Schedule::command(PurgeSoftDeletedContactsCommand::class)->dailyAt('04:15');
 Schedule::command(CleanOldFlowSubmissions::class)->daily();
 Schedule::command(RetryFailedDeliveriesCommand::class)->everyFifteenMinutes();
 

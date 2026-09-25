@@ -124,7 +124,7 @@
         </x-ui.listing-toolbar>
       </div>
 
-      <x-ui.data-table :headers="['SI. No', 'Whatsapp Number', 'Status', 'Name', 'Opt-in Message', 'Created At', 'Updated At', 'Un/Subcribe', 'Actions']" :paginator="$contacts">
+      <x-ui.data-table :headers="['SI. No', 'Whatsapp Number', 'Status', 'Name', 'Opt-in Message', 'Created At', 'Updated At', 'Un/Subscribe', 'Actions']" :paginator="$contacts">
         @forelse ($contacts as $i => $contact)
           <tr class="bg-elevated">
             <td class="fd-table-cell w-[54px] p-2">{{ $contacts->firstItem() + $i }}</td>

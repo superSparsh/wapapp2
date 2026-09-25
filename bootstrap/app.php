@@ -9,6 +9,7 @@ use App\Domains\Alerts\Console\Commands\SendPlanExpirationAlertsCommand;
 use App\Domains\Alerts\Console\Commands\SyncPhoneQualityAndNotifyCommand;
 use App\Domains\Api\Http\Middleware\AuthenticateApiToken;
 use App\Domains\Audience\Console\Commands\BackfillNonWhatsAppNumbersCommand;
+use App\Domains\Audience\Console\Commands\PurgeSoftDeletedContactsCommand;
 use App\Domains\Audience\Console\Commands\VerifyListContactsCommand;
 use App\Domains\Auth\Http\Middleware\EnsureEmailIsVerified;
 use App\Domains\Auth\Http\Middleware\EnsureTwoFactorVerified;
@@ -184,6 +185,7 @@ return Application::configure(basePath: dirname(__DIR__))
         DiscoverMetaPricingCsvUrlCommand::class,
         SyncFreeUicQuotaCommand::class,
         VerifyListContactsCommand::class,
+        PurgeSoftDeletedContactsCommand::class,
         BackfillNonWhatsAppNumbersCommand::class,
         SubmitPendingTemplates::class,
         SyncTemplateStatuses::class,

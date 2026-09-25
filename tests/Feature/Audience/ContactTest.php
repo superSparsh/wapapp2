@@ -251,6 +251,115 @@ class ContactTest extends TestCase
             ->assertRedirect(route('audience.index'));
     }
 
+    public function test_store_allows_same_phone_on_different_list(): void
+    {
+        $listA = MailList::factory()->create();
+        $listB = MailList::factory()->create();
+
+        Contact::factory()->create([
+            'phone' => '919876543299',
+            'mail_list_id' => $listA->id,
+        ]);
+
+        $this->actingAsTenantUser()
+            ->post(route('audience.subscribers.store'), [
+                'phone' => '919876543299',
+                'name' => 'On List B',
+                'mail_list_id' => $listB->uuid,
+            ])
+            ->assertRedirect(route('audience.subscribers', ['list' => $listB->uuid]))
+            ->assertSessionHas('status')
+            ->assertSessionDoesntHaveErrors('phone');
+
+        $this->assertSame(2, Contact::query()->where('phone', '919876543299')->count());
+        $this->assertDatabaseHas('contacts', [
+            'phone' => '919876543299',
+            'mail_list_id' => $listB->id,
+            'name' => 'On List B',
+        ]);
+    }
+
+    public function test_store_rejects_active_duplicate_on_same_list(): void
+    {
+        $list = MailList::factory()->create();
+        Contact::factory()->create([
+            'phone' => '919876543288',
+            'mail_list_id' => $list->id,
+        ]);
+
+        $this->actingAsTenantUser()
+            ->from(route('audience.subscribers', ['list' => $list->uuid]))
+            ->post(route('audience.subscribers.store'), [
+                'phone' => '919876543288',
+                'mail_list_id' => $list->uuid,
+            ])
+            ->assertRedirect()
+            ->assertSessionHasErrors('phone');
+    }
+
+    public function test_store_readds_soft_deleted_phone_on_same_list(): void
+    {
+        $list = MailList::factory()->create();
+        $contact = Contact::factory()->create([
+            'phone' => '919876543277',
+            'name' => 'Old Name',
+            'mail_list_id' => $list->id,
+        ]);
+        $contact->delete();
+
+        $this->assertSoftDeleted('contacts', ['id' => $contact->id]);
+
+        $this->actingAsTenantUser()
+            ->post(route('audience.subscribers.store'), [
+                'phone' => '919876543277',
+                'name' => 'Restored Name',
+                'mail_list_id' => $list->uuid,
+            ])
+            ->assertRedirect(route('audience.subscribers', ['list' => $list->uuid]))
+            ->assertSessionHas('status')
+            ->assertSessionDoesntHaveErrors('phone');
+
+        $this->assertDatabaseHas('contacts', [
+            'id' => $contact->id,
+            'phone' => '919876543277',
+            'mail_list_id' => $list->id,
+            'name' => 'Restored Name',
+            'deleted_at' => null,
+        ]);
+        $this->assertSame(1, Contact::query()->where('phone', '919876543277')->count());
+    }
+
+    public function test_purge_command_force_deletes_old_soft_deleted_contacts_only(): void
+    {
+        $old = Contact::factory()->create(['phone' => '919800000001']);
+        $old->delete();
+        Contact::onlyTrashed()->whereKey($old->id)->update([
+            'deleted_at' => now()->subDays(31),
+        ]);
+
+        $recent = Contact::factory()->create(['phone' => '919800000002']);
+        $recent->delete();
+        Contact::onlyTrashed()->whereKey($recent->id)->update([
+            'deleted_at' => now()->subDays(5),
+        ]);
+
+        $active = Contact::factory()->create(['phone' => '919800000003']);
+
+        $this->artisan('audience:purge-soft-deleted-contacts', [
+            '--days' => 30,
+            '--tenants' => [$this->testTenant->id],
+        ])->assertSuccessful();
+
+        tenancy()->initialize($this->testTenant);
+
+        $this->assertDatabaseMissing('contacts', ['id' => $old->id]);
+        $this->assertSoftDeleted('contacts', ['id' => $recent->id]);
+        $this->assertDatabaseHas('contacts', [
+            'id' => $active->id,
+            'deleted_at' => null,
+        ]);
+    }
+
     // ─── Update ──────────────────────────────────────────────────────────────
 
     public function test_update_requires_phone(): void
