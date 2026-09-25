@@ -47,6 +47,7 @@ class HeaderComposer
             'notificationCount' => $this->notificationService->unreadCount(),
             'notifications' => $this->notificationService->recent(),
             'isImpersonating' => $this->impersonationService->isImpersonating(),
+            'isOwnerImpersonating' => $this->impersonationService->isOwnerImpersonating(),
             'impersonatedMember' => $this->impersonationService->impersonatedMember(),
             'isAdminImpersonating' => $adminImpersonation !== null,
             'adminImpersonatorName' => $adminImpersonation['admin_name'] ?? null,

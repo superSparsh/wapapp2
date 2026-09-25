@@ -146,4 +146,47 @@ class TeamMemberTest extends TestCase
             ->get(route('my-team.index'))
             ->assertForbidden();
     }
+
+    public function test_owner_can_login_as_team_member_and_return(): void
+    {
+        $member = TeamMember::factory()->create([
+            'parent_user_id' => $this->testUser->id,
+            'permissions' => array_merge(TeamPermissions::defaults(), ['inbox_read' => true]),
+        ]);
+
+        $this->actingAsTenantUser()
+            ->post(route('my-team.login-as', $member))
+            ->assertRedirect(route('inbox.index'));
+
+        $this->assertAuthenticatedAs($member, 'team');
+        $this->assertGuest('web');
+        $this->assertEquals($this->testUser->id, session(config('team.impersonation_owner_session_key')));
+
+        $this->actingAsTeamMember($member)
+            ->withSession([config('team.impersonation_owner_session_key') => $this->testUser->id])
+            ->post(route('team.impersonation.stop'))
+            ->assertRedirect(route('my-team.index'));
+
+        $this->assertAuthenticatedAs($this->testUser, 'web');
+        $this->assertGuest('team');
+    }
+
+    public function test_roles_page_renders_permission_toggles(): void
+    {
+        $member = TeamMember::factory()->create([
+            'parent_user_id' => $this->testUser->id,
+        ]);
+
+        $this->actingAsTenantUser()
+            ->get(route('my-team.index'))
+            ->assertOk()
+            ->assertSee('Active', false)
+            ->assertDontSee('>In/Active<', false);
+
+        $this->actingAsTenantUser()
+            ->get(route('my-team.roles', $member))
+            ->assertOk()
+            ->assertSee('data-team-permission-toggle', false)
+            ->assertSee('data-team-permission-checkbox', false);
+    }
 }

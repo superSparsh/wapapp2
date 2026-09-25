@@ -60,8 +60,7 @@
                 <th class="w-[180px] p-2 text-[13px] font-medium leading-[1.5] text-text-body">Email</th>
                 <th class="w-[106px] p-2 text-center text-[13px] font-medium leading-[1.5] text-text-body">Assigned Conversations</th>
                 <th class="p-2 text-[13px] font-medium leading-[1.5] text-text-body">Role</th>
-                <th class="p-2 text-[13px] font-medium leading-[1.5] text-text-body">Status</th>
-                <th class="p-2 text-[13px] font-medium leading-[1.5] text-text-body">In/Active</th>
+                <th class="p-2 text-[13px] font-medium leading-[1.5] text-text-body">Active</th>
                 <th class="p-2 text-center text-[13px] font-medium leading-[1.5] text-text-body">Actions</th>
               </tr>
             </thead>
@@ -75,29 +74,43 @@
                   <td class="p-2">
                     <x-ui.role-badge :label="$member['role_label']" :variant="$member['role']" />
                   </td>
-                  <td class="p-2" data-team-status-label>
-                    @if ($member['is_active'])
-                      <span class="inline-flex items-center justify-center rounded bg-[rgba(0,128,0,0.1)] px-2 py-1 text-[10px] font-medium leading-[1.2] text-[green]">Active</span>
-                    @else
-                      <span class="inline-flex items-center justify-center rounded bg-[rgba(0,0,0,0.1)] px-2 py-1 text-[10px] font-medium leading-[1.2] text-text-muted">Inactive</span>
-                    @endif
+                  <td class="p-2">
+                    <div class="flex items-center gap-2">
+                      <x-ui.toggle-switch
+                        :active="$member['is_active']"
+                        data-team-status-toggle
+                        data-status-url="{{ $member['toggle_url'] }}"
+                        aria-label="Toggle team member active status"
+                      />
+                      <span data-team-status-label>
+                        @if ($member['is_active'])
+                          <span class="inline-flex items-center justify-center rounded bg-[rgba(0,128,0,0.1)] px-2 py-1 text-[10px] font-medium leading-[1.2] text-[green]">Active</span>
+                        @else
+                          <span class="inline-flex items-center justify-center rounded bg-[rgba(0,0,0,0.1)] px-2 py-1 text-[10px] font-medium leading-[1.2] text-text-muted">Inactive</span>
+                        @endif
+                      </span>
+                    </div>
                   </td>
                   <td class="p-2">
-                    <x-ui.toggle-switch
-                      :active="$member['is_active']"
-                      data-team-status-toggle
-                      data-status-url="{{ $member['toggle_url'] }}"
-                      aria-label="Toggle team member status"
-                    />
-                  </td>
-                  <td class="p-2">
-                    <div class="flex items-center justify-center gap-6">
+                    <div class="flex items-center justify-center gap-4">
                       <a href="{{ $member['roles_url'] }}" aria-label="Roles and access">
                         <img src="{{ asset('images/team/profile-2user.svg') }}" alt="" class="size-5" width="20" height="20">
                       </a>
                       <a href="{{ $member['edit_url'] }}" aria-label="Edit member">
                         <img src="{{ asset('images/team/edit.svg') }}" alt="" class="size-5" width="20" height="20">
                       </a>
+                      <form
+                        method="post"
+                        action="{{ $member['login_as_url'] }}"
+                        data-confirm="Log in as {{ $member['name'] }}?"
+                        data-confirm-title="Login as team member"
+                        data-confirm-label="Login as"
+                      >
+                        @csrf
+                        <button type="submit" class="text-xs font-semibold text-green-500" aria-label="Login as {{ $member['name'] }}">
+                          Login as
+                        </button>
+                      </form>
                       <form method="post" action="{{ $member['delete_url'] }}" data-confirm="Delete this team member?" data-confirm-title="Delete team member" data-confirm-label="Delete">
                         @csrf
                         @method('DELETE')
@@ -110,7 +123,7 @@
                 </tr>
               @empty
                 <tr>
-                  <td colspan="8" class="p-8 text-center text-sm text-text-body/70">No team members yet.</td>
+                  <td colspan="7" class="p-8 text-center text-sm text-text-body/70">No team members yet.</td>
                 </tr>
               @endforelse
             </tbody>

@@ -4704,68 +4704,85 @@ function initTeamPage() {
     const csrf = document.querySelector('meta[name="csrf-token"]')?.content;
     const root = document.querySelector('[data-team-root]');
 
-    if (!root || !csrf) {
-        return;
-    }
+    if (root && csrf) {
+        root.querySelectorAll('[data-team-status-toggle]').forEach((toggle) => {
+            toggle.addEventListener('click', async (event) => {
+                event.preventDefault();
 
-    root.querySelectorAll('[data-team-status-toggle]').forEach((toggle) => {
-        toggle.addEventListener('click', async (event) => {
-            event.preventDefault();
+                const url = toggle.dataset.statusUrl;
+                const row = toggle.closest('[data-team-row]');
+                const statusLabel = row?.querySelector('[data-team-status-label]');
 
-            const url = toggle.dataset.statusUrl;
-            const row = toggle.closest('[data-team-row]');
-            const statusLabel = row?.querySelector('[data-team-status-label]');
-
-            if (!url) {
-                return;
-            }
-
-            const previous = isToggleSwitchActive(toggle);
-
-            setToggleSwitchActive(toggle, !previous);
-
-            try {
-                const response = await fetch(url, {
-                    method: 'POST',
-                    headers: {
-                        Accept: 'application/json',
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': csrf,
-                    },
-                    credentials: 'same-origin',
-                });
-
-                if (!response.ok) {
-                    setToggleSwitchActive(toggle, previous);
+                if (!url) {
                     return;
                 }
 
-                const data = await response.json();
+                const previous = isToggleSwitchActive(toggle);
 
-                if (statusLabel) {
-                    statusLabel.innerHTML = data.is_active
-                        ? '<span class="inline-flex items-center justify-center rounded bg-[rgba(0,128,0,0.1)] px-2 py-1 text-[10px] font-medium leading-[1.2] text-[green]">Active</span>'
-                        : '<span class="inline-flex items-center justify-center rounded bg-[rgba(0,0,0,0.1)] px-2 py-1 text-[10px] font-medium leading-[1.2] text-text-muted">Inactive</span>';
+                setToggleSwitchActive(toggle, !previous);
+
+                try {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: {
+                            Accept: 'application/json',
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': csrf,
+                        },
+                        credentials: 'same-origin',
+                    });
+
+                    if (!response.ok) {
+                        setToggleSwitchActive(toggle, previous);
+                        return;
+                    }
+
+                    const data = await response.json();
+
+                    if (statusLabel) {
+                        statusLabel.innerHTML = data.is_active
+                            ? '<span class="inline-flex items-center justify-center rounded bg-[rgba(0,128,0,0.1)] px-2 py-1 text-[10px] font-medium leading-[1.2] text-[green]">Active</span>'
+                            : '<span class="inline-flex items-center justify-center rounded bg-[rgba(0,0,0,0.1)] px-2 py-1 text-[10px] font-medium leading-[1.2] text-text-muted">Inactive</span>';
+                    }
+                } catch {
+                    setToggleSwitchActive(toggle, previous);
                 }
-            } catch {
-                setToggleSwitchActive(toggle, previous);
-            }
+            });
         });
-    });
+    }
 
+    // Roles & Access pages do not use [data-team-root]; bind permission toggles globally.
     document.querySelectorAll('[data-team-permission-toggle]').forEach((toggle) => {
-        const container = toggle.closest('.flex');
+        if (toggle.dataset.teamPermissionBound === '1') {
+            return;
+        }
+
+        const container = toggle.closest('[data-team-permission-row]') ?? toggle.closest('.flex');
         const checkbox = container?.querySelector('[data-team-permission-checkbox]');
+        const hidden = container?.querySelector('[data-team-permission-hidden]');
 
         if (!checkbox) {
             return;
         }
 
+        toggle.dataset.teamPermissionBound = '1';
         toggle.addEventListener('click', (event) => {
             event.preventDefault();
             const next = !isToggleSwitchActive(toggle);
             setToggleSwitchActive(toggle, next);
             checkbox.checked = next;
+            checkbox.disabled = !next;
+            if (hidden) {
+                hidden.disabled = next;
+            }
         });
+
+        // Keep checkbox/hidden in sync with initial toggle state.
+        const active = isToggleSwitchActive(toggle);
+        checkbox.checked = active;
+        checkbox.disabled = !active;
+        if (hidden) {
+            hidden.disabled = active;
+        }
     });
 }

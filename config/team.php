@@ -40,4 +40,5 @@ return [
     ],
 
     'impersonation_session_key' => 'team_impersonator_id',
+    'impersonation_owner_session_key' => 'team_impersonator_owner_id',
 ];

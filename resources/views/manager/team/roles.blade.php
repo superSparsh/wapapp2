@@ -9,14 +9,23 @@
         @csrf
         @method('PUT')
         <h2 class="text-xl font-semibold text-text-primary">Permissions</h2>
-        <div class="w-full max-w-[576px] overflow-hidden rounded-xl border border-green-50 bg-elevated">
+        <div class="w-full max-w-[576px] overflow-hidden rounded-xl border border-green-50 bg-elevated" data-team-permissions>
           @foreach ($permissionLabels as $key => $label)
-            <div @class(['flex items-center gap-2 px-2 py-1.5', 'border-t border-divider' => ! $loop->first])>
+            @php $enabled = ! empty($permissions[$key]); @endphp
+            <div @class(['flex items-center gap-2 px-2 py-1.5', 'border-t border-divider' => ! $loop->first]) data-team-permission-row>
               <div class="min-w-0 flex-1 p-2 text-[13px] font-semibold text-text-subtle">{{ $label }}</div>
               <div class="flex min-w-0 flex-1 items-center justify-center gap-2.5 p-2">
-                <input type="hidden" name="permissions[{{ $key }}]" value="0">
-                <x-ui.toggle-switch :active="! empty($permissions[$key])" data-team-permission-toggle data-permission-input="permissions[{{ $key }}]" />
-                <input type="checkbox" name="permissions[{{ $key }}]" value="1" class="sr-only" @checked(! empty($permissions[$key])) data-team-permission-checkbox>
+                <input type="hidden" name="permissions[{{ $key }}]" value="0" data-team-permission-hidden @disabled($enabled)>
+                <x-ui.toggle-switch :active="$enabled" data-team-permission-toggle data-permission-input="permissions[{{ $key }}]" aria-label="Toggle {{ $label }} access" />
+                <input
+                  type="checkbox"
+                  name="permissions[{{ $key }}]"
+                  value="1"
+                  class="sr-only"
+                  @checked($enabled)
+                  @disabled(! $enabled)
+                  data-team-permission-checkbox
+                >
               </div>
             </div>
           @endforeach

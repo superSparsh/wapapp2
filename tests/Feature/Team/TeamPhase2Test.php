@@ -143,6 +143,13 @@ class TeamPhase2Test extends TestCase
 
         $this->assertAuthenticatedAs($member, 'team');
         $this->assertEquals($manager->id, session(config('team.impersonation_session_key')));
+
+        $this->actingAsTeamMember($member)
+            ->withSession([config('team.impersonation_session_key') => $manager->id])
+            ->post(route('team.impersonation.stop'))
+            ->assertRedirect(route('manager.team.index'));
+
+        $this->assertAuthenticatedAs($manager, 'team');
     }
 
     public function test_manager_can_update_auto_assign_setting(): void

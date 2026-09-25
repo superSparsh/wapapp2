@@ -14,9 +14,10 @@
 
         <h2 class="text-xl font-semibold leading-[1.4] text-text-primary">Permissions</h2>
 
-        <div class="w-full max-w-[576px] overflow-hidden rounded-xl border border-green-50 bg-elevated shadow-[0px_4px_6px_rgba(0,0,0,0.04)]">
+        <div class="w-full max-w-[576px] overflow-hidden rounded-xl border border-green-50 bg-elevated shadow-[0px_4px_6px_rgba(0,0,0,0.04)]" data-team-permissions>
           @foreach ($permissionLabels as $key => $label)
-            <div @class(['flex items-center gap-2 px-2 py-1.5', 'border-t border-divider' => ! $loop->first])>
+            @php $enabled = ! empty($permissions[$key]); @endphp
+            <div @class(['flex items-center gap-2 px-2 py-1.5', 'border-t border-divider' => ! $loop->first]) data-team-permission-row>
               <div class="min-w-0 flex-1 p-2">
                 <p class="text-[13px] font-semibold leading-[1.5] text-text-subtle">{{ $label }}</p>
               </div>
@@ -25,14 +26,22 @@
               </div>
               <div class="flex min-w-0 flex-1 items-center justify-center gap-2.5 p-2">
                 <span class="flex-1 text-right text-[13px] text-text-body">No</span>
-                <input type="hidden" name="permissions[{{ $key }}]" value="0">
+                <input type="hidden" name="permissions[{{ $key }}]" value="0" data-team-permission-hidden @disabled($enabled)>
                 <x-ui.toggle-switch
-                  :active="! empty($permissions[$key])"
+                  :active="$enabled"
                   data-team-permission-toggle
                   data-permission-input="permissions[{{ $key }}]"
                   aria-label="Toggle {{ $label }} access"
                 />
-                <input type="checkbox" name="permissions[{{ $key }}]" value="1" class="sr-only" @checked(! empty($permissions[$key])) data-team-permission-checkbox>
+                <input
+                  type="checkbox"
+                  name="permissions[{{ $key }}]"
+                  value="1"
+                  class="sr-only"
+                  @checked($enabled)
+                  @disabled(! $enabled)
+                  data-team-permission-checkbox
+                >
                 <span class="flex-1 text-[13px] text-text-body">Yes</span>
               </div>
             </div>

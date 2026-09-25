@@ -27,9 +27,11 @@
 @elseif (! empty($isImpersonating) && $impersonatedMember)
   <div class="flex items-center justify-between gap-4 border-b border-amber-500/30 bg-amber-50 px-4 py-2 text-sm text-amber-900">
     <span>Impersonating <strong>{{ $impersonatedMember->displayName() }}</strong></span>
-    <form method="post" action="{{ route('manager.back-to-me') }}">
+    <form method="post" action="{{ route('team.impersonation.stop') }}">
       @csrf
-      <button type="submit" class="font-semibold text-amber-900 underline">Back to manager</button>
+      <button type="submit" class="font-semibold text-amber-900 underline">
+        {{ ! empty($isOwnerImpersonating) ? 'Back to account' : 'Back to manager' }}
+      </button>
     </form>
   </div>
 @endif

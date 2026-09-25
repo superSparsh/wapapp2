@@ -187,9 +187,18 @@ class ManagerTeamController extends Controller
     ): RedirectResponse {
         $manager = $accessService->manager();
         $scopeService->authorizeManage($manager, $teamMember);
+
+        try {
+            $url = $redirectService->landingUrl($teamMember);
+        } catch (\Illuminate\Auth\Access\AuthorizationException) {
+            return redirect()
+                ->route('manager.team.index')
+                ->with('status', $teamMember->displayName().' has no module access configured. Assign permissions before using Login as.');
+        }
+
         $impersonationService->start($manager, $teamMember);
 
-        return redirect($redirectService->landingUrl($teamMember))
+        return redirect($url)
             ->with('status', 'You are now impersonating '.$teamMember->displayName().'.');
     }
 

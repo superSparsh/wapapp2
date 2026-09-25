@@ -8,8 +8,10 @@ use App\Domains\Team\Http\Requests\StoreTeamMemberRequest;
 use App\Domains\Team\Http\Requests\UpdateTeamMemberRequest;
 use App\Domains\Team\Http\Requests\UpdateTeamPermissionsRequest;
 use App\Domains\Team\Services\TeamAccessService;
+use App\Domains\Team\Services\TeamImpersonationService;
 use App\Domains\Team\Services\TeamMemberService;
 use App\Domains\Team\Services\TeamQueryService;
+use App\Domains\Team\Services\TeamRedirectService;
 use App\Domains\Team\Support\TeamPermissions;
 use App\Enums\RecordStatus;
 use App\Enums\TeamMemberRole;
@@ -17,6 +19,7 @@ use App\Http\Controllers\Controller;
 use App\Models\TeamMember;
 use App\Models\WhatsappLine;
 use App\Support\ListingSort;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -174,6 +177,28 @@ class TeamController extends Controller
         return redirect()
             ->route('my-team.index')
             ->with('status', 'Roles and permissions saved.');
+    }
+
+    public function loginAs(
+        TeamMember $teamMember,
+        TeamAccessService $accessService,
+        TeamImpersonationService $impersonationService,
+        TeamRedirectService $redirectService,
+    ): RedirectResponse {
+        $accessService->authorizeMember($teamMember);
+
+        try {
+            $url = $redirectService->landingUrl($teamMember);
+        } catch (AuthorizationException $e) {
+            return redirect()
+                ->route('my-team.index')
+                ->with('status', $teamMember->displayName().' has no module access configured. Assign permissions before using Login as.');
+        }
+
+        $impersonationService->startAsOwner($accessService->owner(), $teamMember);
+
+        return redirect($url)
+            ->with('status', 'You are now impersonating '.$teamMember->displayName().'.');
     }
 
     /** @return \Illuminate\Support\Collection<int, WhatsappLine> */

@@ -50,6 +50,7 @@ final class TeamPresenter
             'roles_url' => route('my-team.roles', $member),
             'toggle_url' => route('my-team.status', $member),
             'delete_url' => route('my-team.destroy', $member),
+            'login_as_url' => route('my-team.login-as', $member),
         ];
     }
 

@@ -534,6 +534,7 @@ Route::middleware(['tenancy.session', 'auth:web,team', '2fa', 'team.redirect-das
         Route::post('/{teamMember}/status', [TeamController::class, 'toggleStatus'])->name('status');
         Route::get('/{teamMember}/roles', [TeamController::class, 'roles'])->name('roles');
         Route::put('/{teamMember}/roles', [TeamController::class, 'updateRoles'])->name('roles.update');
+        Route::post('/{teamMember}/login-as', [TeamController::class, 'loginAs'])->name('login-as');
     });
 
     Route::middleware('team.manager')->prefix('manager')->name('manager.')->group(function () {
@@ -555,6 +556,14 @@ Route::middleware(['tenancy.session', 'auth:web,team', '2fa', 'team.redirect-das
 
         Route::get('/settings', [ManagerSettingsController::class, 'edit'])->name('settings');
         Route::patch('/settings/auto', [ManagerSettingsController::class, 'update'])->name('settings.update');
-        Route::post('/back-to-me', [TeamImpersonationController::class, 'stop'])->name('back-to-me');
     });
+
+    // Accessible while impersonating a member (must not require manager middleware).
+    Route::post('/team/impersonation/stop', [TeamImpersonationController::class, 'stop'])
+        ->middleware('auth:team')
+        ->name('team.impersonation.stop');
+    // Legacy alias used by older manager UI links.
+    Route::post('/manager/back-to-me', [TeamImpersonationController::class, 'stop'])
+        ->middleware('auth:team')
+        ->name('manager.back-to-me');
 });

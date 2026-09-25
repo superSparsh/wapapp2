@@ -61,8 +61,7 @@
                 <th class="p-2 text-[13px] font-medium text-text-body">Phone</th>
                 <th class="p-2 text-[13px] font-medium text-text-body">Email</th>
                 <th class="p-2 text-center text-[13px] font-medium text-text-body">Assigned Conversations</th>
-                <th class="p-2 text-[13px] font-medium text-text-body">Status</th>
-                <th class="p-2 text-[13px] font-medium text-text-body">In/Active</th>
+                <th class="p-2 text-[13px] font-medium text-text-body">Active</th>
                 <th class="p-2 text-center text-[13px] font-medium text-text-body">Actions</th>
               </tr>
             </thead>
@@ -73,27 +72,32 @@
                   <td class="p-2 text-[13px] text-text-body">{{ $member['phone'] ?: '—' }}</td>
                   <td class="p-2 text-[13px] text-text-body">{{ $member['email'] }}</td>
                   <td class="p-2 text-center text-[13px] text-text-body">{{ $member['assigned_conversations'] }}</td>
-                  <td class="p-2" data-team-status-label>
-                    @if ($member['is_active'])
-                      <span class="inline-flex rounded bg-[rgba(0,128,0,0.1)] px-2 py-1 text-[10px] font-medium text-[green]">Active</span>
-                    @else
-                      <span class="inline-flex rounded bg-[rgba(0,0,0,0.1)] px-2 py-1 text-[10px] font-medium text-text-muted">Inactive</span>
-                    @endif
-                  </td>
                   <td class="p-2">
-                    <x-ui.toggle-switch :active="$member['is_active']" data-team-status-toggle data-status-url="{{ $member['toggle_url'] }}" />
+                    <div class="flex items-center gap-2">
+                      <x-ui.toggle-switch :active="$member['is_active']" data-team-status-toggle data-status-url="{{ $member['toggle_url'] }}" aria-label="Toggle team member active status" />
+                      <span data-team-status-label>
+                        @if ($member['is_active'])
+                          <span class="inline-flex rounded bg-[rgba(0,128,0,0.1)] px-2 py-1 text-[10px] font-medium text-[green]">Active</span>
+                        @else
+                          <span class="inline-flex rounded bg-[rgba(0,0,0,0.1)] px-2 py-1 text-[10px] font-medium text-text-muted">Inactive</span>
+                        @endif
+                      </span>
+                    </div>
                   </td>
                   <td class="p-2">
                     <div class="flex items-center justify-center gap-4">
                       <a href="{{ $member['roles_url'] }}" aria-label="Roles"><img src="{{ asset('images/team/profile-2user.svg') }}" alt="" class="size-5"></a>
                       <a href="{{ $member['edit_url'] }}" aria-label="Edit"><img src="{{ asset('images/team/edit.svg') }}" alt="" class="size-5"></a>
-                      <form method="post" action="{{ $member['login_as_url'] }}">@csrf<button type="submit" class="text-xs font-semibold text-green-500">Login as</button></form>
+                      <form method="post" action="{{ $member['login_as_url'] }}" data-confirm="Log in as {{ $member['name'] }}?" data-confirm-title="Login as team member" data-confirm-label="Login as">
+                        @csrf
+                        <button type="submit" class="text-xs font-semibold text-green-500">Login as</button>
+                      </form>
                       <form method="post" action="{{ $member['delete_url'] }}" data-confirm="Delete this team member?" data-confirm-title="Delete team member" data-confirm-label="Delete">@csrf @method('DELETE')<button type="submit"><img src="{{ asset('images/team/trash.svg') }}" alt="" class="size-5"></button></form>
                     </div>
                   </td>
                 </tr>
               @empty
-                <tr><td colspan="7" class="p-8 text-center text-sm text-text-body/70">No assigned team members yet.</td></tr>
+                <tr><td colspan="6" class="p-8 text-center text-sm text-text-body/70">No assigned team members yet.</td></tr>
               @endforelse
             </tbody>
           </table>
