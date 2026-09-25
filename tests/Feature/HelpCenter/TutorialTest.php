@@ -42,6 +42,7 @@ class TutorialTest extends TestCase
             ->get(route('tutorials.index'))
             ->assertOk()
             ->assertSee('Dashboard Overview')
+            ->assertSee('Note: These are tutorials from the previous WapApp design.')
             ->assertDontSee('Hidden Tutorial');
     }
 

@@ -3,6 +3,7 @@
     <div>
       <h1 class="text-2xl font-bold text-text-primary">Tutorials</h1>
       <p class="text-sm text-text-subtle opacity-70">Help center videos shown to customers (same as legacy Admin tutorials).</p>
+      <p class="mt-1 text-xs text-text-subtle">Local MP4 files go in: <code class="rounded bg-muted-surface px-1.5 py-0.5">public/assets/videos/tutorials/</code> (filename must match the Video ID field).</p>
     </div>
     <div class="flex flex-wrap gap-2">
       <form method="POST" action="{{ route('admin.tutorials.import-legacy') }}" onsubmit="return confirm('Import tutorials from the legacy database? Existing title+module rows will be updated.')">
