@@ -781,7 +781,7 @@ class TemplateWhatsAppService
 
         $template->update([
             'status' => TemplateStatus::Rejected,
-            'rejection_reason' => \Illuminate\Support\Str::limit($friendly !== '' ? $friendly : $presented['message'], 500),
+            'rejection_reason' => \Illuminate\Support\Str::limit($friendly !== '' ? $friendly : $presented['message'], 2000),
         ]);
 
         $this->logStatusChange($template, $previous, TemplateStatus::Rejected, $friendly);

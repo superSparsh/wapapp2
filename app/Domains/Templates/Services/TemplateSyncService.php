@@ -241,8 +241,8 @@ class TemplateSyncService
 
                 if ($newStatus === TemplateStatus::Rejected) {
                     $updateData['rejection_reason'] = \Illuminate\Support\Str::limit(
-                        $rejectionReason ?: 'WhatsApp rejected this template.',
-                        500,
+                        $rejectionReason ?: (string) ($template->rejection_reason ?: 'WhatsApp rejected this template.'),
+                        2000,
                     );
                 }
 
@@ -335,9 +335,26 @@ class TemplateSyncService
 
         $reason = $data['reason']
             ?? $data['Reason']
+            ?? $data['RejectReason']
+            ?? $data['rejectReason']
+            ?? $data['FailedReason']
+            ?? $data['failedReason']
+            ?? $data['Message']
+            ?? $data['message']
             ?? $body['Reason']
             ?? $body['reason']
-            ?? ($listItem['Reason'] ?? $listItem['reason'] ?? null);
+            ?? $body['RejectReason']
+            ?? $body['Message']
+            ?? ($listItem['Reason'] ?? $listItem['reason'] ?? $listItem['RejectReason'] ?? $listItem['Message'] ?? null);
+
+        if (is_string($reason)) {
+            $reason = trim($reason);
+            if ($reason === '') {
+                $reason = null;
+            }
+        } else {
+            $reason = null;
+        }
 
         $templateCode = $data['templateCode']
             ?? $data['TemplateCode']

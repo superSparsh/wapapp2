@@ -215,8 +215,8 @@
                           </div>
                         </div>
                         @if (! empty($template['error']) && ! empty($template['rejection_reason']))
-                          <p class="max-w-[280px] text-[11px] leading-[1.4] text-red-600" data-template-rejection-inline title="{{ $template['rejection_reason'] }}">
-                            {{ \Illuminate\Support\Str::limit($template['rejection_reason'], 120) }}
+                          <p class="max-w-[320px] text-[11px] leading-[1.4] text-red-600" data-template-rejection-inline title="{{ $template['rejection_reason'] }}">
+                            {{ \Illuminate\Support\Str::limit($template['rejection_reason'], 180) }}
                           </p>
                         @endif
                       </div>

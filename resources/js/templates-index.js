@@ -49,7 +49,7 @@ function toastTypeForStatus(status, variant, statusKey) {
     return 'info';
 }
 
-function notifyTemplateStatusChange(name, status, variant, statusKey) {
+function notifyTemplateStatusChange(name, status, variant, statusKey, rejectionReason = '') {
     const templateName = String(name || 'Template').trim() || 'Template';
     const statusLabel = String(status || '').trim();
 
@@ -57,11 +57,16 @@ function notifyTemplateStatusChange(name, status, variant, statusKey) {
         return;
     }
 
+    const detail = String(rejectionReason || '').trim();
+    const message = detail !== ''
+        ? detail
+        : `Status updated to ${statusLabel}.`;
+
     showToast({
         type: toastTypeForStatus(statusLabel, variant, statusKey),
         title: templateName,
-        message: `Status updated to ${statusLabel}.`,
-        duration: 6000,
+        message: message.length > 280 ? `${message.slice(0, 277)}...` : message,
+        duration: detail !== '' ? 10000 : 6000,
     });
 }
 
@@ -126,6 +131,7 @@ function initStatusPolling(root) {
                         nextStatus,
                         item.status_variant,
                         item.status_key,
+                        item.error ? item.rejection_reason : '',
                     );
                 }
 
@@ -137,7 +143,7 @@ function initStatusPolling(root) {
                     const show = Boolean(item.error);
                     rejectionWrap.classList.toggle('hidden', !show);
                     if (rejectionTitle) {
-                        rejectionTitle.textContent = item.rejection_title || 'Submission failed';
+                        rejectionTitle.textContent = item.rejection_title || 'WhatsApp rejected this template';
                     }
                     if (rejectionText) {
                         rejectionText.textContent = item.rejection_reason
@@ -152,13 +158,13 @@ function initStatusPolling(root) {
                     if (show && item.rejection_reason) {
                         if (!inline) {
                             inline = document.createElement('p');
-                            inline.className = 'max-w-[280px] text-[11px] leading-[1.4] text-red-600';
+                            inline.className = 'max-w-[320px] text-[11px] leading-[1.4] text-red-600';
                             inline.setAttribute('data-template-rejection-inline', '');
                             statusCell?.querySelector('.flex.flex-col')?.appendChild(inline)
                                 || statusCell?.appendChild(inline);
                         }
                         const text = String(item.rejection_reason);
-                        inline.textContent = text.length > 120 ? `${text.slice(0, 117)}...` : text;
+                        inline.textContent = text.length > 180 ? `${text.slice(0, 177)}...` : text;
                         inline.title = text;
                         inline.classList.remove('hidden');
                     } else if (inline) {

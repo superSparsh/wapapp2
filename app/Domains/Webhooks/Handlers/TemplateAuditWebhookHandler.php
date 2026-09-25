@@ -44,7 +44,7 @@ class TemplateAuditWebhookHandler
         $templateCode = (string) ($item['TemplateCode'] ?? $item['templateCode'] ?? '');
         $auditStatus = strtolower((string) ($item['AuditStatus'] ?? $item['auditStatus'] ?? $item['TemplateStatus'] ?? $item['templateStatus'] ?? ''));
         $custSpaceId = (string) ($item['CustSpaceId'] ?? $item['custSpaceId'] ?? '');
-        $reason = (string) ($item['Reason'] ?? $item['reason'] ?? $item['RejectReason'] ?? $item['rejectReason'] ?? '');
+        $reason = $this->extractAuditReason($item);
 
         $matched = false;
 
@@ -61,7 +61,7 @@ class TemplateAuditWebhookHandler
                     continue;
                 }
 
-                $this->applyAudit($template, $auditStatus, $reason, $templateCode);
+                $this->applyAudit($template, $auditStatus, $reason, $templateCode, $item);
                 $event->forceFill(['tenant_id' => $tenant->id])->save();
                 $matched = true;
                 break;
@@ -75,6 +75,7 @@ class TemplateAuditWebhookHandler
                 'template_code' => $templateCode,
                 'cust_space_id' => $custSpaceId,
                 'audit_status' => $auditStatus,
+                'reason' => $reason,
             ]);
         }
     }
@@ -86,8 +87,70 @@ class TemplateAuditWebhookHandler
             ->exists();
     }
 
-    private function applyAudit(Template $template, string $auditStatus, string $reason, string $templateCode): void
+    /**
+     * @param  array<string, mixed>  $item
+     */
+    private function extractAuditReason(array $item): string
     {
+        foreach ([
+            'Reason',
+            'reason',
+            'RejectReason',
+            'rejectReason',
+            'FailedReason',
+            'failedReason',
+            'FailReason',
+            'failReason',
+            'AuditReason',
+            'auditReason',
+            'ErrorDescription',
+            'errorDescription',
+            'ErrorMsg',
+            'errorMsg',
+            'Message',
+            'message',
+        ] as $key) {
+            $value = trim((string) ($item[$key] ?? ''));
+            if ($value !== '' && ! $this->isGenericStatusNoise($value)) {
+                return mb_substr($value, 0, 2000);
+            }
+        }
+
+        $data = $item['Data'] ?? $item['data'] ?? null;
+        if (is_array($data)) {
+            return $this->extractAuditReason($data);
+        }
+
+        return '';
+    }
+
+    private function isGenericStatusNoise(string $value): bool
+    {
+        $normalized = strtolower(trim($value));
+
+        return in_array($normalized, [
+            'ok',
+            'success',
+            'fail',
+            'failed',
+            'pass',
+            'approved',
+            'rejected',
+            'auditing',
+            'pending',
+        ], true);
+    }
+
+    /**
+     * @param  array<string, mixed>  $item
+     */
+    private function applyAudit(
+        Template $template,
+        string $auditStatus,
+        string $reason,
+        string $templateCode,
+        array $item = [],
+    ): void {
         $newStatus = match (true) {
             in_array($auditStatus, ['pass', 'approved', 'success'], true) => TemplateStatus::Approved,
             in_array($auditStatus, ['fail', 'failed', 'rejected', 'sendfail'], true) => TemplateStatus::Rejected,
@@ -100,8 +163,13 @@ class TemplateAuditWebhookHandler
             'synced_at' => now(),
         ];
 
-        if ($newStatus === TemplateStatus::Rejected && $reason !== '') {
-            $updates['rejection_reason'] = mb_substr($reason, 0, 500);
+        if ($newStatus === TemplateStatus::Rejected) {
+            if ($reason !== '') {
+                // Store the exact webhook/Meta reason for the templates error UI.
+                $updates['rejection_reason'] = $reason;
+            } elseif (! filled($template->rejection_reason)) {
+                $updates['rejection_reason'] = 'WhatsApp rejected this template without a detailed reason.';
+            }
         }
 
         if ($newStatus === TemplateStatus::Approved) {
@@ -110,13 +178,18 @@ class TemplateAuditWebhookHandler
 
         $template->update($updates);
 
-        if ($previous !== $newStatus) {
+        if ($previous !== $newStatus || ($newStatus === TemplateStatus::Rejected && $reason !== '')) {
             TemplateStatusLog::query()->create([
                 'template_id' => $template->id,
                 'previous_status' => $previous->value,
                 'new_status' => $newStatus->value,
                 'reason' => $reason !== '' ? $reason : 'alibaba_webhook_audit',
-                'meta' => ['template_code' => $templateCode, 'audit_status' => $auditStatus],
+                'meta' => [
+                    'template_code' => $templateCode,
+                    'audit_status' => $auditStatus,
+                    'source' => 'webhook',
+                    'payload_keys' => array_keys($item),
+                ],
             ]);
         }
     }

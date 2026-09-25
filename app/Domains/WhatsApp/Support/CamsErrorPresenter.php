@@ -6,7 +6,7 @@ namespace App\Domains\WhatsApp\Support;
 
 /**
  * Presents Alibaba CAMS / WhatsApp template errors for the UI.
- * Prefers the real provider Message (cleaned); never invents vague filler copy.
+ * Prefers the real provider / webhook Message; never invents vague filler copy.
  */
 final class CamsErrorPresenter
 {
@@ -24,17 +24,30 @@ final class CamsErrorPresenter
             ];
         }
 
+        // Meta / webhook audit reasons are plain English — show them as-is.
+        if (self::looksLikeMetaAuditReason($raw)) {
+            return [
+                'title' => self::titleForMetaReason($raw),
+                'message' => self::preserveMetaMessage($raw),
+                'hint' => self::hintForMetaReason($raw),
+            ];
+        }
+
         [$code, $message] = self::extractCodeAndMessage($raw);
         $codeKey = self::normalizeCode($code);
         $providerMessage = self::polishProviderMessage($message !== '' ? $message : $raw);
         $haystack = strtoupper($code.' '.$message.' '.$raw);
 
-        // Title + optional hint from known codes; body stays the real Alibaba/Meta text when present.
         [$title, $hint, $fallbackMessage] = self::guidanceFor($codeKey, $haystack);
 
         $body = $providerMessage !== '' ? $providerMessage : ($fallbackMessage ?? '');
         if ($body === '') {
             $body = $code !== '' ? $code : 'No error details were returned by WhatsApp.';
+        }
+
+        // Prefer the full provider/webhook text when guidance only adds a short fallback.
+        if ($providerMessage !== '' && mb_strlen($providerMessage) > mb_strlen((string) $fallbackMessage)) {
+            $body = $providerMessage;
         }
 
         return [
@@ -48,13 +61,12 @@ final class CamsErrorPresenter
     {
         $presented = self::present($raw);
 
-        // Store / toast: real provider message first; hint only when it adds action.
         $parts = array_filter([
             $presented['message'],
             $presented['hint'],
         ], static fn (?string $part): bool => filled($part));
 
-        return \Illuminate\Support\Str::limit(implode(' ', $parts), 360);
+        return \Illuminate\Support\Str::limit(implode(' ', $parts), 1000);
     }
 
     /**
@@ -74,11 +86,11 @@ final class CamsErrorPresenter
             str_contains($haystack, 'BEING DELETED')
             || str_contains($haystack, 'LANGUAGE IS BEING DELETED')
             || str_contains($haystack, 'TRY AGAIN IN 4 WEEKS')
-            || str_contains($haystack, '4 WEEKS')
+            || (str_contains($haystack, '4 WEEKS') && str_contains($haystack, 'TEMPLATE'))
         ) {
             return [
                 'Template name on cooldown',
-                'WhatsApp blocks reusing a deleted template name + language for up to 4 weeks. Create the template under a new name.',
+                'Choose a new template name, or wait up to 4 weeks before reusing this name + language.',
                 null,
             ];
         }
@@ -94,6 +106,62 @@ final class CamsErrorPresenter
             'TEMPLATE.NOTFOUND', 'TEMPLATENOTFOUND' => ['Template not found', null, null],
             default => ['Submission failed', null, null],
         };
+    }
+
+    private static function looksLikeMetaAuditReason(string $raw): bool
+    {
+        if (str_starts_with(ltrim($raw), '{') || str_starts_with(ltrim($raw), '[')) {
+            return false;
+        }
+
+        if (preg_match('/\bCode\s*[:=]\s*[A-Za-z0-9._-]+/i', $raw) === 1) {
+            return false;
+        }
+
+        $upper = strtoupper($raw);
+
+        return str_contains($upper, 'MESSAGE TEMPLATE')
+            || str_contains($upper, 'BEING DELETED')
+            || str_contains($upper, 'TRY AGAIN IN')
+            || str_contains($upper, 'WHATSAPP')
+            || str_contains($upper, 'CAN\'T BE ADDED')
+            || str_contains($upper, 'CANNOT BE ADDED')
+            || str_contains($upper, 'CONSIDER CREATING A NEW')
+            || (mb_strlen($raw) > 80 && ! str_contains($upper, 'INVALIDPARAMETER'));
+    }
+
+    private static function titleForMetaReason(string $raw): string
+    {
+        $upper = strtoupper($raw);
+
+        if (str_contains($upper, 'BEING DELETED') || str_contains($upper, '4 WEEKS')) {
+            return 'Template name on cooldown';
+        }
+
+        return 'WhatsApp rejected this template';
+    }
+
+    private static function hintForMetaReason(string $raw): ?string
+    {
+        $upper = strtoupper($raw);
+
+        if (str_contains($upper, 'BEING DELETED') || str_contains($upper, '4 WEEKS')) {
+            return 'Choose a new template name, or wait up to 4 weeks before reusing this name + language.';
+        }
+
+        return null;
+    }
+
+    private static function preserveMetaMessage(string $raw): string
+    {
+        $message = self::stripStoredFiller(self::stripNoise($raw));
+        $message = trim($message);
+
+        if ($message === '') {
+            return 'WhatsApp rejected this template.';
+        }
+
+        return \Illuminate\Support\Str::limit($message, 1000);
     }
 
     /**
@@ -117,8 +185,7 @@ final class CamsErrorPresenter
         }
 
         $message = self::stripNoise($raw);
-        // If the only content left is the code itself, treat message as empty.
-        if ($code !== '' && strcasecmp(trim($message, " ."), $code) === 0) {
+        if ($code !== '' && strcasecmp(trim($message, ' .'), $code) === 0) {
             $message = '';
         }
 
@@ -137,12 +204,12 @@ final class CamsErrorPresenter
             return '';
         }
 
-        $message = mb_strtoupper(mb_substr($message, 0, 1)).mb_substr($message, 1);
-        if (! str_ends_with($message, '.') && ! str_ends_with($message, '!') && ! str_ends_with($message, '?')) {
+        // Keep Meta wording intact (e.g. English (UK)); only ensure it ends cleanly.
+        if (! str_ends_with($message, '.') && ! str_ends_with($message, '!') && ! str_ends_with($message, '?') && ! str_ends_with($message, ')')) {
             $message .= '.';
         }
 
-        return \Illuminate\Support\Str::limit($message, 280);
+        return \Illuminate\Support\Str::limit($message, 1000);
     }
 
     private static function stripNoise(string $text): string
@@ -150,7 +217,8 @@ final class CamsErrorPresenter
         $text = preg_replace('/\bcode:\s*\d{3},?/i', '', $text) ?? $text;
         $text = preg_replace('/\brequest id:\s*[A-Z0-9-]+/i', '', $text) ?? $text;
         $text = preg_replace('/\bRequestId\s*[:=]\s*[A-Z0-9-]+/i', '', $text) ?? $text;
-        $text = preg_replace('/\bCode\s*[:=]\s*[A-Za-z0-9._-]+/i', '', $text) ?? $text;
+        // Only strip Code= when it is a CAMS machine code, not prose.
+        $text = preg_replace('/\bCode\s*[:=]\s*(InvalidParameter[A-Za-z0-9._-]*|MissingType|MissingComponents|Forbidden[A-Za-z0-9._-]*|Throttling[A-Za-z0-9._-]*)\b/i', '', $text) ?? $text;
         $text = preg_replace('/\s+/', ' ', $text) ?? $text;
 
         return trim($text, " \t\n\r\0\x0B,;|-");
@@ -158,7 +226,6 @@ final class CamsErrorPresenter
 
     private static function stripStoredFiller(string $text): string
     {
-        // Drop previously saved vague filler so the UI does not keep recycling it.
         $patterns = [
             '/WhatsApp could not accept this template\.?\s*Please review it and try again\.?/i',
             '/WhatsApp could not accept this template\.?/i',
