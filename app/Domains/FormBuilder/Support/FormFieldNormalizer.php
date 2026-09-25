@@ -68,7 +68,9 @@ final class FormFieldNormalizer
         $entry = [
             'type' => $type->value,
             'label' => $label,
-            'required' => (bool) ($field['required'] ?? $type->isRequiredByDefault()),
+            'required' => in_array($type, [FieldType::Logo, FieldType::Header, FieldType::Paragraph], true)
+                ? false
+                : (bool) ($field['required'] ?? $type->isRequiredByDefault()),
             'placeholder' => $placeholder,
             'text' => $text,
             'required_message' => $requiredMessage,

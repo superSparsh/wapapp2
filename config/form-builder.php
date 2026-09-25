@@ -16,7 +16,7 @@ return [
     // Logo upload limits
     'logo_max_kb' => (int) env('FORM_BUILDER_LOGO_MAX_KB', 2048),
     'logo_mimes' => ['png', 'jpg', 'jpeg'],
-    'logo_disk' => env('FORM_BUILDER_LOGO_DISK', 'local'),
+    'logo_disk' => env('FORM_BUILDER_LOGO_DISK', 'public'),
     'logo_directory' => 'form-logos',
 
     // Public form slug length
@@ -27,12 +27,12 @@ return [
         'logo' => [
             'label' => 'Logo Field',
             'always_top' => true,
-            'required' => true,
+            'required' => false,
         ],
         'header' => [
             'label' => 'Header Field',
             'always_top' => true,
-            'required' => true,
+            'required' => false,
         ],
         'paragraph' => [
             'label' => 'Paragraph Field',

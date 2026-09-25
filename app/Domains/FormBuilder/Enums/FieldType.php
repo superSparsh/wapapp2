@@ -42,7 +42,7 @@ enum FieldType: string
     public function isRequiredByDefault(): bool
     {
         return match ($this) {
-            self::Logo, self::Header, self::Phone, self::FirstName, self::LastName => true,
+            self::Phone, self::FirstName, self::LastName => true,
             default => false,
         };
     }

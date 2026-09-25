@@ -27,8 +27,9 @@ class FormBuilderService
         $name = trim($data['name'] ?? 'Untitled Form');
         $slug = SignupForm::generateSlug($name);
         $fields = $this->normalizeFields($data['fields'] ?? FieldType::defaultFields());
+        $logoPath = $data['logo_path'] ?? $this->logoPathFromFields($fields);
 
-        return DB::transaction(function () use ($data, $name, $slug, $fields): SignupForm {
+        return DB::transaction(function () use ($data, $name, $slug, $fields, $logoPath): SignupForm {
             $form = SignupForm::query()->create([
                 'name' => $name,
                 'slug' => $slug,
@@ -41,7 +42,7 @@ class FormBuilderService
                 'team_member_id' => $this->actorContext->teamMemberId(),
                 'team_member_name' => $this->actorContext->teamMemberName(),
                 'fields' => $fields,
-                'logo_path' => $data['logo_path'] ?? null,
+                'logo_path' => $logoPath,
                 'embed_settings' => $data['embed_settings'] ?? SignupForm::defaultEmbedSettings(),
                 'redirect_url' => $data['redirect_url'] ?? null,
                 'custom_css' => $data['custom_css'] ?? null,
@@ -79,9 +80,15 @@ class FormBuilderService
 
             if (isset($data['fields'])) {
                 $updates['fields'] = $this->normalizeFields($data['fields']);
+                if (! array_key_exists('logo_path', $data)) {
+                    $fromFields = $this->logoPathFromFields($updates['fields']);
+                    if ($fromFields !== null) {
+                        $updates['logo_path'] = $fromFields;
+                    }
+                }
             }
 
-            if (isset($data['logo_path'])) {
+            if (array_key_exists('logo_path', $data)) {
                 $updates['logo_path'] = $data['logo_path'];
             }
 
@@ -154,7 +161,8 @@ class FormBuilderService
     public function storeLogo($file): string
     {
         $directory = config('form-builder.logo_directory', 'form-logos');
-        $disk = config('form-builder.logo_disk', 'local');
+        // Public disk so asset('storage/...') works for builder preview + public forms.
+        $disk = config('form-builder.logo_disk', 'public');
 
         return $file->store($directory, $disk);
     }
@@ -184,28 +192,36 @@ class FormBuilderService
         // Ensure locked fields (phone) are always present
         $this->ensureLockedFields($normalized);
 
-        // Slice to max after ensuring locked fields
+        // Slice to max after ensuring locked fields — preserve user field order (shuffle).
         $normalized = array_slice($normalized, 0, $maxFields);
 
-        // Sort: always-top fields first (logo, header, phone), then rest in original order
-        usort($normalized, function (array $a, array $b): int {
-            $aType = FieldType::tryFrom($a['type']);
-            $bType = FieldType::tryFrom($b['type']);
-
-            $aTop = $aType?->isAlwaysTop() ?? false;
-            $bTop = $bType?->isAlwaysTop() ?? false;
-
-            if ($aTop && ! $bTop) {
-                return -1;
+        foreach ($normalized as &$entry) {
+            $type = FieldType::tryFrom((string) ($entry['type'] ?? ''));
+            if (in_array($type, [FieldType::Logo, FieldType::Header, FieldType::Paragraph], true)) {
+                $entry['required'] = false;
             }
-            if (! $aTop && $bTop) {
-                return 1;
-            }
-
-            return 0;
-        });
+        }
+        unset($entry);
 
         return $normalized;
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $fields
+     */
+    private function logoPathFromFields(array $fields): ?string
+    {
+        foreach ($fields as $field) {
+            if (($field['type'] ?? '') !== FieldType::Logo->value) {
+                continue;
+            }
+
+            $path = $field['image_path'] ?? null;
+
+            return is_string($path) && $path !== '' ? $path : null;
+        }
+
+        return null;
     }
 
     /**
