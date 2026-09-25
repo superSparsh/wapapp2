@@ -779,8 +779,31 @@ class TemplateWhatsAppService
         $previous = $template->status;
         // Legacy last_status: store the cleaned CAMS/Meta Message, not a rewritten UI title.
         $stored = CamsErrorPresenter::cleanRejectionReason($error);
+
         if ($stored === '') {
-            $stored = 'No error details were returned by WhatsApp.';
+            $decoded = json_decode($error, true);
+            if (is_array($decoded)) {
+                $fallback = trim((string) (
+                    $decoded['Message']
+                    ?? $decoded['message']
+                    ?? data_get($decoded, 'Error.Message')
+                    ?? data_get($decoded, 'AccessDeniedDetail')
+                    ?? ''
+                ));
+                $code = trim((string) ($decoded['Code'] ?? $decoded['code'] ?? ''));
+                if ($fallback !== '' && ! CamsErrorPresenter::isEmptyProviderReason($fallback)) {
+                    $stored = $code !== '' ? $fallback.' ('.$code.')' : $fallback;
+                } elseif ($code !== '' && ! CamsErrorPresenter::isEmptyProviderReason($code)) {
+                    $stored = $code;
+                }
+            }
+        }
+
+        if ($stored === '' || CamsErrorPresenter::isGenericFiller($stored)) {
+            $raw = trim(preg_replace('/\s+/', ' ', $error) ?? $error);
+            $stored = $raw !== ''
+                ? \Illuminate\Support\Str::limit($raw, 2000)
+                : 'WhatsApp provider returned an error without a readable message.';
         }
 
         $presented = CamsComponentEncoder::presentError($stored);
@@ -794,7 +817,7 @@ class TemplateWhatsAppService
 
         Log::error('Template submission failed', [
             'template_id' => $template->id,
-            'error' => $error,
+            'error' => \Illuminate\Support\Str::limit($error, 2000),
             'stored' => $stored,
             'title' => $presented['title'],
         ]);

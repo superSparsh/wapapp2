@@ -11,6 +11,7 @@ use App\Domains\Templates\Support\CamsTemplateIdentity;
 use App\Domains\Templates\Support\TemplateCatalogCache;
 use App\Domains\Templates\Support\TemplateCategoryCatalog;
 use App\Domains\Templates\Support\VariableActorContext;
+use App\Domains\WhatsApp\Support\CamsErrorPresenter;
 use App\Models\Template;
 use App\Models\WhatsappLine;
 use App\Support\ListingSort;
@@ -343,28 +344,43 @@ class TemplateRegistryService
                     continue;
                 }
 
+                $rawReason = (string) ($item['reason'] ?? '');
+                $cleanedReason = CamsErrorPresenter::cleanRejectionReason($rawReason);
+                if ($cleanedReason === '' || CamsErrorPresenter::isEmptyProviderReason($rawReason)) {
+                    $cleanedReason = '';
+                }
+
                 [$status] = $syncService->mapAuditStatus(
                     filled($item['audit_status'] ?? null) ? (string) $item['audit_status'] : 'pass',
-                    filled($item['reason'] ?? null) ? (string) $item['reason'] : null,
+                    $cleanedReason !== '' ? $cleanedReason : null,
                 );
+
+                $attributes = [
+                    'name' => (string) ($item['name'] ?? $code),
+                    'language' => (string) ($item['language'] ?? 'en_GB'),
+                    'category' => (string) ($item['category'] ?? 'MARKETING'),
+                    'status' => $status,
+                    'source' => TemplateSource::Cams,
+                    'synced_at' => now(),
+                    'body_preview' => (string) ($item['body'] ?? $item['name'] ?? $code),
+                ];
+
+                // Legacy last_status: only write reason when CAMS returns a real one.
+                // Never overwrite a create-time Message with Reason=None / empty.
+                if ($status === TemplateStatus::Rejected) {
+                    if ($cleanedReason !== '') {
+                        $attributes['rejection_reason'] = Str::limit($cleanedReason, 2000);
+                    }
+                } else {
+                    $attributes['rejection_reason'] = null;
+                }
 
                 Template::query()->updateOrCreate(
                     [
                         'code' => $code,
                         'whatsapp_line_id' => $line->id,
                     ],
-                    [
-                        'name' => (string) ($item['name'] ?? $code),
-                        'language' => (string) ($item['language'] ?? 'en_GB'),
-                        'category' => (string) ($item['category'] ?? 'MARKETING'),
-                        'status' => $status,
-                        'source' => TemplateSource::Cams,
-                        'synced_at' => now(),
-                        'rejection_reason' => $status === TemplateStatus::Rejected
-                            ? Str::limit((string) ($item['reason'] ?? ''), 500)
-                            : null,
-                        'body_preview' => (string) ($item['body'] ?? $item['name'] ?? $code),
-                    ],
+                    $attributes,
                 );
             }
         });

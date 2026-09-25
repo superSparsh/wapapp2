@@ -217,6 +217,7 @@ class TemplateSyncServiceTest extends TestCase
                 'Code' => 'OK',
                 'data' => [
                     'auditStatus' => 'sendFail',
+                    'reason' => 'None',
                     'templateCode' => '1257583503568572501',
                 ],
             ], 200),
@@ -227,5 +228,40 @@ class TemplateSyncServiceTest extends TestCase
         $template->refresh();
         $this->assertSame(TemplateStatus::Rejected, $template->status);
         $this->assertNull($template->rejection_reason);
+    }
+
+    public function test_coded_sync_keeps_create_error_when_cams_reason_is_none(): void
+    {
+        $line = WhatsappLine::factory()->create([
+            'alibaba_cust_space_id' => '100000430113',
+        ]);
+
+        $createError = 'Message template language is being deleted and can\'t be added.';
+
+        $template = Template::factory()->create([
+            'whatsapp_line_id' => $line->id,
+            'code' => '1257583503568572502',
+            'language' => 'en_GB',
+            'category' => 'MARKETING',
+            'status' => TemplateStatus::Rejected,
+            'rejection_reason' => $createError,
+        ]);
+
+        Http::fake([
+            'cams.ap-southeast-1.aliyuncs.com/*' => Http::response([
+                'Code' => 'OK',
+                'data' => [
+                    'auditStatus' => 'fail',
+                    'reason' => 'None',
+                    'templateCode' => '1257583503568572502',
+                ],
+            ], 200),
+        ]);
+
+        app(TemplateSyncService::class)->syncCodedDetailsBatch(10);
+
+        $template->refresh();
+        $this->assertSame(TemplateStatus::Rejected, $template->status);
+        $this->assertStringContainsString('being deleted', strtolower((string) $template->rejection_reason));
     }
 }

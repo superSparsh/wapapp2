@@ -241,23 +241,30 @@ class TemplateSyncService
                 $updateData['status'] = $newStatus;
 
                 if ($newStatus === TemplateStatus::Rejected) {
-                    // Legacy only writes last_status when CAMS returns a real reason —
-                    // never invent "WhatsApp rejected this template."
-                    if (filled($rejectionReason)) {
-                        $updateData['rejection_reason'] = \Illuminate\Support\Str::limit(
-                            CamsErrorPresenter::cleanRejectionReason($rejectionReason) ?: trim((string) $rejectionReason),
-                            2000,
-                        );
-                    } elseif (CamsErrorPresenter::isGenericFiller($template->rejection_reason)) {
-                        $updateData['rejection_reason'] = null;
-                    }
+                    // Legacy only writes last_status when CAMS returns a real reason.
+                    $cleanedReason = filled($rejectionReason)
+                        ? (CamsErrorPresenter::cleanRejectionReason($rejectionReason) ?: trim((string) $rejectionReason))
+                        : '';
 
-                    if (! filled($rejectionReason)) {
+                    if ($cleanedReason !== '' && ! CamsErrorPresenter::isEmptyProviderReason($cleanedReason)) {
+                        $updateData['rejection_reason'] = \Illuminate\Support\Str::limit($cleanedReason, 2000);
+                    } else {
+                        $recovered = $this->recoverRejectionReason($template);
+                        if ($recovered !== null) {
+                            $updateData['rejection_reason'] = $recovered;
+                        } elseif (
+                            CamsErrorPresenter::isGenericFiller($template->rejection_reason)
+                            || CamsErrorPresenter::isEmptyProviderReason($template->rejection_reason)
+                        ) {
+                            $updateData['rejection_reason'] = null;
+                        }
+
                         Log::info('Template rejected without CAMS reason', [
                             'template_id' => $template->id,
                             'audit_status' => $auditStatus,
                             'body_keys' => array_keys($body),
                             'data_keys' => array_keys($this->extractDetailPayload($body)),
+                            'data_snippet' => \Illuminate\Support\Str::limit(json_encode($this->extractDetailPayload($body)) ?: '', 1000),
                         ]);
                     }
                 }
@@ -422,12 +429,12 @@ class TemplateSyncService
         }
 
         $reason = trim($reason);
-        if ($reason === '' || CamsErrorPresenter::isGenericFiller($reason)) {
+        if ($reason === '' || CamsErrorPresenter::isGenericFiller($reason) || CamsErrorPresenter::isEmptyProviderReason($reason)) {
             return null;
         }
 
         $noise = strtolower($reason);
-        if (in_array($noise, ['ok', 'success', 'fail', 'failed', 'pass', 'approved', 'rejected', 'auditing', 'pending'], true)) {
+        if (in_array($noise, ['ok', 'success', 'fail', 'failed', 'pass', 'approved', 'rejected', 'auditing', 'pending', 'sendfail'], true)) {
             return null;
         }
 
@@ -555,5 +562,47 @@ class TemplateSyncService
     private function normalizeName(string $name): string
     {
         return str_replace(' ', '_', strtolower(trim($name)));
+    }
+
+    /**
+     * Reuse a previously stored create/modify error when CAMS later reports fail/sendFail
+     * with Reason=None (common Alibaba placeholder).
+     */
+    private function recoverRejectionReason(Template $template): ?string
+    {
+        $current = trim((string) $template->rejection_reason);
+        if ($current !== ''
+            && ! CamsErrorPresenter::isGenericFiller($current)
+            && ! CamsErrorPresenter::isEmptyProviderReason($current)
+        ) {
+            return \Illuminate\Support\Str::limit(
+                CamsErrorPresenter::cleanRejectionReason($current) ?: $current,
+                2000,
+            );
+        }
+
+        $fromLog = TemplateStatusLog::query()
+            ->where('template_id', $template->id)
+            ->whereNotNull('reason')
+            ->orderByDesc('id')
+            ->limit(10)
+            ->pluck('reason');
+
+        foreach ($fromLog as $reason) {
+            $candidate = CamsErrorPresenter::cleanRejectionReason((string) $reason);
+            if ($candidate === '' || CamsErrorPresenter::isEmptyProviderReason($candidate)) {
+                continue;
+            }
+            if (str_starts_with(strtolower($candidate), 'category updated')) {
+                continue;
+            }
+            if (strcasecmp($candidate, 'alibaba_webhook_audit') === 0) {
+                continue;
+            }
+
+            return \Illuminate\Support\Str::limit($candidate, 2000);
+        }
+
+        return null;
     }
 }

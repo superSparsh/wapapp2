@@ -17,7 +17,7 @@ final class CamsErrorPresenter
     public static function cleanRejectionReason(?string $raw): string
     {
         $raw = trim((string) $raw);
-        if ($raw === '' || self::isGenericFiller($raw)) {
+        if ($raw === '' || self::isGenericFiller($raw) || self::isEmptyProviderReason($raw)) {
             return '';
         }
 
@@ -29,11 +29,37 @@ final class CamsErrorPresenter
         $text = preg_replace('/\(#\d+\)\s*/', '', $text) ?? $text;
         $text = trim((string) preg_replace('/\s+/', ' ', $text));
 
-        if ($text === '' || self::isGenericFiller($text)) {
-            return $code !== '' && ! self::isGenericFiller($code) ? $code : '';
+        if ($text === '' || self::isGenericFiller($text) || self::isEmptyProviderReason($text)) {
+            return $code !== '' && ! self::isGenericFiller($code) && ! self::isEmptyProviderReason($code)
+                ? $code
+                : '';
         }
 
         return \Illuminate\Support\Str::limit($text, 2000);
+    }
+
+    /**
+     * Alibaba often returns Reason: "None" as a placeholder for empty.
+     */
+    public static function isEmptyProviderReason(?string $text): bool
+    {
+        $normalized = strtolower(trim((string) preg_replace('/\s+/', ' ', (string) $text)));
+        $normalized = rtrim($normalized, '.');
+
+        return in_array($normalized, [
+            '',
+            'none',
+            'null',
+            'nil',
+            'n/a',
+            'na',
+            'unknown',
+            '-',
+            '--',
+            'ok',
+            'success',
+            'successful',
+        ], true);
     }
 
     public static function isGenericFiller(?string $text): bool
@@ -56,7 +82,7 @@ final class CamsErrorPresenter
     public static function present(?string $raw): array
     {
         $raw = trim((string) $raw);
-        if ($raw === '' || self::isGenericFiller($raw)) {
+        if ($raw === '' || self::isGenericFiller($raw) || self::isEmptyProviderReason($raw)) {
             return [
                 'title' => 'Submission failed',
                 'message' => 'No error details were returned by WhatsApp.',
@@ -219,19 +245,33 @@ final class CamsErrorPresenter
     {
         $decoded = json_decode($raw, true);
         if (is_array($decoded)) {
-            $code = trim((string) ($decoded['Code'] ?? $decoded['code'] ?? data_get($decoded, 'Data.Code') ?? data_get($decoded, 'data.Code') ?? ''));
+            $code = trim((string) (
+                $decoded['Code']
+                ?? $decoded['code']
+                ?? data_get($decoded, 'Error.Code')
+                ?? data_get($decoded, 'Data.Code')
+                ?? data_get($decoded, 'data.Code')
+                ?? ''
+            ));
             $message = trim((string) (
                 $decoded['Message']
                 ?? $decoded['message']
                 ?? $decoded['Reason']
                 ?? $decoded['reason']
+                ?? data_get($decoded, 'Error.Message')
+                ?? data_get($decoded, 'error.message')
                 ?? data_get($decoded, 'Data.Message')
                 ?? data_get($decoded, 'data.Message')
                 ?? data_get($decoded, 'Data.Reason')
                 ?? data_get($decoded, 'data.reason')
+                ?? data_get($decoded, 'AccessDeniedDetail')
                 ?? data_get($decoded, 'body.Message')
                 ?? ''
             ));
+
+            if (self::isEmptyProviderReason($message)) {
+                $message = '';
+            }
 
             return [$code, $message];
         }

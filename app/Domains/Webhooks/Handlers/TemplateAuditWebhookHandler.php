@@ -139,6 +139,10 @@ class TemplateAuditWebhookHandler
             'rejected',
             'auditing',
             'pending',
+            'none',
+            'null',
+            'n/a',
+            'na',
         ], true);
     }
 
