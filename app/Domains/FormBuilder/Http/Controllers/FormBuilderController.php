@@ -19,6 +19,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class FormBuilderController extends Controller
 {
@@ -138,6 +139,37 @@ class FormBuilderController extends Controller
             ],
             'recentSubmissions' => $recentSubmissions,
         ]);
+    }
+
+    /**
+     * Paginated submission log with optional status filter (campaign detail parity).
+     */
+    public function statisticsDetail(Request $request, SignupForm $form): View
+    {
+        $form->load(['mailList', 'template']);
+
+        $submissions = $this->formBuilderService->submissionLog(
+            $form,
+            perPage: (int) config('form-builder.per_page', 10),
+            status: $request->query('status'),
+        );
+
+        return view('form-builder.detail', [
+            'form' => $form,
+            'submissions' => $submissions,
+            'currentStatus' => $request->query('status', ''),
+        ]);
+    }
+
+    /**
+     * CSV export of form submissions (optional status filter).
+     */
+    public function exportSubmissions(Request $request, SignupForm $form): StreamedResponse
+    {
+        return $this->formBuilderService->exportSubmissionsCsv(
+            $form,
+            $request->query('status'),
+        );
     }
 
     /**

@@ -49,12 +49,16 @@
         <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           @php
             $total = max(0, (int) ($stats['total'] ?? 0));
+            $detailRoute = fn (?string $status = null) => route('form-builder.statistics.detail', array_filter([
+                'form' => $form,
+                'status' => $status,
+            ]));
             $cards = [
-              ['title' => 'Total Submissions', 'count' => $total, 'percent' => $total > 0 ? '100' : '0', 'color' => 'blue', 'icon' => 'task'],
-              ['title' => 'Messages Sent', 'count' => (int) ($stats['sent'] ?? 0), 'percent' => $percent['sent'], 'color' => 'green', 'icon' => 'send'],
-              ['title' => 'Delivered', 'count' => (int) ($stats['delivered'] ?? 0), 'percent' => $percent['delivered'], 'color' => 'emerald', 'icon' => 'send'],
-              ['title' => 'Read', 'count' => (int) ($stats['read'] ?? 0), 'percent' => $percent['read'], 'color' => 'purple', 'icon' => 'tick-circle'],
-              ['title' => 'Failed', 'count' => (int) ($stats['failed'] ?? 0), 'percent' => $percent['failed'], 'color' => 'red', 'icon' => 'warning'],
+              ['title' => 'Total Submissions', 'count' => $total, 'percent' => $total > 0 ? '100' : '0', 'color' => 'blue', 'icon' => 'task', 'status' => null],
+              ['title' => 'Messages Sent', 'count' => (int) ($stats['sent'] ?? 0), 'percent' => $percent['sent'], 'color' => 'green', 'icon' => 'send', 'status' => 'sent'],
+              ['title' => 'Delivered', 'count' => (int) ($stats['delivered'] ?? 0), 'percent' => $percent['delivered'], 'color' => 'emerald', 'icon' => 'send', 'status' => 'delivered'],
+              ['title' => 'Read', 'count' => (int) ($stats['read'] ?? 0), 'percent' => $percent['read'], 'color' => 'purple', 'icon' => 'tick-circle', 'status' => 'read'],
+              ['title' => 'Failed', 'count' => (int) ($stats['failed'] ?? 0), 'percent' => $percent['failed'], 'color' => 'red', 'icon' => 'warning', 'status' => 'failed'],
             ];
           @endphp
 
@@ -66,6 +70,8 @@
               :percent="$card['percent']"
               :color="$card['color']"
               :icon="$card['icon']"
+              :details-href="$detailRoute($card['status'])"
+              :details-link-color="$card['color'] === 'red' ? 'text-[#71b56d]' : 'text-green-500'"
             />
           @endforeach
         </div>
@@ -74,7 +80,15 @@
 
     <section class="bg-surface p-4 pt-0">
       <div class="rounded-lg bg-elevated p-4">
-        <h3 class="mb-3 text-lg font-bold text-text-primary">Recent submissions</h3>
+        <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h3 class="text-lg font-bold text-text-primary">Recent submissions</h3>
+          <a
+            href="{{ route('form-builder.statistics.detail', $form) }}"
+            class="text-sm font-semibold text-green-500 hover:underline"
+          >
+            View all details
+          </a>
+        </div>
         @if ($recentSubmissions->isEmpty())
           <p class="py-8 text-center text-sm text-text-muted">No submissions yet. Share the public form link to start collecting leads.</p>
         @else

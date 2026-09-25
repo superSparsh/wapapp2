@@ -348,6 +348,132 @@ class FormBuilderTest extends TestCase
             ->assertSee('Template not configured');
     }
 
+    public function test_statistics_detail_renders(): void
+    {
+        $form = SignupForm::factory()->create([
+            'whatsapp_line_id' => $this->testLine->id,
+            'list_id' => $this->mailList->id,
+            'template_id' => $this->template->id,
+            'name' => 'Detail Form',
+        ]);
+
+        FormSubmission::query()->create([
+            'signup_form_id' => $form->id,
+            'phone' => '+919876543210',
+            'submission_data' => ['phone' => '919876543210'],
+            'message_status' => 'sent',
+            'sent_at' => now(),
+        ]);
+
+        $this->actingAsTenantUser()
+            ->get(route('form-builder.statistics.detail', $form))
+            ->assertOk()
+            ->assertViewIs('form-builder.detail')
+            ->assertViewHas('form')
+            ->assertViewHas('submissions')
+            ->assertSee('Detail Form')
+            ->assertSee('Submissions')
+            ->assertSee('+919876543210');
+    }
+
+    public function test_statistics_detail_filters_by_status(): void
+    {
+        $form = SignupForm::factory()->create([
+            'whatsapp_line_id' => $this->testLine->id,
+            'list_id' => $this->mailList->id,
+            'template_id' => $this->template->id,
+        ]);
+
+        FormSubmission::query()->create([
+            'signup_form_id' => $form->id,
+            'phone' => '+911111111111',
+            'submission_data' => [],
+            'message_status' => 'delivered',
+            'sent_at' => now(),
+            'delivered_at' => now(),
+        ]);
+        FormSubmission::query()->create([
+            'signup_form_id' => $form->id,
+            'phone' => '+912222222222',
+            'submission_data' => [],
+            'message_status' => 'failed',
+            'failed_reason' => 'Provider rejected',
+            'failed_at' => now(),
+        ]);
+        FormSubmission::query()->create([
+            'signup_form_id' => $form->id,
+            'phone' => '+913333333333',
+            'submission_data' => [],
+            'message_status' => 'failed',
+            'failed_reason' => 'Wallet empty',
+            'failed_at' => now(),
+        ]);
+
+        $response = $this->actingAsTenantUser()
+            ->get(route('form-builder.statistics.detail', ['form' => $form, 'status' => 'failed']))
+            ->assertOk();
+
+        $response->assertViewHas('submissions', function ($submissions) {
+            return $submissions->total() === 2;
+        });
+        $response->assertSee('Provider rejected')
+            ->assertSee('Wallet empty')
+            ->assertDontSee('+911111111111');
+    }
+
+    public function test_statistics_detail_paginates(): void
+    {
+        $form = SignupForm::factory()->create([
+            'whatsapp_line_id' => $this->testLine->id,
+            'list_id' => $this->mailList->id,
+            'template_id' => $this->template->id,
+        ]);
+
+        for ($i = 0; $i < 25; $i++) {
+            FormSubmission::query()->create([
+                'signup_form_id' => $form->id,
+                'phone' => '+91987654'.str_pad((string) $i, 4, '0', STR_PAD_LEFT),
+                'submission_data' => [],
+                'message_status' => 'sent',
+                'sent_at' => now(),
+            ]);
+        }
+
+        $this->actingAsTenantUser()
+            ->get(route('form-builder.statistics.detail', $form))
+            ->assertOk()
+            ->assertViewHas('submissions', function ($submissions) {
+                return $submissions->total() === 25
+                    && $submissions->perPage() === 10;
+            });
+    }
+
+    public function test_statistics_export_downloads_csv(): void
+    {
+        $form = SignupForm::factory()->create([
+            'whatsapp_line_id' => $this->testLine->id,
+            'list_id' => $this->mailList->id,
+            'template_id' => $this->template->id,
+        ]);
+
+        FormSubmission::query()->create([
+            'signup_form_id' => $form->id,
+            'phone' => '+919876543210',
+            'submission_data' => [],
+            'message_status' => 'failed',
+            'failed_reason' => 'Template rejected',
+            'failed_at' => now(),
+        ]);
+
+        $response = $this->actingAsTenantUser()
+            ->get(route('form-builder.statistics.export', $form))
+            ->assertOk();
+
+        $this->assertStringContainsString('text/csv', (string) $response->headers->get('content-type'));
+        $this->assertStringContainsString('+919876543210', $response->streamedContent());
+        $this->assertStringContainsString('Template rejected', $response->streamedContent());
+    }
+
     public function test_edit_page_does_not_show_behavior_embed_or_statistics_sections(): void
     {
         $form = SignupForm::factory()->create([

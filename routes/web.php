@@ -407,6 +407,8 @@ Route::middleware(['tenancy.session', 'auth:web,team', '2fa', 'team.redirect-das
             Route::post('/', [FormBuilderController::class, 'store'])->name('store');
             Route::get('/{form}/edit', [FormBuilderController::class, 'edit'])->name('edit');
             Route::get('/{form}/statistics', [FormBuilderController::class, 'statistics'])->name('statistics');
+            Route::get('/{form}/statistics/detail', [FormBuilderController::class, 'statisticsDetail'])->name('statistics.detail');
+            Route::get('/{form}/statistics/export', [FormBuilderController::class, 'exportSubmissions'])->name('statistics.export');
             Route::put('/{form}', [FormBuilderController::class, 'update'])->name('update');
             Route::delete('/{form}', [FormBuilderController::class, 'destroy'])->name('destroy');
             Route::post('/{form}/toggle', [FormBuilderController::class, 'toggleStatus'])->name('toggle');

@@ -10,6 +10,8 @@ use App\Domains\FormBuilder\Support\FormActorContext;
 use App\Domains\FormBuilder\Support\FormFieldNormalizer;
 use App\Models\FormSubmission;
 use App\Models\SignupForm;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -173,6 +175,104 @@ class FormBuilderService
             'read' => (int) ($counts->read_count ?? 0),
             'failed' => (int) ($counts->failed ?? 0),
         ];
+    }
+
+    /**
+     * Paginated submission log with optional status filter (campaign recipient-log parity).
+     *
+     * @return LengthAwarePaginator<int, FormSubmission>
+     */
+    public function submissionLog(SignupForm $form, int $perPage = 10, ?string $status = null): LengthAwarePaginator
+    {
+        $query = FormSubmission::query()
+            ->where('signup_form_id', $form->id)
+            ->with('contact:id,name,phone')
+            ->orderByDesc('created_at');
+
+        $this->applySubmissionStatusFilter($query, $status);
+
+        return $query->paginate($perPage)->withQueryString();
+    }
+
+    /**
+     * Stream CSV export of form submissions (optional status filter).
+     */
+    public function exportSubmissionsCsv(SignupForm $form, ?string $status = null): StreamedResponse
+    {
+        $filename = 'form-submissions-'.$form->id.'-'.now()->format('Y-m-d').'.csv';
+
+        return response()->streamDownload(function () use ($form, $status): void {
+            $handle = fopen('php://output', 'w');
+            fputcsv($handle, [
+                'SI. No',
+                'Contact Phone',
+                'Contact Name',
+                'Status',
+                'Reason',
+                'Submitted At',
+                'Sent At',
+                'Delivered At',
+                'Read At',
+                'Failed At',
+            ]);
+
+            $query = FormSubmission::query()
+                ->where('signup_form_id', $form->id)
+                ->with('contact:id,name,phone')
+                ->orderByDesc('created_at');
+
+            $this->applySubmissionStatusFilter($query, $status);
+
+            $index = 0;
+            foreach ($query->cursor() as $submission) {
+                $index++;
+                fputcsv($handle, [
+                    $index,
+                    $submission->phone ?? 'N/A',
+                    $submission->contact?->name ?? 'N/A',
+                    ucfirst($submission->displayStatus()),
+                    $submission->failed_reason ?: '—',
+                    $submission->created_at?->format('Y-m-d H:i:s') ?? '',
+                    $submission->sent_at?->format('Y-m-d H:i:s') ?? '',
+                    $submission->delivered_at?->format('Y-m-d H:i:s') ?? '',
+                    $submission->read_at?->format('Y-m-d H:i:s') ?? '',
+                    $submission->failed_at?->format('Y-m-d H:i:s') ?? '',
+                ]);
+            }
+
+            fclose($handle);
+        }, $filename, [
+            'Content-Type' => 'text/csv',
+        ]);
+    }
+
+    /**
+     * @param  Builder<FormSubmission>  $query
+     */
+    private function applySubmissionStatusFilter(Builder $query, ?string $status): void
+    {
+        if ($status === null || $status === '') {
+            return;
+        }
+
+        match ($status) {
+            'sent' => $query->whereNotNull('sent_at'),
+            'delivered' => $query->whereNotNull('delivered_at'),
+            'read' => $query->whereNotNull('read_at'),
+            'failed' => $query->where(function (Builder $q): void {
+                $q->where('message_status', 'failed')
+                    ->orWhere(function (Builder $inner): void {
+                        $inner->whereNotNull('failed_at')->whereNull('delivered_at');
+                    });
+            }),
+            'pending' => $query->whereNull('sent_at')
+                ->where(function (Builder $q): void {
+                    $q->whereNull('message_status')
+                        ->orWhereNotIn('message_status', ['failed', 'sent', 'delivered', 'read']);
+                })
+                ->whereNull('failed_at'),
+            default => null,
+        };
     }
 
     /**
