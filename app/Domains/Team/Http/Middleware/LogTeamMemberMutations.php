@@ -6,6 +6,7 @@ namespace App\Domains\Team\Http\Middleware;
 
 use App\Domains\Account\Services\ActivityLogService;
 use App\Domains\Team\Support\TeamActor;
+use App\Domains\Team\Support\TeamModuleActivityLabel;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -55,7 +56,7 @@ class LogTeamMemberMutations
 
         $this->activityLogService->logFromRequest($request, 'team.module.'.$verb.'.'.$routeName, [
             'scope' => 'account',
-            'description' => $this->description($verb, $routeName),
+            'description' => TeamModuleActivityLabel::describe($verb, $routeName),
             'metadata' => [
                 'route' => $routeName,
                 'method' => $verb,
@@ -64,17 +65,5 @@ class LogTeamMemberMutations
         ]);
 
         return $response;
-    }
-
-    private function description(string $verb, string $routeName): string
-    {
-        $action = match ($verb) {
-            'POST' => 'Created / submitted',
-            'PUT', 'PATCH' => 'Updated',
-            'DELETE' => 'Deleted',
-            default => $verb,
-        };
-
-        return $action.' via '.$routeName;
     }
 }

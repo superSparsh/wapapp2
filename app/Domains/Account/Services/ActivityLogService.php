@@ -6,6 +6,7 @@ namespace App\Domains\Account\Services;
 
 use App\Models\ActivityLog;
 use App\Models\User;
+use App\Domains\Team\Support\TeamModuleActivityLabel;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -44,6 +45,16 @@ class ActivityLogService
     {
         if (isset(self::ACTIONS[$action])) {
             return self::ACTIONS[$action];
+        }
+
+        $teamModule = TeamModuleActivityLabel::parseAction($action);
+        if ($teamModule !== null) {
+            $label = TeamModuleActivityLabel::describe($teamModule[0], $teamModule[1]);
+            if (filled($description) && preg_match('/\(by .+\)\s*$/u', (string) $description, $by) === 1) {
+                return $label.' '.$by[0];
+            }
+
+            return $label;
         }
 
         if (filled($description) && $description !== $action) {
