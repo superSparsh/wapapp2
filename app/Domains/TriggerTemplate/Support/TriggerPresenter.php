@@ -57,8 +57,8 @@ class TriggerPresenter
     }
 
     /**
-     * @param  array<int, array{code: string, name: string, language?: string, category?: string, preview?: array<string, mixed>}>  $templates
-     * @return array<int, array{code: string, name: string, body: string, preview: array{body: string, footer: string, header_type: string, header_text: string, header_image: ?string, header_video: ?string, buttons: array<int, mixed>}}>
+     * @param  array<int, array{code: string, name: string, language?: string, category?: string, variables?: list<string>, preview?: array<string, mixed>}>  $templates
+     * @return array<int, array{code: string, name: string, body: string, variables: list<string>, preview: array{body: string, footer: string, header_type: string, header_text: string, header_image: ?string, header_video: ?string, buttons: array<int, mixed>}}>
      */
     public function templateOptions(array $templates): array
     {
@@ -66,11 +66,17 @@ class TriggerPresenter
             ->map(function (array $template): array {
                 $preview = is_array($template['preview'] ?? null) ? $template['preview'] : [];
                 $body = trim((string) ($preview['body'] ?? $template['body_preview'] ?? ''));
+                $variables = collect($template['variables'] ?? [])
+                    ->map(fn ($name): string => trim((string) $name))
+                    ->filter(fn (string $name): bool => $name !== '')
+                    ->values()
+                    ->all();
 
                 return [
                     'code' => (string) ($template['code'] ?? ''),
                     'name' => (string) ($template['name'] ?? $template['code'] ?? ''),
                     'body' => $body,
+                    'variables' => $variables,
                     'preview' => [
                         'body' => $body,
                         'footer' => (string) ($preview['footer'] ?? ''),

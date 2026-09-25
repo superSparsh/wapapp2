@@ -56,6 +56,12 @@ class TriggerTemplateOptionService
                     'name' => (string) $template->name,
                     'language' => (string) $template->language,
                     'category' => (string) $template->category,
+                    'variables' => collect($this->previewService->variablesForTemplate($template))
+                        ->map(fn (array $variable): string => trim((string) ($variable['name'] ?? '')))
+                        ->filter(fn (string $name): bool => $name !== '')
+                        ->unique()
+                        ->values()
+                        ->all(),
                     'preview' => [
                         'body' => $body,
                         'footer' => (string) ($preview['footer'] ?? ''),

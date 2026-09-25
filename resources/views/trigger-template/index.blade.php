@@ -13,6 +13,7 @@
           Map keywords to auto-response WhatsApp templates. Use trigger name
           <code class="font-mono text-xs">{{ config('trigger-template.any_message_trigger') }}</code>
           for the first message from a new contact.
+          If the same keyword exists in Chatbot, Chatbot replies first and this Intent Response will not fire.
         </p>
       </div>
 

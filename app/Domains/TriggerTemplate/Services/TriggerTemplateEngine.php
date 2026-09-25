@@ -26,6 +26,7 @@ class TriggerTemplateEngine
         private readonly TriggerMatcherService $matcherService,
         private readonly InboxOutboundService $outboundService,
         private readonly WalletService $walletService,
+        private readonly TriggerTemplateParamsResolver $paramsResolver,
     ) {}
 
     public function process(Conversation $conversation, Message $inboundMessage): TriggerFireResult
@@ -61,10 +62,15 @@ class TriggerTemplateEngine
         try {
             $this->enrollContactInList($conversation, $trigger);
 
+            $templateParams = $this->paramsResolver->forConversation(
+                $conversation,
+                (string) $trigger->template_code,
+            );
+
             $this->outboundService->sendTemplate(
                 conversation: $conversation,
                 templateCode: $trigger->template_code,
-                templateParams: [],
+                templateParams: $templateParams,
                 extraMetadata: [
                     'wallet_source' => 'trigger',
                     'billable' => true,

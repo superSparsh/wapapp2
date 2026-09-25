@@ -333,6 +333,60 @@ class TriggerTemplateTest extends TestCase
         ]);
     }
 
+    public function test_engine_auto_fills_template_params_for_variable_templates(): void
+    {
+        Queue::fake();
+
+        WalletAccount::query()->create([
+            'balance' => 500,
+            'currency' => 'INR',
+        ]);
+
+        $templateCode = '935757998997286999';
+        Template::factory()->create([
+            'name' => 'Hello Name',
+            'code' => $templateCode,
+            'whatsapp_line_id' => $this->testLine->id,
+            'payload' => array_merge(Template::defaultPayload(), [
+                'body' => ['text' => 'Hello $(first_name), welcome.'],
+            ]),
+        ]);
+
+        TriggerVariable::factory()->create([
+            'variable_name' => 'hello',
+            'template_code' => $templateCode,
+            'template_name' => 'Hello Name',
+        ]);
+
+        $conversation = $this->conversation();
+        $conversation->contact?->forceFill(['name' => 'Sparsh Thakur'])->save();
+        $conversation->forceFill([
+            'contact_name' => 'Sparsh Thakur',
+            'contact_phone' => '917018107871',
+        ])->save();
+
+        $message = app(\App\Domains\Inbox\Services\InboxMessageService::class)
+            ->recordInbound($conversation, 'hello there');
+
+        $result = app(TriggerTemplateEngine::class)->process($conversation->refresh(), $message);
+
+        $this->assertSame(TriggerFireResult::Fired, $result);
+
+        $outbound = \App\Models\Message::query()
+            ->where('conversation_id', $conversation->id)
+            ->where('direction', \App\Enums\MessageDirection::Outbound)
+            ->latest('id')
+            ->first();
+
+        $this->assertNotNull($outbound);
+        $params = is_array($outbound->metadata['template_params'] ?? null)
+            ? $outbound->metadata['template_params']
+            : [];
+
+        $this->assertNotEmpty($params['first_name'] ?? null);
+        $this->assertArrayHasKey('first_name', $params);
+    }
+
     private function seedApprovedTemplate(string $code = '935757998997286912'): string
     {
         Template::factory()->create([

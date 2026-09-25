@@ -8,15 +8,20 @@
 @php
   $previewMap = collect($templateOptions)
     ->mapWithKeys(fn (array $template): array => [
-      (string) $template['code'] => $template['preview'] ?? [
-        'body' => (string) ($template['body'] ?? ''),
-        'footer' => '',
-        'header_type' => 'none',
-        'header_text' => '',
-        'header_image' => null,
-        'header_video' => null,
-        'buttons' => [],
-      ],
+      (string) $template['code'] => array_merge(
+        $template['preview'] ?? [
+          'body' => (string) ($template['body'] ?? ''),
+          'footer' => '',
+          'header_type' => 'none',
+          'header_text' => '',
+          'header_image' => null,
+          'header_video' => null,
+          'buttons' => [],
+        ],
+        [
+          'variables' => array_values($template['variables'] ?? []),
+        ],
+      ),
     ])
     ->all();
 @endphp
@@ -85,6 +90,7 @@
                     <option
                       value="{{ $template['code'] }}"
                       data-name="{{ $template['name'] }}"
+                      data-variables="{{ e(json_encode(array_values($template['variables'] ?? []))) }}"
                       @selected(old('template_code') === $template['code'])
                     >
                       {{ $template['name'] }}
@@ -100,6 +106,10 @@
                 >
               </div>
               <input type="hidden" name="template_name" id="template_name" value="{{ old('template_name') }}">
+              <div id="trigger-template-variables" class="hidden rounded-xl border border-border bg-muted-surface px-3 py-2 text-xs text-text-subtle">
+                <p class="font-semibold text-text-primary">Template variables (auto-filled on send)</p>
+                <p id="trigger-template-variables-list" class="mt-1 font-mono"></p>
+              </div>
               @error('template_code')
                 <p class="text-xs text-red-600">{{ $message }}</p>
               @enderror
@@ -130,6 +140,9 @@
               <p class="text-xs font-medium leading-[1.4] text-text-muted">
                 To trigger on the first message from a new contact, use the trigger name
                 <code class="font-mono">{{ config('trigger-template.any_message_trigger') }}</code>.
+              </p>
+              <p class="text-xs font-medium leading-[1.4] text-text-muted">
+                If Chatbot already uses this same keyword, Chatbot takes priority and this trigger will not send.
               </p>
             </div>
 
@@ -344,6 +357,40 @@
       }
     };
 
+    const variablesBox = document.getElementById('trigger-template-variables');
+    const variablesList = document.getElementById('trigger-template-variables-list');
+
+    const syncVariables = (data, option) => {
+      let variables = Array.isArray(data?.variables) ? data.variables : [];
+      if (variables.length === 0 && option?.dataset?.variables) {
+        try {
+          const parsed = JSON.parse(option.dataset.variables);
+          if (Array.isArray(parsed)) {
+            variables = parsed;
+          }
+        } catch (_error) {
+          variables = [];
+        }
+      }
+
+      variables = variables
+        .map((name) => String(name || '').trim())
+        .filter((name) => name !== '');
+
+      if (!variablesBox || !variablesList) {
+        return;
+      }
+
+      if (variables.length === 0) {
+        variablesBox.classList.add('hidden');
+        variablesList.textContent = '';
+        return;
+      }
+
+      variablesBox.classList.remove('hidden');
+      variablesList.textContent = variables.map((name) => '$(' + name + ')').join(', ');
+    };
+
     const sync = () => {
       const option = select.options[select.selectedIndex];
       const name = option?.dataset?.name || option?.textContent?.trim() || '';
@@ -352,11 +399,14 @@
 
       if (!code) {
         applyPreview(null);
+        syncVariables(null, option);
         return;
       }
 
       const preview = previewMap[code];
-      applyPreview(preview && typeof preview === 'object' ? preview : null);
+      const previewData = preview && typeof preview === 'object' ? preview : null;
+      applyPreview(previewData);
+      syncVariables(previewData, option);
     };
 
     select.addEventListener('change', sync);
