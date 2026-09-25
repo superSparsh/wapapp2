@@ -123,6 +123,12 @@ class AlibabaOutboundMessageGateway implements \App\Domains\Inbox\Contracts\Outb
                         'external_message_id' => $externalId,
                     ]);
                 }
+
+                Log::info('CAMS outbound send accepted', [
+                    'message_id' => $message->id,
+                    'external_message_id' => $externalId,
+                    'wallet_source' => is_array($message->metadata) ? ($message->metadata['wallet_source'] ?? null) : null,
+                ]);
             } else {
                 Log::warning('CAMS outbound response missing MessageId', [
                     'message_id' => $message->id,

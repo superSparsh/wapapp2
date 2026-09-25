@@ -310,13 +310,7 @@ class DeliveryStatusHandler
         $recipient = $this->findCampaignRecipient($item, $messageId);
 
         if ($recipient === null) {
-            Log::warning('Campaign recipient not found for Alibaba status webhook', [
-                'message_id' => $messageId,
-                'status' => $status,
-                'to' => $item['To'] ?? $item['to'] ?? null,
-                'group_id' => $item['GroupId'] ?? $item['groupId'] ?? $item['TaskId'] ?? null,
-            ]);
-
+            // Form / inbox / opt-in templates are not campaign recipients — don't alarm.
             return;
         }
 
@@ -461,6 +455,13 @@ class DeliveryStatusHandler
 
         $submission = $this->findFormSubmission($message, $messageId, $item);
         if ($submission === null) {
+            Log::info('Form submission not matched for status webhook', [
+                'provider_message_id' => $messageId,
+                'status' => $status,
+                'local_message_id' => $message?->id,
+                'to' => $item['To'] ?? $item['to'] ?? null,
+            ]);
+
             return;
         }
 
@@ -472,6 +473,14 @@ class DeliveryStatusHandler
                 failedReason: $formStatus === 'failed' ? $this->extractFailureReason($item) : null,
                 outboundMessageId: $message?->id,
             );
+
+            Log::info('Form submission status synced', [
+                'form_submission_id' => $submission->id,
+                'signup_form_id' => $submission->signup_form_id,
+                'status' => $formStatus,
+                'provider_message_id' => $messageId,
+                'local_message_id' => $message?->id,
+            ]);
         } catch (\Throwable $e) {
             Log::warning('Form submission status sync failed', [
                 'message_id' => $messageId,

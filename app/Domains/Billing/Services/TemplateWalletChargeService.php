@@ -147,6 +147,15 @@ class TemplateWalletChargeService
             $meta['wallet_charged_at'] = now()->toIso8601String();
             $message->forceFill(['metadata' => $meta])->save();
 
+            Log::info('Wallet delivery charge applied', [
+                'message_id' => $message->id,
+                'transaction_id' => $transaction->id,
+                'amount' => $unitCost,
+                'source' => $source,
+                'category' => $category,
+                'external_message_id' => $message->external_message_id,
+            ]);
+
             try {
                 app(\App\Domains\Alerts\Services\AlertDispatcher::class)
                     ->lowWallet(context: 'template_delivery_charge:'.$source);
