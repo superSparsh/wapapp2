@@ -77,6 +77,20 @@ class HelpCenterSeeder extends Seeder
 
     private function seedTutorials(): void
     {
+        // Remove old placeholder seed groups that conflicted with legacy imports.
+        TutorialVideo::query()
+            ->where(function ($query): void {
+                $query->whereIn('module_name', [
+                    'INBOX',
+                    'DASHBOARD',
+                    'AUTOMATION',
+                    'ACCOUNTS',
+                    'DASHBOARD - Sub-module 1: Getting Started',
+                ])->orWhere('module_name', 'like', 'DASHBOARD - Sub-module%')
+                    ->orWhere('youtube_id', 'dQw4w9WgXcQ');
+            })
+            ->delete();
+
         foreach ($this->legacyTutorialRows() as $video) {
             $title = trim((string) ($video['title'] ?? ''));
             $moduleName = trim((string) ($video['module_name'] ?? ''));

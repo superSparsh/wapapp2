@@ -20,7 +20,7 @@ class TutorialModuleTreeTest extends TestCase
         $this->tree = app(TutorialModuleTree::class);
     }
 
-    public function test_uses_exact_legacy_module_names_without_extra_headings(): void
+    public function test_keeps_legacy_module_labels_with_submodules(): void
     {
         $videos = collect([
             TutorialVideo::factory()->make([
@@ -30,7 +30,7 @@ class TutorialModuleTreeTest extends TestCase
             ]),
             TutorialVideo::factory()->make([
                 'id' => 2,
-                'title' => 'Inbox Basics',
+                'title' => 'Finding & Filtering Chats',
                 'module_name' => 'Module 2: Inbox',
             ]),
             TutorialVideo::factory()->make([
@@ -43,9 +43,11 @@ class TutorialModuleTreeTest extends TestCase
         $categories = $this->tree->build($videos, 1);
 
         $this->assertCount(3, $categories);
-        $this->assertSame('Module 3: Automation - Sub-module 1: Chatbot', $categories[0]['label']);
-        $this->assertNull($categories[0]['children']);
+        $this->assertSame('Module 3: Automation', $categories[0]['label']);
+        $this->assertNotNull($categories[0]['children']);
+        $this->assertSame('Chatbot', $categories[0]['children'][0]['label']);
         $this->assertSame('Module 2: Inbox', $categories[1]['label']);
+        $this->assertNull($categories[1]['children']);
         $this->assertSame('Module 1: Dashboard', $categories[2]['label']);
     }
 

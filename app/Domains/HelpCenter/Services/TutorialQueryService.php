@@ -19,6 +19,9 @@ class TutorialQueryService
             (string) config('help-center.cache.tutorials'),
             fn (): Collection => TutorialVideo::query()
                 ->where('is_active', true)
+                // Hide old placeholder seed groups (INBOX / DASHBOARD / AUTOMATION).
+                // Real legacy rows are always "Module N: …".
+                ->where('module_name', 'like', 'Module %')
                 ->orderBy('sort_order')
                 ->orderBy('id')
                 ->get(),

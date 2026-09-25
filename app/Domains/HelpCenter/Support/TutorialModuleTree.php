@@ -29,10 +29,20 @@ class TutorialModuleTree
                 continue;
             }
 
-            // Exact legacy module_name as the only heading — no parent/child renaming.
             $moduleName = trim((string) $video->module_name);
-            $structure[$moduleName]['type'] = 'single';
-            $structure[$moduleName]['items'][] = $video;
+
+            // Legacy layout: "Module 3: Automation - Sub-module 1: Chatbot"
+            // → parent "Module 3: Automation", child "Chatbot"
+            if (preg_match('/^(.*?)\s-\sSub-module\s.*?:\s*(.*)$/u', $moduleName, $matches) === 1) {
+                $parent = trim($matches[1]);
+                $child = trim($matches[2]);
+
+                $structure[$parent]['type'] = 'parent';
+                $structure[$parent]['items'][$child][] = $video;
+            } else {
+                $structure[$moduleName]['type'] = 'single';
+                $structure[$moduleName]['items'][] = $video;
+            }
         }
 
         $categories = [];
@@ -113,14 +123,20 @@ class TutorialModuleTree
      */
     public function navigation(array $flatVideos, ?int $activeVideoId): array
     {
-        $index = collect($flatVideos)->search(fn (array $video): bool => $video['id'] === $activeVideoId);
+        $activeVideoId = $activeVideoId !== null ? (int) $activeVideoId : null;
+        $index = collect($flatVideos)->search(
+            fn (array $video): bool => (int) $video['id'] === $activeVideoId,
+        );
         $index = $index === false ? 0 : (int) $index;
+
+        $previousId = $flatVideos[$index - 1]['id'] ?? null;
+        $nextId = $flatVideos[$index + 1]['id'] ?? null;
 
         return [
             'index' => $index + 1,
             'total' => count($flatVideos),
-            'previous_id' => $flatVideos[$index - 1]['id'] ?? null,
-            'next_id' => $flatVideos[$index + 1]['id'] ?? null,
+            'previous_id' => $previousId !== null ? (int) $previousId : null,
+            'next_id' => $nextId !== null ? (int) $nextId : null,
         ];
     }
 
@@ -134,13 +150,13 @@ class TutorialModuleTree
         $hasLocalFile = $localPath !== null;
 
         return [
-            'id' => $video->id,
+            'id' => (int) $video->id,
             'title' => $video->title,
             'module_name' => $video->module_name,
             'description' => $video->description,
             'duration' => $video->duration,
-            'active' => $activeVideoId === $video->id,
-            'url' => route('tutorials.index', ['video_id' => $video->id]),
+            'active' => $activeVideoId !== null && (int) $activeVideoId === (int) $video->id,
+            'url' => route('tutorials.index', ['video_id' => (int) $video->id]),
             'embed_url' => null,
             'stream_url' => $hasLocalFile ? $this->localPlaybackUrl((string) $video->youtube_id) : null,
             'is_local' => $isLocal,

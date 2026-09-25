@@ -28,9 +28,10 @@
                 type="button"
                 id="tutorial-share-btn"
                 data-share-url="{{ $shareUrl }}"
+                data-video-id="{{ $current['id'] }}"
                 class="fd-btn-sm inline-flex shrink-0 items-center justify-center gap-2 rounded border border-solid border-green-500 px-6 py-3 text-xs font-semibold leading-[1.5] text-green-500 transition-colors hover:bg-green-50"
               >
-                Share Video
+                Copy Link
                 <img src="{{ asset('images/tutorials/share.svg') }}" alt="" class="size-5" width="20" height="20">
               </button>
             </div>
@@ -42,7 +43,7 @@
                   playsinline
                   preload="metadata"
                   class="absolute inset-0 size-full object-contain"
-                  src="{{ $current['stream_url'] }}"
+                  src="{{ $current['stream_url'] }}{{ str_contains($current['stream_url'], '?') ? '&' : '?' }}v={{ $current['id'] }}"
                 >
                   Your browser does not support the video tag.
                 </video>
@@ -62,7 +63,7 @@
               <div class="flex flex-wrap items-center gap-2.5">
                 @if ($navigation['previous_id'])
                   <a
-                    href="{{ route('tutorials.index', array_filter(['video_id' => $navigation['previous_id'], 'q' => $search ?: null])) }}"
+                    href="{{ route('tutorials.index', array_filter(['video_id' => $navigation['previous_id'], 'q' => $search !== '' ? $search : null], fn ($value) => $value !== null && $value !== '')) }}"
                     class="fd-btn-sm inline-flex items-center justify-center gap-2 rounded border border-solid border-green-500 px-6 py-3 text-xs font-semibold leading-[1.5] text-green-500 transition-colors hover:bg-green-50"
                   >
                     <img src="{{ asset('images/tutorials/arrow-left.svg') }}" alt="" class="size-5" width="20" height="20">
@@ -72,7 +73,7 @@
 
                 @if ($navigation['next_id'])
                   <a
-                    href="{{ route('tutorials.index', array_filter(['video_id' => $navigation['next_id'], 'q' => $search ?: null])) }}"
+                    href="{{ route('tutorials.index', array_filter(['video_id' => $navigation['next_id'], 'q' => $search !== '' ? $search : null], fn ($value) => $value !== null && $value !== '')) }}"
                     class="fd-btn-sm inline-flex items-center justify-center gap-2 rounded border border-solid border-green-500 px-6 py-3 text-xs font-semibold leading-[1.5] text-green-500 transition-colors hover:bg-green-50"
                   >
                     Next
@@ -180,9 +181,63 @@
         });
       }
 
-      shareBtn?.addEventListener('click', () => {
-        const url = shareBtn.dataset.shareUrl || window.location.href;
-        navigator.clipboard.writeText(url).catch(() => {});
+      shareBtn?.addEventListener('click', async () => {
+        const videoId = shareBtn.dataset.videoId || '';
+        let url = shareBtn.dataset.shareUrl || window.location.href;
+
+        try {
+          const parsed = new URL(url, window.location.origin);
+          if (videoId) {
+            parsed.searchParams.set('video_id', videoId);
+          }
+          // Always use the current host (APP_URL may be wrong on server).
+          parsed.protocol = window.location.protocol;
+          parsed.host = window.location.host;
+          url = parsed.toString();
+        } catch (e) {
+          // keep url as-is
+        }
+
+        const label = shareBtn.childNodes[0];
+        const setLabel = (text) => {
+          if (label && label.nodeType === Node.TEXT_NODE) {
+            label.textContent = text;
+          } else {
+            shareBtn.textContent = text;
+          }
+        };
+
+        const copied = async () => {
+          setLabel('Copied!');
+          setTimeout(() => setLabel('Copy Link'), 1600);
+        };
+
+        try {
+          if (navigator.clipboard?.writeText) {
+            await navigator.clipboard.writeText(url);
+            await copied();
+            return;
+          }
+        } catch (e) {
+          // fall through
+        }
+
+        const input = document.createElement('input');
+        input.value = url;
+        input.setAttribute('readonly', '');
+        input.style.position = 'fixed';
+        input.style.opacity = '0';
+        document.body.appendChild(input);
+        input.select();
+        input.setSelectionRange(0, input.value.length);
+        try {
+          document.execCommand('copy');
+          await copied();
+        } catch (e) {
+          window.prompt('Copy this link:', url);
+        } finally {
+          document.body.removeChild(input);
+        }
       });
     })();
   </script>

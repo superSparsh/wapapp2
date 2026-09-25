@@ -25,10 +25,12 @@ class TutorialController extends Controller
         $flatVideos = $moduleTree->flat($allVideos);
 
         $videoId = (int) $request->integer('video_id');
-        $selected = $videoId > 0 ? $allVideos->firstWhere('id', $videoId) : null;
+        $selected = $videoId > 0
+            ? $allVideos->first(fn ($video): bool => (int) $video->id === $videoId)
+            : null;
 
         if ($selected === null && $flatVideos !== []) {
-            $selected = $allVideos->firstWhere('id', (int) $flatVideos[0]['id']);
+            $selected = $allVideos->first(fn ($video): bool => (int) $video->id === (int) $flatVideos[0]['id']);
             $videoId = (int) ($selected?->id ?? 0);
         }
 
@@ -40,7 +42,9 @@ class TutorialController extends Controller
             'current' => $current,
             'navigation' => $navigation,
             'search' => $search,
-            'shareUrl' => $videoId > 0 ? route('tutorials.index', ['video_id' => $videoId]) : route('tutorials.index'),
+            'shareUrl' => $videoId > 0
+                ? url()->route('tutorials.index', ['video_id' => $videoId])
+                : url()->route('tutorials.index'),
         ]);
     }
 
