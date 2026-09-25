@@ -20,12 +20,12 @@ class TutorialModuleTreeTest extends TestCase
         $this->tree = app(TutorialModuleTree::class);
     }
 
-    public function test_builds_parent_and_submodule_structure(): void
+    public function test_keeps_legacy_module_labels(): void
     {
         $videos = collect([
             TutorialVideo::factory()->make([
                 'id' => 1,
-                'title' => 'Dashboard Overview',
+                'title' => 'Understanding the Chatbot Interface',
                 'module_name' => 'Module 3: Automation - Sub-module 1: Chatbot',
             ]),
             TutorialVideo::factory()->make([
@@ -33,37 +33,21 @@ class TutorialModuleTreeTest extends TestCase
                 'title' => 'Inbox Basics',
                 'module_name' => 'Module 2: Inbox',
             ]),
-        ]);
-
-        $categories = $this->tree->build($videos, 1);
-
-        $this->assertCount(2, $categories);
-        $this->assertSame('Inbox', $categories[0]['label']);
-        $this->assertNotNull($categories[0]['videos']);
-        $this->assertSame('Automation', $categories[1]['label']);
-        $this->assertNotNull($categories[1]['children']);
-        $this->assertSame('Chatbot', $categories[1]['children'][0]['label']);
-    }
-
-    public function test_merges_legacy_dashboard_labels_into_one_category(): void
-    {
-        $videos = collect([
             TutorialVideo::factory()->make([
-                'id' => 1,
-                'title' => 'Old Dashboard',
-                'module_name' => 'DASHBOARD - Sub-module 1: Getting Started',
-            ]),
-            TutorialVideo::factory()->make([
-                'id' => 2,
-                'title' => 'New Dashboard',
+                'id' => 3,
+                'title' => 'Dashboard Overview',
                 'module_name' => 'Module 1: Dashboard',
             ]),
         ]);
 
-        $categories = $this->tree->build($videos);
+        $categories = $this->tree->build($videos, 1);
 
-        $this->assertCount(1, $categories);
-        $this->assertSame('Dashboard', $categories[0]['label']);
+        $this->assertCount(3, $categories);
+        $this->assertSame('Module 3: Automation', $categories[0]['label']);
+        $this->assertNotNull($categories[0]['children']);
+        $this->assertSame('Chatbot', $categories[0]['children'][0]['label']);
+        $this->assertSame('Module 2: Inbox', $categories[1]['label']);
+        $this->assertSame('Module 1: Dashboard', $categories[2]['label']);
     }
 
     public function test_local_playback_url_uses_public_asset_when_file_exists(): void
