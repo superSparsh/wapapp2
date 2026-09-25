@@ -54,6 +54,46 @@ class FormBuilderTest extends TestCase
             ->assertViewHas('defaultFields');
     }
 
+    public function test_create_page_lists_latest_mail_lists_and_approved_templates_first(): void
+    {
+        $olderList = MailList::factory()->create([
+            'name' => 'Older List',
+            'created_at' => now()->subDays(2),
+        ]);
+        $newerList = MailList::factory()->create([
+            'name' => 'Newer List',
+            'created_at' => now()->subHour(),
+        ]);
+
+        $olderTemplate = Template::factory()->create([
+            'name' => 'Older Template',
+            'created_at' => now()->subDays(2),
+        ]);
+        $newerTemplate = Template::factory()->create([
+            'name' => 'Newer Template',
+            'created_at' => now()->subHour(),
+        ]);
+
+        $response = $this->actingAsTenantUser()
+            ->get(route('form-builder.create'))
+            ->assertOk();
+
+        $mailListIds = array_keys($response->viewData('mailLists')->all());
+        $templateIds = array_keys($response->viewData('templates')->all());
+
+        $newerListPos = array_search($newerList->id, $mailListIds, true);
+        $olderListPos = array_search($olderList->id, $mailListIds, true);
+        $this->assertNotFalse($newerListPos);
+        $this->assertNotFalse($olderListPos);
+        $this->assertLessThan($olderListPos, $newerListPos);
+
+        $newerTemplatePos = array_search($newerTemplate->id, $templateIds, true);
+        $olderTemplatePos = array_search($olderTemplate->id, $templateIds, true);
+        $this->assertNotFalse($newerTemplatePos);
+        $this->assertNotFalse($olderTemplatePos);
+        $this->assertLessThan($olderTemplatePos, $newerTemplatePos);
+    }
+
     public function test_owner_can_create_a_new_form(): void
     {
         $response = $this->actingAsTenantUser()

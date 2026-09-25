@@ -72,19 +72,11 @@ class FormBuilderController extends Controller
     public function create(): View
     {
         $fieldTypes = FieldType::availableForBuilder();
-        $templates = Template::query()
-            ->where('status', 'approved')
-            ->orderBy('name')
-            ->pluck('name', 'id');
-        $mailLists = MailList::query()
-            ->where('status', 'active')
-            ->orderBy('name')
-            ->pluck('name', 'id');
 
         return view('form-builder.create', [
             'fieldTypes' => $fieldTypes,
-            'templates' => $templates,
-            'mailLists' => $mailLists,
+            'templates' => $this->approvedTemplatesForSelect(),
+            'mailLists' => $this->activeMailListsForSelect(),
             'defaultFields' => FieldType::defaultFields(),
         ]);
     }
@@ -109,20 +101,11 @@ class FormBuilderController extends Controller
         $form->load(['template', 'whatsappLine', 'mailList']);
         $fieldTypes = FieldType::availableForBuilder();
 
-        $templates = Template::query()
-            ->where('status', 'approved')
-            ->orderBy('name')
-            ->pluck('name', 'id');
-        $mailLists = MailList::query()
-            ->where('status', 'active')
-            ->orderBy('name')
-            ->pluck('name', 'id');
-
         return view('form-builder.edit', [
             'form' => $form,
             'fieldTypes' => $fieldTypes,
-            'templates' => $templates,
-            'mailLists' => $mailLists,
+            'templates' => $this->approvedTemplatesForSelect(),
+            'mailLists' => $this->activeMailListsForSelect(),
             'fields' => FormFieldNormalizer::normalizeList($form->fields ?? []),
         ]);
     }
@@ -216,5 +199,33 @@ class FormBuilderController extends Controller
             'path' => $path,
             'url' => asset('storage/'.$path),
         ]);
+    }
+
+    /**
+     * Latest approved templates first for create/edit selects.
+     *
+     * @return \Illuminate\Support\Collection<int|string, string>
+     */
+    private function approvedTemplatesForSelect()
+    {
+        return Template::query()
+            ->where('status', 'approved')
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->pluck('name', 'id');
+    }
+
+    /**
+     * Latest active mail lists first for create/edit selects.
+     *
+     * @return \Illuminate\Support\Collection<int|string, string>
+     */
+    private function activeMailListsForSelect()
+    {
+        return MailList::query()
+            ->where('status', 'active')
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->pluck('name', 'id');
     }
 }
