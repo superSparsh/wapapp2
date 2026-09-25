@@ -98,11 +98,21 @@ class OperationalAlertService
      * @param  list<string>  $phones
      * @param  array<string, string|int|float>  $params
      */
-    public function notifyWhatsAppNumbers(array $phones, string $templateCode, array $params = []): void
+    public function notifyWhatsAppNumbers(array $phones, string $templateCode, array $params = []): bool
     {
-        foreach (array_unique(array_filter($phones)) as $phone) {
-            $this->whatsAppSender->sendTemplate((string) $phone, $templateCode, $params);
+        $targets = array_values(array_unique(array_filter($phones)));
+        if ($targets === []) {
+            return false;
         }
+
+        $ok = true;
+        foreach ($targets as $phone) {
+            if (! $this->whatsAppSender->sendTemplate((string) $phone, $templateCode, $params)) {
+                $ok = false;
+            }
+        }
+
+        return $ok;
     }
 
     /**

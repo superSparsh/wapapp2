@@ -6,7 +6,10 @@ namespace App\Domains\Alerts\Console\Commands;
 
 use App\Domains\Alerts\Services\AlertDispatcher;
 use App\Domains\ThirdParty\Enums\EventStatus;
+use App\Domains\ThirdParty\Enums\MessageLogStatus;
 use App\Domains\ThirdParty\Models\CalendlyEvent;
+use App\Domains\ThirdParty\Models\CalendlyIntegration;
+use App\Domains\ThirdParty\Models\CalendlyMessageLog;
 use App\Domains\ThirdParty\Models\GoogleCalendarEvent;
 use App\Domains\ThirdParty\Models\GoogleCalendarIntegration;
 use App\Support\Console\Concerns\IteratesTenants;
@@ -38,17 +41,56 @@ class SendCalendarRemindersCommand extends Command
                         return;
                     }
 
+                    $integration = CalendlyIntegration::query()->where('user_id', $event->user_id)->first();
+                    if (! ($integration?->settings['enable_whatsapp'] ?? false)) {
+                        return;
+                    }
+
+                    $eventName = (string) ($event->raw_payload['name'] ?? $event->event_type ?? 'Meeting');
                     $phone = (string) ($event->whatsapp_number ?? '');
-                    if ($phone !== '') {
-                        $dispatcher->calendarWhatsApp(
-                            'operational-alerts.calendly.customer_reminder',
-                            $phone,
-                            [
-                                'name' => (string) ($event->invitee_email ?? 'Guest'),
-                                'event' => (string) ($event->event_type ?? 'Meeting'),
-                                'start' => $event->start_time?->format('d M Y h:i A') ?? '',
-                            ],
-                        );
+                    $params = [
+                        'name' => (string) ($event->invitee_email ?? 'Guest'),
+                        'event' => $eventName,
+                        'start' => $event->start_time?->format('d M Y h:i A') ?? '',
+                    ];
+
+                    if ($phone === '') {
+                        CalendlyMessageLog::query()->create([
+                            'user_id' => $event->user_id,
+                            'event_id' => $event->id,
+                            'recipient_type' => 'customer',
+                            'recipient_number' => null,
+                            'invitee_email' => $event->invitee_email,
+                            'event_name' => $eventName,
+                            'event_type' => 'reminder',
+                            'status' => MessageLogStatus::Skipped,
+                            'error_message' => 'No WhatsApp number provided by invitee.',
+                            'sent_at' => now(),
+                        ]);
+
+                        return;
+                    }
+
+                    $ok = $dispatcher->calendarWhatsApp(
+                        'operational-alerts.calendly.customer_reminder',
+                        $phone,
+                        $params,
+                    );
+
+                    CalendlyMessageLog::query()->create([
+                        'user_id' => $event->user_id,
+                        'event_id' => $event->id,
+                        'recipient_type' => 'customer',
+                        'recipient_number' => preg_replace('/\D/', '', $phone) ?: null,
+                        'invitee_email' => $event->invitee_email,
+                        'event_name' => $eventName,
+                        'event_type' => 'reminder',
+                        'status' => $ok ? MessageLogStatus::Sent : MessageLogStatus::Failed,
+                        'error_message' => $ok ? null : 'WhatsApp API did not return success.',
+                        'sent_at' => now(),
+                    ]);
+
+                    if ($ok) {
                         $sent++;
                     }
                 });

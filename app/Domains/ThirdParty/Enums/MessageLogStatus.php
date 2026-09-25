@@ -6,22 +6,25 @@ namespace App\Domains\ThirdParty\Enums;
 
 enum MessageLogStatus: string
 {
-    case Sent   = 'sent';
-    case Failed = 'failed';
+    case Sent    = 'sent';
+    case Failed  = 'failed';
+    case Skipped = 'skipped';
 
     public function label(): string
     {
         return match ($this) {
-            self::Sent   => 'Sent',
-            self::Failed => 'Failed',
+            self::Sent    => 'Sent',
+            self::Failed  => 'Failed',
+            self::Skipped => 'Skipped',
         };
     }
 
     public function badgeClass(): string
     {
         return match ($this) {
-            self::Sent   => 'bg-green-100 text-green-800',
-            self::Failed => 'bg-red-100 text-red-800',
+            self::Sent    => 'bg-green-100 text-green-800',
+            self::Failed  => 'bg-red-100 text-red-800',
+            self::Skipped => 'bg-yellow-100 text-yellow-800',
         };
     }
 }

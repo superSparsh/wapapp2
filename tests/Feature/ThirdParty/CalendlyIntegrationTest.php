@@ -253,12 +253,12 @@ class CalendlyIntegrationTest extends TestCase
 
         CalendlyMessageLog::query()->create([
             'user_id'          => $userId,
-            'event_id'         => 'ev1',
-            'recipient_type'   => 'invitee',
+            'event_id'         => 1,
+            'recipient_type'   => 'customer',
             'recipient_number' => '+911234567890',
             'invitee_email'    => 'x@y.com',
             'event_name'       => 'Test',
-            'event_type'       => 'consultation',
+            'event_type'       => 'created',
             'status'           => 'sent',
             'sent_at'          => now(),
         ]);
@@ -266,7 +266,53 @@ class CalendlyIntegrationTest extends TestCase
         $this->actingAsTenantUser()
             ->get(route('integration.calendly', ['tab' => 'logs']))
             ->assertOk()
-            ->assertViewHas('messageLogs');
+            ->assertViewHas('messageLogs')
+            ->assertSee('Skipped')
+            ->assertSee('WhatsApp Message Logs');
+    }
+
+    public function test_notifications_tab_shows_calendly_email_field(): void
+    {
+        CalendlyIntegration::query()->firstOrCreate(['user_id' => $this->testUser->id], [
+            'status' => IntegrationStatus::Enabled,
+            'settings' => [
+                'access_token' => 'eyJhbGciOiJIUzI1NiJ9.tok1234567890',
+                'user_email' => 'host@example.com',
+            ],
+        ]);
+
+        $this->actingAsTenantUser()
+            ->get(route('integration.calendly', ['tab' => 'notifications']))
+            ->assertOk()
+            ->assertSee('Calendly Email')
+            ->assertSee('host@example.com')
+            ->assertSee('Enable WhatsApp Notifications');
+    }
+
+    public function test_events_tab_shows_view_details(): void
+    {
+        $userId = $this->testUser->id;
+
+        CalendlyIntegration::query()->firstOrCreate(['user_id' => $userId], [
+            'status' => IntegrationStatus::Enabled, 'settings' => ['access_token' => 'tok'],
+        ]);
+
+        CalendlyEvent::query()->create([
+            'user_id'    => $userId,
+            'event_id'   => 'ev-view-details',
+            'status'     => 'active',
+            'event_type' => 'consultation',
+            'start_time' => now()->addHour(),
+            'end_time'   => now()->addHours(2),
+            'raw_payload'=> ['name' => '30 Minute Meeting'],
+        ]);
+
+        $this->actingAsTenantUser()
+            ->get(route('integration.calendly', ['tab' => 'events']))
+            ->assertOk()
+            ->assertSee('View details')
+            ->assertSee('30 Minute Meeting')
+            ->assertSee('id="sync-events-btn"', false);
     }
 
     // ─── Service layer ────────────────────────────────────────────────────────

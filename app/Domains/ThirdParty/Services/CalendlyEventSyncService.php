@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace App\Domains\ThirdParty\Services;
 
+use App\Domains\Alerts\Services\AlertDispatcher;
+use App\Domains\ThirdParty\Enums\MessageLogStatus;
 use App\Domains\ThirdParty\Models\CalendlyEvent;
 use App\Domains\ThirdParty\Models\CalendlyIntegration;
+use App\Domains\ThirdParty\Models\CalendlyMessageLog;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Http;
@@ -125,30 +128,114 @@ class CalendlyEventSyncService
             return;
         }
 
-        $status = strtolower((string) ($event['status'] ?? 'active'));
-        try {
-            $dispatcher = app(\App\Domains\Alerts\Services\AlertDispatcher::class);
-            $phone = (string) ($stored->whatsapp_number ?? '');
-            $params = [
-                'name' => (string) ($stored->invitee_email ?? 'Guest'),
-                'event' => (string) ($stored->event_type ?? 'Meeting'),
-                'start' => $stored->start_time?->format('d M Y h:i A') ?? '',
-            ];
+        $enableWhatsapp = (bool) ($integration->settings['enable_whatsapp'] ?? false);
+        if (! $enableWhatsapp) {
+            return;
+        }
 
+        $status = strtolower((string) ($event['status'] ?? 'active'));
+        $eventName = (string) ($stored->raw_payload['name'] ?? $stored->event_type ?? 'Meeting');
+        $params = [
+            'name'  => (string) ($stored->invitee_email ?? 'Guest'),
+            'event' => $eventName,
+            'start' => $stored->start_time?->format('d M Y h:i A') ?? '',
+        ];
+
+        try {
             if ($status === 'canceled' && ! $stored->notified_canceled) {
-                if ($phone !== '') {
-                    $dispatcher->calendarWhatsApp('operational-alerts.calendly.customer_canceled', $phone, $params);
-                }
+                $this->notifyAndLog($integration, $stored, 'canceled', 'operational-alerts.calendly.customer_canceled', 'operational-alerts.calendly.admin_canceled', $params, $eventName);
                 $stored->update(['notified_canceled' => true]);
             } elseif ($status !== 'canceled' && ! $stored->notified_created && $integration->first_synced_at !== null) {
-                if ($phone !== '') {
-                    $dispatcher->calendarWhatsApp('operational-alerts.calendly.customer_created', $phone, $params);
-                }
+                $this->notifyAndLog($integration, $stored, 'created', 'operational-alerts.calendly.customer_created', 'operational-alerts.calendly.admin_created', $params, $eventName);
                 $stored->update(['notified_created' => true]);
             }
         } catch (\Throwable $e) {
             Log::warning('Calendly booking alert failed', ['error' => $e->getMessage()]);
         }
+    }
+
+    /**
+     * Send customer + admin WhatsApp notifications and write message logs (sent / failed / skipped).
+     *
+     * @param  array<string, string>  $params
+     */
+    private function notifyAndLog(
+        CalendlyIntegration $integration,
+        CalendlyEvent $event,
+        string $eventType,
+        string $customerTemplateKey,
+        string $adminTemplateKey,
+        array $params,
+        string $eventName,
+    ): void {
+        $dispatcher = app(AlertDispatcher::class);
+        $phone = (string) ($event->whatsapp_number ?? '');
+
+        if ($phone === '') {
+            $this->writeMessageLog($event, 'customer', null, $eventName, $eventType, MessageLogStatus::Skipped, 'No WhatsApp number provided by invitee. Add a "WhatsApp number" or "Phone number" question to your Calendly event type so customers receive meeting notifications.');
+        } else {
+            $digits = preg_replace('/\D/', '', $phone) ?: '';
+            if (strlen($digits) < 10) {
+                $this->writeMessageLog($event, 'customer', $digits, $eventName, $eventType, MessageLogStatus::Skipped, 'Phone number from form has fewer than 10 digits.');
+            } else {
+                $ok = $dispatcher->calendarWhatsApp($customerTemplateKey, $phone, $params);
+                $this->writeMessageLog(
+                    $event,
+                    'customer',
+                    $digits,
+                    $eventName,
+                    $eventType,
+                    $ok ? MessageLogStatus::Sent : MessageLogStatus::Failed,
+                    $ok ? null : 'WhatsApp API did not return success.',
+                );
+            }
+        }
+
+        $adminPhone = (string) ($integration->settings['whatsapp_number'] ?? '');
+        if ($adminPhone === '') {
+            return;
+        }
+
+        $adminDigits = preg_replace('/\D/', '', $adminPhone) ?: '';
+        if (strlen($adminDigits) < 10) {
+            $this->writeMessageLog($event, 'admin', $adminDigits, $eventName, $eventType, MessageLogStatus::Skipped, 'Admin WhatsApp number has fewer than 10 digits.');
+
+            return;
+        }
+
+        $ok = $dispatcher->calendarWhatsApp($adminTemplateKey, $adminPhone, $params);
+        $this->writeMessageLog(
+            $event,
+            'admin',
+            $adminDigits,
+            $eventName,
+            $eventType,
+            $ok ? MessageLogStatus::Sent : MessageLogStatus::Failed,
+            $ok ? null : 'WhatsApp API did not return success.',
+        );
+    }
+
+    private function writeMessageLog(
+        CalendlyEvent $event,
+        string $recipientType,
+        ?string $recipientNumber,
+        string $eventName,
+        string $eventType,
+        MessageLogStatus $status,
+        ?string $errorMessage,
+    ): void {
+        CalendlyMessageLog::query()->create([
+            'user_id'          => $event->user_id,
+            'event_id'         => $event->id,
+            'recipient_type'   => $recipientType,
+            'recipient_number' => $recipientNumber,
+            'invitee_email'    => $event->invitee_email,
+            'event_name'       => $eventName,
+            'event_type'       => $eventType,
+            'status'           => $status,
+            'error_message'    => $errorMessage,
+            'sent_at'          => now(),
+        ]);
     }
 
     /**

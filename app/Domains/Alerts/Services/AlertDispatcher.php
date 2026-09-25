@@ -332,14 +332,14 @@ class AlertDispatcher
     /**
      * @param  array<string, string|int|float>  $params
      */
-    public function calendarWhatsApp(string $templateKey, string $toPhone, array $params): void
+    public function calendarWhatsApp(string $templateKey, string $toPhone, array $params): bool
     {
         $template = (string) config($templateKey, '');
         if ($template === '' || $toPhone === '') {
-            return;
+            return false;
         }
 
-        $this->alerts->notifyWhatsAppNumbers([$toPhone], $template, $params);
+        return $this->alerts->notifyWhatsAppNumbers([$toPhone], $template, $params);
     }
 
     public function ensureActiveSubscriptionForPlanAlerts(): ?Subscription

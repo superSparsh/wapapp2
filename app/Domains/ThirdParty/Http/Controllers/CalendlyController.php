@@ -100,14 +100,14 @@ class CalendlyController extends Controller
         $this->calendly->saveSettings($integration, $newSettings, $tokenChanged);
 
         if ($tokenChanged) {
-            return redirect()->route('integration.calendly')->with(
+            return redirect()->route('integration.calendly', ['tab' => 'token'])->with(
                 $isValid
                     ? ['success' => 'Calendly access token saved and connected successfully.']
                     : ['error'   => 'Invalid Access Token. Please check and try again.']
             );
         }
 
-        return redirect()->route('integration.calendly')
+        return redirect()->route('integration.calendly', ['tab' => 'notifications'])
             ->with('success', 'Notification settings updated successfully.');
     }
 
