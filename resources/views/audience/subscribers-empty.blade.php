@@ -1,7 +1,7 @@
 <x-layouts.app title="Subscribers - WapApp" active="audience.subscribers">
   <div class="flex flex-col">
     <x-audience.list-header title="Subscribers" subscribers="0" />
-    <x-audience.sub-nav active="audience.subscribers" />
+    <x-audience.sub-nav active="audience.subscribers" :list-id="$mailListId" />
 
     <section class="p-4 pt-0">
       <div class="flex flex-col items-center justify-center rounded-lg border border-[0.5px] border-border-light bg-elevated py-16 text-center">

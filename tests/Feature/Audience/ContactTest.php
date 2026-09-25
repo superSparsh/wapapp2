@@ -39,17 +39,30 @@ class ContactTest extends TestCase
         $this->get(route('audience.subscribers'))->assertRedirect();
     }
 
-    public function test_subscribers_index_page_loads(): void
+    public function test_subscribers_index_without_list_redirects_to_audience_index(): void
     {
         $this->actingAsTenantUser()
             ->get(route('audience.subscribers'))
-            ->assertOk();
+            ->assertRedirect(route('audience.index'));
+    }
+
+    public function test_subscribers_index_page_loads(): void
+    {
+        $list = MailList::factory()->create();
+
+        $this->actingAsTenantUser()
+            ->get(route('audience.subscribers', ['list' => $list->uuid]))
+            ->assertOk()
+            ->assertViewIs('audience.subscribers')
+            ->assertDontSee('All Subscribers', false);
     }
 
     public function test_subscribers_index_shows_add_subscriber_when_empty(): void
     {
+        $list = MailList::factory()->create();
+
         $this->actingAsTenantUser()
-            ->get(route('audience.subscribers'))
+            ->get(route('audience.subscribers', ['list' => $list->uuid]))
             ->assertOk()
             ->assertViewIs('audience.subscribers')
             ->assertSee('Add New Subscribers')
@@ -61,10 +74,11 @@ class ContactTest extends TestCase
 
     public function test_subscribers_index_shows_contacts(): void
     {
-        Contact::factory()->count(5)->create();
+        $list = MailList::factory()->create();
+        Contact::factory()->count(5)->create(['mail_list_id' => $list->id]);
 
         $this->actingAsTenantUser()
-            ->get(route('audience.subscribers'))
+            ->get(route('audience.subscribers', ['list' => $list->uuid]))
             ->assertOk()
             ->assertViewIs('audience.subscribers')
             ->assertViewHas('contacts', function ($contacts) {
@@ -89,11 +103,20 @@ class ContactTest extends TestCase
 
     public function test_subscribers_index_search_filters_contacts(): void
     {
-        Contact::factory()->create(['name' => 'John Doe', 'phone' => '919876543210']);
-        Contact::factory()->create(['name' => 'Jane Smith', 'phone' => '919876543211']);
+        $list = MailList::factory()->create();
+        Contact::factory()->create([
+            'name' => 'John Doe',
+            'phone' => '919876543210',
+            'mail_list_id' => $list->id,
+        ]);
+        Contact::factory()->create([
+            'name' => 'Jane Smith',
+            'phone' => '919876543211',
+            'mail_list_id' => $list->id,
+        ]);
 
         $this->actingAsTenantUser()
-            ->get(route('audience.subscribers', ['search' => 'John']))
+            ->get(route('audience.subscribers', ['list' => $list->uuid, 'search' => 'John']))
             ->assertOk()
             ->assertViewHas('contacts', function ($contacts) {
                 return $contacts->total() === 1 && $contacts->first()->name === 'John Doe';
@@ -102,11 +125,18 @@ class ContactTest extends TestCase
 
     public function test_subscribers_index_filters_by_status(): void
     {
-        Contact::factory()->count(3)->create(['status' => ContactStatus::Subscribed]);
-        Contact::factory()->count(2)->create(['status' => ContactStatus::Unsubscribed]);
+        $list = MailList::factory()->create();
+        Contact::factory()->count(3)->create([
+            'status' => ContactStatus::Subscribed,
+            'mail_list_id' => $list->id,
+        ]);
+        Contact::factory()->count(2)->create([
+            'status' => ContactStatus::Unsubscribed,
+            'mail_list_id' => $list->id,
+        ]);
 
         $this->actingAsTenantUser()
-            ->get(route('audience.subscribers', ['status' => 'subscribed']))
+            ->get(route('audience.subscribers', ['list' => $list->uuid, 'status' => 'subscribed']))
             ->assertOk()
             ->assertViewHas('contacts', function ($contacts) {
                 return $contacts->total() === 3;
@@ -178,11 +208,14 @@ class ContactTest extends TestCase
 
     public function test_store_sets_default_status(): void
     {
+        $list = MailList::factory()->create();
+
         $this->actingAsTenantUser()
             ->post(route('audience.subscribers.store'), [
                 'phone' => '919876543210',
+                'mail_list_id' => $list->uuid,
             ])
-            ->assertRedirect(route('audience.subscribers'));
+            ->assertRedirect(route('audience.subscribers', ['list' => $list->uuid]));
 
         $contact = Contact::where('phone', '919876543210')->first();
         $this->assertEquals(ContactStatus::Subscribed, $contact->status);
@@ -191,19 +224,31 @@ class ContactTest extends TestCase
 
     public function test_store_prefixes_phone_with_legacy_country_dial_code(): void
     {
+        $list = MailList::factory()->create();
+
         $this->actingAsTenantUser()
             ->post(route('audience.subscribers.store'), [
                 'country_code' => '+91',
                 'phone' => '9876543210',
                 'name' => 'Dial Code Contact',
+                'mail_list_id' => $list->uuid,
             ])
-            ->assertRedirect(route('audience.subscribers'));
+            ->assertRedirect(route('audience.subscribers', ['list' => $list->uuid]));
 
         $this->assertDatabaseHas('contacts', [
             'phone' => '919876543210',
             'country_code' => '+91',
             'name' => 'Dial Code Contact',
         ]);
+    }
+
+    public function test_store_without_list_redirects_to_audience_index(): void
+    {
+        $this->actingAsTenantUser()
+            ->post(route('audience.subscribers.store'), [
+                'phone' => '919876543210',
+            ])
+            ->assertRedirect(route('audience.index'));
     }
 
     // ─── Update ──────────────────────────────────────────────────────────────
@@ -219,14 +264,19 @@ class ContactTest extends TestCase
 
     public function test_update_modifies_contact(): void
     {
-        $contact = Contact::factory()->create(['name' => 'Old Name']);
+        $list = MailList::factory()->create();
+        $contact = Contact::factory()->create([
+            'name' => 'Old Name',
+            'mail_list_id' => $list->id,
+        ]);
 
         $this->actingAsTenantUser()
             ->put(route('audience.subscribers.update', $contact), [
                 'phone' => $contact->phone,
                 'name' => 'New Name',
+                'list' => $list->uuid,
             ])
-            ->assertRedirect(route('audience.subscribers.detail', ['id' => $contact->uuid]))
+            ->assertRedirect(route('audience.subscribers', ['list' => $list->uuid]))
             ->assertSessionHas('status');
 
         $this->assertDatabaseHas('contacts', ['id' => $contact->id, 'name' => 'New Name']);
@@ -234,15 +284,17 @@ class ContactTest extends TestCase
 
     public function test_update_can_sync_tags(): void
     {
-        $contact = Contact::factory()->create();
+        $list = MailList::factory()->create();
+        $contact = Contact::factory()->create(['mail_list_id' => $list->id]);
         ContactTag::factory()->create(['contact_id' => $contact->id, 'name' => 'old-tag']);
 
         $this->actingAsTenantUser()
             ->put(route('audience.subscribers.update', $contact), [
                 'phone' => $contact->phone,
                 'tags' => ['new-tag-1', 'new-tag-2'],
+                'list' => $list->uuid,
             ])
-            ->assertRedirect(route('audience.subscribers.detail', ['id' => $contact->uuid]));
+            ->assertRedirect(route('audience.subscribers', ['list' => $list->uuid]));
 
         $contact->refresh();
         $this->assertEquals(2, $contact->tags->count());
@@ -250,15 +302,63 @@ class ContactTest extends TestCase
         $this->assertFalse($contact->tags->pluck('name')->contains('old-tag'));
     }
 
+    public function test_subscribers_index_filters_by_date_range(): void
+    {
+        $list = MailList::factory()->create();
+        Contact::factory()->create([
+            'created_at' => now()->subDays(10),
+            'mail_list_id' => $list->id,
+        ]);
+        Contact::factory()->create([
+            'created_at' => now()->subDay(),
+            'mail_list_id' => $list->id,
+        ]);
+
+        $this->actingAsTenantUser()
+            ->get(route('audience.subscribers', [
+                'list' => $list->uuid,
+                'date_from' => now()->subDays(2)->toDateString(),
+                'date_to' => now()->toDateString(),
+            ]))
+            ->assertOk()
+            ->assertViewHas('contacts', function ($contacts) {
+                return $contacts->total() === 1;
+            });
+    }
+
+    public function test_subscribers_index_filters_by_opt_in_delivery(): void
+    {
+        $list = MailList::factory()->create();
+        Contact::factory()->create([
+            'mail_list_id' => $list->id,
+            'send_opt_in_message' => 'yes',
+            'opt_in_message_delivery_status' => 'delivered',
+        ]);
+        Contact::factory()->create([
+            'mail_list_id' => $list->id,
+            'send_opt_in_message' => 'yes',
+            'opt_in_message_delivery_status' => 'failed',
+        ]);
+
+        $this->actingAsTenantUser()
+            ->get(route('audience.subscribers', ['list' => $list->uuid, 'opt_in' => 'delivered']))
+            ->assertOk()
+            ->assertViewHas('contacts', function ($contacts) {
+                return $contacts->total() === 1
+                    && $contacts->first()->opt_in_message_delivery_status === 'delivered';
+            });
+    }
+
     // ─── Delete ──────────────────────────────────────────────────────────────
 
     public function test_destroy_deletes_contact(): void
     {
-        $contact = Contact::factory()->create();
+        $list = MailList::factory()->create();
+        $contact = Contact::factory()->create(['mail_list_id' => $list->id]);
 
         $this->actingAsTenantUser()
             ->delete(route('audience.subscribers.destroy', $contact))
-            ->assertRedirect(route('audience.subscribers'))
+            ->assertRedirect(route('audience.subscribers', ['list' => $list->uuid]))
             ->assertSessionHas('status');
 
         $this->assertSoftDeleted('contacts', ['id' => $contact->id]);
@@ -268,10 +368,14 @@ class ContactTest extends TestCase
 
     public function test_subscribers_page_renders_toggle_as_submit_button(): void
     {
-        $contact = Contact::factory()->create(['status' => ContactStatus::Subscribed]);
+        $list = MailList::factory()->create();
+        $contact = Contact::factory()->create([
+            'status' => ContactStatus::Subscribed,
+            'mail_list_id' => $list->id,
+        ]);
 
         $html = $this->actingAsTenantUser()
-            ->get(route('audience.subscribers'))
+            ->get(route('audience.subscribers', ['list' => $list->uuid]))
             ->assertOk()
             ->getContent();
 
@@ -299,13 +403,18 @@ class ContactTest extends TestCase
 
     public function test_subscribe_changes_status(): void
     {
-        $contact = Contact::factory()->create(['status' => ContactStatus::Unsubscribed]);
+        $list = MailList::factory()->create();
+        $contact = Contact::factory()->create([
+            'status' => ContactStatus::Unsubscribed,
+            'mail_list_id' => $list->id,
+        ]);
 
         $this->actingAsTenantUser()
             ->post(route('audience.subscribers.subscribe'), [
                 'ids' => [$contact->id],
+                'list' => $list->uuid,
             ])
-            ->assertRedirect(route('audience.subscribers'))
+            ->assertRedirect(route('audience.subscribers', ['list' => $list->uuid]))
             ->assertSessionHas('status');
 
         $contact->refresh();
@@ -316,13 +425,18 @@ class ContactTest extends TestCase
 
     public function test_unsubscribe_changes_status(): void
     {
-        $contact = Contact::factory()->create(['status' => ContactStatus::Subscribed]);
+        $list = MailList::factory()->create();
+        $contact = Contact::factory()->create([
+            'status' => ContactStatus::Subscribed,
+            'mail_list_id' => $list->id,
+        ]);
 
         $this->actingAsTenantUser()
             ->post(route('audience.subscribers.unsubscribe'), [
                 'ids' => [$contact->id],
+                'list' => $list->uuid,
             ])
-            ->assertRedirect(route('audience.subscribers'))
+            ->assertRedirect(route('audience.subscribers', ['list' => $list->uuid]))
             ->assertSessionHas('status');
 
         $contact->refresh();
@@ -333,13 +447,18 @@ class ContactTest extends TestCase
 
     public function test_bulk_subscribe_multiple_contacts(): void
     {
-        $contacts = Contact::factory()->count(3)->create(['status' => ContactStatus::Unsubscribed]);
+        $list = MailList::factory()->create();
+        $contacts = Contact::factory()->count(3)->create([
+            'status' => ContactStatus::Unsubscribed,
+            'mail_list_id' => $list->id,
+        ]);
 
         $this->actingAsTenantUser()
             ->post(route('audience.subscribers.subscribe'), [
                 'ids' => $contacts->pluck('id')->toArray(),
+                'list' => $list->uuid,
             ])
-            ->assertRedirect(route('audience.subscribers'))
+            ->assertRedirect(route('audience.subscribers', ['list' => $list->uuid]))
             ->assertSessionHas('status', '3 contact(s) subscribed.');
 
         $this->assertEquals(3, Contact::where('status', ContactStatus::Subscribed)->count());
@@ -347,13 +466,18 @@ class ContactTest extends TestCase
 
     public function test_bulk_unsubscribe_multiple_contacts(): void
     {
-        $contacts = Contact::factory()->count(3)->create(['status' => ContactStatus::Subscribed]);
+        $list = MailList::factory()->create();
+        $contacts = Contact::factory()->count(3)->create([
+            'status' => ContactStatus::Subscribed,
+            'mail_list_id' => $list->id,
+        ]);
 
         $this->actingAsTenantUser()
             ->post(route('audience.subscribers.unsubscribe'), [
                 'ids' => $contacts->pluck('id')->toArray(),
+                'list' => $list->uuid,
             ])
-            ->assertRedirect(route('audience.subscribers'))
+            ->assertRedirect(route('audience.subscribers', ['list' => $list->uuid]))
             ->assertSessionHas('status', '3 contact(s) unsubscribed.');
 
         $this->assertEquals(3, Contact::where('status', ContactStatus::Unsubscribed)->count());
@@ -363,13 +487,15 @@ class ContactTest extends TestCase
 
     public function test_bulk_delete_soft_deletes_contacts(): void
     {
-        $contacts = Contact::factory()->count(5)->create();
+        $list = MailList::factory()->create();
+        $contacts = Contact::factory()->count(5)->create(['mail_list_id' => $list->id]);
 
         $this->actingAsTenantUser()
             ->post(route('audience.subscribers.bulk-delete'), [
                 'ids' => $contacts->pluck('id')->toArray(),
+                'list' => $list->uuid,
             ])
-            ->assertRedirect(route('audience.subscribers'))
+            ->assertRedirect(route('audience.subscribers', ['list' => $list->uuid]))
             ->assertSessionHas('status', '5 contact(s) deleted.');
 
         $this->assertEquals(5, Contact::onlyTrashed()->count());

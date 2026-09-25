@@ -58,6 +58,11 @@ final class ListingSort
         $column = $map[$sort] ?? $fallback;
         $dir = strtolower($direction) === 'asc' ? 'asc' : 'desc';
         $query->orderBy($column, $dir);
+
+        // Keep listing order deterministic when primary values collide.
+        if ($column !== 'id') {
+            $query->orderBy('id', $dir);
+        }
     }
 
     /**

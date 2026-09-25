@@ -111,7 +111,29 @@ class Contact extends TenantModel
             return $query;
         }
 
-        return $query->where('opt_in_status', $optIn);
+        // Legacy-style opt-in message filters (parity with old subscribers list).
+        return match ($optIn) {
+            'send_yes' => $query->where('send_opt_in_message', 'yes'),
+            'send_no' => $query->where('send_opt_in_message', 'no'),
+            'not_sent' => $query->where('send_opt_in_message', 'yes')
+                ->where(function (Builder $builder): void {
+                    $builder->where('opt_in_message_sent', false)
+                        ->orWhereNull('opt_in_message_sent');
+                }),
+            'pending' => $query->where('send_opt_in_message', 'yes')
+                ->where('opt_in_message_delivery_status', 'pending'),
+            'delivered' => $query->where('send_opt_in_message', 'yes')
+                ->where('opt_in_message_delivery_status', 'delivered'),
+            'failed' => $query->where('send_opt_in_message', 'yes')
+                ->where('opt_in_message_delivery_status', 'failed'),
+            'sent_awaiting' => $query->where('send_opt_in_message', 'yes')
+                ->where('opt_in_message_sent', true)
+                ->where(function (Builder $builder): void {
+                    $builder->whereNull('opt_in_message_delivery_status')
+                        ->orWhere('opt_in_message_delivery_status', '');
+                }),
+            default => $query->where('opt_in_status', $optIn),
+        };
     }
 
     /**

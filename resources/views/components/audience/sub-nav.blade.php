@@ -1,7 +1,10 @@
-@props(['active' => null])
+@props([
+    'active' => null,
+    'listId' => null,
+])
 
 @php
-$listId = request('list');
+$listId = $listId ?: request('list');
 $items = [
     ['route' => 'audience.overview', 'label' => 'Overview'],
     ['route' => 'audience.settings', 'label' => 'Settings'],

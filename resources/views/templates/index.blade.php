@@ -48,14 +48,22 @@
         search-placeholder="Search"
         :current-sort="$currentSort ?? 'updated_at'"
         :current-direction="$currentDirection ?? 'desc'"
-        :sort-options="[
-          ['value' => 'updated_at', 'label' => 'Recently updated', 'direction' => 'desc'],
-          ['value' => 'created_at', 'label' => 'Newest first', 'direction' => 'desc'],
-          ['value' => 'created_at', 'label' => 'Oldest first', 'direction' => 'asc'],
-          ['value' => 'name', 'label' => 'Name A–Z', 'direction' => 'asc'],
-          ['value' => 'name', 'label' => 'Name Z–A', 'direction' => 'desc'],
-          ['value' => 'status', 'label' => 'Status A–Z', 'direction' => 'asc'],
-        ]"
+        :sort-options="$isFreeTab
+          ? [
+              ['value' => 'updated_at', 'label' => 'Recently updated', 'direction' => 'desc'],
+              ['value' => 'created_at', 'label' => 'Newest first', 'direction' => 'desc'],
+              ['value' => 'created_at', 'label' => 'Oldest first', 'direction' => 'asc'],
+              ['value' => 'name', 'label' => 'Name A–Z', 'direction' => 'asc'],
+              ['value' => 'name', 'label' => 'Name Z–A', 'direction' => 'desc'],
+            ]
+          : [
+              ['value' => 'updated_at', 'label' => 'Recently updated', 'direction' => 'desc'],
+              ['value' => 'created_at', 'label' => 'Newest first', 'direction' => 'desc'],
+              ['value' => 'created_at', 'label' => 'Oldest first', 'direction' => 'asc'],
+              ['value' => 'name', 'label' => 'Name A–Z', 'direction' => 'asc'],
+              ['value' => 'name', 'label' => 'Name Z–A', 'direction' => 'desc'],
+              ['value' => 'status', 'label' => 'Status A–Z', 'direction' => 'asc'],
+            ]"
         data-templates-filter-form
       >
         <x-slot:hidden>

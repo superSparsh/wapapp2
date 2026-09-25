@@ -83,6 +83,7 @@
         value="{{ $search }}"
         placeholder="{{ $searchPlaceholder }}"
         data-listing-search-enter
+        data-listing-search-debounce="350"
         autocomplete="off"
         class="min-w-0 flex-1 bg-transparent text-sm text-text-primary placeholder:text-text-subtle focus:outline-none"
       >

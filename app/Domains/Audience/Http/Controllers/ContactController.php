@@ -25,13 +25,16 @@ class ContactController extends Controller
     ) {}
 
     /**
-     * Subscribers listing.
+     * Subscribers listing — always scoped to a specific mail list.
+     * There is no global "All Subscribers" list view.
      */
-    public function index(Request $request): View
+    public function index(Request $request): View|RedirectResponse
     {
-        $mailList = $request->filled('list')
-            ? PublicId::findOrFail(MailList::class, (string) $request->input('list'))
-            : null;
+        if (! $request->filled('list')) {
+            return redirect()->route('audience.index');
+        }
+
+        $mailList = PublicId::findOrFail(MailList::class, (string) $request->input('list'));
 
         $parsed = ListingSort::fromRequest(
             $request,
@@ -40,23 +43,30 @@ class ContactController extends Controller
             'desc',
         );
 
+        $dateFrom = $request->get('date_from') ?: $request->get('from_date');
+        $dateTo = $request->get('date_to') ?: $request->get('to_date');
+        $optIn = $request->get('opt_in') ?: $request->get('opt_in_filter');
+
         $contacts = $this->service->index(
-            mailListId: $mailList?->id,
+            mailListId: $mailList->id,
             search: $request->get('search'),
             status: $request->get('status'),
-            optIn: $request->get('opt_in'),
-            dateFrom: $request->get('date_from'),
-            dateTo: $request->get('date_to'),
+            optIn: is_string($optIn) ? $optIn : null,
+            dateFrom: is_string($dateFrom) ? $dateFrom : null,
+            dateTo: is_string($dateTo) ? $dateTo : null,
             sortBy: $parsed['sort'],
             sortDir: $parsed['direction'],
         );
 
         return view('audience.subscribers', [
             'contacts' => $contacts,
-            'mailListId' => $mailList?->uuid,
+            'mailListId' => $mailList->uuid,
             'mailList' => $mailList,
             'mailLists' => MailList::query()->orderBy('name')->get(['id', 'uuid', 'name']),
             'search' => $request->get('search', ''),
+            'dateFrom' => is_string($dateFrom) ? $dateFrom : '',
+            'dateTo' => is_string($dateTo) ? $dateTo : '',
+            'optIn' => is_string($optIn) ? $optIn : '',
             'currentSort' => $parsed['sort'],
             'currentDirection' => $parsed['direction'],
         ]);
@@ -65,14 +75,16 @@ class ContactController extends Controller
     /**
      * Empty state page.
      */
-    public function empty(Request $request): View
+    public function empty(Request $request): View|RedirectResponse
     {
-        $mailList = $request->filled('list')
-            ? PublicId::findOrFail(MailList::class, (string) $request->input('list'))
-            : null;
+        if (! $request->filled('list')) {
+            return redirect()->route('audience.index');
+        }
+
+        $mailList = PublicId::findOrFail(MailList::class, (string) $request->input('list'));
 
         return view('audience.subscribers-empty', [
-            'mailListId' => $mailList?->uuid,
+            'mailListId' => $mailList->uuid,
         ]);
     }
 
@@ -84,7 +96,14 @@ class ContactController extends Controller
         $contact = PublicId::findOrFail(Contact::class, (string) $request->input('id'));
         $contact->load(['tags', 'mailList']);
 
-        return view('audience.subscribers-detail', ['contact' => $contact]);
+        $listUuid = $request->filled('list')
+            ? (string) $request->input('list')
+            : $contact->mailList?->uuid;
+
+        return view('audience.subscribers-detail', [
+            'contact' => $contact,
+            'mailListId' => $listUuid,
+        ]);
     }
 
     /**
@@ -101,9 +120,7 @@ class ContactController extends Controller
 
         $this->service->store($data, $tags);
 
-        return redirect()
-            ->route('audience.subscribers', array_filter(['list' => $mailList?->uuid]))
-            ->with('status', 'Contact created successfully.');
+        return $this->redirectToListSubscribers($mailList?->uuid, 'Contact created successfully.');
     }
 
     /**
@@ -129,8 +146,15 @@ class ContactController extends Controller
 
         $this->service->update($contact, $data, $tags);
 
-        return redirect()->route('audience.subscribers.detail', ['id' => $contact->uuid])
-            ->with('status', 'Contact updated successfully.');
+        $listUuid = $request->filled('list')
+            ? (string) $request->input('list')
+            : (
+                $contact->mail_list_id
+                    ? MailList::query()->whereKey($contact->mail_list_id)->value('uuid')
+                    : null
+            );
+
+        return $this->redirectToListSubscribers($listUuid, 'Contact updated successfully.');
     }
 
     /**
@@ -144,8 +168,10 @@ class ContactController extends Controller
 
         $this->service->destroy($contact);
 
-        return redirect()->route('audience.subscribers', array_filter(['list' => $listUuid]))
-            ->with('status', 'Contact deleted successfully.');
+        return $this->redirectToListSubscribers(
+            is_string($listUuid) ? $listUuid : null,
+            'Contact deleted successfully.',
+        );
     }
 
     /**
@@ -163,10 +189,11 @@ class ContactController extends Controller
             ]);
         }
 
-        return redirect()->route('audience.subscribers', array_filter([
-            'list' => request('list'),
-            'status' => request('status'),
-        ]))->with('status', "{$count} contact(s) subscribed.");
+        return $this->redirectToListSubscribers(
+            $request->filled('list') ? (string) $request->input('list') : null,
+            "{$count} contact(s) subscribed.",
+            array_filter(['status' => $request->input('status')]),
+        );
     }
 
     /**
@@ -184,10 +211,11 @@ class ContactController extends Controller
             ]);
         }
 
-        return redirect()->route('audience.subscribers', array_filter([
-            'list' => request('list'),
-            'status' => request('status'),
-        ]))->with('status', "{$count} contact(s) unsubscribed.");
+        return $this->redirectToListSubscribers(
+            $request->filled('list') ? (string) $request->input('list') : null,
+            "{$count} contact(s) unsubscribed.",
+            array_filter(['status' => $request->input('status')]),
+        );
     }
 
     /**
@@ -205,10 +233,11 @@ class ContactController extends Controller
             ]);
         }
 
-        return redirect()->route('audience.subscribers', array_filter([
-            'list' => request('list'),
-            'status' => request('status'),
-        ]))->with('status', "{$count} contact(s) deleted.");
+        return $this->redirectToListSubscribers(
+            $request->filled('list') ? (string) $request->input('list') : null,
+            "{$count} contact(s) deleted.",
+            array_filter(['status' => $request->input('status')]),
+        );
     }
 
     /**
@@ -240,5 +269,19 @@ class ContactController extends Controller
             ->pluck('id')
             ->map(fn ($id): int => (int) $id)
             ->all();
+    }
+
+    /**
+     * @param  array<string, mixed>  $query
+     */
+    private function redirectToListSubscribers(?string $listUuid, string $status, array $query = []): RedirectResponse
+    {
+        if (! filled($listUuid)) {
+            return redirect()->route('audience.index')->with('status', $status);
+        }
+
+        return redirect()
+            ->route('audience.subscribers', array_merge(['list' => $listUuid], $query))
+            ->with('status', $status);
     }
 }

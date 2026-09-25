@@ -1,12 +1,15 @@
 <x-layouts.app title="Subscriber Detail - WapApp" active="audience.subscribers">
+  @php
+    $listUuid = $mailListId ?? $contact->mailList?->uuid;
+  @endphp
   <div class="flex flex-col">
     <x-audience.list-header :title="$contact->mailList?->name ?? 'Subscriber Detail'" :subscribers="(string) ($contact->mailList?->totalContactsCount() ?? 0)" />
-    <x-audience.sub-nav active="audience.subscribers" />
+    <x-audience.sub-nav active="audience.subscribers" :list-id="$listUuid" />
 
     <div class="p-4">
       <x-ui.page-header :title="$contact->name ?? 'Unknown'" :subtitle="$contact->phone">
         <x-slot:actions>
-          <x-ui.link-button href="{{ route('audience.subscribers', array_filter(['list' => $contact->mailList?->uuid])) }}" variant="outline" size="sm">Back</x-ui.link-button>
+          <x-ui.link-button href="{{ $listUuid ? route('audience.subscribers', ['list' => $listUuid]) : route('audience.index') }}" variant="outline" size="sm">Back to list</x-ui.link-button>
           <span @class([
             'fd-status-chip inline-flex items-center rounded px-2 py-1',
             'bg-[rgba(0,128,0,0.1)] text-green-600' => $contact->status?->value === 'subscribed',
@@ -29,6 +32,9 @@
         <form method="POST" action="{{ route('audience.subscribers.update', $contact) }}" class="space-y-4">
           @csrf
           @method('PUT')
+          @if ($listUuid)
+            <input type="hidden" name="list" value="{{ $listUuid }}">
+          @endif
           <div>
             <label class="mb-1 block text-sm font-semibold text-text-primary">Phone</label>
             <input name="phone" type="text" value="{{ old('phone', $contact->phone) }}" required class="w-full rounded-xl border border-border bg-elevated px-3 py-3 text-sm">

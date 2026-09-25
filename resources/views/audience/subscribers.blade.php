@@ -1,11 +1,14 @@
 <x-layouts.app title="Subscribers - WapApp" active="audience.index">
   <div class="flex flex-col bg-surface">
     <div class="flex flex-col gap-4">
-      <x-audience.list-header :title="$mailList?->name ?? ($mailListId ? '' : 'All Subscribers')" :subscribers="(string) $contacts->total()" />
-      <x-audience.sub-nav active="audience.subscribers" />
+      <x-audience.list-header :title="$mailList->name" :subscribers="(string) $contacts->total()" />
+      <x-audience.sub-nav active="audience.subscribers" :list-id="$mailListId" />
     </div>
 
     <section class="flex flex-col gap-4 p-4 pt-5">
+      @if (session('status'))
+        <p class="rounded-lg bg-green-50 px-4 py-2 text-sm text-green-700">{{ session('status') }}</p>
+      @endif
       <div class="flex flex-wrap items-center justify-between gap-3">
         <form id="bulk-subscribers-form" method="POST" class="flex flex-wrap items-center gap-2" data-bulk-form>
           @csrf
@@ -29,13 +32,13 @@
                 @if(request('status') === 'subscribed') Subscribed
                 @elseif(request('status') === 'unsubscribed') Unsubscribed
                 @elseif(request('status') === 'blacklisted') Blacklisted
-                @else Filter Subscribers
+                @else Filter by status
                 @endif
               </span>
               <x-icons.nav-icon name="arrow-down" class="size-4 shrink-0" />
             </button>
             <div class="absolute right-0 z-30 mt-1 hidden w-52 rounded-lg border border-border-light bg-elevated py-1 shadow-lg" data-filter-menu>
-              <a href="{{ route('audience.subscribers', array_merge(request()->query(), ['status' => null])) }}" class="block px-4 py-2 text-sm text-text-body hover:bg-muted-surface {{ !request('status') ? 'bg-green-50 text-green-600 font-semibold' : '' }}">All subscribers</a>
+              <a href="{{ route('audience.subscribers', array_merge(request()->query(), ['status' => null])) }}" class="block px-4 py-2 text-sm text-text-body hover:bg-muted-surface {{ !request('status') ? 'bg-green-50 text-green-600 font-semibold' : '' }}">All statuses</a>
               <a href="{{ route('audience.subscribers', array_merge(request()->query(), ['status' => 'subscribed'])) }}" class="block px-4 py-2 text-sm text-text-body hover:bg-muted-surface {{ request('status') === 'subscribed' ? 'bg-green-50 text-green-600 font-semibold' : '' }}">Subscribed</a>
               <a href="{{ route('audience.subscribers', array_merge(request()->query(), ['status' => 'unsubscribed'])) }}" class="block px-4 py-2 text-sm text-text-body hover:bg-muted-surface {{ request('status') === 'unsubscribed' ? 'bg-green-50 text-green-600 font-semibold' : '' }}">Unsubscribed</a>
               <a href="{{ route('audience.subscribers', array_merge(request()->query(), ['status' => 'blacklisted'])) }}" class="block px-4 py-2 text-sm text-text-body hover:bg-muted-surface {{ request('status') === 'blacklisted' ? 'bg-green-50 text-green-600 font-semibold' : '' }}">Blacklisted</a>
@@ -81,6 +84,43 @@
             @if($mailListId)<input type="hidden" name="list" value="{{ $mailListId }}">@endif
             @if(request('status'))<input type="hidden" name="status" value="{{ request('status') }}">@endif
           </x-slot:hidden>
+          <x-slot:filters>
+            <div class="flex shrink-0 items-center gap-2">
+              <label class="sr-only" for="subscribers-date-from">From date</label>
+              <input
+                id="subscribers-date-from"
+                type="date"
+                name="date_from"
+                value="{{ $dateFrom ?? '' }}"
+                data-listing-filter
+                class="rounded-lg border border-border bg-elevated px-2.5 py-2 text-xs font-medium text-text-body focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
+                title="Filter by created from"
+              >
+              <span class="text-xs text-text-body/60">to</span>
+              <label class="sr-only" for="subscribers-date-to">To date</label>
+              <input
+                id="subscribers-date-to"
+                type="date"
+                name="date_to"
+                value="{{ $dateTo ?? '' }}"
+                data-listing-filter
+                class="rounded-lg border border-border bg-elevated px-2.5 py-2 text-xs font-medium text-text-body focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
+                title="Filter by created to"
+              >
+            </div>
+            <div class="min-w-[180px] shrink-0">
+              <x-ui.select name="opt_in" variant="listing" class="min-w-[180px]" data-listing-filter aria-label="Opt-in message filter">
+                <option value="">Opt-in message</option>
+                <option value="send_yes" @selected(($optIn ?? '') === 'send_yes')>Send opt-in: Yes</option>
+                <option value="send_no" @selected(($optIn ?? '') === 'send_no')>Send opt-in: No</option>
+                <option value="not_sent" @selected(($optIn ?? '') === 'not_sent')>Not sent yet</option>
+                <option value="pending" @selected(($optIn ?? '') === 'pending')>Delivery pending</option>
+                <option value="delivered" @selected(($optIn ?? '') === 'delivered')>Delivered</option>
+                <option value="failed" @selected(($optIn ?? '') === 'failed')>Failed</option>
+                <option value="sent_awaiting" @selected(($optIn ?? '') === 'sent_awaiting')>Sent — awaiting status</option>
+              </x-ui.select>
+            </div>
+          </x-slot:filters>
         </x-ui.listing-toolbar>
       </div>
 
@@ -164,7 +204,7 @@
               <x-ui.table-actions
                 :actions="['edit', 'trash']"
                 :links="[
-                  'edit' => route('audience.subscribers.detail', ['id' => $contact->uuid]),
+                  'edit' => route('audience.subscribers.detail', array_filter(['id' => $contact->uuid, 'list' => $mailListId])),
                   'trash' => route('audience.subscribers.destroy', $contact),
                 ]"
               />
@@ -195,19 +235,7 @@
 
       <form method="POST" action="{{ route('audience.subscribers.store') }}" class="space-y-4">
         @csrf
-        @if($mailListId)
-          <input type="hidden" name="mail_list_id" value="{{ $mailListId }}">
-        @else
-          <div>
-            <label for="subscriber_mail_list" class="mb-2 block text-sm font-semibold leading-[1.4] text-text-primary">List</label>
-            <select id="subscriber_mail_list" name="mail_list_id" class="w-full appearance-none rounded-[12px] border border-border bg-elevated px-[14px] py-[14px] text-sm font-medium leading-[1.4] text-text-muted focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500">
-              <option value="">All / no list</option>
-              @foreach ($mailLists ?? [] as $listOption)
-                <option value="{{ $listOption->uuid }}">{{ $listOption->name }}</option>
-              @endforeach
-            </select>
-          </div>
-        @endif
+        <input type="hidden" name="mail_list_id" value="{{ $mailListId }}">
         <div class="rounded-[12px] border border-border-light bg-muted-surface p-4">
           <div class="flex flex-col gap-8">
             <div class="flex flex-col gap-4 sm:flex-row">

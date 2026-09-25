@@ -15,24 +15,8 @@
 
 @php
   $sortComposite = $currentSort . ':' . $currentDirection;
-  $hasMatchingSort = collect($sortOptions)->contains(function ($option) use ($currentSort, $currentDirection) {
-      $value = is_array($option) ? ($option['value'] ?? '') : $option;
-      $direction = is_array($option)
-          ? ($option['direction'] ?? ($value === 'name' ? 'asc' : 'desc'))
-          : ($value === 'name' ? 'asc' : 'desc');
-
-      return (string) $value === (string) $currentSort
-          && (string) $direction === (string) $currentDirection;
-  });
-
-  if (! $hasMatchingSort && count($sortOptions) > 0) {
-      $first = $sortOptions[0];
-      $firstValue = is_array($first) ? ($first['value'] ?? 'created_at') : $first;
-      $firstDirection = is_array($first)
-          ? ($first['direction'] ?? ($firstValue === 'name' ? 'asc' : 'desc'))
-          : ($firstValue === 'name' ? 'asc' : 'desc');
-      $sortComposite = $firstValue . ':' . $firstDirection;
-  }
+  // Keep the real server sort selected — never fake the first option when
+  // the current composite is missing from the list (that made sort look stuck).
 @endphp
 
 <form
@@ -86,7 +70,7 @@
         name="{{ $searchName }}"
         value="{{ $searchValue }}"
         placeholder="{{ $searchPlaceholder }}"
-        @if ($searchOnEnter) data-listing-search-enter @endif
+        @if ($searchOnEnter) data-listing-search-enter data-listing-search-debounce="350" @endif
         autocomplete="off"
         class="min-w-0 flex-1 bg-transparent text-sm font-medium leading-[1.4] text-text-body placeholder:text-text-body/60 focus:outline-none"
       >
