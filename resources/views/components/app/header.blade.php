@@ -46,6 +46,7 @@
       </svg>
     </button>
 
+    @if ($showNotifications ?? true)
     <div class="relative">
       <button
         type="button"
@@ -59,6 +60,7 @@
       <div id="notifications-panel-backdrop" class="fixed inset-0 z-40 hidden bg-transparent" aria-hidden="true"></div>
       <x-app.notifications-panel />
     </div>
+    @endif
 
     <button
       type="button"

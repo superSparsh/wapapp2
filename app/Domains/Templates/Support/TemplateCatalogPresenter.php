@@ -7,6 +7,7 @@ namespace App\Domains\Templates\Support;
 use App\Domains\Templates\Enums\TemplateSource;
 use App\Domains\Templates\Enums\TemplateStatus;
 use App\Domains\WhatsApp\Support\CamsComponentEncoder;
+use App\Domains\WhatsApp\Support\CamsErrorPresenter;
 use App\Models\Template;
 use Illuminate\Support\Collection;
 
@@ -34,6 +35,15 @@ class TemplateCatalogPresenter
                 $error = ($isRejected || $hasRejectionText)
                     ? CamsComponentEncoder::presentError($template->rejection_reason)
                     : null;
+
+                // Prefer the cleaned provider text (legacy last_status) over rewritten filler.
+                $rejectionMessage = $error['message'] ?? null;
+                if (filled($template->rejection_reason) && ! CamsErrorPresenter::isGenericFiller($template->rejection_reason)) {
+                    $cleaned = CamsErrorPresenter::cleanRejectionReason($template->rejection_reason);
+                    if ($cleaned !== '') {
+                        $rejectionMessage = $cleaned;
+                    }
+                }
 
                 return [
                     'serial' => str_pad((string) ($offset + $index + 1), 2, '0', STR_PAD_LEFT),
@@ -63,7 +73,7 @@ class TemplateCatalogPresenter
                     'status_variant' => $template->status->chipVariant(),
                     'error' => $isRejected || $hasRejectionText,
                     'rejection_title' => $error['title'] ?? null,
-                    'rejection_reason' => $error['message'] ?? $template->rejection_reason,
+                    'rejection_reason' => $rejectionMessage ?? $template->rejection_reason,
                     'rejection_hint' => $error['hint'] ?? null,
                     'preview_url' => route('templates.preview', array_filter([
                         'code' => $template->code,

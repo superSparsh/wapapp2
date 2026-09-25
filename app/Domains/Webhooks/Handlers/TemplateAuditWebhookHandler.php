@@ -6,6 +6,7 @@ namespace App\Domains\Webhooks\Handlers;
 
 use App\Domains\Templates\Enums\TemplateStatus;
 use App\Domains\Webhooks\Parsers\AlibabaWebhookParser;
+use App\Domains\WhatsApp\Support\CamsErrorPresenter;
 use App\Models\InboundWebhookEvent;
 use App\Models\Template;
 use App\Models\TemplateStatusLog;
@@ -165,10 +166,11 @@ class TemplateAuditWebhookHandler
 
         if ($newStatus === TemplateStatus::Rejected) {
             if ($reason !== '') {
-                // Store the exact webhook/Meta reason for the templates error UI.
-                $updates['rejection_reason'] = $reason;
-            } elseif (! filled($template->rejection_reason)) {
-                $updates['rejection_reason'] = 'WhatsApp rejected this template without a detailed reason.';
+                // Store the exact webhook/Meta reason for the templates error UI (legacy last_status).
+                $updates['rejection_reason'] = CamsErrorPresenter::cleanRejectionReason($reason) ?: $reason;
+            } elseif (CamsErrorPresenter::isGenericFiller($template->rejection_reason) || ! filled($template->rejection_reason)) {
+                // Do not invent filler — UI falls back to "No error details…".
+                $updates['rejection_reason'] = null;
             }
         }
 

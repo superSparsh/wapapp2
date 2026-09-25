@@ -7,6 +7,7 @@ namespace App\Domains\Templates\Http\Controllers;
 use App\Domains\Templates\Services\TemplateRegistryService;
 use App\Domains\Templates\Services\TemplateServiceAdapter;
 use App\Domains\WhatsApp\Support\CamsComponentEncoder;
+use App\Domains\WhatsApp\Support\CamsErrorPresenter;
 use App\Http\Controllers\Controller;
 use App\Models\Template;
 use Illuminate\Http\JsonResponse;
@@ -47,6 +48,14 @@ class TemplateApiController extends Controller
                     ? CamsComponentEncoder::presentError($template->rejection_reason)
                     : null;
 
+                $rejectionMessage = $error['message'] ?? null;
+                if (filled($template->rejection_reason) && ! CamsErrorPresenter::isGenericFiller($template->rejection_reason)) {
+                    $cleaned = CamsErrorPresenter::cleanRejectionReason($template->rejection_reason);
+                    if ($cleaned !== '') {
+                        $rejectionMessage = $cleaned;
+                    }
+                }
+
                 return [
                     'uuid' => $template->uuid,
                     'name' => (string) $template->name,
@@ -55,7 +64,7 @@ class TemplateApiController extends Controller
                     'status_variant' => $template->status->chipVariant(),
                     'error' => $isRejected || $hasRejectionText,
                     'rejection_title' => $error['title'] ?? null,
-                    'rejection_reason' => $error['message'] ?? $template->rejection_reason,
+                    'rejection_reason' => $rejectionMessage ?? $template->rejection_reason,
                     'rejection_hint' => $error['hint'] ?? null,
                 ];
             })

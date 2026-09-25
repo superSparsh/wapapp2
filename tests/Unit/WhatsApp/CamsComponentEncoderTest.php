@@ -98,6 +98,43 @@ final class CamsComponentEncoderTest extends TestCase
     }
 
     #[Test]
+    public function it_shows_meta_language_deleted_message_as_is(): void
+    {
+        $raw = 'Message template language is being deleted and can\'t be added. Consider creating a new message template in a different language, or wait 4 weeks before trying to create a template with this language again.';
+
+        $presented = CamsErrorPresenter::present($raw);
+
+        $this->assertSame('Template name on cooldown', $presented['title']);
+        $this->assertStringContainsString('being deleted', strtolower($presented['message']));
+        $this->assertStringNotContainsString('WhatsApp rejected this template', $presented['message']);
+    }
+
+    #[Test]
+    public function it_does_not_treat_generic_filler_as_provider_message(): void
+    {
+        $presented = CamsErrorPresenter::present('WhatsApp rejected this template.');
+
+        $this->assertSame('No error details were returned by WhatsApp.', $presented['message']);
+        $this->assertSame('', CamsErrorPresenter::cleanRejectionReason('WhatsApp rejected this template.'));
+    }
+
+    #[Test]
+    public function clean_rejection_reason_extracts_cams_message_from_json(): void
+    {
+        $raw = json_encode([
+            'RequestId' => '01A0A9C9-5367-3B21-BC6A-C07BDD4BDF60',
+            'Message' => 'Message template language is being deleted and can\'t be added.',
+            'Code' => 'InvalidParameter',
+        ], JSON_THROW_ON_ERROR);
+
+        $cleaned = CamsErrorPresenter::cleanRejectionReason($raw);
+
+        $this->assertStringContainsString('being deleted', strtolower($cleaned));
+        $this->assertStringNotContainsString('RequestId', $cleaned);
+        $this->assertStringNotContainsString('InvalidParameter', $cleaned);
+    }
+
+    #[Test]
     public function it_does_not_invent_vague_accept_filler(): void
     {
         $presented = CamsErrorPresenter::present('');

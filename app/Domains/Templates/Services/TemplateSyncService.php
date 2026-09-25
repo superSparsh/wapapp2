@@ -9,6 +9,7 @@ use App\Domains\Templates\Enums\TemplateStatus;
 use App\Domains\Templates\Support\CamsTemplateIdentity;
 use App\Domains\Templates\Support\TemplateCategoryCatalog;
 use App\Domains\WhatsApp\Services\AlibabaCamsClient;
+use App\Domains\WhatsApp\Support\CamsErrorPresenter;
 use App\Models\Template;
 use App\Models\TemplateStatusLog;
 use App\Models\WhatsappLine;
@@ -240,10 +241,25 @@ class TemplateSyncService
                 $updateData['status'] = $newStatus;
 
                 if ($newStatus === TemplateStatus::Rejected) {
-                    $updateData['rejection_reason'] = \Illuminate\Support\Str::limit(
-                        $rejectionReason ?: (string) ($template->rejection_reason ?: 'WhatsApp rejected this template.'),
-                        2000,
-                    );
+                    // Legacy only writes last_status when CAMS returns a real reason —
+                    // never invent "WhatsApp rejected this template."
+                    if (filled($rejectionReason)) {
+                        $updateData['rejection_reason'] = \Illuminate\Support\Str::limit(
+                            CamsErrorPresenter::cleanRejectionReason($rejectionReason) ?: trim((string) $rejectionReason),
+                            2000,
+                        );
+                    } elseif (CamsErrorPresenter::isGenericFiller($template->rejection_reason)) {
+                        $updateData['rejection_reason'] = null;
+                    }
+
+                    if (! filled($rejectionReason)) {
+                        Log::info('Template rejected without CAMS reason', [
+                            'template_id' => $template->id,
+                            'audit_status' => $auditStatus,
+                            'body_keys' => array_keys($body),
+                            'data_keys' => array_keys($this->extractDetailPayload($body)),
+                        ]);
+                    }
                 }
 
                 if ($newStatus === TemplateStatus::Approved) {
@@ -339,6 +355,12 @@ class TemplateSyncService
             ?? $data['rejectReason']
             ?? $data['FailedReason']
             ?? $data['failedReason']
+            ?? $data['FailReason']
+            ?? $data['failReason']
+            ?? $data['AuditReason']
+            ?? $data['auditReason']
+            ?? $data['ErrorDescription']
+            ?? $data['errorDescription']
             ?? $data['Message']
             ?? $data['message']
             ?? $body['Reason']
@@ -347,13 +369,12 @@ class TemplateSyncService
             ?? $body['Message']
             ?? ($listItem['Reason'] ?? $listItem['reason'] ?? $listItem['RejectReason'] ?? $listItem['Message'] ?? null);
 
-        if (is_string($reason)) {
-            $reason = trim($reason);
-            if ($reason === '') {
-                $reason = null;
-            }
-        } else {
-            $reason = null;
+        $reason = $this->normalizeReasonValue($reason);
+
+        if ($reason === null) {
+            $reason = $this->extractQualityScoreReason($data)
+                ?? $this->extractQualityScoreReason($body)
+                ?? $this->extractQualityScoreReason($listItem);
         }
 
         $templateCode = $data['templateCode']
@@ -370,10 +391,66 @@ class TemplateSyncService
 
         return [
             'audit_status' => is_string($auditStatus) && $auditStatus !== '' ? $auditStatus : null,
-            'reason' => is_string($reason) && $reason !== '' ? $reason : null,
+            'reason' => $reason,
             'template_code' => is_string($templateCode) && $templateCode !== '' ? $templateCode : null,
             'category' => is_string($category) && $category !== '' ? $category : null,
         ];
+    }
+
+    /**
+     * @param  mixed  $reason
+     */
+    private function normalizeReasonValue(mixed $reason): ?string
+    {
+        if (is_array($reason)) {
+            $parts = [];
+            foreach ($reason as $item) {
+                if (is_string($item) && trim($item) !== '') {
+                    $parts[] = trim($item);
+                } elseif (is_array($item)) {
+                    $nested = $item['text'] ?? $item['Text'] ?? $item['reason'] ?? $item['Reason'] ?? $item['message'] ?? $item['Message'] ?? null;
+                    if (is_string($nested) && trim($nested) !== '') {
+                        $parts[] = trim($nested);
+                    }
+                }
+            }
+            $reason = $parts !== [] ? implode(' ', $parts) : null;
+        }
+
+        if (! is_string($reason)) {
+            return null;
+        }
+
+        $reason = trim($reason);
+        if ($reason === '' || CamsErrorPresenter::isGenericFiller($reason)) {
+            return null;
+        }
+
+        $noise = strtolower($reason);
+        if (in_array($noise, ['ok', 'success', 'fail', 'failed', 'pass', 'approved', 'rejected', 'auditing', 'pending'], true)) {
+            return null;
+        }
+
+        return $reason;
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    private function extractQualityScoreReason(array $payload): ?string
+    {
+        $score = $payload['QualityScore'] ?? $payload['qualityScore'] ?? null;
+        if (! is_array($score)) {
+            return null;
+        }
+
+        return $this->normalizeReasonValue(
+            $score['Reasons']
+            ?? $score['reasons']
+            ?? $score['Reason']
+            ?? $score['reason']
+            ?? null
+        );
     }
 
     /**

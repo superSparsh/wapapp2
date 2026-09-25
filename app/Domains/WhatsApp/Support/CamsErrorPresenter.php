@@ -11,12 +11,52 @@ namespace App\Domains\WhatsApp\Support;
 final class CamsErrorPresenter
 {
     /**
+     * Legacy-style last_status cleaner: keep the real CAMS/Meta Message/reason,
+     * strip request ids / HTTP noise, never invent filler copy.
+     */
+    public static function cleanRejectionReason(?string $raw): string
+    {
+        $raw = trim((string) $raw);
+        if ($raw === '' || self::isGenericFiller($raw)) {
+            return '';
+        }
+
+        [$code, $message] = self::extractCodeAndMessage($raw);
+        $text = $message !== '' ? $message : self::stripNoise($raw);
+        $text = self::stripStoredFiller($text);
+
+        // Legacy: remove Meta "(#123)" prefixes.
+        $text = preg_replace('/\(#\d+\)\s*/', '', $text) ?? $text;
+        $text = trim((string) preg_replace('/\s+/', ' ', $text));
+
+        if ($text === '' || self::isGenericFiller($text)) {
+            return $code !== '' && ! self::isGenericFiller($code) ? $code : '';
+        }
+
+        return \Illuminate\Support\Str::limit($text, 2000);
+    }
+
+    public static function isGenericFiller(?string $text): bool
+    {
+        $normalized = strtolower(trim((string) preg_replace('/\s+/', ' ', (string) $text)));
+        $normalized = rtrim($normalized, '.');
+
+        return in_array($normalized, [
+            'whatsapp rejected this template',
+            'whatsapp rejected this template without a detailed reason',
+            'no error details were returned by whatsapp',
+            'no rejection details were returned by whatsapp',
+            'something went wrong with the template, please contact the support',
+        ], true);
+    }
+
+    /**
      * @return array{title: string, message: string, hint: string|null}
      */
     public static function present(?string $raw): array
     {
-        $raw = self::stripStoredFiller(trim((string) $raw));
-        if ($raw === '') {
+        $raw = trim((string) $raw);
+        if ($raw === '' || self::isGenericFiller($raw)) {
             return [
                 'title' => 'Submission failed',
                 'message' => 'No error details were returned by WhatsApp.',
@@ -24,30 +64,44 @@ final class CamsErrorPresenter
             ];
         }
 
-        // Meta / webhook audit reasons are plain English — show them as-is.
-        if (self::looksLikeMetaAuditReason($raw)) {
+        [$code, $extractedMessage] = self::extractCodeAndMessage($raw);
+        $cleaned = self::cleanRejectionReason($raw);
+        $display = $cleaned !== ''
+            ? $cleaned
+            : self::polishProviderMessage($extractedMessage !== '' ? $extractedMessage : self::stripNoise($raw));
+
+        if ($display === '' || self::isGenericFiller($display)) {
             return [
-                'title' => self::titleForMetaReason($raw),
-                'message' => self::preserveMetaMessage($raw),
-                'hint' => self::hintForMetaReason($raw),
+                'title' => 'Submission failed',
+                'message' => 'No error details were returned by WhatsApp.',
+                'hint' => null,
             ];
         }
 
-        [$code, $message] = self::extractCodeAndMessage($raw);
+        // Meta / webhook audit reasons are plain English — show them as-is (legacy last_status).
+        if ($code === '' && self::looksLikeMetaAuditReason($display)) {
+            return [
+                'title' => self::titleForMetaReason($display),
+                'message' => $display,
+                'hint' => self::hintForMetaReason($display),
+            ];
+        }
+
         $codeKey = self::normalizeCode($code);
-        $providerMessage = self::polishProviderMessage($message !== '' ? $message : $raw);
-        $haystack = strtoupper($code.' '.$message.' '.$raw);
+        $providerMessage = self::polishProviderMessage($extractedMessage !== '' ? $extractedMessage : $display);
+        if ($providerMessage === '' || self::isGenericFiller($providerMessage)) {
+            $providerMessage = $display;
+        }
+        $haystack = strtoupper($code.' '.$extractedMessage.' '.$display.' '.$raw);
 
         [$title, $hint, $fallbackMessage] = self::guidanceFor($codeKey, $haystack);
 
         $body = $providerMessage !== '' ? $providerMessage : ($fallbackMessage ?? '');
-        if ($body === '') {
-            $body = $code !== '' ? $code : 'No error details were returned by WhatsApp.';
+        if ($body === '' || self::isGenericFiller($body)) {
+            $body = $display;
         }
-
-        // Prefer the full provider/webhook text when guidance only adds a short fallback.
-        if ($providerMessage !== '' && mb_strlen($providerMessage) > mb_strlen((string) $fallbackMessage)) {
-            $body = $providerMessage;
+        if ($body === '' || self::isGenericFiller($body)) {
+            $body = $code !== '' ? $code : 'No error details were returned by WhatsApp.';
         }
 
         return [
@@ -110,6 +164,10 @@ final class CamsErrorPresenter
 
     private static function looksLikeMetaAuditReason(string $raw): bool
     {
+        if (self::isGenericFiller($raw)) {
+            return false;
+        }
+
         if (str_starts_with(ltrim($raw), '{') || str_starts_with(ltrim($raw), '[')) {
             return false;
         }
@@ -123,11 +181,13 @@ final class CamsErrorPresenter
         return str_contains($upper, 'MESSAGE TEMPLATE')
             || str_contains($upper, 'BEING DELETED')
             || str_contains($upper, 'TRY AGAIN IN')
-            || str_contains($upper, 'WHATSAPP')
             || str_contains($upper, 'CAN\'T BE ADDED')
             || str_contains($upper, 'CANNOT BE ADDED')
             || str_contains($upper, 'CONSIDER CREATING A NEW')
-            || (mb_strlen($raw) > 80 && ! str_contains($upper, 'INVALIDPARAMETER'));
+            || str_contains($upper, 'DOES NOT MATCH')
+            || str_contains($upper, 'POLICY')
+            || str_contains($upper, 'VIOLAT')
+            || (mb_strlen($raw) > 80 && ! str_contains($upper, 'INVALIDPARAMETER') && ! str_contains($upper, 'CODE:'));
     }
 
     private static function titleForMetaReason(string $raw): string
@@ -138,7 +198,7 @@ final class CamsErrorPresenter
             return 'Template name on cooldown';
         }
 
-        return 'WhatsApp rejected this template';
+        return 'Template rejected';
     }
 
     private static function hintForMetaReason(string $raw): ?string
@@ -152,18 +212,6 @@ final class CamsErrorPresenter
         return null;
     }
 
-    private static function preserveMetaMessage(string $raw): string
-    {
-        $message = self::stripStoredFiller(self::stripNoise($raw));
-        $message = trim($message);
-
-        if ($message === '') {
-            return 'WhatsApp rejected this template.';
-        }
-
-        return \Illuminate\Support\Str::limit($message, 1000);
-    }
-
     /**
      * @return array{0: string, 1: string} [code, message]
      */
@@ -171,8 +219,19 @@ final class CamsErrorPresenter
     {
         $decoded = json_decode($raw, true);
         if (is_array($decoded)) {
-            $code = trim((string) ($decoded['Code'] ?? $decoded['code'] ?? ''));
-            $message = trim((string) ($decoded['Message'] ?? $decoded['message'] ?? $decoded['Reason'] ?? $decoded['reason'] ?? ''));
+            $code = trim((string) ($decoded['Code'] ?? $decoded['code'] ?? data_get($decoded, 'Data.Code') ?? data_get($decoded, 'data.Code') ?? ''));
+            $message = trim((string) (
+                $decoded['Message']
+                ?? $decoded['message']
+                ?? $decoded['Reason']
+                ?? $decoded['reason']
+                ?? data_get($decoded, 'Data.Message')
+                ?? data_get($decoded, 'data.Message')
+                ?? data_get($decoded, 'Data.Reason')
+                ?? data_get($decoded, 'data.reason')
+                ?? data_get($decoded, 'body.Message')
+                ?? ''
+            ));
 
             return [$code, $message];
         }
@@ -229,6 +288,10 @@ final class CamsErrorPresenter
         $patterns = [
             '/WhatsApp could not accept this template\.?\s*Please review it and try again\.?/i',
             '/WhatsApp could not accept this template\.?/i',
+            '/WhatsApp rejected this template without a detailed reason\.?/i',
+            '/WhatsApp rejected this template\.?/i',
+            '/No error details were returned by WhatsApp\.?/i',
+            '/No rejection details were returned by WhatsApp\.?/i',
             '/Please review it and try again\.?/i',
             '/Edit the template,?\s*then submit again\.?/i',
             '/Edit the template and submit again\.?\s*If it keeps failing, contact support\.?/i',

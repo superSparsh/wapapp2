@@ -11,6 +11,7 @@ use App\Domains\Templates\Support\TemplateCategoryCatalog;
 use App\Domains\WhatsApp\Services\AlibabaCamsClient;
 use App\Domains\WhatsApp\Services\CamsTemplateMediaUploader;
 use App\Domains\WhatsApp\Support\CamsComponentEncoder;
+use App\Domains\WhatsApp\Support\CamsErrorPresenter;
 use App\Models\Template;
 use App\Models\TemplateStatusLog;
 use App\Models\WhatsappLine;
@@ -776,20 +777,25 @@ class TemplateWhatsAppService
     private function handleSubmissionError(Template $template, string $error): void
     {
         $previous = $template->status;
-        $presented = CamsComponentEncoder::presentError($error);
-        $friendly = trim($presented['message'].($presented['hint'] ? ' '.$presented['hint'] : ''));
+        // Legacy last_status: store the cleaned CAMS/Meta Message, not a rewritten UI title.
+        $stored = CamsErrorPresenter::cleanRejectionReason($error);
+        if ($stored === '') {
+            $stored = 'No error details were returned by WhatsApp.';
+        }
+
+        $presented = CamsComponentEncoder::presentError($stored);
 
         $template->update([
             'status' => TemplateStatus::Rejected,
-            'rejection_reason' => \Illuminate\Support\Str::limit($friendly !== '' ? $friendly : $presented['message'], 2000),
+            'rejection_reason' => \Illuminate\Support\Str::limit($stored, 2000),
         ]);
 
-        $this->logStatusChange($template, $previous, TemplateStatus::Rejected, $friendly);
+        $this->logStatusChange($template, $previous, TemplateStatus::Rejected, $stored);
 
         Log::error('Template submission failed', [
             'template_id' => $template->id,
             'error' => $error,
-            'friendly' => $friendly,
+            'stored' => $stored,
             'title' => $presented['title'],
         ]);
     }

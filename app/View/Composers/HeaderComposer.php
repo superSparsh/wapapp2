@@ -9,6 +9,7 @@ use App\Domains\Admin\Support\AdminSession;
 use App\Domains\Admin\Support\AdminViewAccess;
 use App\Domains\Integration\Support\LineContextGate;
 use App\Domains\Team\Services\TeamImpersonationService;
+use App\Domains\Team\Support\TeamActor;
 use App\Models\TenantUserAccess;
 use App\Support\CurrentAccount;
 use Illuminate\View\View;
@@ -39,13 +40,16 @@ class HeaderComposer
 
         $lineLocked = LineContextGate::isActive();
         $lockedLine = LineContextGate::lockedLine();
+        $isTeamActor = TeamActor::isTeamMember();
+        $showNotifications = ! $isTeamActor;
 
         $view->with([
             'currentAccountName' => CurrentAccount::displayName(),
             'currentAccountEmail' => CurrentAccount::email(),
             'currentAccountAvatar' => CurrentAccount::avatarUrl(),
-            'notificationCount' => $this->notificationService->unreadCount(),
-            'notifications' => $this->notificationService->recent(),
+            'showNotifications' => $showNotifications,
+            'notificationCount' => $showNotifications ? $this->notificationService->unreadCount() : 0,
+            'notifications' => $showNotifications ? $this->notificationService->recent() : collect(),
             'isImpersonating' => $this->impersonationService->isImpersonating(),
             'isOwnerImpersonating' => $this->impersonationService->isOwnerImpersonating(),
             'impersonatedMember' => $this->impersonationService->impersonatedMember(),

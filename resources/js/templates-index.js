@@ -143,7 +143,7 @@ function initStatusPolling(root) {
                     const show = Boolean(item.error);
                     rejectionWrap.classList.toggle('hidden', !show);
                     if (rejectionTitle) {
-                        rejectionTitle.textContent = item.rejection_title || 'WhatsApp rejected this template';
+                        rejectionTitle.textContent = item.rejection_title || 'Template rejected';
                     }
                     if (rejectionText) {
                         rejectionText.textContent = item.rejection_reason

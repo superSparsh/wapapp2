@@ -159,4 +159,73 @@ class TemplateSyncServiceTest extends TestCase
         [$status] = $service->mapAuditStatus('Auditing');
         $this->assertSame(TemplateStatus::PendingReview, $status);
     }
+
+    public function test_coded_sync_stores_raw_fail_reason_like_legacy_last_status(): void
+    {
+        $line = WhatsappLine::factory()->create([
+            'alibaba_cust_space_id' => '100000430113',
+        ]);
+
+        $template = Template::factory()->create([
+            'whatsapp_line_id' => $line->id,
+            'code' => '1257583503568572500',
+            'language' => 'en_GB',
+            'category' => 'MARKETING',
+            'status' => TemplateStatus::PendingReview,
+            'rejection_reason' => null,
+        ]);
+
+        $metaReason = 'Message template language is being deleted and can\'t be added. Consider creating a new message template in a different language, or wait 4 weeks before trying to create a template with this language again.';
+
+        Http::fake([
+            'cams.ap-southeast-1.aliyuncs.com/*' => Http::response([
+                'Code' => 'OK',
+                'data' => [
+                    'auditStatus' => 'fail',
+                    'reason' => $metaReason,
+                    'templateCode' => '1257583503568572500',
+                    'category' => 'MARKETING',
+                ],
+            ], 200),
+        ]);
+
+        app(TemplateSyncService::class)->syncCodedDetailsBatch(10);
+
+        $template->refresh();
+        $this->assertSame(TemplateStatus::Rejected, $template->status);
+        $this->assertStringContainsString('being deleted', strtolower((string) $template->rejection_reason));
+        $this->assertStringNotContainsString('WhatsApp rejected this template', (string) $template->rejection_reason);
+    }
+
+    public function test_coded_sync_does_not_invent_generic_reason_when_cams_omits_it(): void
+    {
+        $line = WhatsappLine::factory()->create([
+            'alibaba_cust_space_id' => '100000430113',
+        ]);
+
+        $template = Template::factory()->create([
+            'whatsapp_line_id' => $line->id,
+            'code' => '1257583503568572501',
+            'language' => 'en_GB',
+            'category' => 'MARKETING',
+            'status' => TemplateStatus::PendingReview,
+            'rejection_reason' => null,
+        ]);
+
+        Http::fake([
+            'cams.ap-southeast-1.aliyuncs.com/*' => Http::response([
+                'Code' => 'OK',
+                'data' => [
+                    'auditStatus' => 'sendFail',
+                    'templateCode' => '1257583503568572501',
+                ],
+            ], 200),
+        ]);
+
+        app(TemplateSyncService::class)->syncCodedDetailsBatch(10);
+
+        $template->refresh();
+        $this->assertSame(TemplateStatus::Rejected, $template->status);
+        $this->assertNull($template->rejection_reason);
+    }
 }
