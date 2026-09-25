@@ -47,10 +47,18 @@
             <div class="flex flex-col gap-4">
               <div>
                 <label class="mb-1 block text-sm font-medium text-text-primary">Access Token <span class="text-red-500">*</span></label>
-                <input type="text" name="settings[access_token]"
-                  value="{{ old('settings.access_token', $integration->settings['access_token'] ?? '') }}"
-                  class="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-green-500"
-                  placeholder="eyJhbGci..." />
+                <div class="relative">
+                  <input type="password" name="settings[access_token]" id="calendly-access-token"
+                    value="{{ old('settings.access_token', $integration->settings['access_token'] ?? '') }}"
+                    class="w-full rounded-lg border border-border bg-surface px-3 py-2 pr-11 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-green-500"
+                    placeholder="Paste your personal access token"
+                    autocomplete="off" />
+                  <button type="button" data-password-toggle
+                    class="absolute inset-y-0 right-0 flex items-center px-3 text-text-muted hover:text-text-primary"
+                    aria-label="Show password">
+                    <img src="{{ asset('images/auth/eye.svg') }}" alt="" class="size-5" width="20" height="20">
+                  </button>
+                </div>
                 @error('settings.access_token')
                   <p class="mt-1 text-xs text-red-500">{{ $message }}</p>
                 @enderror
@@ -270,71 +278,112 @@
         <div id="modal-calendly-event-details" data-modal="calendly-event-details"
           class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60 p-4" role="dialog" aria-modal="true"
           aria-labelledby="calendly-event-modal-title">
-          <div class="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-elevated shadow-xl">
-            <div class="flex items-start justify-between gap-3 bg-gradient-to-br from-[#25D366] to-[#128C7E] px-5 py-4 text-white">
-              <div>
-                <p class="text-[10px] font-semibold uppercase tracking-wider opacity-85">Event details</p>
-                <h2 id="calendly-event-modal-title" class="text-lg font-semibold">Calendly booking overview</h2>
+          <div class="flex max-h-[90vh] w-full max-w-[681px] flex-col overflow-hidden rounded-[20px] bg-elevated shadow-[0px_4px_6px_rgba(0,0,0,0.1)]">
+            <div class="flex shrink-0 items-start gap-4 border-b border-border-light p-5">
+              <div class="min-w-0 flex-1">
+                <h2 id="calendly-event-modal-title" class="truncate text-2xl font-bold leading-[1.5] text-text-primary">
+                  <span id="modalEventName">Event details</span>
+                </h2>
+                <p id="modalEventStartSummary" class="mt-1 text-sm font-normal leading-[1.4] text-text-subtle opacity-50"></p>
               </div>
-              <button type="button" data-modal-close class="flex size-8 items-center justify-center rounded-lg bg-white/15 hover:bg-white/25" aria-label="Close">
-                <span class="text-xl leading-none">&times;</span>
+              <span id="modalEventStatus"
+                class="inline-flex shrink-0 items-center rounded px-2 py-1.5 text-xs font-semibold capitalize bg-green-50 text-green-500"></span>
+              <button type="button" data-modal-close aria-label="Close"
+                class="flex size-6 shrink-0 items-center justify-center rounded hover:bg-muted-surface">
+                <img src="{{ asset('images/inbox/modals/close-square.svg') }}" alt="" class="size-6" width="24" height="24">
               </button>
             </div>
-            <div class="overflow-y-auto p-5">
-              <div class="grid gap-4 lg:grid-cols-12">
-                <div class="flex flex-col gap-4 lg:col-span-7">
-                  <div class="rounded-xl border-l-4 border-[#25D366] bg-surface p-4 shadow-sm">
-                    <p class="text-[10px] font-bold uppercase tracking-wide text-text-muted">Event</p>
-                    <h3 id="modalEventName" class="mt-1 text-base font-semibold text-text-primary"></h3>
-                    <p id="modalEventStartSummary" class="mt-1 text-sm text-text-muted"></p>
-                    <div class="mt-2 flex flex-wrap gap-2 text-xs">
-                      <span class="rounded-full border border-border bg-elevated px-2.5 py-1 text-text-muted">
-                        Duration: <span id="modalEventDuration" class="font-medium text-text-primary"></span>
-                      </span>
-                      <span class="rounded-full border border-border bg-elevated px-2.5 py-1 text-text-muted">
-                        Timezone: <span id="modalEventTimezone" class="font-medium text-text-primary"></span>
-                      </span>
-                      <span id="modalEventStatus" class="rounded-full bg-[#128C7E] px-2.5 py-1 font-semibold text-white"></span>
+
+            <div class="min-h-0 flex-1 overflow-y-auto p-5">
+              <div class="flex flex-col gap-4">
+                <div class="grid gap-3 sm:grid-cols-2">
+                  <div class="rounded-xl border border-border-light bg-muted-surface p-4">
+                    <p class="mb-2 text-sm font-semibold leading-[1.4] text-text-primary">Timing</p>
+                    <div class="flex flex-col gap-1.5 text-sm leading-[1.4]">
+                      <div class="flex gap-2">
+                        <span class="w-16 shrink-0 text-text-muted">Start</span>
+                        <span class="text-text-muted">:</span>
+                        <span id="modalEventStart" class="min-w-0 break-words text-text-primary"></span>
+                      </div>
+                      <div class="flex gap-2">
+                        <span class="w-16 shrink-0 text-text-muted">End</span>
+                        <span class="text-text-muted">:</span>
+                        <span id="modalEventEnd" class="min-w-0 break-words text-text-primary"></span>
+                      </div>
+                      <div class="flex gap-2">
+                        <span class="w-16 shrink-0 text-text-muted">Duration</span>
+                        <span class="text-text-muted">:</span>
+                        <span id="modalEventDuration" class="min-w-0 break-words text-text-primary"></span>
+                      </div>
+                      <div class="flex gap-2">
+                        <span class="w-16 shrink-0 text-text-muted">Timezone</span>
+                        <span class="text-text-muted">:</span>
+                        <span id="modalEventTimezone" class="min-w-0 break-words text-text-primary"></span>
+                      </div>
                     </div>
                   </div>
-                  <div class="grid gap-3 sm:grid-cols-2">
-                    <div class="rounded-xl border border-border bg-surface p-4 shadow-sm">
-                      <p class="mb-2 text-[10px] font-bold uppercase tracking-wide text-text-muted">Timing</p>
-                      <p class="text-sm text-text-primary"><span class="font-semibold">Start:</span> <span id="modalEventStart"></span></p>
-                      <p class="mt-1 text-sm text-text-primary"><span class="font-semibold">End:</span> <span id="modalEventEnd"></span></p>
+
+                  <div class="rounded-xl border border-border-light bg-muted-surface p-4">
+                    <p class="mb-2 text-sm font-semibold leading-[1.4] text-text-primary">Location &amp; capacity</p>
+                    <div class="flex flex-col gap-1.5 text-sm leading-[1.4]">
+                      <div class="flex gap-2">
+                        <span class="w-24 shrink-0 text-text-muted">Location</span>
+                        <span class="text-text-muted">:</span>
+                        <span id="modalEventLocationType" class="min-w-0 break-words capitalize text-text-primary"></span>
+                      </div>
+                      <div class="flex gap-2">
+                        <span class="w-24 shrink-0 text-text-muted">Invitees</span>
+                        <span class="text-text-muted">:</span>
+                        <span id="modalEventTotalInvitees" class="min-w-0 break-words text-text-primary"></span>
+                      </div>
                     </div>
-                    <div class="rounded-xl border border-border bg-surface p-4 shadow-sm">
-                      <p class="mb-2 text-[10px] font-bold uppercase tracking-wide text-text-muted">Location &amp; capacity</p>
-                      <p class="text-sm text-text-primary"><span class="font-semibold">Location type:</span> <span id="modalEventLocationType"></span></p>
-                      <p class="mt-1 text-sm text-text-primary"><span class="font-semibold">Total invitees:</span> <span id="modalEventTotalInvitees"></span></p>
+                  </div>
+
+                  <div class="rounded-xl border border-border-light bg-muted-surface p-4">
+                    <p class="mb-2 text-sm font-semibold leading-[1.4] text-text-primary">Invitee</p>
+                    <div class="flex gap-2 text-sm leading-[1.4]">
+                      <span class="w-16 shrink-0 text-text-muted">Email</span>
+                      <span class="text-text-muted">:</span>
+                      <span id="modalEventInvitee" class="min-w-0 break-all text-text-primary"></span>
+                    </div>
+                  </div>
+
+                  <div class="rounded-xl border border-border-light bg-muted-surface p-4">
+                    <p class="mb-2 text-sm font-semibold leading-[1.4] text-text-primary">Host</p>
+                    <div class="flex flex-col gap-1.5 text-sm leading-[1.4]">
+                      <div class="flex gap-2">
+                        <span class="w-16 shrink-0 text-text-muted">Name</span>
+                        <span class="text-text-muted">:</span>
+                        <span id="modalEventHostName" class="min-w-0 break-words text-text-primary"></span>
+                      </div>
+                      <div class="flex gap-2">
+                        <span class="w-16 shrink-0 text-text-muted">Email</span>
+                        <span class="text-text-muted">:</span>
+                        <span id="modalEventHostEmail" class="min-w-0 break-all text-text-primary"></span>
+                      </div>
                     </div>
                   </div>
                 </div>
-                <div class="flex flex-col gap-3 lg:col-span-5">
-                  <div class="rounded-xl border border-border bg-surface p-4 shadow-sm">
-                    <p class="mb-2 text-[10px] font-bold uppercase tracking-wide text-text-muted">Invitee</p>
-                    <p class="text-sm text-text-primary"><span class="font-semibold">Email:</span> <span id="modalEventInvitee"></span></p>
-                  </div>
-                  <div class="rounded-xl border border-border bg-surface p-4 shadow-sm">
-                    <p class="mb-2 text-[10px] font-bold uppercase tracking-wide text-text-muted">Host</p>
-                    <p class="text-sm text-text-primary"><span class="font-semibold">Name:</span> <span id="modalEventHostName"></span></p>
-                    <p class="mt-1 text-sm text-text-primary"><span class="font-semibold">Email:</span> <span id="modalEventHostEmail"></span></p>
-                  </div>
-                  <div class="rounded-xl border border-border bg-surface p-4 shadow-sm">
-                    <p class="mb-2 text-[10px] font-bold uppercase tracking-wide text-text-muted">WhatsApp</p>
-                    <p class="text-sm text-text-primary"><span class="font-semibold">Number:</span> <span id="modalEventWhatsapp"></span></p>
+
+                <div class="rounded-xl border border-border-light bg-muted-surface p-4">
+                  <p class="mb-2 text-sm font-semibold leading-[1.4] text-text-primary">WhatsApp</p>
+                  <div class="flex gap-2 text-sm leading-[1.4]">
+                    <span class="w-16 shrink-0 text-text-muted">Number</span>
+                    <span class="text-text-muted">:</span>
+                    <span id="modalEventWhatsapp" class="min-w-0 break-all text-text-primary"></span>
                   </div>
                 </div>
-                <div class="lg:col-span-12">
-                  <div class="rounded-xl border border-border bg-surface p-4 shadow-sm">
-                    <p class="mb-3 text-[10px] font-bold uppercase tracking-wide text-text-muted">Form responses</p>
-                    <ul id="modalEventFormList" class="grid gap-2 sm:grid-cols-2"></ul>
-                  </div>
+
+                <div class="rounded-xl border border-border-light bg-muted-surface p-4">
+                  <p class="mb-3 text-sm font-semibold leading-[1.4] text-text-primary">Form responses</p>
+                  <ul id="modalEventFormList" class="grid gap-2 sm:grid-cols-2"></ul>
                 </div>
               </div>
             </div>
-            <div class="flex justify-end border-t border-border px-5 py-3">
-              <button type="button" data-modal-close class="rounded-lg border border-border px-4 py-2 text-sm font-semibold text-text-primary hover:bg-surface">
+
+            <div class="flex shrink-0 items-center justify-end border-t border-border-light p-5">
+              <button type="button" data-modal-close
+                class="fd-btn inline-flex items-center justify-center rounded border border-green-500 px-4 py-3 text-sm font-semibold text-green-500 transition-colors hover:bg-green-50">
                 Close
               </button>
             </div>
@@ -462,7 +511,8 @@
 
   <script>
     document.getElementById('test-token-btn')?.addEventListener('click', function () {
-      const token = document.querySelector('[name="settings[access_token]"]')?.value;
+      const token = document.getElementById('calendly-access-token')?.value
+        || document.querySelector('[name="settings[access_token]"]')?.value;
       const result = document.getElementById('test-token-result');
       if (!token) return;
       result.className = 'text-sm text-text-muted';
@@ -553,7 +603,15 @@
         const statusEl = document.getElementById('modalEventStatus');
         if (statusEl) {
           statusEl.textContent = statusText;
-          statusEl.style.backgroundColor = statusText.toLowerCase() === 'active' ? '#128C7E' : '#dc3545';
+          const lower = statusText.toLowerCase();
+          statusEl.className = 'inline-flex shrink-0 items-center rounded px-2 py-1.5 text-xs font-semibold capitalize';
+          if (lower === 'active') {
+            statusEl.className += ' bg-green-50 text-green-500';
+          } else if (lower === 'canceled' || lower === 'cancelled') {
+            statusEl.className += ' bg-[rgba(255,0,0,0.05)] text-red-500';
+          } else {
+            statusEl.className += ' bg-yellow-50 text-yellow-700';
+          }
         }
 
         const formContainer = document.getElementById('modalEventFormList');
@@ -568,7 +626,7 @@
         }
 
         if (!items.length) {
-          formContainer.innerHTML = '<li class="text-sm text-text-muted">No additional form responses.</li>';
+          formContainer.innerHTML = '<li class="text-sm text-text-muted sm:col-span-2">No additional form responses.</li>';
           return;
         }
 
@@ -579,13 +637,13 @@
             const answer = escapeHtml(String(item.answer || '').trim());
             if (!answer) return '';
             return (
-              '<li class="rounded-lg border border-border bg-elevated px-3 py-2">' +
-              '<div class="text-[10px] font-bold uppercase tracking-wide text-text-muted">' + question + '</div>' +
-              '<div class="mt-1 text-sm font-medium text-text-primary">' + answer + '</div>' +
+              '<li class="rounded-xl border border-border bg-elevated p-3.5">' +
+              '<div class="text-xs font-medium text-text-muted">' + question + '</div>' +
+              '<div class="mt-1 break-words text-sm font-medium text-text-primary">' + answer + '</div>' +
               '</li>'
             );
           })
-          .join('') || '<li class="text-sm text-text-muted">No additional form responses.</li>';
+          .join('') || '<li class="text-sm text-text-muted sm:col-span-2">No additional form responses.</li>';
       };
 
       document.querySelectorAll('[data-calendly-event-card]').forEach((card) => {
