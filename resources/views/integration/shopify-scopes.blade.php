@@ -227,7 +227,17 @@
       document.querySelectorAll('[data-remove-scope]').forEach((btn) => {
         btn.addEventListener('click', async () => {
           const key = btn.getAttribute('data-remove-scope');
-          if (!key || !confirm('Remove this webhook scope?')) return;
+          if (!key) return;
+
+          const label = btn.closest('[data-scope-row]')?.querySelector('p')?.textContent?.trim() || key;
+          const confirmed = await (window.showAppConfirm?.({
+            title: 'Delete webhook scope',
+            message: `Delete “${label}”? WhatsApp notifications for this Shopify event will stop.`,
+            variant: 'danger',
+            confirmLabel: 'Delete',
+          }) ?? Promise.resolve(window.confirm(`Delete “${label}”?`)));
+
+          if (!confirmed) return;
 
           try {
             const res = await fetch(@json(route('integration.shopify.scopes.remove')), {
