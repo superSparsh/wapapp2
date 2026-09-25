@@ -4,20 +4,28 @@ declare(strict_types=1);
 
 namespace App\Domains\FormBuilder\Services;
 
+use App\Domains\Audience\Enums\ContactStatus;
+use App\Domains\Audience\Models\Blacklist;
+use App\Domains\Drip\Services\DripTriggerDispatcher;
 use App\Domains\FormBuilder\Enums\FieldType;
 use App\Domains\FormBuilder\Jobs\ProcessFormSubmissionJob;
+use App\Enums\ContactOptInStatus;
 use App\Models\Contact;
 use App\Models\FormSubmission;
 use App\Models\SignupForm;
+use App\Support\PhoneNormalizer;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 
 class FormSubmissionService
 {
+    public function __construct(
+        private readonly DripTriggerDispatcher $dripTriggerDispatcher,
+    ) {}
+
     /**
      * Process a public form submission.
      *
-     * 1. Create/update contact with submitted phone number
+     * 1. Create/update contact with submitted phone number (same format as list subscribers)
      * 2. Store the submission record
      * 3. Increment the form's cached submission_count
      * 4. Dispatch async job to send WhatsApp template message
@@ -29,10 +37,8 @@ class FormSubmissionService
         $phone = $this->extractPhone($form, $data);
 
         return DB::transaction(function () use ($form, $data, $phone): FormSubmission {
-            // 1. Create or update contact
             $contact = $this->upsertContact($phone, $data, $form);
 
-            // 2. Store the submission record
             $submission = FormSubmission::query()->create([
                 'signup_form_id' => $form->id,
                 'contact_id' => $contact?->id,
@@ -42,10 +48,8 @@ class FormSubmissionService
                 'message_status' => 'pending',
             ]);
 
-            // 3. Increment cached submission count on the form
             $form->increment('submission_count');
 
-            // 4. Dispatch async job for WhatsApp message
             if ($form->template_id && $phone) {
                 ProcessFormSubmissionJob::dispatch($submission->id);
             }
@@ -78,7 +82,6 @@ class FormSubmissionService
 
         $submission->update($updates);
 
-        // Sync cached counts on the form (atomic increment)
         $this->syncFormStats($submission);
     }
 
@@ -112,15 +115,14 @@ class FormSubmissionService
 
             foreach ($keys as $key) {
                 if (isset($data[$key]) && filled($data[$key])) {
-                    return $this->normalizePhone((string) $data[$key]);
+                    return PhoneNormalizer::normalize((string) $data[$key]);
                 }
             }
         }
 
-        // Fallback: look for common phone keys in data
         foreach (['phone', 'phone_number', 'whatsapp_number'] as $key) {
             if (isset($data[$key]) && filled($data[$key])) {
-                return $this->normalizePhone((string) $data[$key]);
+                return PhoneNormalizer::normalize((string) $data[$key]);
             }
         }
 
@@ -128,44 +130,78 @@ class FormSubmissionService
     }
 
     /**
-     * Normalize phone number to E.164-ish format.
+     * Create or update a contact using the same shape as list subscriber saves.
+     *
+     * @param  array<string, mixed>  $data
      */
-    private function normalizePhone(string $phone): string
+    private function upsertContact(?string $phone, array $data, SignupForm $form): ?Contact
     {
-        $cleaned = preg_replace('/[^0-9+]/', '', $phone);
-
-        if (! str_starts_with($cleaned, '+')) {
-            $cleaned = '+'.$cleaned;
-        }
-
-        return $cleaned;
-    }
-
-    /**
-     * Create or update a contact with the submitted data.
-     */
-    private function upsertContact(string $phone, array $data, SignupForm $form): ?Contact
-    {
-        if (! $phone) {
+        if ($phone === null || $phone === '') {
             return null;
         }
 
-        // Build name from first_name + last_name if available, fallback to name/header
         $firstName = $this->extractFieldValue($data, 'first_name');
         $lastName = $this->extractFieldValue($data, 'last_name');
-        $name = trim(($firstName ?? '').' '.($lastName ?? '')) ?: $this->extractFieldValue($data, 'name') ?? $this->extractFieldValue($data, 'header');
+        $name = trim(($firstName ?? '').' '.($lastName ?? ''))
+            ?: $this->extractFieldValue($data, 'name')
+            ?? $this->extractFieldValue($data, 'header');
         $email = $this->extractFieldValue($data, 'email');
 
-        return Contact::query()->updateOrCreate(
-            ['phone' => $phone],
-            array_filter([
-                'name' => $name,
-                'email' => $email,
-                'source' => 'signup_form',
-                'mail_list_id' => $form->list_id,
-                'opted_in_at' => now(),
-            ], fn ($value) => filled($value))
-        );
+        if (Blacklist::isBlacklisted($phone, $email)) {
+            return null;
+        }
+
+        $countryCode = null;
+        if (str_starts_with($phone, '91') && strlen($phone) >= 12) {
+            $countryCode = '91';
+        }
+
+        $customFields = array_filter([
+            'FIRST_NAME' => $firstName,
+            'LAST_NAME' => $lastName,
+        ], static fn ($value) => filled($value));
+
+        $payload = array_filter([
+            'name' => $name,
+            'email' => $email,
+            'country_code' => $countryCode,
+            'status' => ContactStatus::Subscribed,
+            'opt_in_status' => ContactOptInStatus::OptedIn,
+            'opted_in_at' => now(),
+            'source' => 'signup_form',
+            'mail_list_id' => $form->list_id,
+            'send_opt_in_message' => 'no',
+            'custom_fields' => $customFields !== [] ? $customFields : null,
+        ], static fn ($value) => $value !== null && $value !== '');
+
+        $listId = $form->list_id ? (int) $form->list_id : null;
+
+        $trashed = $listId !== null
+            ? Contact::onlyTrashed()
+                ->where('phone', $phone)
+                ->where('mail_list_id', $listId)
+                ->first()
+            : null;
+
+        if ($trashed !== null) {
+            $trashed->restore();
+            $trashed->update($payload);
+
+            return $trashed->fresh();
+        }
+
+        $lookup = ['phone' => $phone];
+        if ($listId !== null) {
+            $lookup['mail_list_id'] = $listId;
+        }
+
+        $contact = Contact::query()->updateOrCreate($lookup, $payload);
+
+        if ($contact->wasRecentlyCreated) {
+            $this->dripTriggerDispatcher->dispatchForContact('welcome-new-subscriber', $contact);
+        }
+
+        return $contact->fresh();
     }
 
     /**
@@ -175,20 +211,17 @@ class FormSubmissionService
      */
     private function extractFieldValue(array $data, string $key): ?string
     {
-        // Try direct key
         if (isset($data[$key]) && filled($data[$key])) {
             return (string) $data[$key];
         }
 
-        // Try field-prefixed keys
         $prefixed = 'field_'.$key;
         if (isset($data[$prefixed]) && filled($data[$prefixed])) {
             return (string) $data[$prefixed];
         }
 
-        // Try nested keys
         foreach ($data as $k => $v) {
-            if (str_contains(strtolower($k), $key) && filled($v)) {
+            if (str_contains(strtolower((string) $k), $key) && filled($v)) {
                 return (string) $v;
             }
         }
@@ -196,9 +229,6 @@ class FormSubmissionService
         return null;
     }
 
-    /**
-     * Sync cached statistics on the form based on submission status changes.
-     */
     private function syncFormStats(FormSubmission $submission): void
     {
         $form = $submission->signupForm;
@@ -206,7 +236,6 @@ class FormSubmissionService
             return;
         }
 
-        // Recalculate from submissions table (atomic, accurate)
         $counts = FormSubmission::query()
             ->where('signup_form_id', $form->id)
             ->selectRaw("

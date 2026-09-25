@@ -76,14 +76,14 @@ class FormSubmissionTest extends TestCase
             ->assertRedirect();
 
         // Contact created
-        $contact = Contact::query()->where('phone', '+919876543210')->first();
+        $contact = Contact::query()->where('phone', '919876543210')->first();
         $this->assertNotNull($contact);
 
         // Submission record created
         $submission = FormSubmission::query()->first();
         $this->assertNotNull($submission);
         $this->assertSame($form->id, $submission->signup_form_id);
-        $this->assertSame('+919876543210', $submission->phone);
+        $this->assertSame('919876543210', $submission->phone);
 
         // Cached count incremented
         $form->refresh();
@@ -194,9 +194,14 @@ class FormSubmissionTest extends TestCase
             'last_name' => 'Thakur',
         ])->assertRedirect();
 
-        $contact = Contact::query()->where('phone', '+919876543210')->first();
+        $contact = Contact::query()->where('phone', '919876543210')->first();
         $this->assertNotNull($contact);
         $this->assertSame('Sparsh Thakur', $contact->name);
+        $this->assertSame('subscribed', $contact->status?->value ?? (string) $contact->status);
+        $this->assertSame('opted_in', $contact->opt_in_status?->value ?? (string) $contact->opt_in_status);
+        $this->assertSame('91', $contact->country_code);
+        $this->assertSame('signup_form', $contact->source);
+        $this->assertSame(['FIRST_NAME' => 'Sparsh', 'LAST_NAME' => 'Thakur'], $contact->custom_fields);
     }
 
     public function test_form_stats_are_tracked_on_cached_columns(): void
