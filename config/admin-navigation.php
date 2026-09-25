@@ -84,6 +84,12 @@ return [
         'matches' => ['admin.faqs.*'],
     ],
     [
+        'label' => 'Tutorials',
+        'route' => 'admin.tutorials.index',
+        'icon' => 'file-text',
+        'matches' => ['admin.tutorials.*'],
+    ],
+    [
         'label' => 'Submissions',
         'route' => 'admin.submissions.index',
         'icon' => 'ticket',

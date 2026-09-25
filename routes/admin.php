@@ -11,6 +11,7 @@ use App\Domains\Admin\Http\Controllers\Auth\AdminLoginController;
 use App\Domains\Admin\Http\Controllers\BillingAuditController;
 use App\Domains\Admin\Http\Controllers\CloudBillController;
 use App\Domains\Admin\Http\Controllers\AdminFaqController;
+use App\Domains\Admin\Http\Controllers\AdminTutorialController;
 use App\Domains\Admin\Http\Controllers\CountryPricingController;
 use App\Domains\Admin\Http\Controllers\CountryPricingLogController;
 use App\Domains\Admin\Http\Controllers\CurrencyController;
@@ -143,10 +144,20 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::get('/faqs', [AdminFaqController::class, 'index'])->name('faqs.index');
         Route::get('/faqs/create', [AdminFaqController::class, 'create'])->name('faqs.create');
         Route::post('/faqs', [AdminFaqController::class, 'store'])->name('faqs.store');
+        Route::post('/faqs/import-legacy', [AdminFaqController::class, 'importLegacy'])->name('faqs.import-legacy');
         Route::get('/faqs/{faq}/edit', [AdminFaqController::class, 'edit'])->name('faqs.edit');
         Route::put('/faqs/{faq}', [AdminFaqController::class, 'update'])->name('faqs.update');
         Route::post('/faqs/{faq}/toggle', [AdminFaqController::class, 'toggle'])->name('faqs.toggle');
         Route::delete('/faqs/{faq}', [AdminFaqController::class, 'destroy'])->name('faqs.destroy');
+
+        Route::get('/tutorials', [AdminTutorialController::class, 'index'])->name('tutorials.index');
+        Route::get('/tutorials/create', [AdminTutorialController::class, 'create'])->name('tutorials.create');
+        Route::post('/tutorials', [AdminTutorialController::class, 'store'])->name('tutorials.store');
+        Route::post('/tutorials/import-legacy', [AdminTutorialController::class, 'importLegacy'])->name('tutorials.import-legacy');
+        Route::get('/tutorials/{tutorial}/edit', [AdminTutorialController::class, 'edit'])->name('tutorials.edit');
+        Route::put('/tutorials/{tutorial}', [AdminTutorialController::class, 'update'])->name('tutorials.update');
+        Route::post('/tutorials/{tutorial}/toggle', [AdminTutorialController::class, 'toggle'])->name('tutorials.toggle');
+        Route::delete('/tutorials/{tutorial}', [AdminTutorialController::class, 'destroy'])->name('tutorials.destroy');
 
         Route::get('/currencies', [CurrencyController::class, 'index'])->name('currencies.index');
         Route::get('/currencies/create', [CurrencyController::class, 'create'])->name('currencies.create');

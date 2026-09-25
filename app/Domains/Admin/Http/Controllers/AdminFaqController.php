@@ -86,6 +86,27 @@ class AdminFaqController extends Controller
         return back()->with('status', 'FAQ deleted.');
     }
 
+    public function importLegacy(Request $request): RedirectResponse
+    {
+        $fresh = $request->boolean('fresh');
+
+        try {
+            $stats = app(\App\Domains\HelpCenter\Services\HelpCenterLegacyImportService::class)->import(
+                fresh: $fresh,
+                importFaqs: true,
+                importTutorials: false,
+                copyVideos: false,
+                dryRun: false,
+            );
+        } catch (\Throwable $e) {
+            return back()->with('error', 'Legacy FAQ import failed: '.$e->getMessage());
+        }
+
+        return redirect()
+            ->route('admin.faqs.index')
+            ->with('status', "Imported {$stats['faqs']} FAQ(s) from legacy.");
+    }
+
     /**
      * @return array<string, mixed>
      */

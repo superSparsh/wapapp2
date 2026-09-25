@@ -27,8 +27,9 @@
         <input name="slug" value="{{ old('slug', $row->slug ?? '') }}" class="rounded-lg border border-border px-3 py-2">
       </label>
       <label class="flex flex-col gap-1.5 text-sm">
-        <span class="font-semibold">Answer</span>
-        <textarea name="description" rows="8" required class="rounded-lg border border-border px-3 py-2">{{ old('description', $row->description ?? '') }}</textarea>
+        <span class="font-semibold">Answer (HTML allowed)</span>
+        <textarea name="description" rows="12" required class="rounded-lg border border-border px-3 py-2 font-mono text-xs">{{ old('description', $row->description ?? '') }}</textarea>
+        <span class="text-xs text-text-subtle">Legacy FAQs use HTML (&lt;h3&gt;, &lt;p&gt;, lists). Customers see rendered HTML on /faqs.</span>
       </label>
       <div class="grid gap-4 sm:grid-cols-2">
         <label class="flex flex-col gap-1.5 text-sm">

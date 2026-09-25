@@ -1,0 +1,1091 @@
+[
+    {
+        "title": "Dashboard Overview",
+        "module_name": "Module 1: Dashboard",
+        "youtube_id": "Video_1_Dashboard_Overview.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 0,
+        "is_active": true
+    },
+    {
+        "title": "Understanding Credits Usage",
+        "module_name": "Module 1: Dashboard",
+        "youtube_id": "Video_2_Understanding_Credits_Usage.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 1,
+        "is_active": true
+    },
+    {
+        "title": "Campaign Analytics Deep Dive",
+        "module_name": "Module 1: Dashboard",
+        "youtube_id": "Video_3_Campaign_Analytics_Deep_Dive.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 2,
+        "is_active": true
+    },
+    {
+        "title": "Tracking List Growth",
+        "module_name": "Module 1: Dashboard",
+        "youtube_id": "Video_4_Tracking_List_Growth.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 3,
+        "is_active": true
+    },
+    {
+        "title": "Managing Your Wallet",
+        "module_name": "Module 1: Dashboard",
+        "youtube_id": "Video_5_Managing_Your_Wallet.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 4,
+        "is_active": true
+    },
+    {
+        "title": "Using the Refresh Button",
+        "module_name": "Module 1: Dashboard",
+        "youtube_id": "Video_6_Using_the_Refresh_Button.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 5,
+        "is_active": true
+    },
+    {
+        "title": "Finding & Filtering Chats",
+        "module_name": "Module 2: Inbox",
+        "youtube_id": "Video_1_Finding_&_Filtering_Chats.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 6,
+        "is_active": true
+    },
+    {
+        "title": "Understanding the Chat Window",
+        "module_name": "Module 2: Inbox",
+        "youtube_id": "Video_2_Understanding_the_Chat_Window.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 7,
+        "is_active": true
+    },
+    {
+        "title": "Sending Messages & Replies",
+        "module_name": "Module 2: Inbox",
+        "youtube_id": "Video_3_Sending_Messages_&_Replies.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 8,
+        "is_active": true
+    },
+    {
+        "title": "Adding New Contacts",
+        "module_name": "Module 2: Inbox",
+        "youtube_id": "Video_4_Adding_New_Contacts.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 9,
+        "is_active": true
+    },
+    {
+        "title": "Using Filters & Search",
+        "module_name": "Module 2: Inbox",
+        "youtube_id": "Video_5_Using_Filters_&_Search.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 10,
+        "is_active": true
+    },
+    {
+        "title": "Exporting Chat History",
+        "module_name": "Module 2: Inbox",
+        "youtube_id": "Video_6_Exporting_Chat_History.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 11,
+        "is_active": true
+    },
+    {
+        "title": "Understanding the Chatbot Interface",
+        "module_name": "Module 3: Automation - Sub-module 1: Chatbot",
+        "youtube_id": "Video 1 Understanding the Chatbot Interface.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 12,
+        "is_active": true
+    },
+    {
+        "title": "Creating Your First Chatbot - Part 1",
+        "module_name": "Module 3: Automation - Sub-module 1: Chatbot",
+        "youtube_id": "Video 2 Creating Your First Chatbot.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 13,
+        "is_active": true
+    },
+    {
+        "title": "Building Your First Flow - Nodes and Connections",
+        "module_name": "Module 3: Automation - Sub-module 1: Chatbot",
+        "youtube_id": "Video 3 Building Your First Flow - Nodes and Connections.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 14,
+        "is_active": true
+    },
+    {
+        "title": "Configuring Interactive Messages",
+        "module_name": "Module 3: Automation - Sub-module 1: Chatbot",
+        "youtube_id": "Video 4 Configuring Interactive Messages.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 15,
+        "is_active": true
+    },
+    {
+        "title": "Adding Button Responses and Completing Your Chatbot",
+        "module_name": "Module 3: Automation - Sub-module 1: Chatbot",
+        "youtube_id": "Video 5 Adding Button Responses and Completing Your Chatbot.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 16,
+        "is_active": true
+    },
+    {
+        "title": "Advanced Features - Media Messages",
+        "module_name": "Module 3: Automation - Sub-module 1: Chatbot",
+        "youtube_id": "Video 6 Advanced Features - Media Messages.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 17,
+        "is_active": true
+    },
+    {
+        "title": "Understanding Node Connections",
+        "module_name": "Module 3: Automation - Sub-module 1: Chatbot",
+        "youtube_id": "Video 7 Understanding Node Connections.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 18,
+        "is_active": true
+    },
+    {
+        "title": "Using Template Messages in Chatbots",
+        "module_name": "Module 3: Automation - Sub-module 1: Chatbot",
+        "youtube_id": "Video 8 Using Template Messages in Chatbots.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 19,
+        "is_active": true
+    },
+    {
+        "title": "Creating List Messages",
+        "module_name": "Module 3: Automation - Sub-module 1: Chatbot",
+        "youtube_id": "Video 9 Creating List Messages.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 20,
+        "is_active": true
+    },
+    {
+        "title": "Understanding the Automation Dashboard",
+        "module_name": "Module 3: Automation - Sub-module 2: Drip Marketing",
+        "youtube_id": "Video 1 Understanding the Automation Dashboard.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 21,
+        "is_active": true
+    },
+    {
+        "title": "Choosing an Automation Trigger",
+        "module_name": "Module 3: Automation - Sub-module 2: Drip Marketing",
+        "youtube_id": "Video 2 Choosing an Automation Trigger.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 22,
+        "is_active": true
+    },
+    {
+        "title": "Setting Up Welcome New Subscribers Automation",
+        "module_name": "Module 3: Automation - Sub-module 2: Drip Marketing",
+        "youtube_id": "Video 3 Setting Up Welcome New Subscribers Automation.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 23,
+        "is_active": true
+    },
+    {
+        "title": "Understanding Automation Actions",
+        "module_name": "Module 3: Automation - Sub-module 2: Drip Marketing",
+        "youtube_id": "Video 4 Understanding Automation Actions.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 24,
+        "is_active": true
+    },
+    {
+        "title": "Building Your Automation Workflow",
+        "module_name": "Module 3: Automation - Sub-module 2: Drip Marketing",
+        "youtube_id": "Video 5 Building Your Automation Workflow.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 25,
+        "is_active": true
+    },
+    {
+        "title": "Configuring Send Template Action",
+        "module_name": "Module 3: Automation - Sub-module 2: Drip Marketing",
+        "youtube_id": "Video 6 Configuring Send Template Action.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 26,
+        "is_active": true
+    },
+    {
+        "title": "Configuring Wait Action",
+        "module_name": "Module 3: Automation - Sub-module 2: Drip Marketing",
+        "youtube_id": "Video 7 Configuring Wait Action.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 27,
+        "is_active": true
+    },
+    {
+        "title": "Configuring Evaluate a Condition Action",
+        "module_name": "Module 3: Automation - Sub-module 2: Drip Marketing",
+        "youtube_id": "Video 8 Configuring Evaluate a Condition Action.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 28,
+        "is_active": true
+    },
+    {
+        "title": "Configuring Operation Action",
+        "module_name": "Module 3: Automation - Sub-module 2: Drip Marketing",
+        "youtube_id": "Video 9 Configuring Operation Action.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 29,
+        "is_active": true
+    },
+    {
+        "title": "Activating and Managing Your Automation",
+        "module_name": "Module 3: Automation - Sub-module 2: Drip Marketing",
+        "youtube_id": "Video 10 Activating and Managing Your Automation.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 30,
+        "is_active": true
+    },
+    {
+        "title": "Understanding the Insight Tab",
+        "module_name": "Module 3: Automation - Sub-module 2: Drip Marketing",
+        "youtube_id": "Video 11 Understanding the Insight Tab.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 31,
+        "is_active": true
+    },
+    {
+        "title": "Statistics Tab - Audience View and Trigger Now",
+        "module_name": "Module 3: Automation - Sub-module 2: Drip Marketing",
+        "youtube_id": "Video 12 Statistics Tab - Audience View and Trigger Now.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 32,
+        "is_active": true
+    },
+    {
+        "title": "Advanced Automation - Specific Date Trigger",
+        "module_name": "Module 3: Automation - Sub-module 2: Drip Marketing",
+        "youtube_id": "Video 13 Advanced Automation - Specific Date Trigger.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 33,
+        "is_active": true
+    },
+    {
+        "title": "Recurring Automations - Weekly and Monthly",
+        "module_name": "Module 3: Automation - Sub-module 2: Drip Marketing",
+        "youtube_id": "Video 14 Recurring Automations - Weekly and Monthly.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 34,
+        "is_active": true
+    },
+    {
+        "title": "Understanding the Flows Dashboard",
+        "module_name": "Module 3: Automation - Sub-module 3: Flows",
+        "youtube_id": "Video 1 Understanding the Flows Dashboard.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 35,
+        "is_active": true
+    },
+    {
+        "title": "Creating Your First WhatsApp Flow",
+        "module_name": "Module 3: Automation - Sub-module 3: Flows",
+        "youtube_id": "Video 2 Creating Your First WhatsApp Flow.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 36,
+        "is_active": true
+    },
+    {
+        "title": "Designing Your Flow - The Flow Builder Interface",
+        "module_name": "Module 3: Automation - Sub-module 3: Flows",
+        "youtube_id": "Video 3 Designing Your Flow - The Flow Builder Interface.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 37,
+        "is_active": true
+    },
+    {
+        "title": "Adding Content Elements to Your Flow",
+        "module_name": "Module 3: Automation - Sub-module 3: Flows",
+        "youtube_id": "Video 4 Adding Content Elements to Your Flow.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 38,
+        "is_active": true
+    },
+    {
+        "title": "Selection & Media Nodes",
+        "module_name": "Module 3: Automation - Sub-module 3: Flows",
+        "youtube_id": "Video 5 Selection & Media Nodes.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 39,
+        "is_active": true
+    },
+    {
+        "title": "Multi-Screen Flows",
+        "module_name": "Module 3: Automation - Sub-module 3: Flows",
+        "youtube_id": "Video 6 Multi-Screen Flows.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 40,
+        "is_active": true
+    },
+    {
+        "title": "Publishing Your Flow",
+        "module_name": "Module 3: Automation - Sub-module 3: Flows",
+        "youtube_id": "Video 7 Publishing Your Flow.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 41,
+        "is_active": true
+    },
+    {
+        "title": "Variables Overview",
+        "module_name": "Module 4: Templates Design - Sub-module 1: Variables",
+        "youtube_id": "Video 1 Variables Overview.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 42,
+        "is_active": true
+    },
+    {
+        "title": "Creating a Variable",
+        "module_name": "Module 4: Templates Design - Sub-module 1: Variables",
+        "youtube_id": "Video 2 Creating a Variable.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 43,
+        "is_active": true
+    },
+    {
+        "title": "Editing a Variable",
+        "module_name": "Module 4: Templates Design - Sub-module 1: Variables",
+        "youtube_id": "Video 3 Editing a Variable.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 44,
+        "is_active": true
+    },
+    {
+        "title": "Templates Module Overview",
+        "module_name": "Module 4: Templates Design - Sub-module 2: Templates",
+        "youtube_id": "Video 1 Templates Module Overview.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 45,
+        "is_active": true
+    },
+    {
+        "title": "Creating a Marketing Template",
+        "module_name": "Module 4: Templates Design - Sub-module 2: Templates",
+        "youtube_id": "Video 2 Creating a Marketing Template.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 46,
+        "is_active": true
+    },
+    {
+        "title": "Designing Template Body",
+        "module_name": "Module 4: Templates Design - Sub-module 2: Templates",
+        "youtube_id": "Video 3 Designing Template Body.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 47,
+        "is_active": true
+    },
+    {
+        "title": "Designing Template Header",
+        "module_name": "Module 4: Templates Design - Sub-module 2: Templates",
+        "youtube_id": "Video 4 Designing Template Header.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 48,
+        "is_active": true
+    },
+    {
+        "title": "Designing Template Footer",
+        "module_name": "Module 4: Templates Design - Sub-module 2: Templates",
+        "youtube_id": "Video 5 Designing Template Footer.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 49,
+        "is_active": true
+    },
+    {
+        "title": "Configuring Template Buttons",
+        "module_name": "Module 4: Templates Design - Sub-module 2: Templates",
+        "youtube_id": "Video 6 Configuring Template Buttons.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 50,
+        "is_active": true
+    },
+    {
+        "title": "Final Review and Submission",
+        "module_name": "Module 4: Templates Design - Sub-module 2: Templates",
+        "youtube_id": "Video 7 Final Review and Submission.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 51,
+        "is_active": true
+    },
+    {
+        "title": "Utility Templates",
+        "module_name": "Module 4: Templates Design - Sub-module 2: Templates",
+        "youtube_id": "Video 8 Utility Templates.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 52,
+        "is_active": true
+    },
+    {
+        "title": "Authentication Templates",
+        "module_name": "Module 4: Templates Design - Sub-module 2: Templates",
+        "youtube_id": "Video 9 Authentication Templates.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 53,
+        "is_active": true
+    },
+    {
+        "title": "Authentication Template Body",
+        "module_name": "Module 4: Templates Design - Sub-module 2: Templates",
+        "youtube_id": "Video 10 Authentication Template Body.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 54,
+        "is_active": true
+    },
+    {
+        "title": "Limited Time Offer Templates",
+        "module_name": "Module 4: Templates Design - Sub-module 2: Templates",
+        "youtube_id": "Video 11 Limited Time Offer Templates.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 55,
+        "is_active": true
+    },
+    {
+        "title": "Limited Time Offer Body",
+        "module_name": "Module 4: Templates Design - Sub-module 2: Templates",
+        "youtube_id": "Video 12 Limited Time Offer Body.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 56,
+        "is_active": true
+    },
+    {
+        "title": "Limited Time Offer Header",
+        "module_name": "Module 4: Templates Design - Sub-module 2: Templates",
+        "youtube_id": "Video 13 Limited Time Offer Header.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 57,
+        "is_active": true
+    },
+    {
+        "title": "Limited Time Offer Buttons",
+        "module_name": "Module 4: Templates Design - Sub-module 2: Templates",
+        "youtube_id": "Video 14 Limited Time Offer Buttons.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 58,
+        "is_active": true
+    },
+    {
+        "title": "Limited Time Offer Settings",
+        "module_name": "Module 4: Templates Design - Sub-module 2: Templates",
+        "youtube_id": "Video 15 Limited Time Offer Settings.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 59,
+        "is_active": true
+    },
+    {
+        "title": "Limited Time Offer Submission",
+        "module_name": "Module 4: Templates Design - Sub-module 2: Templates",
+        "youtube_id": "Video 16 Limited Time Offer Submission.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 60,
+        "is_active": true
+    },
+    {
+        "title": "Carousel Templates",
+        "module_name": "Module 4: Templates Design - Sub-module 2: Templates",
+        "youtube_id": "Video 17 Carousel Templates.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 61,
+        "is_active": true
+    },
+    {
+        "title": "Carousel Template Body",
+        "module_name": "Module 4: Templates Design - Sub-module 2: Templates",
+        "youtube_id": "Video 18 Carousel Template Body.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 62,
+        "is_active": true
+    },
+    {
+        "title": "Carousel Template Design",
+        "module_name": "Module 4: Templates Design - Sub-module 2: Templates",
+        "youtube_id": "Video 19 Carousel Template Design.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 63,
+        "is_active": true
+    },
+    {
+        "title": "Carousel Final Step",
+        "module_name": "Module 4: Templates Design - Sub-module 2: Templates",
+        "youtube_id": "Video 20 Carousel Final Step.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 64,
+        "is_active": true
+    },
+    {
+        "title": "Audience Feature Overview",
+        "module_name": "Module 5: Audience",
+        "youtube_id": "Video 1 Audience Feature Overview.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 65,
+        "is_active": true
+    },
+    {
+        "title": "Import Subscribers",
+        "module_name": "Module 5: Audience",
+        "youtube_id": "Video 2 Import Subscribers.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 66,
+        "is_active": true
+    },
+    {
+        "title": "Audience Overview and Settings",
+        "module_name": "Module 5: Audience",
+        "youtube_id": "Video 3 Audience Overview and Settings.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 67,
+        "is_active": true
+    },
+    {
+        "title": "Subscribers Tab Options",
+        "module_name": "Module 5: Audience",
+        "youtube_id": "Video 4 Subscribers Tab Options.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 68,
+        "is_active": true
+    },
+    {
+        "title": "Embedded Form",
+        "module_name": "Module 5: Audience",
+        "youtube_id": "Video 5 Embedded Form.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 69,
+        "is_active": true
+    },
+    {
+        "title": "Manage List Fields",
+        "module_name": "Module 5: Audience",
+        "youtube_id": "Video 6 Manage List Fields.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 70,
+        "is_active": true
+    },
+    {
+        "title": "Audience Actions and Conclusion",
+        "module_name": "Module 5: Audience",
+        "youtube_id": "Video 7 Audience Actions and Conclusion.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 71,
+        "is_active": true
+    },
+    {
+        "title": "Audience Segmentation",
+        "module_name": "Module 5: Audience",
+        "youtube_id": "Video 8 Audience Segmentation.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 72,
+        "is_active": true
+    },
+    {
+        "title": "Create Segment Condition",
+        "module_name": "Module 5: Audience",
+        "youtube_id": "Video 9 Create Segment Condition.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 73,
+        "is_active": true
+    },
+    {
+        "title": "Combine Multiple Conditions",
+        "module_name": "Module 5: Audience",
+        "youtube_id": "Video 10 Combine Multiple Conditions.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 74,
+        "is_active": true
+    },
+    {
+        "title": "Activity & Tag Segmentation",
+        "module_name": "Module 5: Audience",
+        "youtube_id": "Video 11 Activity & Tag Segmentation.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 75,
+        "is_active": true
+    },
+    {
+        "title": "Managing Segments",
+        "module_name": "Module 5: Audience",
+        "youtube_id": "Video 12 Managing Segments.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 76,
+        "is_active": true
+    },
+    {
+        "title": "Campaigns Intro",
+        "module_name": "Module 6: Campaigns",
+        "youtube_id": "Video 1 Campaigns Intro.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 77,
+        "is_active": true
+    },
+    {
+        "title": "Create Campaign Info",
+        "module_name": "Module 6: Campaigns",
+        "youtube_id": "Video 2 Create Campaign Info.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 78,
+        "is_active": true
+    },
+    {
+        "title": "Campaign Recipients",
+        "module_name": "Module 6: Campaigns",
+        "youtube_id": "Video 3 Campaign Recipients.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 79,
+        "is_active": true
+    },
+    {
+        "title": "Campaign Template (Non-Variable)",
+        "module_name": "Module 6: Campaigns",
+        "youtube_id": "Video 4 Campaign Template Non-Variable.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 80,
+        "is_active": true
+    },
+    {
+        "title": "Campaign Template (Variable)",
+        "module_name": "Module 6: Campaigns",
+        "youtube_id": "Video 5 Campaign Template Variable.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 81,
+        "is_active": true
+    },
+    {
+        "title": "Campaign Variables (None)",
+        "module_name": "Module 6: Campaigns",
+        "youtube_id": "Video 6 Campaign Variables None.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 82,
+        "is_active": true
+    },
+    {
+        "title": "Campaign Variables (Variable)",
+        "module_name": "Module 6: Campaigns",
+        "youtube_id": "Video 7 Campaign Variables Variable.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 83,
+        "is_active": true
+    },
+    {
+        "title": "Campaign Schedule",
+        "module_name": "Module 6: Campaigns",
+        "youtube_id": "Video 8 Campaign Schedule.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 84,
+        "is_active": true
+    },
+    {
+        "title": "Campaign Review & Send",
+        "module_name": "Module 6: Campaigns",
+        "youtube_id": "Video 9 Campaign Review & Send.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 85,
+        "is_active": true
+    },
+    {
+        "title": "Campaign Statistics",
+        "module_name": "Module 6: Campaigns",
+        "youtube_id": "Video 10 Campaign Statistics.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 86,
+        "is_active": true
+    },
+    {
+        "title": "Resend Failed Campaigns",
+        "module_name": "Module 6: Campaigns",
+        "youtube_id": "Video 11 Resend Failed Campaigns.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 87,
+        "is_active": true
+    },
+    {
+        "title": "Calendly Integration",
+        "module_name": "Module 7: Integration",
+        "youtube_id": "Video 1 Calendly Integration.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 88,
+        "is_active": true
+    },
+    {
+        "title": "Calendly Notifications",
+        "module_name": "Module 7: Integration",
+        "youtube_id": "Video 2 Calendly Notifications.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 89,
+        "is_active": true
+    },
+    {
+        "title": "Calendly Events",
+        "module_name": "Module 7: Integration",
+        "youtube_id": "Video 3 Calendly Events.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 90,
+        "is_active": true
+    },
+    {
+        "title": "Form Builder Dashboard",
+        "module_name": "Module 8: Form Builder",
+        "youtube_id": "Video 1 Form Builder Dashboard.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 91,
+        "is_active": true
+    },
+    {
+        "title": "Creating First Form",
+        "module_name": "Module 8: Form Builder",
+        "youtube_id": "Video 2 Creating First Form.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 92,
+        "is_active": true
+    },
+    {
+        "title": "Edit Form Builder",
+        "module_name": "Module 8: Form Builder",
+        "youtube_id": "Video 3 Edit Form Builder.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 93,
+        "is_active": true
+    },
+    {
+        "title": "Save and Activate Form",
+        "module_name": "Module 8: Form Builder",
+        "youtube_id": "Video 4 Save and Activate Form.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 94,
+        "is_active": true
+    },
+    {
+        "title": "Mapping Form Fields",
+        "module_name": "Module 8: Form Builder",
+        "youtube_id": "Video 5 Mapping Form Fields.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 95,
+        "is_active": true
+    },
+    {
+        "title": "Facebook Catalogue",
+        "module_name": "Module 9: Commerce",
+        "youtube_id": "Video 1 Facebook Catalogue.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 96,
+        "is_active": true
+    },
+    {
+        "title": "WhatsApp Orders",
+        "module_name": "Module 9: Commerce",
+        "youtube_id": "Video 2 WhatsApp Orders.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 97,
+        "is_active": true
+    },
+    {
+        "title": "Payment Dashboard",
+        "module_name": "Module 9: Commerce",
+        "youtube_id": "Video 3 Payment Dashboard.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 98,
+        "is_active": true
+    },
+    {
+        "title": "Profile and Account Security",
+        "module_name": "Module 10: Accounts",
+        "youtube_id": "Video 1 Profile and Account Security.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 99,
+        "is_active": true
+    },
+    {
+        "title": "Integration Tab",
+        "module_name": "Module 10: Accounts",
+        "youtube_id": "Video 2 Integration Tab.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 100,
+        "is_active": true
+    },
+    {
+        "title": "API Settings",
+        "module_name": "Module 10: Accounts",
+        "youtube_id": "Video 3 API Settings.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 101,
+        "is_active": true
+    },
+    {
+        "title": "Subscription",
+        "module_name": "Module 10: Accounts",
+        "youtube_id": "Video 4 Subscription.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 102,
+        "is_active": true
+    },
+    {
+        "title": "Business Alerts Setup",
+        "module_name": "Module 10: Accounts",
+        "youtube_id": "Video 5 Business Alerts Setup.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 103,
+        "is_active": true
+    },
+    {
+        "title": "WhatsApp Business Profile",
+        "module_name": "Module 10: Accounts",
+        "youtube_id": "Video 6 WhatsApp Business Profile.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 104,
+        "is_active": true
+    },
+    {
+        "title": "Team Management",
+        "module_name": "Module 11: My Teams",
+        "youtube_id": "Video 1 Team Management.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 105,
+        "is_active": true
+    },
+    {
+        "title": "Create Team Member",
+        "module_name": "Module 11: My Teams",
+        "youtube_id": "Video 2 Create Team Member.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 106,
+        "is_active": true
+    },
+    {
+        "title": "Roles & Access",
+        "module_name": "Module 11: My Teams",
+        "youtube_id": "Video 3 Roles & Access.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 107,
+        "is_active": true
+    },
+    {
+        "title": "AI Settings Configuration",
+        "module_name": "Module 12: Open AIBusiness Information",
+        "youtube_id": "Video 1 AI Settings Configuration.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 108,
+        "is_active": true
+    },
+    {
+        "title": "Knowledge Base Upload",
+        "module_name": "Module 12: Open AIBusiness Information",
+        "youtube_id": "Video 2 Knowledge Base Upload.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 109,
+        "is_active": true
+    },
+    {
+        "title": "Test Bot",
+        "module_name": "Module 12: Open AIBusiness Information",
+        "youtube_id": "Video 3 Test Bot.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 110,
+        "is_active": true
+    },
+    {
+        "title": "Usage Analytics",
+        "module_name": "Module 12: Open AIBusiness Information",
+        "youtube_id": "Video 4 Usage Analytics.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 111,
+        "is_active": true
+    },
+    {
+        "title": "AI Global Settings",
+        "module_name": "Module 12: Open AIBusiness Information",
+        "youtube_id": "Video 5 AI Global Settings.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 112,
+        "is_active": true
+    },
+    {
+        "title": "Intent Response Overview",
+        "module_name": "Module 13: Trigger Template",
+        "youtube_id": "Video 1 Intent Response Overview.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 113,
+        "is_active": true
+    },
+    {
+        "title": "Create Keyword Response",
+        "module_name": "Module 13: Trigger Template",
+        "youtube_id": "Video 2 Create Keyword Response.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 114,
+        "is_active": true
+    },
+    {
+        "title": "Intent Segmentation",
+        "module_name": "Module 13: Trigger Template",
+        "youtube_id": "Video 3 Intent Segmentation.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 115,
+        "is_active": true
+    },
+    {
+        "title": "Manage Intent Responses & Testing",
+        "module_name": "Module 13: Trigger Template",
+        "youtube_id": "Video 4 Manage Intent Responses & Testing.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 116,
+        "is_active": true
+    },
+    {
+        "title": "Webhooks Introduction",
+        "module_name": "Module 15: Webhook",
+        "youtube_id": "Video 1 Webhooks Introduction.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 117,
+        "is_active": true
+    },
+    {
+        "title": "Setting up Webhook",
+        "module_name": "Module 15: Webhook",
+        "youtube_id": "Video 2 Setting up Webhook.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 118,
+        "is_active": true
+    },
+    {
+        "title": "Webhook Technical Details & Security",
+        "module_name": "Module 15: Webhook",
+        "youtube_id": "Video 3 Webhook Technical Details & Security.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 119,
+        "is_active": true
+    },
+    {
+        "title": "Testing and Monitoring Webhooks",
+        "module_name": "Module 15: Webhook",
+        "youtube_id": "Video 4 Testing and Monitoring Webhooks.mp4",
+        "description": null,
+        "duration": "",
+        "sort_order": 120,
+        "is_active": true
+    }
+]

@@ -321,7 +321,30 @@ class AdminModulesTest extends TestCase
         $this->actingAs($this->admin, 'admin')
             ->get(route('admin.faqs.index'))
             ->assertOk()
-            ->assertSee('How do wallets work?');
+            ->assertSee('How do wallets work?')
+            ->assertSee('Import from legacy');
+
+        $this->mock(\App\Domains\HelpCenter\Services\HelpCenterLegacyImportService::class, function ($mock): void {
+            $mock->shouldReceive('import')
+                ->once()
+                ->withArgs(function (bool $fresh, bool $importFaqs, bool $importTutorials, bool $copyVideos, bool $dryRun): bool {
+                    return $fresh === false
+                        && $importFaqs === true
+                        && $importTutorials === false
+                        && $copyVideos === false
+                        && $dryRun === false;
+                })
+                ->andReturn([
+                    'faqs' => 9,
+                    'tutorials' => 0,
+                    'videos_copied' => 0,
+                ]);
+        });
+
+        $this->actingAs($this->admin, 'admin')
+            ->post(route('admin.faqs.import-legacy'), ['fresh' => '0'])
+            ->assertRedirect(route('admin.faqs.index'))
+            ->assertSessionHas('status', 'Imported 9 FAQ(s) from legacy.');
 
         $this->actingAs($this->admin, 'admin')
             ->get(route('admin.pricing.logs'))
@@ -332,5 +355,54 @@ class AdminModulesTest extends TestCase
             ->get(route('admin.pricing.index'))
             ->assertOk()
             ->assertSee('Pricing change logs');
+    }
+
+    public function test_tutorial_admin_pages_and_legacy_import(): void
+    {
+        $this->actingAs($this->admin, 'admin')
+            ->post(route('admin.tutorials.store'), [
+                'title' => 'Dashboard Overview',
+                'module_name' => 'Module 1: Dashboard',
+                'youtube_id' => 'Video_1_Dashboard_Overview.mp4',
+                'description' => 'Learn the dashboard.',
+                'duration' => '2:00',
+                'sort_order' => 0,
+                'is_active' => '1',
+            ])
+            ->assertRedirect(route('admin.tutorials.index'));
+
+        $this->assertDatabaseHas('tutorial_videos', [
+            'title' => 'Dashboard Overview',
+            'module_name' => 'Module 1: Dashboard',
+            'is_active' => 1,
+        ], config('tenancy.database.central_connection'));
+
+        $this->actingAs($this->admin, 'admin')
+            ->get(route('admin.tutorials.index'))
+            ->assertOk()
+            ->assertSee('Dashboard Overview')
+            ->assertSee('Import from legacy');
+
+        $this->mock(\App\Domains\HelpCenter\Services\HelpCenterLegacyImportService::class, function ($mock): void {
+            $mock->shouldReceive('import')
+                ->once()
+                ->withArgs(function (bool $fresh, bool $importFaqs, bool $importTutorials, bool $copyVideos, bool $dryRun): bool {
+                    return $fresh === false
+                        && $importFaqs === false
+                        && $importTutorials === true
+                        && $copyVideos === false
+                        && $dryRun === false;
+                })
+                ->andReturn([
+                    'faqs' => 0,
+                    'tutorials' => 121,
+                    'videos_copied' => 0,
+                ]);
+        });
+
+        $this->actingAs($this->admin, 'admin')
+            ->post(route('admin.tutorials.import-legacy'), ['fresh' => '0', 'copy_videos' => '0'])
+            ->assertRedirect(route('admin.tutorials.index'))
+            ->assertSessionHas('status', 'Imported 121 tutorial(s) from legacy.');
     }
 }

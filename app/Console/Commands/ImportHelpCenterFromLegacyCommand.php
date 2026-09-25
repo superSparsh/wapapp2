@@ -26,7 +26,10 @@ class ImportHelpCenterFromLegacyCommand extends Command
         $dryRun = (bool) $this->option('dry-run');
 
         try {
-            $importService->assertLegacyConnection();
+            $importService->assertLegacyConnection(
+                requireFaqs: $importFaqs,
+                requireTutorials: $importTutorials,
+            );
         } catch (\Throwable $exception) {
             $this->error($exception->getMessage());
 

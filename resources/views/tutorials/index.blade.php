@@ -1,7 +1,11 @@
 <x-layouts.app title="Tutorials - WapApp" active="tutorials.index">
   <div class="flex min-h-full flex-col bg-surface">
-    <div class="shrink-0 p-4 pb-0">
+    <div class="shrink-0 space-y-3 p-4 pb-0">
       <h1 class="text-2xl font-bold leading-[1.5] text-text-primary">Tutorials</h1>
+      <div class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-[1.5] text-amber-900">
+        <p class="font-semibold">These tutorials show the previous WapApp design.</p>
+        <p class="mt-1 opacity-90">We’ll upload updated videos for the new UI soon. The steps are mostly the same - only the look has changed.</p>
+      </div>
     </div>
 
     <section class="flex-1 p-4">

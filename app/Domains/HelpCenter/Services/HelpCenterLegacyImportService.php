@@ -25,7 +25,10 @@ class HelpCenterLegacyImportService
         bool $copyVideos = false,
         bool $dryRun = false,
     ): array {
-        $this->assertLegacyConnection();
+        $this->assertLegacyConnection(
+            requireFaqs: $importFaqs,
+            requireTutorials: $importTutorials,
+        );
 
         $stats = [
             'faqs' => 0,
@@ -68,7 +71,7 @@ class HelpCenterLegacyImportService
         return $stats;
     }
 
-    public function assertLegacyConnection(): void
+    public function assertLegacyConnection(bool $requireFaqs = true, bool $requireTutorials = true): void
     {
         $connection = (string) config('help-center.legacy.connection', 'legacy');
 
@@ -81,11 +84,11 @@ class HelpCenterLegacyImportService
         $faqTable = (string) config('help-center.legacy.faq_table', 'faq');
         $tutorialTable = (string) config('help-center.legacy.tutorial_videos_table', 'tutorial_videos');
 
-        if (! Schema::connection($connection)->hasTable($faqTable)) {
+        if ($requireFaqs && ! Schema::connection($connection)->hasTable($faqTable)) {
             throw new RuntimeException("Legacy table [{$faqTable}] was not found.");
         }
 
-        if (! Schema::connection($connection)->hasTable($tutorialTable)) {
+        if ($requireTutorials && ! Schema::connection($connection)->hasTable($tutorialTable)) {
             throw new RuntimeException("Legacy table [{$tutorialTable}] was not found.");
         }
     }

@@ -7,6 +7,7 @@ namespace Database\Seeders;
 use App\Models\Faq;
 use App\Models\TutorialVideo;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\File;
 
 class HelpCenterSeeder extends Seeder
 {
@@ -18,94 +19,135 @@ class HelpCenterSeeder extends Seeder
 
     private function seedFaqs(): void
     {
-        $faqs = [
-            [
-                'heading' => 'Template Categorization',
-                'slug' => 'template-categorization',
-                'sort_order' => 1,
-                'description' => <<<'HTML'
-<h3>Marketing templates</h3>
-<p>Marketing templates are our most flexible. They can enable businesses to achieve a wide range of goals, from generating awareness to driving sales and more.</p>
-<h3>Utility templates</h3>
-<p>Utility templates are typically triggered by a user action or request. They must include specifics about the active or ongoing transaction, account, subscription, or interaction to which they relate.</p>
-HTML,
-            ],
-            [
-                'heading' => 'Messaging Limits',
-                'slug' => 'messaging-limits',
-                'sort_order' => 2,
-                'description' => '<p>WhatsApp messaging limits depend on your phone number quality rating and display name verification status. Higher quality ratings unlock higher daily conversation limits.</p>',
-            ],
-            [
-                'heading' => 'Messaging Quality',
-                'slug' => 'messaging-quality',
-                'sort_order' => 3,
-                'description' => '<p>Maintain high quality by sending relevant, timely messages. High block and report rates can reduce your messaging tier.</p>',
-            ],
-            [
-                'heading' => 'Conversation Based Pricing',
-                'slug' => 'conversation-based-pricing',
-                'sort_order' => 4,
-                'description' => '<p>WhatsApp charges per 24-hour conversation window. Marketing, utility, authentication, and service conversations are billed at different rates.</p>',
-            ],
-        ];
+        foreach ($this->legacyFaqRows() as $index => $faq) {
+            $slug = trim((string) ($faq['slug'] ?? ''));
+            $heading = trim((string) ($faq['heading'] ?? ''));
+            $description = (string) ($faq['description'] ?? '');
 
-        foreach ($faqs as $faq) {
+            if ($slug === '' || $heading === '' || $description === '') {
+                continue;
+            }
+
             Faq::query()->updateOrCreate(
-                ['slug' => $faq['slug']],
+                ['slug' => $slug],
                 [
-                    'heading' => $faq['heading'],
-                    'description' => $faq['description'],
-                    'is_active' => true,
-                    'sort_order' => $faq['sort_order'],
+                    'heading' => $heading,
+                    'description' => $description,
+                    'is_active' => (bool) ($faq['status'] ?? true),
+                    'sort_order' => $index + 1,
                 ],
             );
         }
     }
 
-    private function seedTutorials(): void
+    /**
+     * Prefer the exported legacy dump so customer-facing FAQs match production WapApp.
+     *
+     * @return list<array{heading: string, description: string, slug: string, status?: bool|int}>
+     */
+    private function legacyFaqRows(): array
     {
-        if (TutorialVideo::query()->exists()) {
-            return;
+        $path = database_path('data/legacy-faqs.json');
+
+        if (File::isFile($path)) {
+            $decoded = json_decode(File::get($path), true);
+            if (is_array($decoded) && $decoded !== []) {
+                return array_values(array_filter(
+                    $decoded,
+                    static fn ($row): bool => is_array($row),
+                ));
+            }
         }
 
-        $videos = [
+        return [
             [
-                'title' => 'Dashboard Overview',
-                'module_name' => 'DASHBOARD - Sub-module 1: Getting Started',
-                'youtube_id' => 'dQw4w9WgXcQ',
-                'description' => 'Learn how to navigate the dashboard and monitor key metrics.',
-                'duration' => '2:00',
-                'sort_order' => 1,
+                'heading' => 'Messaging Limits',
+                'slug' => 'messaging-limits',
+                'status' => 1,
+                'description' => '<p>WhatsApp messaging limits depend on your phone number quality rating and display name verification status.</p>',
             ],
             [
-                'title' => 'Understanding Analytics Cards',
-                'module_name' => 'DASHBOARD - Sub-module 1: Getting Started',
-                'youtube_id' => 'dQw4w9WgXcQ',
-                'description' => 'Review campaign, inbox, and wallet analytics at a glance.',
-                'duration' => '3:15',
-                'sort_order' => 2,
-            ],
-            [
-                'title' => 'Inbox Basics',
-                'module_name' => 'INBOX',
-                'youtube_id' => 'dQw4w9WgXcQ',
-                'description' => 'Reply to customers, assign conversations, and use templates.',
-                'duration' => '4:30',
-                'sort_order' => 3,
-            ],
-            [
-                'title' => 'Create Your First Chatbot',
-                'module_name' => 'AUTOMATION',
-                'youtube_id' => 'dQw4w9WgXcQ',
-                'description' => 'Build a simple welcome flow with buttons and template nodes.',
-                'duration' => '6:00',
-                'sort_order' => 4,
+                'heading' => 'Template Categorization',
+                'slug' => 'template-categorization',
+                'status' => 1,
+                'description' => '<p>Marketing and utility templates are categorized by Meta based on intent and content.</p>',
             ],
         ];
+    }
 
-        foreach ($videos as $video) {
-            TutorialVideo::query()->create($video);
+    private function seedTutorials(): void
+    {
+        foreach ($this->legacyTutorialRows() as $video) {
+            $title = trim((string) ($video['title'] ?? ''));
+            $moduleName = trim((string) ($video['module_name'] ?? ''));
+            $youtubeId = trim((string) ($video['youtube_id'] ?? ''));
+
+            if ($title === '' || $moduleName === '' || $youtubeId === '') {
+                continue;
+            }
+
+            TutorialVideo::query()->updateOrCreate(
+                [
+                    'title' => $title,
+                    'module_name' => $moduleName,
+                ],
+                [
+                    'youtube_id' => $youtubeId,
+                    'description' => $video['description'] ?? null,
+                    'duration' => $video['duration'] ?? null,
+                    'sort_order' => (int) ($video['sort_order'] ?? 0),
+                    'is_active' => (bool) ($video['is_active'] ?? true),
+                ],
+            );
         }
+    }
+
+    /**
+     * Prefer the exported legacy dump so customer-facing tutorials match production WapApp.
+     *
+     * @return list<array{
+     *     title: string,
+     *     module_name: string,
+     *     youtube_id: string,
+     *     description?: string|null,
+     *     duration?: string|null,
+     *     sort_order?: int,
+     *     is_active?: bool|int
+     * }>
+     */
+    private function legacyTutorialRows(): array
+    {
+        $path = database_path('data/legacy-tutorials.json');
+
+        if (File::isFile($path)) {
+            $decoded = json_decode(File::get($path), true);
+            if (is_array($decoded) && $decoded !== []) {
+                return array_values(array_filter(
+                    $decoded,
+                    static fn ($row): bool => is_array($row),
+                ));
+            }
+        }
+
+        return [
+            [
+                'title' => 'Dashboard Overview',
+                'module_name' => 'Module 1: Dashboard',
+                'youtube_id' => 'Video_1_Dashboard_Overview.mp4',
+                'description' => 'Learn how to navigate the dashboard and monitor key metrics.',
+                'duration' => '2:00',
+                'sort_order' => 0,
+                'is_active' => true,
+            ],
+            [
+                'title' => 'Finding & Filtering Chats',
+                'module_name' => 'Module 2: Inbox',
+                'youtube_id' => 'Video_1_Finding_&_Filtering_Chats.mp4',
+                'description' => 'Reply to customers, assign conversations, and use filters.',
+                'duration' => '4:30',
+                'sort_order' => 6,
+                'is_active' => true,
+            ],
+        ];
     }
 }
