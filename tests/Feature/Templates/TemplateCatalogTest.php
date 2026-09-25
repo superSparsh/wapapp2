@@ -109,6 +109,33 @@ class TemplateCatalogTest extends TestCase
             ->assertDontSee('Imported Regular');
     }
 
+    public function test_templates_can_be_sorted_by_name(): void
+    {
+        $this->actingAsTenantUser()
+            ->get(route('templates.index', ['sort' => 'name', 'direction' => 'asc']))
+            ->assertOk()
+            ->assertSeeInOrder(['Order Update', 'Welcome Offer']);
+
+        $this->actingAsTenantUser()
+            ->get(route('templates.index', ['sort' => 'name', 'direction' => 'desc']))
+            ->assertOk()
+            ->assertSeeInOrder(['Welcome Offer', 'Order Update']);
+    }
+
+    public function test_templates_index_refresh_is_a_link_not_nested_form(): void
+    {
+        $html = $this->actingAsTenantUser()
+            ->get(route('templates.index'))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('refresh=1', $html);
+        $this->assertDoesNotMatchRegularExpression(
+            '/data-templates-filter-form[\s\S]*?<form[^>]*refresh/i',
+            $html,
+        );
+    }
+
     public function test_refresh_resyncs_templates(): void
     {
         Template::factory()->create([

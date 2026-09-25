@@ -23,7 +23,6 @@
             <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
               <div class="min-w-0 flex-1">
                 <h2 class="text-xl font-semibold leading-[1.4] text-text-primary">{{ $current['title'] }}</h2>
-                <p class="mt-1 text-sm font-medium leading-[1.4] text-text-muted">{{ $current['module_name'] }}</p>
               </div>
               <button
                 type="button"
