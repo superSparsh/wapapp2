@@ -161,6 +161,32 @@
                 </div>
               </div>
             @endif
+
+            <div class="flex w-full items-center justify-end gap-2.5">
+              @if (! empty($closeHref))
+                <a
+                  href="{{ $closeHref }}"
+                  class="fd-btn-sm inline-flex items-center justify-center rounded border border-solid border-green-500 px-6 py-3 text-xs font-semibold leading-[1.5] text-green-500 transition-colors hover:bg-green-50"
+                >
+                  Cancel
+                </a>
+              @else
+                <button
+                  type="button"
+                  data-modal-close
+                  class="fd-btn-sm inline-flex items-center justify-center rounded border border-solid border-green-500 px-6 py-3 text-xs font-semibold leading-[1.5] text-green-500 transition-colors hover:bg-green-50"
+                >
+                  Cancel
+                </button>
+              @endif
+              <button
+                type="submit"
+                class="fd-btn-sm inline-flex items-center justify-center rounded bg-green-500 px-6 py-3 text-xs font-semibold leading-[1.5] text-primary-2 transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                @disabled(count($templateOptions) === 0)
+              >
+                Save
+              </button>
+            </div>
           </div>
         </div>
 
@@ -209,32 +235,6 @@
             </div>
           </x-templates.phone-preview>
         </div>
-      </div>
-
-      <div class="flex w-full items-center justify-start gap-2.5">
-        @if (! empty($closeHref))
-          <a
-            href="{{ $closeHref }}"
-            class="fd-btn-sm inline-flex items-center justify-center rounded border border-solid border-green-500 px-6 py-3 text-xs font-semibold leading-[1.5] text-green-500 transition-colors hover:bg-green-50"
-          >
-            Cancel
-          </a>
-        @else
-          <button
-            type="button"
-            data-modal-close
-            class="fd-btn-sm inline-flex items-center justify-center rounded border border-solid border-green-500 px-6 py-3 text-xs font-semibold leading-[1.5] text-green-500 transition-colors hover:bg-green-50"
-          >
-            Cancel
-          </button>
-        @endif
-        <button
-          type="submit"
-          class="fd-btn-sm inline-flex items-center justify-center rounded bg-green-500 px-6 py-3 text-xs font-semibold leading-[1.5] text-primary-2 transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-          @disabled(count($templateOptions) === 0)
-        >
-          Save
-        </button>
       </div>
     </form>
   </div>
