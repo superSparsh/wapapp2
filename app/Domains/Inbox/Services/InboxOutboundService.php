@@ -13,6 +13,7 @@ use App\Domains\WhatsApp\Services\AlibabaCamsClient;
 use App\Enums\MessageDirection;
 use App\Enums\MessageStatus;
 use App\Enums\MessageType;
+use App\Models\Contact;
 use App\Models\Conversation;
 use App\Models\Message;
 use App\Models\Template;
@@ -32,8 +33,12 @@ class InboxOutboundService
         private readonly WalletService $walletService,
     ) {}
 
-    public function sendText(Conversation $conversation, string $body, bool $enforceWindow = true): Message
-    {
+    public function sendText(
+        Conversation $conversation,
+        string $body,
+        bool $enforceWindow = true,
+        bool $allowStopped = false,
+    ): Message {
         if ($enforceWindow) {
             $this->windowService->assertWithinServiceWindow($conversation);
         }
@@ -42,6 +47,7 @@ class InboxOutboundService
             conversation: $conversation,
             body: trim($body),
             messageType: MessageType::Text,
+            allowStopped: $allowStopped,
         );
     }
 
@@ -442,7 +448,12 @@ class InboxOutboundService
         MessageType $messageType,
         ?array $metadata = null,
         bool $sendImmediately = false,
+        bool $allowStopped = false,
     ): Message {
+        if (! $allowStopped) {
+            $this->assertContactAllowsMessaging($conversation);
+        }
+
         // Legacy parity: low wallet blocks free-form, but templates / opt-in / payment still go out.
         if ($messageType !== MessageType::Template && $messageType !== MessageType::System) {
             $this->assertWalletAllowsSend();
@@ -588,6 +599,34 @@ class InboxOutboundService
         }
 
         return $flat;
+    }
+
+    private function assertContactAllowsMessaging(Conversation $conversation): void
+    {
+        abort_if(
+            $this->conversationHasStoppedContact($conversation),
+            422,
+            'This contact marked STOP and is unsubscribed. Messaging is disabled until they reply START.',
+        );
+    }
+
+    private function conversationHasStoppedContact(Conversation $conversation): bool
+    {
+        $conversation->loadMissing('contact');
+
+        if ($conversation->contact?->hasStoppedMessaging()) {
+            return true;
+        }
+
+        $variants = PhoneNormalizer::lookupVariants($conversation->contact_phone);
+        if ($variants === []) {
+            return false;
+        }
+
+        return Contact::query()
+            ->whereIn('phone', $variants)
+            ->get()
+            ->contains(fn (Contact $contact): bool => $contact->hasStoppedMessaging());
     }
 
     private function assertWalletAllowsSend(): void

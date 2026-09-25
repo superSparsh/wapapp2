@@ -112,10 +112,20 @@ class ContactService
      */
     public function update(Contact $contact, array $data, ?array $tags = null): Contact
     {
+        if (array_key_exists('send_opt_in_message', $data)) {
+            $data['send_opt_in_message'] = (($data['send_opt_in_message'] ?? 'no') === 'yes') ? 'yes' : 'no';
+        }
+
         $contact->update($data);
 
         if ($tags !== null) {
             $contact->syncTags($tags);
+        }
+
+        $contact = $contact->fresh()->load('tags');
+
+        if (($contact->send_opt_in_message ?? 'no') === 'yes') {
+            $this->optInMessageService->sendOptInToContact($contact);
         }
 
         return $contact->fresh()->load('tags');

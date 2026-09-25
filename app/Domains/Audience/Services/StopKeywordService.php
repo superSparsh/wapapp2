@@ -224,7 +224,7 @@ class StopKeywordService
 
         try {
             // STOP/START confirmations must go out even outside the 24h window.
-            $this->outboundService->sendText($conversation, $body, enforceWindow: false);
+            $this->outboundService->sendText($conversation, $body, enforceWindow: false, allowStopped: true);
         } catch (\Throwable $e) {
             Log::warning('Failed sending STOP/START confirmation', [
                 'conversation_id' => $conversation->id,

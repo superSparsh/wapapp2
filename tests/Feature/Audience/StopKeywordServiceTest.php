@@ -43,10 +43,11 @@ class StopKeywordServiceTest extends TestCase
         $outbound = Mockery::mock(InboxOutboundService::class);
         $outbound->shouldReceive('sendText')
             ->once()
-            ->withArgs(function (Conversation $conversation, string $body, bool $enforceWindow): bool {
+            ->withArgs(function (Conversation $conversation, string $body, bool $enforceWindow, bool $allowStopped = false): bool {
                 return str_contains($body, 'unsubscribed')
                     && str_contains($body, 'START')
-                    && $enforceWindow === false;
+                    && $enforceWindow === false
+                    && $allowStopped === true;
             })
             ->andReturn(new Message);
 

@@ -50,6 +50,43 @@ class InboxOutboundTest extends TestCase
         parent::tearDown();
     }
 
+    public function test_text_send_is_blocked_when_contact_marked_stop(): void
+    {
+        $conversation = $this->createConversation();
+        $conversation->contact->unsubscribe();
+        $conversation->contact->forceFill([
+            'metadata' => ['stopped_via_keyword' => true],
+        ])->save();
+        $this->messageService->recordInbound($conversation, 'Recent hello');
+
+        $this->actingAsTenantUser()
+            ->postJson(route('inbox.api.send', $conversation), ['body' => 'Should fail'])
+            ->assertStatus(422)
+            ->assertJsonFragment([
+                'message' => 'This contact marked STOP and is unsubscribed. Messaging is disabled until they reply START.',
+            ]);
+
+        Queue::assertNothingPushed();
+    }
+
+    public function test_template_send_is_blocked_when_contact_marked_stop(): void
+    {
+        $conversation = $this->createConversation();
+        $conversation->contact->unsubscribe();
+        $conversation->contact->forceFill([
+            'metadata' => ['stopped_via_keyword' => true],
+        ])->save();
+
+        $this->actingAsTenantUser()
+            ->postJson(route('inbox.api.send-template', $conversation), [
+                'template_code' => '935757998997286999',
+            ])
+            ->assertStatus(422)
+            ->assertJsonFragment([
+                'message' => 'This contact marked STOP and is unsubscribed. Messaging is disabled until they reply START.',
+            ]);
+    }
+
     public function test_text_send_is_blocked_outside_service_window(): void
     {
         $conversation = $this->createConversation();

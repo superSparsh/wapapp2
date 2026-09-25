@@ -61,6 +61,26 @@
             <label class="mb-1 block text-sm font-semibold text-text-primary">Tags (comma separated)</label>
             <input name="tags_raw" type="text" value="{{ old('tags_raw', $contact->tags->pluck('name')->implode(', ')) }}" class="w-full rounded-xl border border-border bg-elevated px-3 py-3 text-sm" placeholder="vip, lead">
           </div>
+          <label class="flex items-center gap-2 text-sm font-medium text-text-body">
+            <input type="hidden" name="send_opt_in_message" value="no">
+            <input
+              type="checkbox"
+              name="send_opt_in_message"
+              value="yes"
+              class="size-4 rounded border-border"
+              @checked(old('send_opt_in_message', $contact->send_opt_in_message) === 'yes')
+            >
+            Send WhatsApp opt-in message
+          </label>
+          @if ($contact->send_opt_in_message === 'yes' && filled($contact->opt_in_message_delivery_status))
+            <p class="text-xs text-text-subtle">
+              Last opt-in status:
+              <span class="font-medium text-text-body">{{ $contact->opt_in_message_delivery_status }}</span>
+              @if ($contact->opt_in_message_sent_at)
+                · {{ $contact->opt_in_message_sent_at->format('Y-m-d h:i A') }}
+              @endif
+            </p>
+          @endif
           <button type="submit" class="fd-btn rounded bg-green-500 px-4 py-3 text-sm font-semibold text-primary-2">Save changes</button>
         </form>
       </div>

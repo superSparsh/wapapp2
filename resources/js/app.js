@@ -614,7 +614,7 @@ function initInboxServiceWindow(chat) {
         return {
             refresh: async () => {},
             isWithinWindow: () => true,
-            canSendFreeForm: () => chat.dataset.walletBlocked !== '1',
+            canSendFreeForm: () => chat.dataset.walletBlocked !== '1' && chat.dataset.stopped !== '1',
         };
     }
 
@@ -630,7 +630,9 @@ function initInboxServiceWindow(chat) {
     const windowHours = Number(chat.dataset.windowHours || 24);
     const walletBlocked = () =>
         chat.dataset.walletBlocked === '1' || root?.dataset.walletBlocked === '1';
+    const stopped = () => chat.dataset.stopped === '1';
     const walletCopy = 'Your wallet balance is currently insufficient to send messages.';
+    const stoppedCopy = 'This contact marked STOP and is unsubscribed. Messaging is disabled until they reply START.';
     const expiredCopy = [
         'Session expired. Send an approved template message to reach this contact again.',
         '',
@@ -646,23 +648,25 @@ function initInboxServiceWindow(chat) {
         chat.dataset.withinWindow = withinWindow ? '1' : '0';
 
         const blocked = walletBlocked();
+        const isStopped = stopped();
         // Legacy parity: wallet block acts like timelapsed for free-form composer.
-        const canFreeForm = withinWindow && !blocked;
+        // STOP contacts cannot send free-form or templates from inbox.
+        const canFreeForm = withinWindow && !blocked && !isStopped;
+        const canReachOut = !blocked && !isStopped;
 
         if (banner && bannerText) {
-            banner.classList.remove('border-green-300', 'bg-green-50', 'text-green-900', 'border-amber-300', 'bg-amber-50', 'text-amber-900');
+            banner.classList.remove('hidden', 'border-green-300', 'bg-green-50', 'text-green-900', 'border-amber-300', 'bg-amber-50', 'text-amber-900', 'border-red-300', 'bg-red-50', 'text-red-900');
 
-            if (blocked) {
-                banner.classList.remove('hidden');
+            if (isStopped) {
+                banner.classList.add('border-red-300', 'bg-red-50', 'text-red-900');
+                bannerText.textContent = stoppedCopy;
+            } else if (blocked) {
                 banner.classList.add('border-amber-300', 'bg-amber-50', 'text-amber-900');
                 bannerText.textContent = walletCopy;
             } else if (withinWindow && status?.expires_at) {
-                const remaining = formatWindowExpiry(status.expires_at);
-                banner.classList.remove('hidden');
                 banner.classList.add('border-green-300', 'bg-green-50', 'text-green-900');
-                bannerText.textContent = `Session active for ${remaining} more (resets on customer reply, max ${status.window_hours ?? windowHours}h).`;
+                bannerText.textContent = `Session active for ${formatWindowExpiry(status.expires_at)} more (resets on customer reply, max ${status.window_hours ?? windowHours}h).`;
             } else if (!withinWindow) {
-                banner.classList.remove('hidden');
                 banner.classList.add('border-amber-300', 'bg-amber-50', 'text-amber-900');
                 bannerText.textContent = expiredCopy;
             } else {
@@ -675,7 +679,16 @@ function initInboxServiceWindow(chat) {
         }
 
         if (expiredActions) {
-            expiredActions.classList.toggle('opacity-100', !canFreeForm);
+            expiredActions.classList.toggle('hidden', isStopped || canFreeForm);
+            expiredActions.classList.toggle('opacity-100', !canFreeForm && canReachOut);
+            expiredActions.classList.toggle('pointer-events-none', !canReachOut);
+            expiredActions.classList.toggle('opacity-50', !canReachOut && !isStopped);
+            expiredActions.querySelectorAll('a, button').forEach((element) => {
+                element.toggleAttribute('disabled', !canReachOut);
+                element.setAttribute('aria-disabled', canReachOut ? 'false' : 'true');
+                element.classList.toggle('pointer-events-none', !canReachOut);
+                element.classList.toggle('opacity-50', !canReachOut);
+            });
         }
 
         input?.toggleAttribute('disabled', !canFreeForm);
@@ -714,12 +727,13 @@ function initInboxServiceWindow(chat) {
         }
     };
 
+    applyWindowState({ within_window: true });
     refresh();
 
     return {
         refresh,
         isWithinWindow: () => withinWindow,
-        canSendFreeForm: () => withinWindow && !walletBlocked(),
+        canSendFreeForm: () => withinWindow && !walletBlocked() && !stopped(),
     };
 }
 

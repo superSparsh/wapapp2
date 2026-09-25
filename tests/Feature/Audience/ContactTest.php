@@ -411,6 +411,39 @@ class ContactTest extends TestCase
         $this->assertFalse($contact->tags->pluck('name')->contains('old-tag'));
     }
 
+    public function test_update_can_enable_send_opt_in_message(): void
+    {
+        $list = MailList::factory()->create();
+        $contact = Contact::factory()->create([
+            'mail_list_id' => $list->id,
+            'send_opt_in_message' => 'no',
+        ]);
+
+        $this->actingAsTenantUser()
+            ->put(route('audience.subscribers.update', $contact), [
+                'phone' => $contact->phone,
+                'send_opt_in_message' => 'yes',
+                'list' => $list->uuid,
+            ])
+            ->assertRedirect(route('audience.subscribers', ['list' => $list->uuid]));
+
+        $this->assertDatabaseHas('contacts', [
+            'id' => $contact->id,
+            'send_opt_in_message' => 'yes',
+        ]);
+    }
+
+    public function test_contact_detail_shows_opt_in_checkbox(): void
+    {
+        $list = MailList::factory()->create();
+        $contact = Contact::factory()->create(['mail_list_id' => $list->id]);
+
+        $this->actingAsTenantUser()
+            ->get(route('audience.subscribers.detail', ['id' => $contact->uuid, 'list' => $list->uuid]))
+            ->assertOk()
+            ->assertSee('Send WhatsApp opt-in message');
+    }
+
     public function test_subscribers_index_filters_by_date_range(): void
     {
         $list = MailList::factory()->create();

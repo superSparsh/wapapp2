@@ -19,6 +19,7 @@
   class="relative flex h-full min-h-0 min-w-0 flex-1 flex-col rounded-xl"
   data-inbox-chat
   data-wallet-blocked="{{ $walletBlocked ? '1' : '0' }}"
+  data-stopped="{{ ! empty($contact['stopped']) ? '1' : '0' }}"
   @if ($conversation)
     data-conversation-uuid="{{ $conversation->uuid }}"
     data-messages-url="{{ route('inbox.api.messages', $conversation) }}"
