@@ -123,10 +123,16 @@
                         @endphp
 
                         @if ($type === 'logo')
-                            @if (! empty($field['image_path']) || ! empty($form->logo_path))
+                            @php
+                                $logoPath = $field['image_path'] ?? $form->logo_path;
+                                $logoUrl = filled($logoPath)
+                                    ? route('public.form.logo', ['tenant' => $tenantId ?? tenant('id'), 'path' => $logoPath])
+                                    : null;
+                            @endphp
+                            @if ($logoUrl)
                                 <div class="logo">
                                     <img
-                                        src="{{ asset('storage/' . ($field['image_path'] ?? $form->logo_path)) }}"
+                                        src="{{ $logoUrl }}"
                                         alt="{{ $label }}"
                                     >
                                 </div>

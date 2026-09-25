@@ -105,6 +105,9 @@ Route::middleware([InitializeTenancyByPath::class])
     ->prefix('form/{tenant}')
     ->name('public.form.')
     ->group(function () {
+        Route::get('/logo/{path}', [PublicFormController::class, 'showLogo'])
+            ->where('path', '.*')
+            ->name('logo');
         Route::get('/{slug}', [PublicFormController::class, 'show'])->name('show');
         Route::post('/{slug}/submit', [PublicFormController::class, 'submit'])->name('submit');
         Route::get('/{slug}/embed.js', [PublicFormController::class, 'embedJs'])->name('embed');
@@ -408,6 +411,9 @@ Route::middleware(['tenancy.session', 'auth:web,team', '2fa', 'team.redirect-das
             Route::delete('/{form}', [FormBuilderController::class, 'destroy'])->name('destroy');
             Route::post('/{form}/toggle', [FormBuilderController::class, 'toggleStatus'])->name('toggle');
             Route::post('/upload-logo', [FormBuilderController::class, 'uploadLogo'])->name('upload-logo');
+            Route::get('/logos/{path}', [FormBuilderController::class, 'showLogo'])
+                ->where('path', '.*')
+                ->name('logos.show');
 
             // API endpoints (AJAX)
             Route::prefix('api')->name('api.')->group(function () {

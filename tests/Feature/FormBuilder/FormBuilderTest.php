@@ -7,6 +7,8 @@ use App\Models\MailList;
 use App\Models\SignupForm;
 use App\Models\Template;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\Concerns\InteractsWithTenants;
 use Tests\TestCase;
 
@@ -42,6 +44,32 @@ class FormBuilderTest extends TestCase
             ->get(route('form-builder.index'))
             ->assertOk()
             ->assertViewIs('form-builder.index');
+    }
+
+    public function test_owner_can_upload_logo_and_preview_via_tenant_route(): void
+    {
+        Storage::fake('public');
+
+        $file = UploadedFile::fake()->image('logo.png', 120, 80);
+
+        $upload = $this->actingAsTenantUser()
+            ->postJson(route('form-builder.upload-logo'), [
+                'logo' => $file,
+            ])
+            ->assertOk()
+            ->assertJsonStructure(['path', 'url']);
+
+        $path = $upload->json('path');
+        $url = $upload->json('url');
+
+        $this->assertNotEmpty($path);
+        $this->assertStringContainsString('/form-builder/logos/', (string) $url);
+        Storage::disk('public')->assertExists($path);
+
+        $this->actingAsTenantUser()
+            ->get(route('form-builder.logos.show', ['path' => $path]))
+            ->assertOk()
+            ->assertHeader('content-type', 'image/png');
     }
 
     public function test_owner_can_view_create_form_page(): void

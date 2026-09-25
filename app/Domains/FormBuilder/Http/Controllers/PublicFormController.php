@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domains\FormBuilder\Http\Controllers;
 
 use App\Domains\FormBuilder\Http\Requests\FormSubmissionRequest;
+use App\Domains\FormBuilder\Services\FormBuilderService;
 use App\Domains\FormBuilder\Services\FormSubmissionService;
 use App\Domains\FormBuilder\Support\FormFieldNormalizer;
 use App\Http\Controllers\Controller;
@@ -14,12 +15,19 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class PublicFormController extends Controller
 {
     public function __construct(
         private readonly FormSubmissionService $submissionService,
+        private readonly FormBuilderService $formBuilderService,
     ) {}
+
+    public function showLogo(string $path): StreamedResponse
+    {
+        return $this->formBuilderService->streamLogo($path);
+    }
 
     /**
      * Render the public form by slug.
@@ -37,6 +45,7 @@ class PublicFormController extends Controller
                 is_array($form->fields) ? $form->fields : []
             ),
             'redirectUrl' => $form->redirect_url,
+            'tenantId' => (string) tenant('id'),
         ]);
     }
 

@@ -10,6 +10,8 @@ use App\Domains\FormBuilder\Support\FormActorContext;
 use App\Domains\FormBuilder\Support\FormFieldNormalizer;
 use App\Models\SignupForm;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class FormBuilderService
 {
@@ -157,18 +159,81 @@ class FormBuilderService
 
     /**
      * Store the uploaded logo and return the path.
+     *
+     * Tenant public disk is not served by /storage/... (central symlink), so
+     * previews must use logoPreviewUrl() / streamLogo().
      */
     public function storeLogo($file): string
     {
         $directory = config('form-builder.logo_directory', 'form-logos');
-        // Public disk so asset('storage/...') works for builder preview + public forms.
         $disk = config('form-builder.logo_disk', 'public');
 
-        return $file->store($directory, $disk);
+        Storage::disk($disk)->makeDirectory($directory);
+
+        $path = $file->store($directory, $disk);
+
+        if ($path === false || $path === '') {
+            throw new \RuntimeException('Failed to store form logo.');
+        }
+
+        return $path;
+    }
+
+    public function logoPreviewUrl(string $path): string
+    {
+        $path = ltrim(str_replace('\\', '/', $path), '/');
+
+        return route('form-builder.logos.show', ['path' => $path]);
+    }
+
+    public function publicLogoPreviewUrl(string $tenantId, string $path): string
+    {
+        $path = ltrim(str_replace('\\', '/', $path), '/');
+
+        return route('public.form.logo', ['tenant' => $tenantId, 'path' => $path]);
+    }
+
+    public function streamLogo(string $path): StreamedResponse
+    {
+        $path = $this->normalizeLogoPath($path);
+        $disk = Storage::disk(config('form-builder.logo_disk', 'public'));
+
+        if (! $disk->exists($path)) {
+            abort(404);
+        }
+
+        $mime = (string) ($disk->mimeType($path) ?: 'application/octet-stream');
+
+        return response()->stream(function () use ($disk, $path): void {
+            $stream = $disk->readStream($path);
+            if (! is_resource($stream)) {
+                return;
+            }
+
+            fpassthru($stream);
+            fclose($stream);
+        }, 200, [
+            'Content-Type' => $mime,
+            'Content-Disposition' => 'inline; filename="'.basename($path).'"',
+            'Cache-Control' => 'private, max-age=3600',
+        ]);
+    }
+
+    private function normalizeLogoPath(string $path): string
+    {
+        $path = ltrim(str_replace('\\', '/', $path), '/');
+        $path = preg_replace('#\.\./#', '', $path) ?? $path;
+
+        $directory = trim((string) config('form-builder.logo_directory', 'form-logos'), '/');
+        if ($directory === '' || ! str_starts_with($path, $directory.'/')) {
+            abort(404);
+        }
+
+        return $path;
     }
 
     /**
-     * Normalize field definitions — sort by always-top priority, ensure structure.
+     * Normalize field definitions — ensure structure and preserve user order.
      *
      * @param  array<int, array<string, mixed>>  $fields
      * @return array<int, array<string, mixed>>

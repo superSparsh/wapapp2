@@ -197,8 +197,16 @@ class FormBuilderController extends Controller
 
         return response()->json([
             'path' => $path,
-            'url' => asset('storage/'.$path),
+            'url' => $service->logoPreviewUrl($path),
         ]);
+    }
+
+    /**
+     * Stream a logo from the tenant public disk (builder preview).
+     */
+    public function showLogo(string $path, FormBuilderService $service): \Symfony\Component\HttpFoundation\StreamedResponse
+    {
+        return $service->streamLogo($path);
     }
 
     /**

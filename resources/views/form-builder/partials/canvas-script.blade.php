@@ -6,6 +6,7 @@
 @php
   $formId = $formId ?? 'form-builder-create';
   $uploadLogoUrl = route('form-builder.upload-logo');
+  $logoShowBase = url('/form-builder/logos');
   $storageBase = rtrim(asset('storage'), '/');
   $uploadIcon = asset('images/form-builder/upload-frame.svg');
   $trashIcon = asset('images/form-builder/trash.svg');
@@ -26,7 +27,7 @@
   };
 
   const uploadLogoUrl = @json($uploadLogoUrl);
-  const storageBase = @json($storageBase);
+  const logoShowBase = @json($logoShowBase);
   const uploadIcon = @json($uploadIcon);
   const trashIcon = @json($trashIcon);
   const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
@@ -71,8 +72,10 @@
 
   function storageUrl(path) {
     if (!path) return '';
-    if (/^https?:\/\//i.test(path)) return path;
-    return `${storageBase}/${String(path).replace(/^\/+/, '')}`;
+    if (/^https?:\/\//i.test(path) || path.startsWith('blob:') || path.startsWith('/form-builder/logos/')) {
+      return path;
+    }
+    return `${logoShowBase.replace(/\/$/, '')}/${String(path).replace(/^\/+/, '')}`;
   }
 
   function syncLogoPath() {
@@ -116,8 +119,9 @@
         </div>`;
 
       if (field.type === 'logo') {
-        const preview = field.image_path
-          ? `<img src="${escaped(storageUrl(field.image_path))}" alt="Logo preview" class="mb-2 max-h-14 object-contain">`
+        const previewSrc = field.image_url || storageUrl(field.image_path);
+        const preview = previewSrc
+          ? `<img src="${escaped(previewSrc)}" alt="Logo preview" class="mb-2 max-h-14 object-contain">`
           : `<img src="${uploadIcon}" alt="" class="mb-2 size-6" width="24" height="24">`;
         html += `<label class="flex cursor-pointer items-center gap-3">
           <div class="flex h-[88px] min-w-0 flex-1 flex-col items-center justify-center rounded-md border border-dashed border-divider px-4 py-3 hover:border-green-500/50">
@@ -176,8 +180,9 @@
       const placeholder = field.placeholder || field.text || '';
 
       if (field.type === 'logo') {
-        html += field.image_path
-          ? `<div class="mb-1.5 flex items-center justify-center"><img src="${escaped(storageUrl(field.image_path))}" alt="Logo" class="max-h-10 object-contain"></div>`
+        const previewSrc = field.image_url || storageUrl(field.image_path);
+        html += previewSrc
+          ? `<div class="mb-1.5 flex items-center justify-center"><img src="${escaped(previewSrc)}" alt="Logo" class="max-h-10 object-contain"></div>`
           : `<div class="mb-1.5 flex items-center justify-center rounded border border-dashed border-divider bg-muted-surface/30 p-2"><span class="text-[8px] text-text-muted">Logo Image</span></div>`;
       } else if (field.type === 'header') {
         html += `<p class="mb-1 text-[10px] font-bold text-text-primary">${escaped(placeholder || label)}</p>`;
@@ -355,6 +360,7 @@
 
       if (fields[index]) {
         fields[index].image_path = payload.path;
+        fields[index].image_url = payload.url || storageUrl(payload.path);
       }
       if (logoPathInput instanceof HTMLInputElement) {
         logoPathInput.value = payload.path || '';
@@ -369,8 +375,73 @@
     btn.addEventListener('click', () => addField(btn.dataset.addField));
   });
 
-  formEl?.addEventListener('submit', () => {
+  function setActivateState(active) {
+    const input = document.getElementById('activate-input');
+    const toggle = document.querySelector('[data-activate-toggle]');
+    if (!(input instanceof HTMLInputElement)) return;
+
+    input.value = active ? '1' : '0';
+    if (!(toggle instanceof HTMLElement)) return;
+
+    toggle.setAttribute('aria-checked', active ? 'true' : 'false');
+    toggle.classList.toggle('bg-green-500', active);
+    toggle.classList.toggle('bg-green-50', !active);
+    const knob = toggle.querySelector('span');
+    if (knob instanceof HTMLElement) {
+      knob.classList.toggle('left-[24px]', active);
+      knob.classList.toggle('left-[2px]', !active);
+    }
+  }
+
+  formEl?.addEventListener('submit', (event) => {
     updateHiddenData();
+
+    if (formEl.dataset.activatePromptBypass === 'true') {
+      return;
+    }
+
+    const activateInput = document.getElementById('activate-input');
+    if (!(activateInput instanceof HTMLInputElement) || activateInput.value === '1') {
+      return;
+    }
+
+    if (window.WapAppFormValidation && !window.WapAppFormValidation.validateForm(formEl)) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const cancelBtn = document.querySelector('#app-confirm-dialog [data-confirm-cancel]');
+    const previousCancelLabel = cancelBtn?.textContent;
+    if (cancelBtn) {
+      cancelBtn.textContent = 'No, just save';
+    }
+
+    const ask = typeof window.showAppConfirm === 'function'
+      ? window.showAppConfirm({
+          title: 'Activate form?',
+          message: 'Do you also want to activate this form?',
+          variant: 'default',
+          confirmLabel: 'Yes, Activate',
+        })
+      : Promise.resolve(window.confirm('Do you also want to activate this form?'));
+
+    ask.then((shouldActivate) => {
+      if (cancelBtn && previousCancelLabel != null) {
+        cancelBtn.textContent = previousCancelLabel;
+      }
+      setActivateState(Boolean(shouldActivate));
+      formEl.dataset.activatePromptBypass = 'true';
+      if (typeof formEl.requestSubmit === 'function') {
+        formEl.requestSubmit();
+      } else {
+        formEl.submit();
+      }
+      delete formEl.dataset.activatePromptBypass;
+    });
   });
 
   (function bindActivateToggle() {
@@ -380,16 +451,7 @@
 
     toggle.addEventListener('click', (e) => {
       e.preventDefault();
-      const next = input.value !== '1';
-      input.value = next ? '1' : '0';
-      toggle.setAttribute('aria-checked', next ? 'true' : 'false');
-      toggle.classList.toggle('bg-green-500', next);
-      toggle.classList.toggle('bg-green-50', !next);
-      const knob = toggle.querySelector('span');
-      if (knob instanceof HTMLElement) {
-        knob.classList.toggle('left-[24px]', next);
-        knob.classList.toggle('left-[2px]', !next);
-      }
+      setActivateState(input.value !== '1');
     });
   })();
 
