@@ -123,7 +123,7 @@ class FormBuilderController extends Controller
         $recentSubmissions = $form->submissions()
             ->latest('id')
             ->limit(20)
-            ->get(['id', 'phone', 'message_status', 'created_at', 'sent_at', 'delivered_at', 'read_at', 'failed_at']);
+            ->get(['id', 'phone', 'message_status', 'failed_reason', 'created_at', 'sent_at', 'delivered_at', 'read_at', 'failed_at']);
 
         return view('form-builder.statistics', [
             'form' => $form,

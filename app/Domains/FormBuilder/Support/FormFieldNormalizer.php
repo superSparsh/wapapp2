@@ -32,6 +32,28 @@ final class FormFieldNormalizer
     }
 
     /**
+     * Public form input name for a normalized field at the given index.
+     */
+    public static function inputName(string $type, int $index): string
+    {
+        return match ($type) {
+            FieldType::Phone->value => 'phone',
+            FieldType::FirstName->value => 'first_name',
+            FieldType::LastName->value => 'last_name',
+            default => $type.'_'.$index,
+        };
+    }
+
+    public static function isSubmittable(string $type): bool
+    {
+        return ! in_array($type, [
+            FieldType::Logo->value,
+            FieldType::Header->value,
+            FieldType::Paragraph->value,
+        ], true);
+    }
+
+    /**
      * @param  array<string, mixed>  $field
      * @return array<string, mixed>
      */

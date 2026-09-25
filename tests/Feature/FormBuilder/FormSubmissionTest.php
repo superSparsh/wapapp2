@@ -102,6 +102,43 @@ class FormSubmissionTest extends TestCase
             ->assertSessionHasErrors(['phone']);
     }
 
+    public function test_public_form_submission_validates_required_fields(): void
+    {
+        $form = SignupForm::factory()->active()->create([
+            'whatsapp_line_id' => $this->testLine->id,
+            'fields' => [
+                ['type' => 'phone', 'label' => 'WhatsApp Number', 'required' => true],
+                ['type' => 'first_name', 'label' => 'First Name', 'required' => true],
+                ['type' => 'input', 'label' => 'Company', 'required' => true, 'placeholder' => 'Company'],
+                ['type' => 'dropdown', 'label' => 'City', 'required' => true, 'options' => ['Delhi', 'Mumbai']],
+                ['type' => 'checkbox', 'label' => 'I agree', 'required' => true],
+            ],
+        ]);
+
+        $this->post(route('public.form.submit', $this->publicFormParams($form->slug)), [
+            'phone' => '919876543210',
+        ])
+            ->assertSessionHasErrors(['first_name', 'input_2', 'dropdown_3', 'checkbox_4']);
+    }
+
+    public function test_public_form_renders_required_attributes_on_fields(): void
+    {
+        $form = SignupForm::factory()->active()->create([
+            'whatsapp_line_id' => $this->testLine->id,
+            'fields' => [
+                ['type' => 'phone', 'label' => 'WhatsApp Number', 'required' => true],
+                ['type' => 'first_name', 'label' => 'First Name', 'required' => true],
+                ['type' => 'input', 'label' => 'Company', 'required' => true],
+            ],
+        ]);
+
+        $this->get(route('public.form.show', $this->publicFormParams($form->slug)))
+            ->assertOk()
+            ->assertDontSee('novalidate', false)
+            ->assertSee('name="first_name"', false)
+            ->assertSee('required', false);
+    }
+
     public function test_public_form_submission_with_redirect_url(): void
     {
         \Illuminate\Support\Facades\Queue::fake();
@@ -144,6 +181,11 @@ class FormSubmissionTest extends TestCase
         $form = SignupForm::factory()->active()->create([
             'whatsapp_line_id' => $this->testLine->id,
             'template_id' => null,
+            'fields' => [
+                ['type' => 'phone', 'label' => 'WhatsApp Number', 'required' => true],
+                ['type' => 'first_name', 'label' => 'First Name', 'required' => true],
+                ['type' => 'last_name', 'label' => 'Last Name', 'required' => true],
+            ],
         ]);
 
         $this->post(route('public.form.submit', $this->publicFormParams($form->slug)), [

@@ -102,23 +102,18 @@
                     <p>{{ session('status') }}</p>
                 </div>
             @else
-                <form method="post" action="{{ route('public.form.submit', ['tenant' => tenant('id'), 'slug' => $form->slug]) }}" novalidate>
+                <form method="post" action="{{ route('public.form.submit', ['tenant' => tenant('id'), 'slug' => $form->slug]) }}">
                     @csrf
 
                     @foreach ($fields as $index => $field)
                         @php
                             $type = (string) ($field['type'] ?? 'input');
                             $label = (string) ($field['label'] ?? ucfirst(str_replace('_', ' ', $type)));
-                            $required = (bool) ($field['required'] ?? false);
+                            $required = (bool) ($field['required'] ?? false) || $type === 'phone';
                             $placeholder = (string) ($field['placeholder'] ?? '');
                             $text = (string) ($field['text'] ?? '');
                             $displayText = $text !== '' ? $text : $placeholder;
-                            $inputName = match ($type) {
-                                'phone' => 'phone',
-                                'first_name' => 'first_name',
-                                'last_name' => 'last_name',
-                                default => $type.'_'.$index,
-                            };
+                            $inputName = \App\Domains\FormBuilder\Support\FormFieldNormalizer::inputName($type, $index);
                             $oldValue = old($inputName);
                         @endphp
 
@@ -142,21 +137,23 @@
                         @elseif ($type === 'paragraph')
                             <p class="paragraph">{{ $displayText !== '' ? $displayText : $label }}</p>
                         @elseif ($type === 'checkbox')
-                            <div class="field checkbox-row">
-                                <input
-                                    type="checkbox"
-                                    id="field-{{ $index }}"
-                                    name="{{ $inputName }}"
-                                    value="1"
-                                    @if ($required) required @endif
-                                    @checked((string) $oldValue === '1')
-                                >
-                                <label for="field-{{ $index }}">
-                                    {{ $label }}
-                                    @if ($required) <span class="req">*</span> @endif
-                                </label>
+                            <div class="field">
+                                <div class="checkbox-row">
+                                    <input
+                                        type="checkbox"
+                                        id="field-{{ $index }}"
+                                        name="{{ $inputName }}"
+                                        value="1"
+                                        @if ($required) required @endif
+                                        @checked((string) $oldValue === '1')
+                                    >
+                                    <label for="field-{{ $index }}">
+                                        {{ $label }}
+                                        @if ($required) <span class="req">*</span> @endif
+                                    </label>
+                                </div>
+                                @error($inputName)<div class="error">{{ $message }}</div>@enderror
                             </div>
-                            @error($inputName)<div class="error">{{ $message }}</div>@enderror
                         @elseif ($type === 'dropdown')
                             <div class="field">
                                 <label for="field-{{ $index }}">
@@ -164,7 +161,7 @@
                                     @if ($required) <span class="req">*</span> @endif
                                 </label>
                                 <select id="field-{{ $index }}" name="{{ $inputName }}" @if ($required) required @endif>
-                                    <option value="" disabled @selected($oldValue === null)>{{ $placeholder !== '' ? $placeholder : 'Select an option' }}</option>
+                                    <option value="" disabled @selected($oldValue === null || $oldValue === '')>{{ $placeholder !== '' ? $placeholder : 'Select an option' }}</option>
                                     @foreach ($field['options'] ?? [] as $option)
                                         <option value="{{ $option }}" @selected((string) $oldValue === (string) $option)>{{ $option }}</option>
                                     @endforeach
@@ -175,7 +172,7 @@
                             <div class="field">
                                 <label for="field-{{ $index }}">
                                     {{ $label }}
-                                    @if ($required || $type === 'phone') <span class="req">*</span> @endif
+                                    @if ($required) <span class="req">*</span> @endif
                                 </label>
                                 <input
                                     id="field-{{ $index }}"
@@ -183,13 +180,10 @@
                                     name="{{ $inputName }}"
                                     value="{{ $oldValue }}"
                                     placeholder="{{ $placeholder }}"
-                                    @if ($required || $type === 'phone') required @endif
+                                    @if ($required) required @endif
                                     @if ($type === 'phone') autocomplete="tel" @endif
                                 >
                                 @error($inputName)<div class="error">{{ $message }}</div>@enderror
-                                @if ($type === 'phone')
-                                    @error('phone')<div class="error">{{ $message }}</div>@enderror
-                                @endif
                             </div>
                         @endif
                     @endforeach

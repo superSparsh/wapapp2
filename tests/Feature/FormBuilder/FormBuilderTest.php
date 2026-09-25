@@ -3,6 +3,7 @@
 namespace Tests\Feature\FormBuilder;
 
 use App\Domains\FormBuilder\Enums\FormStatus;
+use App\Models\FormSubmission;
 use App\Models\MailList;
 use App\Models\SignupForm;
 use App\Models\Template;
@@ -320,6 +321,31 @@ class FormBuilderTest extends TestCase
             ->assertSee('Stats Form')
             ->assertSee('Total Submissions')
             ->assertSee('Recent submissions');
+    }
+
+    public function test_statistics_page_shows_failed_reason(): void
+    {
+        $form = SignupForm::factory()->create([
+            'whatsapp_line_id' => $this->testLine->id,
+            'list_id' => $this->mailList->id,
+            'template_id' => $this->template->id,
+            'name' => 'Failed Stats Form',
+        ]);
+
+        FormSubmission::query()->create([
+            'signup_form_id' => $form->id,
+            'phone' => '+919876543210',
+            'submission_data' => ['phone' => '919876543210'],
+            'message_status' => 'failed',
+            'failed_reason' => 'Template not configured',
+            'failed_at' => now(),
+        ]);
+
+        $this->actingAsTenantUser()
+            ->get(route('form-builder.statistics', $form))
+            ->assertOk()
+            ->assertSee('Failure reason')
+            ->assertSee('Template not configured');
     }
 
     public function test_edit_page_does_not_show_behavior_embed_or_statistics_sections(): void

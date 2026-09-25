@@ -79,11 +79,12 @@
           <p class="py-8 text-center text-sm text-text-muted">No submissions yet. Share the public form link to start collecting leads.</p>
         @else
           <div class="overflow-x-auto">
-            <table class="w-full min-w-[640px] text-left text-sm">
+            <table class="w-full min-w-[720px] text-left text-sm">
               <thead>
                 <tr class="border-b border-border text-xs font-semibold uppercase tracking-wide text-text-muted">
                   <th class="px-3 py-2">Phone</th>
                   <th class="px-3 py-2">Status</th>
+                  <th class="px-3 py-2">Failure reason</th>
                   <th class="px-3 py-2">Submitted</th>
                   <th class="px-3 py-2">Sent</th>
                   <th class="px-3 py-2">Delivered</th>
@@ -101,11 +102,19 @@
                       'failed' => 'bg-red-50 text-red-600',
                       default => 'bg-muted-surface text-text-muted',
                     };
+                    $failedReason = trim((string) ($submission->failed_reason ?? ''));
                   @endphp
                   <tr class="border-b border-border/60">
                     <td class="px-3 py-2.5 font-medium text-text-body">{{ $submission->phone ?: '—' }}</td>
                     <td class="px-3 py-2.5">
                       <span class="inline-flex rounded px-2 py-1 text-[10px] font-medium {{ $statusClass }}">{{ ucfirst($status) }}</span>
+                    </td>
+                    <td class="px-3 py-2.5 text-text-muted">
+                      @if ($status === 'failed' && $failedReason !== '')
+                        <span class="block max-w-[280px] whitespace-normal break-words text-red-600" title="{{ $failedReason }}">{{ $failedReason }}</span>
+                      @else
+                        —
+                      @endif
                     </td>
                     <td class="px-3 py-2.5 text-text-muted">{{ $submission->created_at?->format('d M Y h:i A') ?? '—' }}</td>
                     <td class="px-3 py-2.5 text-text-muted">{{ $submission->sent_at?->format('d M Y h:i A') ?? '—' }}</td>
