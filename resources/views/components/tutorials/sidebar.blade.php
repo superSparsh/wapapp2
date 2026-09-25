@@ -29,8 +29,7 @@
         @if ($category['expanded']) open @endif
       >
         <summary class="flex cursor-pointer list-none items-center gap-2 rounded-xl border border-solid border-green-100 bg-elevated px-2 py-1.5 transition-colors group-open:bg-green-100 [&::-webkit-details-marker]:hidden">
-          <span class="p-2 text-[13px] font-normal leading-[1.5] whitespace-nowrap text-text-body">{{ str_pad((string) ($index + 1), 2, '0', STR_PAD_LEFT) }}</span>
-          <span class="min-w-0 flex-1 p-2 text-xs font-semibold uppercase leading-[1.5] text-text-subtle">{{ $category['label'] }}</span>
+          <span class="min-w-0 flex-1 p-2 text-xs font-semibold leading-[1.5] text-text-subtle">{{ $category['label'] }}</span>
           <img
             src="{{ asset('images/tutorials/arrow-down.svg') }}"
             alt=""
@@ -47,7 +46,7 @@
                 $childSearch = mb_strtolower($child['label']);
               @endphp
               <div class="tutorial-submodule space-y-1 pl-2" data-tutorial-submodule data-search="{{ $childSearch }}">
-                <p class="px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-text-muted">{{ $child['label'] }}</p>
+                <p class="px-3 py-1 text-[11px] font-semibold tracking-wide text-text-muted">{{ $child['label'] }}</p>
                 @foreach ($child['videos'] as $video)
                   <a
                     href="{{ $video['url'] }}"

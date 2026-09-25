@@ -20,7 +20,7 @@ class TutorialModuleTreeTest extends TestCase
         $this->tree = app(TutorialModuleTree::class);
     }
 
-    public function test_keeps_legacy_module_labels(): void
+    public function test_keeps_exact_legacy_module_headings(): void
     {
         $videos = collect([
             TutorialVideo::factory()->make([
@@ -41,13 +41,17 @@ class TutorialModuleTreeTest extends TestCase
         ]);
 
         $categories = $this->tree->build($videos, 1);
+        $labels = array_column($categories, 'label');
 
-        $this->assertCount(3, $categories);
-        $this->assertSame('Module 3: Automation', $categories[0]['label']);
-        $this->assertNotNull($categories[0]['children']);
-        $this->assertSame('Chatbot', $categories[0]['children'][0]['label']);
-        $this->assertSame('Module 2: Inbox', $categories[1]['label']);
-        $this->assertSame('Module 1: Dashboard', $categories[2]['label']);
+        $this->assertSame([
+            'Module 3: Automation - Sub-module 1: Chatbot',
+            'Module 2: Inbox',
+            'Module 1: Dashboard',
+        ], $labels);
+        $this->assertNull($categories[0]['children']);
+        $this->assertNotContains('Automation', $labels);
+        $this->assertNotContains('Dashboard', $labels);
+        $this->assertNotContains('Inbox', $labels);
     }
 
     public function test_local_playback_url_uses_public_asset_when_file_exists(): void

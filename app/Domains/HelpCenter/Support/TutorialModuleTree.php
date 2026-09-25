@@ -29,57 +29,20 @@ class TutorialModuleTree
                 continue;
             }
 
+            // Exact legacy heading — never rename or shorten (e.g. keep
+            // "Module 3: Automation - Sub-module 1: Chatbot" as-is).
             $moduleName = trim((string) $video->module_name);
-
-            // Keep legacy labels as stored — only split the existing " - Sub-module N: " pattern.
-            if (preg_match('/^(.*?)\s-\sSub-module\s.*?:\s*(.*)$/u', $moduleName, $matches) === 1) {
-                $parent = trim($matches[1]);
-                $child = trim($matches[2]);
-
-                $structure[$parent]['type'] = 'parent';
-                $structure[$parent]['items'][$child][] = $video;
-            } else {
-                $structure[$moduleName]['type'] = 'single';
-                $structure[$moduleName]['items'][] = $video;
+            if ($moduleName === '') {
+                continue;
             }
+
+            $structure[$moduleName]['type'] = 'single';
+            $structure[$moduleName]['items'][] = $video;
         }
 
         $categories = [];
 
         foreach ($structure as $label => $data) {
-            if (($data['type'] ?? 'single') === 'parent') {
-                $children = [];
-
-                foreach ($data['items'] as $childLabel => $childVideos) {
-                    $mappedVideos = collect($childVideos)
-                        ->map(fn (TutorialVideo $video): array => $this->videoRow($video, $activeVideoId))
-                        ->values()
-                        ->all();
-
-                    if ($mappedVideos === []) {
-                        continue;
-                    }
-
-                    $children[] = [
-                        'label' => (string) $childLabel,
-                        'videos' => $mappedVideos,
-                    ];
-                }
-
-                if ($children === [] && $search !== '' && ! str_contains(mb_strtolower($label), $search)) {
-                    continue;
-                }
-
-                $categories[] = [
-                    'label' => (string) $label,
-                    'expanded' => $this->moduleExpanded($children, $activeVideoId),
-                    'children' => $children,
-                    'videos' => null,
-                ];
-
-                continue;
-            }
-
             $mappedVideos = collect($data['items'] ?? [])
                 ->map(fn (TutorialVideo $video): array => $this->videoRow($video, $activeVideoId))
                 ->values()
@@ -205,20 +168,6 @@ class TutorialModuleTree
         return str_contains(mb_strtolower($video->title), $search)
             || str_contains(mb_strtolower($video->module_name), $search)
             || str_contains(mb_strtolower((string) $video->description), $search);
-    }
-
-    /**
-     * @param  array<int, array{label: string, videos: array<int, array<string, mixed>>}>  $children
-     */
-    private function moduleExpanded(array $children, ?int $activeVideoId): bool
-    {
-        foreach ($children as $child) {
-            if ($this->videosContainActive($child['videos'], $activeVideoId)) {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     /**
