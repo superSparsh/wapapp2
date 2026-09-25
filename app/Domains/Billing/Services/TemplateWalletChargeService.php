@@ -260,7 +260,7 @@ class TemplateWalletChargeService
             'chatbot' => 'Chatbot template ('.$category.')'.$suffix,
             'trigger' => 'Trigger template ('.$category.')'.$suffix,
             'drip' => 'Drip campaign template ('.$category.')'.$suffix,
-            'form' => 'Form builder template ('.$category.')'.$suffix,
+            'form', 'form_builder' => 'Form builder template ('.$category.')'.$suffix,
             'test' => 'Campaign test message ('.$category.')'.$suffix,
             default => 'WhatsApp template message ('.$category.', delivered)'.$suffix,
         };

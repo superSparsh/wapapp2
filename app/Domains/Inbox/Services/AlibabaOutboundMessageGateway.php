@@ -90,7 +90,7 @@ class AlibabaOutboundMessageGateway implements \App\Domains\Inbox\Contracts\Outb
                 return;
             }
 
-            $externalId = (string) Arr::get($body, 'MessageId', Arr::get($body, 'messageId', ''));
+            $externalId = $this->extractExternalMessageId(is_array($body) ? $body : []);
 
             $message->forceFill([
                 'status' => MessageStatus::Sent,
@@ -105,12 +105,29 @@ class AlibabaOutboundMessageGateway implements \App\Domains\Inbox\Contracts\Outb
                 // Best-effort realtime status.
             }
 
-            if ($externalId !== '' && tenancy()->initialized) {
-                $tenantId = tenant('id');
+            if ($externalId !== '') {
+                $tenantId = tenancy()->initialized ? tenant('id') : null;
+                if (! is_string($tenantId) || $tenantId === '') {
+                    // Fallback: resolve tenant from the WhatsApp line phone registry.
+                    $message->loadMissing('conversation.whatsappLine');
+                    $linePhone = (string) ($message->conversation?->whatsappLine?->phone ?? '');
+                    $resolved = $this->registryService->resolveByBusinessPhone($linePhone);
+                    $tenantId = $resolved['tenant']->id ?? null;
+                }
 
                 if (is_string($tenantId) && $tenantId !== '') {
                     $this->registryService->indexMessage($tenantId, $externalId, (int) $message->id);
+                } else {
+                    Log::warning('CAMS outbound MessageId not indexed: tenant unresolved', [
+                        'message_id' => $message->id,
+                        'external_message_id' => $externalId,
+                    ]);
                 }
+            } else {
+                Log::warning('CAMS outbound response missing MessageId', [
+                    'message_id' => $message->id,
+                    'response' => is_array($body) ? Arr::only($body, ['Code', 'code', 'MessageId', 'messageId', 'Data', 'data', 'RequestId']) : $response->body(),
+                ]);
             }
         } catch (\Throwable $exception) {
             Log::error('Outbound CAMS send failed', [
@@ -234,6 +251,36 @@ class AlibabaOutboundMessageGateway implements \App\Domains\Inbox\Contracts\Outb
         return $trimmed !== ''
             ? 'WhatsApp provider rejected the message: '.$trimmed
             : 'WhatsApp provider rejected the message.';
+    }
+
+    /**
+     * CAMS SendChatappMessage returns MessageId at the root (SDK), and some
+     * wrappers nest it under Data/body (legacy ChatappHelper shape).
+     *
+     * @param  array<string, mixed>  $body
+     */
+    private function extractExternalMessageId(array $body): string
+    {
+        $candidates = [
+            Arr::get($body, 'MessageId'),
+            Arr::get($body, 'messageId'),
+            Arr::get($body, 'Data.MessageId'),
+            Arr::get($body, 'Data.messageId'),
+            Arr::get($body, 'data.MessageId'),
+            Arr::get($body, 'data.messageId'),
+            Arr::get($body, 'data.body.messageId'),
+            Arr::get($body, 'data.body.MessageId'),
+            Arr::get($body, 'body.messageId'),
+            Arr::get($body, 'body.MessageId'),
+        ];
+
+        foreach ($candidates as $candidate) {
+            if (is_scalar($candidate) && trim((string) $candidate) !== '') {
+                return trim((string) $candidate);
+            }
+        }
+
+        return '';
     }
 
     /**

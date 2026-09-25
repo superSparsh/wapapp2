@@ -18,6 +18,7 @@ use App\Models\Contact;
 use App\Models\FormSubmission;
 use App\Models\InboundWebhookEvent;
 use App\Models\Message;
+use App\Models\MessageExternalIndex;
 use App\Support\PhoneNormalizer;
 use Illuminate\Support\Facades\Log;
 
@@ -74,8 +75,17 @@ class DeliveryStatusHandler
         tenancy()->initialize($tenant);
 
         try {
-            $message = Message::query()->where('external_message_id', $messageId)->first();
+            $message = $this->findOutboundMessage($messageId, $item);
             $now = now();
+
+            if ($message === null) {
+                Log::warning('Outbound message not found for Alibaba status webhook', [
+                    'message_id' => $messageId,
+                    'status' => $status,
+                    'to' => $item['To'] ?? $item['to'] ?? null,
+                    'from' => $item['From'] ?? $item['from'] ?? null,
+                ]);
+            }
 
             if ($message !== null) {
                 $updates = $this->messageUpdates($status, $message, $item, $now);
@@ -104,6 +114,9 @@ class DeliveryStatusHandler
                 $item,
             );
 
+            // Form sync may have linked outbound_message_id — re-resolve for wallet charge.
+            $message ??= $this->findOutboundMessage($messageId, $item);
+
             if ($message !== null && $message->message_type === MessageType::Template) {
                 $recipient = CampaignRecipient::query()->where('message_id', $messageId)->first()
                     ?? CampaignRecipient::query()->where('message_id', (string) $message->id)->first();
@@ -129,6 +142,71 @@ class DeliveryStatusHandler
         } finally {
             tenancy()->end();
         }
+    }
+
+    /**
+     * Resolve the local outbound message for a provider status callback.
+     *
+     * @param  array<string, mixed>  $item
+     */
+    private function findOutboundMessage(string $messageId, array $item): ?Message
+    {
+        $message = Message::query()->where('external_message_id', $messageId)->first();
+        if ($message !== null) {
+            return $message;
+        }
+
+        $index = MessageExternalIndex::query()
+            ->where('external_message_id', $messageId)
+            ->first();
+        if ($index?->message_id) {
+            $message = Message::query()->find((int) $index->message_id);
+            if ($message !== null) {
+                // Backfill provider id so future lookups are direct.
+                if (blank($message->external_message_id) || str_starts_with((string) $message->external_message_id, 'local_')) {
+                    $message->forceFill(['external_message_id' => $messageId])->save();
+                }
+
+                return $message;
+            }
+        }
+
+        $byOutbound = FormSubmission::query()
+            ->where('external_message_id', $messageId)
+            ->whereNotNull('outbound_message_id')
+            ->orderByDesc('id')
+            ->first();
+        if ($byOutbound?->outbound_message_id) {
+            $message = Message::query()->find((int) $byOutbound->outbound_message_id);
+            if ($message !== null) {
+                if (blank($message->external_message_id) || str_starts_with((string) $message->external_message_id, 'local_')) {
+                    $message->forceFill(['external_message_id' => $messageId])->save();
+                }
+
+                return $message;
+            }
+        }
+
+        $to = PhoneNormalizer::normalize((string) ($item['To'] ?? $item['to'] ?? ''));
+        if ($to === null) {
+            return null;
+        }
+
+        $variants = PhoneNormalizer::lookupVariants($to);
+
+        return Message::query()
+            ->where('direction', 'outbound')
+            ->where('message_type', MessageType::Template)
+            ->whereHas('conversation', function ($query) use ($variants): void {
+                $query->whereIn('contact_phone', $variants);
+            })
+            ->where(function ($query): void {
+                $query->where('metadata->wallet_source', 'form_builder')
+                    ->orWhereNotNull('metadata->form_submission_id');
+            })
+            ->where('created_at', '>=', now()->subDay())
+            ->orderByDesc('id')
+            ->first();
     }
 
     /**
