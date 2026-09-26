@@ -147,11 +147,24 @@ final class HttpOciContainerInstanceClient implements OciContainerInstanceClient
         $key = (string) ($cfg['private_key'] ?? '');
 
         if ($key !== '' && is_file($key)) {
+            if (! is_readable($key)) {
+                throw new RuntimeException('OCI private key file is not readable by PHP: '.$key);
+            }
+
             $contents = file_get_contents($key);
             $key = $contents !== false ? $contents : '';
+        } elseif ($key !== '' && str_contains($key, 'BEGIN') === false) {
+            // Looks like a filesystem path that does not exist / is not visible to this process.
+            throw new RuntimeException(
+                'OCI private key path is not a readable file (check path + permissions for the Horizon user): '.$key
+            );
         }
 
         $key = str_replace('\\n', "\n", $key);
+
+        if ($key === '' || ! str_contains($key, 'BEGIN')) {
+            throw new RuntimeException('OCI private key PEM is empty or invalid. Set OCI_PRIVATE_KEY_PATH to a readable .pem file.');
+        }
 
         return new OciRequestSigner(
             tenancyOcid: (string) $cfg['tenancy_ocid'],
