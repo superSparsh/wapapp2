@@ -17,7 +17,7 @@ enum TemplateStatus: string
             self::Draft => 'Yet to be submitted',
             self::PendingReview => 'Pending review',
             self::Approved => 'Approved',
-            self::Rejected => 'Error',
+            self::Rejected => 'Rejected',
         };
     }
 

@@ -70,6 +70,24 @@
         <button type="button" data-open-modal="create-delivered-list" class="fd-btn flex items-center justify-center rounded border border-green-500 bg-elevated px-4 py-3 text-xs font-semibold text-green-500 transition-colors hover:bg-surface">
           Create list from delivered
         </button>
+        @php
+          $failedCount = (int) ($metrics['failed'] ?? $campaign->total_failed ?? 0);
+          $canResendFailed = $failedCount > 0 && ! $campaign->isDraft() && ! $campaign->isCancelled();
+        @endphp
+        @if ($canResendFailed)
+          <a
+            href="{{ route('campaigns.statistics', ['bulkCampaign' => $campaign, 'modal' => 'resend-failed']) }}"
+            class="fd-btn flex items-center justify-center gap-2 rounded bg-green-500 px-4 py-3 text-xs font-semibold text-primary-2 transition-opacity hover:opacity-90"
+          >
+            Resend Failed
+          </a>
+          <form method="POST" action="{{ route('campaigns.resend-opt-in', $campaign) }}" data-confirm="Resend the opt-in template to all failed recipients of this campaign?" data-confirm-title="Resend opt-in" data-confirm-label="Send opt-in">
+            @csrf
+            <button type="submit" class="fd-btn flex items-center justify-center rounded border border-green-500 bg-elevated px-4 py-3 text-xs font-semibold text-green-500 transition-colors hover:bg-surface">
+              Resend Opt-in
+            </button>
+          </form>
+        @endif
         @if ($campaign->canBeEdited())
           <a href="{{ route('campaigns.edit', $campaign) }}" class="fd-btn flex items-center justify-center rounded border border-green-500 bg-elevated px-4 py-3 text-xs font-semibold text-green-500 transition-colors hover:bg-surface">
             Edit Campaign

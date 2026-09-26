@@ -35,14 +35,29 @@
             <img src="{{ asset('images/automation/export-csv.svg') }}" alt="" class="size-4" width="16" height="16">
             Export to CSV
           </a>
-          @if ($campaign->isSending() || $campaign->isPaused())
+          @php
+            $failedCount = (int) ($metrics['failed'] ?? $campaign->total_failed ?? 0);
+            $canResendFailed = $failedCount > 0
+              && ! $campaign->isDraft()
+              && ! $campaign->isCancelled();
+          @endphp
+          @if ($canResendFailed)
             <a
               href="{{ request()->fullUrlWithQuery(['modal' => 'resend-failed']) }}"
               class="fd-btn inline-flex items-center justify-center gap-2 rounded bg-green-500 px-4 py-3 text-sm font-semibold text-primary-2 transition-colors hover:opacity-90"
             >
               <img src="{{ asset('images/campaigns/stats/resend.svg') }}" alt="" class="size-5" width="20" height="20">
-              Resend
+              Resend Failed
             </a>
+            <form method="POST" action="{{ route('campaigns.resend-opt-in', $campaign) }}" data-confirm="Resend the opt-in template to all failed recipients of this campaign?" data-confirm-title="Resend opt-in" data-confirm-label="Send opt-in">
+              @csrf
+              <button
+                type="submit"
+                class="fd-btn inline-flex items-center justify-center gap-2 rounded border border-solid border-green-500 bg-green-50 px-4 py-3 text-sm font-semibold leading-[1.5] text-green-500 transition-colors hover:bg-green-100"
+              >
+                Resend Opt-in
+              </button>
+            </form>
           @endif
         </div>
       </div>
@@ -133,7 +148,19 @@
   </x-campaigns.campaign-header>
 
   @if (request('modal') === 'resend-failed')
-    <x-dashboard.resend-failed-modal :show="true" :close-href="request()->url()" />
+    <x-dashboard.resend-failed-modal
+      :show="true"
+      :close-href="route('campaigns.statistics', $campaign)"
+      :failed-count="(int) ($metrics['failed'] ?? $campaign->total_failed ?? 0)"
+      :campaign-name="$campaign->name"
+      :suggested-list-name="$campaign->name.' - Failed'"
+      :suggested-campaign-name="$campaign->name.' - Resend'"
+      :action-url="route('campaigns.resend-failed', $campaign)"
+    />
+  @endif
+
+  @if (session('status'))
+    <div class="mx-4 mb-4 rounded-lg bg-green-50 px-4 py-3 text-sm font-medium text-green-700">{{ session('status') }}</div>
   @endif
 
   @push('scripts')

@@ -152,6 +152,12 @@ class CampaignService
      */
     public function toggle(Campaign $campaign): Campaign
     {
+        abort_unless(
+            $campaign->isSending() || $campaign->isPaused(),
+            422,
+            'Only sending or paused campaigns can be paused/resumed.',
+        );
+
         $newStatus = $campaign->isSending()
             ? CampaignStatus::Paused
             : CampaignStatus::Sending;

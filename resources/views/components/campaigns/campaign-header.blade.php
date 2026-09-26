@@ -14,6 +14,7 @@ $statusColor = match ($campaign->status) {
     \App\Enums\CampaignStatus::Sending => 'text-teal-700 bg-teal-50',
     \App\Enums\CampaignStatus::Scheduled => 'text-blue-500 bg-[rgba(0,0,255,0.1)]',
     \App\Enums\CampaignStatus::Completed => 'text-green-700 bg-green-50',
+    \App\Enums\CampaignStatus::Failed => 'text-red-500 bg-[rgba(255,0,0,0.1)]',
     \App\Enums\CampaignStatus::Paused => 'text-orange-500 bg-[rgba(255,165,0,0.1)]',
     \App\Enums\CampaignStatus::Cancelled => 'text-red-500 bg-[rgba(255,0,0,0.1)]',
     default => 'text-text-muted bg-[rgba(0,0,0,0.05)]',
@@ -28,13 +29,16 @@ $statusColor = match ($campaign->status) {
         {{ $statusLabel }}
       </span>
       @if ($campaign->isSending() || $campaign->isPaused())
-        <form method="POST" action="{{ route('campaigns.toggle', $campaign) }}" data-campaign-toggle class="shrink-0">
+        <form method="POST" action="{{ route('campaigns.toggle', $campaign) }}" data-campaign-toggle class="flex shrink-0 items-center gap-2">
           @csrf
           @method('PATCH')
-          <button type="submit" class="cursor-pointer" aria-label="Toggle campaign">
+          <span data-campaign-pause-label class="text-xs font-semibold leading-[1.2] {{ $campaign->isSending() ? 'text-teal-700' : 'text-orange-500' }}">
+            {{ $campaign->isSending() ? 'Pause' : 'Resume' }}
+          </span>
+          <button type="submit" class="cursor-pointer" aria-label="{{ $campaign->isSending() ? 'Pause campaign' : 'Resume campaign' }}">
             <x-ui.toggle-switch
               :active="$campaign->isSending()"
-              aria-label="Toggle campaign"
+              :aria-label="$campaign->isSending() ? 'Pause campaign' : 'Resume campaign'"
             />
           </button>
         </form>

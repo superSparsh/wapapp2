@@ -22,6 +22,7 @@ $styles = match($variant) {
     'running' => 'bg-teal-50 text-teal-700',
     'sending' => 'bg-teal-50 text-teal-700',
     'paused' => 'bg-divider text-text-muted',
+    'cancelled' => 'bg-danger/10 text-danger',
     'inactive' => 'bg-blue-50 text-primary-2',
     'disabled' => 'bg-divider text-text-muted',
     'sent' => 'bg-divider text-text-muted',

@@ -70,6 +70,7 @@ Route::middleware('team.permission:campaign_read')->prefix('campaigns')->name('c
 
     Route::post('/{bulkCampaign}/test-message', [CampaignActionsController::class, 'testMessage'])->middleware('team.permission:campaign_write')->name('test-message');
     Route::post('/{bulkCampaign}/resend-failed', [CampaignActionsController::class, 'resendFailed'])->middleware('team.permission:campaign_write')->name('resend-failed');
+    Route::post('/{bulkCampaign}/resend-opt-in', [CampaignActionsController::class, 'resendOptIn'])->middleware('team.permission:campaign_write')->name('resend-opt-in');
     Route::get('/{bulkCampaign}/cost', [CampaignActionsController::class, 'calculateCost'])->name('cost');
     Route::post('/{bulkCampaign}/import-recipients', [CampaignActionsController::class, 'importRecipients'])->middleware('team.permission:campaign_write')->name('import-recipients');
     Route::post('/{bulkCampaign}/webhooks', [CampaignActionsController::class, 'storeWebhook'])->middleware('team.permission:campaign_write')->name('webhooks.store');

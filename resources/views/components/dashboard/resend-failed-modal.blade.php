@@ -4,6 +4,8 @@
     'failedCount' => 0,
     'campaignName' => '',
     'suggestedListName' => '',
+    'suggestedCampaignName' => '',
+    'actionUrl' => null,
 ])
 
 @php
@@ -51,75 +53,90 @@
           </div>
         </div>
 
-        <div class="flex w-full shrink-0 flex-col gap-8 rounded-xl border border-border-light bg-muted-surface p-4">
-          <div class="flex flex-col gap-2">
-            <label class="fd-label" for="resend-list-name">New List Name</label>
-            <div class="flex items-center rounded-xl border border-border bg-elevated p-3.5">
-              <input
-                id="resend-list-name"
-                type="text"
-                value="{{ $suggestedListName }}"
-                placeholder="Enter list name"
-                class="w-full border-0 bg-transparent p-0 text-sm font-medium leading-[1.4] text-text-muted outline-none"
-                style="font-family: var(--font-display)"
-              >
+        @if ($actionUrl)
+          <form method="POST" action="{{ $actionUrl }}" class="flex w-full flex-col gap-4" data-resend-failed-form>
+            @csrf
+            <input type="hidden" name="mode" value="create">
+
+            <div class="flex w-full shrink-0 flex-col gap-8 rounded-xl border border-border-light bg-muted-surface p-4">
+              <div class="flex flex-col gap-2">
+                <label class="fd-label" for="resend-list-name">New List Name</label>
+                <div class="flex items-center rounded-xl border border-border bg-elevated p-3.5">
+                  <input
+                    id="resend-list-name"
+                    name="list_name"
+                    type="text"
+                    required
+                    maxlength="255"
+                    value="{{ $suggestedListName }}"
+                    placeholder="Enter list name"
+                    class="w-full border-0 bg-transparent p-0 text-sm font-medium leading-[1.4] text-text-muted outline-none"
+                    style="font-family: var(--font-display)"
+                  >
+                </div>
+                <p class="text-sm font-medium leading-[1.4] text-text-muted" style="font-family: var(--font-display)">
+                  This will be the name of the new list containing failed contacts
+                </p>
+              </div>
+
+              <div class="flex flex-col gap-2">
+                <label class="fd-label" for="resend-campaign-name">New Campaign Name</label>
+                <div class="flex items-center rounded-xl border border-border bg-elevated p-3.5">
+                  <input
+                    id="resend-campaign-name"
+                    name="campaign_name"
+                    type="text"
+                    required
+                    maxlength="255"
+                    value="{{ $suggestedCampaignName }}"
+                    placeholder="Campaign Name"
+                    class="w-full border-0 bg-transparent p-0 text-sm font-medium leading-[1.4] text-text-muted outline-none placeholder:text-text-muted"
+                    style="font-family: var(--font-display)"
+                  >
+                </div>
+                <p class="text-sm font-medium leading-[1.4] text-text-muted" style="font-family: var(--font-display)">
+                  This will be the name of the new campaign for resending
+                </p>
+              </div>
+
+              <fieldset class="flex flex-col gap-2 border-0 p-0" data-resend-options>
+                <legend class="fd-label mb-0 px-0">Send options</legend>
+                <label class="inline-flex cursor-pointer items-center gap-2" data-resend-option>
+                  <input type="radio" name="send_option" value="schedule" class="sr-only" checked>
+                  <img src="{{ asset('images/auth/radio-checked.svg') }}" alt="" class="size-4 shrink-0" data-radio-icon width="16" height="16">
+                  <span class="text-sm font-medium leading-[1.4] text-green-500" data-radio-label style="font-family: var(--font-display)">Schedule for Later</span>
+                </label>
+                <label class="inline-flex cursor-pointer items-center gap-2" data-resend-option>
+                  <input type="radio" name="send_option" value="now" class="sr-only">
+                  <img src="{{ asset('images/auth/radio-unchecked.svg') }}" alt="" class="size-4 shrink-0" data-radio-icon width="16" height="16">
+                  <span class="text-sm font-medium leading-[1.4] text-text-primary" data-radio-label style="font-family: var(--font-display)">Send now</span>
+                </label>
+              </fieldset>
             </div>
-            <p class="text-sm font-medium leading-[1.4] text-text-muted" style="font-family: var(--font-display)">
-              This will be the name of the new list containing failed contacts
-            </p>
-          </div>
 
-          <div class="flex flex-col gap-2">
-            <label class="fd-label" for="resend-campaign-name">New Campaign Name</label>
-            <div class="flex items-center rounded-xl border border-border bg-elevated p-3.5">
-              <input
-                id="resend-campaign-name"
-                type="text"
-                placeholder="Campaign Name"
-                class="w-full border-0 bg-transparent p-0 text-sm font-medium leading-[1.4] text-text-muted outline-none placeholder:text-text-muted"
-                style="font-family: var(--font-display)"
-              >
+            <div class="flex shrink-0 items-start gap-3 rounded-xl bg-stat-orange/15 p-3.5">
+              <img src="{{ asset('images/profile/info-circle.svg') }}" alt="" class="size-6 shrink-0" width="24" height="24">
+              <div class="flex min-w-0 flex-1 flex-col gap-2.5 text-sm" style="font-family: var(--font-display)">
+                <p class="font-bold leading-[1.4] text-text-body">Important:</p>
+                <p class="font-normal leading-[1.4] text-text-muted">
+                  This action will create a new list and campaign. The original campaign template and settings will be copied to the new campaign.
+                </p>
+              </div>
             </div>
-            <p class="text-sm font-medium leading-[1.4] text-text-muted" style="font-family: var(--font-display)">
-              This will be the name of the new campaign for resending
-            </p>
-          </div>
 
-          <fieldset class="flex flex-col gap-2 border-0 p-0" data-resend-options>
-            <legend class="fd-label mb-0 px-0">Send options</legend>
-            <label class="inline-flex cursor-pointer items-center gap-2" data-resend-option>
-              <input type="radio" name="resend_send_option" value="schedule" class="sr-only" checked>
-              <img src="{{ asset('images/auth/radio-checked.svg') }}" alt="" class="size-4 shrink-0" data-radio-icon width="16" height="16">
-              <span class="text-sm font-medium leading-[1.4] text-green-500" data-radio-label style="font-family: var(--font-display)">Schedule for Later</span>
-            </label>
-            <label class="inline-flex cursor-pointer items-center gap-2" data-resend-option>
-              <input type="radio" name="resend_send_option" value="now" class="sr-only">
-              <img src="{{ asset('images/auth/radio-unchecked.svg') }}" alt="" class="size-4 shrink-0" data-radio-icon width="16" height="16">
-              <span class="text-sm font-medium leading-[1.4] text-text-primary" data-radio-label style="font-family: var(--font-display)">Send now</span>
-            </label>
-          </fieldset>
-        </div>
-
-        <div class="flex shrink-0 items-start gap-3 rounded-xl bg-stat-orange/15 p-3.5">
-          <img src="{{ asset('images/profile/info-circle.svg') }}" alt="" class="size-6 shrink-0" width="24" height="24">
-          <div class="flex min-w-0 flex-1 flex-col gap-2.5 text-sm" style="font-family: var(--font-display)">
-            <p class="font-bold leading-[1.4] text-text-body">Important:</p>
-            <p class="font-normal leading-[1.4] text-text-muted">
-              This action will create a new list and campaign. The original campaign template and settings will be copied to the new campaign.
-            </p>
-          </div>
-        </div>
-
-        <div class="flex shrink-0 items-center justify-end">
-          <button
-            type="button"
-            class="fd-btn inline-flex items-center justify-center gap-2 rounded bg-green-500 px-4 py-3 text-sm font-semibold leading-[1.5] text-primary-2"
-            style="font-family: var(--font-display)"
-          >
-            <x-icons.nav-icon name="send" class="size-5" />
-            Create &amp; Resend
-          </button>
-        </div>
+            <div class="flex shrink-0 items-center justify-end">
+              <button
+                type="submit"
+                class="fd-btn inline-flex items-center justify-center gap-2 rounded bg-green-500 px-4 py-3 text-sm font-semibold leading-[1.5] text-primary-2"
+                style="font-family: var(--font-display)"
+                @disabled($failedCount < 1)
+              >
+                <x-icons.nav-icon name="send" class="size-5" />
+                Create &amp; Resend
+              </button>
+            </div>
+          </form>
+        @endif
       </div>
     </div>
   </div>

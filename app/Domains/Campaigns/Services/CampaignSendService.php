@@ -62,25 +62,36 @@ class CampaignSendService
             Log::warning('OCI campaign worker provision trigger failed', ['error' => $e->getMessage()]);
         }
 
-        // Simple SendChatappMessage only (mass API disabled until tested).
-        $batchSize = (int) config('campaigns.dispatch_batch_size', 100);
+        try {
+            // Simple SendChatappMessage only (mass API disabled until tested).
+            $batchSize = (int) config('campaigns.dispatch_batch_size', 100);
 
-        CampaignRecipient::query()
-            ->where('campaign_id', $campaign->id)
-            ->where('status', CampaignRecipientStatus::Pending)
-            ->orderBy('id')
-            ->chunkById($batchSize, function ($recipients) use ($campaign): void {
-                foreach ($recipients as $recipient) {
-                    SendCampaignRecipientJob::dispatch(
-                        (int) $campaign->id,
-                        (int) $recipient->id,
-                    )->onQueue(OciWorkload::campaignQueue());
-                }
-            });
+            CampaignRecipient::query()
+                ->where('campaign_id', $campaign->id)
+                ->where('status', CampaignRecipientStatus::Pending)
+                ->orderBy('id')
+                ->chunkById($batchSize, function ($recipients) use ($campaign): void {
+                    foreach ($recipients as $recipient) {
+                        SendCampaignRecipientJob::dispatch(
+                            (int) $campaign->id,
+                            (int) $recipient->id,
+                        )->onQueue(OciWorkload::campaignQueue());
+                    }
+                });
 
-        $this->refreshCampaignCompletion($campaign);
+            $this->refreshCampaignCompletion($campaign);
 
-        return $campaign->refresh();
+            return $campaign->refresh();
+        } catch (Throwable $e) {
+            Log::error('Campaign queue failed with technical error', [
+                'campaign_id' => $campaign->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            $this->markCampaignFailed($campaign, $e->getMessage());
+
+            throw $e;
+        }
     }
 
     public function sendRecipient(Campaign $campaign, CampaignRecipient $recipient): void
@@ -99,6 +110,7 @@ class CampaignSendService
                 'unsubscribed_at' => now(),
             ]);
             $campaign->increment('total_unsubscribed');
+            $this->refreshCampaignCompletion($campaign);
 
             return;
         }
@@ -108,6 +120,8 @@ class CampaignSendService
 
         if ($line === null || $template === null) {
             $this->markFailed($recipient, 'Missing line or template.');
+            $campaign->increment('total_failed');
+            $this->refreshCampaignCompletion($campaign);
 
             return;
         }
@@ -128,6 +142,7 @@ class CampaignSendService
             if ($templateCode === null) {
                 $this->markFailed($recipient, 'Template is missing a valid WhatsApp template_code.');
                 $campaign->increment('total_failed');
+                $this->refreshCampaignCompletion($campaign);
 
                 return;
             }
@@ -162,6 +177,8 @@ class CampaignSendService
                     'contact_phone' => $recipient->contact_phone,
                     'reason' => $reason,
                 ]);
+
+                $this->refreshCampaignCompletion($campaign);
 
                 return;
             }
@@ -225,23 +242,49 @@ class CampaignSendService
             ->where('status', CampaignRecipientStatus::Pending)
             ->exists();
 
-        if (! $pending && $campaign->isSending()) {
-            $campaign->update([
-                'status' => CampaignStatus::Completed,
-                'completed_at' => $campaign->completed_at ?? now(),
-            ]);
+        if ($pending || ! $campaign->isSending()) {
+            return;
+        }
 
-            try {
-                app(CampaignOciWorkerLifecycle::class)->onCampaignFinished($campaign->fresh() ?? $campaign);
-            } catch (Throwable $e) {
-                Log::warning('OCI campaign worker teardown trigger failed', ['error' => $e->getMessage()]);
-            }
+        // Recipient-level failures (provider rejects, unsubscribed, etc.) still finish as Completed.
+        // CampaignStatus::Failed is reserved for technical send/queue failures via markCampaignFailed().
+        $campaign->update([
+            'status' => CampaignStatus::Completed,
+            'completed_at' => $campaign->completed_at ?? now(),
+        ]);
+
+        try {
+            app(CampaignOciWorkerLifecycle::class)->onCampaignFinished($campaign->fresh() ?? $campaign);
+        } catch (Throwable $e) {
+            Log::warning('OCI campaign worker teardown trigger failed', ['error' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Mark campaign Failed for technical errors (queue/API/code) — not per-recipient provider failures.
+     */
+    public function markCampaignFailed(Campaign $campaign, string $reason): void
+    {
+        $campaign->update([
+            'status' => CampaignStatus::Failed,
+            'completed_at' => $campaign->completed_at ?? now(),
+        ]);
+
+        Log::error('Campaign marked Failed due to technical error', [
+            'campaign_id' => $campaign->id,
+            'reason' => mb_substr($reason, 0, 500),
+        ]);
+
+        try {
+            app(CampaignOciWorkerLifecycle::class)->onCampaignFinished($campaign->fresh() ?? $campaign);
+        } catch (Throwable $e) {
+            Log::warning('OCI campaign worker teardown on technical failure failed', ['error' => $e->getMessage()]);
         }
     }
 
     /**
      * Mark Sending campaigns with no pending recipients as Completed.
-     * Fixes scheduled/active listings stuck on Sending after work finished.
+     * Fixes listings stuck on Sending after work finished.
      */
     public function reconcileStuckSendingCampaigns(): int
     {
@@ -252,7 +295,7 @@ class CampaignSendService
             })
             ->pluck('id');
 
-        $completed = 0;
+        $resolved = 0;
         foreach ($ids as $id) {
             $campaign = Campaign::query()->find($id);
             if ($campaign === null) {
@@ -262,11 +305,11 @@ class CampaignSendService
             $before = $campaign->status;
             $this->refreshCampaignCompletion($campaign);
             if ($before === CampaignStatus::Sending && $campaign->fresh()?->status === CampaignStatus::Completed) {
-                $completed++;
+                $resolved++;
             }
         }
 
-        return $completed;
+        return $resolved;
     }
 
     private function markFailed(CampaignRecipient $recipient, string $reason): void

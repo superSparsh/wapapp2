@@ -62,6 +62,12 @@
                     .replace(/left-\[24px\]/g, isActive ? 'left-[24px]' : 'left-[2px]')
                     .replace(/left-\[2px\]/g, isActive ? 'left-[24px]' : 'left-[2px]');
                 }
+                toggle.setAttribute('aria-label', isActive ? 'Pause campaign' : 'Resume campaign');
+              }
+              var label = form.querySelector('[data-campaign-pause-label]');
+              if (label) {
+                label.textContent = isActive ? 'Pause' : 'Resume';
+                label.className = 'text-xs font-semibold leading-[1.2] ' + (isActive ? 'text-teal-700' : 'text-orange-500');
               }
             }
           } else {

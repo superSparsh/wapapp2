@@ -10,6 +10,7 @@ enum CampaignStatus: string
     case Scheduled = 'scheduled';
     case Sending = 'sending';
     case Completed = 'completed';
+    case Failed = 'failed';
     case Paused = 'paused';
     case Cancelled = 'cancelled';
 
@@ -20,6 +21,7 @@ enum CampaignStatus: string
             self::Scheduled => 'Scheduled',
             self::Sending => 'Sending',
             self::Completed => 'Completed',
+            self::Failed => 'Failed',
             self::Paused => 'Paused',
             self::Cancelled => 'Cancelled',
         };

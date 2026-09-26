@@ -8,6 +8,7 @@ use App\Domains\Campaigns\Services\CampaignServiceAdapter;
 use App\Http\Controllers\Controller;
 use App\Models\Campaign;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
 class CampaignActionsController extends Controller
@@ -32,14 +33,78 @@ class CampaignActionsController extends Controller
         return response()->json(['success' => true, 'message' => 'Test message queued.']);
     }
 
-    public function resendFailed(Campaign $bulkCampaign): JsonResponse
+    public function resendFailed(Request $request, Campaign $bulkCampaign): RedirectResponse|JsonResponse
     {
-        $count = $this->adapter->resendFailed($bulkCampaign);
-
-        return response()->json([
-            'success' => true,
-            'resent' => $count,
+        $validated = $request->validate([
+            'mode' => ['nullable', 'in:create,inplace'],
+            'list_name' => ['required_unless:mode,inplace', 'nullable', 'string', 'max:255'],
+            'campaign_name' => ['required_unless:mode,inplace', 'nullable', 'string', 'max:255'],
+            'send_option' => ['required_unless:mode,inplace', 'nullable', 'in:now,schedule'],
         ]);
+
+        // Legacy default: create new list + campaign. Optional inplace requeue.
+        if (($validated['mode'] ?? 'create') === 'inplace') {
+            $count = $this->adapter->resendFailed($bulkCampaign);
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'resent' => $count,
+                ]);
+            }
+
+            return redirect()
+                ->route('campaigns.statistics', $bulkCampaign)
+                ->with('status', $count > 0
+                    ? "Requeued {$count} failed recipient(s)."
+                    : 'No failed recipients to resend.');
+        }
+
+        $result = $this->adapter->createCampaignFromFailed(
+            $bulkCampaign,
+            (string) ($validated['list_name'] ?? ''),
+            (string) ($validated['campaign_name'] ?? ''),
+            (string) ($validated['send_option'] ?? 'now'),
+        );
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'imported' => $result['imported'],
+                'launched' => $result['launched'],
+                'campaign_uuid' => $result['campaign']->uuid,
+                'list_uuid' => $result['list']->uuid,
+                'redirect' => $result['launched']
+                    ? route('campaigns.statistics', $result['campaign'])
+                    : route('campaigns.edit', $result['campaign']),
+            ]);
+        }
+
+        if ($result['launched']) {
+            return redirect()
+                ->route('campaigns.statistics', $result['campaign'])
+                ->with('status', "Created \"{$result['campaign']->name}\" with {$result['imported']} failed contact(s) and started sending.");
+        }
+
+        return redirect()
+            ->route('campaigns.edit', $result['campaign'])
+            ->with('status', "Created \"{$result['campaign']->name}\" with {$result['imported']} failed contact(s). Schedule or send when ready.");
+    }
+
+    public function resendOptIn(Campaign $bulkCampaign): RedirectResponse|JsonResponse
+    {
+        $result = $this->adapter->resendOptInToFailed($bulkCampaign);
+
+        if (request()->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                ...$result,
+            ]);
+        }
+
+        return redirect()
+            ->route('campaigns.statistics', $bulkCampaign)
+            ->with('status', "Opt-in resent: {$result['sent']} sent, {$result['skipped']} skipped (of {$result['attempted']} attempted).");
     }
 
     public function calculateCost(Campaign $bulkCampaign): JsonResponse

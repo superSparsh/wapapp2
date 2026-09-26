@@ -320,6 +320,7 @@ final class CampaignImporter implements LegacyImporter
 
         return match (true) {
             in_array($value, ['done', 'completed', 'sent', 'finished'], true) => CampaignStatus::Completed,
+            in_array($value, ['failed', 'fail', 'error'], true) => CampaignStatus::Failed,
             in_array($value, ['running', 'sending', 'active'], true) => CampaignStatus::Sending,
             in_array($value, ['scheduled', 'queue', 'queued'], true) => CampaignStatus::Scheduled,
             in_array($value, ['paused', 'pause'], true) => CampaignStatus::Paused,

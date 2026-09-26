@@ -39,6 +39,7 @@ class CampaignPresenter
             CampaignStatus::Scheduled => 'fd-draft',
             CampaignStatus::Sending => 'sending',
             CampaignStatus::Completed => 'fd-approved',
+            CampaignStatus::Failed => 'fd-error',
             CampaignStatus::Paused => 'paused',
             CampaignStatus::Cancelled => 'cancelled',
             default => 'default',

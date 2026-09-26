@@ -4,6 +4,7 @@
         'Scheduled' => 'fd-draft',
         'Sending' => 'sending',
         'Completed' => 'fd-approved',
+        'Failed' => 'fd-error',
         'Paused' => 'paused',
         'Cancelled' => 'cancelled',
         default => 'default',

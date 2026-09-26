@@ -131,6 +131,11 @@ class Campaign extends TenantModel
         return $this->status === CampaignStatus::Completed;
     }
 
+    public function isFailed(): bool
+    {
+        return $this->status === CampaignStatus::Failed;
+    }
+
     public function isPaused(): bool
     {
         return $this->status === CampaignStatus::Paused;

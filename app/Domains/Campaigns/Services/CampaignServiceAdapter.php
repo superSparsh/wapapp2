@@ -100,6 +100,31 @@ class CampaignServiceAdapter
     }
 
     /**
+     * @return array{list: \App\Models\MailList, campaign: Campaign, imported: int, launched: bool}
+     */
+    public function createCampaignFromFailed(
+        Campaign $campaign,
+        string $listName,
+        string $campaignName,
+        string $sendOption = 'now',
+    ): array {
+        return $this->localResendService->createCampaignFromFailed(
+            $campaign,
+            $listName,
+            $campaignName,
+            $sendOption,
+        );
+    }
+
+    /**
+     * @return array{attempted: int, sent: int, skipped: int}
+     */
+    public function resendOptInToFailed(Campaign $campaign): array
+    {
+        return $this->localResendService->resendOptInToFailed($campaign);
+    }
+
+    /**
      * @return array{recipients: int, unit_cost: float, total_cost: float, currency: string}
      */
     public function calculateCost(Campaign $campaign): array
