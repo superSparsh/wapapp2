@@ -72,10 +72,19 @@
                   <td class="w-[160px] p-2 text-[13px] font-normal leading-[1.5] text-text-body">{{ $recipient->contact?->name ?? 'N/A' }}</td>
                   <td class="p-2 text-center">
                     @php
-                      $statusLabel = $recipient->status?->label() ?? (is_string($recipient->status) ? ucfirst($recipient->status) : 'Unknown');
-                      $statusValue = $recipient->status instanceof \App\Enums\CampaignRecipientStatus
-                        ? $recipient->status->value
-                        : (string) ($recipient->status ?? '');
+                      // Metric View Details: show the bucket status (Delivered/Read), not the upgraded funnel stage.
+                      $bucketStatus = in_array($currentStatus, ['delivered', 'read'], true)
+                        ? \App\Enums\CampaignRecipientStatus::tryFrom($currentStatus)
+                        : null;
+                      $statusEnum = $bucketStatus ?? (
+                        $recipient->status instanceof \App\Enums\CampaignRecipientStatus
+                          ? $recipient->status
+                          : \App\Enums\CampaignRecipientStatus::tryFrom((string) ($recipient->status ?? ''))
+                      );
+                      $statusLabel = $statusEnum?->label()
+                        ?? (is_string($recipient->status) ? ucfirst($recipient->status) : 'Unknown');
+                      $statusValue = $statusEnum?->value
+                        ?? (string) ($recipient->status ?? '');
                       $statusColor = match ($statusValue) {
                           'delivered' => 'text-blue-600 bg-[rgba(59,130,246,0.1)]',
                           'read' => 'text-green-600 bg-[rgba(16,185,129,0.1)]',
