@@ -234,7 +234,7 @@
                         class="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-green-500"
                       >
                       <button type="submit" class="fd-btn self-start rounded-lg bg-[#0356fb] px-4 py-2 text-xs font-semibold text-white hover:opacity-90">
-                        Open Inbox
+                        Open Dashboard
                       </button>
                     </form>
                   @elseif (! $isConnected)
@@ -249,7 +249,7 @@
                       >
                       <p class="mt-1.5 text-xs text-amber-700">Set a Number Access password in step 1 first.</p>
                       <button type="button" disabled class="mt-2 cursor-not-allowed rounded-lg bg-blue-200 px-4 py-2 text-xs font-semibold text-white opacity-60">
-                        Open Inbox
+                        Open Dashboard
                       </button>
                     </div>
                   @endif

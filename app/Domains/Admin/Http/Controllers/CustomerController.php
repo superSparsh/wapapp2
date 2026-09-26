@@ -208,7 +208,6 @@ class CustomerController extends Controller
             return back()->with('error', $e->getMessage());
         }
 
-        return redirect()->route('dashboard')
-            ->with('status', 'You are now logged in as '.$tenant->name.'.');
+        return redirect()->route('dashboard');
     }
 }
