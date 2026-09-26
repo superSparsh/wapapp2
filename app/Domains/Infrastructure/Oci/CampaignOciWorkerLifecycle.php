@@ -123,7 +123,17 @@ final class CampaignOciWorkerLifecycle
                 'driver' => (string) config('oci-workers.ephemeral.driver', 'log'),
             ]);
 
-            $created = $client->createCampaignWorker($displayName, $environment);
+            try {
+                $created = $client->createCampaignWorker($displayName, $environment);
+            } catch (\Throwable $e) {
+                Log::error('OCI ephemeral: create threw', [
+                    'error' => $e->getMessage(),
+                    'display_name' => $displayName,
+                ]);
+
+                throw $e;
+            }
+
             $this->storeInstanceOcid($created['ocid']);
 
             Log::info('OCI ephemeral: stored campaign worker ocid', [

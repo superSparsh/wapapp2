@@ -80,12 +80,13 @@ final class HttpOciContainerInstanceClient implements OciContainerInstanceClient
             ->post("https://{$host}{$path}");
 
         if (! $response->successful()) {
-            Log::error('OCI create Container Instance failed', [
+            Log::error('OCI ephemeral: create Container Instance failed', [
                 'status' => $response->status(),
                 'body' => $response->body(),
+                'display_name' => $displayName,
             ]);
 
-            throw new RuntimeException('OCI create Container Instance failed: HTTP '.$response->status());
+            throw new RuntimeException('OCI create Container Instance failed: HTTP '.$response->status().' '.$response->body());
         }
 
         $ocid = (string) ($response->json('id') ?? '');
