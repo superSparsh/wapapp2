@@ -35,7 +35,10 @@ class CampaignQueryService
                         CampaignRecipientStatus::Response,
                     ]),
                 'recipients as read_recipients_count' => fn ($q) => $q
-                    ->where('status', CampaignRecipientStatus::Read),
+                    ->whereIn('status', [
+                        CampaignRecipientStatus::Read,
+                        CampaignRecipientStatus::Response,
+                    ]),
                 'recipients as response_recipients_count' => fn ($q) => $q
                     ->where('status', CampaignRecipientStatus::Response),
                 'recipients as failed_recipients_count' => fn ($q) => $q

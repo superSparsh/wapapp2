@@ -87,11 +87,17 @@ final class CampaignOciWorkerLifecycle
         $this->withLock(function () use ($client): void {
             $active = $this->activeCampaignIds();
             if ($active === []) {
+                Log::info('OCI ephemeral: ensure skipped — no active campaigns in global cache');
+
                 return;
             }
 
             $existing = Cache::get(self::CACHE_INSTANCE_OCID);
             if (is_string($existing) && $existing !== '') {
+                Log::info('OCI ephemeral: ensure skipped — worker already provisioned', [
+                    'ocid' => $existing,
+                ]);
+
                 return;
             }
 
@@ -140,6 +146,8 @@ final class CampaignOciWorkerLifecycle
 
             $ocid = Cache::get(self::CACHE_INSTANCE_OCID);
             if (! is_string($ocid) || $ocid === '') {
+                Log::info('OCI ephemeral: teardown skipped — no instance OCID in global cache');
+
                 return;
             }
 
@@ -207,8 +215,28 @@ final class CampaignOciWorkerLifecycle
 
     private function withLock(callable $callback): void
     {
-        $lock = Cache::lock(self::CACHE_LOCK, 30);
-        $lock->block(20, $callback);
+        // Refcount + instance OCID must be global (shared across tenants). Tenant
+        // cache tags hide keys from queue workers that run without tenancy —
+        // which made Ensure finish in ~ms with no create/destroy.
+        $this->runOnCentralCache(function () use ($callback): void {
+            $lock = Cache::lock(self::CACHE_LOCK, 30);
+            $lock->block(20, $callback);
+        });
+    }
+
+    /**
+     * @template T
+     *
+     * @param  callable(): T  $callback
+     * @return T
+     */
+    private function runOnCentralCache(callable $callback): mixed
+    {
+        if (function_exists('tenancy') && tenancy()->initialized) {
+            return tenancy()->central($callback);
+        }
+
+        return $callback();
     }
 
     private function campaignQueueDepth(): int

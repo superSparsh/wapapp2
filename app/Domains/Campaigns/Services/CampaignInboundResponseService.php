@@ -43,6 +43,11 @@ class CampaignInboundResponseService
                     CampaignRecipientStatus::Response,
                 ], true);
 
+                $alreadyRead = in_array($previousStatus, [
+                    CampaignRecipientStatus::Read,
+                    CampaignRecipientStatus::Response,
+                ], true);
+
                 $recipient->forceFill([
                     'status' => CampaignRecipientStatus::Response,
                     'responded_at' => $recipient->responded_at ?? $now,
@@ -53,6 +58,9 @@ class CampaignInboundResponseService
 
                 if (! $alreadyDelivered) {
                     $recipient->campaign?->increment('total_delivered');
+                }
+                if (! $alreadyRead) {
+                    $recipient->campaign?->increment('total_read');
                 }
                 $recipient->campaign?->increment('total_response');
             });

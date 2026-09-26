@@ -50,13 +50,14 @@ class CampaignStatsService
             return $this->gaugeMetricsFromCampaignAggregates($campaign);
         }
 
-        // Progressive statuses: read/response imply delivery for the Delivered gauge.
+        // Progressive statuses: read/response imply delivery; response implies read.
         $deliveredExclusive = (int) ($stats->delivered ?? 0);
         $failed = (int) ($stats->failed ?? 0);
-        $read = (int) ($stats->read ?? 0);
+        $readExclusive = (int) ($stats->read ?? 0);
         $response = (int) ($stats->response ?? 0);
         $unsubscribed = (int) ($stats->unsubscribed ?? 0);
-        $delivered = $deliveredExclusive + $read + $response;
+        $delivered = $deliveredExclusive + $readExclusive + $response;
+        $read = $readExclusive + $response;
 
         $pct = fn (int $val): string => $total > 0 ? number_format(($val / $total) * 100).'%' : '0%';
 
@@ -119,12 +120,7 @@ class CampaignStatsService
             ->with('contact:id,name,phone')
             ->orderByDesc('created_at');
 
-        if ($status !== null && $status !== '') {
-            $enum = CampaignRecipientStatus::tryFrom($status);
-            if ($enum !== null) {
-                $query->where('status', $enum);
-            }
-        }
+        $this->applyRecipientStatusFilter($query, $status);
 
         return $query->paginate($perPage);
     }
@@ -156,12 +152,7 @@ class CampaignStatsService
                 ->with('contact:id,name,phone')
                 ->orderByDesc('created_at');
 
-            if ($status !== null && $status !== '') {
-                $enum = CampaignRecipientStatus::tryFrom($status);
-                if ($enum !== null) {
-                    $query->where('status', $enum);
-                }
-            }
+            $this->applyRecipientStatusFilter($query, $status);
 
             $seq = 0;
             $query->cursor()->each(function (CampaignRecipient $recipient) use ($handle, &$seq): void {
@@ -180,6 +171,19 @@ class CampaignStatsService
 
             fclose($handle);
         }, $filename, ['Content-Type' => 'text/csv']);
+    }
+
+    /**
+     * @param  \Illuminate\Database\Eloquent\Builder<\App\Models\CampaignRecipient>  $query
+     */
+    private function applyRecipientStatusFilter($query, ?string $status): void
+    {
+        $statuses = CampaignRecipientStatus::statusesForFilter($status);
+        if ($statuses === null) {
+            return;
+        }
+
+        $query->whereIn('status', $statuses);
     }
 
     /**

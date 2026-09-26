@@ -56,11 +56,15 @@ class CampaignPresenter
             CampaignRecipientStatus::Read,
             CampaignRecipientStatus::Response,
         ];
+        $readStatuses = [
+            CampaignRecipientStatus::Read,
+            CampaignRecipientStatus::Response,
+        ];
 
         $deliveredCount = $campaign->delivered_recipients_count
             ?? $campaign->recipients()->whereIn('status', $deliveredStatuses)->count();
         $readCount = $campaign->read_recipients_count
-            ?? (int) $campaign->total_read;
+            ?? $campaign->recipients()->whereIn('status', $readStatuses)->count();
         $responseCount = $campaign->response_recipients_count
             ?? (int) $campaign->total_response;
         $failedCount = $campaign->failed_recipients_count

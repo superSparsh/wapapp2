@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domains\Campaigns\Http\Controllers;
 
 use App\Domains\Campaigns\Services\CampaignQueryService;
+use App\Domains\Campaigns\Services\CampaignSendService;
 use App\Enums\CampaignStatus;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
@@ -14,10 +15,13 @@ class CampaignListController extends Controller
 {
     public function __construct(
         private readonly CampaignQueryService $queryService,
+        private readonly CampaignSendService $sendService,
     ) {}
 
     public function active(Request $request): View
     {
+        $this->sendService->reconcileStuckSendingCampaigns();
+
         $paginator = $this->queryService->paginate(
             perPage: (int) config('campaigns.per_page', 10),
             search: $request->query('search'),

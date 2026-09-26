@@ -320,11 +320,19 @@ class DeliveryStatusHandler
             CampaignRecipientStatus::Read,
             CampaignRecipientStatus::Response,
         ], true);
+        $alreadyRead = in_array($previousStatus, [
+            CampaignRecipientStatus::Read,
+            CampaignRecipientStatus::Response,
+        ], true);
 
         $updates = [
-            'status' => $recipientStatus,
             'message_id' => $messageId,
         ];
+
+        // Never downgrade funnel status (Read must not become Delivered again, etc.).
+        if ($previousStatus === null || $previousStatus->canTransitionTo($recipientStatus)) {
+            $updates['status'] = $recipientStatus;
+        }
 
         if ($recipientStatus === CampaignRecipientStatus::Sent) {
             $updates['sent_at'] = $recipient->sent_at ?? $now;
@@ -342,15 +350,18 @@ class DeliveryStatusHandler
             if (! $alreadyDelivered) {
                 $recipient->campaign?->increment('total_delivered');
             }
-            if ($previousStatus !== CampaignRecipientStatus::Read) {
+            if (! $alreadyRead) {
                 $recipient->campaign?->increment('total_read');
             }
         }
         if ($recipientStatus === CampaignRecipientStatus::Failed) {
-            $updates['failed_at'] = $recipient->failed_at ?? $now;
-            $updates['failure_reason'] = $this->extractFailureReason($item);
-            if ($recipient->status !== CampaignRecipientStatus::Failed) {
-                $recipient->campaign?->increment('total_failed');
+            if ($previousStatus === null || $previousStatus->canTransitionTo(CampaignRecipientStatus::Failed)) {
+                $updates['status'] = CampaignRecipientStatus::Failed;
+                $updates['failed_at'] = $recipient->failed_at ?? $now;
+                $updates['failure_reason'] = $this->extractFailureReason($item);
+                if ($recipient->status !== CampaignRecipientStatus::Failed) {
+                    $recipient->campaign?->increment('total_failed');
+                }
             }
 
             $error = $this->extractFailureReason($item);

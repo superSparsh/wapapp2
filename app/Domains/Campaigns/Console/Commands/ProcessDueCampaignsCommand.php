@@ -38,6 +38,8 @@ class ProcessDueCampaignsCommand extends Command
                 $sendService->queueCampaign($campaign);
                 $total++;
             }
+
+            $sendService->reconcileStuckSendingCampaigns();
         });
 
         $this->info("Queued {$total} due campaign(s).");

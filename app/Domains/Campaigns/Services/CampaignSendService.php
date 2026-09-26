@@ -218,6 +218,8 @@ class CampaignSendService
 
     public function refreshCampaignCompletion(Campaign $campaign): void
     {
+        $campaign->refresh();
+
         $pending = CampaignRecipient::query()
             ->where('campaign_id', $campaign->id)
             ->where('status', CampaignRecipientStatus::Pending)
@@ -226,7 +228,7 @@ class CampaignSendService
         if (! $pending && $campaign->isSending()) {
             $campaign->update([
                 'status' => CampaignStatus::Completed,
-                'completed_at' => now(),
+                'completed_at' => $campaign->completed_at ?? now(),
             ]);
 
             try {
@@ -235,6 +237,36 @@ class CampaignSendService
                 Log::warning('OCI campaign worker teardown trigger failed', ['error' => $e->getMessage()]);
             }
         }
+    }
+
+    /**
+     * Mark Sending campaigns with no pending recipients as Completed.
+     * Fixes scheduled/active listings stuck on Sending after work finished.
+     */
+    public function reconcileStuckSendingCampaigns(): int
+    {
+        $ids = Campaign::query()
+            ->where('status', CampaignStatus::Sending)
+            ->whereDoesntHave('recipients', function ($query): void {
+                $query->where('status', CampaignRecipientStatus::Pending);
+            })
+            ->pluck('id');
+
+        $completed = 0;
+        foreach ($ids as $id) {
+            $campaign = Campaign::query()->find($id);
+            if ($campaign === null) {
+                continue;
+            }
+
+            $before = $campaign->status;
+            $this->refreshCampaignCompletion($campaign);
+            if ($before === CampaignStatus::Sending && $campaign->fresh()?->status === CampaignStatus::Completed) {
+                $completed++;
+            }
+        }
+
+        return $completed;
     }
 
     private function markFailed(CampaignRecipient $recipient, string $reason): void

@@ -23,6 +23,7 @@ class CampaignServiceAdapter
         private readonly CampaignCsvImportService $localCsvImportService,
         private readonly CampaignWebhookService $localWebhookService,
         private readonly CampaignTestMessageService $localTestMessageService,
+        private readonly CampaignSendService $localSendService,
     ) {}
 
     public function paginate(
@@ -32,6 +33,8 @@ class CampaignServiceAdapter
         string $sort = 'created_at',
         string $direction = 'desc',
     ): LengthAwarePaginator {
+        $this->localSendService->reconcileStuckSendingCampaigns();
+
         return $this->localQueryService->paginate(
             perPage: $perPage,
             search: $search,

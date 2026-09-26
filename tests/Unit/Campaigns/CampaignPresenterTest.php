@@ -99,7 +99,10 @@ class CampaignPresenterTest extends TestCase
                     \App\Enums\CampaignRecipientStatus::Response,
                 ]),
             'recipients as read_recipients_count' => fn ($q) => $q
-                ->where('status', \App\Enums\CampaignRecipientStatus::Read),
+                ->whereIn('status', [
+                    \App\Enums\CampaignRecipientStatus::Read,
+                    \App\Enums\CampaignRecipientStatus::Response,
+                ]),
             'recipients as response_recipients_count' => fn ($q) => $q
                 ->where('status', \App\Enums\CampaignRecipientStatus::Response),
             'recipients as failed_recipients_count' => fn ($q) => $q
