@@ -9,7 +9,6 @@ use App\Domains\Infrastructure\Oci\Jobs\EnsureOciCampaignWorkerJob;
 use App\Domains\Infrastructure\Oci\Jobs\TeardownOciCampaignWorkerJob;
 use App\Models\Campaign;
 use App\Support\OciWorkload;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
 
@@ -18,6 +17,9 @@ use Illuminate\Support\Facades\Redis;
  *
  * First sending campaign → ensure CI exists.
  * Last completed/cancelled campaign → destroy CI after grace (if queue drained).
+ *
+ * State is stored on the Redis connection directly (not Cache facade) so tenant
+ * cache tags cannot hide keys from queue workers running without tenancy.
  */
 final class CampaignOciWorkerLifecycle
 {
@@ -36,6 +38,8 @@ final class CampaignOciWorkerLifecycle
     public function onCampaignStarted(Campaign $campaign): void
     {
         if (! $this->enabled()) {
+            Log::info('OCI ephemeral: onCampaignStarted skipped — feature disabled');
+
             return;
         }
 
@@ -81,19 +85,21 @@ final class CampaignOciWorkerLifecycle
     public function ensureWorker(OciContainerInstanceClient $client): void
     {
         if (! $this->enabled()) {
+            Log::info('OCI ephemeral: ensure skipped — feature disabled');
+
             return;
         }
 
         $this->withLock(function () use ($client): void {
             $active = $this->activeCampaignIds();
             if ($active === []) {
-                Log::info('OCI ephemeral: ensure skipped — no active campaigns in global cache');
+                Log::info('OCI ephemeral: ensure skipped — no active campaigns in redis state');
 
                 return;
             }
 
-            $existing = Cache::get(self::CACHE_INSTANCE_OCID);
-            if (is_string($existing) && $existing !== '') {
+            $existing = $this->instanceOcid();
+            if ($existing !== null) {
                 Log::info('OCI ephemeral: ensure skipped — worker already provisioned', [
                     'ocid' => $existing,
                 ]);
@@ -111,8 +117,18 @@ final class CampaignOciWorkerLifecycle
             $displayName = $prefix.'-'.now()->format('Ymd-His');
             $environment = $this->workerEnvironment();
 
+            Log::info('OCI ephemeral: provisioning campaign worker', [
+                'display_name' => $displayName,
+                'active' => array_keys($active),
+                'driver' => (string) config('oci-workers.ephemeral.driver', 'log'),
+            ]);
+
             $created = $client->createCampaignWorker($displayName, $environment);
-            Cache::forever(self::CACHE_INSTANCE_OCID, $created['ocid']);
+            $this->storeInstanceOcid($created['ocid']);
+
+            Log::info('OCI ephemeral: stored campaign worker ocid', [
+                'ocid' => $created['ocid'],
+            ]);
         });
     }
 
@@ -144,15 +160,15 @@ final class CampaignOciWorkerLifecycle
                 return;
             }
 
-            $ocid = Cache::get(self::CACHE_INSTANCE_OCID);
-            if (! is_string($ocid) || $ocid === '') {
-                Log::info('OCI ephemeral: teardown skipped — no instance OCID in global cache');
+            $ocid = $this->instanceOcid();
+            if ($ocid === null) {
+                Log::info('OCI ephemeral: teardown skipped — no instance OCID in redis state');
 
                 return;
             }
 
             $client->delete($ocid);
-            Cache::forget(self::CACHE_INSTANCE_OCID);
+            $this->forgetInstanceOcid();
         });
     }
 
@@ -190,15 +206,20 @@ final class CampaignOciWorkerLifecycle
     /**
      * @return array<int, true>
      */
-    private function activeCampaignIds(): array
+    public function activeCampaignIds(): array
     {
-        $raw = Cache::get(self::CACHE_ACTIVE_CAMPAIGNS, []);
-        if (! is_array($raw)) {
+        $raw = $this->redis()->get($this->redisKey(self::CACHE_ACTIVE_CAMPAIGNS));
+        if (! is_string($raw) || $raw === '') {
+            return [];
+        }
+
+        $decoded = json_decode($raw, true);
+        if (! is_array($decoded)) {
             return [];
         }
 
         $out = [];
-        foreach ($raw as $id) {
+        foreach ($decoded as $id) {
             $out[(int) $id] = true;
         }
 
@@ -208,35 +229,71 @@ final class CampaignOciWorkerLifecycle
     /**
      * @param  array<int, true>  $active
      */
-    private function storeActiveCampaignIds(array $active): void
+    public function storeActiveCampaignIds(array $active): void
     {
-        Cache::forever(self::CACHE_ACTIVE_CAMPAIGNS, array_map('intval', array_keys($active)));
+        $this->redis()->set(
+            $this->redisKey(self::CACHE_ACTIVE_CAMPAIGNS),
+            json_encode(array_map('intval', array_keys($active))),
+        );
+    }
+
+    public function instanceOcid(): ?string
+    {
+        $value = $this->redis()->get($this->redisKey(self::CACHE_INSTANCE_OCID));
+
+        return is_string($value) && $value !== '' ? $value : null;
+    }
+
+    public function storeInstanceOcid(string $ocid): void
+    {
+        $this->redis()->set($this->redisKey(self::CACHE_INSTANCE_OCID), $ocid);
+    }
+
+    public function forgetInstanceOcid(): void
+    {
+        $this->redis()->del($this->redisKey(self::CACHE_INSTANCE_OCID));
     }
 
     private function withLock(callable $callback): void
     {
-        // Refcount + instance OCID must be global (shared across tenants). Tenant
-        // cache tags hide keys from queue workers that run without tenancy —
-        // which made Ensure finish in ~ms with no create/destroy.
-        $this->runOnCentralCache(function () use ($callback): void {
-            $lock = Cache::lock(self::CACHE_LOCK, 30);
-            $lock->block(20, $callback);
-        });
-    }
+        $lockKey = $this->redisKey(self::CACHE_LOCK);
+        $token = bin2hex(random_bytes(8));
+        $deadline = microtime(true) + 20;
 
-    /**
-     * @template T
-     *
-     * @param  callable(): T  $callback
-     * @return T
-     */
-    private function runOnCentralCache(callable $callback): mixed
-    {
-        if (function_exists('tenancy') && tenancy()->initialized) {
-            return tenancy()->central($callback);
+        while (microtime(true) < $deadline) {
+            $acquired = (bool) $this->redis()->set($lockKey, $token, 'EX', 30, 'NX');
+            if ($acquired) {
+                try {
+                    $callback();
+                } finally {
+                    if ($this->redis()->get($lockKey) === $token) {
+                        $this->redis()->del($lockKey);
+                    }
+                }
+
+                return;
+            }
+
+            usleep(100_000);
         }
 
-        return $callback();
+        throw new \RuntimeException('OCI ephemeral: could not acquire campaign worker lock.');
+    }
+
+    private function redisKey(string $name): string
+    {
+        return $name;
+    }
+
+    private function redis(): \Illuminate\Redis\Connections\Connection
+    {
+        $connection = (string) config('cache.stores.redis.connection', 'cache');
+
+        try {
+            return Redis::connection($connection);
+        } catch (\Throwable) {
+            return Redis::connection();
+        }
     }
 
     private function campaignQueueDepth(): int
