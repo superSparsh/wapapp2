@@ -164,7 +164,7 @@
             <td class="fd-table-cell p-2 align-middle text-sm">{{ $row['failed'] }}</td>
           </tr>
         @empty
-          <tr><td colspan="7" class="p-6 text-center text-sm text-text-subtle">No WhatsApp lines found.</td></tr>
+          <tr><td colspan="7" class="p-6 text-center text-sm text-text-subtle">No WhatsApp Phone Numbers found.</td></tr>
         @endforelse
       </x-ui.data-table>
     </div>

@@ -76,7 +76,7 @@ class SendPaymentLinkJob implements ShouldQueue
                 ->first();
 
             if (! $line) {
-                Log::warning('SendPaymentLinkJob: no default WhatsApp line found');
+                Log::warning('SendPaymentLinkJob: no default WhatsApp Phone Number found');
 
                 return;
             }

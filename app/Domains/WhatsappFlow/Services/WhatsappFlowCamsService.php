@@ -91,7 +91,7 @@ class WhatsappFlowCamsService
         $custSpaceId = $this->resolveCustSpaceId($flow);
 
         if ($custSpaceId === null) {
-            return ['ok' => false, 'message' => 'Cust Space ID is missing on the WhatsApp line.', 'file_path' => null, 'response' => null];
+            return ['ok' => false, 'message' => 'Cust Space ID is missing on the WhatsApp Phone Number.', 'file_path' => null, 'response' => null];
         }
 
         $filePath = $this->assetService->publicUrl((string) $flow->json_asset_path, $flow);
@@ -193,7 +193,7 @@ class WhatsappFlowCamsService
         $custSpaceId = $this->resolveCustSpaceId($flow);
 
         if ($custSpaceId === null) {
-            return ['ok' => false, 'message' => 'Cust Space ID is missing on the WhatsApp line.', 'response' => null];
+            return ['ok' => false, 'message' => 'Cust Space ID is missing on the WhatsApp Phone Number.', 'response' => null];
         }
 
         $response = $this->client->publishFlow([

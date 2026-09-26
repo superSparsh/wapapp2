@@ -4706,6 +4706,9 @@ function initInboxFilters() {
             });
 
             if (response.ok) {
+                if (typeof setInboxNavBadge === 'function') {
+                    setInboxNavBadge(0);
+                }
                 window.location.reload();
             }
         } finally {

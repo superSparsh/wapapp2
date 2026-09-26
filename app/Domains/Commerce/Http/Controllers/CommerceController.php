@@ -75,7 +75,7 @@ class CommerceController extends Controller
                 $error = $catalogResult['message'];
             }
         } else {
-            $error = 'No WhatsApp line configured.';
+            $error = 'No WhatsApp Phone Number configured.';
         }
 
         return view('commerce.index', [
@@ -113,7 +113,7 @@ class CommerceController extends Controller
                 $error = $catalogResult['message'];
             }
         } else {
-            $error = 'No WhatsApp line configured.';
+            $error = 'No WhatsApp Phone Number configured.';
         }
 
         return view('commerce.catalog', [

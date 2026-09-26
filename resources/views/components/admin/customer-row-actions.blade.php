@@ -44,7 +44,7 @@
       <a href="{{ route('admin.customers.show', $tenant) }}" class="block px-3 py-2 text-sm text-text-primary hover:bg-surface">View details</a>
       <a href="{{ route('admin.customers.activity-logs', $tenant) }}" class="block px-3 py-2 text-sm text-text-primary hover:bg-surface">Activity logs</a>
       <a href="{{ route('admin.billing-audit.index', ['tenant' => $tenant->id]) }}" class="block px-3 py-2 text-sm text-text-primary hover:bg-surface">Billing audit</a>
-      <a href="{{ route('admin.whatsapp-health.index', ['tenant' => $tenant->id]) }}" class="block px-3 py-2 text-sm text-text-primary hover:bg-surface">WhatsApp lines</a>
+      <a href="{{ route('admin.whatsapp-health.index', ['tenant' => $tenant->id]) }}" class="block px-3 py-2 text-sm text-text-primary hover:bg-surface">WhatsApp Phone Numbers</a>
       <button
         type="button"
         class="block w-full px-3 py-2 text-left text-sm text-text-primary hover:bg-surface"

@@ -1,6 +1,6 @@
 <x-team.form-page
   title="Edit team member"
-  :subtitle="$member->displayName().' · update profile details and WhatsApp line access.'"
+  :subtitle="$member->displayName().' · update profile details and WhatsApp Phone Number access.'"
   :back-url="route('my-team.index')"
   back-label="Back to team list"
   layout-active="my-team.index"

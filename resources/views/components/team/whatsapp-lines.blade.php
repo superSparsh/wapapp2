@@ -12,7 +12,7 @@
 @if ($whatsappLines !== [])
   <div class="flex flex-col gap-3">
     <div class="flex flex-col gap-1">
-      <h2 class="text-base font-semibold text-text-primary">WhatsApp lines</h2>
+      <h2 class="text-base font-semibold text-text-primary">WhatsApp Phone Numbers</h2>
       <p class="text-sm text-text-subtle opacity-70">Choose which numbers this member can access in inbox.</p>
     </div>
 
@@ -30,7 +30,7 @@
             class="size-4 shrink-0 rounded border-border text-green-500 focus:ring-green-500"
           >
           <span class="min-w-0 flex-1">
-            <span class="block truncate text-sm font-medium text-text-primary">{{ $line->display_name ?: 'WhatsApp line' }}</span>
+            <span class="block truncate text-sm font-medium text-text-primary">{{ $line->display_name ?: 'WhatsApp Phone Number' }}</span>
             <span class="block truncate text-xs text-text-subtle opacity-70">{{ $line->displayPhone() }}</span>
           </span>
         </label>

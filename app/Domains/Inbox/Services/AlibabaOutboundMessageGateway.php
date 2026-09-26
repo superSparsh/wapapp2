@@ -38,7 +38,7 @@ class AlibabaOutboundMessageGateway implements \App\Domains\Inbox\Contracts\Outb
         $line = $conversation?->whatsappLine;
 
         if ($conversation === null || $line === null) {
-            $this->markFailed($message, 'Conversation or WhatsApp line is missing.');
+            $this->markFailed($message, 'Conversation or WhatsApp Phone Number is missing.');
 
             return;
         }

@@ -37,7 +37,7 @@ class CampaignSendService
     {
         $campaign = $campaign->fresh(['whatsappLine', 'template']);
 
-        abort_if($campaign->whatsappLine === null, 422, 'Campaign WhatsApp line is required.');
+        abort_if($campaign->whatsappLine === null, 422, 'Campaign WhatsApp Phone Number is required.');
         abort_if($campaign->template === null, 422, 'Campaign template is required.');
 
         try {

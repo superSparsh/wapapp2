@@ -57,7 +57,7 @@ class CampaignService
 
     public function launch(Campaign $campaign): Campaign
     {
-        abort_if($campaign->whatsapp_line_id === null, 422, 'Campaign WhatsApp line is required.');
+        abort_if($campaign->whatsapp_line_id === null, 422, 'Campaign WhatsApp Phone Number is required.');
         abort_if($campaign->template_id === null, 422, 'Campaign template is required.');
 
         return app(CampaignSendService::class)->queueCampaign($campaign);

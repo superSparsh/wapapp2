@@ -56,7 +56,7 @@
 
         @if ($lines->isEmpty())
           <div class="rounded-xl border border-dashed border-border bg-surface p-6 text-sm text-text-muted">
-            No WhatsApp lines connected yet.
+            No WhatsApp numbers are connected to your business account yet.
           </div>
         @else
           <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">

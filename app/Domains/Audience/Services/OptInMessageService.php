@@ -53,7 +53,7 @@ class OptInMessageService
             ?? WhatsappLine::query()->orderBy('id')->first();
 
         if ($line === null) {
-            Log::warning('Opt-in send skipped: no WhatsApp line', ['contact_id' => $contact->id]);
+            Log::warning('Opt-in send skipped: no WhatsApp Phone Number', ['contact_id' => $contact->id]);
 
             return false;
         }

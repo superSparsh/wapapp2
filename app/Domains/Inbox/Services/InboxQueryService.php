@@ -173,6 +173,23 @@ class InboxQueryService
             ->all();
     }
 
+    /**
+     * IDs for every chat the nav unread badge counts (no lookback / list filters).
+     * Used by Mark all read so the badge can reset to 0.
+     *
+     * @return array<int, int>
+     */
+    public function unreadConversationIdsForBadge(): array
+    {
+        $query = Conversation::query()->where('unread_count', '>', 0);
+        $this->applyTeamMemberScope($query);
+
+        return $query
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+    }
+
     public function resolveDefaultLine(): ?WhatsappLine
     {
         $assignedLineIds = $this->accessService->assignedLineIds();

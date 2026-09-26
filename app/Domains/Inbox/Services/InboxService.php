@@ -124,7 +124,7 @@ class InboxService
     {
         $line = $this->queryService->resolveDefaultLine();
 
-        abort_if($line === null, 404, 'No WhatsApp line configured for this account.');
+        abort_if($line === null, 404, 'No WhatsApp Phone Number configured for this account.');
 
         return $line;
     }

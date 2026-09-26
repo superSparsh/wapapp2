@@ -115,7 +115,7 @@
               @enderror
               @if (count($templateOptions) === 0)
                 <p class="text-xs font-medium leading-[1.4] text-text-muted">
-                  No approved templates found. Connect a WhatsApp line and sync templates first.
+                  No approved templates found. Connect a WhatsApp Phone Number and sync templates first.
                 </p>
               @endif
             </div>

@@ -93,7 +93,7 @@ class ProcessFormSubmissionJob implements ShouldQueue
             ?? WhatsappLine::query()->orderBy('id')->first();
 
         if (! $whatsappLine instanceof WhatsappLine) {
-            $submissionService->updateMessageStatus($submission, 'failed', null, 'WhatsApp line not configured');
+            $submissionService->updateMessageStatus($submission, 'failed', null, 'WhatsApp Phone Number not configured');
 
             return;
         }

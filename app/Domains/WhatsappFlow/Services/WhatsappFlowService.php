@@ -64,7 +64,7 @@ class WhatsappFlowService
             if ($this->camsService->isConfigured()) {
                 if (blank($flow->cust_space_id)) {
                     throw ValidationException::withMessages([
-                        'name' => 'Connect a WhatsApp line with Cust Space ID before creating Flows.',
+                        'name' => 'Connect a WhatsApp Phone Number with Cust Space ID before creating Flows.',
                     ]);
                 }
 

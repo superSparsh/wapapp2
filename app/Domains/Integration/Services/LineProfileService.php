@@ -116,7 +116,7 @@ class LineProfileService
         }
 
         if ($custSpaceId === '') {
-            throw new RuntimeException('No WABA ID on the WhatsApp line. Connect WhatsApp Business first.');
+            throw new RuntimeException('No WABA ID on the WhatsApp Phone Number. Connect WhatsApp Business first.');
         }
 
         if (trim((string) ($line->alibaba_cust_space_id ?? '')) === '') {

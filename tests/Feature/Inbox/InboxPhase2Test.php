@@ -175,6 +175,32 @@ class InboxPhase2Test extends TestCase
         $this->assertSame(0, $this->queryService->totalUnreadCount($this->testLine));
     }
 
+    public function test_mark_all_read_clears_unread_outside_lookback_so_badge_resets(): void
+    {
+        $contact = Contact::factory()->create();
+
+        $conversation = Conversation::factory()->create([
+            'whatsapp_line_id' => $this->testLine->id,
+            'contact_id' => $contact->id,
+            'contact_phone' => $contact->phone,
+            'line_phone' => $this->testLine->phone,
+            'last_message_at' => now()->subDays(30),
+            'unread_count' => 1,
+        ]);
+
+        $this->assertSame(1, $this->queryService->totalUnreadCount($this->testLine));
+
+        $updated = $this->messageService->markAllReadForLine(
+            line: $this->testLine,
+            queryService: $this->queryService,
+            lookbackDays: 7,
+        );
+
+        $this->assertSame(1, $updated);
+        $this->assertSame(0, $conversation->refresh()->unread_count);
+        $this->assertSame(0, $this->queryService->totalUnreadCount($this->testLine));
+    }
+
     public function test_assign_api_updates_conversation(): void
     {
         $contact = Contact::factory()->create();

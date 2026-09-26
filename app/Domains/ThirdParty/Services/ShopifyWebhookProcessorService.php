@@ -138,7 +138,7 @@ class ShopifyWebhookProcessorService
             if ($line === null) {
                 $event->update([
                     'status' => 'failed',
-                    'error_message' => 'No WhatsApp line configured.',
+                    'error_message' => 'No WhatsApp Phone Number configured.',
                     'processed_at' => now(),
                 ]);
 

@@ -1,7 +1,7 @@
 <x-admin.layout title="Message Performance - Admin" active="admin.message-performance.index">
   <div class="p-4">
     <h1 class="text-2xl font-bold text-text-primary">Message performance</h1>
-    <p class="text-sm text-text-subtle opacity-70">Delivery and read rates by WhatsApp line.</p>
+    <p class="text-sm text-text-subtle opacity-70">Delivery and read rates by WhatsApp Phone Number.</p>
   </div>
 
   <x-admin.filter-bar

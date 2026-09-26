@@ -29,7 +29,7 @@ class IntegrationController extends Controller
         if (! $line) {
             return redirect()
                 ->route('profile.integration')
-                ->withErrors(['integration' => 'No WhatsApp line connected yet.']);
+                ->withErrors(['integration' => 'No WhatsApp Phone Number connected yet.']);
         }
 
         try {

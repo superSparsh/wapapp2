@@ -50,7 +50,7 @@ class CatalogService
         }
 
         if (blank($line->alibaba_cust_space_id)) {
-            return ['success' => false, 'message' => 'WhatsApp line has no CAMS space ID configured.'];
+            return ['success' => false, 'message' => 'WhatsApp Phone Number has no CAMS space ID configured.'];
         }
 
         $cacheKey = "commerce.catalogs.{$line->id}";
@@ -87,7 +87,7 @@ class CatalogService
         }
 
         if (blank($line->alibaba_cust_space_id)) {
-            return ['success' => false, 'message' => 'WhatsApp line has no CAMS space ID configured.'];
+            return ['success' => false, 'message' => 'WhatsApp Phone Number has no CAMS space ID configured.'];
         }
 
         $cacheKey = "commerce.products.{$line->id}.{$catalogId}";
@@ -136,7 +136,7 @@ class CatalogService
         try {
             $businessId = $this->resolveBusinessId($line);
             if ($businessId === null) {
-                $this->lastError = 'Business ID not found for this WhatsApp line. Sync the line profile first.';
+                $this->lastError = 'Business ID not found for this WhatsApp Phone Number. Sync the line profile first.';
 
                 return null;
             }
@@ -182,7 +182,7 @@ class CatalogService
 
         try {
             if (blank($line->waba_id)) {
-                $this->lastError = 'WhatsApp line has no WABA ID configured.';
+                $this->lastError = 'WhatsApp Phone Number has no WABA ID configured.';
 
                 return null;
             }

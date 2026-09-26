@@ -113,7 +113,8 @@
   <p class="text-xs leading-relaxed text-text-body/55">
     Inbox shows chats from
     <span class="font-medium text-text-body">{{ $lookbackLabel }}</span>
-    only. Search, unread, assignee, and mark-all-read also use this same window — pick a longer range above to see older conversations.
+    only. Search, unread, and assignee use this same window — pick a longer range above to see older conversations.
+    <span class="font-medium text-text-body">Mark all read</span> clears every unread chat (including older ones) so the inbox badge resets to 0.
   </p>
 
   <div class="flex flex-wrap items-center gap-2">

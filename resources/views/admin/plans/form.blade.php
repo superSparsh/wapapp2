@@ -50,7 +50,7 @@
         'messages_limit' => 'Messages limit',
         'contacts_limit' => 'Contacts limit',
         'team_members_limit' => 'Team members limit',
-        'whatsapp_lines_limit' => 'WhatsApp lines limit',
+        'whatsapp_lines_limit' => 'WhatsApp Phone Numbers limit',
         'sort_order' => 'Sort order',
       ] as $field => $label)
         <label class="flex flex-col gap-1.5 text-sm">

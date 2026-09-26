@@ -297,14 +297,9 @@ class InboxMessageService
         ?string $scope = null,
         ?array $assigneeFilter = null,
     ): int {
-        $conversationIds = $queryService->unreadConversationIds(
-            line: $line,
-            lookbackDays: $lookbackDays,
-            scope: $scope,
-            assigneeFilter: $assigneeFilter,
-        );
-
-        return $this->markAllReadByIds($conversationIds);
+        // Signature kept for callers; mark-all ignores lookback/line list filters and
+        // clears every chat the nav badge counts so the badge can reset to 0.
+        return $this->markAllReadByIds($queryService->unreadConversationIdsForBadge());
     }
 
     public function recordInbound(

@@ -32,7 +32,7 @@
             <p class="text-sm font-medium text-text-primary">{{ $campaign->audience?->name ?? 'Not set' }}</p>
           </div>
           <div>
-            <p class="text-xs text-text-subtle">WhatsApp Line</p>
+            <p class="text-xs text-text-subtle">WhatsApp Phone Number</p>
             <p class="text-sm font-medium text-text-primary">{{ $campaign->whatsappLine?->displayLabel() ?? 'Not set' }}</p>
           </div>
           <div>
