@@ -322,12 +322,40 @@
     font-size: 18px;
     top: 5%;
     left: 16.8%;
-    height: 51px;
+    height: 50px;
     text-align: left;
     display: flex;
     /* justify-content: center; */
     align-items: center;
     margin-top: 6px;
+    }
+
+    /* AI bot test phone only — do not reuse on other previews */
+    .ai-bot-phone-header-name.phone-preview-header-name--default {
+        text-align: left;
+        align-items: center;
+        width: 49%;
+        height: 51px;
+        margin-top: 23px;
+        padding: 2px 6px;
+        font-size: 18px;
+        display: flex;
+        top: 5%;
+        left: 16.8%;
+    }
+
+    /* Inbox phone preview only (send template / media / etc.) */
+    .inbox-phone-header-name.phone-preview-header-name--default {
+        text-align: left;
+        align-items: center;
+        width: 49%;
+        height: 51px;
+        margin-top: -13px;
+        padding: 2px 6px;
+        font-size: 18px;
+        display: flex;
+        top: 5%;
+        left: 16.8%;
     }
 
     .fd-tooltip-error {

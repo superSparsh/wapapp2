@@ -720,7 +720,7 @@
                     width="375"
                     height="496"
                   >
-                  <x-ui.phone-preview-header-name size="default" />
+                  <x-ui.phone-preview-header-name size="default" class="ai-bot-phone-header-name" />
                 </div>
 
                 <div

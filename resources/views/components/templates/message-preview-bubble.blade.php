@@ -28,7 +28,7 @@
   @class([
     'mx-auto flex w-full flex-col gap-3 rounded-br-[12px] rounded-tl-[12px] rounded-tr-[12px] border border-solid border-border bg-elevated p-2',
     'mt-[205px] max-w-[354px]' => ! $isCompact,
-    'mt-[150px] max-w-full' => $isCompact,
+    'mt-[160px] max-w-full' => $isCompact,
   ])
 >
   <div data-preview-standard @class(['contents' => ! $isCarousel, 'hidden' => $isCarousel])>
@@ -68,7 +68,7 @@
       'wa-preview-body w-full font-normal leading-[1.4] text-text-body',
       'text-base' => ! $isCompact,
       'text-sm' => $isCompact,
-      'h-[450px] overflow-y-scroll' => $scrollBody && ! $isCarousel,
+      'h-[400px] overflow-y-scroll' => $scrollBody && ! $isCarousel,
     ])
   >{!! $bodyHtml !== '' ? $bodyHtml : e($bodyText) !!}</div>
 

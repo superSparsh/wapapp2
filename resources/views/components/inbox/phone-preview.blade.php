@@ -31,7 +31,7 @@
                     width="375"
                     height="854"
                 >
-                <x-ui.phone-preview-header-name size="default" />
+                <x-ui.phone-preview-header-name size="default" class="inbox-phone-header-name" />
 
                 <div class="relative z-10 flex min-h-full flex-col p-3 pt-[100px]">
                     @if (isset($preview) && ! $preview->isEmpty())
