@@ -28,6 +28,7 @@ class WebhookSubscriptionService
         string $direction = 'desc',
     ): LengthAwarePaginator {
         $query = WebhookSubscription::query()
+            ->with('whatsappLine:id,phone,display_name,is_default')
             ->when($search, function ($q) use ($search): void {
                 $q->where(function ($inner) use ($search): void {
                     $inner->where('description', 'LIKE', "%{$search}%")

@@ -69,6 +69,71 @@ class WebhookSubscriptionTest extends TestCase
         $this->assertSame($this->testLine->id, $sub->whatsapp_line_id);
     }
 
+    public function test_store_binds_webhook_to_selected_phone_number(): void
+    {
+        tenancy()->initialize($this->testTenant);
+
+        $secondary = \App\Models\WhatsappLine::factory()->create([
+            'phone' => '919988776655',
+            'display_name' => 'Secondary Line',
+            'is_default' => false,
+        ]);
+
+        $this->actingAsTenantUser()
+            ->post(route('webhooks.store'), [
+                'url' => 'https://example.com/secondary-hook',
+                'description' => 'Secondary CRM',
+                'whatsapp_line_id' => $secondary->id,
+                'events' => ['new_lead'],
+                'status' => 'active',
+            ])
+            ->assertRedirect(route('webhooks.index'));
+
+        $sub = WebhookSubscription::query()->where('url', 'https://example.com/secondary-hook')->first();
+        $this->assertNotNull($sub);
+        $this->assertSame($secondary->id, $sub->whatsapp_line_id);
+    }
+
+    public function test_store_allows_multiple_webhooks_on_same_phone_number(): void
+    {
+        tenancy()->initialize($this->testTenant);
+
+        $payload = [
+            'whatsapp_line_id' => $this->testLine->id,
+            'events' => ['new_lead'],
+            'status' => 'active',
+        ];
+
+        $this->actingAsTenantUser()
+            ->post(route('webhooks.store'), $payload + [
+                'url' => 'https://example.com/hook-a',
+                'description' => 'Hook A',
+            ])
+            ->assertRedirect(route('webhooks.index'));
+
+        $this->actingAsTenantUser()
+            ->post(route('webhooks.store'), $payload + [
+                'url' => 'https://example.com/hook-b',
+                'description' => 'Hook B',
+            ])
+            ->assertRedirect(route('webhooks.index'));
+
+        $this->assertSame(2, WebhookSubscription::query()
+            ->where('whatsapp_line_id', $this->testLine->id)
+            ->count());
+    }
+
+    public function test_index_page_exposes_phone_line_options(): void
+    {
+        tenancy()->initialize($this->testTenant);
+
+        $this->actingAsTenantUser()
+            ->get(route('webhooks.index'))
+            ->assertOk()
+            ->assertViewHas('lines')
+            ->assertSee('name="whatsapp_line_id"', false);
+    }
+
     public function test_store_validates_url_format(): void
     {
         tenancy()->initialize($this->testTenant);

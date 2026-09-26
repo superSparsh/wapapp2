@@ -121,8 +121,10 @@ TXT;
             </div>
             <p class="text-sm font-medium leading-[1.4] text-text-muted">
               <strong>New lead per line:</strong> A lead is tracked per sender phone + your business number.
-              Webhooks fire only for the line they were created on. Active line for new webhooks:
-              <strong>{{ $activeLineLabel }}</strong>. Switch number before adding a webhook to bind it to that line; otherwise it uses your default number.
+              Webhooks fire only for the phone number you select below. One number can have multiple webhooks.
+              @if ($lineLocked ?? false)
+                This session is locked to <strong>{{ $activeLineLabel }}</strong>.
+              @endif
             </p>
             <div class="flex flex-col gap-2">
               <p class="text-sm font-semibold leading-[1.4] text-text-primary">Signature Verification:</p>
@@ -191,6 +193,39 @@ TXT;
                 @error('description') <p class="text-sm text-red-500">{{ $message }}</p> @enderror
                 <p class="text-sm font-medium leading-[1.4] text-text-muted">
                   A label to identify this webhook's purpose
+                </p>
+              </div>
+
+              {{-- Phone number --}}
+              <div class="flex flex-col gap-2">
+                <label for="whatsapp_line_id" class="text-sm font-semibold leading-[1.4] text-text-primary">
+                  Phone number&nbsp;<span class="text-[red]">*</span>
+                </label>
+                @php
+                  $selectedLineId = (int) old('whatsapp_line_id', $activeLine?->id);
+                @endphp
+                <select
+                  id="whatsapp_line_id"
+                  name="whatsapp_line_id"
+                  required
+                  @disabled($lineLocked ?? false)
+                  class="w-full appearance-none rounded-xl border border-solid border-border bg-elevated p-3.5 text-sm font-medium leading-[1.4] text-text-body focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
+                >
+                  @forelse (($lines ?? collect()) as $line)
+                    <option value="{{ $line->id }}" @selected($selectedLineId === (int) $line->id)>
+                      {{ filled($line->display_name) ? $line->display_name.' ('.$line->phone.')' : $line->phone }}
+                      @if ($line->is_default) — default @endif
+                    </option>
+                  @empty
+                    <option value="">No phone numbers available</option>
+                  @endforelse
+                </select>
+                @if ($lineLocked ?? false)
+                  <input type="hidden" name="whatsapp_line_id" value="{{ $activeLine?->id }}">
+                @endif
+                @error('whatsapp_line_id') <p class="text-sm text-red-500">{{ $message }}</p> @enderror
+                <p class="text-sm font-medium leading-[1.4] text-text-muted">
+                  This webhook will only fire for leads on the selected WhatsApp number.
                 </p>
               </div>
 
@@ -282,10 +317,11 @@ TXT;
         @else
           <div class="overflow-hidden rounded-xl bg-elevated shadow-[0px_4px_6px_rgba(0,0,0,0.04)]">
             <div class="overflow-x-auto">
-              <table class="w-full min-w-[1100px] text-left">
+              <table class="w-full min-w-[1240px] text-left">
                 <thead>
                   <tr class="bg-elevated">
                     <th class="w-[160px] p-2 text-[13px] font-medium leading-[1.5] text-text-body">Description</th>
+                    <th class="w-[140px] p-2 text-[13px] font-medium leading-[1.5] text-text-body">Phone</th>
                     <th class="w-[320px] p-2 text-[13px] font-medium leading-[1.5] text-text-body">URL</th>
                     <th class="w-[240px] p-2 text-[13px] font-medium leading-[1.5] text-text-body">Secret Key</th>
                     <th class="w-[80px] p-2 text-center text-[13px] font-medium leading-[1.5] text-text-body">Status</th>
@@ -299,6 +335,15 @@ TXT;
                     <tr class="border-t border-divider bg-elevated" data-sub-id="{{ $sub->id }}">
                       <td class="w-[160px] p-2 text-[13px] font-semibold leading-[1.5] text-text-subtle">
                         {{ $sub->description }}
+                      </td>
+                      <td class="w-[140px] p-2 text-[13px] font-normal leading-[1.5] text-text-body">
+                        @php
+                          $line = $sub->whatsappLine;
+                          $lineLabel = $line
+                            ? (filled($line->display_name) ? $line->display_name.' ('.$line->phone.')' : $line->phone)
+                            : '—';
+                        @endphp
+                        {{ $lineLabel }}
                       </td>
                       <td class="w-[320px] max-w-[320px] truncate p-2 text-[13px] font-normal leading-[1.5] text-text-body">
                         {{ $sub->url }}

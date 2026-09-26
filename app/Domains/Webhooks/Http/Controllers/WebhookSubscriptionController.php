@@ -42,14 +42,20 @@ class WebhookSubscriptionController extends Controller
             direction: $parsed['direction'],
         );
         $mailLists = MailList::query()->select(['id', 'uuid', 'name'])->orderBy('name')->get();
-        $activeLine = PhoneLineService::isLocked()
+        $lineLocked = PhoneLineService::isLocked();
+        $activeLine = $lineLocked
             ? $this->phoneLineService->lockedLine()
             : $this->phoneLineService->defaultLine();
+        $lines = $lineLocked
+            ? collect(array_filter([$activeLine]))
+            : $this->phoneLineService->allLines();
 
         return view('webhooks.index', [
             'subscriptions' => $subscriptions,
             'mailLists' => $mailLists,
             'activeLine' => $activeLine,
+            'lines' => $lines,
+            'lineLocked' => $lineLocked,
             'search' => $request->get('search', ''),
             'currentSort' => $parsed['sort'],
             'currentDirection' => $parsed['direction'],
@@ -65,11 +71,9 @@ class WebhookSubscriptionController extends Controller
         $list = PublicId::find(MailList::class, $data['audience_list_id'] ?? null);
         $data['audience_list_id'] = $list?->id;
 
-        // Legacy: bind webhook to locked line, else default line.
-        $line = PhoneLineService::isLocked()
-            ? $this->phoneLineService->lockedLine()
-            : $this->phoneLineService->defaultLine();
-        $data['whatsapp_line_id'] = $line?->id;
+        $data['whatsapp_line_id'] = $this->resolveLineIdForStore(
+            isset($data['whatsapp_line_id']) ? (int) $data['whatsapp_line_id'] : null,
+        );
 
         $this->service->store($data);
 
@@ -157,5 +161,25 @@ class WebhookSubscriptionController extends Controller
         $result = $this->service->testUrl($validated['url']);
 
         return response()->json($result, ($result['success'] ?? false) ? 200 : 422);
+    }
+
+    /**
+     * Bind webhook to the selected line when the default account can choose;
+     * when locked to a number, always use that locked line.
+     */
+    private function resolveLineIdForStore(?int $requestedLineId): ?int
+    {
+        if (PhoneLineService::isLocked()) {
+            return $this->phoneLineService->lockedLine()?->id;
+        }
+
+        if ($requestedLineId !== null) {
+            $line = $this->phoneLineService->findLine($requestedLineId);
+            if ($line !== null) {
+                return $line->id;
+            }
+        }
+
+        return $this->phoneLineService->defaultLine()?->id;
     }
 }
