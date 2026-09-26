@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Domains\Infrastructure\Oci;
 
 use App\Domains\Infrastructure\Oci\Contracts\OciContainerInstanceClient;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
 
@@ -39,9 +38,10 @@ final class HttpOciContainerInstanceClient implements OciContainerInstanceClient
         $host = "containerinstances.{$region}.oci.oraclecloud.com";
         $path = '/20210415/containerInstances';
 
-        $envPairs = [];
+        // OCI API expects a string map, not [{name,value}, ...].
+        $envMap = [];
         foreach ($environment as $key => $value) {
-            $envPairs[] = ['name' => (string) $key, 'value' => (string) $value];
+            $envMap[(string) $key] = (string) $value;
         }
 
         $payload = [
@@ -54,14 +54,17 @@ final class HttpOciContainerInstanceClient implements OciContainerInstanceClient
                 'memoryInGBs' => (float) $cfg['memory_in_gbs'],
             ],
             'containers' => [[
-                'displayName' => $displayName.'-horizon',
+                'displayName' => 'horizon',
                 'imageUrl' => $cfg['image_url'],
-                'environmentVariables' => $envPairs,
+                'environmentVariables' => $envMap === [] ? new \stdClass : $envMap,
+                'command' => ['php'],
+                'arguments' => ['artisan', 'horizon'],
+                'workingDirectory' => '/var/www/html',
             ]],
             'vnics' => [[
                 'subnetId' => $cfg['subnet_id'],
                 'isPublicIpAssigned' => (bool) $cfg['assign_public_ip'],
-                'displayName' => $displayName.'-vnic',
+                'displayName' => 'vnic',
             ]],
             'containerRestartPolicy' => $cfg['container_restart_policy'] ?? 'ALWAYS',
             'freeformTags' => [
@@ -71,25 +74,24 @@ final class HttpOciContainerInstanceClient implements OciContainerInstanceClient
         ];
 
         $body = json_encode($payload, JSON_THROW_ON_ERROR);
-        $signer = $this->signer();
-        $headers = $signer->sign('POST', $host, $path, $body);
+        $response = $this->signedRequest('POST', $host, $path, $body);
 
-        $response = Http::withHeaders($headers)
-            ->withBody($body, 'application/json')
-            ->timeout(60)
-            ->post("https://{$host}{$path}");
-
-        if (! $response->successful()) {
+        if ($response['status'] < 200 || $response['status'] >= 300) {
             Log::error('OCI ephemeral: create Container Instance failed', [
-                'status' => $response->status(),
-                'body' => $response->body(),
+                'status' => $response['status'],
+                'body' => $this->truncateBody($response['body']),
                 'display_name' => $displayName,
+                'host' => $host,
             ]);
 
-            throw new RuntimeException('OCI create Container Instance failed: HTTP '.$response->status().' '.$response->body());
+            throw new RuntimeException(
+                'OCI create Container Instance failed: HTTP '.$response['status'].' '.$this->truncateBody($response['body'])
+            );
         }
 
-        $ocid = (string) ($response->json('id') ?? '');
+        /** @var array<string, mixed> $json */
+        $json = json_decode($response['body'], true) ?? [];
+        $ocid = (string) ($json['id'] ?? '');
         if ($ocid === '') {
             throw new RuntimeException('OCI create Container Instance returned no OCID.');
         }
@@ -115,30 +117,82 @@ final class HttpOciContainerInstanceClient implements OciContainerInstanceClient
         $host = "containerinstances.{$region}.oci.oraclecloud.com";
         $path = '/20210415/containerInstances/'.rawurlencode($ocid);
 
-        $signer = $this->signer();
-        $headers = $signer->sign('DELETE', $host, $path, '');
+        $response = $this->signedRequest('DELETE', $host, $path, '');
 
-        $response = Http::withHeaders($headers)
-            ->timeout(60)
-            ->delete("https://{$host}{$path}");
-
-        // 404 / 409 = already gone or terminating — treat as success
-        if ($response->successful() || in_array($response->status(), [404, 409], true)) {
+        if (
+            ($response['status'] >= 200 && $response['status'] < 300)
+            || in_array($response['status'], [404, 409], true)
+        ) {
             Log::info('OCI ephemeral: deleted campaign worker', [
                 'ocid' => $ocid,
-                'status' => $response->status(),
+                'status' => $response['status'],
             ]);
 
             return;
         }
 
-        Log::error('OCI delete Container Instance failed', [
+        Log::error('OCI ephemeral: delete Container Instance failed', [
             'ocid' => $ocid,
-            'status' => $response->status(),
-            'body' => $response->body(),
+            'status' => $response['status'],
+            'body' => $this->truncateBody($response['body']),
         ]);
 
-        throw new RuntimeException('OCI delete Container Instance failed: HTTP '.$response->status());
+        throw new RuntimeException('OCI delete Container Instance failed: HTTP '.$response['status']);
+    }
+
+    /**
+     * Use cURL so signed Content-Length / body bytes are not mutated by Guzzle.
+     *
+     * @return array{status: int, body: string}
+     */
+    private function signedRequest(string $method, string $host, string $path, string $body): array
+    {
+        $signer = $this->signer();
+        $signed = $signer->sign($method, $host, $path, $body);
+
+        $headers = [];
+        foreach ($signed as $name => $value) {
+            $headers[] = $name.': '.$value;
+        }
+
+        $ch = curl_init("https://{$host}{$path}");
+        if ($ch === false) {
+            throw new RuntimeException('Unable to init cURL for OCI request.');
+        }
+
+        curl_setopt_array($ch, [
+            CURLOPT_CUSTOMREQUEST => strtoupper($method),
+            CURLOPT_HTTPHEADER => $headers,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => 60,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_HEADER => false,
+        ]);
+
+        if (strtoupper($method) !== 'GET' && strtoupper($method) !== 'HEAD') {
+            curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
+        }
+
+        $raw = curl_exec($ch);
+        $status = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $error = curl_error($ch);
+        curl_close($ch);
+
+        if ($raw === false) {
+            throw new RuntimeException('OCI HTTP request failed: '.$error);
+        }
+
+        return [
+            'status' => $status,
+            'body' => (string) $raw,
+        ];
+    }
+
+    private function truncateBody(string $body): string
+    {
+        $flat = preg_replace('/\s+/', ' ', trim(strip_tags($body))) ?? trim($body);
+
+        return mb_substr($flat, 0, 1500);
     }
 
     private function signer(): OciRequestSigner
@@ -154,7 +208,6 @@ final class HttpOciContainerInstanceClient implements OciContainerInstanceClient
             $contents = file_get_contents($key);
             $key = $contents !== false ? $contents : '';
         } elseif ($key !== '' && str_contains($key, 'BEGIN') === false) {
-            // Looks like a filesystem path that does not exist / is not visible to this process.
             throw new RuntimeException(
                 'OCI private key path is not a readable file (check path + permissions for the Horizon user): '.$key
             );
