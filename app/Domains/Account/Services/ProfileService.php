@@ -152,7 +152,11 @@ class ProfileService
     {
         $path = ltrim(str_replace('\\', '/', $path), '/');
 
-        return route('profile.avatars.show', ['path' => $path]);
+        if (\Illuminate\Support\Facades\Route::has('profile.avatars.show')) {
+            return route('profile.avatars.show', ['path' => $path]);
+        }
+
+        return url('/profile/avatars/'.$path);
     }
 
     public function streamAvatar(string $path): StreamedResponse
