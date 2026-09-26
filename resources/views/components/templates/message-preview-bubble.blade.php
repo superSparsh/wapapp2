@@ -68,7 +68,7 @@
       'wa-preview-body w-full font-normal leading-[1.4] text-text-body',
       'text-base' => ! $isCompact,
       'text-sm' => $isCompact,
-      'h-[400px] overflow-y-scroll' => $scrollBody && ! $isCarousel,
+      'max-h-[400px] mt-5 overflow-y-scroll' => $scrollBody && ! $isCarousel,
     ])
   >{!! $bodyHtml !== '' ? $bodyHtml : e($bodyText) !!}</div>
 

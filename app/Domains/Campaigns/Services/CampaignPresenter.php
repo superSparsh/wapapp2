@@ -138,11 +138,12 @@ class CampaignPresenter
 
         $templates = Template::query()
             ->with('variables')
-            ->select(['id', 'uuid', 'name', 'code', 'language', 'category', 'body_preview', 'payload'])
+            ->select(['id', 'uuid', 'name', 'code', 'language', 'category', 'body_preview', 'payload', 'created_at'])
             ->where('status', TemplateStatus::Approved)
             ->whereNotNull('code')
             ->where('code', '!=', '')
-            ->orderBy('name')
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
             ->get()
             ->map(function (Template $template): Template {
                 $template->setAttribute(
