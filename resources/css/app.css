@@ -305,11 +305,15 @@
     }
 
     .phone-preview-header-name--compact {
-        left: 15.5%;
-        top: 6.8%;
-        max-width: 58%;
-        padding: 1px 4px;
-        font-size: 11px;
+        width: 49%;
+    padding: 1px 4px;
+    font-size: 15px;
+    top: 6.8%;
+    left: 17.5%;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    margin-top: 3px;
     }
 
     .phone-preview-header-name--default {
