@@ -6,6 +6,7 @@ namespace App\Domains\Campaigns\Services;
 
 use App\Domains\Campaigns\Services\CampaignSendService;
 use App\Domains\Audience\Enums\ContactStatus;
+use App\Domains\Infrastructure\Oci\CampaignOciWorkerLifecycle;
 use App\Enums\CampaignRecipientStatus;
 use App\Enums\CampaignStatus;
 use App\Enums\ContactOptInStatus;
@@ -15,6 +16,8 @@ use App\Models\CampaignRecipient;
 use App\Models\Contact;
 use App\Models\MailList;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class CampaignService
 {
@@ -129,7 +132,17 @@ class CampaignService
      */
     public function cancel(Campaign $campaign): Campaign
     {
+        $wasSendingOrPaused = $campaign->isSending() || $campaign->isPaused();
+
         $campaign->update(['status' => CampaignStatus::Cancelled]);
+
+        if ($wasSendingOrPaused) {
+            try {
+                app(CampaignOciWorkerLifecycle::class)->onCampaignFinished($campaign->fresh() ?? $campaign);
+            } catch (Throwable $e) {
+                Log::warning('OCI campaign worker teardown on cancel failed', ['error' => $e->getMessage()]);
+            }
+        }
 
         return $campaign->refresh();
     }
@@ -144,6 +157,15 @@ class CampaignService
             : CampaignStatus::Sending;
 
         $campaign->update(['status' => $newStatus]);
+
+        // Resume: ensure worker is up again (idempotent). Pause keeps the instance.
+        if ($newStatus === CampaignStatus::Sending) {
+            try {
+                app(CampaignOciWorkerLifecycle::class)->onCampaignStarted($campaign->fresh() ?? $campaign);
+            } catch (Throwable $e) {
+                Log::warning('OCI campaign worker ensure on resume failed', ['error' => $e->getMessage()]);
+            }
+        }
 
         return $campaign->refresh();
     }

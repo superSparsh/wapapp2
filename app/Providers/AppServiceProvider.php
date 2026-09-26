@@ -7,6 +7,9 @@ use App\Domains\Admin\Support\ErrorModuleResolver;
 use App\Domains\Auth\Auth\TenantAwareUserProvider;
 use App\Domains\Inbox\Contracts\OutboundMessageGateway;
 use App\Domains\Inbox\Services\DelegatingOutboundMessageGateway;
+use App\Domains\Infrastructure\Oci\Contracts\OciContainerInstanceClient;
+use App\Domains\Infrastructure\Oci\HttpOciContainerInstanceClient;
+use App\Domains\Infrastructure\Oci\LogOciContainerInstanceClient;
 use App\Models\Message;
 use App\Models\WhatsappLine;
 use App\Observers\MessageObserver;
@@ -30,6 +33,15 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->bind(OutboundMessageGateway::class, DelegatingOutboundMessageGateway::class);
+
+        $this->app->bind(OciContainerInstanceClient::class, function () {
+            $driver = (string) config('oci-workers.ephemeral.driver', 'log');
+
+            return match ($driver) {
+                'http' => new HttpOciContainerInstanceClient,
+                default => new LogOciContainerInstanceClient,
+            };
+        });
     }
 
     /**

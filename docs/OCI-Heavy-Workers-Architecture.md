@@ -35,7 +35,7 @@
 3. **Horizon roles** — web never steals heavy queues when OCI is on; OCI never runs web-critical chat path.
 4. **Fallback** — set `HORIZON_ROLE=all` on main (or disable OCI flag) if OCI VM is down; jobs stay in Redis, nothing is lost.
 5. **Idempotent jobs** — duplicate status / re-queued sends must not corrupt recipient state (existing handlers + unique keys).
-6. **No direct Container Instance spawn in v1** — you were given **VMs**. Long-lived Horizon on OCI VM is simpler and more reliable than create/destroy CI.
+6. **Ephemeral Container Instances (optional)** — set `OCI_EPHEMERAL_CONTAINERS=true` so a shared campaign CI is **created** when the first campaign starts sending and **destroyed** after the last campaign completes/cancels (grace + queue-drain check). Pause does not destroy. Concurrent campaigns share one instance (refcount).
 7. **Import threshold** — small CSVs stay local; ≥30k go to `import` queue (long timeout).
 
 ---
@@ -48,8 +48,8 @@
 | DB | `instance-voiceai-prod-db-001` — `80.225.245.133` / `10.0.0.253` |
 | OCIR | `bmue9nxcdpso/wapapp-prod` (mumbai) |
 
-**Recommended v1:** run **Horizon oci-heavy** on the app OCI VM (or a dedicated worker process set), sharing Redis with current production app.  
-**Later:** push the same image to OCIR and move to Container Instances if you need burst billing.
+**Recommended baseline:** long-lived Horizon on OCI VM (`HORIZON_ROLE=oci-heavy`).  
+**Optional cost control:** ephemeral CI mode for the **campaign** worker only (status/import can stay on the VM or a separate always-on process).
 
 ---
 
@@ -60,6 +60,7 @@
 3. On main set `HORIZON_ROLE=web` + `OCI_WORKERS_ENABLED=true`.
 4. Smoke: 1 small campaign, 1 status webhook, 1 small import, 1 ≥30k import (staging).
 5. Only then raise campaign concurrency on OCI.
+6. (Optional) Enable ephemeral: `OCI_EPHEMERAL_CONTAINERS=true` + `OCI_EPHEMERAL_DRIVER=http` with OCI API credentials / image / subnet. Start with `OCI_EPHEMERAL_DRIVER=log` to verify hooks without creating CIs.
 
 ---
 
@@ -72,11 +73,29 @@ See `deploy/oci/.env.oci-workers.example`, `deploy/oci/README.md`, and `config/o
 | Main web (after cutover) | `HORIZON_ROLE=web` `OCI_WORKERS_ENABLED=true` |
 | OCI workers | `HORIZON_ROLE=oci-heavy` (flag stays false on worker) |
 | Fallback / single host | `HORIZON_ROLE=all` `OCI_WORKERS_ENABLED=false` |
+| Ephemeral CI (optional) | `OCI_EPHEMERAL_CONTAINERS=true` `OCI_EPHEMERAL_DRIVER=http` + `OCI_*` credentials |
 
 ---
 
-## 6. What we intentionally do NOT do in v1
+## 6. Ephemeral campaign Container Instance lifecycle
 
-- Spawn/destroy OCI Container Instances per campaign (fragile until IAM + networking proven).
+```
+Campaign → Sending ──► onCampaignStarted (refcount++)
+                         └─► EnsureOciCampaignWorkerJob (provisioning queue)
+                               └─► create CI if OCID missing
+
+Campaign → Completed/Cancelled ──► onCampaignFinished (refcount--)
+                         └─► if refcount==0 → TeardownOciCampaignWorkerJob (+grace)
+                               └─► delete CI if queue empty
+```
+
+Hooks: `CampaignSendService::queueCampaign`, `refreshCampaignCompletion`, `CampaignService::cancel` / resume `toggle`, `CampaignResendService::resendFailed`.
+
+---
+
+## 7. What we intentionally do NOT do
+
+- Spawn **one CI per campaign** (concurrent campaigns share one refcounted instance).
 - Give workers a separate database.
 - Move inbound chat messages to OCI (hurts chatbot reply latency).
+- Destroy CI on **pause** (resume must stay warm).

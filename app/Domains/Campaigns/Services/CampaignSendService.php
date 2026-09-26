@@ -8,6 +8,7 @@ use App\Domains\Audience\Enums\ContactStatus;
 use App\Domains\Campaigns\Jobs\SendCampaignRecipientJob;
 use App\Domains\Inbox\Services\InboxConversationService;
 use App\Domains\Inbox\Services\InboxOutboundService;
+use App\Domains\Infrastructure\Oci\CampaignOciWorkerLifecycle;
 use App\Domains\Templates\Services\OptInTemplateService;
 use App\Domains\Templates\Support\CamsTemplateIdentity;
 use App\Enums\CampaignRecipientStatus;
@@ -54,6 +55,12 @@ class CampaignSendService
             'status' => CampaignStatus::Sending,
             'started_at' => $campaign->started_at ?? now(),
         ]);
+
+        try {
+            app(CampaignOciWorkerLifecycle::class)->onCampaignStarted($campaign);
+        } catch (Throwable $e) {
+            Log::warning('OCI campaign worker provision trigger failed', ['error' => $e->getMessage()]);
+        }
 
         // Simple SendChatappMessage only (mass API disabled until tested).
         $batchSize = (int) config('campaigns.dispatch_batch_size', 100);
@@ -221,6 +228,12 @@ class CampaignSendService
                 'status' => CampaignStatus::Completed,
                 'completed_at' => now(),
             ]);
+
+            try {
+                app(CampaignOciWorkerLifecycle::class)->onCampaignFinished($campaign->fresh() ?? $campaign);
+            } catch (Throwable $e) {
+                Log::warning('OCI campaign worker teardown trigger failed', ['error' => $e->getMessage()]);
+            }
         }
     }
 

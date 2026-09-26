@@ -5,10 +5,14 @@ declare(strict_types=1);
 namespace App\Domains\Campaigns\Services;
 
 use App\Domains\Campaigns\Jobs\SendCampaignRecipientJob;
+use App\Domains\Infrastructure\Oci\CampaignOciWorkerLifecycle;
 use App\Enums\CampaignRecipientStatus;
+use App\Enums\CampaignStatus;
 use App\Models\Campaign;
 use App\Models\CampaignRecipient;
 use App\Support\OciWorkload;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class CampaignResendService
 {
@@ -34,6 +38,19 @@ class CampaignResendService
                     $count++;
                 }
             });
+
+        if ($count > 0) {
+            $campaign->update([
+                'status' => CampaignStatus::Sending,
+                'completed_at' => null,
+            ]);
+
+            try {
+                app(CampaignOciWorkerLifecycle::class)->onCampaignStarted($campaign->fresh() ?? $campaign);
+            } catch (Throwable $e) {
+                Log::warning('OCI campaign worker provision on resend failed', ['error' => $e->getMessage()]);
+            }
+        }
 
         return $count;
     }
