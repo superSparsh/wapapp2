@@ -170,7 +170,8 @@ final class HttpOciContainerInstanceClient implements OciContainerInstanceClient
             CURLOPT_HEADER => false,
         ]);
 
-        if (strtoupper($method) !== 'GET' && strtoupper($method) !== 'HEAD') {
+        // Only attach a body for methods that sign content headers (POST/PUT/PATCH).
+        if (in_array(strtoupper($method), ['POST', 'PUT', 'PATCH'], true)) {
             curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
         }
 

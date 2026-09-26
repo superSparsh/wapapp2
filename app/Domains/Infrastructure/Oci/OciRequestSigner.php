@@ -34,15 +34,23 @@ final class OciRequestSigner
     ): array {
         $method = strtolower($method);
         $date = gmdate('D, d M Y H:i:s').' GMT';
+        $hasBody = ! in_array($method, ['get', 'head', 'delete'], true);
+
         $headers = array_merge([
             'host' => $host,
             'date' => $date,
-            'x-content-sha256' => base64_encode(hash('sha256', $body, true)),
-            'content-type' => 'application/json',
-            'content-length' => (string) strlen($body),
         ], $extraHeaders);
 
-        $signingHeaders = ['(request-target)', 'host', 'date', 'x-content-sha256', 'content-type', 'content-length'];
+        // POST/PUT: content headers required. GET/DELETE: only host + date (+ request-target).
+        if ($hasBody) {
+            $headers['x-content-sha256'] = base64_encode(hash('sha256', $body, true));
+            $headers['content-type'] = 'application/json';
+            $headers['content-length'] = (string) strlen($body);
+            $signingHeaders = ['(request-target)', 'host', 'date', 'x-content-sha256', 'content-type', 'content-length'];
+        } else {
+            $signingHeaders = ['(request-target)', 'host', 'date'];
+        }
+
         $lines = [];
         foreach ($signingHeaders as $name) {
             if ($name === '(request-target)') {
