@@ -12,6 +12,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ProfileService
 {
@@ -110,8 +111,16 @@ class ProfileService
         $this->deleteAvatar($user);
 
         $directory = (string) config('account.avatar.directory', 'avatars');
-        $filename = $user->uuid.'-'.Str::uuid().'.'.$avatar->guessExtension();
-        $path = $avatar->storeAs($directory, $filename, (string) config('account.avatar.disk', 'public'));
+        $disk = (string) config('account.avatar.disk', 'public');
+        Storage::disk($disk)->makeDirectory($directory);
+
+        $extension = $avatar->guessExtension() ?: $avatar->getClientOriginalExtension() ?: 'jpg';
+        $filename = $user->uuid.'-'.Str::uuid().'.'.$extension;
+        $path = $avatar->storeAs($directory, $filename, $disk);
+
+        if ($path === false || $path === '') {
+            throw new \RuntimeException('Failed to store profile avatar.');
+        }
 
         $user->avatar_path = $path;
     }
@@ -126,13 +135,63 @@ class ProfileService
         $user->avatar_path = null;
     }
 
+    /**
+     * Tenant public disk is not served by /storage/... (central symlink), so
+     * avatars must use the auth-gated stream route.
+     */
     private function avatarUrl(User $user): ?string
     {
-        if ($user->avatar_path === null) {
+        if ($user->avatar_path === null || $user->avatar_path === '') {
             return null;
         }
 
-        return Storage::disk((string) config('account.avatar.disk', 'public'))->url($user->avatar_path);
+        return $this->avatarPreviewUrl($user->avatar_path);
+    }
+
+    public function avatarPreviewUrl(string $path): string
+    {
+        $path = ltrim(str_replace('\\', '/', $path), '/');
+
+        return route('profile.avatars.show', ['path' => $path]);
+    }
+
+    public function streamAvatar(string $path): StreamedResponse
+    {
+        $path = $this->normalizeAvatarPath($path);
+        $disk = Storage::disk((string) config('account.avatar.disk', 'public'));
+
+        if (! $disk->exists($path)) {
+            abort(404);
+        }
+
+        $mime = (string) ($disk->mimeType($path) ?: 'application/octet-stream');
+
+        return response()->stream(function () use ($disk, $path): void {
+            $stream = $disk->readStream($path);
+            if (! is_resource($stream)) {
+                return;
+            }
+
+            fpassthru($stream);
+            fclose($stream);
+        }, 200, [
+            'Content-Type' => $mime,
+            'Content-Disposition' => 'inline; filename="'.basename($path).'"',
+            'Cache-Control' => 'private, max-age=3600',
+        ]);
+    }
+
+    private function normalizeAvatarPath(string $path): string
+    {
+        $path = ltrim(str_replace('\\', '/', $path), '/');
+        $path = preg_replace('#\.\./#', '', $path) ?? $path;
+
+        $directory = trim((string) config('account.avatar.directory', 'avatars'), '/');
+        if ($directory === '' || ! str_starts_with($path, $directory.'/')) {
+            abort(404);
+        }
+
+        return $path;
     }
 
     /** @return array{0: string, 1: string} */

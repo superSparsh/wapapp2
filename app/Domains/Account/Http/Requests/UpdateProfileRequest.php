@@ -7,6 +7,7 @@ namespace App\Domains\Account\Http\Requests;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
+use Illuminate\Validation\Validator;
 
 class UpdateProfileRequest extends FormRequest
 {
@@ -50,7 +51,12 @@ class UpdateProfileRequest extends FormRequest
                 'string',
                 'same:password',
             ],
-            'avatar' => ['nullable', 'image', 'mimes:'.implode(',', config('account.avatar.mimes', ['jpg', 'png'])), 'max:'.((int) config('account.avatar.max_kb', 2048))],
+            'avatar' => [
+                'nullable',
+                'image',
+                'mimes:'.implode(',', config('account.avatar.mimes', ['jpg', 'png'])),
+                'max:'.((int) config('account.avatar.max_kb', 2048)),
+            ],
             'remove_avatar' => ['sometimes', 'boolean'],
         ];
     }
@@ -58,9 +64,39 @@ class UpdateProfileRequest extends FormRequest
     /** @return array<string, string> */
     public function messages(): array
     {
+        $maxMb = $this->avatarMaxMb();
+        $mimes = strtoupper(implode(', ', config('account.avatar.mimes', ['jpg', 'png', 'webp'])));
+
         return [
             'password_confirmation.required' => 'Please confirm your new password.',
             'password_confirmation.same' => 'New password and confirmation do not match.',
+            'avatar.image' => 'Avatar must be a valid image file.',
+            'avatar.mimes' => "Avatar must be one of: {$mimes}.",
+            'avatar.max' => "Avatar must not be greater than {$maxMb} MB.",
         ];
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator): void {
+            $maxMb = $this->avatarMaxMb();
+
+            // PHP rejected the upload (too large for upload_max_filesize) — Laravel then
+            // sees no file, so "nullable" would silently skip the avatar change.
+            $fileError = $_FILES['avatar']['error'] ?? null;
+            if (in_array($fileError, [UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE], true)) {
+                $validator->errors()->add(
+                    'avatar',
+                    "Avatar must not be greater than {$maxMb} MB."
+                );
+            }
+        });
+    }
+
+    private function avatarMaxMb(): string
+    {
+        $mb = ((int) config('account.avatar.max_kb', 2048)) / 1024;
+
+        return rtrim(rtrim(number_format($mb, 1, '.', ''), '0'), '.') ?: '2';
     }
 }

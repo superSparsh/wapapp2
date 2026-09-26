@@ -7,7 +7,6 @@ namespace App\Support;
 use App\Models\TeamMember;
 use App\Models\User;
 use Illuminate\Contracts\Auth\Authenticatable;
-use Illuminate\Support\Facades\Storage;
 
 final class CurrentAccount
 {
@@ -56,9 +55,11 @@ final class CurrentAccount
     {
         $user = self::user();
 
-        if ($user instanceof User && $user->avatar_path) {
-            return Storage::disk((string) config('account.avatar.disk', 'public'))
-                ->url($user->avatar_path);
+        if ($user instanceof User && filled($user->avatar_path)) {
+            // Tenant public disk is not served by /storage/... — use stream route.
+            return route('profile.avatars.show', [
+                'path' => ltrim(str_replace('\\', '/', (string) $user->avatar_path), '/'),
+            ]);
         }
 
         return asset('images/profile/photo-sample.png');

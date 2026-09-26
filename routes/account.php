@@ -20,6 +20,9 @@ Route::post('/notifications/read', [NotificationController::class, 'markRead'])-
 Route::prefix('profile')->name('profile.')->group(function () {
     Route::get('/', [ProfileController::class, 'show'])->name('index');
     Route::post('/', [ProfileController::class, 'update'])->name('update');
+    Route::get('/avatars/{path}', [ProfileController::class, 'showAvatar'])
+        ->where('path', '.*')
+        ->name('avatars.show');
 
     Route::get('/integration', [IntegrationController::class, 'index'])->name('integration');
     Route::get('/integration/connected/{whatsappLine?}', [IntegrationController::class, 'edit'])->name('integration.connected');

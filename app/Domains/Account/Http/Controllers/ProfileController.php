@@ -10,6 +10,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ProfileController extends Controller
 {
@@ -22,6 +23,7 @@ class ProfileController extends Controller
             'timezones' => config('account.timezones', []),
             'countries' => config('account.countries', []),
             'locales' => config('account.locales', []),
+            'avatarMaxMb' => round(((int) config('account.avatar.max_kb', 2048)) / 1024, 1),
         ]);
     }
 
@@ -39,6 +41,13 @@ class ProfileController extends Controller
         return redirect()
             ->route('profile.index')
             ->with('status', 'Profile updated successfully.');
+    }
+
+    public function showAvatar(string $path, ProfileService $profileService): StreamedResponse
+    {
+        $this->ownerUser();
+
+        return $profileService->streamAvatar($path);
     }
 
     private function ownerUser(): User
