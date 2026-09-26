@@ -35,7 +35,8 @@ final class HttpOciContainerInstanceClient implements OciContainerInstanceClient
 
         $cfg = config('oci-workers.ephemeral');
         $region = (string) $cfg['region'];
-        $host = "containerinstances.{$region}.oci.oraclecloud.com";
+        // Official OCI SDK template: https://compute-containers.{region}.oci.{secondLevelDomain}
+        $host = "compute-containers.{$region}.oci.oraclecloud.com";
         $path = '/20210415/containerInstances';
 
         // OCI API expects a string map, not [{name,value}, ...].
@@ -114,7 +115,7 @@ final class HttpOciContainerInstanceClient implements OciContainerInstanceClient
         }
 
         $region = (string) config('oci-workers.ephemeral.region');
-        $host = "containerinstances.{$region}.oci.oraclecloud.com";
+        $host = "compute-containers.{$region}.oci.oraclecloud.com";
         $path = '/20210415/containerInstances/'.rawurlencode($ocid);
 
         $response = $this->signedRequest('DELETE', $host, $path, '');
