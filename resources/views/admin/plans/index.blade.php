@@ -7,10 +7,6 @@
     <a href="{{ route('admin.plans.create') }}" class="rounded-lg bg-green-500 px-3 py-2 text-xs font-semibold text-white hover:bg-green-600">Add plan</a>
   </div>
 
-  @if (session('status'))
-    <div class="mx-4 mb-2 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">{{ session('status') }}</div>
-  @endif
-
   <x-admin.filter-bar
     :action="route('admin.plans.index')"
     :search="$filters['q'] ?? ''"
@@ -22,8 +18,12 @@
   />
 
   <div class="p-4 pt-0">
-    <x-ui.data-table :headers="['Plan', 'Price / Wallet', 'Validity', 'Limits', 'Customers', 'Status', 'Actions']" :paginator="$plans">
+    <x-ui.data-table :headers="['Plan', 'Price / Wallet', 'Validity', 'Features', 'Customers', 'Status', 'Actions']" :paginator="$plans">
       @forelse ($plans as $plan)
+        @php
+          $featureCount = \App\Domains\Billing\Support\PlanFeatureCatalog::enabledCount(is_array($plan->features) ? $plan->features : []);
+          $isAdvance = ! empty(data_get($plan->features, 'advance')) || ! empty(data_get($plan->features, 'carousel_templates'));
+        @endphp
         <tr class="bg-elevated">
           <td class="fd-table-cell p-2 align-middle">
             <div class="fd-table-name">{{ $plan->name }}</div>
@@ -35,7 +35,8 @@
           </td>
           <td class="fd-table-cell p-2 align-middle text-sm">{{ $plan->resolvedValidityDays() }} days</td>
           <td class="fd-table-cell p-2 align-middle text-xs text-text-subtle">
-            Msg {{ $plan->messages_limit ?? '∞' }} · Contacts {{ $plan->contacts_limit ?? '∞' }}
+            <div>{{ $featureCount }} modules</div>
+            <div>{{ $isAdvance ? 'Advance' : 'Basic' }}</div>
           </td>
           <td class="fd-table-cell p-2 align-middle text-sm">{{ $plan->tenants_count }}</td>
           <td class="fd-table-cell p-2 align-middle"><x-admin.status-badge :status="$plan->is_active" :label="$plan->is_active ? 'Active' : 'Inactive'" /></td>

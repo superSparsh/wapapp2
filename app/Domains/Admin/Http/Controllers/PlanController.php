@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domains\Admin\Http\Controllers;
 
 use App\Domains\Admin\Support\AdminListQuery;
+use App\Domains\Billing\Support\PlanFeatureCatalog;
 use App\Enums\BillingCycle;
 use App\Http\Controllers\Controller;
 use App\Models\Plan;
@@ -117,6 +118,8 @@ class PlanController extends Controller
             'whatsapp_lines_limit' => ['nullable', 'integer', 'min:0'],
             'sort_order' => ['nullable', 'integer', 'min:0'],
             'is_active' => ['sometimes', 'boolean'],
+            'features' => ['sometimes', 'array'],
+            'features.*' => ['sometimes', 'boolean'],
         ]);
 
         $data['is_active'] = $request->boolean('is_active', $plan?->is_active ?? true);
@@ -127,6 +130,10 @@ class PlanController extends Controller
         $data['billing_cycle'] = $cycle->value;
         $validityDays = (int) ($data['validity_days'] ?? 0);
         $data['validity_days'] = $validityDays > 0 ? $validityDays : $cycle->defaultValidityDays();
+
+        $existingFeatures = is_array($plan?->features) ? $plan->features : [];
+        $submitted = is_array($request->input('features')) ? $request->input('features') : [];
+        $data['features'] = PlanFeatureCatalog::mergeSubmitted($existingFeatures, $submitted);
 
         return $data;
     }

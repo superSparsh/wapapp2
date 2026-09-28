@@ -19,9 +19,6 @@
       </form>
     </div>
   </div>
-@if (session('error'))
-    <div class="mx-4 mb-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">{{ session('error') }}</div>
-  @endif
 
   <section class="grid gap-4 p-4 pt-0 xl:grid-cols-3">
     <div class="rounded-[20px] border border-border bg-elevated p-5 xl:col-span-2">

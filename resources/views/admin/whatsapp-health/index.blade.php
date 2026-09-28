@@ -12,10 +12,6 @@
     </div>
   </div>
 
-  @if (session('status'))
-    <div class="mx-4 rounded-lg bg-green-50 p-3 text-sm text-primary-2">{{ session('status') }}</div>
-  @endif
-
   <div class="flex gap-2 px-4">
     <a href="{{ route('admin.whatsapp-health.index', ['tab' => 'fleet'] + request()->except('tab', 'page')) }}"
        @class(['rounded-lg px-3 py-2 text-sm font-semibold', 'bg-green-500 text-white' => ($tab ?? 'fleet') === 'fleet', 'bg-elevated text-text-subtle' => ($tab ?? 'fleet') !== 'fleet'])>

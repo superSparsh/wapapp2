@@ -204,15 +204,28 @@ class CustomerAdminService
 
         try {
             tenancy()->initialize($tenant);
-            app(\App\Domains\Billing\Services\WalletService::class)->adminCredit($amount, $description);
+            app(\App\Domains\Billing\Services\WalletService::class)->adminCredit(
+                $amount,
+                $description,
+            );
         } finally {
             if (tenancy()->initialized) {
                 tenancy()->end();
             }
-            if ($previous !== null) {
+            if ($wasInitialized && $previous) {
                 tenancy()->initialize($previous);
             }
         }
+    }
+
+    /**
+     * Wipe all operational tenant data; keep account + subscription for restore.
+     *
+     * @return array{tables_wiped: int, central_cleared: int}
+     */
+    public function wipeAccountData(Tenant $tenant, ?string $adminName = null): array
+    {
+        return app(TenantAccountWipeService::class)->wipe($tenant, $adminName);
     }
 
     /**

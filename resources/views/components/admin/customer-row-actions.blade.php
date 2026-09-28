@@ -67,6 +67,19 @@
           {{ $toggleLabel }}
         </button>
       </form>
+      <form
+        method="POST"
+        action="{{ route('admin.customers.wipe-account', $tenant) }}"
+        data-confirm="Wipe all data for this customer (contacts, messages, campaigns, WhatsApp lines, templates, etc.)? Account profile and subscription stay so you can restore them later. This cannot be undone."
+        data-confirm-title="Delete account data"
+        data-confirm-label="Wipe data"
+        data-confirm-variant="danger"
+      >
+        @csrf
+        <button type="submit" class="block w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50">
+          Delete account data
+        </button>
+      </form>
     </div>
   </details>
 </div>

@@ -7,10 +7,6 @@
     </div>
   </div>
 
-  @if (session('status'))
-    <div class="mx-4 rounded-lg bg-green-50 p-3 text-sm text-primary-2">{{ session('status') }}</div>
-  @endif
-
   <x-admin.filter-bar
     :action="route('admin.announcements.requests', $announcement)"
     :search="''"

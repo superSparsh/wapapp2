@@ -1,4 +1,5 @@
 @php
+  use App\Domains\Billing\Support\PlanFeatureCatalog;
   use App\Enums\BillingCycle;
 
   $isEdit = isset($plan);
@@ -9,6 +10,10 @@
   $currentCycle = old('billing_cycle', $plan->billing_cycle?->value ?? BillingCycle::Monthly->value);
   $defaultDays = $cycleDefaults[$currentCycle] ?? BillingCycle::Monthly->defaultValidityDays();
   $currentValidity = old('validity_days', $plan->validity_days ?? $defaultDays);
+  $savedFeatures = old('features', $plan->features ?? PlanFeatureCatalog::basicDefaults());
+  if (! is_array($savedFeatures)) {
+      $savedFeatures = PlanFeatureCatalog::basicDefaults();
+  }
 @endphp
 
 <x-admin.layout :title="($isEdit ? 'Edit plan' : 'Create plan').' - Admin'" active="admin.plans.index">
@@ -104,6 +109,64 @@
       </label>
     </div>
 
+    <div class="mt-8 space-y-6 border-t border-border pt-6">
+      <div>
+        <h2 class="text-base font-bold text-text-primary">Plan modules / features</h2>
+        <p class="mt-1 text-xs text-text-subtle">
+          Toggle what this plan includes. New plans default to Basic modules. Enable Advance modules for Ginger Advance-style plans.
+        </p>
+        <div class="mt-3 flex flex-wrap gap-2">
+          <button type="button" data-plan-features-preset="basic" class="rounded-lg border border-border px-2.5 py-1.5 text-xs font-semibold hover:bg-surface">Apply Basic preset</button>
+          <button type="button" data-plan-features-preset="advance" class="rounded-lg border border-green-200 px-2.5 py-1.5 text-xs font-semibold text-green-700 hover:bg-green-50">Apply Advance preset</button>
+        </div>
+      </div>
+
+      <div>
+        <h3 class="mb-2 text-sm font-semibold text-text-primary">Ginger Basic</h3>
+        <div class="grid gap-2 sm:grid-cols-2">
+          @foreach (PlanFeatureCatalog::forGroup('basic') as $key => $feature)
+            <label class="flex items-start gap-2 rounded-lg border border-border bg-surface px-3 py-2 text-sm">
+              <input
+                type="checkbox"
+                name="features[{{ $key }}]"
+                value="1"
+                class="mt-0.5"
+                data-plan-feature
+                data-feature-group="basic"
+                @checked(! empty($savedFeatures[$key]))
+              >
+              <span>{{ $feature['label'] }}</span>
+            </label>
+          @endforeach
+        </div>
+      </div>
+
+      <div>
+        <h3 class="mb-2 text-sm font-semibold text-text-primary">Ginger Advance</h3>
+        <div class="grid gap-2 sm:grid-cols-2">
+          @foreach (PlanFeatureCatalog::forGroup('advance') as $key => $feature)
+            <label class="flex items-start gap-2 rounded-lg border border-border bg-surface px-3 py-2 text-sm">
+              <input
+                type="checkbox"
+                name="features[{{ $key }}]"
+                value="1"
+                class="mt-0.5"
+                data-plan-feature
+                data-feature-group="advance"
+                @checked(! empty($savedFeatures[$key]))
+              >
+              <span>
+                {{ $feature['label'] }}
+                @if (! empty($feature['description']))
+                  <span class="mt-0.5 block text-xs text-text-subtle">{{ $feature['description'] }}</span>
+                @endif
+              </span>
+            </label>
+          @endforeach
+        </div>
+      </div>
+    </div>
+
     <div class="mt-6">
       <button type="submit" class="rounded-lg bg-green-500 px-4 py-2 text-sm font-semibold text-white">Save plan</button>
     </div>
@@ -120,21 +183,38 @@
         } catch (_) {}
         const cycleSelect = form.querySelector('[data-plan-billing-cycle]');
         const daysInput = form.querySelector('[data-plan-validity-days]');
-        if (!cycleSelect || !daysInput) return;
+        if (cycleSelect && daysInput) {
+          const syncDays = () => {
+            const suggested = Number(defaults[cycleSelect.value] || 30);
+            const current = Number(daysInput.value || 0);
+            const previousSuggested = Number(daysInput.dataset.lastSuggested || 0);
+            if (!current || current === previousSuggested) {
+              daysInput.value = String(suggested);
+            }
+            daysInput.dataset.lastSuggested = String(suggested);
+          };
 
-        const syncDays = () => {
-          const suggested = Number(defaults[cycleSelect.value] || 30);
-          const current = Number(daysInput.value || 0);
-          const previousSuggested = Number(daysInput.dataset.lastSuggested || 0);
-          // Auto-fill when empty, or when still matching the previous cycle default.
-          if (!current || current === previousSuggested) {
-            daysInput.value = String(suggested);
-          }
-          daysInput.dataset.lastSuggested = String(suggested);
+          daysInput.dataset.lastSuggested = String(defaults[cycleSelect.value] || daysInput.value || 30);
+          cycleSelect.addEventListener('change', syncDays);
+        }
+
+        const applyPreset = (preset) => {
+          form.querySelectorAll('[data-plan-feature]').forEach((input) => {
+            const group = input.getAttribute('data-feature-group');
+            if (preset === 'advance') {
+              input.checked = true;
+              return;
+            }
+            input.checked = group === 'basic';
+          });
         };
 
-        daysInput.dataset.lastSuggested = String(defaults[cycleSelect.value] || daysInput.value || 30);
-        cycleSelect.addEventListener('change', syncDays);
+        form.querySelectorAll('[data-plan-features-preset]').forEach((btn) => {
+          btn.addEventListener('click', (event) => {
+            event.preventDefault();
+            applyPreset(btn.getAttribute('data-plan-features-preset') || 'basic');
+          });
+        });
       })();
     </script>
   @endpush

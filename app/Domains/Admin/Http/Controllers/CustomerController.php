@@ -210,4 +210,19 @@ class CustomerController extends Controller
 
         return redirect()->route('dashboard');
     }
+
+    public function wipeAccount(Request $request, Tenant $tenant): RedirectResponse
+    {
+        /** @var Admin|null $admin */
+        $admin = Auth::guard('admin')->user();
+
+        $this->customers->wipeAccountData(
+            $tenant,
+            $admin?->name ?? $admin?->email ?? 'admin',
+        );
+
+        return redirect()
+            ->route('admin.customers.index')
+            ->with('status', 'Customer account data wiped. Profile and subscription were kept for restore.');
+    }
 }

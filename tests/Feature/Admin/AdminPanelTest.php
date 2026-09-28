@@ -107,7 +107,8 @@ class AdminPanelTest extends TestCase
             ->assertSee('WhatsApp lines', false)
             ->assertSee('Extend validity', false)
             ->assertSee('Assign plan', false)
-            ->assertSee('Disable', false);
+            ->assertSee('Disable', false)
+            ->assertSee('Delete account data', false);
 
         $this->actingAs($this->admin, 'admin')
             ->get(route('admin.customers.show', $this->testTenant))
@@ -171,6 +172,93 @@ class AdminPanelTest extends TestCase
         $this->assertSame('Updated Tenant', $this->testTenant->name);
         $this->assertSame(TenantStatus::Suspended, $this->testTenant->status);
         $this->assertSame($plan->id, $this->testTenant->plan_id);
+    }
+
+    public function test_admin_can_wipe_customer_account_data_keeping_profile_and_subscription(): void
+    {
+        $plan = Plan::query()->create([
+            'name' => 'Wipe Keep Plan',
+            'slug' => 'wipe-keep-'.uniqid(),
+            'price' => 499,
+            'currency' => 'INR',
+            'billing_cycle' => 'monthly',
+            'is_active' => true,
+            'sort_order' => 1,
+        ]);
+
+        $this->testTenant->forceFill([
+            'plan_id' => $plan->id,
+            'email' => 'keep-me@example.com',
+            'company_name' => 'Keep Co',
+            'settings' => ['valid_until' => now()->addMonth()->toDateString()],
+        ])->save();
+
+        TenantUserAccess::query()->updateOrCreate(
+            ['email' => strtolower($this->testUser->email)],
+            [
+                'tenant_id' => $this->testTenant->id,
+                'account_type' => TenantUserAccountType::Owner,
+                'is_active' => true,
+                'phone' => $this->testUser->phone,
+            ],
+        );
+
+        tenancy()->initialize($this->testTenant);
+
+        \App\Models\Subscription::query()->create([
+            'plan_id' => $plan->id,
+            'status' => \App\Enums\SubscriptionStatus::Active,
+            'amount' => 499,
+            'currency' => 'INR',
+            'starts_at' => now(),
+            'ends_at' => now()->addMonth(),
+        ]);
+
+        \App\Models\Contact::query()->create([
+            'phone' => '919888877766',
+            'name' => 'Wipe Me',
+            'opt_in_status' => \App\Enums\ContactOptInStatus::OptedIn,
+        ]);
+
+        $ownerId = $this->testUser->id;
+        $lineId = $this->testLine->id;
+        tenancy()->end();
+
+        $this->assertSame(1, \App\Models\WhatsappLineRegistry::query()
+            ->where('tenant_id', $this->testTenant->id)
+            ->count());
+
+        $this->actingAs($this->admin, 'admin')
+            ->from(route('admin.customers.index'))
+            ->post(route('admin.customers.wipe-account', $this->testTenant))
+            ->assertRedirect(route('admin.customers.index'))
+            ->assertSessionHas('status');
+
+        $this->testTenant->refresh();
+        $this->assertSame(TenantStatus::Suspended, $this->testTenant->status);
+        $this->assertSame('keep-me@example.com', $this->testTenant->email);
+        $this->assertSame('Keep Co', $this->testTenant->company_name);
+        $this->assertSame($plan->id, $this->testTenant->plan_id);
+        $this->assertNotNull(data_get($this->testTenant->settings, 'account_wiped_at'));
+        $this->assertNotNull(data_get($this->testTenant->settings, 'valid_until'));
+
+        $this->assertTrue(
+            TenantUserAccess::query()
+                ->where('tenant_id', $this->testTenant->id)
+                ->where('email', strtolower($this->testUser->email))
+                ->exists()
+        );
+
+        $this->assertSame(0, \App\Models\WhatsappLineRegistry::query()
+            ->where('tenant_id', $this->testTenant->id)
+            ->count());
+
+        tenancy()->initialize($this->testTenant);
+        $this->assertSame(1, \App\Models\Subscription::query()->count());
+        $this->assertTrue(\App\Models\User::query()->whereKey($ownerId)->exists());
+        $this->assertSame(0, \App\Models\Contact::query()->count());
+        $this->assertSame(0, \App\Models\WhatsappLine::query()->whereKey($lineId)->count());
+        tenancy()->end();
     }
 
     public function test_admin_can_login_as_customer_and_return(): void
@@ -330,6 +418,13 @@ class AdminPanelTest extends TestCase
                 'validity_days' => 45,
                 'is_active' => 1,
                 'sort_order' => 0,
+                'features' => [
+                    'campaigns' => 1,
+                    'inbox' => 1,
+                    'drip' => 1,
+                    'carousel_templates' => 1,
+                    'advance' => 1,
+                ],
             ])
             ->assertRedirect(route('admin.plans.index'));
 
@@ -342,6 +437,10 @@ class AdminPanelTest extends TestCase
         $plan = Plan::query()->where('slug', 'starter')->firstOrFail();
         $this->assertNotEmpty($plan->uuid);
         $this->assertSame(45, $plan->resolvedValidityDays());
+        $this->assertTrue((bool) data_get($plan->features, 'campaigns'));
+        $this->assertTrue((bool) data_get($plan->features, 'carousel_templates'));
+        $this->assertTrue((bool) data_get($plan->features, 'advance'));
+        $this->assertFalse((bool) data_get($plan->features, 'commerce'));
 
         $this->actingAs($this->admin, 'admin')
             ->post(route('admin.plans.toggle-status', $plan))
@@ -352,14 +451,18 @@ class AdminPanelTest extends TestCase
             ->get(route('admin.plans.index'))
             ->assertOk()
             ->assertSee('Activate')
-            ->assertSee('Wallet start');
+            ->assertSee('Wallet start')
+            ->assertSee('Features');
 
         $this->actingAs($this->admin, 'admin')
             ->get(route('admin.plans.edit', $plan))
             ->assertOk()
             ->assertSee($plan->name)
             ->assertSee('Starting wallet balance')
-            ->assertSee('Validity days');
+            ->assertSee('Validity days')
+            ->assertSee('Plan modules / features')
+            ->assertSee('Carousel Templates')
+            ->assertSee('Apply Advance preset');
 
         $this->assertStringContainsString($plan->uuid, route('admin.plans.edit', $plan));
         $this->assertStringNotContainsString('/plans/'.$plan->id.'/', route('admin.plans.edit', $plan));

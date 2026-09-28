@@ -85,6 +85,7 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::patch('/customers/{tenant}/settings', [CustomerController::class, 'updateSettings'])->name('customers.settings');
         Route::post('/customers/{tenant}/wallet-display-currency', [CustomerController::class, 'setWalletDisplayCurrency'])->name('customers.wallet-display-currency');
         Route::post('/customers/{tenant}/login-as', [CustomerController::class, 'loginAs'])->name('customers.login-as');
+        Route::post('/customers/{tenant}/wipe-account', [CustomerController::class, 'wipeAccount'])->name('customers.wipe-account');
 
         Route::get('/retention', [RetentionController::class, 'index'])->name('retention.index');
         Route::get('/retention/export', [RetentionController::class, 'export'])->name('retention.export');
