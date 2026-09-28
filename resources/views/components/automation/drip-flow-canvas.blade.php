@@ -46,13 +46,20 @@
 @endphp
 
 @if ($editable)
+  @php
+    $audienceOptions = collect($audiences ?? [])->map(fn ($list) => [
+      'id' => (string) ($list->id ?? ''),
+      'uuid' => (string) ($list->uuid ?? ''),
+      'name' => (string) ($list->name ?? ''),
+    ])->values()->all();
+  @endphp
   <div
     data-drip-flow-editor
     data-save-url="{{ $saveUrl }}"
     data-load-url="{{ $loadUrl }}"
     data-templates-url="{{ $templatesListUrl }}"
-    data-node-types='@json($flatNodeTypes)'
-    data-audiences='@json($audiences)'
+    data-node-types="{{ json_encode($flatNodeTypes, JSON_UNESCAPED_UNICODE) }}"
+    data-audiences="{{ json_encode($audienceOptions, JSON_UNESCAPED_UNICODE) }}"
     data-trigger-label="{{ $campaign ? $campaign->triggerLabel() : 'New contact subscribes to list' }}"
     @class([
       'relative flex min-w-0 shrink-0 flex-col',

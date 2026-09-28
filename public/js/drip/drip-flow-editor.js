@@ -634,7 +634,19 @@
     }
 
     save() {
-      if (!this.saveUrl || this.saving) {
+      const notify = (message, title) => {
+        if (typeof window.showAppAlert === 'function') {
+          window.showAppAlert(message, title);
+          return;
+        }
+        window.alert((title ? title + ': ' : '') + message);
+      };
+
+      if (!this.saveUrl) {
+        notify('Save URL is missing. Refresh the page and try again.', 'Save failed');
+        return;
+      }
+      if (this.saving) {
         return;
       }
 
@@ -647,9 +659,7 @@
       });
 
       if (flowErrors.length) {
-        if (window.showAppAlert) {
-          window.showAppAlert(flowErrors[0], 'Cannot save flow');
-        }
+        notify(flowErrors[0], 'Cannot save flow');
         return;
       }
 
@@ -667,21 +677,29 @@
         credentials: 'same-origin',
         body: JSON.stringify({ nodes: this.nodes, edges: this.buildEdges() }),
       })
-        .then((response) => response.json().then((body) => ({ ok: response.ok, status: response.status, body })))
+        .then(async (response) => {
+          let body = null;
+          const contentType = response.headers.get('content-type') || '';
+          if (contentType.includes('application/json')) {
+            body = await response.json();
+          } else {
+            const text = await response.text();
+            throw new Error(text?.trim()?.slice(0, 180) || ('Save failed (HTTP ' + response.status + ')'));
+          }
+          return { ok: response.ok, status: response.status, body };
+        })
         .then(({ ok, body }) => {
           if (!ok || !body?.success) {
-            const message = body?.message || body?.errors?.[Object.keys(body?.errors || {})[0]]?.[0] || 'Unable to save flow';
+            const message = body?.message
+              || body?.errors?.[Object.keys(body?.errors || {})[0]]?.[0]
+              || 'Unable to save flow';
             throw new Error(message);
           }
           this.dirty = false;
-          if (window.showAppAlert) {
-            window.showAppAlert('Drip flow saved successfully.', 'Saved');
-          }
+          notify('Drip flow saved successfully.', 'Saved');
         })
         .catch((error) => {
-          if (window.showAppAlert) {
-            window.showAppAlert(error.message || 'Unable to save flow.', 'Save failed');
-          }
+          notify(error.message || 'Unable to save flow.', 'Save failed');
         })
         .finally(() => {
           this.saving = false;

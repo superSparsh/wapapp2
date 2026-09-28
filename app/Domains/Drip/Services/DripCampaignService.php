@@ -29,8 +29,8 @@ class DripCampaignService
                 'status' => ChatbotFlowStatus::Draft,
                 'audience_id' => $data['audience_id'] ?? null,
                 'timezone' => $data['timezone'] ?? config('chatbot.drip.default_timezone', 'Asia/Kolkata'),
-                'start_date' => $data['start_date'] ?? null,
-                'end_date' => $data['end_date'] ?? null,
+                'start_date' => $data['start_date'] ?? now()->toDateString(),
+                'end_date' => $data['end_date'] ?? now()->addYear()->toDateString(),
                 'trigger_type' => $triggerType,
                 'trigger_options' => DripTriggerCatalog::sanitizeOptions(
                     $triggerType,

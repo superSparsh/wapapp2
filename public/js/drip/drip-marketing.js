@@ -358,8 +358,16 @@
 
         if (!valid) {
           event.preventDefault();
-          const firstInvalid = form.querySelector('.border-red-500');
-          firstInvalid?.focus();
+          const firstInvalid = form.querySelector('.border-red-500, [data-drip-field-error]');
+          firstInvalid?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+          if (typeof firstInvalid?.focus === 'function') {
+            firstInvalid.focus();
+          }
+          const message = form.querySelector('[data-drip-field-error]')?.textContent
+            || 'Please fill the required fields before saving.';
+          if (typeof window.showAppAlert === 'function') {
+            window.showAppAlert(message, 'Cannot save');
+          }
         }
       });
     });
