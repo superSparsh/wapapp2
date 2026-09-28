@@ -43,10 +43,15 @@ class DripStatisticsTest extends TestCase
             ->assertViewIs('automation.drip-statistics')
             ->assertViewHas('metrics', function ($metrics) {
                 return $metrics['total'] === 9
-                    && $metrics['sent'] === 5
-                    && $metrics['delivered'] === 3
-                    && $metrics['failed'] === 1;
-            });
+                    && $metrics['entered'] === 5
+                    && $metrics['completed'] === 3
+                    && $metrics['failed'] === 1
+                    && $metrics['sent'] === 5;
+            })
+            ->assertSee('Entered')
+            ->assertSee('Completed')
+            ->assertSee('Dropped')
+            ->assertSee('Errors');
     }
 
     public function test_statistics_overview_empty_campaign_shows_zeros(): void
@@ -59,7 +64,7 @@ class DripStatisticsTest extends TestCase
             ->assertViewHas('metrics', function ($metrics) {
                 return $metrics['total'] === 0
                     && $metrics['sent_pct'] === '0%'
-                    && $metrics['failed_pct'] === '0%';
+                    && $metrics['failed_pct'] === '0';
             });
     }
 

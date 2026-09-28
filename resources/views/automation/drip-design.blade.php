@@ -197,14 +197,14 @@
 
   <div
     data-drip-node-config-panel
-    class="fixed inset-y-0 right-0 z-[70] hidden w-full max-w-[380px] overflow-y-auto bg-elevated shadow-[-4px_0px_12px_rgba(0,0,0,0.1)]"
+    class="fixed inset-y-0 right-0 z-[70] hidden w-full max-w-[420px] overflow-y-auto border-l border-border bg-elevated shadow-[-4px_0px_12px_rgba(0,0,0,0.08)]"
     role="dialog"
     aria-modal="true"
     aria-labelledby="drip-config-title"
   >
-    <div class="flex items-center justify-between border-b border-divider p-4">
+    <div class="sticky top-0 z-10 flex items-center justify-between border-b border-divider bg-elevated p-4">
       <h3 id="drip-config-title" data-drip-config-title class="text-base font-semibold text-text-primary">Configure Node</h3>
-      <button type="button" data-drip-config-close class="text-2xl leading-none text-text-muted hover:text-text-body" aria-label="Close">&times;</button>
+      <button type="button" data-drip-config-close class="inline-flex size-8 items-center justify-center rounded-lg text-2xl leading-none text-text-muted transition-colors hover:bg-muted-surface hover:text-text-body" aria-label="Close">&times;</button>
     </div>
     <div data-drip-config-body class="p-4"></div>
   </div>

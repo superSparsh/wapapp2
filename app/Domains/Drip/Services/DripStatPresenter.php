@@ -13,9 +13,25 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 class DripStatPresenter
 {
     /**
-     * Gauge metrics: sent / delivered / read / failed with percentages.
+     * Overview metrics for drip campaign statistics (flow lifecycle, not WA delivery).
      *
-     * @return array{total: int, sent: int, delivered: int, read: int, failed: int, sent_pct: string, delivered_pct: string, read_pct: string, failed_pct: string}
+     * @return array{
+     *   total: int,
+     *   entered: int,
+     *   completed: int,
+     *   dropped: int,
+     *   failed: int,
+     *   entered_pct: string,
+     *   completed_pct: string,
+     *   dropped_pct: string,
+     *   failed_pct: string,
+     *   sent: int,
+     *   delivered: int,
+     *   read: int,
+     *   sent_pct: string,
+     *   delivered_pct: string,
+     *   read_pct: string
+     * }
      */
     public function gaugeMetrics(DripCampaign $campaign): array
     {
@@ -41,23 +57,25 @@ class DripStatPresenter
         $dropped = (int) ($stats->dropped ?? 0);
         $errors = (int) ($stats->errors ?? 0);
 
-        // Sent = entered (messages attempted)
-        // Delivered = completed (messages that reached the end)
-        // Read = completed (best proxy we have in WhatsApp context)
-        // Failed = errors
-        $pct = fn (int $val): string => $total > 0 ? number_format(($val / $total) * 100) . '%' : '0%';
+        $pct = fn (int $val): string => $total > 0 ? number_format(($val / $total) * 100, 0) : '0';
 
         return [
             'total' => $total,
+            'entered' => $entered,
+            'completed' => $completed,
+            'dropped' => $dropped,
+            'failed' => $errors,
+            'entered_pct' => $pct($entered),
+            'completed_pct' => $pct($completed),
+            'dropped_pct' => $pct($dropped),
+            'failed_pct' => $pct($errors),
+            // Backward-compatible aliases used by older tests/views.
             'sent' => $entered,
             'delivered' => $completed,
             'read' => $completed,
-            'failed' => $errors,
-            'dropped' => $dropped,
-            'sent_pct' => $pct($entered),
-            'delivered_pct' => $pct($completed),
-            'read_pct' => $pct($completed),
-            'failed_pct' => $pct($errors),
+            'sent_pct' => $pct($entered).'%',
+            'delivered_pct' => $pct($completed).'%',
+            'read_pct' => $pct($completed).'%',
         ];
     }
 
@@ -77,7 +95,7 @@ class DripStatPresenter
      */
     public function exportCsv(DripCampaign $campaign): StreamedResponse
     {
-        $filename = 'drip-stats-' . $campaign->id . '-' . now()->format('Y-m-d') . '.csv';
+        $filename = 'drip-stats-'.$campaign->id.'-'.now()->format('Y-m-d').'.csv';
 
         return response()->streamDownload(function () use ($campaign): void {
             $handle = fopen('php://output', 'w');

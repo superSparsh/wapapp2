@@ -20,9 +20,9 @@
     const reqAttr = required ? ' required' : '';
     const phAttr = placeholder ? ' placeholder="' + escapeHtml(placeholder) + '"' : '';
     return (
-      '<div class="mb-3 flex flex-col gap-1" data-cfg-field="' + id + '">' +
-        '<label for="' + id + '" class="text-xs font-semibold text-text-body">' + escapeHtml(label) + reqMark + '</label>' +
-        '<input type="' + type + '" id="' + id + '" value="' + escapeHtml(String(value ?? '')) + '"' + reqAttr + phAttr + ' class="w-full rounded-lg border border-divider bg-surface px-3 py-2 text-sm text-text-body focus:border-green-500 focus:outline-none">' +
+      '<div class="mb-4 flex flex-col gap-2" data-cfg-field="' + id + '">' +
+        '<label for="' + id + '" class="text-sm font-semibold leading-[1.4] text-text-primary">' + escapeHtml(label) + reqMark + '</label>' +
+        '<input type="' + type + '" id="' + id + '" value="' + escapeHtml(String(value ?? '')) + '"' + reqAttr + phAttr + ' class="w-full rounded-xl border border-solid border-border bg-elevated p-3.5 text-sm font-medium leading-[1.4] text-text-body placeholder:text-text-body/40 focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500">' +
         '<p class="hidden text-xs text-red-500" data-cfg-error></p>' +
       '</div>'
     );
@@ -37,9 +37,9 @@
     }).join('');
 
     return (
-      '<div class="mb-3 flex flex-col gap-1" data-cfg-field="' + id + '">' +
-        '<label for="' + id + '" class="text-xs font-semibold text-text-body">' + escapeHtml(label) + reqMark + '</label>' +
-        '<select id="' + id + '"' + reqAttr + ' class="w-full rounded-lg border border-divider bg-surface px-3 py-2 text-sm text-text-body focus:border-green-500 focus:outline-none">' + opts + '</select>' +
+      '<div class="mb-4 flex flex-col gap-2" data-cfg-field="' + id + '">' +
+        '<label for="' + id + '" class="text-sm font-semibold leading-[1.4] text-text-primary">' + escapeHtml(label) + reqMark + '</label>' +
+        '<select id="' + id + '"' + reqAttr + ' class="w-full appearance-none rounded-xl border border-solid border-border bg-elevated p-3.5 text-sm font-medium leading-[1.4] text-text-body focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500">' + opts + '</select>' +
         '<p class="hidden text-xs text-red-500" data-cfg-error></p>' +
       '</div>'
     );
@@ -50,12 +50,20 @@
     const reqAttr = required ? ' required' : '';
     const phAttr = placeholder ? ' placeholder="' + escapeHtml(placeholder) + '"' : '';
     return (
-      '<div class="mb-3 flex flex-col gap-1" data-cfg-field="' + id + '">' +
-        '<label for="' + id + '" class="text-xs font-semibold text-text-body">' + escapeHtml(label) + reqMark + '</label>' +
-        '<textarea id="' + id + '" rows="3"' + reqAttr + phAttr + ' class="w-full rounded-lg border border-divider bg-surface px-3 py-2 text-sm text-text-body focus:border-green-500 focus:outline-none">' + escapeHtml(String(value ?? '')) + '</textarea>' +
+      '<div class="mb-4 flex flex-col gap-2" data-cfg-field="' + id + '">' +
+        '<label for="' + id + '" class="text-sm font-semibold leading-[1.4] text-text-primary">' + escapeHtml(label) + reqMark + '</label>' +
+        '<textarea id="' + id + '" rows="3"' + reqAttr + phAttr + ' class="w-full rounded-xl border border-solid border-border bg-elevated p-3.5 text-sm font-medium leading-[1.4] text-text-body placeholder:text-text-body/40 focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500">' + escapeHtml(String(value ?? '')) + '</textarea>' +
         '<p class="hidden text-xs text-red-500" data-cfg-error></p>' +
       '</div>'
     );
+  }
+
+  function helpText(text) {
+    return '<p class="mb-4 text-sm font-medium leading-[1.4] text-text-muted">' + escapeHtml(text) + '</p>';
+  }
+
+  function sectionTitle(text) {
+    return '<p class="mb-3 text-sm font-semibold leading-[1.4] text-text-primary">' + escapeHtml(text) + '</p>';
   }
 
   function defaultData(label) {
@@ -251,13 +259,18 @@
         break;
 
       case 'templateMessage':
+        html += sectionTitle('Send a template');
+        html += helpText('Choose an approved WhatsApp template. Newest templates appear first.');
         if (context.templates && context.templates.length) {
-          html += selectField('Template', 'cfg-template-name', data.template_name || data.templateCode || '', context.templates, true);
+          html += selectField('Template', 'cfg-template-name', data.template_name || data.templateCode || '', [
+            { value: '', label: '-- Select template --' },
+          ].concat(context.templates), true);
         } else {
-          html += field('Template Name', 'cfg-template-name', data.template_name || data.templateCode || '', 'text', true);
+          html += field('Template Name', 'cfg-template-name', data.template_name || data.templateCode || '', 'text', true, 'template_code');
+          html += helpText('No approved templates loaded. Enter the template code manually, or approve templates first.');
         }
         html += textarea('Variables / Parameters (one per line)', 'cfg-variables', (data.variables || []).join('\n'), false, 'e.g. {{1}} or parameter values');
-        html += field('Keywords (comma-separated)', 'cfg-keywords', data.keywords || data.triggerKeyword || '', 'text', false);
+        html += field('Keywords (comma-separated)', 'cfg-keywords', data.keywords || data.triggerKeyword || '', 'text', false, 'optional reply keywords');
         break;
 
       case 'mediaMessage':
@@ -273,6 +286,8 @@
 
       case 'condition':
       case 'enhancedCondition': {
+        html += sectionTitle('Evaluate a condition');
+        html += helpText('Branch the flow based on WhatsApp delivery/read/reply status or a contact field.');
         const curType = data.condition_type || (data.condition_variable ? 'custom_variable' : 'whatsapp_read');
         html += selectField('Condition Criterion', 'cfg-condition-type', curType, [
           { value: 'whatsapp_read', label: 'WhatsApp Message Read' },
@@ -349,17 +364,20 @@
           }
         });
         html += selectField('If condition is No', 'cfg-no-target', data.no_target || 'end', noTargets, true);
-        html += '<p class="text-xs text-text-subtle">If the condition is Yes, the flow continues to the next step.</p>';
+        html += helpText('If the condition is Yes, the flow continues to the next step.');
         break;
       }
 
       case 'contactOperation': {
+        html += sectionTitle('Operation');
+        html += helpText('Update the contact record: tag, copy/move between lists, update a field, or unsubscribe.');
         const curOp = data.operation_type || 'tag';
         html += selectField('Operation Type', 'cfg-operation-type', curOp, [
           { value: 'tag', label: 'Tag Contact' },
           { value: 'copy', label: 'Copy Contact to Audience List' },
           { value: 'move', label: 'Move Contact to Audience List' },
           { value: 'update', label: 'Update Contact Field' },
+          { value: 'delete', label: 'Unsubscribe / Remove from list' },
         ], true);
 
         // Tag group
@@ -383,6 +401,10 @@
         html += field('Field Name', 'cfg-field-name', data.field_name || '', 'text', false, 'e.g. notes, status, budget');
         html += field('Field Value', 'cfg-field-value', data.field_value || '', 'text', false);
         html += '</div>';
+
+        html += '<div id="cfg-group-delete" class="' + (curOp === 'delete' ? '' : 'hidden') + '">';
+        html += helpText('Marks the contact as unsubscribed so they stop receiving this automation.');
+        html += '</div>';
         break;
       }
 
@@ -392,6 +414,8 @@
         break;
 
       case 'delay': {
+        html += sectionTitle('Wait');
+        html += helpText('Pause the automation before continuing to the next step.');
         const presets = [
           { value: '1 minute', label: '1 minute' },
           { value: '5 minutes', label: '5 minutes' },
@@ -499,9 +523,9 @@
     }
 
     html +=
-      '<div class="mt-4 flex gap-3">' +
-        '<button type="button" data-save-config class="rounded-lg bg-green-500 px-4 py-2 text-sm font-semibold text-white hover:opacity-90">Save</button>' +
-        '<button type="button" data-cancel-config class="rounded-lg border border-divider px-4 py-2 text-sm font-semibold text-text-body">Cancel</button>' +
+      '<div class="mt-6 flex items-center justify-end gap-3 border-t border-divider pt-4">' +
+        '<button type="button" data-cancel-config class="fd-btn inline-flex items-center justify-center rounded border border-solid border-green-500 bg-elevated px-4 py-3 text-sm font-semibold text-green-500 transition-colors hover:bg-surface">Cancel</button>' +
+        '<button type="button" data-save-config class="fd-btn inline-flex items-center justify-center rounded bg-green-500 px-4 py-3 text-sm font-semibold text-primary-2 transition-opacity hover:opacity-90">Save</button>' +
       '</div>';
 
     return html;
@@ -518,10 +542,12 @@
         const tagGroup = root.querySelector('#cfg-group-tag');
         const listGroup = root.querySelector('#cfg-group-target-list');
         const updateGroup = root.querySelector('#cfg-group-update');
+        const deleteGroup = root.querySelector('#cfg-group-delete');
 
         if (tagGroup) tagGroup.classList.toggle('hidden', val !== 'tag');
         if (listGroup) listGroup.classList.toggle('hidden', val !== 'copy' && val !== 'move');
         if (updateGroup) updateGroup.classList.toggle('hidden', val !== 'update');
+        if (deleteGroup) deleteGroup.classList.toggle('hidden', val !== 'delete');
       });
     }
 

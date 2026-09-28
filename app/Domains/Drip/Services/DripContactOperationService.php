@@ -18,6 +18,7 @@ class DripContactOperationService
             'move' => $this->move($contact, $options),
             'copy' => $this->copy($contact, $options),
             'update' => $this->update($contact, $options),
+            'delete' => $this->delete($contact),
             default => throw new InvalidArgumentException("Unsupported drip contact operation [{$operation}]."),
         };
     }
@@ -103,5 +104,13 @@ class DripContactOperationService
         $customFields = (array) ($contact->custom_fields ?? []);
         $customFields[$fieldName] = $fieldValue;
         $contact->forceFill(['custom_fields' => $customFields])->save();
+    }
+
+    /**
+     * Legacy “delete” operation: unsubscribe the contact so drip stops targeting them.
+     */
+    private function delete(Contact $contact): void
+    {
+        $contact->unsubscribe();
     }
 }

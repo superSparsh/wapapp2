@@ -48,7 +48,7 @@ class TemplateRegistryService
             ->whereNotNull('code')
             ->where('code', '!=', '')
             ->with('variables')
-            ->orderBy('name');
+            ->orderByDesc('id');
 
         $templates = (clone $query)
             ->when(

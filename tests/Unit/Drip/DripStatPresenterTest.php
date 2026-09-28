@@ -43,14 +43,16 @@ class DripStatPresenterTest extends TestCase
         $metrics = $this->presenter->gaugeMetrics($campaign);
 
         $this->assertSame(20, $metrics['total']);
-        $this->assertSame(10, $metrics['sent']);
-        $this->assertSame(7, $metrics['delivered']);
-        $this->assertSame(7, $metrics['read']);
-        $this->assertSame(1, $metrics['failed']);
+        $this->assertSame(10, $metrics['entered']);
+        $this->assertSame(7, $metrics['completed']);
         $this->assertSame(2, $metrics['dropped']);
+        $this->assertSame(1, $metrics['failed']);
+        $this->assertSame('50', $metrics['entered_pct']);
+        $this->assertSame('35', $metrics['completed_pct']);
+        $this->assertSame('5', $metrics['failed_pct']);
+        // Aliases
+        $this->assertSame(10, $metrics['sent']);
         $this->assertSame('50%', $metrics['sent_pct']);
-        $this->assertSame('35%', $metrics['delivered_pct']);
-        $this->assertSame('5%', $metrics['failed_pct']);
     }
 
     public function test_gauge_metrics_empty_campaign(): void
@@ -60,10 +62,11 @@ class DripStatPresenterTest extends TestCase
         $metrics = $this->presenter->gaugeMetrics($campaign);
 
         $this->assertSame(0, $metrics['total']);
+        $this->assertSame('0', $metrics['entered_pct']);
+        $this->assertSame('0', $metrics['completed_pct']);
+        $this->assertSame('0', $metrics['dropped_pct']);
+        $this->assertSame('0', $metrics['failed_pct']);
         $this->assertSame('0%', $metrics['sent_pct']);
-        $this->assertSame('0%', $metrics['delivered_pct']);
-        $this->assertSame('0%', $metrics['read_pct']);
-        $this->assertSame('0%', $metrics['failed_pct']);
     }
 
     public function test_detail_log_paginates(): void
