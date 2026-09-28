@@ -864,7 +864,7 @@ CORE RULES (industry-agnostic):
         if location_in_query and context_chunks:
             entity_names = [c.get("entity_name", "") for c in context_chunks if c.get("entity_name")]
             guardrail_instructions += f"""
-CRITICAL: The user asked about "{location_in_query}". You MUST list and describe EVERY entity from the context: {', '.join(entity_names)}. Do NOT mention only one—describe each of these that match. Do not add entities not in this list.
+CRITICAL: The user asked about "{location_in_query}". You MUST list and describe EVERY entity from the context: {', '.join(entity_names)}. Do NOT mention only one-describe each of these that match. Do not add entities not in this list.
 """
 
         # ALWAYS inject RAG context - otherwise LLM may hallucinate (e.g. wrong project for location query)
@@ -886,7 +886,7 @@ CRITICAL: The user asked about "{location_in_query}". You MUST list and describe
         has_persona_prompt = system_prompt and ("MUST start with" in system_prompt or "must start with" in system_prompt.lower())
 
         if has_persona_prompt:
-            persona_override = "\n\nIMPORTANT: Ignore any previous assistant messages that don't match your persona. Always respond using YOUR designated opening above — never repeat generic greetings from earlier in the conversation."
+            persona_override = "\n\nIMPORTANT: Ignore any previous assistant messages that don't match your persona. Always respond using YOUR designated opening above - never repeat generic greetings from earlier in the conversation."
             if persona_override not in system_prompt:
                 system_prompt = system_prompt + persona_override
 

@@ -7,7 +7,7 @@
 
   <section class="mx-4 mb-8 max-w-4xl rounded-[20px] border border-border bg-elevated p-5">
     @if (trim((string) $template) === '')
-      <p class="text-sm text-text-subtle">No custom template saved — the built-in invoice layout is used.</p>
+      <p class="text-sm text-text-subtle">No custom template saved - the built-in invoice layout is used.</p>
     @else
       <pre class="overflow-x-auto rounded-lg bg-surface p-3 text-xs">{{ $template }}</pre>
     @endif

@@ -179,7 +179,7 @@ class ChatbotBusinessHoursAndJumpTest extends TestCase
 
     public function test_business_hours_branches_when_source_handles_are_missing(): void
     {
-        // React Flow sometimes saves null/empty sourceHandle — both edges must still branch.
+        // React Flow sometimes saves null/empty sourceHandle - both edges must still branch.
         Carbon::setTestNow(Carbon::parse('2026-08-19 21:00:00', 'Asia/Kolkata'));
 
         ChatbotFlow::factory()->active()->create([
@@ -395,7 +395,7 @@ class ChatbotBusinessHoursAndJumpTest extends TestCase
                 ],
                 'edges' => [
                     ['source' => 'welcome_1', 'target' => 'jump_node', 'sourceHandle' => 'output_1'],
-                    // Note: No explicit edge from jump_node to target_menu_node — jump is programmatic
+                    // Note: No explicit edge from jump_node to target_menu_node - jump is programmatic
                 ],
             ],
         ]);

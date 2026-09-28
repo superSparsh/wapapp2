@@ -31,7 +31,7 @@ class TriggerVariableService
                 'list_name' => $data['list_name'] ?? null,
             ];
 
-            // Soft-deleted rows still occupy the unique variable_name index — restore/reuse.
+            // Soft-deleted rows still occupy the unique variable_name index - restore/reuse.
             $trashed = TriggerVariable::onlyTrashed()
                 ->where('variable_name', $data['variable_name'])
                 ->first();

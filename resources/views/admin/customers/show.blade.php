@@ -32,11 +32,11 @@
           'Timezone' => $tenant->timezone,
           'Plan' => $tenant->plan?->name,
           'Provisioned' => optional($tenant->provisioned_at)->toDayDateTimeString(),
-          'Valid until' => data_get($settings, 'valid_until', '—'),
+          'Valid until' => data_get($settings, 'valid_until', '-'),
         ] as $label => $value)
           <div>
             <dt class="text-xs font-medium uppercase tracking-wide text-text-subtle">{{ $label }}</dt>
-            <dd class="mt-1 text-sm font-semibold text-text-primary">{{ $value ?: '—' }}</dd>
+            <dd class="mt-1 text-sm font-semibold text-text-primary">{{ $value ?: '-' }}</dd>
           </div>
         @endforeach
         <div>
@@ -123,7 +123,7 @@
             @forelse ($access_rows as $row)
               <tr>
                 <td class="py-2">{{ $row->email }}</td>
-                <td class="py-2">{{ $row->phone ?: '—' }}</td>
+                <td class="py-2">{{ $row->phone ?: '-' }}</td>
                 <td class="py-2">{{ $row->account_type?->value }}</td>
                 <td class="py-2"><x-admin.status-badge :status="$row->is_active" /></td>
               </tr>

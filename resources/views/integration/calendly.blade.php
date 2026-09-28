@@ -464,10 +464,10 @@
                 <div class="min-w-0 flex-1">
                   <div class="mb-2 flex flex-wrap items-center gap-2">
                     <span class="rounded bg-gray-100 px-2 py-0.5 text-[10px] font-semibold capitalize text-gray-700">
-                      {{ $log->recipient_type ?? '—' }}
+                      {{ $log->recipient_type ?? '-' }}
                     </span>
                     <span @class(['rounded px-2 py-0.5 text-[10px] font-semibold capitalize', $typeClass])>
-                      {{ $log->event_type ?? '—' }}
+                      {{ $log->event_type ?? '-' }}
                     </span>
                     @if ($logStatus === 'sent')
                       <span class="rounded bg-green-100 px-2 py-0.5 text-[10px] font-semibold text-green-700">Sent</span>
@@ -496,7 +496,7 @@
                   @endif
                 </div>
                 <div class="shrink-0 text-right text-xs text-text-muted whitespace-nowrap">
-                  {{ $log->sent_at?->format('d M Y') ?? '—' }}
+                  {{ $log->sent_at?->format('d M Y') ?? '-' }}
                   <br>
                   {{ $log->sent_at?->format('h:i A') ?? '' }}
                 </div>

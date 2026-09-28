@@ -141,10 +141,10 @@
                         </span>
                       </td>
                       <td class="w-[160px] p-2 text-[13px] font-normal leading-[1.5] text-text-body">
-                        {{ $delivery->sent_at ? $delivery->sent_at->format('Y-m-d H:i:s') : '—' }}
+                        {{ $delivery->sent_at ? $delivery->sent_at->format('Y-m-d H:i:s') : '-' }}
                       </td>
                       <td class="p-2 text-center text-[13px] font-normal leading-[1.5] text-text-body">
-                        {{ $delivery->duration_ms !== null ? $delivery->duration_ms . 'ms' : '—' }}
+                        {{ $delivery->duration_ms !== null ? $delivery->duration_ms . 'ms' : '-' }}
                       </td>
                       <td class="p-2">
                         <div class="flex items-center justify-center gap-6">

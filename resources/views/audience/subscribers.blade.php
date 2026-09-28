@@ -117,7 +117,7 @@
                 <option value="pending" @selected(($optIn ?? '') === 'pending')>Delivery pending</option>
                 <option value="delivered" @selected(($optIn ?? '') === 'delivered')>Delivered</option>
                 <option value="failed" @selected(($optIn ?? '') === 'failed')>Failed</option>
-                <option value="sent_awaiting" @selected(($optIn ?? '') === 'sent_awaiting')>Sent — awaiting status</option>
+                <option value="sent_awaiting" @selected(($optIn ?? '') === 'sent_awaiting')>Sent - awaiting status</option>
               </x-ui.select>
             </div>
           </x-slot:filters>

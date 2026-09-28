@@ -75,7 +75,7 @@ class TriggerMatcherService
         }
 
         // Legacy parity: TriggerVariablesRepository used
-        // variable_name LIKE '%'.$message.'%' — short replies match longer trigger names.
+        // variable_name LIKE '%'.$message.'%' - short replies match longer trigger names.
         if (mb_strlen($messageLower) >= 2 && str_contains($keywordLower, $messageLower)) {
             return true;
         }

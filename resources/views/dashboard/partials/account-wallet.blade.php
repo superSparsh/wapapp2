@@ -55,7 +55,7 @@
           @if ($expiresAt)
             Expires on {{ $expiresAt->format('F d, Y') }}
           @elseif ($hasPlan || $hasSubscription)
-            Expiry date not set — ask admin to extend validity
+            Expiry date not set - ask admin to extend validity
           @else
             No subscription expiry on file
           @endif

@@ -27,9 +27,9 @@
             <tr class="bg-elevated">
               <td class="fd-table-cell w-[54px] p-2 align-middle">{{ str_pad((string) ($index + 1), 2, '0', STR_PAD_LEFT) }}</td>
               <td class="w-[160px] whitespace-nowrap p-2 align-middle text-[13px] font-semibold leading-[1.5] text-text-subtle">
-                {{ $catalog['id'] ?: '—' }}
+                {{ $catalog['id'] ?: '-' }}
               </td>
-              <td class="fd-table-cell w-[180px] p-2 align-middle">{{ $catalog['business_id'] ?: '—' }}</td>
+              <td class="fd-table-cell w-[180px] p-2 align-middle">{{ $catalog['business_id'] ?: '-' }}</td>
               <td class="fd-table-cell p-2 align-middle">
                 <div class="flex items-center gap-2">
                   @if (! empty($catalog['image_url']))
@@ -38,7 +38,7 @@
                   <span>{{ $catalog['name'] }}</span>
                 </div>
               </td>
-              <td class="fd-table-cell p-2 align-middle">{{ $catalog['vertical'] ?: '—' }}</td>
+              <td class="fd-table-cell p-2 align-middle">{{ $catalog['vertical'] ?: '-' }}</td>
               <td class="fd-table-cell p-2 align-middle">{{ number_format((int) $catalog['product_count']) }}</td>
               <td class="p-2 align-middle">
                 <x-commerce.status-badge label="Connected" variant="green" />

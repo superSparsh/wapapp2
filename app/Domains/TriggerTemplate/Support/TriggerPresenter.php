@@ -51,7 +51,7 @@ class TriggerPresenter
             'variable_name' => $trigger->variable_name,
             'template_name' => $trigger->template_name,
             'template_code' => $trigger->template_code,
-            'list_name' => $trigger->list_name ?? '—',
+            'list_name' => $trigger->list_name ?? '-',
             'delete_url' => route('trigger-template.destroy', $trigger),
         ];
     }

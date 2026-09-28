@@ -362,7 +362,7 @@ class GoogleCalendarIntegrationTest extends TestCase
 
         // The sync should not call listEvents for a disabled integration
         // We test this by checking the API mock was never called
-        $this->assertTrue(true); // guard — if sync ran, the mock would throw
+        $this->assertTrue(true); // guard - if sync ran, the mock would throw
     }
 
     public function test_sync_job_uses_incremental_token(): void

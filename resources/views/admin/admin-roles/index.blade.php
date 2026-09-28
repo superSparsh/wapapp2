@@ -25,7 +25,7 @@
             <div class="fd-table-name">{{ $role->name }}</div>
             <div class="text-xs text-text-subtle">{{ $role->slug }}</div>
           </td>
-          <td class="fd-table-cell p-2 align-middle text-xs text-text-subtle">{{ implode(', ', $role->permissions ?? []) ?: '—' }}</td>
+          <td class="fd-table-cell p-2 align-middle text-xs text-text-subtle">{{ implode(', ', $role->permissions ?? []) ?: '-' }}</td>
           <td class="fd-table-cell p-2 align-middle text-sm">{{ $role->admins_count }}</td>
           <td class="fd-table-cell p-2 align-middle"><x-admin.status-badge :status="$role->is_active" /></td>
           <td class="w-[120px] p-2 align-middle">

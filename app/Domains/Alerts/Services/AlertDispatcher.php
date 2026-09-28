@@ -71,7 +71,7 @@ class AlertDispatcher
 
         $this->platform->notifyAdmins(
             OperationalAlertType::PlanExpiration,
-            "Plan expiring in {$daysLeft} day(s) — ".($company ?? 'tenant'),
+            "Plan expiring in {$daysLeft} day(s) - ".($company ?? 'tenant'),
             'emails.plan-expiration-admin',
             $emailData,
         );
@@ -129,7 +129,7 @@ class AlertDispatcher
 
         $this->alerts->notifyTenantContacts(
             type: OperationalAlertType::LowWallet,
-            emailSubject: 'Low wallet balance — please recharge',
+            emailSubject: 'Low wallet balance - please recharge',
             emailView: 'emails.alerts.low-wallet',
             emailData: [
                 'balance' => $balance,
@@ -335,7 +335,7 @@ class AlertDispatcher
 
         $this->platform->notifyAdmins(
             OperationalAlertType::AccountExpirationReport,
-            'Monthly account expiration report — '.now()->format('F Y'),
+            'Monthly account expiration report - '.now()->format('F Y'),
             'emails.alerts.account-expiration-report',
             ['rows' => $rows, 'generated_at' => now()->format('d M Y h:i A')],
             $emails !== [] ? $emails : null,

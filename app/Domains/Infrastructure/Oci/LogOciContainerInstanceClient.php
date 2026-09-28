@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 /**
- * Dry-run / test driver — no OCI API calls.
+ * Dry-run / test driver - no OCI API calls.
  */
 final class LogOciContainerInstanceClient implements OciContainerInstanceClient
 {

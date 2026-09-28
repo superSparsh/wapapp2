@@ -191,7 +191,7 @@ class WebhookSubscriptionTest extends TestCase
             ->delete(route('webhooks.destroy', $sub))
             ->assertRedirect(route('webhooks.index'));
 
-        // Soft delete — force delete check
+        // Soft delete - force delete check
         $this->assertSoftDeleted('webhook_subscriptions', ['id' => $sub->id]);
     }
 

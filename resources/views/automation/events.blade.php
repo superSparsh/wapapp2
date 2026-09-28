@@ -71,7 +71,7 @@
                 <td class="fd-table-cell p-2 align-middle">{{ $event->name }}</td>
                 <td class="fd-table-cell p-2 align-middle">{{ $event->event_type }}</td>
                 <td class="fd-table-cell p-2 align-middle">{{ $event->status }}</td>
-                <td class="fd-table-cell p-2 align-middle">{{ $event->scheduled_at?->format('Y-m-d H:i') ?? '—' }}</td>
+                <td class="fd-table-cell p-2 align-middle">{{ $event->scheduled_at?->format('Y-m-d H:i') ?? '-' }}</td>
                 <td class="fd-table-cell p-2 align-middle">
                   <form method="post" action="{{ route('automation.events.destroy', $event) }}" onsubmit="return confirm('Delete this event?')">
                     @csrf

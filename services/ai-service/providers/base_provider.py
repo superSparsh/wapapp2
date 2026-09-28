@@ -46,7 +46,7 @@ class BaseAIProvider(ABC):
 
     def get_model_pricing(self, model_id: str) -> Dict[str, float]:
         """Returns {'input_per_1m': float, 'output_per_1m': float, 'embedding_per_1m': float}
-        Returns zeros if unknown — caller should store NULL cost, not zero."""
+        Returns zeros if unknown - caller should store NULL cost, not zero."""
         return {"input_per_1m": 0.0, "output_per_1m": 0.0, "embedding_per_1m": 0.0}
 
     def calculate_cost(

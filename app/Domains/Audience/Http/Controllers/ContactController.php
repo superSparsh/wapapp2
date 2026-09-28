@@ -25,7 +25,7 @@ class ContactController extends Controller
     ) {}
 
     /**
-     * Subscribers listing — always scoped to a specific mail list.
+     * Subscribers listing - always scoped to a specific mail list.
      * There is no global "All Subscribers" list view.
      */
     public function index(Request $request): View|RedirectResponse

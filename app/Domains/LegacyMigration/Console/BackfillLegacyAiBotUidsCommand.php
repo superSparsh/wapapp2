@@ -65,7 +65,7 @@ class BackfillLegacyAiBotUidsCommand extends Command
 
             $tenant = Tenant::query()->find($tenantId);
             if ($tenant === null) {
-                $this->warn("Tenant [{$tenantId}] missing — skip.");
+                $this->warn("Tenant [{$tenantId}] missing - skip.");
 
                 continue;
             }
@@ -89,7 +89,7 @@ class BackfillLegacyAiBotUidsCommand extends Command
                 foreach ($legacyBots as $legacyBot) {
                     $legacyUid = filled($legacyBot->uid ?? null) ? (string) $legacyBot->uid : null;
                     if ($legacyUid === null) {
-                        $this->warn("{$tenantId}: legacy bot #{$legacyBot->id} has empty uid — skip.");
+                        $this->warn("{$tenantId}: legacy bot #{$legacyBot->id} has empty uid - skip.");
                         $skipped++;
 
                         continue;

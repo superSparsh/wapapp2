@@ -138,7 +138,7 @@ class ProcessInboundWebhookJobTest extends TestCase
         try {
             $this->app->call([$job, 'handle']);
         } catch (\Throwable) {
-            // Expected — handler throws RuntimeException
+            // Expected - handler throws RuntimeException
         }
 
         $event->refresh();
@@ -162,7 +162,7 @@ class ProcessInboundWebhookJobTest extends TestCase
     {
         $job = new ProcessInboundWebhookJob(999999);
 
-        // Should not throw — just return silently
+        // Should not throw - just return silently
         $this->app->call([$job, 'handle']);
 
         $this->assertTrue(true); // Reached here without exception

@@ -35,7 +35,7 @@
     {{ $templateName !== '' ? $templateName : 'Select a template' }}
   </p>
   <p class="mt-2.5 text-sm leading-[1.4] text-text-muted">
-    Template Type: <span data-cost-template-type>{{ $templateType !== '' ? $templateType : '—' }}</span><br>
+    Template Type: <span data-cost-template-type>{{ $templateType !== '' ? $templateType : '-' }}</span><br>
     Template-Specific Cost: <span data-cost-template-total>{{ $formatMoney($totalCost) }}</span>
   </p>
   <p class="mt-2.5 text-sm leading-[1.4] text-text-muted">

@@ -30,7 +30,7 @@
         <h1 class="fd-page-title">{{ $isFreeTab ? 'Free Template Messages' : 'Templates' }}</h1>
         @if ($isFreeTab)
           <p class="fd-page-note max-w-[854px]">
-            <strong>What is a Free Template Message?</strong> Interactive messages with buttons that let customers reply with one tap. Use in chatbots or inbox — not for marketing campaigns.
+            <strong>What is a Free Template Message?</strong> Interactive messages with buttons that let customers reply with one tap. Use in chatbots or inbox - not for marketing campaigns.
           </p>
         @else
           <p class="fd-page-note max-w-[854px]">

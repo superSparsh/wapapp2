@@ -9,7 +9,7 @@ return [
     |
     | Legacy parity: original Marketing template `opt_in_message` (Yes/No/STOP)
     | is the only one used for sends. V3 (`opt_in_message_v3`) stays unused
-    | unless explicitly enabled — legacy hard-disabled that rollout.
+    | unless explicitly enabled - legacy hard-disabled that rollout.
     |
     */
 

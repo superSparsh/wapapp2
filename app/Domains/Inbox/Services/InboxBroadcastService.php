@@ -234,7 +234,7 @@ class InboxBroadcastService
     {
         $message = $e->getMessage();
 
-        // Pusher/Reverb often embeds a full HTML 404 page — keep logs readable.
+        // Pusher/Reverb often embeds a full HTML 404 page - keep logs readable.
         if (str_contains($message, '<!DOCTYPE html>') || str_contains($message, '<html')) {
             return 'Pusher/Reverb endpoint returned HTML (usually wrong REVERB_HOST/PORT or reverb not running).';
         }

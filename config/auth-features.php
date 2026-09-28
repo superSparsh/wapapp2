@@ -39,7 +39,7 @@ return [
         [
             'label' => 'Live Notifications',
             'title' => 'Get Instant Alerts for Every Message',
-            'description' => 'Never miss a lead — get real-time alerts when customers message or reply to campaigns.',
+            'description' => 'Never miss a lead - get real-time alerts when customers message or reply to campaigns.',
             'image' => 'images/auth/features/feature-instant-notifications.png',
         ],
         [

@@ -70,7 +70,7 @@ final class TemplateLanguageCatalog
     public static function label(?string $code): string
     {
         if ($code === null || $code === '') {
-            return '—';
+            return '-';
         }
 
         return self::options()[$code] ?? str_replace('_', ' ', $code);

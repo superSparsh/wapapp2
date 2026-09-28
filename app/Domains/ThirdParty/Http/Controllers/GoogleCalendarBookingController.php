@@ -16,7 +16,7 @@ use Illuminate\Routing\Controller;
 use Illuminate\View\View;
 
 /**
- * Public booking controller — no authentication required.
+ * Public booking controller - no authentication required.
  * Allows external visitors to book a Google Meet via a shared booking link.
  */
 class GoogleCalendarBookingController extends Controller

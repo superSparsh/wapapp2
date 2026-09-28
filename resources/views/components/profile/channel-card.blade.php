@@ -2,7 +2,7 @@
     'phone' => '+91 00000 00000',
     'displayName' => null,
     'quality' => 'GREEN',
-    'limit' => '—',
+    'limit' => '-',
     'connected' => true,
     'isDefault' => false,
     'href' => null,
@@ -43,11 +43,11 @@
       <div class="flex gap-8">
         <div>
           <p class="text-xs font-medium leading-[18px] text-white/80">Quality</p>
-          <p class="text-sm font-semibold leading-5">{{ strtoupper((string) ($quality ?: '—')) }}</p>
+          <p class="text-sm font-semibold leading-5">{{ strtoupper((string) ($quality ?: '-')) }}</p>
         </div>
         <div>
           <p class="text-xs font-medium leading-[18px] text-white/80">Limit</p>
-          <p class="text-sm font-semibold leading-5">{{ $limit ?: '—' }}</p>
+          <p class="text-sm font-semibold leading-5">{{ $limit ?: '-' }}</p>
         </div>
       </div>
 

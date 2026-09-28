@@ -70,7 +70,7 @@ Route::get('/tutorial-video/{filename}', [TutorialController::class, 'stream'])
 
 // Profile routes moved to routes/account.php
 
-// Public Line Login (no auth — anyone with the link can log in as a specific number)
+// Public Line Login (no auth - anyone with the link can log in as a specific number)
 Route::middleware('tenancy.session')->group(function () {
     Route::get('/line-login', [LineLoginController::class, 'showForm'])->name('line.login');
     Route::post('/line-login', [LineLoginController::class, 'login'])->name('line.login.submit');
@@ -87,13 +87,13 @@ Route::middleware('tenancy.session')->group(function () {
     });
 });
 
-// Public commerce payment callback (Razorpay — no auth; tenant from query)
+// Public commerce payment callback (Razorpay - no auth; tenant from query)
 Route::middleware('web')->group(function () {
     Route::get('/commerce/payments/callback', [CommerceController::class, 'paymentCallback'])
         ->name('commerce.payment.callback');
 });
 
-// Public customer readiness form (no auth, no tenancy — stored centrally).
+// Public customer readiness form (no auth, no tenancy - stored centrally).
 // Blade files and route names match legacy so the imported pages work unchanged.
 Route::middleware('web')->group(function () {
     Route::get('/customer-readiness', [CustomerReadinessController::class, 'create'])
@@ -108,11 +108,11 @@ Route::middleware('web')->group(function () {
         ->name('customer.readiness.result');
 });
 
-// JSON API (same payload as web form — for SPA / imported frontends)
+// JSON API (same payload as web form - for SPA / imported frontends)
 Route::middleware('web')->post('/api/customer-readiness', [CustomerReadinessController::class, 'storeApi'])
     ->name('api.customer-readiness.store');
 
-// Public form routes (Form Builder — no auth — tenant resolved from path)
+// Public form routes (Form Builder - no auth - tenant resolved from path)
 Route::middleware([InitializeTenancyByPath::class])
     ->prefix('form/{tenant}')
     ->name('public.form.')
@@ -125,13 +125,13 @@ Route::middleware([InitializeTenancyByPath::class])
         Route::get('/{slug}/embed.js', [PublicFormController::class, 'embedJs'])->name('embed');
     });
 
-// Public WhatsApp Flow JSON for CAMS FilePath (no auth — tenant from path)
+// Public WhatsApp Flow JSON for CAMS FilePath (no auth - tenant from path)
 Route::middleware([InitializeTenancyByPath::class])
     ->get('/whatsapp-flow-assets/{tenant}/{uuid}.json', [\App\Domains\WhatsappFlow\Http\Controllers\WhatsappFlowPublicAssetController::class, 'show'])
     ->where('uuid', '[0-9a-fA-F\-]{36}')
     ->name('whatsapp-flows.public-asset');
 
-// Audience Embedded Form (list fields) — separate from Form Builder
+// Audience Embedded Form (list fields) - separate from Form Builder
 Route::middleware([InitializeTenancyByPath::class])
     ->prefix('lists/{tenant}/{list}')
     ->name('public.list.')
@@ -285,7 +285,7 @@ Route::middleware(['tenancy.session', 'auth:web,team', '2fa', 'team.redirect-das
             Route::post('/settings', [OpenAiKeyController::class, 'saveSettings'])->name('settings.save');
             Route::delete('/usage', [OpenAiKeyController::class, 'clearUsage'])->name('usage.clear');
 
-            // Knowledge Base — proxy to Python/Chroma (legacy parity). No MySQL KB store.
+            // Knowledge Base - proxy to Python/Chroma (legacy parity). No MySQL KB store.
             Route::get('/knowledge_base', [KnowledgeBaseController::class, 'index'])->name('knowledge-base');
             Route::get('/knowledge_base_download', [KnowledgeBaseController::class, 'download'])->name('knowledge-base.download');
             Route::get('/client_storage_info', [KnowledgeBaseController::class, 'storageInfo'])->name('knowledge-base.storage');

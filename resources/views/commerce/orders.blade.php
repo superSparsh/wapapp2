@@ -78,8 +78,8 @@
               data-order-uuid="{{ $order->uuid }}"
             >
               <td class="fd-table-cell w-[54px] p-2 align-middle">{{ str_pad($orders->firstItem() + $index, 2, '0', STR_PAD_LEFT) }}</td>
-              <td class="fd-table-cell p-2 align-middle">{{ $order->customer_name ?? '—' }}</td>
-              <td class="fd-table-cell p-2 align-middle">{{ $order->customer_phone ?? '—' }}</td>
+              <td class="fd-table-cell p-2 align-middle">{{ $order->customer_name ?? '-' }}</td>
+              <td class="fd-table-cell p-2 align-middle">{{ $order->customer_phone ?? '-' }}</td>
               <td class="fd-table-cell p-2 align-middle">{{ count($order->product_items ?? []) }} item(s)</td>
               <td class="p-2 align-middle text-sm font-semibold text-green-700">
                 {{ $order->currency }} {{ number_format((float) $order->total_price, 2) }}
@@ -102,7 +102,7 @@
                     Copy Link
                   </a>
                 @else
-                  <span class="text-xs text-text-subtle">—</span>
+                  <span class="text-xs text-text-subtle">-</span>
                 @endif
               </td>
               <td class="fd-table-cell p-2 align-middle">{{ $order->created_at?->format('d/m/Y, g:i a') }}</td>

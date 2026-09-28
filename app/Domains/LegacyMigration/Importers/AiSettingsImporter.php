@@ -324,7 +324,7 @@ final class AiSettingsImporter implements LegacyImporter
                 return $inner !== '' ? $inner : null;
             }
 
-            // Nested structures — keep a readable dump rather than drop.
+            // Nested structures - keep a readable dump rather than drop.
             if ($decoded !== []) {
                 return json_encode($decoded, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) ?: $raw;
             }

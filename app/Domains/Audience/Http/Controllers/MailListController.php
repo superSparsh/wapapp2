@@ -23,7 +23,7 @@ class MailListController extends Controller
     ) {}
 
     /**
-     * My Lists — index page.
+     * My Lists - index page.
      */
     public function index(Request $request): View
     {

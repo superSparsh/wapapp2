@@ -68,7 +68,7 @@
               @forelse ($members as $member)
                 <tr class="border-t border-divider bg-elevated" data-team-row="{{ $member['uuid'] }}">
                   <td class="p-2 text-[13px] font-semibold leading-[1.5] text-text-subtle">{{ $member['name'] }}</td>
-                  <td class="p-2 text-[13px] font-normal leading-[1.5] text-text-body">{{ $member['phone'] ?: '—' }}</td>
+                  <td class="p-2 text-[13px] font-normal leading-[1.5] text-text-body">{{ $member['phone'] ?: '-' }}</td>
                   <td class="w-[180px] p-2 text-[13px] font-normal leading-[1.5] text-text-body">{{ $member['email'] }}</td>
                   <td class="w-[106px] p-2 text-center text-[13px] font-normal leading-[1.5] text-text-body">{{ $member['assigned_conversations'] }}</td>
                   <td class="p-2">

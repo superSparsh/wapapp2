@@ -11,7 +11,7 @@
     <div class="flex flex-col gap-4 p-4">
       <div class="flex items-center gap-2"><a href="{{ route('ai-bots.show', $bot) }}" class="text-text-subtle hover:text-text-body">&larr; Back to {{ $bot->name }}</a></div>
       <div class="flex flex-col gap-1">
-        <h1 class="text-2xl font-bold leading-[1.5] text-text-primary">{{ $bot->name }} — Usage</h1>
+        <h1 class="text-2xl font-bold leading-[1.5] text-text-primary">{{ $bot->name }} - Usage</h1>
         <p class="max-w-[854px] text-sm font-normal leading-[1.4] text-text-subtle opacity-50">
           Token consumption and cost tracking for this AI bot.
         </p>

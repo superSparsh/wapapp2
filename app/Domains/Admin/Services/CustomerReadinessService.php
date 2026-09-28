@@ -414,7 +414,7 @@ class CustomerReadinessService
                 $msg .= ' (HTTP '.$websiteCheck['status'].')';
             }
             if (! empty($websiteCheck['error'])) {
-                $msg .= ' — '.$websiteCheck['error'];
+                $msg .= ' - '.$websiteCheck['error'];
             }
             $msg .= '. URL checked: '.($websiteCheck['url'] ?? '');
             $reasons[] = $msg;

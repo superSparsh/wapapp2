@@ -49,7 +49,7 @@ class AdminLoginController extends Controller
 
         $request->session()->regenerate();
 
-        // Admin shares the customer session cookie — drop any prior web/team login
+        // Admin shares the customer session cookie - drop any prior web/team login
         // so AuthenticateSession never flushes the session on the next admin action.
         Auth::guard('web')->logout();
         Auth::guard('team')->logout();

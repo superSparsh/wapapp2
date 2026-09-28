@@ -194,7 +194,7 @@ class ChatbotFlowService
     }
 
     /**
-     * Saving a flow with trigger keywords should make it live — users expect
+     * Saving a flow with trigger keywords should make it live - users expect
      * "Save Flow" to start responding to WhatsApp triggers (not stay Draft).
      */
     private function activateAfterSaveIfNeeded(ChatbotFlow $flow): ChatbotFlow

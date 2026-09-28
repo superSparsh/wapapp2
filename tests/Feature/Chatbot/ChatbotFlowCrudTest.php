@@ -52,7 +52,7 @@ class ChatbotFlowCrudTest extends TestCase
 
         $flow = ChatbotFlow::query()->where('name', 'Test Bot')->first();
         $this->assertNotNull($flow);
-        // Account-wide like legacy — not hard-bound to a line on create.
+        // Account-wide like legacy - not hard-bound to a line on create.
         $this->assertNull($flow->whatsapp_line_id);
     }
 

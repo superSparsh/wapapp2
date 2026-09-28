@@ -43,7 +43,7 @@ class TemplateMediaService
     }
 
     /**
-     * In-app preview URL (auth-gated Laravel route — no symlink required).
+     * In-app preview URL (auth-gated Laravel route - no symlink required).
      */
     public function previewUrl(string $path): string
     {

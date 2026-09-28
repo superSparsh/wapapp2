@@ -139,16 +139,16 @@
                   $msgId = $meta['external_message_id'] ?? $meta['legacy_msg_id'] ?? $meta['message_id'] ?? null;
                   $detailPayload = [
                     'description' => $description,
-                    'type' => $type?->label() ?? '—',
+                    'type' => $type?->label() ?? '-',
                     'amount' => ($type?->signPrefix() ?? '').'₹ '.number_format((float) $transaction->amount, 2),
                     'balance_after' => '₹ '.number_format($balanceAfter, 2),
-                    'date' => $transaction->created_at?->format('d M Y h:i A') ?? '—',
-                    'legacy_msg_id' => filled($msgId) ? (string) $msgId : '—',
-                    'legacy_category' => filled($category) ? (string) $category : '—',
-                    'legacy_campaign_id' => filled($campaignId) ? (string) $campaignId : '—',
+                    'date' => $transaction->created_at?->format('d M Y h:i A') ?? '-',
+                    'legacy_msg_id' => filled($msgId) ? (string) $msgId : '-',
+                    'legacy_category' => filled($category) ? (string) $category : '-',
+                    'legacy_campaign_id' => filled($campaignId) ? (string) $campaignId : '-',
                     'legacy_sender_name' => filled($meta['legacy_sender_name'] ?? $meta['campaign_name'] ?? null)
                       ? (string) ($meta['legacy_sender_name'] ?? $meta['campaign_name'])
-                      : '—',
+                      : '-',
                   ];
                 @endphp
                 <tr
@@ -167,7 +167,7 @@
                       'inline-flex rounded-full px-2 py-0.5 text-xs font-semibold',
                       'bg-green-50 text-green-600' => $isCredit,
                       'bg-red-50 text-red-600' => ! $isCredit,
-                    ])>{{ $type?->label() ?? '—' }}</span>
+                    ])>{{ $type?->label() ?? '-' }}</span>
                   </td>
                   <td class="fd-table-cell p-2">{{ $transaction->created_at?->format('d M Y h:i A') }}</td>
                   <td @class([
@@ -226,7 +226,7 @@
 
       const fill = (selector, value) => {
         const el = modal.querySelector(selector);
-        if (el) el.textContent = value || '—';
+        if (el) el.textContent = value || '-';
       };
 
       const open = (data) => {

@@ -18,7 +18,7 @@ class WhatsAppHealthDigestCommand extends Command
         $sent = $digest->sendDailyDigest((bool) $this->option('force'));
 
         if ($sent === 0) {
-            $this->info('Digest already sent today — skipped.');
+            $this->info('Digest already sent today - skipped.');
 
             return self::SUCCESS;
         }

@@ -49,7 +49,7 @@ class TemplateCatalogPresenter
                     'serial' => str_pad((string) ($offset + $index + 1), 2, '0', STR_PAD_LEFT),
                     'name' => $template->name,
                     'code' => (string) ($template->code ?? ''),
-                    'created_at' => $template->created_at?->format('Y-m-d h:i A') ?? '—',
+                    'created_at' => $template->created_at?->format('Y-m-d h:i A') ?? '-',
                     'type' => $isRegular ? 'Regular' : 'Draft',
                     'type_variant' => $isRegular ? 'fd-type' : 'fd-draft',
                     'category' => TemplateCategoryCatalog::listLabel(

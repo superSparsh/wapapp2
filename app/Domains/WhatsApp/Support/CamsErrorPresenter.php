@@ -104,7 +104,7 @@ final class CamsErrorPresenter
             ];
         }
 
-        // Meta / webhook audit reasons are plain English — show them as-is (legacy last_status).
+        // Meta / webhook audit reasons are plain English - show them as-is (legacy last_status).
         if ($code === '' && self::looksLikeMetaAuditReason($display)) {
             return [
                 'title' => self::titleForMetaReason($display),

@@ -6,7 +6,7 @@
         ['id' => 'share-many-products', 'title' => 'Share Many Products', 'desc' => 'Show multiple products together so your customer can browse.', 'image' => 'share-many-products.png'],
         ['id' => 'share-store', 'title' => 'Share Your Store', 'desc' => 'Send your full catalog so the customer can explore everything.', 'image' => 'share-store.png'],
         ['id' => 'website-button', 'title' => 'Website Button', 'desc' => 'Add a button that opens your website or any link.', 'image' => 'website-button.png'],
-        ['id' => 'send-whatsapp-flow', 'title' => 'Ask a Few Questions', 'desc' => 'Send a tiny form—great for getting quick info.', 'image' => 'ask-questions.png'],
+        ['id' => 'send-whatsapp-flow', 'title' => 'Ask a Few Questions', 'desc' => 'Send a tiny form-great for getting quick info.', 'image' => 'ask-questions.png'],
         ['id' => 'ask-for-location', 'title' => 'Ask for Location', 'desc' => 'Customer can share their live location with one tap.', 'image' => 'ask-location.png'],
         ['id' => 'ask-for-address', 'title' => 'Ask for Address', 'desc' => 'Let the customer send their full address easily.', 'image' => 'ask-address.png'],
     ];

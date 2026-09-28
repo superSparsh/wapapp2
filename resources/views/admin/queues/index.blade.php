@@ -4,7 +4,7 @@
       <h1 class="text-2xl font-bold text-text-primary">Queues</h1>
       <p class="text-sm text-text-subtle opacity-70">
         Connection <span class="font-semibold">{{ $connection }}</span>
-        ({{ $driver }}) — pending {{ $pending_count }}, failed {{ $failed_count }}
+        ({{ $driver }}) - pending {{ $pending_count }}, failed {{ $failed_count }}
         @if ($module)
           for <span class="font-semibold">{{ $modules[$module] ?? $module }}</span>
         @endif.

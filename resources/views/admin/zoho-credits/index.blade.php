@@ -40,7 +40,7 @@
         <tr class="bg-elevated">
           <td class="fd-table-cell p-2 align-middle">
             <div class="fd-table-name">{{ $row->tenant?->company_name ?: ($row->tenant?->name ?: $row->tenant_id) }}</div>
-            <div class="text-xs text-text-subtle">{{ $row->invoice_number ?: $row->external_id ?: '—' }}</div>
+            <div class="text-xs text-text-subtle">{{ $row->invoice_number ?: $row->external_id ?: '-' }}</div>
           </td>
           <td class="fd-table-cell p-2 align-middle text-sm">{{ ucfirst($row->source) }}</td>
           <td class="fd-table-cell p-2 align-middle text-sm font-semibold">{{ $row->currency }} {{ $row->amount }}</td>

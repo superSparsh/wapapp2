@@ -106,7 +106,7 @@
           @endif
           <div class="flex items-center justify-between border-b border-divider py-3">
             <span class="fd-table-cell">List</span>
-            <span class="fd-table-cell text-text-body/70">{{ $contact->mailList?->name ?? '—' }}</span>
+            <span class="fd-table-cell text-text-body/70">{{ $contact->mailList?->name ?? '-' }}</span>
           </div>
           <div class="flex items-center justify-between border-b border-divider py-3">
             <span class="fd-table-cell">Last updated</span>

@@ -62,7 +62,7 @@
               <div class="rounded-lg border border-divider bg-surface px-4 py-3 text-sm font-medium text-text-body">
                 {{ $whatsappLines->first()->displayLabel() }}
               </div>
-              <p class="text-xs text-text-muted">Only one WhatsApp number is connected — this chatbot will use it automatically.</p>
+              <p class="text-xs text-text-muted">Only one WhatsApp number is connected - this chatbot will use it automatically.</p>
             @else
               <p class="text-xs text-text-muted">No WhatsApp number connected yet. Add a number first, then create the chatbot.</p>
             @endif

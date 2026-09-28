@@ -1,4 +1,4 @@
-# WapApp 2.0 — Database Migration Plan (Legacy → New)
+# WapApp 2.0 - Database Migration Plan (Legacy → New)
 
 **Source:** `wapdev.tittu.in` (525 migration files, 173 tables)  
 **Target:** Master DB + Tenant DB architecture  
@@ -41,7 +41,7 @@
 
 ---
 
-## EXCLUDE — Do Not Migrate (37 tables)
+## EXCLUDE - Do Not Migrate (37 tables)
 
 Legacy Acelle email infrastructure. WhatsApp project mein zaroorat nahi.
 
@@ -68,20 +68,20 @@ Legacy Acelle email infrastructure. WhatsApp project mein zaroorat nahi.
 
 ---
 
-## MASTER DB — Platform Tables (47 tables)
+## MASTER DB - Platform Tables (47 tables)
 
 ### Tenant Registry & Auth
 | Legacy Table | New Table | Notes |
 |-------------|-----------|-------|
-| `customers` | `tenants` | Tenant root — name, status, timezone, plan ref |
+| `customers` | `tenants` | Tenant root - name, status, timezone, plan ref |
 | `users` | `users` | Login accounts linked to tenant |
 | `admins` | `admins` | Super admin users |
 | `admin_groups` | `admin_groups` | Admin RBAC |
 | `password_resets` | `password_reset_tokens` | Laravel default |
-| `user_activations` | — | Merge into users / email verification |
+| `user_activations` | - | Merge into users / email verification |
 | `sessions` | `sessions` | Laravel default |
 | `fcm_tokens` | `fcm_tokens` | Push notifications |
-| `domains` | `domains` | **New** — stancl/tenancy subdomain mapping |
+| `domains` | `domains` | **New** - stancl/tenancy subdomain mapping |
 
 ### Billing & Plans (Platform Level)
 | Legacy Table | New Table | Notes |
@@ -98,7 +98,7 @@ Legacy Acelle email infrastructure. WhatsApp project mein zaroorat nahi.
 | `country_pricing` | `country_pricing` | Per-country Meta message rates |
 | `country_pricing_logs` | `country_pricing_logs` | Pricing change audit |
 | `country_meta_market` | `country_meta_market` | Country → Meta market |
-| `meta_pricings` | — | Merge into country_pricing |
+| `meta_pricings` | - | Merge into country_pricing |
 | `conversion_logs` | `conversion_logs` | FX conversion audit |
 | `pricing_audit_logs` | `pricing_audit_logs` | Bulk pricing edits |
 | `cloud_bill_uploads` | `cloud_bill_uploads` | Meta cloud bill imports |
@@ -116,7 +116,7 @@ Legacy Acelle email infrastructure. WhatsApp project mein zaroorat nahi.
 | `tutorial_videos` | `tutorial_videos` | Tutorials |
 | `platform_announcements` | `announcements` | In-app announcements |
 | `platform_announcement_user` | `announcement_reads` | Read receipts |
-| `announcement` | — | Merge into announcements |
+| `announcement` | - | Merge into announcements |
 | `customer_onboarding_submissions` | `onboarding_submissions` | Sales forms |
 | `api_demo_users` | `demo_users` | Demo signups |
 | `api_demo_users_messagess` | `demo_messages` | Demo log |
@@ -124,7 +124,7 @@ Legacy Acelle email infrastructure. WhatsApp project mein zaroorat nahi.
 ### Webhooks (Platform Level)
 | Legacy Table | New Table | Notes |
 |-------------|-----------|-------|
-| `processed_webhooks` | `processed_events` | Idempotency — message_id dedup |
+| `processed_webhooks` | `processed_events` | Idempotency - message_id dedup |
 | `calendly_webhook_logs` | `integration_webhook_events` | Unified ingress log |
 | `google_calendar_webhook_logs` | ↑ same table | source = calendly / google_calendar |
 
@@ -134,26 +134,26 @@ Legacy Acelle email infrastructure. WhatsApp project mein zaroorat nahi.
 | `jobs` | `jobs` | Laravel queue |
 | `failed_jobs` | `failed_jobs` | Laravel queue |
 | `job_batches` | `job_batches` | Laravel queue |
-| `job_monitors` | — | Use Horizon instead |
+| `job_monitors` | - | Use Horizon instead |
 | `ip_locations` | `ip_locations` | GeoIP cache |
 | `activity_logs` | `activity_logs` | Platform audit (nullable tenant_id) |
 | `wa_health_admin_audit_logs` | `health_audit_logs` | Admin health actions |
 | `wa_health_saved_filters` | `health_saved_filters` | Admin filters |
 | `new_template_categories` | `template_categories` | Global WA template categories |
-| `contacts` | — | Acelle billing address — simplify into tenants |
+| `contacts` | - | Acelle billing address - simplify into tenants |
 | `customer_forms` | `public_forms` | Public onboarding (no tenant yet) |
-| `tenant_provisioning_logs` | `tenant_provisioning_logs` | **New** — provisioning audit |
+| `tenant_provisioning_logs` | `tenant_provisioning_logs` | **New** - provisioning audit |
 
 ---
 
-## TENANT DB — Per-Customer Tables (89 tables)
+## TENANT DB - Per-Customer Tables (89 tables)
 
 ### Users & Team
 | Legacy Table | New Table | Notes |
 |-------------|-----------|-------|
 | `team_members` | `team_members` | Sub-users / agents |
 | `manager_member_assignments` | `team_assignments` | Manager → member mapping |
-| `inbox_user` | — | Merge into team_members |
+| `inbox_user` | - | Merge into team_members |
 | `notification_contacts` | `notification_contacts` | Alert contacts |
 
 ### WhatsApp Lines
@@ -172,7 +172,7 @@ Legacy Acelle email infrastructure. WhatsApp project mein zaroorat nahi.
 | `inboxes` | `message_logs` | Campaign + system message log |
 | `inboxerror_log` | `inbox_errors` | Processing errors |
 | `business_conversation_sessions` | `conversation_sessions` | Meta 24h window |
-| `twentyfour_hour_conversation` | — | Merge into conversation_sessions |
+| `twentyfour_hour_conversation` | - | Merge into conversation_sessions |
 | `conversation_states` | `flow_states` | Chatbot runtime state |
 | `interactive_messages` | `interactive_messages` | Saved interactive templates |
 | `send_test_messages` | `test_messages` | Campaign test sends |
@@ -220,7 +220,7 @@ Legacy Acelle email infrastructure. WhatsApp project mein zaroorat nahi.
 | `flow_stats` | `flow_stats` | Flow analytics |
 | `trigger_variables` | `trigger_variables` | Campaign trigger vars |
 
-### Webhooks (Tenant — REDESIGNED)
+### Webhooks (Tenant - REDESIGNED)
 | Legacy Table | New Table | Notes |
 |-------------|-----------|-------|
 | `webhook_settings` | `webhook_subscriptions` | Customer outbound config |
@@ -228,7 +228,7 @@ Legacy Acelle email infrastructure. WhatsApp project mein zaroorat nahi.
 | `chatbot_webhook_logs` | ↑ merge into webhook_deliveries | source = chatbot |
 | `chatbot_webhook_failures` | `webhook_delivery_failures` | Failed retries |
 | `chatbot_webhook_responses` | `webhook_response_data` | Response variables |
-| `webhooks` (staging) | `webhook_events` | **NEW** — inbound append-only log |
+| `webhooks` (staging) | `webhook_events` | **NEW** - inbound append-only log |
 
 ### Billing / Wallet (Tenant Level)
 | Legacy Table | New Table | Notes |
@@ -239,8 +239,8 @@ Legacy Acelle email infrastructure. WhatsApp project mein zaroorat nahi.
 | `wallet_zoho_credit_requests` | `zoho_credit_requests` | Zoho invoice credits |
 | `wallet_razorpay_credit_requests` | `razorpay_credit_requests` | Razorpay top-up |
 | `wallet_display_currency_logs` | `currency_preference_logs` | Currency audit |
-| `recharges` | — | Merge into wallet_transactions |
-| `new_transactions` | — | Merge into wallet_transactions |
+| `recharges` | - | Merge into wallet_transactions |
+| `new_transactions` | - | Merge into wallet_transactions |
 | `invoices` | `invoices` | Tenant invoices |
 | `invoice_items` | `invoice_items` | Line items |
 | `transactions` | `payment_transactions` | Payment records |
@@ -293,7 +293,7 @@ Legacy Acelle email infrastructure. WhatsApp project mein zaroorat nahi.
 
 ## Implementation Phases (Which Tables When)
 
-### Phase 1 — Foundation (Week 1-2)
+### Phase 1 - Foundation (Week 1-2)
 **Master DB:**
 - tenants, domains, admins, plans, settings
 - countries, currencies, languages
@@ -303,30 +303,30 @@ Legacy Acelle email infrastructure. WhatsApp project mein zaroorat nahi.
 - users, team_members, roles, permissions
 - whatsapp_lines, line_profiles, waba_accounts
 
-### Phase 2 — Messaging (Week 3-4)
+### Phase 2 - Messaging (Week 3-4)
 **Tenant DB:**
 - contacts, lists, custom_fields
 - conversations, messages, message_logs
 - webhook_events, webhook_subscriptions, webhook_deliveries
 - conversation_sessions, flow_states, inbox_errors
 
-### Phase 3 — Campaigns & Templates (Week 5-6)
+### Phase 3 - Campaigns & Templates (Week 5-6)
 **Tenant DB:**
 - templates, template_cards, template_card_buttons, variables
 - campaigns, campaign_audiences, campaign_consents
 - segments, segment_conditions, test_messages
 
-### Phase 4 — Automation (Week 7-8)
+### Phase 4 - Automation (Week 7-8)
 **Tenant DB:**
 - chatbot_flows, automation_events, meta_flows, flow_stats
 - trigger_variables, interactive_messages
 - ai_bots, ai_api_keys, line_ai_settings, ai_token_usage
 
-### Phase 5 — Billing & Commerce (Week 9-10)
+### Phase 5 - Billing & Commerce (Week 9-10)
 **Master DB:** country_pricing, zoho_customers
 **Tenant DB:** wallet_transactions, auto_recharge_settings, payments, payment_configs, orders, shopify_stores
 
-### Phase 6 — Integrations (Week 11-12)
+### Phase 6 - Integrations (Week 11-12)
 **Tenant DB:** calendly_*, google_calendar_*, integrations, installations
 **Master DB:** integration_webhook_events
 
@@ -334,15 +334,15 @@ Legacy Acelle email infrastructure. WhatsApp project mein zaroorat nahi.
 
 ## Important Notes
 
-1. **`sub_replies` + `conversations`** — Legacy mein CREATE migration nahi hai. Production DB se schema introspect karna padega migration ke time.
+1. **`sub_replies` + `conversations`** - Legacy mein CREATE migration nahi hai. Production DB se schema introspect karna padega migration ke time.
 
-2. **`webhooks` staging table** — Legacy mein migration file nahi mili. Yeh manually bani hogi. New project mein replace with `webhook_events` (append-only).
+2. **`webhooks` staging table** - Legacy mein migration file nahi mili. Yeh manually bani hogi. New project mein replace with `webhook_events` (append-only).
 
-3. **37 email tables exclude** — Inhe migrate mat karo. Naya project WhatsApp-only hai.
+3. **37 email tables exclude** - Inhe migrate mat karo. Naya project WhatsApp-only hai.
 
-4. **Webhook consolidation** — `webhook_settings` + `webhook_logs` + `chatbot_webhook_*` → 3 clean tables: `webhook_subscriptions`, `webhook_deliveries`, `webhook_delivery_failures`.
+4. **Webhook consolidation** - `webhook_settings` + `webhook_logs` + `chatbot_webhook_*` → 3 clean tables: `webhook_subscriptions`, `webhook_deliveries`, `webhook_delivery_failures`.
 
-5. **Inbox cleanup** — Legacy 3-table model (`inboxes`, `sub_replies`, `conversations`) → New 2-table model (`conversations`, `messages`).
+5. **Inbox cleanup** - Legacy 3-table model (`inboxes`, `sub_replies`, `conversations`) → New 2-table model (`conversations`, `messages`).
 
 6. **Artisan migration commands**
    - Per-customer tenant data: `php artisan legacy:migrate-customer {email|id} --force`
@@ -352,4 +352,4 @@ Legacy Acelle email infrastructure. WhatsApp project mein zaroorat nahi.
 
 ---
 
-— End of Document —
+- End of Document -

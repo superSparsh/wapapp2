@@ -48,7 +48,7 @@ class SyncDailyLegacyCommand extends Command
             $legacy->assertReady();
         } catch (Throwable $exception) {
             $this->error($exception->getMessage());
-            Log::error('legacy:sync-daily aborted — legacy DB not ready', [
+            Log::error('legacy:sync-daily aborted - legacy DB not ready', [
                 'error' => $exception->getMessage(),
             ]);
 
@@ -176,7 +176,7 @@ class SyncDailyLegacyCommand extends Command
 
         $seconds = round(microtime(true) - $startedAt, 1);
         $summary = sprintf(
-            'legacy:sync-daily done in %ss — ok=%d failed=%d skipped=%d new_tenants=%d',
+            'legacy:sync-daily done in %ss - ok=%d failed=%d skipped=%d new_tenants=%d',
             $seconds,
             $ok,
             $failed,

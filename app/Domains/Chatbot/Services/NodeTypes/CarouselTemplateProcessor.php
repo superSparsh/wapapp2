@@ -50,7 +50,7 @@ class CarouselTemplateProcessor extends AbstractNodeProcessor
             $params = $this->resolveTemplateSendParams($data, $conversation, $variables);
             $this->sendTemplate($conversation, $templateCode, $params);
         } else {
-            // Fallback when template is missing — keep a readable list so the flow can continue.
+            // Fallback when template is missing - keep a readable list so the flow can continue.
             $headerText = $this->resolveText((string) ($data['headerText'] ?? $data['text'] ?? ''), $variables, $conversation);
             if ($headerText !== '') {
                 $this->sendText($conversation, $headerText);

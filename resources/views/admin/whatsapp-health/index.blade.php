@@ -74,7 +74,7 @@
               <div class="fd-table-name">{{ $alert->title }}</div>
               <div class="text-xs text-text-subtle">{{ \Illuminate\Support\Str::limit($alert->body, 100) }}</div>
             </td>
-            <td class="fd-table-cell p-2 align-middle text-xs">{{ $alert->tenant_id ?: '—' }}</td>
+            <td class="fd-table-cell p-2 align-middle text-xs">{{ $alert->tenant_id ?: '-' }}</td>
             <td class="fd-table-cell p-2 align-middle text-xs">{{ format_ist($alert->occurred_at, 'd M Y H:i') }}</td>
             <td class="p-2 align-middle">
               @unless ($alert->is_read)
@@ -150,7 +150,7 @@
               <a href="{{ route('admin.customers.show', $row['tenant_id']) }}" class="fd-table-name hover:text-green-500">{{ $row['tenant_name'] }}</a>
             </td>
             <td class="fd-table-cell p-2 align-middle text-sm">
-              <div>{{ $row['display_name'] ?: '—' }}</div>
+              <div>{{ $row['display_name'] ?: '-' }}</div>
               <div class="text-xs text-text-subtle">{{ $row['phone'] }}</div>
             </td>
             <td class="fd-table-cell p-2 align-middle"><x-admin.status-badge :status="$row['quality_rating']" /></td>

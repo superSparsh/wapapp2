@@ -43,11 +43,11 @@
       </div>
       <div class="rounded-xl border border-border bg-elevated p-3">
         <div class="text-[11px] font-semibold uppercase tracking-wide text-text-subtle">Tenant</div>
-        <div class="mt-1 break-all font-mono text-sm text-text-primary">{{ $log->tenant_id ?? '—' }}</div>
+        <div class="mt-1 break-all font-mono text-sm text-text-primary">{{ $log->tenant_id ?? '-' }}</div>
       </div>
       <div class="rounded-xl border border-border bg-elevated p-3">
         <div class="text-[11px] font-semibold uppercase tracking-wide text-text-subtle">Source</div>
-        <div class="mt-1 break-all font-mono text-xs text-text-primary">{{ $log->source ?? '—' }}</div>
+        <div class="mt-1 break-all font-mono text-xs text-text-primary">{{ $log->source ?? '-' }}</div>
       </div>
     </div>
 

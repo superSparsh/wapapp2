@@ -74,7 +74,7 @@
               name="payment_template_id"
               class="w-full rounded-xl border border-border bg-elevated p-3.5 text-sm font-medium leading-[1.4] text-text-body focus:outline-none"
             >
-              <option value="">— Select Template —</option>
+              <option value="">- Select Template -</option>
               @foreach ($templates as $tpl)
                 <option
                   value="{{ $tpl->uuid }}"
@@ -96,7 +96,7 @@
               name="confirmation_template_id"
               class="w-full rounded-xl border border-border bg-elevated p-3.5 text-sm font-medium leading-[1.4] text-text-body focus:outline-none"
             >
-              <option value="">— None —</option>
+              <option value="">- None -</option>
               @foreach ($templates as $tpl)
                 <option
                   value="{{ $tpl->uuid }}"
@@ -134,7 +134,7 @@
             <div class="absolute left-[43px] top-[315px] flex w-[354px] items-start gap-3 rounded-lg border border-border bg-elevated p-3.5">
               <div class="min-w-0 flex-1 text-xs font-normal leading-[1.4] text-text-muted">
                 <p>Payment Link for Order</p>
-                <p>Click the link to complete your payment of ₹<span id="preview-amount">—</span></p>
+                <p>Click the link to complete your payment of ₹<span id="preview-amount">-</span></p>
                 <p id="preview-client">{{ $config?->client_name ?? 'Your Business' }}</p>
               </div>
             </div>

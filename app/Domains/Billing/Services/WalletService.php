@@ -148,7 +148,7 @@ class WalletService
                 fputcsv($handle, [
                     ++$seq,
                     $description,
-                    $transaction->type?->label() ?? '—',
+                    $transaction->type?->label() ?? '-',
                     $transaction->created_at?->format('d M Y h:i:s A') ?? 'N/A',
                     ($transaction->type?->signPrefix() ?? '').number_format((float) $transaction->amount, 2, '.', ''),
                     number_format($balanceAfter, 2, '.', ''),
@@ -397,7 +397,7 @@ class WalletService
         try {
             app(\App\Domains\Account\Services\ActivityLogService::class)->log('billing.wallet.admin_credit', [
                 'description' => sprintf(
-                    'Wallet — admin credited ₹%s (balance ₹%s → ₹%s)',
+                    'Wallet - admin credited ₹%s (balance ₹%s → ₹%s)',
                     number_format($amount, 2),
                     number_format((float) data_get($transaction->metadata, 'previous_balance', 0), 2),
                     number_format((float) $transaction->balance_after, 2),

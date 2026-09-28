@@ -1,4 +1,4 @@
-<x-admin.layout title="Retention — {{ $tenant->company_name ?: $tenant->name }}" active="admin.retention.index">
+<x-admin.layout title="Retention - {{ $tenant->company_name ?: $tenant->name }}" active="admin.retention.index">
   <div class="flex flex-wrap items-start justify-between gap-3 p-4">
     <div>
       <a href="{{ route('admin.retention.index') }}" class="text-xs font-semibold text-green-600 hover:underline">← Retention</a>
@@ -19,11 +19,11 @@
       <h2 class="text-lg font-bold">Account snapshot</h2>
       <dl class="mt-4 grid gap-3 sm:grid-cols-2 text-sm">
         <div><dt class="text-xs uppercase text-text-subtle">Status</dt><dd class="mt-1"><x-admin.status-badge :status="$tenant->status" /></dd></div>
-        <div><dt class="text-xs uppercase text-text-subtle">Plan</dt><dd class="font-semibold">{{ $tenant->plan?->name ?: '—' }}</dd></div>
-        <div><dt class="text-xs uppercase text-text-subtle">Valid until</dt><dd class="font-semibold">{{ $valid_until?->toDateString() ?: '—' }}</dd></div>
-        <div><dt class="text-xs uppercase text-text-subtle">Days left</dt><dd class="font-semibold">{{ $days_left === null ? '—' : $days_left }}</dd></div>
-        <div><dt class="text-xs uppercase text-text-subtle">Email</dt><dd class="font-semibold">{{ $tenant->email ?: '—' }}</dd></div>
-        <div><dt class="text-xs uppercase text-text-subtle">Phone</dt><dd class="font-semibold">{{ $tenant->phone ?: '—' }}</dd></div>
+        <div><dt class="text-xs uppercase text-text-subtle">Plan</dt><dd class="font-semibold">{{ $tenant->plan?->name ?: '-' }}</dd></div>
+        <div><dt class="text-xs uppercase text-text-subtle">Valid until</dt><dd class="font-semibold">{{ $valid_until?->toDateString() ?: '-' }}</dd></div>
+        <div><dt class="text-xs uppercase text-text-subtle">Days left</dt><dd class="font-semibold">{{ $days_left === null ? '-' : $days_left }}</dd></div>
+        <div><dt class="text-xs uppercase text-text-subtle">Email</dt><dd class="font-semibold">{{ $tenant->email ?: '-' }}</dd></div>
+        <div><dt class="text-xs uppercase text-text-subtle">Phone</dt><dd class="font-semibold">{{ $tenant->phone ?: '-' }}</dd></div>
       </dl>
     </div>
 

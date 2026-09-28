@@ -41,7 +41,7 @@ class PlatformErrorLogController extends Controller
 
     public function show(Request $request, string $module): View|RedirectResponse
     {
-        // Notifications historically linked /admin/errors/{id} — redirect those to the detail page.
+        // Notifications historically linked /admin/errors/{id} - redirect those to the detail page.
         if (ctype_digit($module)) {
             $log = PlatformErrorLog::query()->find((int) $module);
             if ($log === null) {

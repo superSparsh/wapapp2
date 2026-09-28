@@ -733,7 +733,7 @@ class ChatbotInteractiveFlowTest extends TestCase
                     ],
                 ],
                 'edges' => [
-                    // Branch handle only — must NOT auto-follow on trigger
+                    // Branch handle only - must NOT auto-follow on trigger
                     ['source' => 'welcome_1', 'target' => 'sales_node', 'sourceHandle' => 'reply-0'],
                     ['source' => 'welcome_1', 'target' => 'next_default', 'sourceHandle' => 'default'],
                 ],

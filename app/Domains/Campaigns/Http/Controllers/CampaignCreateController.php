@@ -105,7 +105,7 @@ class CampaignCreateController extends Controller
             abort(404);
         }
 
-        // Step 5 is a legacy review screen — send users to Schedule & Confirm.
+        // Step 5 is a legacy review screen - send users to Schedule & Confirm.
         if ($step === 5) {
             return redirect()->route('campaigns.create.step', 6);
         }

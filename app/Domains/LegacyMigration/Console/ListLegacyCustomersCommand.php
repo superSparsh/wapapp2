@@ -58,7 +58,7 @@ class ListLegacyCustomersCommand extends Command
         try {
             $pilot = $resolver->resolvePilot();
             $this->line(sprintf(
-                '  #%d %s (%s) — subs=%d templates=%d campaigns=%d',
+                '  #%d %s (%s) - subs=%d templates=%d campaigns=%d',
                 $pilot->id,
                 $pilot->email,
                 $pilot->displayName(),

@@ -1,4 +1,4 @@
-# Database Setup — WapApp 2.0 (Premium Schema)
+# Database Setup - WapApp 2.0 (Premium Schema)
 
 ## Architecture
 

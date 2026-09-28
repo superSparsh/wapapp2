@@ -255,7 +255,7 @@
                                                 @foreach ($leastFive as $row)
                                                     <tr>
                                                         <td valign="top" style="padding:10px 12px;border-top:1px solid #e5e7eb;font-size:13px;line-height:18px;color:#111827;mso-line-height-rule:exactly;">
-                                                            <strong>{{ $row['name'] ?? $row['uid'] ?? '—' }}</strong>
+                                                            <strong>{{ $row['name'] ?? $row['uid'] ?? '-' }}</strong>
                                                             @if (! empty($row['uid']))
                                                                 <br><span style="color:#6b7280;">{{ $row['uid'] }}</span>
                                                             @endif
@@ -279,7 +279,7 @@
                                                 @foreach ($mostFive as $row)
                                                     <tr>
                                                         <td valign="top" style="padding:10px 12px;border-top:1px solid #e5e7eb;font-size:13px;line-height:18px;color:#111827;mso-line-height-rule:exactly;">
-                                                            <strong>{{ $row['name'] ?? $row['uid'] ?? '—' }}</strong>
+                                                            <strong>{{ $row['name'] ?? $row['uid'] ?? '-' }}</strong>
                                                             @if (! empty($row['uid']))
                                                                 <br><span style="color:#6b7280;">{{ $row['uid'] }}</span>
                                                             @endif
@@ -355,12 +355,12 @@
                                     </tr>
                                     @foreach ($summary['templateErrors'] as $tplErr)
                                         @php
-                                            $custLabel = data_get($tplErr, 'customer_display_name') ?: data_get($tplErr, 'customer_uid') ?: '—';
-                                            $tplName = data_get($tplErr, 'template_name') ?: '—';
-                                            $tplStatus = data_get($tplErr, 'status') ?: '—';
+                                            $custLabel = data_get($tplErr, 'customer_display_name') ?: data_get($tplErr, 'customer_uid') ?: '-';
+                                            $tplName = data_get($tplErr, 'template_name') ?: '-';
+                                            $tplStatus = data_get($tplErr, 'status') ?: '-';
                                             $mediaStatus = data_get($tplErr, 'header_media_status');
                                             $errReason = data_get($tplErr, 'error_reason');
-                                            $updatedAt = data_get($tplErr, 'updated_at') ?: '—';
+                                            $updatedAt = data_get($tplErr, 'updated_at') ?: '-';
                                             $mediaBad = is_string($mediaStatus) && $mediaStatus !== ''
                                                 && preg_match('/fail|error|missing|invalid|reject/i', $mediaStatus);
                                         @endphp
@@ -423,7 +423,7 @@
                                     </tr>
                                     @foreach ($summary['customerActivity'] as $row)
                                         @php
-                                            $actName = data_get($row, 'customer_display_name') ?: data_get($row, 'customer_uid') ?: '—';
+                                            $actName = data_get($row, 'customer_display_name') ?: data_get($row, 'customer_uid') ?: '-';
                                             $bizName = data_get($row, 'business_name');
                                             $lastCampaignAt = data_get($row, 'last_campaign_at');
                                             $lastCampaignName = data_get($row, 'last_campaign_name');
@@ -443,11 +443,11 @@
                                                         <br><span style="color:#6b7280;">{{ $lastCampaignName }}</span>
                                                     @endif
                                                 @else
-                                                    —
+                                                    -
                                                 @endif
                                             </td>
                                             <td valign="top" style="padding:12px 14px;border-top:1px solid #e5e7eb;font-size:12px;line-height:18px;color:#6b7280;mso-line-height-rule:exactly;">
-                                                {{ ! empty($lastMessageAt) ? (is_object($lastMessageAt) && method_exists($lastMessageAt, 'format') ? $lastMessageAt->format('d M Y, h:i A') : $lastMessageAt) : '—' }}
+                                                {{ ! empty($lastMessageAt) ? (is_object($lastMessageAt) && method_exists($lastMessageAt, 'format') ? $lastMessageAt->format('d M Y, h:i A') : $lastMessageAt) : '-' }}
                                             </td>
                                         </tr>
                                     @endforeach

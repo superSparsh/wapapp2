@@ -135,7 +135,7 @@ final class EmbeddedFormService
     }
 
     /**
-     * Exact embed form HTML — only the form action URL is dynamic.
+     * Exact embed form HTML - only the form action URL is dynamic.
      * Fixed fields: country_code, phone_number, FIRST_NAME, LAST_NAME.
      */
     public function generateEmbedHtml(MailList $list, bool $forPreview = false): string
@@ -217,7 +217,7 @@ final class EmbeddedFormService
     }
 
     /**
-     * Same-to-same field markup as provided — no list-field generation.
+     * Same-to-same field markup as provided - no list-field generation.
      */
     private function fixedFormFieldsHtml(): string
     {

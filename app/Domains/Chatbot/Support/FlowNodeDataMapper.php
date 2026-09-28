@@ -230,7 +230,7 @@ class FlowNodeDataMapper
         ));
         $keyword = (string) ($data['triggerKeyword'] ?? $data['keywords'] ?? '');
 
-        // Builder saves DB id in templateId — resolve real CAMS TemplateCode.
+        // Builder saves DB id in templateId - resolve real CAMS TemplateCode.
         if (($code === '' || ! \App\Domains\Templates\Support\CamsTemplateIdentity::isProviderCode($code))
             && filled($dbId)
             && is_numeric($dbId)
@@ -253,7 +253,7 @@ class FlowNodeDataMapper
             $data['templateCode'] = $code;
             $data['template_code'] = $code;
         }
-        // Keep numeric DB id in templateId when present — do not overwrite with code.
+        // Keep numeric DB id in templateId when present - do not overwrite with code.
         if (filled($dbId) && is_numeric($dbId)) {
             $data['templateId'] = (int) $dbId;
         } elseif ($code !== '' && ! isset($data['templateId'])) {

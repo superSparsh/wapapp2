@@ -15,7 +15,7 @@ class WhatsappFlowAssetService
      * Persist flow JSON where CAMS can download it via a public URL.
      *
      * Prefer storage/app/public/flows (usually writable by php-fpm). public/flows
-     * is often root-owned on servers and not writable — do not prefer a stale
+     * is often root-owned on servers and not writable - do not prefer a stale
      * unwritable public/flows file as the CAMS FilePath.
      *
      * @param  array<string, mixed>  $metaJson
@@ -25,7 +25,7 @@ class WhatsappFlowAssetService
         $filename = 'flow_'.$flow->uuid.'.json';
         $payload = json_encode($metaJson, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
 
-        // 1) Central public storage — /storage/flows/... via storage:link
+        // 1) Central public storage - /storage/flows/... via storage:link
         $storageRelative = 'storage/flows/'.$filename;
         if ($this->writeToDirectory(base_path('storage/app/public/flows'), $filename, $payload)) {
             // Best-effort mirror to legacy public/flows (ignore permission failures).

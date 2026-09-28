@@ -40,8 +40,8 @@
             <div class="p-2 text-[13px] font-medium text-text-body">Status</div>
           </div>
           <div class="grid grid-cols-3 gap-2 border-t border-divider bg-elevated px-2 py-1.5">
-            <div class="p-2 text-xs text-text-body">{{ $business['waba_id'] ?? '—' }}</div>
-            <div class="p-2 text-xs text-text-body">{{ $business['business_name'] ?? '—' }}</div>
+            <div class="p-2 text-xs text-text-body">{{ $business['waba_id'] ?? '-' }}</div>
+            <div class="p-2 text-xs text-text-body">{{ $business['business_name'] ?? '-' }}</div>
             <div class="p-2">
               @if ($business['verified'] ?? false)
                 <span class="inline-flex items-center justify-center rounded bg-[rgba(0,128,0,0.1)] px-2 py-1 text-[10px] font-medium text-[green]">Verified</span>

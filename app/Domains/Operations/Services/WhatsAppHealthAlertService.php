@@ -93,7 +93,7 @@ class WhatsAppHealthAlertService
                             'alert_type' => 'template_rejected',
                             'severity' => 'critical',
                             'title' => 'Template rejected or disabled',
-                            'body' => trim(($template->name ?? 'Template').' — '.$status
+                            'body' => trim(($template->name ?? 'Template').' - '.$status
                                 .(! empty($template->rejection_reason) ? "\n".$template->rejection_reason : '')),
                             'dedupe_key' => 'tpl_reject:'.$tenantId.':'.$template->id.':'.$status,
                         ]);

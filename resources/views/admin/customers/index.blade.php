@@ -54,13 +54,13 @@
             <div class="text-xs text-text-subtle">{{ $customer->id }}</div>
           </td>
           <td class="fd-table-cell p-2 align-middle text-sm text-text-subtle">
-            <div>{{ $customer->email ?: '—' }}</div>
-            <div>{{ $customer->phone ?: '—' }}</div>
+            <div>{{ $customer->email ?: '-' }}</div>
+            <div>{{ $customer->phone ?: '-' }}</div>
           </td>
-          <td class="fd-table-cell p-2 align-middle text-sm">{{ $customer->plan?->name ?: '—' }}</td>
+          <td class="fd-table-cell p-2 align-middle text-sm">{{ $customer->plan?->name ?: '-' }}</td>
           <td class="fd-table-cell p-2 align-middle text-sm">
             @if ($validityDays === null)
-              <span class="text-text-subtle">—</span>
+              <span class="text-text-subtle">-</span>
             @elseif ($validityDays <= 0)
               <span class="font-semibold text-red-600">0 days</span>
               <div class="text-xs text-text-subtle">Ended {{ $validUntil }}</div>
@@ -99,7 +99,7 @@
         </div>
         <button type="button" class="rounded-lg px-2 py-1 text-sm text-text-subtle hover:bg-surface" data-extend-close>Close</button>
       </div>
-      <p class="text-xs text-text-subtle">Current validity: <span id="extend-validity-until">—</span></p>
+      <p class="text-xs text-text-subtle">Current validity: <span id="extend-validity-until">-</span></p>
       <label class="flex flex-col gap-1.5 text-sm">
         <span class="font-semibold">Extend validity (days)</span>
         <input type="number" name="days" min="0" max="3650" value="30" class="rounded-lg border border-border bg-surface px-3 py-2" placeholder="0 = no change">
@@ -125,7 +125,7 @@
         btn.addEventListener('click', () => {
           form.action = btn.getAttribute('data-extend-url') || '';
           document.getElementById('extend-validity-customer').textContent = btn.getAttribute('data-tenant-name') || 'Customer';
-          document.getElementById('extend-validity-until').textContent = btn.getAttribute('data-valid-until') || '—';
+          document.getElementById('extend-validity-until').textContent = btn.getAttribute('data-valid-until') || '-';
           if (typeof dialog.showModal === 'function') dialog.showModal();
         });
       });

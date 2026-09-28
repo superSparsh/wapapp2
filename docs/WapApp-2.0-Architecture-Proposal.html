@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>WapApp 2.0 — Enterprise Architecture Proposal</title>
+<title>WapApp 2.0 - Enterprise Architecture Proposal</title>
 <style>
   @page { margin: 2cm 2.2cm; size: A4; }
   * { box-sizing: border-box; }
@@ -160,12 +160,12 @@
     <strong>Project:</strong> WapApp 2.0 (Legacy Tittu → New Platform)<br>
     <strong>Prepared For:</strong> Management Review<br>
     <strong>Date:</strong> 27 July 2026<br>
-    <strong>Status:</strong> Planning Phase — Backend development not yet started
+    <strong>Status:</strong> Planning Phase - Backend development not yet started
   </div>
 </div>
 
 <h2>1. Executive Summary</h2>
-<p>We are rebuilding <strong>Tittu</strong> (WhatsApp Business API SaaS platform) as <strong>WapApp 2.0</strong> — a modern, enterprise-grade platform.</p>
+<p>We are rebuilding <strong>Tittu</strong> (WhatsApp Business API SaaS platform) as <strong>WapApp 2.0</strong> - a modern, enterprise-grade platform.</p>
 <p>The legacy system currently serves <strong>30 active customers</strong> sending approximately <strong>1,00,000 messages per week</strong>. Its architecture has reached scalability and reliability limits and needs to be replaced.</p>
 <p>The new version is built on <strong>Laravel 13</strong> with a clean, domain-driven architecture. The UI is approximately <strong>85% complete</strong> (233 screens, Figma-driven). Backend development is greenfield, giving us the opportunity to design the system correctly from the ground up.</p>
 
@@ -196,12 +196,12 @@
 
 <h3>Critical Legacy Problems</h3>
 <ol class="numbered-list">
-  <li><strong>Webhook staging table</strong> — Messages inserted into a webhooks table, then deleted BEFORE processing. If processing fails, data is permanently lost.</li>
-  <li><strong>Database queue</strong> — Queue jobs stored in MySQL cause DB overload during campaign bursts.</li>
-  <li><strong>Cron-heavy processing</strong> — Automation, campaigns, webhooks, and integrations all poll via cron every minute.</li>
-  <li><strong>No tenant isolation</strong> — All 30 customers share one database; one customer's heavy campaign affects all others.</li>
-  <li><strong>Mixed concerns</strong> — Email marketing (Acelle) and WhatsApp logic coexist in the same codebase.</li>
-  <li><strong>No structured error handling</strong> — Errors are inconsistent, making debugging and customer support difficult.</li>
+  <li><strong>Webhook staging table</strong> - Messages inserted into a webhooks table, then deleted BEFORE processing. If processing fails, data is permanently lost.</li>
+  <li><strong>Database queue</strong> - Queue jobs stored in MySQL cause DB overload during campaign bursts.</li>
+  <li><strong>Cron-heavy processing</strong> - Automation, campaigns, webhooks, and integrations all poll via cron every minute.</li>
+  <li><strong>No tenant isolation</strong> - All 30 customers share one database; one customer's heavy campaign affects all others.</li>
+  <li><strong>Mixed concerns</strong> - Email marketing (Acelle) and WhatsApp logic coexist in the same codebase.</li>
+  <li><strong>No structured error handling</strong> - Errors are inconsistent, making debugging and customer support difficult.</li>
 </ol>
 
 <h3>2.2 New System (wapapp-2.0)</h3>
@@ -210,9 +210,9 @@
   <tr><td>Framework</td><td>Laravel 13, PHP 8.3</td></tr>
   <tr><td>Frontend</td><td>Blade + Tailwind CSS 4 (~233 views, 106 routes)</td></tr>
   <tr><td>UI Progress</td><td>~85% complete (Figma-driven)</td></tr>
-  <tr><td>Backend Progress</td><td>~0% (greenfield — default Laravel skeleton only)</td></tr>
+  <tr><td>Backend Progress</td><td>~0% (greenfield - default Laravel skeleton only)</td></tr>
   <tr><td>Database</td><td>SQLite (development only)</td></tr>
-  <tr><td>Auth</td><td>UI only — no backend wired</td></tr>
+  <tr><td>Auth</td><td>UI only - no backend wired</td></tr>
   <tr><td>API / Integrations</td><td>Not started</td></tr>
 </table>
 <p><strong>Advantage:</strong> Complete UI prototype and a clean slate for backend architecture.</p>
@@ -227,7 +227,7 @@
   <tr><td>Uptime target</td><td>99.9% (~8.7 hours max downtime/year)</td></tr>
   <tr><td>Delivery rate</td><td>&gt; 95%</td></tr>
   <tr><td>Webhook response to Meta</td><td>&lt; 100ms (Meta requires 200 within 20 seconds)</td></tr>
-  <tr><td>Data loss tolerance</td><td>Zero — all events logged immutably</td></tr>
+  <tr><td>Data loss tolerance</td><td>Zero - all events logged immutably</td></tr>
 </table>
 
 <h2>4. Proposed Architecture</h2>
@@ -264,7 +264,7 @@
 │   Meta WhatsApp │ AI Service │ Razorpay │ Shopify    │
 └─────────────────────────────────────────────────────┘</div>
 
-<h3>4.2 Database Architecture — Master DB + Tenant DB</h3>
+<h3>4.2 Database Architecture - Master DB + Tenant DB</h3>
 <p><strong>Master Database (Platform Level)</strong></p>
 <table>
   <tr><th>Table</th><th>Purpose</th></tr>
@@ -277,7 +277,7 @@
   <tr><td>platform_webhook_events</td><td>Meta app-level webhook log (immutable)</td></tr>
 </table>
 
-<p><strong>Tenant Database (Per Customer — 30 separate databases)</strong></p>
+<p><strong>Tenant Database (Per Customer - 30 separate databases)</strong></p>
 <table>
   <tr><th>Table Group</th><th>Tables</th></tr>
   <tr><td>Users &amp; Access</td><td>users, team_members, roles, permissions</td></tr>
@@ -294,14 +294,14 @@
 <div class="highlight-box">
   <strong>Why database-per-tenant?</strong>
   <ul style="margin-bottom:0">
-    <li>True data isolation — one customer's load cannot affect others</li>
+    <li>True data isolation - one customer's load cannot affect others</li>
     <li>Independent backup and restore per customer</li>
     <li>Compliance-ready (data residency per tenant in future)</li>
-    <li>Clean migration — migrate one customer at a time</li>
+    <li>Clean migration - migrate one customer at a time</li>
   </ul>
 </div>
 
-<h3>4.3 Webhook Architecture — Complete Redesign (Most Critical Change)</h3>
+<h3>4.3 Webhook Architecture - Complete Redesign (Most Critical Change)</h3>
 <div class="flow-bad">
   <strong>LEGACY FLOW (Problematic):</strong><br>
   Meta POST → Insert into webhooks table → Cron polls every minute → Delete row BEFORE processing → Process → If fails, data is LOST
@@ -372,7 +372,7 @@
   <tr><td>Idempotency</td><td>Duplicate webhooks, sends, debits = no-ops</td></tr>
   <tr><td>Retry with backoff</td><td>3 retries: 10s → 60s → 300s, then dead letter</td></tr>
   <tr><td>Circuit breaker</td><td>Meta API down → pause sending, queue, auto-resume</td></tr>
-  <tr><td>Append-only logs</td><td>Webhook events never deleted — replay possible</td></tr>
+  <tr><td>Append-only logs</td><td>Webhook events never deleted - replay possible</td></tr>
   <tr><td>Dead letter queue</td><td>Failed jobs after retries → manual review + alert</td></tr>
   <tr><td>Health checks</td><td>/up (basic) + /health/deep (DB, Redis, queue, Meta)</td></tr>
 </table>
@@ -450,16 +450,16 @@
 
 <h2>11. Architecture Principles</h2>
 <ol class="numbered-list">
-  <li>Tenant isolation first — no query without tenant context</li>
-  <li>Events over cron — reactive processing, not polling</li>
-  <li>Append-only logs — webhook/event data never deleted</li>
-  <li>Idempotent everything — duplicates are no-ops, not errors</li>
-  <li>Thin controllers, fat services — testable business logic</li>
-  <li>Queue everything heavy — user response always &lt; 200ms</li>
-  <li>API-first — UI consumes internal API</li>
-  <li>Backward-compatible migrations — zero-downtime deploys</li>
-  <li>Feature flags — gradual rollout, instant rollback</li>
-  <li>No god classes — 300-line file limit, domain boundaries</li>
+  <li>Tenant isolation first - no query without tenant context</li>
+  <li>Events over cron - reactive processing, not polling</li>
+  <li>Append-only logs - webhook/event data never deleted</li>
+  <li>Idempotent everything - duplicates are no-ops, not errors</li>
+  <li>Thin controllers, fat services - testable business logic</li>
+  <li>Queue everything heavy - user response always &lt; 200ms</li>
+  <li>API-first - UI consumes internal API</li>
+  <li>Backward-compatible migrations - zero-downtime deploys</li>
+  <li>Feature flags - gradual rollout, instant rollback</li>
+  <li>No god classes - 300-line file limit, domain boundaries</li>
 </ol>
 
 <h2>12. SLA Targets</h2>
@@ -506,14 +506,14 @@
 
 <h3>Open Questions for Management</h3>
 <ol>
-  <li>Go-live target date — when should the first customer be migrated?</li>
-  <li>Module priority — confirm inbox/messaging first, then campaigns?</li>
-  <li>Infrastructure — AWS, DigitalOcean, or existing hosting?</li>
-  <li>Legacy parallel run — how long should both systems run?</li>
-  <li>Team size — how many developers on backend implementation?</li>
+  <li>Go-live target date - when should the first customer be migrated?</li>
+  <li>Module priority - confirm inbox/messaging first, then campaigns?</li>
+  <li>Infrastructure - AWS, DigitalOcean, or existing hosting?</li>
+  <li>Legacy parallel run - how long should both systems run?</li>
+  <li>Team size - how many developers on backend implementation?</li>
 </ol>
 
-<h2>15. Legacy vs New — Comparison</h2>
+<h2>15. Legacy vs New - Comparison</h2>
 <table>
   <tr><th>Aspect</th><th>Legacy (Tittu)</th><th>New (WapApp 2.0)</th></tr>
   <tr><td>Framework</td><td>Laravel 8 (Acelle fork)</td><td>Laravel 13 (greenfield)</td></tr>
@@ -529,7 +529,7 @@
   <tr><td>Testing</td><td>Minimal</td><td>70%+ coverage target</td></tr>
 </table>
 
-<div class="footer-note">— End of Document —<br>WapApp 2.0 Enterprise Architecture Proposal · 27 July 2026</div>
+<div class="footer-note">- End of Document -<br>WapApp 2.0 Enterprise Architecture Proposal · 27 July 2026</div>
 
 </body>
 </html>

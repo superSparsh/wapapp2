@@ -1,6 +1,6 @@
-# OCI Heavy Workers — High-Level Architecture
+# OCI Heavy Workers - High-Level Architecture
 
-**Goal:** Campaign sending, delivery-status webhooks, and large contact imports never block the web app — and never “break” if OCI is slow/down (safe fallback).
+**Goal:** Campaign sending, delivery-status webhooks, and large contact imports never block the web app - and never “break” if OCI is slow/down (safe fallback).
 
 ---
 
@@ -24,19 +24,19 @@
 | Alibaba delivery / read status | `status` | **OCI** |
 | Contact CSV import | `import` if **≥ 30,000** rows, else `default` | OCI / web |
 | Inbound chat messages / chatbot | sync + `messages` / `chatbot` | **Main app** (latency) |
-| UI, billing, admin | — | **Main app** |
+| UI, billing, admin | - | **Main app** |
 
 ---
 
 ## 2. Design rules (smooth / no surprises)
 
-1. **One Redis, one MySQL** — workers are consumers, not a second app with its own DB.
-2. **Feature flag** — `OCI_WORKERS_ENABLED=true` only after workers are healthy.
-3. **Horizon roles** — web never steals heavy queues when OCI is on; OCI never runs web-critical chat path.
-4. **Fallback** — set `HORIZON_ROLE=all` on main (or disable OCI flag) if OCI VM is down; jobs stay in Redis, nothing is lost.
-5. **Idempotent jobs** — duplicate status / re-queued sends must not corrupt recipient state (existing handlers + unique keys).
-6. **Ephemeral Container Instances (optional)** — set `OCI_EPHEMERAL_CONTAINERS=true` so a shared campaign CI is **created** when the first campaign starts sending and **destroyed** after the last campaign completes/cancels (grace + queue-drain check). Pause does not destroy. Concurrent campaigns share one instance (refcount).
-7. **Import threshold** — small CSVs stay local; ≥30k go to `import` queue (long timeout).
+1. **One Redis, one MySQL** - workers are consumers, not a second app with its own DB.
+2. **Feature flag** - `OCI_WORKERS_ENABLED=true` only after workers are healthy.
+3. **Horizon roles** - web never steals heavy queues when OCI is on; OCI never runs web-critical chat path.
+4. **Fallback** - set `HORIZON_ROLE=all` on main (or disable OCI flag) if OCI VM is down; jobs stay in Redis, nothing is lost.
+5. **Idempotent jobs** - duplicate status / re-queued sends must not corrupt recipient state (existing handlers + unique keys).
+6. **Ephemeral Container Instances (optional)** - set `OCI_EPHEMERAL_CONTAINERS=true` so a shared campaign CI is **created** when the first campaign starts sending and **destroyed** after the last campaign completes/cancels (grace + queue-drain check). Pause does not destroy. Concurrent campaigns share one instance (refcount).
+7. **Import threshold** - small CSVs stay local; ≥30k go to `import` queue (long timeout).
 
 ---
 
@@ -44,8 +44,8 @@
 
 | Role | Host |
 |------|------|
-| App / worker candidate | `instance-voiceai-prod-app-001` — `140.238.241.148` / `10.0.0.203` |
-| DB | `instance-voiceai-prod-db-001` — `80.225.245.133` / `10.0.0.253` |
+| App / worker candidate | `instance-voiceai-prod-app-001` - `140.238.241.148` / `10.0.0.203` |
+| DB | `instance-voiceai-prod-db-001` - `80.225.245.133` / `10.0.0.253` |
 | OCIR | `bmue9nxcdpso/wapapp-prod` (mumbai) |
 
 **Recommended baseline:** long-lived Horizon on OCI VM (`HORIZON_ROLE=oci-heavy`).  

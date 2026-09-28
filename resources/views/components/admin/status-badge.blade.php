@@ -18,7 +18,7 @@
         $display = match ($value) {
             '1', 'true', 'yes' => 'Yes',
             '0', 'false', 'no' => 'No',
-            '' => '—',
+            '' => '-',
             default => ucwords(str_replace(['_', '-'], ' ', $value)),
         };
     }

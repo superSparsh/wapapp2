@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Log;
 /**
  * When WhatsApp delivery/read/failed status or an inbound reply arrives,
  * wake drip states that are waiting on a condition evaluation window so
- * they can take the Yes/No branch early — without cutting delay waits short.
+ * they can take the Yes/No branch early - without cutting delay waits short.
  */
 class DripConditionResumeService
 {

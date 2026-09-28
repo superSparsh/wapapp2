@@ -130,7 +130,7 @@ class DeliveryStatusHandler
                 $item,
             );
 
-            // Form sync may have linked outbound_message_id — re-resolve for wallet charge.
+            // Form sync may have linked outbound_message_id - re-resolve for wallet charge.
             $message ??= $this->findOutboundMessage($messageId, $item);
 
             if ($message !== null && $message->message_type === MessageType::Template) {
@@ -326,7 +326,7 @@ class DeliveryStatusHandler
         $recipient = $this->findCampaignRecipient($item, $messageId);
 
         if ($recipient === null) {
-            // Form / inbox / opt-in templates are not campaign recipients — don't alarm.
+            // Form / inbox / opt-in templates are not campaign recipients - don't alarm.
             return;
         }
 

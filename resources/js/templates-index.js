@@ -27,7 +27,7 @@ function applyStatusChip(chip, label, variant) {
         return;
     }
 
-    chip.textContent = label || '—';
+    chip.textContent = label || '-';
     chip.className = `fd-status-chip inline-flex items-center rounded px-2 py-1 ${STATUS_VARIANT_CLASSES[variant] || STATUS_VARIANT_CLASSES.default}`;
 }
 

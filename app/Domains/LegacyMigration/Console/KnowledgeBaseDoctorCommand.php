@@ -66,10 +66,10 @@ class KnowledgeBaseDoctorCommand extends Command
                     $this->line("  - {$name}  count={$count}");
                 }
                 if (count($collections) === 0) {
-                    $this->error('chroma_data is EMPTY — you likely copied ai_chatbot code only, not chroma_data.');
+                    $this->error('chroma_data is EMPTY - you likely copied ai_chatbot code only, not chroma_data.');
                 }
             } else {
-                $this->warn('GET /debug/collections failed HTTP '.$cols->status().' — deploy latest ai-service main.py');
+                $this->warn('GET /debug/collections failed HTTP '.$cols->status().' - deploy latest ai-service main.py');
             }
         } catch (Throwable $e) {
             $this->warn('debug/collections: '.$e->getMessage());
@@ -93,14 +93,14 @@ class KnowledgeBaseDoctorCommand extends Command
                 ->orderByDesc('id')
                 ->first();
             if ($mig) {
-                $this->warn("Found migration record customer #{$mig->legacy_customer_id} but NOT on tenant.settings — fixing…");
+                $this->warn("Found migration record customer #{$mig->legacy_customer_id} but NOT on tenant.settings - fixing…");
                 $settings = $tenant->settings ?? [];
                 $settings['legacy_customer_id'] = (int) $mig->legacy_customer_id;
                 $tenant->forceFill(['settings' => $settings])->save();
                 $legacyCustomerId = (int) $mig->legacy_customer_id;
                 $this->info("Wrote legacy_customer_id={$legacyCustomerId} onto tenant.settings");
             } else {
-                $this->error('No legacy_customer_id — Chroma client_id will be tenant slug (wrong for old data).');
+                $this->error('No legacy_customer_id - Chroma client_id will be tenant slug (wrong for old data).');
             }
         }
 
@@ -126,7 +126,7 @@ class KnowledgeBaseDoctorCommand extends Command
             $this->line('legacy_bot_uid: '.(filled($bot->legacy_bot_uid) ? (string) $bot->legacy_bot_uid : '(MISSING)'));
 
             if (! filled($bot->legacy_bot_uid)) {
-                $this->error('legacy_bot_uid missing — run: php artisan legacy:backfill-ai-bot-uids');
+                $this->error('legacy_bot_uid missing - run: php artisan legacy:backfill-ai-bot-uids');
                 try {
                     $legacy->assertReady();
                     if (filled($legacyCustomerId) && $legacy->tableExists('ai_bots')) {
@@ -166,7 +166,7 @@ class KnowledgeBaseDoctorCommand extends Command
                     $this->error('AI returned 0 documents for these keys.');
                     $this->comment('Either wrong keys, or chroma_data does not contain that collection.');
                 } else {
-                    $this->info("OK — {$total} chunks found. Refresh the UI.");
+                    $this->info("OK - {$total} chunks found. Refresh the UI.");
                 }
             } catch (Throwable $e) {
                 $this->error('list() failed: '.$e->getMessage());

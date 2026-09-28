@@ -324,7 +324,7 @@
                         {{ ucfirst($log->status?->value ?? '') }}
                       </span>
                     </td>
-                    <td class="p-2 whitespace-nowrap">{{ $log->sent_at?->format('M d, Y H:i') ?? '—' }}</td>
+                    <td class="p-2 whitespace-nowrap">{{ $log->sent_at?->format('M d, Y H:i') ?? '-' }}</td>
                   </tr>
                 @endforeach
               </tbody>

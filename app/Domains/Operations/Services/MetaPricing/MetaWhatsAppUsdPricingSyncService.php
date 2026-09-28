@@ -30,7 +30,7 @@ class MetaWhatsAppUsdPricingSyncService
         if (empty($csvUrl)) {
             throw new RuntimeException(
                 'Could not resolve Meta USD rates CSV URL. '
-                .'Run: php artisan operations:discover-meta-pricing-csv-url — or set META_USD_PRICING_CSV_URL in .env '
+                .'Run: php artisan operations:discover-meta-pricing-csv-url - or set META_USD_PRICING_CSV_URL in .env '
                .'(download link from developers.facebook.com/docs/whatsapp/pricing → "USD rates"). '
                .'Ensure the server can reach Facebook (HTTPS outbound).'
             );

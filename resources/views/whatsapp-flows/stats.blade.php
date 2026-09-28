@@ -5,7 +5,7 @@
         <div class="flex items-center gap-2">
           <a href="{{ route('whatsapp-flows.show', $flow) }}" class="text-sm text-text-subtle hover:text-text-body">&larr; Back to flow</a>
         </div>
-        <h1 class="text-2xl font-bold leading-[1.5] text-text-primary">{{ $flow->name }} — Stats</h1>
+        <h1 class="text-2xl font-bold leading-[1.5] text-text-primary">{{ $flow->name }} - Stats</h1>
       </div>
 
       {{-- Stat Cards --}}
@@ -107,7 +107,7 @@
                         @elseif ($val !== null && $val !== '')
                           <span class="text-text-primary font-medium">{{ (string) $val }}</span>
                         @else
-                          <span class="text-text-muted">—</span>
+                          <span class="text-text-muted">-</span>
                         @endif
                       </td>
                     @endforeach
@@ -116,7 +116,7 @@
                       <span class="block max-w-[300px] truncate font-mono text-[11px]">{{ json_encode($sub->form_data) }}</span>
                     </td>
                   @endif
-                  <td class="p-3 text-[13px] text-text-body whitespace-nowrap">{{ $sub->processed_at?->format('M d, H:i') ?? '—' }}</td>
+                  <td class="p-3 text-[13px] text-text-body whitespace-nowrap">{{ $sub->processed_at?->format('M d, H:i') ?? '-' }}</td>
                   <td class="p-3 text-[13px] text-text-body whitespace-nowrap">{{ $sub->created_at->format('M d, H:i') }}</td>
                 </tr>
               @empty

@@ -8,7 +8,7 @@ enum ChatbotFlowStateStatus: string
 {
     case Active = 'active';
     case Waiting = 'waiting';
-    /** Mid delay / typing — owned by chatbot but not resumable by inbound. */
+    /** Mid delay / typing - owned by chatbot but not resumable by inbound. */
     case Delayed = 'delayed';
     case Completed = 'completed';
     case Expired = 'expired';

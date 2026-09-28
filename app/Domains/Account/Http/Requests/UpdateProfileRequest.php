@@ -81,7 +81,7 @@ class UpdateProfileRequest extends FormRequest
         $validator->after(function (Validator $validator): void {
             $maxMb = $this->avatarMaxMb();
 
-            // PHP rejected the upload (too large for upload_max_filesize) — Laravel then
+            // PHP rejected the upload (too large for upload_max_filesize) - Laravel then
             // sees no file, so "nullable" would silently skip the avatar change.
             $fileError = $_FILES['avatar']['error'] ?? null;
             if (in_array($fileError, [UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE], true)) {

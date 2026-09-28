@@ -530,7 +530,7 @@ class ContactTest extends TestCase
             'type="submit"',
             $html,
         );
-        // Nested buttons break form submit — toggle must be the submit control.
+        // Nested buttons break form submit - toggle must be the submit control.
         $this->assertDoesNotMatchRegularExpression(
             '/<button[^>]*type="submit"[^>]*>\s*<button/i',
             $html,

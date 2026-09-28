@@ -67,12 +67,12 @@
                 @endif
               </td>
               {{-- Legacy UI bound "Retailer ID" to Facebook product id --}}
-              <td class="w-[160px] whitespace-nowrap p-2 align-middle text-[13px] font-semibold leading-[1.5] text-text-subtle">{{ $product['id'] ?: '—' }}</td>
+              <td class="w-[160px] whitespace-nowrap p-2 align-middle text-[13px] font-semibold leading-[1.5] text-text-subtle">{{ $product['id'] ?: '-' }}</td>
               <td class="fd-table-cell w-[140px] p-2 align-middle">{{ $product['name'] }}</td>
               <td class="fd-table-cell max-w-[188px] p-2 align-middle">
-                <span class="line-clamp-2 text-xs">{{ $product['description'] ?: '—' }}</span>
+                <span class="line-clamp-2 text-xs">{{ $product['description'] ?: '-' }}</span>
               </td>
-              <td class="fd-table-cell p-2 align-middle">{{ $product['brand'] ?: '—' }}</td>
+              <td class="fd-table-cell p-2 align-middle">{{ $product['brand'] ?: '-' }}</td>
               <td class="p-2 align-middle"><x-commerce.status-badge :label="$product['condition'] ?: 'N/A'" /></td>
               <td class="p-2 align-middle">
                 <x-commerce.status-badge

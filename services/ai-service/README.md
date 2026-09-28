@@ -55,7 +55,7 @@ Health check:
 curl -s http://127.0.0.1:5005/docs | head
 ```
 
-## Auto-start on server (systemd) — required for production
+## Auto-start on server (systemd) - required for production
 
 Laravel does **not** start this process. It only HTTP-calls `PYTHON_AI_URL`.  
 For reboot / crash recovery, install the unit once:
@@ -101,7 +101,7 @@ python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 ```
 
-Do **not** run `/home/ubuntu/.local/bin/uvicorn` — that skips the venv.
+Do **not** run `/home/ubuntu/.local/bin/uvicorn` - that skips the venv.
 
 ## Laravel env
 
@@ -125,4 +125,4 @@ PYTHON_AI_ENABLED=true
 - `POST /reindex`
 - `POST /process_query`
 
-Dashboard lists KB via Laravel proxies that call these live — no local mirror table.
+Dashboard lists KB via Laravel proxies that call these live - no local mirror table.

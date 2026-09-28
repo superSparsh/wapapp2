@@ -23,7 +23,7 @@
         <tr class="bg-elevated">
           <td class="fd-table-cell p-2 align-middle font-semibold fd-table-name">{{ $row->name }}</td>
           <td class="fd-table-cell p-2 align-middle text-sm">{{ $row->slug }}</td>
-          <td class="fd-table-cell p-2 align-middle text-sm">{{ $row->alias ?: '—' }}</td>
+          <td class="fd-table-cell p-2 align-middle text-sm">{{ $row->alias ?: '-' }}</td>
           <td class="fd-table-cell p-2 align-middle"><x-admin.status-badge :status="$row->is_active" /></td>
           <td class="w-[120px] p-2 align-middle">
             <x-ui.table-actions

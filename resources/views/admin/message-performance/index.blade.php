@@ -34,7 +34,7 @@
             <a href="{{ route('admin.customers.show', $row['tenant_id']) }}" class="fd-table-name hover:text-green-500">{{ $row['tenant_name'] }}</a>
           </td>
           <td class="fd-table-cell p-2 align-middle text-sm">
-            <div>{{ $row['display_name'] ?: '—' }}</div>
+            <div>{{ $row['display_name'] ?: '-' }}</div>
             <div class="text-xs text-text-subtle">{{ $row['phone'] }}</div>
           </td>
           <td class="fd-table-cell p-2 align-middle text-sm">{{ $row['sent'] }}</td>

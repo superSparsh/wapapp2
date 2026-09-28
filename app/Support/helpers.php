@@ -21,7 +21,7 @@ if (! function_exists('format_ist')) {
     function format_ist(mixed $value, string $format = 'd M Y, h:i A'): string
     {
         if ($value === null || $value === '') {
-            return '—';
+            return '-';
         }
 
         $tz = ist_timezone();
@@ -51,7 +51,7 @@ if (! function_exists('format_ist')) {
 
             return Carbon::parse((string) $value)->timezone($tz)->format($format);
         } catch (Throwable) {
-            return '—';
+            return '-';
         }
     }
 }

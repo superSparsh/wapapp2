@@ -11,7 +11,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
 
 /**
- * Public "Line Login" page — no main-account authentication required.
+ * Public "Line Login" page - no main-account authentication required.
  *
  * Allows someone to access the Inbox for a specific WhatsApp number
  * by entering the phone number + the Number Access password set by
@@ -28,7 +28,7 @@ class LineLoginController extends Controller
     ) {}
 
     /**
-     * GET /line-login — Show the public login form.
+     * GET /line-login - Show the public login form.
      */
     public function showForm(): View
     {
@@ -36,7 +36,7 @@ class LineLoginController extends Controller
     }
 
     /**
-     * POST /line-login — Authenticate by phone + password and lock session.
+     * POST /line-login - Authenticate by phone + password and lock session.
      */
     public function login(LineLoginRequest $request): View|RedirectResponse
     {
@@ -50,6 +50,6 @@ class LineLoginController extends Controller
         }
 
         return redirect()->route('dashboard')
-            ->with('success', 'Signed in for '.$line->displayPhone().'. You are in a number workspace — only this line’s data is available.');
+            ->with('success', 'Signed in for '.$line->displayPhone().'. You are in a number workspace - only this line’s data is available.');
     }
 }

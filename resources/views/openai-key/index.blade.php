@@ -149,7 +149,7 @@
                   height="16"
                 >
               </div>
-              <p id="chat_model_hint" class="text-xs text-text-muted">Paste API key — chat &amp; embedding models load automatically (or click Load models).</p>
+              <p id="chat_model_hint" class="text-xs text-text-muted">Paste API key - chat &amp; embedding models load automatically (or click Load models).</p>
             </div>
             <div class="flex min-w-0 flex-1 flex-col gap-2">
               <label for="embedding_model" class="text-sm font-semibold leading-[1.4] text-text-primary">
@@ -501,7 +501,7 @@
                     @forelse (($storageInfo['file_types'] ?? []) as $type)
                       <span class="inline-flex items-center justify-center rounded bg-stat-blue/15 px-2 py-1 text-[10px] font-medium leading-[1.2] text-stat-blue">{{ $type }}</span>
                     @empty
-                      <span class="text-sm text-text-muted">—</span>
+                      <span class="text-sm text-text-muted">-</span>
                     @endforelse
                   </div>
                 </div>
@@ -569,7 +569,7 @@
                     @forelse ($kbDocuments as $index => $doc)
                       @php
                         $meta = is_array($doc['metadata'] ?? null) ? $doc['metadata'] : [];
-                        $source = (string) ($meta['source'] ?? ($meta['filename'] ?? '—'));
+                        $source = (string) ($meta['source'] ?? ($meta['filename'] ?? '-'));
                         $type = (string) ($meta['file_type'] ?? ($meta['type'] ?? 'text'));
                         $preview = (string) ($doc['content_preview'] ?? \Illuminate\Support\Str::limit((string) ($doc['content'] ?? ''), 200));
                         $full = (string) ($doc['content'] ?? '');
@@ -673,7 +673,7 @@
                 <input
                   id="test_message"
                   type="text"
-                  placeholder="Type a message — conversation continues in the phone"
+                  placeholder="Type a message - conversation continues in the phone"
                   autocomplete="off"
                   class="w-full rounded-xl border border-border bg-elevated p-3.5 text-sm font-medium leading-[1.4] text-text-muted placeholder:text-text-muted focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
                 >
@@ -805,11 +805,11 @@
                   </p>
                   <ul class="flex flex-col gap-1 text-sm font-normal leading-[1.4] text-text-muted">
                     <li>
-                      OpenAI —
+                      OpenAI -
                       <a href="https://platform.openai.com/usage" target="_blank" rel="noopener noreferrer" class="text-green-500 underline">platform.openai.com/usage</a>
                     </li>
                     <li>
-                      Google Gemini —
+                      Google Gemini -
                       <a href="https://aistudio.google.com/usage" target="_blank" rel="noopener noreferrer" class="text-green-500 underline">aistudio.google.com/usage</a>
                     </li>
                   </ul>
@@ -835,7 +835,7 @@
                   <span class="min-w-0 flex-1 text-sm font-normal leading-[1.4] text-text-muted">
                     {{ $autoResponseEnabled
                       ? 'AI Assistant auto-replies on WhatsApp when Chatbot is not handling the chat'
-                      : 'Off — only chats switched to AI in Inbox (or Chatbot Natural Language nodes) will use AI' }}
+                      : 'Off - only chats switched to AI in Inbox (or Chatbot Natural Language nodes) will use AI' }}
                   </span>
                 </label>
               </div>
@@ -970,7 +970,7 @@ async function testBot() {
         responseDiv.classList.remove('hidden');
         responseError.textContent = data.error;
       }
-      appendBubble('assistant', 'Sorry — ' + data.error);
+      appendBubble('assistant', 'Sorry - ' + data.error);
     } else {
       const reply = data.response || '';
       appendBubble('assistant', reply);

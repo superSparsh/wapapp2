@@ -231,7 +231,7 @@ class FormBuilderService
                     $submission->phone ?? 'N/A',
                     $submission->contact?->name ?? 'N/A',
                     ucfirst($submission->displayStatus()),
-                    $submission->failed_reason ?: '—',
+                    $submission->failed_reason ?: '-',
                     $submission->created_at?->format('Y-m-d H:i:s') ?? '',
                     $submission->sent_at?->format('Y-m-d H:i:s') ?? '',
                     $submission->delivered_at?->format('Y-m-d H:i:s') ?? '',
@@ -361,7 +361,7 @@ class FormBuilderService
     }
 
     /**
-     * Normalize field definitions — ensure structure and preserve user order.
+     * Normalize field definitions - ensure structure and preserve user order.
      *
      * @param  array<int, array<string, mixed>>  $fields
      * @return array<int, array<string, mixed>>
@@ -385,7 +385,7 @@ class FormBuilderService
         // Ensure locked fields (phone) are always present
         $this->ensureLockedFields($normalized);
 
-        // Slice to max after ensuring locked fields — preserve user field order (shuffle).
+        // Slice to max after ensuring locked fields - preserve user field order (shuffle).
         $normalized = array_slice($normalized, 0, $maxFields);
 
         foreach ($normalized as &$entry) {

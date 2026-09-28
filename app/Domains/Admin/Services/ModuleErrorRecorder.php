@@ -14,7 +14,7 @@ use Throwable;
 
 /**
  * Persists module-tagged errors for the admin Errors hub.
- * Never throws — logging must not break the request/job.
+ * Never throws - logging must not break the request/job.
  */
 class ModuleErrorRecorder
 {

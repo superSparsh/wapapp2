@@ -66,7 +66,7 @@ class TemplatePreviewService
             ->values()
             ->all();
 
-        // Resolve footer text — opt-out footer overrides if enabled
+        // Resolve footer text - opt-out footer overrides if enabled
         $footerText = trim((string) ($payload['footer']['text'] ?? ''));
         if ($isOptOut && $footerText === '') {
             $footerText = 'Not interested? Tap Stop promotions';
@@ -299,7 +299,7 @@ class TemplatePreviewService
 
     /**
      * Absolute URL for preview <img>/<video> src. Relative legacy paths
-     * (/upload/images/...) need a host — prefer LEGACY_APP_URL, else APP_URL.
+     * (/upload/images/...) need a host - prefer LEGACY_APP_URL, else APP_URL.
      */
     private function resolveMediaUrl(?string $url): ?string
     {

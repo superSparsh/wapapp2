@@ -96,7 +96,7 @@ class MailListService
     }
 
     /**
-     * Growth chart data — 16 months of total/unsubscribed counts.
+     * Growth chart data - 16 months of total/unsubscribed counts.
      *
      * @return array{columns: list<string>, total: list<int>, unsubscribed: list<int>}
      */
@@ -128,7 +128,7 @@ class MailListService
     }
 
     /**
-     * Statistics chart — breakdown by status.
+     * Statistics chart - breakdown by status.
      *
      * @return list<array{value: int, name: string}>
      */

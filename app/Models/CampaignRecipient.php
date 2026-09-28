@@ -114,6 +114,6 @@ class CampaignRecipient extends Model
             ? $this->status
             : CampaignRecipientStatus::tryFrom((string) $this->status);
 
-        return $status === CampaignRecipientStatus::Failed ? 'N/A' : '—';
+        return $status === CampaignRecipientStatus::Failed ? 'N/A' : '-';
     }
 }

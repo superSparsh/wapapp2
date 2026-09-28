@@ -228,7 +228,7 @@ class CampaignStatsService
         ): void {
             $handle = fopen('php://output', 'w');
 
-            fputcsv($handle, ['Campaign Report — Summary']);
+            fputcsv($handle, ['Campaign Report - Summary']);
             fputcsv($handle, [
                 'Campaign ID',
                 'Campaign Name',
@@ -271,7 +271,7 @@ class CampaignStatsService
             ]);
 
             fputcsv($handle, []);
-            fputcsv($handle, ['Campaign Report — Recipients']);
+            fputcsv($handle, ['Campaign Report - Recipients']);
             fputcsv($handle, [
                 'Phone',
                 'Name',
@@ -325,7 +325,7 @@ class CampaignStatsService
                         $recipient->sent_at?->timezone('Asia/Kolkata')->format('d M Y h:i A') ?? '',
                         $recipient->delivered_at?->timezone('Asia/Kolkata')->format('d M Y h:i A') ?? '',
                         $recipient->updated_at?->timezone('Asia/Kolkata')->format('d M Y h:i A') ?? '',
-                        $recipient->displayReason() === '—' ? '' : $recipient->displayReason(),
+                        $recipient->displayReason() === '-' ? '' : $recipient->displayReason(),
                     ]);
                 });
 

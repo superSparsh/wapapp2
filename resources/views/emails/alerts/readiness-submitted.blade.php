@@ -18,7 +18,7 @@
     $customerName = $customer_name ?? $name ?? 'Customer';
 @endphp
     <div style="display:none; max-height:0; overflow:hidden; mso-hide:all; font-size:1px; line-height:1px; color:#f4f5f7;">
-        Welcome to Tekkonnectpro — Here’s how your onboarding will unfold.
+        Welcome to Tekkonnectpro - Here’s how your onboarding will unfold.
     </div>
 
     <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#f4f5f7;">
@@ -31,7 +31,7 @@
                             <h1 style="margin:0; font-family:Arial,Helvetica,sans-serif; font-size:22px; font-weight:700;">
                                 Welcome to Tekkonnectpro</h1>
                             <p style="margin:8px 0 0; font-family:Arial,Helvetica,sans-serif; font-size:14px; opacity:.9;">
-                                Hi {{ $customerName }} — I’m Manoj Kumar, your account manager. I’ll guide you through every step of onboarding.
+                                Hi {{ $customerName }} - I’m Manoj Kumar, your account manager. I’ll guide you through every step of onboarding.
                             </p>
                         </td>
                     </tr>

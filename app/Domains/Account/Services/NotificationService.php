@@ -20,7 +20,7 @@ class NotificationService
             ->count();
     }
 
-    /** @return Collection<int, ActivityLog> Unread (new) notifications only — never re-show after mark-as-read. */
+    /** @return Collection<int, ActivityLog> Unread (new) notifications only - never re-show after mark-as-read. */
     public function recent(int $limit = 8): Collection
     {
         $readAt = $this->readAt();

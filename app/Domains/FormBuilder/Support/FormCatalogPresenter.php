@@ -34,7 +34,7 @@ class FormCatalogPresenter
                 'status' => $form->status->label(),
                 'status_class' => $form->status->chipClass(),
                 'is_active' => $form->isActive(),
-                'created_at' => $form->created_at?->format('Y-m-d h:i A') ?? '—',
+                'created_at' => $form->created_at?->format('Y-m-d h:i A') ?? '-',
                 'stats' => [
                     'sent' => $form->sent_count,
                     'read' => $form->read_count,

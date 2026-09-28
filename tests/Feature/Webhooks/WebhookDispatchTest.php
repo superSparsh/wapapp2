@@ -272,7 +272,7 @@ class WebhookDispatchTest extends TestCase
             payload: ['event' => 'new_lead'],
         );
 
-        // Should not throw — just return silently
+        // Should not throw - just return silently
         $job->handle(app(WebhookDeliveryService::class));
 
         $this->assertSame(0, WebhookDelivery::query()->count());

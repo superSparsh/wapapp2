@@ -30,7 +30,7 @@ class SubmitPendingTemplates extends Command
 
         $this->foreachTenant(function () use (&$count): void {
             // Only templates that have never been successfully handed to CAMS.
-            // (synced_at is set on successful create/modify — do not re-submit while Meta is auditing.)
+            // (synced_at is set on successful create/modify - do not re-submit while Meta is auditing.)
             $templates = Template::query()
                 ->where('status', TemplateStatus::PendingReview)
                 ->whereNull('synced_at')

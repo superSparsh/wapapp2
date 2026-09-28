@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Customer Readiness — WAPAPP by Tittu</title>
+<title>Customer Readiness - WAPAPP by Tittu</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&display=swap" rel="stylesheet"/>
 <style>
   :root {
@@ -778,7 +778,7 @@
   <!-- Intro -->
   <div class="page-intro">
     <h1>Let's check if you're demo-ready</h1>
-    <p>We've received your enquiry and we're excited to show you WAPAPP. Before we schedule your demo, this quick readiness check helps us confirm that the essentials are in place — so when we meet, we can focus entirely on showing you what the platform can do for your business..</p>
+    <p>We've received your enquiry and we're excited to show you WAPAPP. Before we schedule your demo, this quick readiness check helps us confirm that the essentials are in place - so when we meet, we can focus entirely on showing you what the platform can do for your business..</p>
   </div>
 
   <!-- Top progress -->
@@ -847,7 +847,7 @@
         <div class="field">
           <label>Business email <span class="req">*</span> <span class="badge">Official domain required</span></label>
           <input type="email" id="f-bemail" placeholder="admin@yourdomain.com" oninput="validateField('f-bemail')" onblur="validateField('f-bemail')"/>
-          <div class="field-hint">💡 Must use your company domain — not Gmail, Yahoo, Outlook etc.</div>
+          <div class="field-hint">💡 Must use your company domain - not Gmail, Yahoo, Outlook etc.</div>
           <div class="field-hint" id="business-email-live-status">📧 Business email status: not checked yet.</div>
           <div class="field-error" id="e-bemail" style="display:none;">⚠ Enter a valid business email.</div>
         </div>
@@ -899,7 +899,7 @@
           <div class="field-error" id="e-regdoc">⚠ Please select a document type.</div>
         </div>
 
-        {{-- Upload registration PDF — removed per request (no file upload on this form).
+        {{-- Upload registration PDF - removed per request (no file upload on this form).
         <div class="field">
           <label>Upload registration PDF <span class="req">*</span></label>
           <input type="file" id="f-regdoc-file" accept="application/pdf,.pdf" onchange="validateField('f-regdoc-file')">
@@ -1041,9 +1041,9 @@
           <label>Phone number plan <span class="req">*</span></label>
           <select id="f-numplan" onchange="validateField('f-numplan')">
             <option value="">Select your plan</option>
-            <option value="new">New number — never used on WhatsApp ✓</option>
-            <option value="migrate">Existing number — will migrate to WhatsApp</option>
-            <option value="apponly">Existing app number — cannot migrate</option>
+            <option value="new">New number - never used on WhatsApp ✓</option>
+            <option value="migrate">Existing number - will migrate to WhatsApp</option>
+            <option value="apponly">Existing app number - cannot migrate</option>
             <option value="undecided">Not decided yet</option>
           </select>
           <div class="field-error" id="e-numplan">⚠ Please select your number plan.</div>
@@ -1167,7 +1167,7 @@
     <div class="guide-toggle" onclick="toggleGuide()">
       <div class="guide-title">
         <span>🔷</span>
-        <span>Meta Business Verification — Step-by-Step Guide <span class="guide-chip">Required</span></span>
+        <span>Meta Business Verification - Step-by-Step Guide <span class="guide-chip">Required</span></span>
       </div>
       <div class="guide-chevron" id="guideChevron">▼</div>
     </div>
@@ -1187,7 +1187,7 @@
             <div class="guide-step-body">
               Go to <a href="https://business.facebook.com" target="_blank">business.facebook.com</a> and sign in with your personal Facebook account. If you do not have a Business Manager, click <strong>Create Account</strong> and enter your business name, your name, and your business email address.<br/>
               <ul>
-                <li>Use the exact legal business name — this must match your documents.</li>
+                <li>Use the exact legal business name - this must match your documents.</li>
                 <li>Add your business website and phone number in the settings.</li>
               </ul>
             </div>
@@ -1262,7 +1262,7 @@
               Meta will ask for one or more of the following (for India):
               <ul>
                 <li><strong>Business registration:</strong> GST Certificate, or Udyam MSME Certificate.</li>
-                <li><strong>Proof of address:</strong> Utility bill, bank statement, property tax receipt, or lease agreement — must match the business address.</li>
+                <li><strong>Proof of address:</strong> Utility bill, bank statement, property tax receipt, or lease agreement - must match the business address.</li>
                 <li><strong>Phone number verification:</strong> If your business phone is listed, Meta may verify via OTP. Otherwise, submit a document showing your business name and phone number together.</li>
               </ul>
               Ensure all documents are in PDF or JPG format, clearly legible, and not older than 3 months (for utility bills and bank statements).
@@ -1280,8 +1280,8 @@
             <div class="guide-step-body">
               After document upload, Meta will verify either your business email or phone number:
               <ul>
-                <li>If verifying by email — Meta sends a code to your business domain email. Click the link to confirm.</li>
-                <li>If verifying by phone — Meta sends an OTP via SMS or voice call. Enter it in the portal.</li>
+                <li>If verifying by email - Meta sends a code to your business domain email. Click the link to confirm.</li>
+                <li>If verifying by phone - Meta sends an OTP via SMS or voice call. Enter it in the portal.</li>
               </ul>
               Ensure your business email inbox is accessible and your phone can receive calls or SMS.
             </div>
@@ -1311,7 +1311,7 @@
             <div class="step-circle">8</div>
           </div>
           <div class="guide-step-content">
-            <div class="guide-step-title">After Approval — Proceed with WhatsApp Onboarding</div>
+            <div class="guide-step-title">After Approval - Proceed with WhatsApp Onboarding</div>
             <div class="guide-step-body">
               Once your Meta Business is verified:
               <ul>
@@ -1924,14 +1924,14 @@ function buildSummary() {
       label: 'Meta Business Manager admin access',
       fn: () => get('f-metaadmin')?.value === 'admin',
       warnFn: () => get('f-metaadmin')?.value === 'employee',
-      note: get('f-metaadmin')?.value === 'employee' ? 'Employee access — admin needs to complete setup.' : 'Admin access is required to connect WhatsApp.',
+      note: get('f-metaadmin')?.value === 'employee' ? 'Employee access - admin needs to complete setup.' : 'Admin access is required to connect WhatsApp.',
       type: 'blocker'
     },
     {
       label: 'MFA enabled for all Meta admins',
       fn: () => get('f-mfa')?.value === 'all',
       warnFn: () => ['some','none'].includes(get('f-mfa')?.value || ''),
-      note: 'Partial or missing MFA — enable it in Business Settings → Security Center.',
+      note: 'Partial or missing MFA - enable it in Business Settings → Security Center.',
       type: 'warning'
     },
     {

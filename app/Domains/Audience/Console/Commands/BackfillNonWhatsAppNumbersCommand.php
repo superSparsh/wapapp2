@@ -24,7 +24,7 @@ class BackfillNonWhatsAppNumbersCommand extends Command
         $run = function () use ($service, $days): void {
             $result = $service->backfillFromHistory($days);
             $this->info(sprintf(
-                'Tenant %s — scanned: %d, marked: %d, skipped: %d',
+                'Tenant %s - scanned: %d, marked: %d, skipped: %d',
                 (string) (tenant('id') ?? 'central'),
                 $result['scanned'],
                 $result['marked'],

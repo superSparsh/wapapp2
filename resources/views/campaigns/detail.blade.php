@@ -104,10 +104,10 @@
                       {{ $recipient->displayReason() }}
                     </td>
                   @endif
-                  <td class="p-2 text-[13px] font-normal leading-[1.5] text-text-body">{{ $recipient->sent_at?->format('d M Y h:i A') ?? '—' }}</td>
-                  <td class="p-2 text-[13px] font-normal leading-[1.5] text-text-body">{{ $recipient->delivered_at?->format('d M Y h:i A') ?? '—' }}</td>
+                  <td class="p-2 text-[13px] font-normal leading-[1.5] text-text-body">{{ $recipient->sent_at?->format('d M Y h:i A') ?? '-' }}</td>
+                  <td class="p-2 text-[13px] font-normal leading-[1.5] text-text-body">{{ $recipient->delivered_at?->format('d M Y h:i A') ?? '-' }}</td>
                   @if ($showFailureColumns)
-                    <td class="p-2 text-[13px] font-normal leading-[1.5] text-text-body">{{ $recipient->failed_at?->format('d M Y h:i A') ?? '—' }}</td>
+                    <td class="p-2 text-[13px] font-normal leading-[1.5] text-text-body">{{ $recipient->failed_at?->format('d M Y h:i A') ?? '-' }}</td>
                   @endif
                 </tr>
               @empty

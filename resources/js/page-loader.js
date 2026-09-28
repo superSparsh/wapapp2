@@ -95,7 +95,7 @@ export function initPageLoader() {
         if (!(form instanceof HTMLFormElement)) return;
         if (form.dataset.noLoader !== undefined || form.closest('[data-no-loader]')) return;
 
-        // Inbox / modal forms are handled via fetch — never leave the full-page loader up.
+        // Inbox / modal forms are handled via fetch - never leave the full-page loader up.
         if (
             form.closest('[data-modal]')
             || form.closest('[data-inbox-chat]')

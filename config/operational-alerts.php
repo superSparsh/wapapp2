@@ -28,7 +28,7 @@ return [
     ],
 
     /*
-    | Admin / developer recipients — same env keys as legacy where possible.
+    | Admin / developer recipients - same env keys as legacy where possible.
     | Legacy: PLAN_EXPIRY_NOTIFICATION, WHATSAPP_TO_NUMBERS, WHATSAPP_TO_NUMBERS_PLAN_EXPIRATION
     */
     'admin_emails' => array_values(array_filter(array_map(

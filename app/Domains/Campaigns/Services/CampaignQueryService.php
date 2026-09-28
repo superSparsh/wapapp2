@@ -45,7 +45,7 @@ class CampaignQueryService
                     ->where('status', CampaignRecipientStatus::Failed),
                 'recipients as recipients_total_count',
             ])
-            // Select only display columns — skip heavy JSON fields
+            // Select only display columns - skip heavy JSON fields
             ->select([
                 'id', 'uuid', 'name', 'status', 'audience_id',
                 'whatsapp_line_id', 'template_id', 'scheduled_at',
@@ -67,7 +67,7 @@ class CampaignQueryService
             }
         }
 
-        // Sorting — only allow safe columns (whitelist from config)
+        // Sorting - only allow safe columns (whitelist from config)
         $allowedSorts = config('campaigns.sort_columns', ['name', 'created_at', 'total_recipients', 'scheduled_at', 'status']);
         if (! in_array($sort, $allowedSorts, true)) {
             $sort = 'created_at';

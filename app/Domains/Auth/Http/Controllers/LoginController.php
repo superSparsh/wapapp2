@@ -46,8 +46,8 @@ class LoginController extends Controller
 
         $activityLogService->logFromRequest($request, 'auth.login.success', [
             'description' => $user instanceof TeamMember
-                ? 'Team login — successful'
-                : 'Login — successful',
+                ? 'Team login - successful'
+                : 'Login - successful',
             'metadata' => [
                 'guard' => $result->guard,
                 'actor_name' => $actorName,

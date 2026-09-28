@@ -1,4 +1,4 @@
-# WapApp 2.0 — Webhook Architecture (Legacy Analysis + New Design)
+# WapApp 2.0 - Webhook Architecture (Legacy Analysis + New Design)
 
 **Source:** `tittuprod4.sql` + legacy code audit  
 **Date:** 27 July 2026
@@ -13,7 +13,7 @@ Legacy mein "webhook" naam se 3 alag cheezein hain. Inhe kabhi merge mat karo.
 ┌─────────────────────────────────────────────────────────────────────────┐
 │  SYSTEM 1: `webhooks` table                                             │
 │  Direction: INBOUND (Meta/Shopify → App)                                │
-│  Purpose:   Staging buffer — raw payloads queue hone se pehle store     │
+│  Purpose:   Staging buffer - raw payloads queue hone se pehle store     │
 │  Scope:     Platform level (NO customer_id)                             │
 │  Lifecycle: INSERT → process → DELETE (data loss risk!)                 │
 └─────────────────────────────────────────────────────────────────────────┘
@@ -36,7 +36,7 @@ Legacy mein "webhook" naam se 3 alag cheezein hain. Inhe kabhi merge mat karo.
 
 ---
 
-## SYSTEM 1: `webhooks` Table (Inbound Staging) — SQL Verified
+## SYSTEM 1: `webhooks` Table (Inbound Staging) - SQL Verified
 
 ### Production Schema (from tittuprod4.sql)
 
@@ -55,7 +55,7 @@ CREATE TABLE `webhooks` (
 ADD KEY `idx_webhooks_prioritization` (`type`, `webhook_status`, `client_id`, `id`);
 ```
 
-**Note:** No CREATE migration in legacy repo — table manually created in production.
+**Note:** No CREATE migration in legacy repo - table manually created in production.
 
 ### What Goes Into This Table (type values)
 
@@ -102,16 +102,16 @@ SHOPIFY:
 
 ### Problems With Legacy `webhooks` Table
 
-1. **Delete before process** — `WebhookMessageService.php:105` deletes row before processing. Fail = data gone forever.
-2. **Mixed event sources** — Meta messages, Meta status, Shopify all in one table with different processing paths.
-3. **No tenant_id** — Must parse JSON and lookup `new_contacts` by phone to find customer.
-4. **Cron dependency for Status** — Messages use queue, Status uses cron polling. Inconsistent.
-5. **No proper status tracking** — `webhook_status` column exists but underused.
-6. **message_id column misused** — Shopify stores event type name in message_id field.
+1. **Delete before process** - `WebhookMessageService.php:105` deletes row before processing. Fail = data gone forever.
+2. **Mixed event sources** - Meta messages, Meta status, Shopify all in one table with different processing paths.
+3. **No tenant_id** - Must parse JSON and lookup `new_contacts` by phone to find customer.
+4. **Cron dependency for Status** - Messages use queue, Status uses cron polling. Inconsistent.
+5. **No proper status tracking** - `webhook_status` column exists but underused.
+6. **message_id column misused** - Shopify stores event type name in message_id field.
 
 ---
 
-## SYSTEM 2: Customer Outbound Webhooks — SQL Verified
+## SYSTEM 2: Customer Outbound Webhooks - SQL Verified
 
 ### `webhook_settings` (Customer Config)
 
@@ -134,7 +134,7 @@ CREATE TABLE `webhook_settings` (
 
 **Purpose:** Customer configures "jab naya lead aaye, is URL pe POST karo"
 
-**Used by:** `WebhookService::notifyNewLead()` — reads active webhooks for customer+line, sends HMAC-signed POST.
+**Used by:** `WebhookService::notifyNewLead()` - reads active webhooks for customer+line, sends HMAC-signed POST.
 
 ### `webhook_logs` (Delivery Audit)
 
@@ -158,7 +158,7 @@ CREATE TABLE `webhook_logs` (
 );
 ```
 
-**Purpose:** Every outbound delivery attempt logged — success, failure, response.
+**Purpose:** Every outbound delivery attempt logged - success, failure, response.
 
 **These are NOT related to the `webhooks` staging table.** Completely separate concern.
 
@@ -181,7 +181,7 @@ ADD UNIQUE KEY `processed_webhooks_message_id_unique` (`message_id`);
 
 ---
 
-## MISSING TABLES — SQL Verified (No CREATE Migration in Legacy)
+## MISSING TABLES - SQL Verified (No CREATE Migration in Legacy)
 
 ### `sub_replies` (Inbox Conversation Threads)
 
@@ -369,9 +369,9 @@ CREATE TABLE processed_events (
 |--------|-------------------|------------------------------|
 | Purpose | Staging buffer | Immutable event log |
 | Delete after process? | YES (data loss risk) | NEVER |
-| Tenant ID | No — parse JSON | Resolved + stored |
+| Tenant ID | No - parse JSON | Resolved + stored |
 | Processing | Queue + Cron mix | Queue only (event-driven) |
-| Shopify + Meta mixed? | YES (same table) | NO — `source` column separates |
+| Shopify + Meta mixed? | YES (same table) | NO - `source` column separates |
 | Status tracking | `webhook_status` underused | Proper enum lifecycle |
 | Retry | None | retry_count + failed status |
 | Dedup | Separate `processed_webhooks` | Unique on source + idempotency_key |
@@ -392,8 +392,8 @@ CREATE TABLE processed_events (
 |--------|-----|-------|
 | `sub_replies` | `conversations` | Thread per contact+line pair |
 | `conversations` | `messages` | Individual messages |
-| — | Add `tenant_id` | Legacy resolves via msg_to lookup |
-| — | Add `whatsapp_line_id` | Direct FK instead of phone lookup |
+| - | Add `tenant_id` | Legacy resolves via msg_to lookup |
+| - | Add `whatsapp_line_id` | Direct FK instead of phone lookup |
 | `msg_from` / `msg_to` | `contact_phone` / `line_phone` | Clearer naming |
 
 ---
@@ -401,11 +401,11 @@ CREATE TABLE processed_events (
 ## What NOT To Do
 
 1. Do NOT put inbound Meta webhooks and customer outbound webhooks in same table.
-2. Do NOT delete inbound events after processing — append-only log.
-3. Do NOT use cron to poll inbound events — queue dispatch only.
+2. Do NOT delete inbound events after processing - append-only log.
+3. Do NOT use cron to poll inbound events - queue dispatch only.
 4. Do NOT mix Shopify/Razorpay/Calendly with Meta in one table without `source` column.
 5. Do NOT rename `webhook_settings`/`webhook_logs` to anything that sounds like inbound.
 
 ---
 
-— End of Document —
+- End of Document -

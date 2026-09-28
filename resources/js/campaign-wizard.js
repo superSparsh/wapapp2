@@ -204,7 +204,7 @@ function syncCostBanner(form, select) {
         : Number(rates[category] ?? rates.DEFAULT ?? 0.78);
     const totalCost = Math.round(unitCost * recipients * 100) / 100;
     const templateName = option?.dataset.templateName || 'Select a template';
-    const templateType = option?.dataset.categoryLabel || category || '—';
+    const templateType = option?.dataset.categoryLabel || category || '-';
 
     const setText = (selector, value) => {
         const el = banner.querySelector(selector);

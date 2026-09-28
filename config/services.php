@@ -84,7 +84,7 @@ return [
         'usd_csv_url' => env('META_USD_PRICING_CSV_URL'),
     ],
 
-    /** customers.wallet_amount: inr (legacy) or usd — see wallet:migrate-balance-to-usd */
+    /** customers.wallet_amount: inr (legacy) or usd - see wallet:migrate-balance-to-usd */
     'wallet_balance_unit' => env('WALLET_BALANCE_UNIT', 'inr'),
 
     /** Show “≈ ₹…” conversion hints on campaigns / wallet credit preview (default: hidden). */
@@ -94,7 +94,7 @@ return [
     'wallet_display_currency_default' => env('WALLET_DISPLAY_CURRENCY_DEFAULT', 'INR'),
 
     /*
-    | Zoho Books — wallet recharge invoices (legacy Razorpay → paid Zoho invoice flow).
+    | Zoho Books - wallet recharge invoices (legacy Razorpay → paid Zoho invoice flow).
     */
     'zoho' => [
         'client_id' => env('ZOHO_CLIENT_ID'),

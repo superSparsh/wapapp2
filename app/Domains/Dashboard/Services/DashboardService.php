@@ -119,10 +119,10 @@ class DashboardService
                 $status = $recipient->status;
 
                 return [
-                    'name' => $recipient->contact?->name ?: '—',
-                    'phone' => $recipient->contact_phone ?: ($recipient->contact?->phone ?? '—'),
-                    'campaign' => $campaign?->name ?? '—',
-                    'sent_at' => optional($recipient->sent_at ?? $recipient->delivered_at ?? $recipient->created_at)->format('d M Y h:i A') ?? '—',
+                    'name' => $recipient->contact?->name ?: '-',
+                    'phone' => $recipient->contact_phone ?: ($recipient->contact?->phone ?? '-'),
+                    'campaign' => $campaign?->name ?? '-',
+                    'sent_at' => optional($recipient->sent_at ?? $recipient->delivered_at ?? $recipient->created_at)->format('d M Y h:i A') ?? '-',
                     'status_label' => $status?->label() ?? 'Pending',
                     'status_variant' => match ($status?->value) {
                         'delivered' => 'done',
@@ -216,7 +216,7 @@ class DashboardService
                 $totalDays = max(1, (int) $startsAt->copy()->startOfDay()->diffInDays($expiresAt->copy()->startOfDay()));
                 $validityPercent = min(100, (int) round(($daysRemaining / $totalDays) * 100));
             } elseif ($daysRemaining > 0) {
-                // No start date — show remaining as a soft progress bar (legacy-ish).
+                // No start date - show remaining as a soft progress bar (legacy-ish).
                 $validityPercent = min(100, (int) round(($daysRemaining / max($daysRemaining, 365)) * 100));
                 $validityPercent = max(8, $validityPercent);
             }
@@ -391,7 +391,7 @@ class DashboardService
             return $series;
         }
 
-        // Migrated contacts often sit outside the last 6 months — show the latest
+        // Migrated contacts often sit outside the last 6 months - show the latest
         // months that actually have growth data instead of an empty chart.
         $driver = Contact::query()->getConnection()->getDriverName();
         $monthExpression = $driver === 'sqlite'

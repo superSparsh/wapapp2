@@ -47,7 +47,7 @@
           <td class="fd-table-cell p-2 align-middle text-xs font-medium uppercase text-text-subtle">{{ $row['source'] }}</td>
           <td class="fd-table-cell p-2 align-middle text-sm font-semibold">{{ $row['currency'] }} {{ $row['amount'] }}</td>
           <td class="fd-table-cell p-2 align-middle text-sm">{{ $row['description'] }}</td>
-          <td class="fd-table-cell p-2 align-middle text-xs text-text-subtle">{{ $row['razorpay_payment_id'] ?: '—' }}</td>
+          <td class="fd-table-cell p-2 align-middle text-xs text-text-subtle">{{ $row['razorpay_payment_id'] ?: '-' }}</td>
           <td class="fd-table-cell p-2 align-middle text-sm text-text-subtle">{{ format_ist($row['created_at']) }}</td>
         </tr>
       @empty

@@ -196,8 +196,8 @@ class CampaignStatisticsTest extends TestCase
         $response->sendContent();
         $csv = (string) ob_get_clean();
 
-        $this->assertStringContainsString('Campaign Report — Summary', $csv);
-        $this->assertStringContainsString('Campaign Report — Recipients', $csv);
+        $this->assertStringContainsString('Campaign Report - Summary', $csv);
+        $this->assertStringContainsString('Campaign Report - Recipients', $csv);
         $this->assertStringContainsString('Report Campaign', $csv);
         $this->assertStringContainsString('Total Campaign Cost (INR)', $csv);
     }

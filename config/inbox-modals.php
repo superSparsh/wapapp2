@@ -97,7 +97,7 @@ return [
     ],
     'ask-few-questions' => [
         'title' => 'Ask a Few Questions',
-        'subtitle' => 'Send a tiny form—great for getting quick info.',
+        'subtitle' => 'Send a tiny form-great for getting quick info.',
         'has_preview' => true,
     ],
     'ask-for-location' => [

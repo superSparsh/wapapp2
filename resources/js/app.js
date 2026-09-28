@@ -638,7 +638,7 @@ function initInboxServiceWindow(chat) {
         '',
         'When they reply, a 24-hour window opens so you can send normal free-form messages.',
         '',
-        'Sending a template alone does not start that window — the customer still needs to reply once so the 24-hour window can begin.',
+        'Sending a template alone does not start that window - the customer still needs to reply once so the 24-hour window can begin.',
     ].join('\n');
 
     let withinWindow = true;
@@ -908,7 +908,7 @@ function showInboxWebNotification(thread, message, { force = false } = {}) {
             body,
             tag,
             icon,
-            // Absolute icon again as badge — Windows Chrome/Edge show this in the tray.
+            // Absolute icon again as badge - Windows Chrome/Edge show this in the tray.
             badge: icon,
             silent: false,
             requireInteraction: false,
@@ -950,7 +950,7 @@ function showInboxWebNotification(thread, message, { force = false } = {}) {
         created = false;
     }
 
-    // Do not fall back to in-app toasts for chat traffic — high volume freezes the tab.
+    // Do not fall back to in-app toasts for chat traffic - high volume freezes the tab.
     // Desktop OS notifications only (when permission is granted).
 
     return created;
@@ -1288,7 +1288,7 @@ function upsertThreadRow(thread, { notify = true, bump = false } = {}) {
             }
         }
 
-        // Only bump on real activity (new message) — not on mark-read / poll merges.
+        // Only bump on real activity (new message) - not on mark-read / poll merges.
         if (bump && list.firstElementChild !== row) {
             list.insertBefore(row, list.firstElementChild);
         }
@@ -1852,7 +1852,7 @@ function initInboxRealtime() {
     if (realtimeEnabled && tenantId && window.Echo) {
         subscribeInboxEcho(`inbox.${tenantId}`, {
             '.thread.updated': (payload) => {
-                // Mark-read / assignee / AI toggles — update in place, do not reorder.
+                // Mark-read / assignee / AI toggles - update in place, do not reorder.
                 upsertThreadRow(payload.thread, { bump: false });
             },
             '.message.created': (payload) => {
@@ -1874,7 +1874,7 @@ function initInboxRealtime() {
                         : Number(payload.thread?.unread || 0),
                 };
 
-                // Suppress badge-based notify here — showInboxWebNotification below
+                // Suppress badge-based notify here - showInboxWebNotification below
                 // has the real message body and correct open-chat/focus checks.
                 upsertThreadRow(thread, { notify: false, bump: true });
 
@@ -1940,7 +1940,7 @@ function initInboxRealtime() {
             };
 
             if (threadsAppended) {
-                // User already loaded older pages — update in place only.
+                // User already loaded older pages - update in place only.
                 // Do not prepend known rows (that caused the selected chat to jump).
                 const selectedUuid = inboxSelectedConversationUuid();
                 [...threads].reverse().forEach((thread) => {
@@ -1976,7 +1976,7 @@ function initInboxRealtime() {
             }
 
             const selectedUuid = inboxSelectedConversationUuid();
-            // Atomic rebuild — moving rows one-by-one into a fragment made the
+            // Atomic rebuild - moving rows one-by-one into a fragment made the
             // open chat visibly climb to the top before settling.
             const seen = new Set();
             const html = [];
@@ -2084,7 +2084,7 @@ function initInboxChat() {
     const chat = document.querySelector('[data-inbox-chat]');
     if (!chat) return;
 
-    // Bind assign early — must not depend on composer/send URLs.
+    // Bind assign early - must not depend on composer/send URLs.
     initInboxAssignee(chat);
 
     const form = chat.querySelector('[data-inbox-send-form]');
@@ -2623,7 +2623,7 @@ function initInboxChat() {
         }, pollInterval);
     }
 
-    // Open chat is read (WhatsApp-style) — clear badge even if SSR already marked read.
+    // Open chat is read (WhatsApp-style) - clear badge even if SSR already marked read.
     markConversationRead();
     scrollMessagesToLatest();
 }
@@ -3102,7 +3102,7 @@ function initInboxOutboundModals() {
                     if (response.status === 413 || (!error.message && !error.errors && response.status >= 400)) {
                         showFormError(
                             mediaForm,
-                            'Upload failed — the file may be too large. Limits: image 5 MB; video, audio, and documents 14 MB.',
+                            'Upload failed - the file may be too large. Limits: image 5 MB; video, audio, and documents 14 MB.',
                         );
                         return;
                     }
@@ -3371,7 +3371,7 @@ function initInboxOutboundModals() {
                 if (items.length === 0) {
                     const option = document.createElement('option');
                     option.value = '';
-                    option.textContent = 'No WhatsApp-approved templates — sync templates first';
+                    option.textContent = 'No WhatsApp-approved templates - sync templates first';
                     templateSelect.appendChild(option);
                     renderTemplateParams([]);
                     applyInboxTemplatePreview(null);

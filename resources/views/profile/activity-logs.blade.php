@@ -47,7 +47,7 @@
                   <span class="mt-1 block text-text-subtle">{{ \App\Domains\Account\Services\ActivityLogService::labelFor((string) $log->action) }}</span>
                 </td>
                 <td class="p-2 text-text-body">{{ \App\Domains\Account\Services\ActivityLogService::labelFor((string) $log->action, $log->description) }}</td>
-                <td class="p-2 text-text-muted">{{ $log->ip_address ?? '—' }}</td>
+                <td class="p-2 text-text-muted">{{ $log->ip_address ?? '-' }}</td>
               </tr>
             @empty
               <tr class="border-t border-divider">

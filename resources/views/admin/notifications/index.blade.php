@@ -3,7 +3,7 @@
     <div>
       <h1 class="text-2xl font-bold text-text-primary">Notifications</h1>
       <p class="text-sm text-text-subtle">
-        {{ $unreadCount }} unread — new customers, platform errors, renew &amp; recharge requests.
+        {{ $unreadCount }} unread - new customers, platform errors, renew &amp; recharge requests.
       </p>
     </div>
     <form method="POST" action="{{ route('admin.notifications.mark-all-read') }}">
@@ -55,7 +55,7 @@
       </article>
     @empty
       <div class="rounded-xl border border-dashed border-border p-10 text-center text-sm text-text-subtle">
-        You’re all caught up — no unread notifications.
+        You’re all caught up - no unread notifications.
       </div>
     @endforelse
   </section>

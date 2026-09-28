@@ -11,7 +11,7 @@
       >
         <p class="font-semibold text-green-700">Note: These are tutorials from the previous WapApp design.</p>
         <p class="mt-1 text-text-subtle">
-          We will upload updated videos for the new UI soon. The steps are mostly the same — only the look has changed.
+          We will upload updated videos for the new UI soon. The steps are mostly the same - only the look has changed.
         </p>
       </div>
 

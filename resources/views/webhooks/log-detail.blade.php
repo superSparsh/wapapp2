@@ -41,8 +41,8 @@
               $leftRows = [
                 ['Event Type:', 'badge-event', $delivery->event_type === 'new_lead' ? 'New_Lead' : $delivery->event_type],
                 ['Status:', 'badge-status', $statusLabel],
-                ['Sent At:', 'text', $delivery->sent_at?->format('Y-m-d H:i:s') ?? '—'],
-                ['Response Received:', 'text', $delivery->response_received_at?->format('Y-m-d H:i:s') ?? '—'],
+                ['Sent At:', 'text', $delivery->sent_at?->format('Y-m-d H:i:s') ?? '-'],
+                ['Response Received:', 'text', $delivery->response_received_at?->format('Y-m-d H:i:s') ?? '-'],
               ];
             @endphp
             @foreach ($leftRows as $index => [$label, $type, $value])
@@ -82,8 +82,8 @@
               $rightRows = [
                 ['Webhook URL:', 'url', $delivery->subscription?->url ?? 'N/A'],
                 ['Error Message:', 'text', $delivery->error_message ?? 'No error'],
-                ['HTTP Status:', 'text', $delivery->response_status !== null ? (string) $delivery->response_status : '—'],
-                ['Response Time:', 'text', $delivery->duration_ms !== null ? $delivery->duration_ms . 'ms' : '—'],
+                ['HTTP Status:', 'text', $delivery->response_status !== null ? (string) $delivery->response_status : '-'],
+                ['Response Time:', 'text', $delivery->duration_ms !== null ? $delivery->duration_ms . 'ms' : '-'],
                 ['Attempt Count:', 'text', (string) $delivery->attempt_count],
               ];
             @endphp

@@ -15,7 +15,7 @@
 
 @php
   $sortComposite = $currentSort . ':' . $currentDirection;
-  // Keep the real server sort selected — never fake the first option when
+  // Keep the real server sort selected - never fake the first option when
   // the current composite is missing from the list (that made sort look stuck).
 @endphp
 

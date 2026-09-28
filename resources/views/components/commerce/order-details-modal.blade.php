@@ -28,10 +28,10 @@
       <div class="flex items-center gap-3">
         <img src="{{ asset('images/commerce/avatar-placeholder.svg') }}" alt="" class="size-12 shrink-0" width="48" height="48">
         <div class="min-w-0 flex-1">
-          <p class="text-base font-semibold leading-[1.4] text-text-primary" data-order-customer-name>—</p>
+          <p class="text-base font-semibold leading-[1.4] text-text-primary" data-order-customer-name>-</p>
           <div class="mt-1 flex items-center gap-1">
             <img src="{{ asset('images/commerce/whatsapp.svg') }}" alt="" class="size-5 shrink-0" width="20" height="20">
-            <span class="text-sm font-medium leading-[1.4] text-text-subtle" data-order-customer-phone>—</span>
+            <span class="text-sm font-medium leading-[1.4] text-text-subtle" data-order-customer-phone>-</span>
           </div>
         </div>
       </div>
@@ -40,7 +40,7 @@
     <div class="flex w-full flex-col gap-4 rounded-xl border border-border-light bg-muted-surface p-4">
       <div class="flex items-center gap-2">
         <img src="{{ asset('images/commerce/calendar.svg') }}" alt="" class="size-4 shrink-0" width="16" height="16">
-        <span class="text-sm font-medium leading-[1.5] text-[#848484]" data-order-date>—</span>
+        <span class="text-sm font-medium leading-[1.5] text-[#848484]" data-order-date>-</span>
       </div>
 
       <div class="flex items-center justify-between gap-4">
@@ -58,12 +58,12 @@
             <span
               class="inline-flex items-center justify-center rounded bg-[rgba(0,128,0,0.1)] px-2 py-1 text-xs font-medium leading-[1.2] text-green-600"
               data-order-payment-status
-            >—</span>
+            >-</span>
           </div>
         </div>
         <div class="shrink-0 text-green-700">
           <p class="text-base font-medium leading-[1.5]">Total Amount</p>
-          <p class="text-base font-semibold leading-normal" data-order-total>—</p>
+          <p class="text-base font-semibold leading-normal" data-order-total>-</p>
         </div>
       </div>
 

@@ -161,7 +161,7 @@
         <x-templates.upload-zone
           id="header_document"
           accept="application/pdf,.pdf"
-          :hint="'PDF — max '.WhatsappMediaRules::maxMbLabel('document')"
+          :hint="'PDF - max '.WhatsappMediaRules::maxMbLabel('document')"
           preview-kind="document"
           :preview-url="$headerType === 'document' ? $previewUrl : null"
           :file-name="$headerType === 'document' ? $mediaName : null"

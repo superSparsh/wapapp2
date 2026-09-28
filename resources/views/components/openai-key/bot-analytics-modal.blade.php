@@ -58,23 +58,23 @@
     <div class="flex w-full flex-col gap-2 rounded-xl border border-border-light bg-muted-surface p-4">
       <div class="flex items-center justify-between">
         <span class="text-sm font-medium leading-[1.4] text-text-muted">Bot Name</span>
-        <span id="analytics-bot-name" class="text-sm font-semibold leading-[1.4] text-text-primary">—</span>
+        <span id="analytics-bot-name" class="text-sm font-semibold leading-[1.4] text-text-primary">-</span>
       </div>
       <div class="flex items-center justify-between">
         <span class="text-sm font-medium leading-[1.4] text-text-muted">Provider</span>
-        <span id="analytics-bot-provider" class="text-sm font-semibold leading-[1.4] text-text-primary">—</span>
+        <span id="analytics-bot-provider" class="text-sm font-semibold leading-[1.4] text-text-primary">-</span>
       </div>
       <div class="flex items-center justify-between">
         <span class="text-sm font-medium leading-[1.4] text-text-muted">Chat Model</span>
-        <span id="analytics-bot-model" class="text-sm font-semibold leading-[1.4] text-text-primary">—</span>
+        <span id="analytics-bot-model" class="text-sm font-semibold leading-[1.4] text-text-primary">-</span>
       </div>
       <div class="flex items-center justify-between">
         <span class="text-sm font-medium leading-[1.4] text-text-muted">System Prompt</span>
-        <span id="analytics-bot-prompt" class="text-sm font-semibold leading-[1.4] text-text-primary">—</span>
+        <span id="analytics-bot-prompt" class="text-sm font-semibold leading-[1.4] text-text-primary">-</span>
       </div>
       <div class="flex items-center justify-between">
         <span class="text-sm font-medium leading-[1.4] text-text-muted">Knowledge Base Entries</span>
-        <span id="analytics-bot-kb" class="text-sm font-semibold leading-[1.4] text-text-primary">—</span>
+        <span id="analytics-bot-kb" class="text-sm font-semibold leading-[1.4] text-text-primary">-</span>
       </div>
     </div>
 
@@ -106,9 +106,9 @@
     var triggers = document.querySelectorAll('[data-open-modal="bot-analytics"]');
 
     function populate(btn) {
-      var name = btn.dataset.botName || '—';
-      var provider = btn.dataset.botProvider || '—';
-      var model = btn.dataset.botModel || '—';
+      var name = btn.dataset.botName || '-';
+      var provider = btn.dataset.botProvider || '-';
+      var model = btn.dataset.botModel || '-';
       var prompt = btn.dataset.botPrompt || 'No';
       var kb = btn.dataset.botKb || '0';
 
@@ -120,8 +120,8 @@
 
       // Calculate health: 4 criteria, each 25%
       var score = 0;
-      if (provider && provider !== '—') score += 25;
-      if (model && model !== '—' && model !== 'Not set') score += 25;
+      if (provider && provider !== '-') score += 25;
+      if (model && model !== '-' && model !== 'Not set') score += 25;
       if (prompt === 'Yes') score += 25;
       if (parseInt(kb) > 0) score += 25;
 
@@ -142,7 +142,7 @@
 
       // Recommendations
       var recs = [];
-      if (!model || model === '—' || model === 'Not set') {
+      if (!model || model === '-' || model === 'Not set') {
         recs.push('Set a specific chat model to ensure consistent AI responses.');
       }
       if (prompt === 'No') {

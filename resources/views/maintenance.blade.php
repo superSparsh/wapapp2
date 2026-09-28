@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Maintenance — {{ $appName }}</title>
+  <title>Maintenance - {{ $appName }}</title>
   <link rel="icon" href="{{ asset('favicon.ico') }}" sizes="any">
   <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('images/favicons/favicon-32.png') }}">
   <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('images/favicons/apple-touch-icon.png') }}">
@@ -95,7 +95,7 @@
   <main class="card" role="status" aria-live="polite">
     <div class="badge"><span class="dot" aria-hidden="true"></span> Under maintenance</div>
     <h1>We'll be right back</h1>
-    <p>{{ filled($message) ? $message : "We're making a few improvements. Thanks for your patience — this won't take long." }}</p>
+    <p>{{ filled($message) ? $message : "We're making a few improvements. Thanks for your patience - this won't take long." }}</p>
     @if (! empty($until))
       <div class="until">Expected back by {{ \Illuminate\Support\Carbon::parse($until)->timezone(config('app.timezone'))->format('d M Y, h:i A') }}</div>
     @endif

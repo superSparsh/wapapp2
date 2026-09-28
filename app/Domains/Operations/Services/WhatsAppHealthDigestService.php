@@ -169,7 +169,7 @@ class WhatsAppHealthDigestService
                             : (string) $tpl->status,
                         'header_media_status' => null,
                         'error_reason' => $reason !== '' ? $reason : null,
-                        'updated_at' => $tpl->updated_at?->format('d M Y H:i') ?? '—',
+                        'updated_at' => $tpl->updated_at?->format('d M Y H:i') ?? '-',
                     ];
                 })
                 ->all();
@@ -338,7 +338,7 @@ class WhatsAppHealthDigestService
         $withoutQuality = $lineRows->filter(function (array $row): bool {
             $q = strtoupper(trim((string) ($row['quality_rating'] ?? '')));
 
-            return $q === '' || $q === 'UNKNOWN' || $q === '—';
+            return $q === '' || $q === 'UNKNOWN' || $q === '-';
         })->count();
 
         $lastSnapshotAt = null;

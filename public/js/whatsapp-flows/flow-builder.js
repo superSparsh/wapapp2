@@ -1,5 +1,5 @@
 /**
- * WhatsApp Flow Builder — Vanilla JS module for screen-based form design.
+ * WhatsApp Flow Builder - Vanilla JS module for screen-based form design.
  *
  * Manages screens, form fields, field configuration, navigation rules,
  * category-tabbed palette with drag/click-to-add, live WhatsApp preview,
@@ -471,7 +471,7 @@ function renderFields() {
             renderFields();
         });
 
-        // Drag handle — whole-row reorder targets live on the row itself
+        // Drag handle - whole-row reorder targets live on the row itself
         const handle = document.createElement('button');
         handle.type = 'button';
         handle.className = 'flex size-8 shrink-0 cursor-grab items-center justify-center rounded-lg text-text-muted hover:bg-muted-surface active:cursor-grabbing';
@@ -1480,7 +1480,7 @@ function makeScreenId(oneBasedIndex) {
     return 'SCREEN_' + word;
 }
 
-/** Strip digits — Meta rejects screen ids like screen_2 / SCREEN_1. */
+/** Strip digits - Meta rejects screen ids like screen_2 / SCREEN_1. */
 function sanitizeScreenId(id, fallbackIndex) {
     let clean = String(id || '').replace(/[^a-zA-Z_]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
     if (!clean || !/^[a-zA-Z]/.test(clean)) {

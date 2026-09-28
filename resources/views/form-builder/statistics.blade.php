@@ -119,7 +119,7 @@
                     $failedReason = trim((string) ($submission->failed_reason ?? ''));
                   @endphp
                   <tr class="border-b border-border/60">
-                    <td class="px-3 py-2.5 font-medium text-text-body">{{ $submission->phone ?: '—' }}</td>
+                    <td class="px-3 py-2.5 font-medium text-text-body">{{ $submission->phone ?: '-' }}</td>
                     <td class="px-3 py-2.5">
                       <span class="inline-flex rounded px-2 py-1 text-[10px] font-medium {{ $statusClass }}">{{ ucfirst($status) }}</span>
                     </td>
@@ -127,13 +127,13 @@
                       @if ($status === 'failed' && $failedReason !== '')
                         <span class="block max-w-[280px] whitespace-normal break-words text-red-600" title="{{ $failedReason }}">{{ $failedReason }}</span>
                       @else
-                        —
+                        -
                       @endif
                     </td>
-                    <td class="px-3 py-2.5 text-text-muted">{{ $submission->created_at?->format('d M Y h:i A') ?? '—' }}</td>
-                    <td class="px-3 py-2.5 text-text-muted">{{ $submission->sent_at?->format('d M Y h:i A') ?? '—' }}</td>
-                    <td class="px-3 py-2.5 text-text-muted">{{ $submission->delivered_at?->format('d M Y h:i A') ?? '—' }}</td>
-                    <td class="px-3 py-2.5 text-text-muted">{{ $submission->read_at?->format('d M Y h:i A') ?? '—' }}</td>
+                    <td class="px-3 py-2.5 text-text-muted">{{ $submission->created_at?->format('d M Y h:i A') ?? '-' }}</td>
+                    <td class="px-3 py-2.5 text-text-muted">{{ $submission->sent_at?->format('d M Y h:i A') ?? '-' }}</td>
+                    <td class="px-3 py-2.5 text-text-muted">{{ $submission->delivered_at?->format('d M Y h:i A') ?? '-' }}</td>
+                    <td class="px-3 py-2.5 text-text-muted">{{ $submission->read_at?->format('d M Y h:i A') ?? '-' }}</td>
                   </tr>
                 @endforeach
               </tbody>

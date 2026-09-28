@@ -89,7 +89,7 @@ class ContactImportController extends Controller
             'local',
         )->onQueue($queue);
 
-        // Sync queue (tests / local): job already finished — give accurate counts.
+        // Sync queue (tests / local): job already finished - give accurate counts.
         if (config('queue.default') === 'sync') {
             return redirect()
                 ->route('audience.subscribers', array_filter(['list' => $mailList->uuid]))
@@ -98,7 +98,7 @@ class ContactImportController extends Controller
 
         return redirect()
             ->route('audience.subscribers', array_filter(['list' => $mailList->uuid]))
-            ->with('status', 'Import queued. Large lists are processed in the background — refresh the subscribers page in a few minutes.');
+            ->with('status', 'Import queued. Large lists are processed in the background - refresh the subscribers page in a few minutes.');
     }
 
     private function assertCsvHeaders(string $path): void

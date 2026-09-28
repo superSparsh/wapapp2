@@ -394,7 +394,7 @@ class DripLegacyParityFlowTest extends TestCase
         $state->refresh();
         $this->assertSame(ChatbotFlowStateStatus::Waiting, $state->status);
 
-        // Re-enter while still unread and before timeout — must keep waiting.
+        // Re-enter while still unread and before timeout - must keep waiting.
         $state->forceFill(['status' => ChatbotFlowStateStatus::Active])->save();
         $engine->executeFromState($state->fresh());
         $state->refresh();

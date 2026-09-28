@@ -366,7 +366,7 @@
 
 When they reply, a 24-hour window opens so you can send normal free-form messages.
 
-Sending a template alone does not start that window — the customer still needs to reply once so the 24-hour window can begin.
+Sending a template alone does not start that window - the customer still needs to reply once so the 24-hour window can begin.
       </span>
     </div>
 

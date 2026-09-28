@@ -78,7 +78,7 @@ final class OfflineHoursEvaluator
         }
 
         if ($fromMinutes < $untilMinutes) {
-            // Inclusive closing minute — "until 21:00" stays open at 21:00.
+            // Inclusive closing minute - "until 21:00" stays open at 21:00.
             return $nowMinutes >= $fromMinutes && $nowMinutes <= $untilMinutes;
         }
 

@@ -24,7 +24,7 @@ class WelcomeMessageProcessor extends AbstractNodeProcessor
 
         if ($messageType === 'template') {
             // Offline hours: send text offlineMessage instead of the online template.
-            // Stop the flow here — do not continue to menu/next nodes (AI may still reply).
+            // Stop the flow here - do not continue to menu/next nodes (AI may still reply).
             if (OfflineHoursEvaluator::shouldSendOfflineMessage($data)) {
                 $offline = OfflineHoursEvaluator::resolveSessionText($data, '');
                 if ($offline !== '') {
@@ -100,7 +100,7 @@ class WelcomeMessageProcessor extends AbstractNodeProcessor
             return '';
         }
 
-        // React builder used to mirror triggerKeyword into `text` — never send that as the body.
+        // React builder used to mirror triggerKeyword into `text` - never send that as the body.
         if ($keyword !== '' && strcasecmp($text, $keyword) === 0) {
             return '';
         }

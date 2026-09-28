@@ -36,10 +36,10 @@
         @forelse ($entries as $i => $entry)
           <tr class="bg-elevated">
             <td class="fd-table-cell w-[54px] p-2">{{ $entries->firstItem() + $i }}</td>
-            <td class="fd-table-cell p-2">{{ $entry->phone ?: '—' }}</td>
-            <td class="fd-table-cell p-2">{{ $entry->email ?: '—' }}</td>
-            <td class="fd-table-cell p-2">{{ $entry->reason ?: '—' }}</td>
-            <td class="fd-table-cell p-2">{{ $entry->created_at?->format('d M Y H:i') ?? '—' }}</td>
+            <td class="fd-table-cell p-2">{{ $entry->phone ?: '-' }}</td>
+            <td class="fd-table-cell p-2">{{ $entry->email ?: '-' }}</td>
+            <td class="fd-table-cell p-2">{{ $entry->reason ?: '-' }}</td>
+            <td class="fd-table-cell p-2">{{ $entry->created_at?->format('d M Y H:i') ?? '-' }}</td>
             <td class="p-2">
               <form method="POST" action="{{ route('audience.blacklist.destroy', $entry) }}" class="inline" data-confirm="Remove this blacklist entry?" data-confirm-title="Remove entry" data-confirm-label="Remove">
                 @csrf

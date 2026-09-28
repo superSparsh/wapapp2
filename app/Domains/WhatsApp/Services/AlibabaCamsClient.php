@@ -22,7 +22,7 @@ class AlibabaCamsClient
      */
     public function sendChatappMessage(array $params): Response
     {
-        // Prefer POST formData — GET query strings mangle complex Content JSON
+        // Prefer POST formData - GET query strings mangle complex Content JSON
         // (contacts arrays with "[", "]", "+") and cause InvalidParameter.ContentError.
         return $this->signedFormPost(array_merge([
             'Action' => 'SendChatappMessage',
@@ -422,7 +422,7 @@ class AlibabaCamsClient
     }
 
     /**
-     * Create/ModifyChatappTemplate — legacy SDK uses POST formData + Components JSON shrink.
+     * Create/ModifyChatappTemplate - legacy SDK uses POST formData + Components JSON shrink.
      *
      * @param  array<string, mixed>  $params
      */

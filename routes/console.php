@@ -37,7 +37,7 @@ Schedule::command(ProcessDataDeletionSchedules::class)->hourly();
 // Template lifecycle (legacy: approve + getDetails every minute)
 Schedule::command(SubmitPendingTemplates::class)->everyMinute();
 Schedule::command(SyncTemplateStatuses::class)->everyMinute();
-// Daily: GetChatappTemplateDetail for coded templates — pick up Meta category changes
+// Daily: GetChatappTemplateDetail for coded templates - pick up Meta category changes
 Schedule::command(SyncTemplateStatuses::class, ['--coded', '--limit=200'])->dailyAt('05:30');
 Schedule::command(DeleteSoftDeletedTemplates::class)->everyFifteenMinutes();
 
@@ -54,11 +54,11 @@ Schedule::command(ProcessSubscriptionRenewalsCommand::class)->everyFiveMinutes()
 Schedule::command(CheckWalletAutoRechargeCommand::class)->everyFiveMinutes();
 Schedule::command(ReconcileZohoWalletCommand::class)->everyThirtyMinutes();
 
-// Integrations sync (Calendly / Google Calendar only — not WhatsApp line profile)
+// Integrations sync (Calendly / Google Calendar only - not WhatsApp line profile)
 Schedule::command(ScheduleIntegrationSyncCommand::class)->everyFiveMinutes();
 
 // Platform maintenance
-// Disabled: automated WhatsApp line sync was flooding activity with "WhatsApp business data — synced".
+// Disabled: automated WhatsApp line sync was flooding activity with "WhatsApp business data - synced".
 // Manual sync remains available from Profile → Integration.
 // Schedule::command(WhatsAppHealthSnapshotCommand::class)->dailyAt('01:00');
 // Schedule::command(SyncPhoneQualityAndNotifyCommand::class)->dailyAt('00:30');

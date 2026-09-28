@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Final Design screen registry — Figma page 0:1.
+ * Final Design screen registry - Figma page 0:1.
  * Source of truth for UI implementation; ignore Playground 2 and other pages.
  */
 return [

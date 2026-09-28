@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * Option rows intentionally omit SoftDeletes / public UUID — the table has neither column.
+ * Option rows intentionally omit SoftDeletes / public UUID - the table has neither column.
  */
 class ListFieldOption extends Model
 {

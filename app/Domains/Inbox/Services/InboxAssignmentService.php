@@ -82,7 +82,7 @@ class InboxAssignmentService
             abort(422, 'Invalid assignee type.');
         });
 
-        // Broadcast after commit — shouldBroadcast() may enter tenancy()->central().
+        // Broadcast after commit - shouldBroadcast() may enter tenancy()->central().
         app(InboxBroadcastService::class)->threadUpdated($updated);
 
         return $updated;

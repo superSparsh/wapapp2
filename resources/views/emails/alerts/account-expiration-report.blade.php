@@ -20,7 +20,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Account expiry report — {{ $generatedAt }}</title>
+    <title>Account expiry report - {{ $generatedAt }}</title>
 </head>
 <body style="margin:0;padding:0;background:#f2f6fb;font-family:{{ $font }};color:#13334c;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f2f6fb;padding:24px 12px;">
@@ -77,13 +77,13 @@
                                         @foreach ($section['items'] as $row)
                                             <tr>
                                                 <td style="padding:8px 10px;font-size:13px;border-top:1px solid #eef3f8;">
-                                                    <strong>{{ $row['tenant'] ?? '—' }}</strong><br>
-                                                    <span style="color:#6a8196;">{{ $row['email'] ?? '—' }}</span>
+                                                    <strong>{{ $row['tenant'] ?? '-' }}</strong><br>
+                                                    <span style="color:#6a8196;">{{ $row['email'] ?? '-' }}</span>
                                                 </td>
-                                                <td style="padding:8px 10px;font-size:13px;border-top:1px solid #eef3f8;">{{ $row['plan'] ?? '—' }}</td>
-                                                <td style="padding:8px 10px;font-size:13px;border-top:1px solid #eef3f8;">{{ $row['ends_at'] ?? '—' }}</td>
+                                                <td style="padding:8px 10px;font-size:13px;border-top:1px solid #eef3f8;">{{ $row['plan'] ?? '-' }}</td>
+                                                <td style="padding:8px 10px;font-size:13px;border-top:1px solid #eef3f8;">{{ $row['ends_at'] ?? '-' }}</td>
                                                 <td style="padding:8px 10px;font-size:13px;border-top:1px solid #eef3f8;color:{{ $section['daysColor'] }};">
-                                                    {{ isset($row['days_left']) ? $row['days_left'].' day(s)' : '—' }}
+                                                    {{ isset($row['days_left']) ? $row['days_left'].' day(s)' : '-' }}
                                                 </td>
                                             </tr>
                                         @endforeach

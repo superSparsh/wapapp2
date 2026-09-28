@@ -125,7 +125,7 @@ class CamsOutboundPayloadBuilderTest extends TestCase
                 'contacts' => [[
                     'name' => [
                         'formatted_name' => 'Ada Lovelace',
-                        // Intentionally omit first/last — builder must derive them.
+                        // Intentionally omit first/last - builder must derive them.
                     ],
                     'phones' => [[
                         'phone' => '+91 88888 88902',

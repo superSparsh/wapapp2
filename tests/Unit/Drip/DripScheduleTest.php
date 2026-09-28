@@ -53,7 +53,7 @@ class DripScheduleTest extends TestCase
         Carbon::setTestNow(Carbon::parse('2026-09-21 09:01:00', 'Asia/Kolkata'));
         $this->assertSame('week-2026-09-21', $schedule->enrollmentKey($campaign, $contact));
 
-        // Before the scheduled clock time — not due yet.
+        // Before the scheduled clock time - not due yet.
         Carbon::setTestNow(Carbon::parse('2026-09-21 08:59:00', 'Asia/Kolkata'));
         $this->assertNull($schedule->enrollmentKey($campaign, $contact));
 

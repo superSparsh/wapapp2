@@ -26,7 +26,7 @@ class OpenAIProvider(BaseAIProvider):
             return False
         if "instruct" in mid:
             return False
-        # exclude standalone vision models (e.g. gpt-4-vision-preview kept if not matching — user asked exclude vision alone)
+        # exclude standalone vision models (e.g. gpt-4-vision-preview kept if not matching - user asked exclude vision alone)
         if mid.endswith("-vision") or mid.endswith("-vision-preview"):
             return False
         prefixes = ("gpt-4", "gpt-3.5", "o1", "o3", "o4", "chatgpt")

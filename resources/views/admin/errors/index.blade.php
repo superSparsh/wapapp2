@@ -2,7 +2,7 @@
   <div class="p-4">
     <h1 class="text-2xl font-bold text-text-primary">Errors</h1>
     <p class="mt-1 text-sm text-text-subtle">
-      Open one module at a time — exceptions, WhatsApp/CAMS API fails, and queue job failures.
+      Open one module at a time - exceptions, WhatsApp/CAMS API fails, and queue job failures.
     </p>
   </div>
 

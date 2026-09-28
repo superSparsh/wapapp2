@@ -23,7 +23,7 @@
         <h1 class="text-2xl font-bold leading-[1.5] text-text-primary">Manage Phone Numbers</h1>
         <p class="max-w-[854px] text-sm font-normal leading-[1.4] text-text-subtle opacity-50">
           Your main WhatsApp number lives under <a href="{{ route('profile.integration') }}" class="text-green-600 underline">Integration</a>.
-          This page is for <strong>extra numbers</strong> — set a password per number, then open Inbox for that number only.
+          This page is for <strong>extra numbers</strong> - set a password per number, then open Inbox for that number only.
         </p>
       </div>
       @if (! $isLocked)
@@ -89,7 +89,7 @@
           <p class="font-semibold">How number login works</p>
           <ol class="mt-1 list-decimal space-y-0.5 pl-4 text-blue-800/90">
             <li>Set a Number Access password on the card below.</li>
-            <li>Enter that password and click <strong>Open Inbox</strong> — you get a full number workspace (Inbox, campaigns, templates, automation, AI, webhooks) for that line only.</li>
+            <li>Enter that password and click <strong>Open Inbox</strong> - you get a full number workspace (Inbox, campaigns, templates, automation, AI, webhooks) for that line only.</li>
             <li>Or share the login link with an operator so they can sign in with that number + password.</li>
             <li>Security, billing, API, and WABA settings stay on the main account only.</li>
           </ol>
@@ -175,7 +175,7 @@
                       {{ $hasPassword ? 'Change Number Password' : 'Set Number Password' }}
                     </h3>
                   </div>
-                  <p class="pl-8 text-xs text-text-muted">This password is only for this number — not your main account password.</p>
+                  <p class="pl-8 text-xs text-text-muted">This password is only for this number - not your main account password.</p>
                   <form method="POST" action="{{ route('profile.phone-lines.password') }}" class="grid gap-2 pl-8 sm:grid-cols-2">
                     @csrf
                     <input type="hidden" name="line" value="{{ $line->uuid }}">
@@ -214,7 +214,7 @@
                     <h3 class="text-sm font-semibold text-text-primary">Open Inbox for this number</h3>
                   </div>
                   <p class="pl-8 text-xs text-text-muted">
-                    Enter the password you saved above. Opens a full workspace for <strong>{{ $line->displayPhone() }}</strong> only (Inbox, campaigns, templates, automation — not account security).
+                    Enter the password you saved above. Opens a full workspace for <strong>{{ $line->displayPhone() }}</strong> only (Inbox, campaigns, templates, automation - not account security).
                   </p>
 
                   @if ($hasPassword && $isConnected)

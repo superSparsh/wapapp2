@@ -40,7 +40,7 @@ class EnsureCustomerSiteAvailable
             return $next($request);
         }
 
-        // Customer API — optional keep-alive.
+        // Customer API - optional keep-alive.
         if ($request->is('api/*', 'v1/*') && $this->maintenance->moduleEnabled('customer_api')) {
             return $next($request);
         }

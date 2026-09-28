@@ -2,7 +2,7 @@
   <div class="flex flex-wrap items-start justify-between gap-3 p-4">
     <div>
       <a href="{{ route('admin.announcements.index') }}" class="text-xs font-semibold text-green-500 hover:underline">← Announcements</a>
-      <h1 class="mt-1 text-2xl font-bold text-text-primary">Requests — {{ $announcement->title }}</h1>
+      <h1 class="mt-1 text-2xl font-bold text-text-primary">Requests - {{ $announcement->title }}</h1>
       <p class="text-sm text-text-subtle opacity-70">Customers who requested activation / demo for this feature.</p>
     </div>
   </div>
@@ -21,11 +21,11 @@
       @forelse ($requests as $row)
         <tr class="bg-elevated">
           <td class="fd-table-cell p-2 align-middle">
-            <div class="fd-table-name">{{ $row->customer_name ?: '—' }}</div>
+            <div class="fd-table-name">{{ $row->customer_name ?: '-' }}</div>
             <div class="text-xs text-text-subtle">{{ $row->customer_email }}</div>
           </td>
           <td class="fd-table-cell p-2 align-middle text-xs">{{ $row->tenant_id }}</td>
-          <td class="fd-table-cell p-2 align-middle">{{ $row->plan_name ?: '—' }}</td>
+          <td class="fd-table-cell p-2 align-middle">{{ $row->plan_name ?: '-' }}</td>
           <td class="fd-table-cell p-2 align-middle">
             @if ($row->is_acknowledged)
               <span class="rounded bg-green-50 px-2 py-0.5 text-xs font-semibold text-green-600">Acknowledged</span>

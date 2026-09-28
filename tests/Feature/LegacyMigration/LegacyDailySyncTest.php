@@ -86,7 +86,7 @@ class LegacyDailySyncTest extends TestCase
             tenancy()->end();
         }
 
-        // New contact on legacy for customer 10 — second sync should upsert, not duplicate lines/users.
+        // New contact on legacy for customer 10 - second sync should upsert, not duplicate lines/users.
         DB::connection('legacy')->table('subscribers')->insert([
             'mail_list_id' => 1000,
             'email' => 'extra10@example.com',

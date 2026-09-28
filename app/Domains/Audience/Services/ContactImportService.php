@@ -207,7 +207,7 @@ class ContactImportService
             return 0;
         }
 
-        // Unique per (phone, mail_list_id) — same number can live on another list.
+        // Unique per (phone, mail_list_id) - same number can live on another list.
         Contact::upsert(
             $batch,
             ['phone', 'mail_list_id'],

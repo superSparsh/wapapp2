@@ -14,8 +14,8 @@ The Laravel app must **not** store uploaded KB files / scraped pages / long manu
 
 ## Dual layer
 
-1. **Application (Laravel)** — auth, tenant id, bot uuid, resolve API keys, **proxy only**
-2. **Intelligence (`services/ai-service`)** — embed, index, list, download, clear, reindex, `process_query`
+1. **Application (Laravel)** - auth, tenant id, bot uuid, resolve API keys, **proxy only**
+2. **Intelligence (`services/ai-service`)** - embed, index, list, download, clear, reindex, `process_query`
 
 ## Collections
 
@@ -56,7 +56,7 @@ AI Assistant → Knowledge Base tab:
 - Stats via `client_storage_info`
 - Add Sources: scrape / extract → `add_manual_content` (indexes to Chroma)
 - Download / Clear / Refresh hit the AI service live
-- Empty/error if AI/Chroma is down — **do not invent rows from MySQL**
+- Empty/error if AI/Chroma is down - **do not invent rows from MySQL**
 
 ## Env
 

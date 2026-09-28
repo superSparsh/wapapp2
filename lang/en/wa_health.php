@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /**
- * WhatsApp Health Center — digest email strings (ported from legacy messages.admin.wa_health.*).
+ * WhatsApp Health Center - digest email strings (ported from legacy messages.admin.wa_health.*).
  */
 return [
     'menu_label' => 'WhatsApp Health Center',
@@ -31,18 +31,18 @@ return [
     'last_snapshot_never' => 'No snapshot run recorded yet.',
     'lines_without_quality' => 'WhatsApp numbers missing quality rating',
 
-    'digest_subject' => 'WhatsApp Health summary — :date',
+    'digest_subject' => 'WhatsApp Health summary - :date',
     'digest_preheader' => ':unread unread alerts · :lines WhatsApp numbers · :red need urgent quality review.',
     'digest_daily_report' => 'Daily summary · :date',
     'digest_greeting' => 'Hi :name,',
     'digest_greeting_fallback' => 'there',
-    'digest_intro' => 'Here is a quick look at how WhatsApp is doing for your customers — numbers, templates, alerts, who sent the most and least today, and how campaigns performed.',
+    'digest_intro' => 'Here is a quick look at how WhatsApp is doing for your customers - numbers, templates, alerts, who sent the most and least today, and how campaigns performed.',
     'digest_summary_title' => 'At a glance',
     'digest_lines_section' => 'WhatsApp numbers',
     'digest_templates_section' => 'Templates',
     'digest_alerts_section' => 'Alerts',
     'digest_usage_section' => 'Who messaged the most and least today',
-    'digest_usage_help' => 'Active subscription accounts only — fewest and most outbound campaign messages sent today (since midnight).',
+    'digest_usage_help' => 'Active subscription accounts only - fewest and most outbound campaign messages sent today (since midnight).',
     'digest_least_usage_today' => 'Lowest usage today',
     'digest_most_usage_today' => 'Highest usage today',
     'digest_usage_empty' => 'No outbound messages recorded today yet.',

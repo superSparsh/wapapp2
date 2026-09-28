@@ -13,11 +13,11 @@ use RuntimeException;
 
 /**
  * Application-layer proxy for Knowledge Base operations.
- * Chroma (via Python AI service) is the source of truth — no MySQL KB mirror.
+ * Chroma (via Python AI service) is the source of truth - no MySQL KB mirror.
  *
  * Collection keys must match legacy when data was indexed there:
  * client_id = legacy_customer_id (numeric customers.id)
- * bot_id    = legacy_bot_uid (ai_bots.uid / PHP uniqid) — NOT numeric id, NOT new uuid
+ * bot_id    = legacy_bot_uid (ai_bots.uid / PHP uniqid) - NOT numeric id, NOT new uuid
  */
 class KnowledgeBaseProxyService
 {
@@ -31,7 +31,7 @@ class KnowledgeBaseProxyService
     }
 
     /**
-     * Chroma client key — prefer numeric legacy customer id so migrated tenants
+     * Chroma client key - prefer numeric legacy customer id so migrated tenants
      * hit the same collections as the old app.
      */
     public function chromaClientId(): string
@@ -66,7 +66,7 @@ class KnowledgeBaseProxyService
     }
 
     /**
-     * Chroma bot key — legacy ExternalApiService sends ai_bots.uid (uniqid string).
+     * Chroma bot key - legacy ExternalApiService sends ai_bots.uid (uniqid string).
      */
     public function chromaBotId(?AiBot $bot): ?string
     {

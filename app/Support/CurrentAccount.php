@@ -56,7 +56,7 @@ final class CurrentAccount
         $user = self::user();
 
         if ($user instanceof User && filled($user->avatar_path)) {
-            // Tenant public disk is not served by /storage/... — stream via profile route.
+            // Tenant public disk is not served by /storage/... - stream via profile route.
             $path = ltrim(str_replace('\\', '/', (string) $user->avatar_path), '/');
 
             if (\Illuminate\Support\Facades\Route::has('profile.avatars.show')) {

@@ -6,7 +6,7 @@ return [
 
     'api' => [
         'docs_url' => env('ACCOUNT_API_DOCS_URL', '/profile/api/docs'),
-        // APP_URL often has a trailing slash — avoid https://host//api/v1
+        // APP_URL often has a trailing slash - avoid https://host//api/v1
         'base_url' => env(
             'ACCOUNT_API_BASE_URL',
             rtrim((string) env('APP_URL', 'http://localhost'), '/').'/api/v1'

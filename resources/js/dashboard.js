@@ -235,14 +235,14 @@ function renderRecipientRows(recipients) {
         .map((row, index) => {
             const si = String(index + 1).padStart(2, '0');
             const chip = statusChipClass(row.status_variant);
-            const reason = row.reason || '—';
+            const reason = row.reason || '-';
 
             return `<tr class="border-t border-divider bg-elevated">
                 <td class="fd-table-cell p-2 pl-4">${si}</td>
-                <td class="fd-table-name p-2">${escapeHtml(row.name || '—')}</td>
-                <td class="fd-table-cell p-2 text-xs">${escapeHtml(row.phone || '—')}</td>
-                <td class="fd-table-cell p-2 text-xs">${escapeHtml(row.campaign || '—')}</td>
-                <td class="fd-table-cell p-2 text-xs">${escapeHtml(row.sent_at || '—')}</td>
+                <td class="fd-table-name p-2">${escapeHtml(row.name || '-')}</td>
+                <td class="fd-table-cell p-2 text-xs">${escapeHtml(row.phone || '-')}</td>
+                <td class="fd-table-cell p-2 text-xs">${escapeHtml(row.campaign || '-')}</td>
+                <td class="fd-table-cell p-2 text-xs">${escapeHtml(row.sent_at || '-')}</td>
                 <td class="p-2 text-center">
                     <span class="fd-status-chip inline-flex items-center rounded px-2 py-1 ${chip}">${escapeHtml(row.status_label || 'Pending')}</span>
                 </td>

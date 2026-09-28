@@ -98,7 +98,7 @@
                     @endif
                   </td>
                   <td class="p-2 text-[13px] font-normal leading-[1.5] text-text-body">
-                    {{ $flow['published_at'] ?? '—' }}
+                    {{ $flow['published_at'] ?? '-' }}
                   </td>
                   <td class="p-2">
                     <div class="flex items-center gap-2">

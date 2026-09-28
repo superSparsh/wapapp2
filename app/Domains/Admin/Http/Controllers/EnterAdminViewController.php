@@ -14,7 +14,7 @@ class EnterAdminViewController extends Controller
 {
     /**
      * SSO bridge: tenant app → platform admin (legacy "Admin View").
-     * Always logs into the admin guard directly — never the admin login page.
+     * Always logs into the admin guard directly - never the admin login page.
      */
     public function __invoke(Request $request): RedirectResponse
     {

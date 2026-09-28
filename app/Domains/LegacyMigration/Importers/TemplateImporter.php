@@ -45,7 +45,7 @@ final class TemplateImporter implements LegacyImporter
 
         foreach ($rows as $row) {
             $legacyId = (int) $row->id;
-            // CAMS TemplateCode lives in new_templates.template_code — never invent from name.
+            // CAMS TemplateCode lives in new_templates.template_code - never invent from name.
             $code = $this->resolveTemplateCode($row);
             if ($code === null) {
                 $report->warn(sprintf(
@@ -91,7 +91,7 @@ final class TemplateImporter implements LegacyImporter
                 'language' => $language,
                 'category' => $category,
                 'status' => $status,
-                // Legacy DB import is local catalog data — not a live CAMS pull.
+                // Legacy DB import is local catalog data - not a live CAMS pull.
                 'source' => TemplateSource::Local,
                 'whatsapp_line_id' => $lineId,
                 'team_member_name' => $row->team_member_name ?? null,

@@ -77,10 +77,10 @@
             @endphp
             <tr class="bg-elevated">
               <td class="fd-table-cell w-[54px] p-2 align-middle">{{ $loop->iteration }}</td>
-              <td class="fd-table-cell w-[160px] p-2 align-middle">{{ $row->whatsapp_number ?? '—' }}</td>
+              <td class="fd-table-cell w-[160px] p-2 align-middle">{{ $row->whatsapp_number ?? '-' }}</td>
               <td class="fd-table-cell p-2 align-middle">{{ $row->event_type }}</td>
               <td class="fd-table-cell p-2 align-middle">
-                <span class="block truncate" title="{{ $templateName }}">{{ $templateName ?? '—' }}</span>
+                <span class="block truncate" title="{{ $templateName }}">{{ $templateName ?? '-' }}</span>
                 @if ($error)
                   <span class="mt-0.5 block truncate text-[10px] text-red-500" title="{{ $error }}">{{ $error }}</span>
                 @endif
@@ -94,7 +94,7 @@
                   <span class="fd-status-chip inline-flex items-center justify-center rounded bg-red-100 px-2 py-1 text-[10px] font-medium leading-[1.2] text-red-600">Failed</span>
                 @endif
               </td>
-              <td class="fd-table-cell w-[160px] whitespace-nowrap p-2 align-middle">{{ $row->sent_at?->format('Y-m-d H:i') ?? '—' }}</td>
+              <td class="fd-table-cell w-[160px] whitespace-nowrap p-2 align-middle">{{ $row->sent_at?->format('Y-m-d H:i') ?? '-' }}</td>
             </tr>
           @endforeach
         </x-ui.data-table>

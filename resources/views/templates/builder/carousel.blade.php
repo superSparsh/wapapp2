@@ -46,7 +46,7 @@
       <div class="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p class="text-sm font-semibold text-text-body">Carousel intro (Body)</p>
-          <p class="mt-1 text-xs text-text-subtle">Shown above the cards. Uses the Body step text by default — edit here if needed.</p>
+          <p class="mt-1 text-xs text-text-subtle">Shown above the cards. Uses the Body step text by default - edit here if needed.</p>
         </div>
         <button
           type="button"
@@ -159,7 +159,7 @@
             <div>
               <strong>Keep all card headers consistent in style.</strong>
               <p class="mt-1 text-text-subtle">
-                If one card uses an image header, all cards should use an image. Don’t mix image and video headers — this can lead to template rejection.
+                If one card uses an image header, all cards should use an image. Don’t mix image and video headers - this can lead to template rejection.
               </p>
             </div>
           </li>

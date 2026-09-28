@@ -130,7 +130,7 @@ class InboxHttpTest extends TestCase
             ->assertSee('Line B Contact')
             ->assertDontSee('Line A Contact');
 
-        // Opening a chat on line A must not keep line A when ?line= points at B —
+        // Opening a chat on line A must not keep line A when ?line= points at B -
         // toolbar filter submits to index, but also cover show+line for safety.
         $this->actingAsTenantUser()
             ->get(route('inbox.show', ['conversation' => $conversation, 'line' => $otherLine->uuid]))

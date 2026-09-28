@@ -202,7 +202,7 @@ class CampaignSendService
                 'failed_at' => null,
             ]);
 
-            // total_delivered is reserved for WhatsApp Delivered/Read webhooks — not API accept.
+            // total_delivered is reserved for WhatsApp Delivered/Read webhooks - not API accept.
 
             $this->webhookService->dispatch($campaign, 'sent', [
                 'recipient_id' => $recipient->id,
@@ -261,7 +261,7 @@ class CampaignSendService
     }
 
     /**
-     * Mark campaign Failed for technical errors (queue/API/code) — not per-recipient provider failures.
+     * Mark campaign Failed for technical errors (queue/API/code) - not per-recipient provider failures.
      */
     public function markCampaignFailed(Campaign $campaign, string $reason): void
     {

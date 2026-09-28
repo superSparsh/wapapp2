@@ -17,7 +17,7 @@
       'bg-amber-100 text-amber-800' => $live,
       'bg-green-100 text-green-800' => ! $live,
     ])>
-      {{ $live ? 'LIVE — customer site locked' : 'Off — customer site open' }}
+      {{ $live ? 'LIVE - customer site locked' : 'Off - customer site open' }}
     </div>
   </div>
 @if ($errors->any())

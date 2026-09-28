@@ -115,7 +115,7 @@ class GeminiProvider(BaseAIProvider):
             for i in range(len(texts)):
                 embeddings.append(self._embedding_values(response, index=i))
         else:
-            # Fallback: one embedding returned or API shape differs — embed per chunk
+            # Fallback: one embedding returned or API shape differs - embed per chunk
             for t in texts:
                 ev, _ = self.get_embedding(t, model)
                 embeddings.append(ev)

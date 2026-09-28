@@ -59,7 +59,7 @@ class AiInboundReplyService
         Message $message,
         bool $ignoreChatbotOwnership = false,
     ): bool {
-        // Media-only / system noise — AI needs text (or interactive title stored as body).
+        // Media-only / system noise - AI needs text (or interactive title stored as body).
         if (! in_array($message->message_type, [
             MessageType::Text,
             MessageType::Interactive,
@@ -71,7 +71,7 @@ class AiInboundReplyService
             }
         }
 
-        // Chatbot keyword flows / mid-flow waiting own the turn — never let AI steal
+        // Chatbot keyword flows / mid-flow waiting own the turn - never let AI steal
         // unless this inbound already got an offline-hours (FiredAllowAi) chatbot reply.
         if (! $ignoreChatbotOwnership && $this->chatbotOwnsConversation($conversation)) {
             return false;
@@ -99,7 +99,7 @@ class AiInboundReplyService
 
         // Explicit human takeover blocks AI only when global auto-reply is off.
         // When global is on (legacy customers.ai_response), AI answers every chat
-        // that chatbot does not own — including chats still marked human_response
+        // that chatbot does not own - including chats still marked human_response
         // from the old default. Agents who need full takeover should disable global
         // or switch the chat after disabling auto-response.
         if ($conversation->response_type === ConversationResponseType::Human && ! $globalAuto) {

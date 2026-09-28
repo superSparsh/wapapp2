@@ -101,7 +101,7 @@ class InboxOutboundService
             $mediaPath = ltrim((string) $matches[1], '/');
         }
 
-        // Relative /storage/... URLs fail provider download — prefer absolute APP_URL.
+        // Relative /storage/... URLs fail provider download - prefer absolute APP_URL.
         if ($mediaUrl !== '' && preg_match('#^https?://#i', $mediaUrl) !== 1) {
             $mediaUrl = str_starts_with($mediaUrl, '/')
                 ? url($mediaUrl)
@@ -378,7 +378,7 @@ class InboxOutboundService
             ]);
         }
 
-        // Legacy ChatbotFlowService::sendAlibabaTypingIndicator — literal "..." text.
+        // Legacy ChatbotFlowService::sendAlibabaTypingIndicator - literal "..." text.
         try {
             $fallback = [
                 'From' => $from,

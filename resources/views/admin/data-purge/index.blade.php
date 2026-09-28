@@ -23,7 +23,7 @@
             <div class="text-xs text-text-subtle">{{ $row['email'] ?: $row['id'] }}</div>
           </td>
           <td class="fd-table-cell p-2 align-middle text-sm">{{ $row['reason'] }}</td>
-          <td class="fd-table-cell p-2 align-middle text-sm">{{ $row['valid_until'] ? format_ist($row['valid_until'], 'd M Y') : '—' }}</td>
+          <td class="fd-table-cell p-2 align-middle text-sm">{{ $row['valid_until'] ? format_ist($row['valid_until'], 'd M Y') : '-' }}</td>
           <td class="fd-table-cell p-2 align-middle"><x-admin.status-badge :status="$row['status']" /></td>
           <td class="w-[120px] p-2 align-middle">
             <x-ui.table-actions

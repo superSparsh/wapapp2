@@ -131,7 +131,7 @@ final class InboxPresenter
     /**
      * URL to show in the inbox UI.
      * Outbound media is uploaded to Alibaba OSS for WhatsApp delivery (media_url),
-     * but browsers often cannot load that private/hosted object — prefer the local
+     * but browsers often cannot load that private/hosted object - prefer the local
      * public disk copy (media_url_local) for display.
      *
      * @param  array<string, mixed>  $metadata

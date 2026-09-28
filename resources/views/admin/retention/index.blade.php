@@ -63,10 +63,10 @@
             <div class="text-xs text-text-subtle">{{ $row['email'] ?: $row['id'] }}</div>
           </td>
           <td class="fd-table-cell p-2 align-middle text-sm">{{ $row['plan'] }}</td>
-          <td class="fd-table-cell p-2 align-middle text-sm">{{ $row['valid_until'] ? format_ist($row['valid_until'], 'd M Y') : '—' }}</td>
+          <td class="fd-table-cell p-2 align-middle text-sm">{{ $row['valid_until'] ? format_ist($row['valid_until'], 'd M Y') : '-' }}</td>
           <td class="fd-table-cell p-2 align-middle text-sm">
             @if ($row['days_left'] === null)
-              —
+              -
             @elseif ($row['days_left'] < 0)
               <span class="font-semibold text-red-600">{{ $row['days_left'] }}</span>
             @else

@@ -42,7 +42,7 @@ abstract class AbstractNodeProcessor implements NodeProcessorInterface
 
     /**
      * Resolve the default next node ID (legacy: only `default` / `output_1`).
-     * Never fall through to reply-*, button-*, unread, etc. — those are branch handles.
+     * Never fall through to reply-*, button-*, unread, etc. - those are branch handles.
      * If those are missing, use the sole non-branch outbound edge (Loose-mode saves).
      *
      * @param  array<string, mixed>  $node

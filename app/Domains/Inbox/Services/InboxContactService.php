@@ -68,7 +68,7 @@ class InboxContactService
             return $conversation->refresh();
         });
 
-        // Broadcast after commit — shouldBroadcast() may enter tenancy()->central().
+        // Broadcast after commit - shouldBroadcast() may enter tenancy()->central().
         $this->broadcastService->threadUpdated($conversation);
 
         return $conversation;

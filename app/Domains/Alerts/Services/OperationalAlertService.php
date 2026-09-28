@@ -77,7 +77,7 @@ class OperationalAlertService
     }
 
     /**
-     * Force-send to specific emails (ignores alerts_enabled) — e.g. customer wallet receipts.
+     * Force-send to specific emails (ignores alerts_enabled) - e.g. customer wallet receipts.
      *
      * @param  list<string>  $emails
      * @param  array<string, mixed>  $emailData

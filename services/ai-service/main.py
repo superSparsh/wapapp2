@@ -200,7 +200,7 @@ async def process_query(request: QueryRequest):
         usage = getattr(client_engine, "last_usage", None) or {}
         prompt_tokens = int(usage.get("prompt_tokens") or 0)
         completion_tokens = int(usage.get("completion_tokens") or 0)
-        # Providers sometimes omit usage — rough estimate so UI is not stuck at 0.
+        # Providers sometimes omit usage - rough estimate so UI is not stuck at 0.
         if prompt_tokens + completion_tokens == 0:
             prompt_tokens = max(1, len(request.query_text or "") // 4)
             completion_tokens = max(1, len(response or "") // 4)

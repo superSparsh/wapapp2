@@ -13,13 +13,13 @@ use Illuminate\Support\Facades\Queue;
 /**
  * Health check endpoints for monitoring and load balancers.
  *
- * GET /health       — Basic liveness probe (Laravel's built-in /up)
- * GET /health/deep  — Readiness probe checking DB, cache, queue connectivity
+ * GET /health       - Basic liveness probe (Laravel's built-in /up)
+ * GET /health/deep  - Readiness probe checking DB, cache, queue connectivity
  */
 class HealthCheckController extends Controller
 {
     /**
-     * Deep health check — verifies all critical subsystems.
+     * Deep health check - verifies all critical subsystems.
      *
      * Returns 200 if healthy, 503 if any critical check fails.
      * Safe to expose internally; does not leak sensitive data.
@@ -118,7 +118,7 @@ class HealthCheckController extends Controller
             $driver = config('queue.default');
 
             // Just verify the queue connection is configured
-            // (don't actually push a job — that would be a side effect)
+            // (don't actually push a job - that would be a side effect)
             return [
                 'healthy' => true,
                 'driver' => $driver,

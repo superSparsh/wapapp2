@@ -24,8 +24,8 @@
           <td class="fd-table-cell p-2 align-middle text-sm">{{ optional($row->created_at)->toDayDateTimeString() }}</td>
           <td class="fd-table-cell p-2 align-middle text-sm font-semibold">{{ $row->country_code }}</td>
           <td class="fd-table-cell p-2 align-middle text-sm">{{ $row->conversation }}</td>
-          <td class="fd-table-cell p-2 align-middle text-sm">{{ $row->old_price ?? '—' }}</td>
-          <td class="fd-table-cell p-2 align-middle text-sm">{{ $row->new_price ?? '—' }}</td>
+          <td class="fd-table-cell p-2 align-middle text-sm">{{ $row->old_price ?? '-' }}</td>
+          <td class="fd-table-cell p-2 align-middle text-sm">{{ $row->new_price ?? '-' }}</td>
           <td class="fd-table-cell p-2 align-middle text-sm">{{ $row->admin?->name ?? ('#'.$row->updated_by) }}</td>
         </tr>
       @empty

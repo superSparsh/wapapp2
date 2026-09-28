@@ -20,7 +20,7 @@ trait RespectsMaintenanceModules
         }
 
         if (property_exists($this, 'components') && isset($this->components) && method_exists($this, 'info')) {
-            $this->info(($label !== '' ? $label.' ' : '').'Skipped — maintenance mode paused module ['.$module.'].');
+            $this->info(($label !== '' ? $label.' ' : '').'Skipped - maintenance mode paused module ['.$module.'].');
         }
 
         return true;

@@ -12,7 +12,7 @@ use RuntimeException;
 
 /**
  * HTTP client for the Python FastAPI + Chroma AI service.
- * Knowledge Base content is never stored in MySQL — this client is the only write path.
+ * Knowledge Base content is never stored in MySQL - this client is the only write path.
  */
 class AiPythonClient
 {

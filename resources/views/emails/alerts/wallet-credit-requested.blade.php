@@ -29,7 +29,7 @@
                             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #dce8f3;border-radius:12px;background:#f8fcff;">
                                 <tr>
                                     <td style="padding:12px 16px;font-size:14px;color:#38546c;">Customer ID</td>
-                                    <td align="right" style="padding:12px 16px;font-size:14px;font-weight:bold;color:#123a60;">{{ $customer_id ?? $tenant_id ?? '—' }}</td>
+                                    <td align="right" style="padding:12px 16px;font-size:14px;font-weight:bold;color:#123a60;">{{ $customer_id ?? $tenant_id ?? '-' }}</td>
                                 </tr>
                                 <tr>
                                     <td style="padding:12px 16px;border-top:1px solid #e4edf5;font-size:14px;color:#38546c;">Customer Name</td>

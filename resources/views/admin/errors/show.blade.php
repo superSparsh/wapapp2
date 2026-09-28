@@ -103,7 +103,7 @@
               {{ $log->type instanceof \App\Enums\PlatformErrorType ? $log->type->value : $log->type }}
             </span>
           </td>
-          <td class="fd-table-cell p-2 align-middle font-mono text-xs text-text-subtle break-all">{{ $log->source ?? '—' }}</td>
+          <td class="fd-table-cell p-2 align-middle font-mono text-xs text-text-subtle break-all">{{ $log->source ?? '-' }}</td>
           <td class="fd-table-cell max-w-xl p-2 align-middle text-sm text-text-primary">
             <a href="{{ route('admin.errors.detail', $log) }}" class="block hover:opacity-90">
               <pre class="max-h-80 overflow-auto whitespace-pre-wrap break-words rounded bg-surface p-2 text-[11px] leading-relaxed text-text-primary">{{ $log->message }}</pre>
@@ -116,7 +116,7 @@
             @endif
             <a href="{{ route('admin.errors.detail', $log) }}" class="mt-1 inline-block text-xs font-semibold text-green-600 hover:underline">Open</a>
           </td>
-          <td class="fd-table-cell p-2 align-middle font-mono text-xs text-text-subtle">{{ $log->tenant_id ?? '—' }}</td>
+          <td class="fd-table-cell p-2 align-middle font-mono text-xs text-text-subtle">{{ $log->tenant_id ?? '-' }}</td>
           <td class="w-[48px] p-2 align-middle">
             <form
               method="POST"

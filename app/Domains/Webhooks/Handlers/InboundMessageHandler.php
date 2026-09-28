@@ -70,7 +70,7 @@ class InboundMessageHandler
         }
 
         // Unknown business phones are skipped (not errors). Only fail when nothing
-        // was handled at all — empty payload or every item threw.
+        // was handled at all - empty payload or every item threw.
         if ($processed === 0 && $skipped === 0) {
             throw $lastError ?? new \RuntimeException('Inbound message payload is empty.');
         }
@@ -101,7 +101,7 @@ class InboundMessageHandler
         }
 
         if ($resolved === null) {
-            // Not a platform line (wrong route / unregistered / removed). Do not retry —
+            // Not a platform line (wrong route / unregistered / removed). Do not retry -
             // retrying cannot create a registry entry.
             Log::info('Skipping inbound message: no tenant registry for business phone', [
                 'event_id' => $event->id,

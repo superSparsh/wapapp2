@@ -40,7 +40,7 @@ class InteractiveMessageService
             'updated_at' => 'updated_at',
             'created_at' => 'created_at',
             'name' => 'name',
-            // Free templates have no status column — map legacy status sort to type.
+            // Free templates have no status column - map legacy status sort to type.
             'status' => 'type',
             'type' => 'type',
         ], 'updated_at');

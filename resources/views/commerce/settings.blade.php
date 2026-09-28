@@ -113,7 +113,7 @@
               <div class="p-2 font-mono">{{ Str::mask($config->razorpay_key, '*', 8) }}</div>
               <div class="p-2">
                 @if ($config->payment_template_id)
-                  {{ $templates->firstWhere('id', $config->payment_template_id)?->name ?? '—' }}
+                  {{ $templates->firstWhere('id', $config->payment_template_id)?->name ?? '-' }}
                 @else
                   <span class="text-text-subtle">Not set</span>
                 @endif
@@ -162,7 +162,7 @@
               <td class="fd-table-cell p-2 align-middle">{{ $payment->customer_phone }}</td>
               <td class="w-[100px] p-2 align-middle text-sm font-semibold text-green-700">₹ {{ number_format((float) $payment->amount, 2) }}</td>
               <td class="fd-table-cell w-[80px] p-2 align-middle">{{ $payment->currency }}</td>
-              <td class="fd-table-cell p-2 align-middle">{{ $payment->razorpay_payment_id ?? $payment->razorpay_payment_link_id ?? '—' }}</td>
+              <td class="fd-table-cell p-2 align-middle">{{ $payment->razorpay_payment_id ?? $payment->razorpay_payment_link_id ?? '-' }}</td>
               <td class="w-[80px] p-2 align-middle">
                 <x-commerce.status-badge
                   :label="$payment->status->label()"
@@ -180,7 +180,7 @@
                     <img src="{{ asset('images/commerce/document-copy.svg') }}" alt="" class="size-5 shrink-0" width="20" height="20">
                   </div>
                 @else
-                  <span class="text-xs text-text-subtle">—</span>
+                  <span class="text-xs text-text-subtle">-</span>
                 @endif
               </td>
               <td class="fd-table-cell p-2 align-middle">{{ $payment->created_at?->setTimezone('Asia/Kolkata')->format('d/m/Y, g:i:s a') }}</td>

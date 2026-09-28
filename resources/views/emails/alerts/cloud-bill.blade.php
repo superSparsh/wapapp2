@@ -11,7 +11,7 @@
     $currencyLabel = $currency ?? '';
     $amountDisplay = $amountValue !== null
         ? trim(($currencyLabel === 'INR' ? '₹ ' : ($currencyLabel ? $currencyLabel.' ' : '')).number_format($amountValue, 2))
-        : (string) ($amount ?? '—');
+        : (string) ($amount ?? '-');
 @endphp
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f2f6fb;padding:24px 12px;border-collapse:collapse;">
         <tr>
@@ -35,11 +35,11 @@
                             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #dce8f3;border-radius:12px;background:#f8fcff;">
                                 <tr>
                                     <td style="padding:12px 16px;font-size:14px;color:#38546c;">File</td>
-                                    <td align="right" style="padding:12px 16px;font-size:13px;font-weight:bold;color:#123a60;word-break:break-all;">{{ $filename ?? '—' }}</td>
+                                    <td align="right" style="padding:12px 16px;font-size:13px;font-weight:bold;color:#123a60;word-break:break-all;">{{ $filename ?? '-' }}</td>
                                 </tr>
                                 <tr>
                                     <td style="padding:12px 16px;border-top:1px solid #e4edf5;font-size:14px;color:#38546c;">Period</td>
-                                    <td align="right" style="padding:12px 16px;border-top:1px solid #e4edf5;font-size:14px;font-weight:bold;color:#123a60;">{{ $period ?? '—' }}</td>
+                                    <td align="right" style="padding:12px 16px;border-top:1px solid #e4edf5;font-size:14px;font-weight:bold;color:#123a60;">{{ $period ?? '-' }}</td>
                                 </tr>
                                 <tr>
                                     <td style="padding:12px 16px;border-top:1px solid #e4edf5;font-size:14px;color:#38546c;">Amount</td>

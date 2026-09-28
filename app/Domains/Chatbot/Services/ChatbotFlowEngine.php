@@ -233,7 +233,7 @@ class ChatbotFlowEngine
         $nextNodeId = $this->resolveNextNodeFromReply($currentNode, $replyBody, $variables, $replyId);
 
         if ($nextNodeId === null && $this->nodeRequiresMatchedReply($currentNode, $variables)) {
-            // Waiting on interactive / QR — do NOT default-continue on random text
+            // Waiting on interactive / QR - do NOT default-continue on random text
             // (that ate "pikaboo" and jumped into a broken WhatsApp Flow send).
             //
             // If AI Assistant would handle this chat, release ownership so free-text
@@ -255,7 +255,7 @@ class ChatbotFlowEngine
                 'status' => ChatbotFlowStateStatus::Waiting,
                 'current_node_id' => $currentNodeId,
             ])->save();
-            // Do not refresh expiry — unmatched free-text should not extend the wait forever.
+            // Do not refresh expiry - unmatched free-text should not extend the wait forever.
 
             Log::info('Chatbot waiting reply unmatched; staying on node', [
                 'conversation_id' => $conversation->id,
@@ -698,7 +698,7 @@ class ChatbotFlowEngine
         $messageLower = mb_strtolower(trim($body));
         $lineId = (int) ($conversation->whatsapp_line_id ?? 0);
 
-        // Account-wide like legacy — do not hard-filter by line (that made bots "dead").
+        // Account-wide like legacy - do not hard-filter by line (that made bots "dead").
         // Line-assigned bots still preferred via compareFlowTriggerCandidates.
         $flows = ChatbotFlow::query()
             ->active()
@@ -741,7 +741,7 @@ class ChatbotFlowEngine
 
             $lineRank = $this->flowLineRank($flow, $lineId);
 
-            // Bound to a different WhatsApp line — skip (user picks line on Save).
+            // Bound to a different WhatsApp line - skip (user picks line on Save).
             if ($lineRank === 0) {
                 continue;
             }
@@ -786,7 +786,7 @@ class ChatbotFlowEngine
             'message' => $messageLower,
         ]);
 
-        // Legacy resetConversationForStart — clear other bots mid-flight.
+        // Legacy resetConversationForStart - clear other bots mid-flight.
         $this->resetConversationStates($conversation);
 
         $result = $this->startFlow(
@@ -1056,7 +1056,7 @@ class ChatbotFlowEngine
         }
 
         // If we exhausted iterations or hit a cycle, complete the state.
-        // Keyword/resume already entered this flow — treat as Fired even when
+        // Keyword/resume already entered this flow - treat as Fired even when
         // only conditions/delays ran (legacy marks inbound Read → AI locked out).
         if (! $anyMessageSent && $this->isDemoFlow($flow)) {
             $this->sendDemoFallback($conversation);
@@ -1075,7 +1075,7 @@ class ChatbotFlowEngine
      */
     private function defaultNextNodeId(array $node): ?string
     {
-        // Legacy getDefaultContinueNodeIds — only default/output_1, never branch handles.
+        // Legacy getDefaultContinueNodeIds - only default/output_1, never branch handles.
         foreach (['default', 'output_1'] as $handle) {
             $nextId = $this->nextNodeIdFromHandle($node, $handle);
 

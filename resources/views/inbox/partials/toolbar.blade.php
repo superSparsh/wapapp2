@@ -19,7 +19,7 @@
     ? route('inbox.show', $selectedConversation)
     : route('inbox.index');
 
-  // Changing WhatsApp line must leave the open chat — that conversation belongs to another line.
+  // Changing WhatsApp line must leave the open chat - that conversation belongs to another line.
   $lineFormAction = route('inbox.index');
 
   $currentScope = $filters['scope'] ?? 'all';
@@ -113,7 +113,7 @@
   <p class="text-xs leading-relaxed text-text-body/55">
     Inbox shows chats from
     <span class="font-medium text-text-body">{{ $lookbackLabel }}</span>
-    only. Search, unread, and assignee use this same window — pick a longer range above to see older conversations.
+    only. Search, unread, and assignee use this same window - pick a longer range above to see older conversations.
     <span class="font-medium text-text-body">Mark all read</span> clears every unread chat (including older ones) so the inbox badge resets to 0.
   </p>
 

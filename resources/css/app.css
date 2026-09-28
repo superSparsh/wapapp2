@@ -80,7 +80,7 @@
         --color-danger: #f07178;
     }
 
-    /* Only while toggling — avoids animating the first paint */
+    /* Only while toggling - avoids animating the first paint */
     html.theme-animate,
     html.theme-animate *,
     html.theme-animate *::before,
@@ -221,7 +221,7 @@
         line-height: 1.2;
     }
 
-    /* Pagination — Figma uses DM Sans for labels, Open Sans/Roboto for page numbers */
+    /* Pagination - Figma uses DM Sans for labels, Open Sans/Roboto for page numbers */
     .fd-pagination-total {
         font-family: var(--font-display);
         font-size: 16px;
@@ -330,7 +330,7 @@
     margin-top: 6px;
     }
 
-    /* AI bot test phone only — do not reuse on other previews */
+    /* AI bot test phone only - do not reuse on other previews */
     .ai-bot-phone-header-name.phone-preview-header-name--default {
         text-align: left;
         align-items: center;

@@ -164,7 +164,7 @@ class RetentionService
                     'name' => (string) ($tenant->company_name ?: $tenant->name),
                     'email' => (string) ($tenant->email ?? ''),
                     'status' => $tenant->status?->value ?? '',
-                    'plan' => $tenant->plan?->name ?? '—',
+                    'plan' => $tenant->plan?->name ?? '-',
                     'valid_until' => $validUntil?->toDateString(),
                     'days_left' => $daysLeft,
                     'notes_count' => count($notes),

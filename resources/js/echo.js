@@ -24,7 +24,7 @@ function resolveReverbConfig() {
     const defaultPort = forceTLS ? 443 : 80;
     let port = Number(runtime.port || import.meta.env.VITE_REVERB_PORT || defaultPort);
 
-    // Same-origin HTTPS is proxied by Apache on 443 — never talk to 0.0.0.0:8080.
+    // Same-origin HTTPS is proxied by Apache on 443 - never talk to 0.0.0.0:8080.
     if (sameOrigin && pageSecure) {
         port = 443;
     } else if (!Number.isFinite(port) || port <= 0) {

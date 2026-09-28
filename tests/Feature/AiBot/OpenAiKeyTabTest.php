@@ -254,7 +254,7 @@ class OpenAiKeyTabTest extends TestCase
             ->assertJsonPath('chat_models', []);
     }
 
-    // --- Knowledge Base Actions (Chroma proxy — see KnowledgeBaseProxyTest) ---
+    // --- Knowledge Base Actions (Chroma proxy - see KnowledgeBaseProxyTest) ---
 
     public function test_knowledge_base_mysql_store_route_removed(): void
     {

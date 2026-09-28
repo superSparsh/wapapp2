@@ -59,7 +59,7 @@ class WhatsappHealthAdminService
                         'phone' => (string) $line->phone,
                         'display_name' => (string) ($line->display_name ?? ''),
                         'quality_rating' => (string) ($line->quality_rating ?? 'UNKNOWN'),
-                        'messaging_limit_tier' => (string) ($line->messaging_limit_tier ?? '—'),
+                        'messaging_limit_tier' => (string) ($line->messaging_limit_tier ?? '-'),
                         'is_default' => (bool) $line->is_default,
                         'delivered' => $delivered,
                         'read' => $read,

@@ -38,7 +38,7 @@
           <div class="flex w-full items-center justify-between gap-3">
             <div class="flex min-w-0 flex-col gap-1">
               <div class="text-[20px] font-semibold leading-[1.5] text-text-primary">Embedded form</div>
-              <p class="text-sm text-text-muted">Paste this form on your website. Fixed WhatsApp subscribe fields — separate from Form Builder.</p>
+              <p class="text-sm text-text-muted">Paste this form on your website. Fixed WhatsApp subscribe fields - separate from Form Builder.</p>
             </div>
             <div class="flex items-center gap-3">
               <span data-forms-save-status class="text-xs font-medium text-text-muted"></span>

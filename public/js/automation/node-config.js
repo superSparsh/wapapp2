@@ -745,7 +745,7 @@
     node.data.target_template = get('cfg-target-template');
     const condWait = get('cfg-condition-wait');
     if (node.data.condition_type === 'custom_variable') {
-      // Custom field checks are instant — never park on a WhatsApp wait window.
+      // Custom field checks are instant - never park on a WhatsApp wait window.
       node.data.wait_seconds = 0;
       node.data.condition_wait = null;
     } else if (condWait) {

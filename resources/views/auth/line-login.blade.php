@@ -43,7 +43,7 @@
           <svg xmlns="http://www.w3.org/2000/svg" class="mt-0.5 size-5 shrink-0 text-green-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>
           </svg>
-          <span>Operator view only — Inbox is limited to the number you sign in with.</span>
+          <span>Operator view only - Inbox is limited to the number you sign in with.</span>
         </div>
 
         @if (session('status'))

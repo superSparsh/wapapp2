@@ -166,7 +166,7 @@ class ServerOpsService
             array_unshift($resolved, $sudo, '-n');
         }
 
-        // Safety: every argv token must be a simple path/flag/word — no shell metacharacters.
+        // Safety: every argv token must be a simple path/flag/word - no shell metacharacters.
         foreach ($resolved as $token) {
             if ($token === '' || preg_match('/[\s;&|<>`$\\\\]/', $token)) {
                 return ['ok' => false, 'output' => 'Blocked unsafe shell token.'];

@@ -64,7 +64,7 @@
         </div>
         <div class="rounded-xl bg-elevated p-4 shadow-[0px_4px_6px_rgba(0,0,0,0.04)]">
           <p class="text-xs font-medium text-text-muted">Meta Flow ID</p>
-          <p class="mt-1 truncate text-sm font-semibold text-text-body">{{ $flow->meta_flow_id ?? '—' }}</p>
+          <p class="mt-1 truncate text-sm font-semibold text-text-body">{{ $flow->meta_flow_id ?? '-' }}</p>
         </div>
       </div>
 

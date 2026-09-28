@@ -147,9 +147,9 @@ class CampaignStatsServiceTest extends TestCase
         $response->sendContent();
         $csv = (string) ob_get_clean();
 
-        $this->assertStringContainsString('Campaign Report — Summary', $csv);
+        $this->assertStringContainsString('Campaign Report - Summary', $csv);
         $this->assertStringContainsString('Full Report', $csv);
-        $this->assertStringContainsString('Campaign Report — Recipients', $csv);
+        $this->assertStringContainsString('Campaign Report - Recipients', $csv);
     }
 
     public function test_dashboard_stats_aggregates(): void

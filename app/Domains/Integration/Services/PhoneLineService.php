@@ -65,7 +65,7 @@ class PhoneLineService
     }
 
     /**
-     * Secondary (non-default) lines only — these appear on the manage page.
+     * Secondary (non-default) lines only - these appear on the manage page.
      *
      * @return Collection<int, WhatsappLine>
      */
@@ -90,7 +90,7 @@ class PhoneLineService
     }
 
     /**
-     * Find a line by its primary key (tenant-scoped — TenantModel handles this).
+     * Find a line by its primary key (tenant-scoped - TenantModel handles this).
      */
     public function findLine(int $id): ?WhatsappLine
     {
@@ -101,7 +101,7 @@ class PhoneLineService
 
     /**
      * Set or update the Number Access password for a secondary line.
-     * The value stored is bcrypt-hashed — the plain text is never retained.
+     * The value stored is bcrypt-hashed - the plain text is never retained.
      */
     public function setPassword(WhatsappLine $line, string $plainPassword): WhatsappLine
     {
@@ -331,7 +331,7 @@ class PhoneLineService
             $this->tenantResolver->storeInSession($tenantId, 'web');
         }
 
-        // Number operators use line password — skip owner 2FA for this session.
+        // Number operators use line password - skip owner 2FA for this session.
         session([AuthSession::TWO_FACTOR_VERIFIED => true]);
 
         $owner->forceFill(['last_login_at' => now()])->save();

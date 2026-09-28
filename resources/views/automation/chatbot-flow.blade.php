@@ -20,7 +20,7 @@
             <button type="button" id="cancel-flow-name" class="rounded-lg border border-divider px-3 py-1.5 text-xs font-semibold text-text-body">Cancel</button>
           </form>
           <p class="max-w-[854px] text-sm font-normal leading-[1.4] text-text-subtle opacity-50">
-            Build your WhatsApp chatbot here: drag nodes from the toolbar onto the canvas, click a node to configure its message or action, and connect the handles to define what happens next. Start with a welcome or template node and add trigger keywords so customers can begin the flow. When you are done, click <strong class="font-semibold text-text-subtle">Save Flow</strong> — you will be asked whether to enable the chatbot right after saving.
+            Build your WhatsApp chatbot here: drag nodes from the toolbar onto the canvas, click a node to configure its message or action, and connect the handles to define what happens next. Start with a welcome or template node and add trigger keywords so customers can begin the flow. When you are done, click <strong class="font-semibold text-text-subtle">Save Flow</strong> - you will be asked whether to enable the chatbot right after saving.
           </p>
         </div>
 

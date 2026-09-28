@@ -31,7 +31,7 @@ class FormatIstTest extends TestCase
     #[Test]
     public function it_returns_em_dash_for_empty(): void
     {
-        $this->assertSame('—', format_ist(null));
-        $this->assertSame('—', format_ist(''));
+        $this->assertSame('-', format_ist(null));
+        $this->assertSame('-', format_ist(''));
     }
 }

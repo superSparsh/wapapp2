@@ -42,11 +42,11 @@
         @forelse ($rows as $row)
           <tr class="bg-elevated">
             <td class="fd-table-cell p-2 align-middle">
-              <div class="fd-table-name">{{ $row->company_name ?: '—' }}</div>
-              <div class="text-xs text-text-subtle">{{ $row->reference ?: '—' }}</div>
+              <div class="fd-table-name">{{ $row->company_name ?: '-' }}</div>
+              <div class="text-xs text-text-subtle">{{ $row->reference ?: '-' }}</div>
             </td>
-            <td class="fd-table-cell p-2 align-middle text-sm">{{ $row->email ?: '—' }}</td>
-            <td class="fd-table-cell p-2 align-middle text-sm">{{ $row->service_label ?: '—' }}</td>
+            <td class="fd-table-cell p-2 align-middle text-sm">{{ $row->email ?: '-' }}</td>
+            <td class="fd-table-cell p-2 align-middle text-sm">{{ $row->service_label ?: '-' }}</td>
             <td class="fd-table-cell p-2 align-middle"><x-admin.status-badge :status="$row->status" /></td>
             <td class="fd-table-cell p-2 align-middle text-sm text-text-subtle">{{ format_ist($row->created_at) }}</td>
             <td class="w-[120px] p-2 align-middle">
@@ -65,11 +65,11 @@
         @forelse ($rows as $row)
           <tr class="bg-elevated">
             <td class="fd-table-cell p-2 align-middle">
-              <div class="fd-table-name">{{ $row->customer_name ?: '—' }}</div>
-              <div class="text-xs text-text-subtle">{{ $row->customer_email ?: '—' }}</div>
+              <div class="fd-table-name">{{ $row->customer_name ?: '-' }}</div>
+              <div class="text-xs text-text-subtle">{{ $row->customer_email ?: '-' }}</div>
             </td>
-            <td class="fd-table-cell p-2 align-middle text-sm">{{ $row->business_name ?: '—' }}</td>
-            <td class="fd-table-cell p-2 align-middle text-sm">{{ $row->doc_type ?: '—' }}</td>
+            <td class="fd-table-cell p-2 align-middle text-sm">{{ $row->business_name ?: '-' }}</td>
+            <td class="fd-table-cell p-2 align-middle text-sm">{{ $row->doc_type ?: '-' }}</td>
             <td class="fd-table-cell p-2 align-middle"><x-admin.status-badge :status="$row->status" /></td>
             <td class="fd-table-cell p-2 align-middle text-sm text-text-subtle">{{ format_ist($row->created_at) }}</td>
             <td class="w-[120px] p-2 align-middle">

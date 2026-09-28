@@ -6,7 +6,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>{{ $title ?? 'Admin — '.config('app.name', 'WapApp') }}</title>
+    <title>{{ $title ?? 'Admin - '.config('app.name', 'WapApp') }}</title>
     <x-layouts.favicon />
     <x-layouts.theme-boot />
     @fonts

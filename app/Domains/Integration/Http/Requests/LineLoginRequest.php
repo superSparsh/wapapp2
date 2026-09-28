@@ -15,7 +15,7 @@ class LineLoginRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true; // public — no auth required
+        return true; // public - no auth required
     }
 
     /** @return array<string, mixed> */

@@ -159,7 +159,7 @@ class TemplateDomainTest extends TestCase
 
         $registry = app(TemplateRegistryService::class);
 
-        // Default line is $this->testLine — still resolve templates on another / null line.
+        // Default line is $this->testLine - still resolve templates on another / null line.
         $this->assertNotNull($registry->findByCode('LEGACY_PROMO_CODE', $this->testLine));
         $this->assertNotNull($registry->findByCode('LEGACY_NULL_LINE', $this->testLine));
 

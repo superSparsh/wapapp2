@@ -81,7 +81,7 @@ final class TemplateNameValidator
     }
 
     /**
-     * @deprecated Prefer nameExistsForLine — `code` is reserved for CAMS TemplateCode.
+     * @deprecated Prefer nameExistsForLine - `code` is reserved for CAMS TemplateCode.
      */
     public static function codeExistsForLine(string $code, ?int $whatsappLineId, ?int $exceptTemplateId = null): bool
     {

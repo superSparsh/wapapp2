@@ -146,7 +146,7 @@ class CampaignCostCalculator
         $currency = strtoupper(trim((string) ($pricing->currency ?? 'USD')));
         $currency = str_replace(['₹', 'RS.', 'RS'], ['INR', 'INR', 'INR'], $currency);
 
-        // Already INR — do not apply FX again.
+        // Already INR - do not apply FX again.
         if (in_array($currency, ['INR', 'INDIAN RUPEE', 'INDIAN RUPEES'], true)) {
             return $rawPrice;
         }

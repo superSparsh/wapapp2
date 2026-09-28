@@ -36,11 +36,18 @@
           <td class="fd-table-cell p-2 align-middle text-sm">{{ $row->sort_order }}</td>
           <td class="fd-table-cell p-2 align-middle"><x-admin.status-badge :status="$row->is_active" /></td>
           <td class="w-[160px] p-2 align-middle">
-            <div class="flex flex-wrap gap-2">
-              <a href="{{ route('admin.faqs.edit', $row) }}" class="text-xs font-semibold text-green-600 hover:underline">Edit</a>
-              <form method="POST" action="{{ route('admin.faqs.toggle', $row) }}">@csrf<button class="text-xs font-semibold text-text-subtle hover:underline">Toggle</button></form>
-              <form method="POST" action="{{ route('admin.faqs.destroy', $row) }}" onsubmit="return confirm('Delete this FAQ?')">@csrf @method('DELETE')<button class="text-xs font-semibold text-red-600 hover:underline">Delete</button></form>
-            </div>
+            <x-ui.table-actions
+              :actions="['edit', 'toggle', 'trash']"
+              :links="[
+                'edit' => route('admin.faqs.edit', $row),
+                'toggle' => route('admin.faqs.toggle', $row),
+                'trash' => route('admin.faqs.destroy', $row),
+              ]"
+              :methods="['toggle' => 'POST', 'trash' => 'DELETE']"
+              confirm="Delete this FAQ? This action cannot be undone."
+              confirm-title="Delete FAQ"
+              confirm-label="Delete"
+            />
           </td>
         </tr>
       @empty

@@ -214,7 +214,7 @@ TXT;
                   @forelse (($lines ?? collect()) as $line)
                     <option value="{{ $line->id }}" @selected($selectedLineId === (int) $line->id)>
                       {{ filled($line->display_name) ? $line->display_name.' ('.$line->phone.')' : $line->phone }}
-                      @if ($line->is_default) — default @endif
+                      @if ($line->is_default) - default @endif
                     </option>
                   @empty
                     <option value="">No phone numbers available</option>
@@ -341,7 +341,7 @@ TXT;
                           $line = $sub->whatsappLine;
                           $lineLabel = $line
                             ? (filled($line->display_name) ? $line->display_name.' ('.$line->phone.')' : $line->phone)
-                            : '—';
+                            : '-';
                         @endphp
                         {{ $lineLabel }}
                       </td>

@@ -104,7 +104,7 @@
               'TIER_10K', 'TIER_10000' => '10K / 24h',
               'TIER_100K', 'TIER_100000' => '100K / 24h',
               'UNLIMITED' => 'Unlimited',
-              '', 'UNKNOWN' => '—',
+              '', 'UNKNOWN' => '-',
               default => $tierRaw,
             };
           @endphp
@@ -114,7 +114,7 @@
               <div class="p-2 text-[13px] font-medium text-text-body">Messaging tier</div>
             </div>
             <div class="grid grid-cols-2 gap-2 border-t border-divider bg-elevated px-2 py-1.5">
-              <div class="p-2 text-xs text-text-body">{{ $plan?->name ?? '—' }}</div>
+              <div class="p-2 text-xs text-text-body">{{ $plan?->name ?? '-' }}</div>
               <div class="p-2 text-xs text-text-body" title="{{ $tierRaw !== '' ? $tierRaw : 'Meta messaging limit tier' }}">{{ $tierLabel }}</div>
             </div>
           </div>

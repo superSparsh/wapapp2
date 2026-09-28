@@ -18,7 +18,7 @@
     <div class="flex flex-col gap-4 p-4">
       <div class="flex flex-col gap-1">
         <h1 class="fd-page-title">{{ $isEdit ? 'Edit Free Template' : 'Create Free Template' }}</h1>
-        <p class="fd-page-note">Interactive messages for inbox and chatbot flows — button, list, product, or flow types.</p>
+        <p class="fd-page-note">Interactive messages for inbox and chatbot flows - button, list, product, or flow types.</p>
       </div>
     </div>
 

@@ -15,7 +15,7 @@
         <form class="flex flex-col gap-4">
           @foreach ([['@{{1}}', 'Customer Name', 'Rajesh Kumar'], ['@{{2}}', 'Order ID', 'ORD-1234'], ['@{{3}}', 'Amount', '₹ 1,500']] as [$var, $label, $value])
             <div>
-              <label class="text-sm font-semibold leading-[1.4] text-text-primary" style="font-family: var(--font-display)">{{ $var }} — {{ $label }}</label>
+              <label class="text-sm font-semibold leading-[1.4] text-text-primary" style="font-family: var(--font-display)">{{ $var }} - {{ $label }}</label>
               <input type="text" value="{{ $value }}" class="mt-2 w-full rounded-xl border border-border bg-elevated px-3.5 py-3.5 text-sm font-medium text-text-muted" style="font-family: var(--font-display)">
             </div>
           @endforeach

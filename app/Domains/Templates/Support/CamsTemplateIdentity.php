@@ -31,7 +31,7 @@ final class CamsTemplateIdentity
             if ($value === '' || str_contains($value, ' ')) {
                 continue;
             }
-            // Importer fallback when legacy template_code was missing — not a real CAMS code.
+            // Importer fallback when legacy template_code was missing - not a real CAMS code.
             if (str_contains($value, '_legacy_')) {
                 continue;
             }

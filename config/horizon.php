@@ -274,6 +274,6 @@ $horizon = [
     ],
 ];
 
-// Full supervisor map — role filtering is applied at runtime in
+// Full supervisor map - role filtering is applied at runtime in
 // HorizonServiceProvider (so config:cache + supervisor HORIZON_ROLE both work).
 return $horizon;

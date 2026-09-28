@@ -14,7 +14,7 @@ use Throwable;
 
 /**
  * Proxy-only Knowledge Base endpoints (legacy parity).
- * Chroma via Python AI service is the source of truth — nothing is mirrored to MySQL.
+ * Chroma via Python AI service is the source of truth - nothing is mirrored to MySQL.
  */
 class KnowledgeBaseController extends Controller
 {

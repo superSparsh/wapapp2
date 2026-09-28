@@ -202,7 +202,7 @@ class CamsOutboundPayloadBuilder
         $contacts = is_array($metadata['contacts'] ?? null) ? $metadata['contacts'] : [];
 
         // Legacy TeamInboxMessageService::sendContactsWithResponse:
-        // Content = json_encode([$contact, ...]) — bare JSON array of contact objects.
+        // Content = json_encode([$contact, ...]) - bare JSON array of contact objects.
         // Alibaba params page: "Contacts must be passed as an array".
         // Each contact needs name.formatted_name + ≥1 optional name field.
         $normalized = [];
@@ -252,7 +252,7 @@ class CamsOutboundPayloadBuilder
             $last = isset($parts[1]) ? trim((string) $parts[1]) : '';
         }
 
-        // Single-word names still need a companion field — reuse as first_name.
+        // Single-word names still need a companion field - reuse as first_name.
         if ($first === '' && $formatted !== '') {
             $first = $formatted;
         }

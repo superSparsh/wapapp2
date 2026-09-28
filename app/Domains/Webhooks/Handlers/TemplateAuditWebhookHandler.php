@@ -173,7 +173,7 @@ class TemplateAuditWebhookHandler
                 // Store the exact webhook/Meta reason for the templates error UI (legacy last_status).
                 $updates['rejection_reason'] = CamsErrorPresenter::cleanRejectionReason($reason) ?: $reason;
             } elseif (CamsErrorPresenter::isGenericFiller($template->rejection_reason) || ! filled($template->rejection_reason)) {
-                // Do not invent filler — UI falls back to "No error details…".
+                // Do not invent filler - UI falls back to "No error details…".
                 $updates['rejection_reason'] = null;
             }
         }

@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 /**
- * Google Calendar API service — optimized port from legacy GoogleCalendarApiService.
+ * Google Calendar API service - optimized port from legacy GoogleCalendarApiService.
  *
  * Key optimizations:
  * - Token auto-refresh: checks expiry in memory before hitting API
@@ -178,7 +178,7 @@ class GoogleCalendarApiService
                 $params
             );
 
-            // Sync token expired — reset and retry with full fetch
+            // Sync token expired - reset and retry with full fetch
             if ($response->status() === 410 && $syncToken) {
                 $settings = $integration->settings;
                 unset($settings['sync_token']);

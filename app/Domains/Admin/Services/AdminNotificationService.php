@@ -116,7 +116,7 @@ class AdminNotificationService
         $title = 'Platform error: '.$module;
         $body = Str::limit("[{$type}] {$message}", 240, '…');
         if ($tenantId) {
-            $body .= " — tenant {$tenantId}";
+            $body .= " - tenant {$tenantId}";
         }
 
         return $this->notify(

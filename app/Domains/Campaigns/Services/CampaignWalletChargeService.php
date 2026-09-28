@@ -10,7 +10,7 @@ use App\Models\Message;
 use App\Models\WalletTransaction;
 
 /**
- * @deprecated Prefer TemplateWalletChargeService — kept as a thin campaign-facing wrapper.
+ * @deprecated Prefer TemplateWalletChargeService - kept as a thin campaign-facing wrapper.
  */
 class CampaignWalletChargeService
 {

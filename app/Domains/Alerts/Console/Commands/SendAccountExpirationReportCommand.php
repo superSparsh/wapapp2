@@ -39,8 +39,8 @@ class SendAccountExpirationReportCommand extends Command
                     $rows[] = [
                         'tenant' => $tenant->company_name ?: $tenant->name ?: (string) $tenant->id,
                         'email' => $user?->email ?: (string) ($tenant->email ?? ''),
-                        'plan' => $plan?->name ?? '—',
-                        'ends_at' => $subscription->ends_at?->format('d M Y') ?? '—',
+                        'plan' => $plan?->name ?? '-',
+                        'ends_at' => $subscription->ends_at?->format('d M Y') ?? '-',
                         'days_left' => (int) now()->startOfDay()->diffInDays($subscription->ends_at->copy()->startOfDay(), false),
                     ];
                 }

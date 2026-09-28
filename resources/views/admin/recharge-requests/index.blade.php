@@ -36,7 +36,7 @@
           </td>
           <td class="fd-table-cell p-2 align-middle text-sm font-semibold">{{ $row->currency }} {{ $row->amount }}</td>
           <td class="fd-table-cell p-2 align-middle"><x-admin.status-badge :status="$row->status" /></td>
-          <td class="fd-table-cell p-2 align-middle text-xs text-text-subtle">{{ \Illuminate\Support\Str::limit($row->notes, 60) ?: '—' }}</td>
+          <td class="fd-table-cell p-2 align-middle text-xs text-text-subtle">{{ \Illuminate\Support\Str::limit($row->notes, 60) ?: '-' }}</td>
           <td class="fd-table-cell p-2 align-middle text-sm text-text-subtle">{{ format_ist($row->created_at) }}</td>
           <td class="w-[120px] p-2 align-middle">
             @if ($row->status === 'pending')

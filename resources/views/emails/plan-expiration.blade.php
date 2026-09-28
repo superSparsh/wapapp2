@@ -19,7 +19,7 @@
 
     <p>Plan Details:</p>
     <ul>
-        <li><strong>Plan Name:</strong> {{ $plan_details->name ?? '—' }}</li>
+        <li><strong>Plan Name:</strong> {{ $plan_details->name ?? '-' }}</li>
         <li><strong>Plan Price:</strong>
             {{ number_format((float) ($plan_details->price ?? $subscription->amount ?? 0), 2) }}
             {{ $plan_details->currency ?? $subscription->currency ?? 'INR' }}

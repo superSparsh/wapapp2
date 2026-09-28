@@ -104,7 +104,7 @@ class DatabaseSeeder extends Seeder
         if ($adminPassword !== null) {
             $this->command?->warn("Admin password: {$adminPassword}");
         } else {
-            $this->command?->info('Admin already existed — password left unchanged (set ADMIN_SEED_PASSWORD to reset).');
+            $this->command?->info('Admin already existed - password left unchanged (set ADMIN_SEED_PASSWORD to reset).');
         }
         $this->command?->info('Set ADMIN_SEED_EMAIL / ADMIN_SEED_PASSWORD in .env to use fixed credentials.');
         $this->command?->info('Tenant: '.$tenantId.' (auto-provisioned)');

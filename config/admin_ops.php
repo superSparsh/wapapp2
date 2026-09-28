@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 /**
  * Allowlisted server ops for Admin → Queues.
- * Only these keys can be executed — no free-form shell.
+ * Only these keys can be executed - no free-form shell.
  */
 return [
 
@@ -47,7 +47,7 @@ return [
         'queue_restart' => [
             'group' => 'Queue / Horizon',
             'label' => 'Restart queue workers',
-            'description' => 'queue:restart — workers finish current job then reload code.',
+            'description' => 'queue:restart - workers finish current job then reload code.',
             'type' => 'artisan',
             'command' => 'queue:restart',
             'danger' => false,
@@ -63,7 +63,7 @@ return [
         'horizon_terminate' => [
             'group' => 'Queue / Horizon',
             'label' => 'Terminate Horizon',
-            'description' => 'horizon:terminate — Supervisor should restart Horizon.',
+            'description' => 'horizon:terminate - Supervisor should restart Horizon.',
             'type' => 'artisan',
             'command' => 'horizon:terminate',
             'danger' => true,
@@ -71,7 +71,7 @@ return [
         'horizon_pause' => [
             'group' => 'Queue / Horizon',
             'label' => 'Pause Horizon',
-            'description' => 'horizon:pause — stop processing new jobs.',
+            'description' => 'horizon:pause - stop processing new jobs.',
             'type' => 'artisan',
             'command' => 'horizon:pause',
             'danger' => true,
@@ -79,7 +79,7 @@ return [
         'horizon_continue' => [
             'group' => 'Queue / Horizon',
             'label' => 'Continue Horizon',
-            'description' => 'horizon:continue — resume after pause.',
+            'description' => 'horizon:continue - resume after pause.',
             'type' => 'artisan',
             'command' => 'horizon:continue',
             'danger' => false,
@@ -95,7 +95,7 @@ return [
         'horizon_clear' => [
             'group' => 'Queue / Horizon',
             'label' => 'Clear Horizon jobs',
-            'description' => 'horizon:clear — purge pending Horizon jobs (careful).',
+            'description' => 'horizon:clear - purge pending Horizon jobs (careful).',
             'type' => 'artisan',
             'command' => 'horizon:clear',
             'danger' => true,
@@ -105,7 +105,7 @@ return [
         'optimize_clear' => [
             'group' => 'Laravel cache',
             'label' => 'Optimize clear (all)',
-            'description' => 'optimize:clear — config, route, view, event, cache.',
+            'description' => 'optimize:clear - config, route, view, event, cache.',
             'type' => 'artisan',
             'command' => 'optimize:clear',
             'danger' => false,
@@ -121,7 +121,7 @@ return [
         'config_cache' => [
             'group' => 'Laravel cache',
             'label' => 'Config cache',
-            'description' => 'config:cache — rebuild config cache (production).',
+            'description' => 'config:cache - rebuild config cache (production).',
             'type' => 'artisan',
             'command' => 'config:cache',
             'danger' => false,
@@ -169,7 +169,7 @@ return [
         'queue_failed_flush' => [
             'group' => 'Laravel cache',
             'label' => 'Flush failed jobs table',
-            'description' => 'queue:flush — delete all failed_jobs rows.',
+            'description' => 'queue:flush - delete all failed_jobs rows.',
             'type' => 'artisan',
             'command' => 'queue:flush',
             'danger' => true,
@@ -288,7 +288,7 @@ return [
         'apache_reload' => [
             'group' => 'Apache',
             'label' => 'Reload Apache',
-            'description' => 'systemctl reload {apache_service} — graceful reload.',
+            'description' => 'systemctl reload {apache_service} - graceful reload.',
             'type' => 'shell',
             'argv' => ['{systemctl}', 'reload', '{apache_service}'],
             'sudo' => true,
@@ -297,7 +297,7 @@ return [
         'apache_restart' => [
             'group' => 'Apache',
             'label' => 'Restart Apache',
-            'description' => 'systemctl restart {apache_service} — brief downtime.',
+            'description' => 'systemctl restart {apache_service} - brief downtime.',
             'type' => 'shell',
             'argv' => ['{systemctl}', 'restart', '{apache_service}'],
             'sudo' => true,

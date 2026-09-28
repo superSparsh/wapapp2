@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Playground 2 screen registry — Figma page 730:6736.
+ * Playground 2 screen registry - Figma page 730:6736.
  * Only screens listed here belong in the PG2 implementation.
  */
 return [

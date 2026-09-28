@@ -31,7 +31,7 @@ class AiChatService
     public function processMessage(Conversation $conversation, AiBot $bot, string $userMessage): ?string
     {
         try {
-            // Prefer Python RAG + chat (Chroma) when AI service is up — legacy parity.
+            // Prefer Python RAG + chat (Chroma) when AI service is up - legacy parity.
             if ($this->pythonClient->isConfigured()) {
                 try {
                     $history = ConversationMemory::build($conversation);
@@ -82,7 +82,7 @@ class AiChatService
     }
 
     /**
-     * Direct OpenAI/Gemini (etc.) chat when RAG is down — still a real AI reply.
+     * Direct OpenAI/Gemini (etc.) chat when RAG is down - still a real AI reply.
      */
     private function replyViaLocalProvider(Conversation $conversation, AiBot $bot, string $userMessage): ?string
     {

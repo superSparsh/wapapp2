@@ -56,7 +56,7 @@ class DataPurgeService
                     'name' => (string) ($tenant->company_name ?: $tenant->name),
                     'email' => (string) ($tenant->email ?? ''),
                     'status' => $tenant->status?->value ?? '',
-                    'plan' => $tenant->plan?->name ?? '—',
+                    'plan' => $tenant->plan?->name ?? '-',
                     'valid_until' => $validUntil?->toDateString(),
                     'purge_requested_at' => $settings['purge_requested_at'] ?? null,
                     'reason' => $marked ? 'Marked for purge' : ($expired ? 'Expired' : 'Suspended'),

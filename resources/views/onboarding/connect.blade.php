@@ -1,7 +1,7 @@
 <x-auth.onboarding-layout
     :step="2"
     title="Connect Your WhatsApp"
-    subtitle="You’ll now connect your WhatsApp Business account. It’s quick — just press the button below."
+    subtitle="You’ll now connect your WhatsApp Business account. It’s quick - just press the button below."
 >
     <div class="flex flex-col gap-6" data-onboarding-connect>
         <div class="rounded-xl border border-border bg-elevated p-6">

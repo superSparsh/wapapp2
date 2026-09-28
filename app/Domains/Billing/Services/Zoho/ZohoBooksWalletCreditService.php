@@ -166,7 +166,7 @@ class ZohoBooksWalletCreditService
             'amount' => round($amount, 2),
             'date' => now()->toDateString(),
             'reference_number' => $paymentReference,
-            'description' => 'Razorpay wallet top-up — '.$invoiceNumber,
+            'description' => 'Razorpay wallet top-up - '.$invoiceNumber,
             'invoices' => [
                 [
                     'invoice_id' => $zohoInvoiceId,

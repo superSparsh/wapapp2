@@ -187,9 +187,9 @@
               <tr class="border-t border-divider">
                 <td class="p-2">{{ $export->created_at?->format('M d, Y g:i A') }}</td>
                 <td class="p-2">{{ collect($export->modules)->map(fn ($m) => $modules[$m] ?? $m)->join(', ') }}</td>
-                <td class="p-2">{{ $export->file_size ? number_format($export->file_size / 1024, 2).' KB' : '—' }}</td>
+                <td class="p-2">{{ $export->file_size ? number_format($export->file_size / 1024, 2).' KB' : '-' }}</td>
                 <td class="p-2">{{ ucfirst($export->status->value) }}</td>
-                <td class="p-2">{{ $export->expires_at?->diffForHumans() ?? '—' }}</td>
+                <td class="p-2">{{ $export->expires_at?->diffForHumans() ?? '-' }}</td>
                 <td class="p-2">
                   @if ($export->status->value === 'completed')
                     <a href="{{ route('profile.data-deletion.download', $export) }}" class="inline-flex rounded bg-green-50 p-1">

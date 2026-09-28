@@ -154,7 +154,7 @@ class AlibabaOutboundMessageGateway implements \App\Domains\Inbox\Contracts\Outb
     }
 
     /**
-     * CAMS cannot fetch local /storage URLs — upload to Alibaba OSS first.
+     * CAMS cannot fetch local /storage URLs - upload to Alibaba OSS first.
      */
     private function ensureOutboundMediaIsHosted(Message $message, WhatsappLine $line): void
     {

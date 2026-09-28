@@ -22,7 +22,7 @@ class InteractiveMessagePresenter
                 'name' => $message->name,
                 'type' => ucfirst(str_replace('_', ' ', $message->type)),
                 'type_raw' => $message->type,
-                'created_at' => $message->created_at?->format('Y-m-d h:i A') ?? '—',
+                'created_at' => $message->created_at?->format('Y-m-d h:i A') ?? '-',
                 'edit_url' => route('templates.free.edit', $message),
                 'preview_url' => route('templates.free.preview', $message),
                 'delete_url' => route('templates.free.destroy', $message),

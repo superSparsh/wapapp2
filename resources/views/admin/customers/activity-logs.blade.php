@@ -1,4 +1,4 @@
-<x-admin.layout title="Activity logs — {{ $tenant->company_name ?: $tenant->name }}" active="admin.customers.index">
+<x-admin.layout title="Activity logs - {{ $tenant->company_name ?: $tenant->name }}" active="admin.customers.index">
   <div class="flex flex-wrap items-start justify-between gap-3 p-4">
     <div>
       <a href="{{ route('admin.customers.show', $tenant) }}" class="text-xs font-semibold text-green-600 hover:underline">← {{ $tenant->company_name ?: $tenant->name }}</a>
@@ -42,7 +42,7 @@
             <div class="mt-1 text-text-subtle">{{ \App\Domains\Account\Services\ActivityLogService::labelFor((string) $log->action) }}</div>
           </td>
           <td class="fd-table-cell p-2 align-middle text-sm">{{ \App\Domains\Account\Services\ActivityLogService::labelFor((string) $log->action, $log->description) }}</td>
-          <td class="fd-table-cell p-2 align-middle text-sm text-text-subtle">{{ $log->ip_address ?? '—' }}</td>
+          <td class="fd-table-cell p-2 align-middle text-sm text-text-subtle">{{ $log->ip_address ?? '-' }}</td>
         </tr>
       @empty
         <tr>

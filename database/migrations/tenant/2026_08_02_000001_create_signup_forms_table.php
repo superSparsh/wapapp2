@@ -18,7 +18,7 @@ return new class extends Migration
             $table->string('slug')->unique();
             $table->string('status', 32)->default(FormStatus::Inactive->value)->index();
 
-            // Associations (nullable — not all forms need a list or template)
+            // Associations (nullable - not all forms need a list or template)
             $table->foreignId('whatsapp_line_id')->nullable()->constrained('whatsapp_lines')->nullOnDelete();
             $table->unsignedBigInteger('list_id')->nullable()->index();
             $table->unsignedBigInteger('template_id')->nullable()->index();

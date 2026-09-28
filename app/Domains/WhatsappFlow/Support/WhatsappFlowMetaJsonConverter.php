@@ -177,7 +177,7 @@ final class WhatsappFlowMetaJsonConverter
 
     private static function stripToAlphaUnderscore(string $id): string
     {
-        // Meta FB error: "should only consist of alphabets and underscores" — digits forbidden.
+        // Meta FB error: "should only consist of alphabets and underscores" - digits forbidden.
         $clean = preg_replace('/[^a-zA-Z_]/', '_', $id) ?? '';
         $clean = preg_replace('/_+/', '_', $clean) ?? '';
 
@@ -595,7 +595,7 @@ final class WhatsappFlowMetaJsonConverter
 
     /**
      * Legacy-compatible payload: only interactive inputs, always
-     * `${screen.{screenId}.form.{fieldName}}` (never `${form.x}` — Alibaba/Meta
+     * `${screen.{screenId}.form.{fieldName}}` (never `${form.x}` - Alibaba/Meta
      * publish validation has rejected that form for our flows).
      *
      * @param  \Illuminate\Support\Collection<int, array<string, mixed>>  $screens

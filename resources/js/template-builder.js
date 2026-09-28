@@ -544,7 +544,7 @@ function initBodyEditor(root, preview, scheduleUpdate) {
             const action = button.dataset.editorAction;
 
             if (action === 'bold') {
-                // Legacy template bold marker (^text^) — also rendered as bold in preview
+                // Legacy template bold marker (^text^) - also rendered as bold in preview
                 wrapSelection(textarea, '^');
             } else if (action === 'italic') {
                 wrapSelection(textarea, '_');

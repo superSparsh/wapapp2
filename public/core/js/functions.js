@@ -7,7 +7,7 @@ function initJs(container)
         });
     }
 
-    // select2 — .select-search-always always shows the search box (campaign list picker, etc.)
+    // select2 - .select-search-always always shows the search box (campaign list picker, etc.)
     if (typeof $.fn.select2 !== 'undefined') {
         container.find('.select.select-search-always, .select.list-select').each(function() {
             var $el = $(this);

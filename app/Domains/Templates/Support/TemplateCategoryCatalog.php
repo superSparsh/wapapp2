@@ -21,7 +21,7 @@ final class TemplateCategoryCatalog
 
     public const LIMITED_TIME_OFFER = 'LIMITED_TIME_OFFER';
 
-    /** UI-only option value — never persist as the WhatsApp/local category column. */
+    /** UI-only option value - never persist as the WhatsApp/local category column. */
     public const CAROUSEL = 'CAROUSEL';
 
     /** @return list<string> */

@@ -6034,11 +6034,11 @@ const ChatBotFlowReactFlow = () => {
 
         // Empty string = account-wide; null only when user cancelled the dialog.
         if (whatsappLineUuid === null) {
-          message.info("Save cancelled — choose a WhatsApp number to continue.");
+          message.info("Save cancelled - choose a WhatsApp number to continue.");
           return;
         }
       }
-      // Single line: keep account-wide (null) like legacy — do not hard-bind.
+      // Single line: keep account-wide (null) like legacy - do not hard-bind.
 
       const savePayload = {
         customData: JSON.stringify(flowData),

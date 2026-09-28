@@ -1,4 +1,4 @@
-<x-admin.layout title="My Profile — Admin" active="admin.account.profile">
+<x-admin.layout title="My Profile - Admin" active="admin.account.profile">
   <div class="mx-auto max-w-2xl p-6">
     <h1 class="text-2xl font-semibold text-text-primary">My Profile</h1>
     <p class="mt-1 text-sm text-text-subtle">Update your admin account details.</p>

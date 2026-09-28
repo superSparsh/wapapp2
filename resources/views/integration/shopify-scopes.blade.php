@@ -127,9 +127,9 @@
               <div class="min-w-0 flex-1">
                 <p class="text-sm font-semibold text-text-primary">{{ $scope['label'] }}</p>
                 <p class="truncate text-xs text-text-muted">
-                  Template #{{ $scope['template_id'] ?? '—' }}
+                  Template #{{ $scope['template_id'] ?? '-' }}
                   @if ($scope['needs_mail_list'])
-                    · Audience #{{ $scope['mail_list_id'] ?? '—' }}
+                    · Audience #{{ $scope['mail_list_id'] ?? '-' }}
                   @endif
                 </p>
               </div>

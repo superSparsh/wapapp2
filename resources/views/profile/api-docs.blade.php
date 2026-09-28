@@ -73,7 +73,7 @@
                                     <span class="font-normal text-text-muted">
                                       (optional
                                       @if (! empty($parameter['default']))
-                                        — default: {{ $parameter['default'] }}
+                                        - default: {{ $parameter['default'] }}
                                       @endif
                                       )
                                     </span>
@@ -86,7 +86,7 @@
                         @endif
 
                         <h3 class="mb-2 text-sm font-semibold text-text-primary">Returns</h3>
-                        <p class="text-sm text-text-body">{{ $function['returns'] ?? '—' }}</p>
+                        <p class="text-sm text-text-body">{{ $function['returns'] ?? '-' }}</p>
                       </div>
                     </td>
                     <td class="p-4 align-top">

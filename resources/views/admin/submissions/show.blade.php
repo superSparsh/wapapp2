@@ -9,7 +9,7 @@
       @foreach ($fields as $label => $value)
         <div>
           <dt class="text-xs uppercase tracking-wide text-text-subtle">{{ $label }}</dt>
-          <dd class="mt-1 font-semibold">{{ $value ?: '—' }}</dd>
+          <dd class="mt-1 font-semibold">{{ $value ?: '-' }}</dd>
         </div>
       @endforeach
     </dl>

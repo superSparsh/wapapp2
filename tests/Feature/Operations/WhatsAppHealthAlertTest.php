@@ -68,7 +68,7 @@ class WhatsAppHealthAlertTest extends TestCase
             'is_default' => true,
         ]);
 
-        // Force usage via snapshot path: temporarily stub by creating many isn't needed —
+        // Force usage via snapshot path: temporarily stub by creating many isn't needed -
         // directly call upsert via recordLine with low tier; usage may be 0.
         // Create alert explicitly for limit path coverage:
         app(WhatsAppHealthAlertService::class)->upsertAlert([

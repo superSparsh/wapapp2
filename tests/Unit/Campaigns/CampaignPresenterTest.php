@@ -80,8 +80,8 @@ class CampaignPresenterTest extends TestCase
     {
         $campaign = Campaign::factory()->create([
             'total_recipients' => 3,
-            'total_delivered' => 3, // stale "API sent" counter — must be ignored
-            'total_read' => 99, // stale — must be ignored when live counts present
+            'total_delivered' => 3, // stale "API sent" counter - must be ignored
+            'total_read' => 99, // stale - must be ignored when live counts present
             'total_failed' => 99,
             'total_response' => 99,
         ]);

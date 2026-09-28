@@ -38,7 +38,7 @@ final class CampaignOciWorkerLifecycle
     public function onCampaignStarted(Campaign $campaign): void
     {
         if (! $this->enabled()) {
-            Log::info('OCI ephemeral: onCampaignStarted skipped — feature disabled');
+            Log::info('OCI ephemeral: onCampaignStarted skipped - feature disabled');
 
             return;
         }
@@ -85,7 +85,7 @@ final class CampaignOciWorkerLifecycle
     public function ensureWorker(OciContainerInstanceClient $client): void
     {
         if (! $this->enabled()) {
-            Log::info('OCI ephemeral: ensure skipped — feature disabled');
+            Log::info('OCI ephemeral: ensure skipped - feature disabled');
 
             return;
         }
@@ -93,14 +93,14 @@ final class CampaignOciWorkerLifecycle
         $this->withLock(function () use ($client): void {
             $active = $this->activeCampaignIds();
             if ($active === []) {
-                Log::info('OCI ephemeral: ensure skipped — no active campaigns in redis state');
+                Log::info('OCI ephemeral: ensure skipped - no active campaigns in redis state');
 
                 return;
             }
 
             $existing = $this->instanceOcid();
             if ($existing !== null) {
-                Log::info('OCI ephemeral: ensure skipped — worker already provisioned', [
+                Log::info('OCI ephemeral: ensure skipped - worker already provisioned', [
                     'ocid' => $existing,
                 ]);
 
@@ -108,7 +108,7 @@ final class CampaignOciWorkerLifecycle
             }
 
             if (! $client->isConfigured()) {
-                Log::warning('OCI ephemeral: cannot provision — client not configured.');
+                Log::warning('OCI ephemeral: cannot provision - client not configured.');
 
                 return;
             }
@@ -151,7 +151,7 @@ final class CampaignOciWorkerLifecycle
         $this->withLock(function () use ($client): void {
             $active = $this->activeCampaignIds();
             if ($active !== []) {
-                Log::info('OCI ephemeral: skip teardown — campaigns still active', [
+                Log::info('OCI ephemeral: skip teardown - campaigns still active', [
                     'active' => array_keys($active),
                 ]);
 
@@ -159,7 +159,7 @@ final class CampaignOciWorkerLifecycle
             }
 
             if ($this->campaignQueueDepth() > 0) {
-                Log::info('OCI ephemeral: skip teardown — campaign queue not empty', [
+                Log::info('OCI ephemeral: skip teardown - campaign queue not empty', [
                     'depth' => $this->campaignQueueDepth(),
                 ]);
 
@@ -172,7 +172,7 @@ final class CampaignOciWorkerLifecycle
 
             $ocid = $this->instanceOcid();
             if ($ocid === null) {
-                Log::info('OCI ephemeral: teardown skipped — no instance OCID in redis state');
+                Log::info('OCI ephemeral: teardown skipped - no instance OCID in redis state');
 
                 return;
             }

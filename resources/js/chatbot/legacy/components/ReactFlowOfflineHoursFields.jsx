@@ -9,7 +9,7 @@ dayjs.extend(customParseFormat);
 const { TextArea } = Input;
 const { Text } = Typography;
 
-export const DEFAULT_OFFLINE_MESSAGE = `We're offline right now 😴 — back at 9:00 AM.
+export const DEFAULT_OFFLINE_MESSAGE = `We're offline right now 😴 - back at 9:00 AM.
 
 Your message is saved and our team will pick it up first thing in the morning! You can still browse our menu below.`;
 
@@ -33,7 +33,7 @@ export const toOfflineTimeValue = (value) => {
 
 /** Flatten TimePicker dayjs → HH:mm before persisting node data. */
 export const normalizeOfflineHoursForSave = (values = {}) => {
-  // Strict boolean — avoid string "false"/undefined flipping the Switch path on.
+  // Strict boolean - avoid string "false"/undefined flipping the Switch path on.
   const enabled = values.enableOfflineHours === true || values.enableOfflineHours === 1;
   const fromRaw = values.onlineFrom;
   const untilRaw = values.onlineUntil;

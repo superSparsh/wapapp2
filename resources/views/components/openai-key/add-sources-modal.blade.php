@@ -25,7 +25,7 @@
           Add Knowledge Source
         </h2>
         <p class="mt-1 text-sm font-normal leading-[1.4] text-text-subtle opacity-50">
-          Content is indexed into Chroma via the AI service — not stored in MySQL.
+          Content is indexed into Chroma via the AI service - not stored in MySQL.
         </p>
       </div>
       @if (! empty($closeHref))

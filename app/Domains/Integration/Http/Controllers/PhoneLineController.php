@@ -37,7 +37,7 @@ class PhoneLineController extends Controller
     ) {}
 
     /**
-     * GET /profile/phone-lines — List all secondary lines.
+     * GET /profile/phone-lines - List all secondary lines.
      */
     public function index(): View
     {
@@ -55,7 +55,7 @@ class PhoneLineController extends Controller
     }
 
     /**
-     * GET /profile/phone-lines/add — Form to register an additional WhatsApp number via CAMS.
+     * GET /profile/phone-lines/add - Form to register an additional WhatsApp number via CAMS.
      */
     public function create(): View|RedirectResponse
     {
@@ -76,7 +76,7 @@ class PhoneLineController extends Controller
     }
 
     /**
-     * POST /profile/phone-lines/add — Call AddChatappPhoneNumber and upsert WhatsappLine.
+     * POST /profile/phone-lines/add - Call AddChatappPhoneNumber and upsert WhatsappLine.
      */
     public function store(Request $request): RedirectResponse
     {
@@ -104,7 +104,7 @@ class PhoneLineController extends Controller
     }
 
     /**
-     * POST /profile/phone-lines/password — Set/update Number Access password for a line.
+     * POST /profile/phone-lines/password - Set/update Number Access password for a line.
      */
     public function setPassword(SetLinePasswordRequest $request): RedirectResponse
     {
@@ -132,7 +132,7 @@ class PhoneLineController extends Controller
     }
 
     /**
-     * POST /profile/phone-lines/login-as — Lock session to a specific line context.
+     * POST /profile/phone-lines/login-as - Lock session to a specific line context.
      */
     public function loginAs(LoginAsLineRequest $request): RedirectResponse
     {
@@ -160,7 +160,7 @@ class PhoneLineController extends Controller
     }
 
     /**
-     * POST /profile/phone-lines/exit-context — Exit number-specific access mode.
+     * POST /profile/phone-lines/exit-context - Exit number-specific access mode.
      */
     public function exitContext(Request $request): RedirectResponse
     {
@@ -181,7 +181,7 @@ class PhoneLineController extends Controller
     }
 
     /**
-     * POST /profile/phone-lines/set-default — Promote a secondary line to default.
+     * POST /profile/phone-lines/set-default - Promote a secondary line to default.
      */
     public function setDefault(SetDefaultLineRequest $request): RedirectResponse
     {

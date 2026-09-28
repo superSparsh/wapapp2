@@ -68,7 +68,7 @@ class DateTimeConditionProcessor extends AbstractNodeProcessor
         }
 
         if (count($targets) === 1) {
-            // Only one branch wired — follow it for both open and closed so the
+            // Only one branch wired - follow it for both open and closed so the
             // flow does not silently Complete with no message.
             return $targets[0];
         }
@@ -256,7 +256,7 @@ class DateTimeConditionProcessor extends AbstractNodeProcessor
         }
 
         if ($startMinutes < $endMinutes) {
-            // Same-day range (e.g. 09:00 to 18:00) — inclusive of closing minute.
+            // Same-day range (e.g. 09:00 to 18:00) - inclusive of closing minute.
             return $currentMinutes >= $startMinutes && $currentMinutes <= $endMinutes;
         }
 

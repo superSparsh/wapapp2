@@ -181,7 +181,7 @@ class AlibabaWebhookControllerTest extends TestCase
     {
         Queue::fake();
 
-        // Route::match(['get', 'post']) — GET should also work (legacy compatibility)
+        // Route::match(['get', 'post']) - GET should also work (legacy compatibility)
         $this->call(
             'GET',
             route('webhooks.alibaba.message'),

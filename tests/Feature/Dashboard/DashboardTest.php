@@ -362,7 +362,7 @@ class DashboardTest extends TestCase
             ->postJson(route('notifications.read'))
             ->assertOk();
 
-        // Login regenerates session — previously this wiped notifications.read_at.
+        // Login regenerates session - previously this wiped notifications.read_at.
         session()->flush();
         $this->actingAsTenantUser();
 

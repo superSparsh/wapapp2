@@ -7,7 +7,7 @@
       <div class="flex flex-col gap-4 p-4">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
           <div class="min-w-0 flex-1 flex flex-col gap-1">
-            <h1 class="fd-page-title text-2xl">Edit Form — {{ $form->name }}</h1>
+            <h1 class="fd-page-title text-2xl">Edit Form - {{ $form->name }}</h1>
             <p class="fd-page-note">Public URL: <a href="{{ $form->publicUrl() }}" target="_blank" class="text-green-500 underline">{{ $form->publicUrl() }}</a></p>
           </div>
           <div class="flex shrink-0 flex-wrap items-center gap-3 sm:pt-1">

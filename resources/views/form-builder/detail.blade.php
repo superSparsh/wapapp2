@@ -91,15 +91,15 @@
                     </span>
                   </td>
                   @if ($showFailureColumns)
-                    <td class="min-w-[220px] max-w-[360px] p-2 text-[13px] font-normal leading-[1.5] break-words text-text-body" title="{{ $reason !== '' ? $reason : '—' }}">
-                      {{ $statusValue === 'failed' && $reason !== '' ? $reason : '—' }}
+                    <td class="min-w-[220px] max-w-[360px] p-2 text-[13px] font-normal leading-[1.5] break-words text-text-body" title="{{ $reason !== '' ? $reason : '-' }}">
+                      {{ $statusValue === 'failed' && $reason !== '' ? $reason : '-' }}
                     </td>
                   @endif
-                  <td class="p-2 text-[13px] font-normal leading-[1.5] text-text-body">{{ $submission->created_at?->format('d M Y h:i A') ?? '—' }}</td>
-                  <td class="p-2 text-[13px] font-normal leading-[1.5] text-text-body">{{ $submission->sent_at?->format('d M Y h:i A') ?? '—' }}</td>
-                  <td class="p-2 text-[13px] font-normal leading-[1.5] text-text-body">{{ $submission->delivered_at?->format('d M Y h:i A') ?? '—' }}</td>
+                  <td class="p-2 text-[13px] font-normal leading-[1.5] text-text-body">{{ $submission->created_at?->format('d M Y h:i A') ?? '-' }}</td>
+                  <td class="p-2 text-[13px] font-normal leading-[1.5] text-text-body">{{ $submission->sent_at?->format('d M Y h:i A') ?? '-' }}</td>
+                  <td class="p-2 text-[13px] font-normal leading-[1.5] text-text-body">{{ $submission->delivered_at?->format('d M Y h:i A') ?? '-' }}</td>
                   @if ($showFailureColumns)
-                    <td class="p-2 text-[13px] font-normal leading-[1.5] text-text-body">{{ $submission->failed_at?->format('d M Y h:i A') ?? '—' }}</td>
+                    <td class="p-2 text-[13px] font-normal leading-[1.5] text-text-body">{{ $submission->failed_at?->format('d M Y h:i A') ?? '-' }}</td>
                   @endif
                 </tr>
               @empty

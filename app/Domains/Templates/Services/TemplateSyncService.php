@@ -525,7 +525,7 @@ class TemplateSyncService
         $remote = strtoupper(trim($remoteCategory));
         $local = strtoupper(trim($localCategory));
 
-        // WhatsApp stores LTO/Carousel as MARKETING — keep the richer local category.
+        // WhatsApp stores LTO/Carousel as MARKETING - keep the richer local category.
         if ($remote === TemplateCategoryCatalog::MARKETING
             && in_array($local, [TemplateCategoryCatalog::LIMITED_TIME_OFFER, TemplateCategoryCatalog::CAROUSEL], true)) {
             return null;

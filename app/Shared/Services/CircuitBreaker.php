@@ -13,9 +13,9 @@ use Throwable;
  * Circuit breaker for external API calls (Meta WhatsApp, Razorpay, Shopify, etc.).
  *
  * States:
- *   CLOSED   — Normal operation, requests flow through.
- *   OPEN     — Failures exceeded threshold; calls are blocked immediately.
- *   HALF_OPEN — After cooldown, one probe request is allowed through.
+ *   CLOSED   - Normal operation, requests flow through.
+ *   OPEN     - Failures exceeded threshold; calls are blocked immediately.
+ *   HALF_OPEN - After cooldown, one probe request is allowed through.
  *              Success → CLOSED. Failure → OPEN again.
  *
  * Usage:
@@ -60,7 +60,7 @@ class CircuitBreaker
                 $this->setState($name, self::STATE_HALF_OPEN);
                 $state = self::STATE_HALF_OPEN;
             } else {
-                Log::warning("Circuit breaker [{$name}] is OPEN — call blocked.", [
+                Log::warning("Circuit breaker [{$name}] is OPEN - call blocked.", [
                     'failures' => $this->getFailureCount($name),
                 ]);
 
@@ -158,7 +158,7 @@ class CircuitBreaker
             return;
         }
 
-        // Normal success in closed state — reset failure counter
+        // Normal success in closed state - reset failure counter
         Cache::forget("circuit:{$name}:failures");
     }
 
@@ -167,7 +167,7 @@ class CircuitBreaker
         $state = $this->getState($name);
 
         if ($state === self::STATE_HALF_OPEN) {
-            // Probe failed — reopen immediately
+            // Probe failed - reopen immediately
             $this->setState($name, self::STATE_OPEN);
             Cache::put("circuit:{$name}:last_failure_time", time(), $cooldownSeconds * 2);
             Cache::forget("circuit:{$name}:half_open_successes");

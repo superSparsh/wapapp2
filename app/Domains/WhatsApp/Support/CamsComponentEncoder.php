@@ -6,7 +6,7 @@ namespace App\Domains\WhatsApp\Support;
 
 /**
  * Maps camelCase / lowercase template component keys to Alibaba CAMS RPC PascalCase
- * (Components.1.Type, Components.1.Buttons.1.Text, …) — same as the official SDK toMap().
+ * (Components.1.Type, Components.1.Buttons.1.Text, …) - same as the official SDK toMap().
  */
 final class CamsComponentEncoder
 {

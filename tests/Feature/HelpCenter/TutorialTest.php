@@ -34,7 +34,7 @@ class TutorialTest extends TestCase
             'module_name' => 'Module 1: Dashboard',
         ]);
 
-        // Old placeholder seed group — must stay hidden.
+        // Old placeholder seed group - must stay hidden.
         TutorialVideo::factory()->create([
             'title' => 'Inbox Basics',
             'module_name' => 'INBOX',

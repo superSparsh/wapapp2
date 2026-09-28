@@ -71,7 +71,7 @@
           <p class="text-sm font-bold leading-[1.4] text-text-body">File Upload Guidelines</p>
           <ul class="mt-[10px] list-disc space-y-2 pl-5 text-sm font-normal leading-[1.4] text-text-muted">
             <li>CSV or TXT only. First column must be <code class="font-mono">whatsapp_number</code> (or <code class="font-mono">phone</code>).</li>
-            <li>Do not include <code class="font-mono">first_name</code>, <code class="font-mono">last_name</code>, or <code class="font-mono">full_name</code> columns — those are filled from contacts.</li>
+            <li>Do not include <code class="font-mono">first_name</code>, <code class="font-mono">last_name</code>, or <code class="font-mono">full_name</code> columns - those are filled from contacts.</li>
             <li>Remaining columns should match your template variables: <code class="font-mono">{{ implode(', ', $sampleColumns) }}</code>.</li>
             <li>Only phones already in this campaign audience are updated. Missing or unsubscribed numbers are skipped.</li>
           </ul>

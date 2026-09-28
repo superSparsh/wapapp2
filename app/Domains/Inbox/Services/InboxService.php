@@ -58,7 +58,7 @@ class InboxService
             $this->messageService->markRead($selected);
             $selected->refresh();
 
-            // Threads were loaded before markRead — keep open chat badge cleared.
+            // Threads were loaded before markRead - keep open chat badge cleared.
             $threads['items'] = array_map(static function (array $thread) use ($selected): array {
                 if (($thread['uuid'] ?? null) === $selected->uuid) {
                     $thread['unread'] = 0;
@@ -135,7 +135,7 @@ class InboxService
      */
     public function resolveActiveLine(Request $request, ?Conversation $selected = null): WhatsappLine
     {
-        // Number-specific access mode always wins — only that line is visible.
+        // Number-specific access mode always wins - only that line is visible.
         if (PhoneLineService::isLocked()) {
             $locked = app(PhoneLineService::class)->lockedLine();
             if ($locked instanceof WhatsappLine) {
@@ -294,7 +294,7 @@ class InboxService
             'assignee' => $assigneeKey,
             'ai_enabled' => $conversation->response_type?->isAi() ?? false,
             'stopped' => $stopped,
-            'stop_label' => $stopped ? 'Marked STOP — unsubscribed' : null,
+            'stop_label' => $stopped ? 'Marked STOP - unsubscribed' : null,
         ];
     }
 

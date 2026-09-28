@@ -34,7 +34,7 @@ class CommerceController extends Controller
     // ─── Catalog / Products ───────────────────────────────────────────────────
 
     /**
-     * GET /commerce — Products listing for a selected catalog
+     * GET /commerce - Products listing for a selected catalog
      */
     public function index(Request $request): View|RedirectResponse
     {
@@ -88,7 +88,7 @@ class CommerceController extends Controller
     }
 
     /**
-     * GET /commerce/catalog — Catalogues listing (ListProductCatalog only)
+     * GET /commerce/catalog - Catalogues listing (ListProductCatalog only)
      */
     public function catalogList(Request $request): View|RedirectResponse
     {
@@ -211,7 +211,7 @@ class CommerceController extends Controller
     // ─── Orders ───────────────────────────────────────────────────────────────
 
     /**
-     * GET /commerce/orders — Paginated orders list
+     * GET /commerce/orders - Paginated orders list
      */
     public function orders(Request $request): View
     {
@@ -241,7 +241,7 @@ class CommerceController extends Controller
     }
 
     /**
-     * GET /commerce/orders/{uuid} — Order detail (JSON, for modal)
+     * GET /commerce/orders/{uuid} - Order detail (JSON, for modal)
      */
     public function orderDetail(string $uuid): JsonResponse
     {
@@ -278,7 +278,7 @@ class CommerceController extends Controller
     }
 
     /**
-     * PATCH /commerce/orders/{uuid}/status — Update order status
+     * PATCH /commerce/orders/{uuid}/status - Update order status
      */
     public function updateOrderStatus(Request $request, string $uuid): JsonResponse
     {
@@ -302,7 +302,7 @@ class CommerceController extends Controller
     // ─── Payment Settings ─────────────────────────────────────────────────────
 
     /**
-     * GET /commerce/settings — Payment dashboard
+     * GET /commerce/settings - Payment dashboard
      */
     public function settings(Request $request): View
     {
@@ -336,7 +336,7 @@ class CommerceController extends Controller
     }
 
     /**
-     * POST /commerce/settings — Save payment configuration
+     * POST /commerce/settings - Save payment configuration
      */
     public function saveConfig(SavePaymentConfigRequest $request): RedirectResponse
     {
@@ -356,7 +356,7 @@ class CommerceController extends Controller
     }
 
     /**
-     * POST /commerce/payments — Create a payment link and dispatch WhatsApp send
+     * POST /commerce/payments - Create a payment link and dispatch WhatsApp send
      */
     public function createPayment(CreatePaymentRequest $request): RedirectResponse
     {
@@ -380,7 +380,7 @@ class CommerceController extends Controller
     }
 
     /**
-     * GET /commerce/payments/callback — Razorpay callback after customer pays (public)
+     * GET /commerce/payments/callback - Razorpay callback after customer pays (public)
      */
     public function paymentCallback(Request $request): View
     {
@@ -422,7 +422,7 @@ class CommerceController extends Controller
     }
 
     /**
-     * GET /commerce/product-detail — Legacy route alias, redirect to settings
+     * GET /commerce/product-detail - Legacy route alias, redirect to settings
      */
     public function productDetail(): RedirectResponse
     {

@@ -295,7 +295,7 @@ function unwrapLegacyWrapper(select) {
         return select;
     }
 
-    // Never unwrap real layout containers — that would detach the select from its form.
+    // Never unwrap real layout containers - that would detach the select from its form.
     if (
         parent instanceof HTMLFormElement
         || parent.matches('form, label, [data-keep-relative]')

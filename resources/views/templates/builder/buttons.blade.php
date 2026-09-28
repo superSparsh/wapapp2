@@ -53,7 +53,7 @@
         <button type="button" id="add-cta-unsubscribe" class="fd-btn-sm rounded border border-green-500 px-3 py-2 text-sm text-green-500">+ Unsubscribe</button>
       </div>
 
-      {{-- Opt-out footer — disabled for now
+      {{-- Opt-out footer - disabled for now
       <div data-opt-out-wrapper class="hidden flex items-center gap-2">
         <input type="checkbox" id="is_opt_out" name="is_opt_out" value="1" class="size-4 rounded border-border text-green-500 focus:ring-green-500">
         <label for="is_opt_out" class="text-sm font-medium text-text-body">Add opt-out footer ("Not interested? Tap Stop promotions")</label>

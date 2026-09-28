@@ -78,7 +78,7 @@ class TemplateBuilderService
             'name' => $name,
             'category' => $storedCategory,
             'language' => (string) $setup['language'],
-            // code is filled only after Alibaba returns TemplateCode — never store the local name here
+            // code is filled only after Alibaba returns TemplateCode - never store the local name here
             'code' => null,
             'status' => TemplateStatus::Draft,
             'whatsapp_line_id' => $lineId,
@@ -220,7 +220,7 @@ class TemplateBuilderService
             $template->forceFill(['code' => null])->saveQuietly();
         }
 
-        // Do NOT put the local name into `code` — that value is reserved for the
+        // Do NOT put the local name into `code` - that value is reserved for the
         // Alibaba TemplateCode returned by CreateChatappTemplate. Filling it early
         // makes retry jobs call Modify with a fake code.
         $template->update([

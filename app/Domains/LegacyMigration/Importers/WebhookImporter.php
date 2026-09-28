@@ -59,7 +59,7 @@ final class WebhookImporter implements LegacyImporter
         bool $dryRun,
     ): void {
         if (! $this->legacy->tableExists('webhook_settings')) {
-            $report->warn('webhooks: legacy table webhook_settings not found — skipped.');
+            $report->warn('webhooks: legacy table webhook_settings not found - skipped.');
 
             return;
         }
@@ -158,7 +158,7 @@ final class WebhookImporter implements LegacyImporter
         bool $dryRun,
     ): void {
         if (! $this->legacy->tableExists('webhook_logs')) {
-            $report->warn('webhooks: legacy table webhook_logs not found — skipped.');
+            $report->warn('webhooks: legacy table webhook_logs not found - skipped.');
 
             return;
         }

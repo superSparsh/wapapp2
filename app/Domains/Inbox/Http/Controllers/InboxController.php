@@ -201,7 +201,7 @@ class InboxController extends Controller
                     'body' => sprintf(
                         'Payment request of ₹%s sent%s.',
                         number_format((float) $validated['amount'], 2),
-                        $payment->payment_link ? ' — '.$payment->payment_link : ''
+                        $payment->payment_link ? ' - '.$payment->payment_link : ''
                     ),
                     'message_type' => 'system',
                     'created_at' => now()->toIso8601String(),

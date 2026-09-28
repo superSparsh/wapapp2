@@ -112,11 +112,11 @@ export function initCommerceOrderModal() {
             const order = await response.json();
             if (currentUuid !== uuid) return;
 
-            if (nameEl) nameEl.textContent = order.customer_name || '—';
-            if (phoneEl) phoneEl.textContent = order.customer_phone || '—';
-            if (dateEl) dateEl.textContent = order.created_at || '—';
+            if (nameEl) nameEl.textContent = order.customer_name || '-';
+            if (phoneEl) phoneEl.textContent = order.customer_phone || '-';
+            if (dateEl) dateEl.textContent = order.created_at || '-';
             if (totalEl) totalEl.textContent = formatMoney(order.currency || 'INR', order.total_price);
-            if (paymentStatusEl) paymentStatusEl.textContent = order.payment_status_label || order.payment_status || '—';
+            if (paymentStatusEl) paymentStatusEl.textContent = order.payment_status_label || order.payment_status || '-';
             if (subtitleEl) subtitleEl.textContent = 'Complete order details';
 
             if (paymentLinkEl) {

@@ -308,7 +308,7 @@ class TemplateWhatsAppService
             ];
         }
 
-        // FOOTER (skip for opt-out — WhatsApp handles it via isOptOut flag)
+        // FOOTER (skip for opt-out - WhatsApp handles it via isOptOut flag)
         $footerText = trim((string) ($payload['footer']['text'] ?? ''));
         $isOptOut = (bool) ($payload['is_opt_out'] ?? false);
         if ($footerText !== '' && ! $isOptOut) {
@@ -672,7 +672,7 @@ class TemplateWhatsAppService
             return $mediaUrl;
         }
 
-        // External URL the user pasted — CAMS must be able to download it as-is.
+        // External URL the user pasted - CAMS must be able to download it as-is.
         if ($mediaUrl !== null && preg_match('#^https://#i', $mediaUrl) === 1) {
             return $mediaUrl;
         }
@@ -695,7 +695,7 @@ class TemplateWhatsAppService
             return '';
         }
 
-        // Fallback only — prefer ensureProviderMediaUrls before submit.
+        // Fallback only - prefer ensureProviderMediaUrls before submit.
         return app(TemplateMediaService::class)->absolutePublicUrl($path);
     }
 

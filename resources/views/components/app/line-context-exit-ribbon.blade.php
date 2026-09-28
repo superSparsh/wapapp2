@@ -1,4 +1,4 @@
-{{-- Sticky side tab — owner Open Inbox only (direct line-login uses banner Sign out) --}}
+{{-- Sticky side tab - owner Open Inbox only (direct line-login uses banner Sign out) --}}
 @if (! empty($isLineContextLocked) && empty($isLineDirectLogin))
   <form method="POST" action="{{ route('profile.phone-lines.exit-context') }}" class="line-context-exit-form">
     @csrf

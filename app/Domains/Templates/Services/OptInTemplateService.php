@@ -31,7 +31,7 @@ class OptInTemplateService
     public function usesV3(): bool
     {
         // Legacy parity: always send original Marketing `opt_in_message`.
-        // V3 Utility template is kept for old rows only — never used for sends.
+        // V3 Utility template is kept for old rows only - never used for sends.
         return false;
     }
 

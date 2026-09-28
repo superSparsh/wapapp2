@@ -14,7 +14,7 @@
     if ($amountDisplay === null) {
         $amountDisplay = $amountValue !== null
             ? (($currencyLabel === 'INR' ? '₹' : $currencyLabel.' ').number_format($amountValue, 2))
-            : (string) ($amount ?? '—');
+            : (string) ($amount ?? '-');
     }
     $balanceDisplay = $balance_display ?? null;
     if ($balanceDisplay === null && isset($balance) && is_numeric($balance)) {

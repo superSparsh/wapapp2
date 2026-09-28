@@ -5,14 +5,14 @@ Document Type:    Architecture Design & Migration Plan
 Project:          WapApp 2.0 (Legacy Tittu → New Platform)
 Prepared For:     Management Review
 Date:             27 July 2026
-Status:            Planning Phase — Backend development not yet started
+Status:            Planning Phase - Backend development not yet started
 
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 1. EXECUTIVE SUMMARY
 
-We are rebuilding Tittu (WhatsApp Business API SaaS platform) as WapApp 2.0 — a modern, enterprise-grade platform.
+We are rebuilding Tittu (WhatsApp Business API SaaS platform) as WapApp 2.0 - a modern, enterprise-grade platform.
 
 The legacy system currently serves 30 active customers sending approximately 1,00,000 messages per week. Its architecture has reached scalability and reliability limits and needs to be replaced.
 
@@ -46,17 +46,17 @@ AI Service              Separate Python FastAPI (good, to be retained)   Low
 
 Critical Legacy Problems:
 
-  1. Webhook staging table — Messages inserted into a webhooks table, then deleted BEFORE processing. If processing fails, data is permanently lost.
+  1. Webhook staging table - Messages inserted into a webhooks table, then deleted BEFORE processing. If processing fails, data is permanently lost.
 
-  2. Database queue — Queue jobs stored in MySQL cause DB overload during campaign bursts.
+  2. Database queue - Queue jobs stored in MySQL cause DB overload during campaign bursts.
 
-  3. Cron-heavy processing — Automation, campaigns, webhooks, and integrations all poll via cron every minute, causing unpredictable load spikes.
+  3. Cron-heavy processing - Automation, campaigns, webhooks, and integrations all poll via cron every minute, causing unpredictable load spikes.
 
-  4. No tenant isolation — All 30 customers share one database; one customer's heavy campaign affects all others.
+  4. No tenant isolation - All 30 customers share one database; one customer's heavy campaign affects all others.
 
-  5. Mixed concerns — Email marketing (Acelle) and WhatsApp logic coexist in the same codebase.
+  5. Mixed concerns - Email marketing (Acelle) and WhatsApp logic coexist in the same codebase.
 
-  6. No structured error handling — Errors are inconsistent, making debugging and customer support difficult.
+  6. No structured error handling - Errors are inconsistent, making debugging and customer support difficult.
 
 
 2.2 New System (wapapp-2.0)
@@ -66,9 +66,9 @@ Aspect              Current State
 Framework           Laravel 13, PHP 8.3
 Frontend            Blade + Tailwind CSS 4 (~233 views, 106 routes)
 UI Progress         ~85% complete (Figma-driven)
-Backend Progress    ~0% (greenfield — default Laravel skeleton only)
+Backend Progress    ~0% (greenfield - default Laravel skeleton only)
 Database            SQLite (development only)
-Auth                UI only — no backend wired
+Auth                UI only - no backend wired
 API / Integrations  Not started
 
 Advantage: Complete UI prototype and a clean slate for backend architecture.
@@ -87,7 +87,7 @@ Growth target               Architecture must support 300+ customers (10x)
 Uptime target               99.9% (~8.7 hours max downtime/year)
 Delivery rate               > 95%
 Webhook response to Meta    < 100ms (Meta requires 200 within 20 seconds)
-Data loss tolerance         Zero — all events logged immutably
+Data loss tolerance         Zero - all events logged immutably
 
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -128,7 +128,7 @@ Data loss tolerance         Zero — all events logged immutably
     └─────────────────────────────────────────────────┘
 
 
-4.2 Database Architecture — Master DB + Tenant DB
+4.2 Database Architecture - Master DB + Tenant DB
 
 MASTER DATABASE (Platform Level)
 
@@ -143,7 +143,7 @@ tenant_provisioning_logs        Audit trail for tenant creation
 platform_webhook_events         Meta app-level webhook log (immutable)
 
 
-TENANT DATABASE (Per Customer — 30 separate databases)
+TENANT DATABASE (Per Customer - 30 separate databases)
 
 Table Group       Tables
 ───────────────   ──────────────────────────────────────────────────
@@ -159,14 +159,14 @@ Billing           wallet_transactions
 
 
 Why database-per-tenant?
-  • True data isolation — one customer's load cannot affect others
+  • True data isolation - one customer's load cannot affect others
   • Independent backup and restore per customer
   • Compliance-ready (data residency per tenant in future)
-  • Clean migration — migrate one customer at a time
+  • Clean migration - migrate one customer at a time
   • Legacy has 300+ tables in one DB causing performance issues
 
 
-4.3 Webhook Architecture — Complete Redesign (Most Critical Change)
+4.3 Webhook Architecture - Complete Redesign (Most Critical Change)
 
 LEGACY FLOW (Problematic):
   Meta POST → Insert into webhooks table → Cron polls every minute
@@ -182,8 +182,8 @@ NEW FLOW (Reliable):
 Inbound Webhooks (Meta → App):
   • HMAC signature verification on every request
   • Idempotency via processed_events table (keyed on message_id)
-  • Append-only event log — never delete, archive after 90 days
-  • Direct queue dispatch — no staging table, no cron polling
+  • Append-only event log - never delete, archive after 90 days
+  • Direct queue dispatch - no staging table, no cron polling
 
 Outbound Webhooks (App → Customer URLs):
   • Customer configures webhook subscriptions in tenant DB
@@ -280,7 +280,7 @@ Mechanism              Application
 Idempotency            Duplicate webhooks, sends, debits = no-ops
 Retry with backoff     3 retries: 10s → 60s → 300s, then dead letter
 Circuit breaker        Meta API down → pause sending, queue, auto-resume
-Append-only logs       Webhook events never deleted — replay possible
+Append-only logs       Webhook events never deleted - replay possible
 Dead letter queue      Failed jobs after retries → manual review + alert
 Health checks          /up (basic) + /health/deep (DB, Redis, queue, Meta)
 Zero-downtime deploys  Backward-compatible migrations, feature flags
@@ -410,16 +410,16 @@ CI/CD           GitHub Actions                  Automated test and deploy
 
 11. ARCHITECTURE PRINCIPLES
 
-  1. Tenant isolation first — no query without tenant context
-  2. Events over cron — reactive processing, not polling
-  3. Append-only logs — webhook/event data never deleted
-  4. Idempotent everything — duplicates are no-ops, not errors
-  5. Thin controllers, fat services — testable business logic
-  6. Queue everything heavy — user response always < 200ms
-  7. API-first — UI consumes internal API
-  8. Backward-compatible migrations — zero-downtime deploys
-  9. Feature flags — gradual rollout, instant rollback
-  10. No god classes — 300-line file limit, domain boundaries
+  1. Tenant isolation first - no query without tenant context
+  2. Events over cron - reactive processing, not polling
+  3. Append-only logs - webhook/event data never deleted
+  4. Idempotent everything - duplicates are no-ops, not errors
+  5. Thin controllers, fat services - testable business logic
+  6. Queue everything heavy - user response always < 200ms
+  7. API-first - UI consumes internal API
+  8. Backward-compatible migrations - zero-downtime deploys
+  9. Feature flags - gradual rollout, instant rollback
+  10. No god classes - 300-line file limit, domain boundaries
 
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -477,16 +477,16 @@ Recommended Next Steps:
 
 Open Questions for Management:
 
-  1. Go-live target date — when should the first customer be migrated?
-  2. Module priority — confirm inbox/messaging first, then campaigns?
-  3. Infrastructure — AWS, DigitalOcean, or existing hosting?
-  4. Legacy parallel run — how long should both systems run?
-  5. Team size — how many developers on backend implementation?
+  1. Go-live target date - when should the first customer be migrated?
+  2. Module priority - confirm inbox/messaging first, then campaigns?
+  3. Infrastructure - AWS, DigitalOcean, or existing hosting?
+  4. Legacy parallel run - how long should both systems run?
+  5. Team size - how many developers on backend implementation?
 
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-15. LEGACY vs NEW — COMPARISON
+15. LEGACY vs NEW - COMPARISON
 
 Aspect              Legacy (Tittu)                          New (WapApp 2.0)
 ──────────────────  ──────────────────────────────────────  ──────────────────────────────────────
@@ -508,4 +508,4 @@ Testing             Minimal                                 70%+ coverage target
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-— End of Document —
+- End of Document -

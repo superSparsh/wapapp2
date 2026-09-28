@@ -28,7 +28,7 @@ class TemplateMessageProcessor extends AbstractNodeProcessor
                 $this->sendText($conversation, $this->resolveText($offline, $variables, $conversation));
             }
 
-            // Outside hours: only the offline notice — do not continue to next nodes.
+            // Outside hours: only the offline notice - do not continue to next nodes.
             return NodeProcessResult::Completed;
         }
 
