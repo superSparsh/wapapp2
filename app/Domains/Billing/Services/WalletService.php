@@ -354,14 +354,27 @@ class WalletService
 
     /**
      * Credit the current tenant wallet without a payment gateway order.
+     *
+     * @param  array{admin_id?: int|null, admin_name?: string|null, admin_email?: string|null}  $actor
      */
-    public function adminCredit(float $amount, string $description = 'Admin wallet credit'): WalletTransaction
-    {
+    public function adminCredit(
+        float $amount,
+        string $description = 'Admin wallet credit',
+        array $actor = [],
+    ): WalletTransaction {
         abort_unless($amount > 0, 422, 'Credit amount must be greater than zero.');
 
-        return DB::transaction(function () use ($amount, $description): WalletTransaction {
-            $wallet = $this->account();
-            $newBalance = (float) $wallet->balance + $amount;
+        $amount = round($amount, 2);
+
+        $transaction = DB::transaction(function () use ($amount, $description, $actor): WalletTransaction {
+            $wallet = WalletAccount::query()->lockForUpdate()->first();
+            if ($wallet === null) {
+                $wallet = $this->account();
+                $wallet = WalletAccount::query()->whereKey($wallet->id)->lockForUpdate()->firstOrFail();
+            }
+
+            $previousBalance = round((float) $wallet->balance, 2);
+            $newBalance = round($previousBalance + $amount, 2);
             $wallet->update(['balance' => $newBalance]);
 
             return WalletTransaction::query()->create([
@@ -370,9 +383,42 @@ class WalletService
                 'currency' => $wallet->currency ?? 'INR',
                 'balance_after' => $newBalance,
                 'description' => $description,
+                'metadata' => array_filter([
+                    'source' => 'admin_credit',
+                    'previous_balance' => $previousBalance,
+                    'admin_id' => $actor['admin_id'] ?? null,
+                    'admin_name' => $actor['admin_name'] ?? null,
+                    'admin_email' => $actor['admin_email'] ?? null,
+                ], static fn ($v) => $v !== null && $v !== ''),
                 'created_at' => now(),
             ]);
         });
+
+        try {
+            app(\App\Domains\Account\Services\ActivityLogService::class)->log('billing.wallet.admin_credit', [
+                'description' => sprintf(
+                    'Wallet — admin credited ₹%s (balance ₹%s → ₹%s)',
+                    number_format($amount, 2),
+                    number_format((float) data_get($transaction->metadata, 'previous_balance', 0), 2),
+                    number_format((float) $transaction->balance_after, 2),
+                ),
+                'actor_name' => $actor['admin_name'] ?? null,
+                'actor_email' => $actor['admin_email'] ?? null,
+                'metadata' => [
+                    'amount' => $amount,
+                    'previous_balance' => data_get($transaction->metadata, 'previous_balance'),
+                    'balance_after' => (float) $transaction->balance_after,
+                    'admin_id' => $actor['admin_id'] ?? null,
+                    'wallet_transaction_id' => $transaction->id,
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Admin wallet credit activity log failed', [
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        return $transaction;
     }
 
     public function completeRecharge(RazorpayOrder $order, string $paymentId): WalletTransaction

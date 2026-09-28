@@ -64,6 +64,30 @@
                                     <td style="padding:12px 16px;border-top:1px solid #e4edf5;font-size:14px;color:#38546c;">Credited Amount</td>
                                     <td align="right" style="padding:12px 16px;border-top:1px solid #e4edf5;font-size:16px;font-weight:bold;color:#17a84e;">{{ $amountDisplay }}</td>
                                 </tr>
+                                @if (! empty($gst_display) || (isset($gst_amount) && is_numeric($gst_amount)))
+                                <tr>
+                                    <td style="padding:12px 16px;border-top:1px solid #e4edf5;font-size:14px;color:#38546c;">GST</td>
+                                    <td align="right" style="padding:12px 16px;border-top:1px solid #e4edf5;font-size:14px;font-weight:bold;color:#123a60;">
+                                        {{ $gst_display ?? (($currencyLabel === 'INR' ? '₹' : $currencyLabel.' ').number_format((float) $gst_amount, 2)) }}
+                                    </td>
+                                </tr>
+                                @endif
+                                @if (! empty($paid_display) || (isset($paid_amount) && is_numeric($paid_amount)))
+                                <tr>
+                                    <td style="padding:12px 16px;border-top:1px solid #e4edf5;font-size:14px;color:#38546c;">Amount Paid</td>
+                                    <td align="right" style="padding:12px 16px;border-top:1px solid #e4edf5;font-size:14px;font-weight:bold;color:#123a60;">
+                                        {{ $paid_display ?? (($currencyLabel === 'INR' ? '₹' : $currencyLabel.' ').number_format((float) $paid_amount, 2)) }}
+                                    </td>
+                                </tr>
+                                @endif
+                                @if (! empty($previous_balance_display) || (isset($previous_balance) && is_numeric($previous_balance)))
+                                <tr>
+                                    <td style="padding:12px 16px;border-top:1px solid #e4edf5;font-size:14px;color:#38546c;">Previous Balance</td>
+                                    <td align="right" style="padding:12px 16px;border-top:1px solid #e4edf5;font-size:14px;font-weight:bold;color:#123a60;">
+                                        {{ $previous_balance_display ?? (($currencyLabel === 'INR' ? '₹' : $currencyLabel.' ').number_format((float) $previous_balance, 2)) }}
+                                    </td>
+                                </tr>
+                                @endif
                                 @if (! empty($balanceDisplay))
                                 <tr>
                                     <td style="padding:12px 16px;border-top:1px solid #e4edf5;font-size:14px;color:#38546c;">New WAPAPP Wallet Credits Balance</td>

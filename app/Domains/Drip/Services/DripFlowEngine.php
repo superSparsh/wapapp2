@@ -108,64 +108,102 @@ class DripFlowEngine
 
             // 3. Condition / Enhanced Condition
             if ($type === 'condition' || $type === 'enhancedCondition') {
+                $conditionType = $this->resolveConditionType($nodeData);
                 $evalResult = $type === 'enhancedCondition'
                     ? $this->evaluateEnhancedCondition($state, $conversation, $nodeData)
                     : $this->evaluateCondition($state, $conversation, $nodeData);
-                $waitSeconds = $this->resolveConditionWaitSeconds($nodeData);
+                $waitSeconds = $this->conditionUsesWaitWindow($conditionType, $nodeData, $type)
+                    ? $this->resolveConditionWaitSeconds($nodeData)
+                    : 0;
                 $waitFlagKey = 'cond_waited_'.$currentNodeId;
                 $variables = (array) ($state->variables ?? []);
+                $timeoutReached = $state->expires_at !== null && now()->gte($state->expires_at);
+                $waitStarted = ! empty($variables[$waitFlagKey]);
 
-                if ($evalResult) {
-                    // Condition is TRUE -> take YES branch
-                    $this->statService->record(
-                        campaignId: (int) $state->drip_campaign_id,
-                        nodeId: (string) ($node['id'] ?? 'condition'),
-                        nodeType: $type,
-                        action: ChatbotFlowStatAction::Completed,
-                        conversation: $conversation,
-                        metadata: ['result' => 'yes', 'condition_type' => $nodeData['condition_type'] ?? 'custom'],
+                // Unread + wait window: stay waiting while unread; Yes only after timeout still unread.
+                // If the message becomes read during the window, take No immediately.
+                if ($conditionType === 'whatsapp_unread' && $waitSeconds > 0) {
+                    if (! $evalResult) {
+                        $this->completeConditionBranch(
+                            $state,
+                            $conversation,
+                            $node,
+                            $type,
+                            $conditionType,
+                            $waitFlagKey,
+                            $variables,
+                            'no',
+                        );
+                        $currentNodeId = $this->nextNodeId($edges, $nodesList, $currentNodeId, 'no');
+                        $state->forceFill(['current_node_id' => $currentNodeId])->save();
+
+                        continue;
+                    }
+
+                    if (! $timeoutReached) {
+                        if (! $waitStarted) {
+                            $this->startConditionWait($state, $variables, $waitFlagKey, $waitSeconds);
+                        } else {
+                            $state->forceFill(['status' => ChatbotFlowStateStatus::Waiting])->save();
+                        }
+
+                        return;
+                    }
+
+                    $this->completeConditionBranch(
+                        $state,
+                        $conversation,
+                        $node,
+                        $type,
+                        $conditionType,
+                        $waitFlagKey,
+                        $variables,
+                        'yes',
                     );
-
-                    unset($variables[$waitFlagKey]);
-                    $state->forceFill(['variables' => $variables]);
-
                     $currentNodeId = $this->nextNodeId($edges, $nodesList, $currentNodeId, 'yes');
                     $state->forceFill(['current_node_id' => $currentNodeId])->save();
 
                     continue;
                 }
 
-                // Condition is FALSE: check if we should wait
-                $alreadyWaited = ! empty($variables[$waitFlagKey]) || ($state->expires_at !== null && now()->gte($state->expires_at));
+                if ($evalResult) {
+                    $this->completeConditionBranch(
+                        $state,
+                        $conversation,
+                        $node,
+                        $type,
+                        $conditionType,
+                        $waitFlagKey,
+                        $variables,
+                        'yes',
+                    );
+                    $currentNodeId = $this->nextNodeId($edges, $nodesList, $currentNodeId, 'yes');
+                    $state->forceFill(['current_node_id' => $currentNodeId])->save();
 
-                if (! $alreadyWaited && $waitSeconds > 0 && $type === 'condition') {
-                    $variables[$waitFlagKey] = true;
-                    $state->forceFill([
-                        'variables' => $variables,
-                        'status' => ChatbotFlowStateStatus::Waiting,
-                        'expires_at' => now()->addSeconds($waitSeconds),
-                    ])->save();
+                    continue;
+                }
 
-                    ExecuteDripStepJob::dispatch($state->id)
-                        ->delay(now()->addSeconds($waitSeconds))
-                        ->onQueue((string) config('chatbot.drip.queue', 'default'));
+                // Condition FALSE: wait for status/reply webhook, or take No after timeout / no wait.
+                if (! $timeoutReached && $waitSeconds > 0) {
+                    if (! $waitStarted) {
+                        $this->startConditionWait($state, $variables, $waitFlagKey, $waitSeconds);
+                    } else {
+                        $state->forceFill(['status' => ChatbotFlowStateStatus::Waiting])->save();
+                    }
 
                     return;
                 }
 
-                // Timeout expired & still FALSE -> take NO branch
-                $this->statService->record(
-                    campaignId: (int) $state->drip_campaign_id,
-                    nodeId: (string) ($node['id'] ?? 'condition'),
-                    nodeType: $type,
-                    action: ChatbotFlowStatAction::Completed,
-                    conversation: $conversation,
-                    metadata: ['result' => 'no', 'condition_type' => $nodeData['condition_type'] ?? 'custom'],
+                $this->completeConditionBranch(
+                    $state,
+                    $conversation,
+                    $node,
+                    $type,
+                    $conditionType,
+                    $waitFlagKey,
+                    $variables,
+                    'no',
                 );
-
-                unset($variables[$waitFlagKey]);
-                $state->forceFill(['variables' => $variables]);
-
                 $currentNodeId = $this->nextNodeId($edges, $nodesList, $currentNodeId, 'no');
                 $state->forceFill(['current_node_id' => $currentNodeId])->save();
 
@@ -513,6 +551,98 @@ class DripFlowEngine
     /**
      * @param  array<string, mixed>  $data
      */
+    private function resolveConditionType(array $data): string
+    {
+        $conditionType = (string) ($data['condition_type'] ?? '');
+        if ($conditionType === '' && ! empty($data['condition_variable'])) {
+            return 'custom_variable';
+        }
+        if ($conditionType === '') {
+            return 'whatsapp_read';
+        }
+
+        return $conditionType;
+    }
+
+    /**
+     * @param  array<string, mixed>  $nodeData
+     */
+    private function conditionUsesWaitWindow(string $conditionType, array $nodeData, string $nodeType): bool
+    {
+        if ($conditionType === 'custom_variable') {
+            return false;
+        }
+
+        if ($nodeType === 'enhancedCondition') {
+            $conditions = $nodeData['conditions'] ?? [];
+            if (is_array($conditions) && $conditions !== []) {
+                return false;
+            }
+        }
+
+        return in_array($conditionType, [
+            'whatsapp_read',
+            'whatsapp_delivered',
+            'whatsapp_unread',
+            'whatsapp_failed',
+            'whatsapp_reply',
+        ], true);
+    }
+
+    /**
+     * @param  array<string, mixed>  $variables
+     */
+    private function startConditionWait(
+        DripCampaignState $state,
+        array $variables,
+        string $waitFlagKey,
+        int $waitSeconds,
+    ): void {
+        $variables[$waitFlagKey] = true;
+        $state->forceFill([
+            'variables' => $variables,
+            'status' => ChatbotFlowStateStatus::Waiting,
+            'expires_at' => now()->addSeconds($waitSeconds),
+        ])->save();
+
+        ExecuteDripStepJob::dispatch($state->id)
+            ->delay(now()->addSeconds($waitSeconds))
+            ->onQueue((string) config('chatbot.drip.queue', 'default'));
+    }
+
+    /**
+     * @param  array<string, mixed>  $node
+     * @param  array<string, mixed>  $variables
+     */
+    private function completeConditionBranch(
+        DripCampaignState $state,
+        Conversation $conversation,
+        array $node,
+        string $nodeType,
+        string $conditionType,
+        string $waitFlagKey,
+        array $variables,
+        string $result,
+    ): void {
+        $this->statService->record(
+            campaignId: (int) $state->drip_campaign_id,
+            nodeId: (string) ($node['id'] ?? 'condition'),
+            nodeType: $nodeType,
+            action: ChatbotFlowStatAction::Completed,
+            conversation: $conversation,
+            metadata: ['result' => $result, 'condition_type' => $conditionType],
+        );
+
+        unset($variables[$waitFlagKey]);
+        $state->forceFill([
+            'variables' => $variables,
+            'expires_at' => null,
+        ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
     private function resolveConditionWaitSeconds(array $data): int
     {
         if (array_key_exists('wait_seconds', $data) && $data['wait_seconds'] !== null && $data['wait_seconds'] !== '') {
@@ -548,13 +678,7 @@ class DripFlowEngine
      */
     private function evaluateCondition(DripCampaignState $state, Conversation $conversation, array $nodeData): bool
     {
-        $conditionType = (string) ($nodeData['condition_type'] ?? '');
-        if ($conditionType === '' && ! empty($nodeData['condition_variable'])) {
-            $conditionType = 'custom_variable';
-        }
-        if ($conditionType === '') {
-            $conditionType = 'whatsapp_read';
-        }
+        $conditionType = $this->resolveConditionType($nodeData);
 
         // 1. Custom variable / contact field evaluation
         if ($conditionType === 'custom_variable') {
@@ -572,7 +696,45 @@ class DripFlowEngine
         }
 
         // 2. WhatsApp message condition evaluation
+        $message = $this->findConditionOutboundMessage($state, $conversation, $nodeData);
+
+        return match ($conditionType) {
+            'whatsapp_read' => $message !== null && ($message->read_at !== null || $message->status === MessageStatus::Read),
+            'whatsapp_delivered' => $message !== null && ($message->delivered_at !== null || $message->status === MessageStatus::Delivered || $message->status === MessageStatus::Read),
+            'whatsapp_unread' => $message !== null && $message->read_at === null && $message->status !== MessageStatus::Read,
+            'whatsapp_failed' => $message !== null && ($message->failed_at !== null || $message->status === MessageStatus::Failed),
+            'whatsapp_reply' => $this->evaluateReplyCondition($conversation, $message),
+            default => false,
+        };
+    }
+
+    /**
+     * Prefer the last drip-sent message when it matches the configured target template.
+     *
+     * @param  array<string, mixed>  $nodeData
+     */
+    private function findConditionOutboundMessage(
+        DripCampaignState $state,
+        Conversation $conversation,
+        array $nodeData,
+    ): ?Message {
         $targetTemplate = (string) ($nodeData['target_template'] ?? '');
+        $stateVars = (array) ($state->variables ?? []);
+        $lastMessageId = (int) ($stateVars['last_message_id'] ?? 0);
+        $lastTemplateCode = (string) ($stateVars['last_template_code'] ?? '');
+
+        if ($lastMessageId > 0 && ($targetTemplate === '' || $targetTemplate === $lastTemplateCode)) {
+            $lastMessage = Message::query()
+                ->where('id', $lastMessageId)
+                ->where('conversation_id', $conversation->id)
+                ->where('direction', MessageDirection::Outbound)
+                ->first();
+
+            if ($lastMessage !== null) {
+                return $lastMessage;
+            }
+        }
+
         $messageQuery = Message::query()
             ->where('conversation_id', $conversation->id)
             ->where('direction', MessageDirection::Outbound)
@@ -581,20 +743,12 @@ class DripFlowEngine
         if ($targetTemplate !== '') {
             $messageQuery->where(function ($q) use ($targetTemplate) {
                 $q->where('body', $targetTemplate)
-                    ->orWhere('metadata->template_code', $targetTemplate);
+                    ->orWhere('metadata->template_code', $targetTemplate)
+                    ->orWhere('metadata->template_name', $targetTemplate);
             });
         }
 
-        $message = $messageQuery->first();
-
-        return match ($conditionType) {
-            'whatsapp_read' => $message !== null && ($message->read_at !== null || $message->status === MessageStatus::Read),
-            'whatsapp_delivered' => $message !== null && ($message->delivered_at !== null || $message->status === MessageStatus::Delivered || $message->status === MessageStatus::Read),
-            'whatsapp_unread' => $message !== null && $message->read_at === null && $message->status !== MessageStatus::Read,
-            'whatsapp_failed' => $message !== null && ($message->failed_at !== null || $message->status === MessageStatus::Failed),
-            'whatsapp_reply' => $this->evaluateReplyCondition($conversation, $message),
-            default => true,
-        };
+        return $messageQuery->first();
     }
 
     private function evaluateReplyCondition(Conversation $conversation, ?Message $outboundMessage): bool

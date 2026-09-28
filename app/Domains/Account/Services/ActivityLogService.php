@@ -28,6 +28,7 @@ class ActivityLogService
         'billing.subscription.cancelled' => 'Subscription — cancelled',
         'billing.subscription.paid' => 'Subscription — payment completed',
         'billing.wallet.recharge' => 'Wallet — Razorpay recharge completed',
+        'billing.wallet.admin_credit' => 'Wallet — admin credit',
         'integration.profile.updated' => 'WABA profile — updated',
         'integration.sync.completed' => 'WhatsApp business data — synced',
         'integration.phone.added' => 'WhatsApp number — added',

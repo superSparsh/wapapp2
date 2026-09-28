@@ -26,6 +26,7 @@ class ZohoWalletCreditRequest extends Model
         'external_id',
         'invoice_number',
         'wallet_credited_at',
+        'completion_email_sent_at',
         'last_error',
         'metadata',
     ];
@@ -35,6 +36,7 @@ class ZohoWalletCreditRequest extends Model
         return [
             'amount' => 'decimal:2',
             'wallet_credited_at' => 'datetime',
+            'completion_email_sent_at' => 'datetime',
             'metadata' => 'array',
         ];
     }

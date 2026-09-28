@@ -101,6 +101,22 @@ class DeliveryStatusHandler
                             'error' => $e->getMessage(),
                         ]);
                     }
+
+                    if (in_array($status, ['Delivered', 'Read', 'Failed'], true)) {
+                        try {
+                            $message->loadMissing('conversation');
+                            if ($message->conversation !== null) {
+                                app(\App\Domains\Drip\Services\DripConditionResumeService::class)
+                                    ->resumeForConversation($message->conversation);
+                            }
+                        } catch (\Throwable $e) {
+                            Log::warning('Drip condition resume failed', [
+                                'message_id' => $message->id,
+                                'status' => $status,
+                                'error' => $e->getMessage(),
+                            ]);
+                        }
+                    }
                 }
 
                 $this->syncOptInContactDelivery($message, $status, $item, $now);

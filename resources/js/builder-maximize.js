@@ -43,14 +43,17 @@ export function initDripCanvasMaximize() {
     document.querySelectorAll('[data-drip-workspace]').forEach((workspace) => {
         const button = workspace.querySelector('[data-drip-maximize]');
         const minimizeBtn = workspace.querySelector('[data-drip-minimize]');
-        const sidePanel = workspace.querySelector('[data-drip-side-panel]');
 
-        if (!button || !sidePanel) {
+        if (!button || button.dataset.dripMaximizeBound === '1') {
             return;
         }
 
+        button.dataset.dripMaximizeBound = '1';
+
         const setMaximized = (next) => {
             workspace.setAttribute('data-drip-maximized', String(next));
+            document.body.classList.toggle('drip-canvas-fullscreen', next);
+            document.body.classList.toggle('overflow-hidden', next);
             button.setAttribute('aria-pressed', String(next));
             button.setAttribute('aria-label', next ? 'Restore canvas' : 'Maximize canvas');
 
@@ -60,13 +63,23 @@ export function initDripCanvasMaximize() {
             }
         };
 
-        button.addEventListener('click', () => {
+        button.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
             const maximized = workspace.getAttribute('data-drip-maximized') === 'true';
             setMaximized(!maximized);
         });
 
-        minimizeBtn?.addEventListener('click', () => {
+        minimizeBtn?.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
             setMaximized(false);
+        });
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && workspace.getAttribute('data-drip-maximized') === 'true') {
+                setMaximized(false);
+            }
         });
     });
 }

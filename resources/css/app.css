@@ -435,10 +435,32 @@
     display: none !important;
 }
 
+[data-drip-workspace][data-drip-maximized='true'] {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 60 !important;
+    width: 100% !important;
+    max-width: none !important;
+    height: 100% !important;
+    margin: 0 !important;
+    background: var(--color-surface, #f5f5f5) !important;
+}
+
+[data-drip-workspace][data-drip-maximized='true'] [data-drip-flow-editor],
 [data-drip-workspace][data-drip-maximized='true'] [data-drip-canvas] {
     width: 100% !important;
     max-width: none !important;
     flex: 1 1 auto !important;
+    min-width: 0 !important;
+    height: 100% !important;
+}
+
+body.drip-canvas-fullscreen > .flex > .hidden.lg\:block,
+body.drip-canvas-fullscreen > .flex > #mobile-sidebar,
+body.drip-canvas-fullscreen > .flex > #sidebar-backdrop,
+body.drip-canvas-fullscreen > .flex > div > header,
+body.drip-canvas-fullscreen > .flex > div > .min-h-0 > main > .flex > .flex-col:first-child {
+    display: none !important;
 }
 
 .builder-maximize-toolbar {

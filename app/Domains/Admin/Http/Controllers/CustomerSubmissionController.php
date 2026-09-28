@@ -65,6 +65,8 @@ class CustomerSubmissionController extends Controller
 
     public function showReadiness(CustomerReadinessSubmission $submission): View
     {
+        $meta = is_array($submission->meta) ? $submission->meta : [];
+
         return view('admin.submissions.show', [
             'tab' => 'readiness',
             'title' => $submission->business_name ?: ($submission->customer_name ?: 'Readiness submission'),
@@ -76,9 +78,14 @@ class CustomerSubmissionController extends Controller
                 'Website' => $submission->website,
                 'Document type' => $submission->doc_type,
                 'Status' => $submission->status,
+                'Eligible' => ! empty($meta['eligible']) ? 'Yes' : 'No',
+                'Soft warn (MFA)' => ! empty($meta['soft_warn']) ? 'Yes' : 'No',
                 'Received' => $submission->created_at?->toDayDateTimeString(),
             ],
-            'payload' => is_array($submission->data) ? $submission->data : [],
+            'payload' => [
+                'answers' => is_array($submission->data) ? $submission->data : [],
+                'meta' => $meta,
+            ],
             'resendUrl' => null,
         ]);
     }

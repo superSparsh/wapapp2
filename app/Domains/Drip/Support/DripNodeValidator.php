@@ -119,8 +119,6 @@ final class DripNodeValidator
                     'whatsapp_failed',
                     'whatsapp_reply',
                     'custom_variable',
-                    'open',
-                    'click',
                 ]),
             ],
         ];

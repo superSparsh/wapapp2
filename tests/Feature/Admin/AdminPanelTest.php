@@ -450,9 +450,17 @@ class AdminPanelTest extends TestCase
         $this->actingAs($this->admin, 'admin')
             ->get(route('admin.plans.index'))
             ->assertOk()
-            ->assertSee('Activate')
+            ->assertSee('Active')
+            ->assertSee('Inactive')
+            ->assertSee('No active plans.')
+            ->assertDontSee('>Starter</div>', false);
+
+        $this->actingAs($this->admin, 'admin')
+            ->get(route('admin.plans.index', ['tab' => 'inactive']))
+            ->assertOk()
+            ->assertSee('Starter')
             ->assertSee('Wallet start')
-            ->assertSee('Features');
+            ->assertSee('Activate');
 
         $this->actingAs($this->admin, 'admin')
             ->get(route('admin.plans.edit', $plan))

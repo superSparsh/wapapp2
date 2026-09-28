@@ -33,8 +33,8 @@
 
                             @if (! empty($reasons) && is_array($reasons))
                                 <ul style="margin:0 0 12px; padding-left:20px; font-size:14px; line-height:1.6;">
-                                    @foreach ($reasons as $field)
-                                        <li>{{ ucfirst(str_replace('_', ' ', (string) $field)) }} is missing or invalid.</li>
+                                    @foreach ($reasons as $reason)
+                                        <li>{{ is_string($reason) ? $reason : ucfirst(str_replace('_', ' ', (string) $reason)) }}</li>
                                     @endforeach
                                 </ul>
                             @else

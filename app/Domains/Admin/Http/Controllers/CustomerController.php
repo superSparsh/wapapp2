@@ -134,10 +134,14 @@ class CustomerController extends Controller
         }
 
         if ($walletAmount > 0) {
+            $admin = $request->user('admin');
             $this->customers->creditWallet(
                 $tenant,
                 $walletAmount,
                 'Admin wallet top-up for '.$tenant->id,
+                adminName: $admin?->name,
+                adminEmail: $admin?->email,
+                adminId: $admin !== null ? (int) $admin->id : null,
             );
         }
 

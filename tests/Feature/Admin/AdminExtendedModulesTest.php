@@ -209,20 +209,37 @@ class AdminExtendedModulesTest extends TestCase
 
     public function test_public_readiness_form_submits_and_admin_sees_submission(): void
     {
+        \Illuminate\Support\Facades\Http::fake([
+            '*' => \Illuminate\Support\Facades\Http::response('ok', 200),
+        ]);
+
         $this->get(route('customer-readiness.create'))->assertOk();
 
-        $this->post(route('customer-readiness.store'), [
-            'name' => 'Riya Sharma',
-            'email' => 'riya@example.com',
+        $payload = [
+            'customer_name' => 'Riya Sharma',
+            'customer_email' => 'riya@example.com',
             'business_name' => 'Sharma Traders',
             'business_email' => 'billing@sharma.test',
-            'website' => 'https://sharma.test',
-            'doc_type' => 'gst_certificate',
-        ])->assertRedirect(route('customer-readiness.thanks'));
+            'site' => 'https://sharma.test',
+            'docType' => 'GST certificate',
+            'mbm_admin' => 'admin',
+            'mbm_mfa' => 'all_admins',
+            'fb_personal' => 'available',
+            'fb_page_created' => 'yes',
+            'fb_page_name' => 'https://business.facebook.com/latest/settings/business_info?business_id=998877',
+            'num_plan' => 'migrate_to_api',
+            'num_otp' => 'can_receive',
+            'num_type' => 'physical',
+            'whatsapp_display_name' => 'Sharma Traders',
+        ];
+
+        $this->post(route('customer-readiness.store'), $payload)
+            ->assertRedirect(route('customer-readiness.result'));
 
         $submission = CustomerReadinessSubmission::query()->firstOrFail();
         $this->assertSame('Sharma Traders', $submission->business_name);
         $this->assertSame('riya@example.com', $submission->customer_email);
+        $this->assertSame('eligible', $submission->status);
 
         $this->actingAs($this->admin, 'admin')
             ->get(route('admin.submissions.index'))

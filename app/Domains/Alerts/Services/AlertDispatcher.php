@@ -255,13 +255,26 @@ class AlertDispatcher
             $adminEmails = (array) config('operational-alerts.admin_emails', []);
         }
 
-        $this->platform->notifyAdmins($type, 'Customer readiness: '.$status, $view, $submission, $adminEmails);
+        $adminSubject = match ($status) {
+            'eligible' => 'Customer readiness: eligible',
+            'not_eligible' => 'Customer readiness: not eligible',
+            default => 'Customer readiness: submitted',
+        };
 
-        if (! empty($submission['customer_email'])) {
+        $this->platform->notifyAdmins($type, $adminSubject, $view, $submission, $adminEmails);
+
+        $customerEmail = (string) ($submission['customer_email'] ?? $submission['email'] ?? '');
+        if ($customerEmail !== '') {
+            $customerSubject = match ($status) {
+                'eligible' => 'You’re eligible for WhatsApp onboarding',
+                'not_eligible' => 'Action needed on your readiness form',
+                default => 'We received your readiness submission',
+            };
+
             $this->alerts->notifyEmails(
-                [(string) $submission['customer_email']],
+                [$customerEmail],
                 $type,
-                'We received your readiness submission',
+                $customerSubject,
                 $view,
                 $submission,
             );

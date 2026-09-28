@@ -162,6 +162,16 @@ class InboundMessageHandler
             );
 
             try {
+                app(\App\Domains\Drip\Services\DripConditionResumeService::class)
+                    ->resumeForConversation($conversation->refresh());
+            } catch (\Throwable $e) {
+                Log::warning('Drip condition resume on inbound failed', [
+                    'message_id' => $messageId,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+
+            try {
                 app(\App\Domains\Alerts\Services\AlertDispatcher::class)->inboxNewMessage(
                     fromPhone: $contactPhone,
                     preview: $body !== '' ? $body : '['.$messageType->value.']',

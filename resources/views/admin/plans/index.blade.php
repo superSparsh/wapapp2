@@ -1,10 +1,44 @@
 <x-admin.layout title="Plans - Admin" active="admin.plans.index">
+  @php
+    $tab = $tab ?? ($filters['tab'] ?? 'active');
+    $isActiveTab = $tab === 'active';
+  @endphp
+
   <div class="flex flex-wrap items-start justify-between gap-3 p-4">
     <div>
       <h1 class="text-2xl font-bold text-text-primary">Plans</h1>
       <p class="text-sm text-text-subtle opacity-70">Subscription plans available to customers.</p>
     </div>
     <a href="{{ route('admin.plans.create') }}" class="rounded-lg bg-green-500 px-3 py-2 text-xs font-semibold text-white hover:bg-green-600">Add plan</a>
+  </div>
+
+  <div class="flex gap-2 px-4 pb-3">
+    <a
+      href="{{ route('admin.plans.index', ['tab' => 'active'] + request()->except('tab', 'page')) }}"
+      @class([
+        'rounded-lg px-3 py-2 text-sm font-semibold',
+        'bg-green-500 text-white' => $isActiveTab,
+        'bg-elevated text-text-subtle hover:bg-surface' => ! $isActiveTab,
+      ])
+    >
+      Active
+      <span @class(['ml-1 rounded px-1.5 text-[10px]', 'bg-white/20 text-white' => $isActiveTab, 'bg-muted-surface text-text-subtle' => ! $isActiveTab])>
+        {{ $activeCount ?? 0 }}
+      </span>
+    </a>
+    <a
+      href="{{ route('admin.plans.index', ['tab' => 'inactive'] + request()->except('tab', 'page')) }}"
+      @class([
+        'rounded-lg px-3 py-2 text-sm font-semibold',
+        'bg-green-500 text-white' => ! $isActiveTab,
+        'bg-elevated text-text-subtle hover:bg-surface' => $isActiveTab,
+      ])
+    >
+      Inactive
+      <span @class(['ml-1 rounded px-1.5 text-[10px]', 'bg-white/20 text-white' => ! $isActiveTab, 'bg-muted-surface text-text-subtle' => $isActiveTab])>
+        {{ $inactiveCount ?? 0 }}
+      </span>
+    </a>
   </div>
 
   <x-admin.filter-bar
@@ -15,7 +49,11 @@
     :sort="$filters['sort'] ?? 'sort_order'"
     :direction="$filters['direction'] ?? 'asc'"
     :sort-options="$sortOptions"
-  />
+  >
+    <x-slot:hidden>
+      <input type="hidden" name="tab" value="{{ $tab }}">
+    </x-slot:hidden>
+  </x-admin.filter-bar>
 
   <div class="p-4 pt-0">
     <x-ui.data-table :headers="['Plan', 'Price / Wallet', 'Validity', 'Features', 'Customers', 'Status', 'Actions']" :paginator="$plans">
@@ -56,7 +94,15 @@
           </td>
         </tr>
       @empty
-        <tr><td colspan="7" class="p-6 text-center text-sm text-text-subtle">No plans yet.</td></tr>
+        <tr>
+          <td colspan="7" class="p-6 text-center text-sm text-text-subtle">
+            @if ($isActiveTab)
+              No active plans.
+            @else
+              No inactive plans.
+            @endif
+          </td>
+        </tr>
       @endforelse
     </x-ui.data-table>
   </div>

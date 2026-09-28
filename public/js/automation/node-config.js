@@ -420,7 +420,7 @@
         });
 
         html += sectionTitle('Branches (Y / N)');
-        html += helpText('Y = condition met. N = condition not met (or wait timed out). Pick where each path goes. For “next step”, add a node with + below on the canvas.');
+        html += helpText('Y = condition met. N = condition not met (or wait timed out). For Unread, the flow waits the full window and takes Y only if still unread; if they read during the wait, N runs.');
         html += selectField('Y path (Yes)', 'cfg-yes-target', data.yes_target || 'next', branchTargets, true);
         html += selectField('N path (No)', 'cfg-no-target', data.no_target || 'end', branchTargets, true);
         break;
@@ -744,7 +744,11 @@
     node.data.condition_type = get('cfg-condition-type') || node.data.condition_type || 'whatsapp_read';
     node.data.target_template = get('cfg-target-template');
     const condWait = get('cfg-condition-wait');
-    if (condWait) {
+    if (node.data.condition_type === 'custom_variable') {
+      // Custom field checks are instant — never park on a WhatsApp wait window.
+      node.data.wait_seconds = 0;
+      node.data.condition_wait = null;
+    } else if (condWait) {
       node.data.condition_wait = condWait;
       if (condWait === 'custom') {
         node.data.wait_value = Math.max(1, parseInt(get('cfg-wait-value'), 10) || 1);

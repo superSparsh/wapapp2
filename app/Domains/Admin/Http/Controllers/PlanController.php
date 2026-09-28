@@ -24,7 +24,19 @@ class PlanController extends Controller
             defaultDirection: 'asc',
         );
 
-        $query = Plan::query()->withCount('tenants');
+        $tab = strtolower((string) $request->query('tab', 'active'));
+        if (! in_array($tab, ['active', 'inactive'], true)) {
+            $tab = 'active';
+        }
+
+        $baseQuery = Plan::query();
+        $activeCount = (clone $baseQuery)->where('is_active', true)->count();
+        $inactiveCount = (clone $baseQuery)->where('is_active', false)->count();
+
+        $query = Plan::query()
+            ->withCount('tenants')
+            ->where('is_active', $tab === 'active');
+
         AdminListQuery::applySearch($query, $parsed['q'], ['name', 'slug']);
         AdminListQuery::applySort(
             $query,
@@ -39,9 +51,14 @@ class PlanController extends Controller
             'sort_order',
         );
 
+        $filters = array_merge($parsed, ['tab' => $tab]);
+
         return view('admin.plans.index', [
             'plans' => $query->paginate(20)->withQueryString(),
-            'filters' => $parsed,
+            'filters' => $filters,
+            'tab' => $tab,
+            'activeCount' => $activeCount,
+            'inactiveCount' => $inactiveCount,
             'sortOptions' => [
                 ['value' => 'sort_order', 'label' => 'Sort order', 'direction' => 'asc'],
                 ['value' => 'name', 'label' => 'Name A–Z', 'direction' => 'asc'],

@@ -94,11 +94,21 @@ Route::middleware('web')->group(function () {
 });
 
 // Public customer readiness form (no auth, no tenancy — stored centrally)
+// Pages/views are imported separately; routes match legacy URLs for the form JS/actions.
 Route::middleware('web')->prefix('customer-readiness')->name('customer-readiness.')->group(function () {
     Route::get('/', [CustomerReadinessController::class, 'create'])->name('create');
     Route::post('/', [CustomerReadinessController::class, 'store'])->name('store');
+    Route::post('/validate-facebook-page', [CustomerReadinessController::class, 'validateFacebookPage'])
+        ->name('validate.facebook-page');
+    Route::post('/validate-business-email', [CustomerReadinessController::class, 'validateBusinessEmail'])
+        ->name('validate.business-email');
+    Route::get('/result', [CustomerReadinessController::class, 'result'])->name('result');
     Route::get('/thanks', [CustomerReadinessController::class, 'thanks'])->name('thanks');
 });
+
+// JSON API (same payload as web form — for SPA / imported frontends)
+Route::middleware('web')->post('/api/customer-readiness', [CustomerReadinessController::class, 'storeApi'])
+    ->name('api.customer-readiness.store');
 
 // Public form routes (Form Builder — no auth — tenant resolved from path)
 Route::middleware([InitializeTenancyByPath::class])

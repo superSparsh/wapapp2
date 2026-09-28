@@ -189,8 +189,14 @@ class CustomerAdminService
     /**
      * Credit tenant wallet from admin (initializes tenancy briefly).
      */
-    public function creditWallet(Tenant $tenant, float $amount, string $description = 'Admin wallet top-up'): void
-    {
+    public function creditWallet(
+        Tenant $tenant,
+        float $amount,
+        string $description = 'Admin wallet top-up',
+        ?string $adminName = null,
+        ?string $adminEmail = null,
+        ?int $adminId = null,
+    ): void {
         if ($amount <= 0) {
             return;
         }
@@ -207,6 +213,11 @@ class CustomerAdminService
             app(\App\Domains\Billing\Services\WalletService::class)->adminCredit(
                 $amount,
                 $description,
+                [
+                    'admin_id' => $adminId,
+                    'admin_name' => $adminName,
+                    'admin_email' => $adminEmail,
+                ],
             );
         } finally {
             if (tenancy()->initialized) {
