@@ -112,6 +112,17 @@
     }
 
     onStackClick(event) {
+      const branchBtn = event.target.closest('[data-drip-branch]');
+      if (branchBtn) {
+        const nodeCard = branchBtn.closest('[data-node-id]');
+        const configureBtn = nodeCard?.querySelector('[data-drip-configure]');
+        const index = Number(configureBtn?.dataset.dripConfigure);
+        if (!Number.isNaN(index)) {
+          this.openConfig(index, branchBtn.dataset.dripBranch === 'no' ? 'cfg-no-target' : 'cfg-yes-target');
+        }
+        return;
+      }
+
       const configureBtn = event.target.closest('[data-drip-configure]');
       if (configureBtn) {
         const index = Number(configureBtn.dataset.dripConfigure);
@@ -266,7 +277,7 @@
         });
     }
 
-    openConfig(index) {
+    openConfig(index, focusFieldId) {
       const node = this.nodes[index];
       if (!node || !this.configPanel || !this.configBody || !this.configTitle) {
         return;
@@ -294,6 +305,14 @@
 
         this.configBody.querySelector('[data-save-config]')?.addEventListener('click', () => this.saveConfig());
         this.configBody.querySelector('[data-cancel-config]')?.addEventListener('click', () => this.closeConfig());
+
+        if (focusFieldId) {
+          const focusEl = this.configBody.querySelector('#' + focusFieldId);
+          if (focusEl) {
+            focusEl.scrollIntoView({ block: 'center', behavior: 'smooth' });
+            focusEl.focus();
+          }
+        }
       };
 
       if ((node.type === 'templateMessage' || node.type === 'whatsappFlowTemplate' || node.type === 'condition' || node.type === 'enhancedCondition') && this.templatesUrl && !this.templates) {
@@ -360,19 +379,61 @@
       return el;
     }
 
-    resolveNoBranchLabel(node) {
-      const noTarget = String(node?.data?.no_target || 'end').trim();
-      if (!noTarget || noTarget === 'end') {
+    resolveBranchTargetId(node, index, key) {
+      const raw = String(node?.data?.[key] || '').trim();
+      const fallback = key === 'no_target' ? 'end' : 'next';
+      const value = raw || fallback;
+
+      if (value === 'end') {
+        return null;
+      }
+      if (value === 'next') {
+        return this.nextLinearNode(index)?.id || null;
+      }
+      if (value === node.id) {
+        return null;
+      }
+      const exists = this.nodes.some((candidate) => candidate.id === value);
+      return exists ? value : null;
+    }
+
+    nextLinearNode(index) {
+      const skipped = new Set();
+      this.nodes.forEach((node) => {
+        if (node.type !== 'condition' && node.type !== 'enhancedCondition') {
+          return;
+        }
+        ['yes_target', 'no_target'].forEach((key) => {
+          const target = String(node.data?.[key] || '').trim();
+          if (target && target !== 'end' && target !== 'next') {
+            skipped.add(target);
+          }
+        });
+      });
+
+      return this.nodes.slice(index + 1).find((candidate) => !skipped.has(candidate.id)) || null;
+    }
+
+    resolveBranchLabel(node, key) {
+      const raw = String(node?.data?.[key] || '').trim() || (key === 'no_target' ? 'end' : 'next');
+      if (raw === 'end') {
         return 'End';
       }
-      const target = this.nodes.find((candidate) => candidate.id === noTarget);
+      if (raw === 'next') {
+        return 'Next step';
+      }
+      const target = this.nodes.find((candidate) => candidate.id === raw);
       if (!target) {
-        return noTarget;
+        return raw;
       }
       if (target.type === 'templateMessage') {
         return target.data?.template_display_name || target.data?.template_name || target.data?.label || target.type;
       }
-      return target.data?.label || this.meta[target.type]?.label || target.type || noTarget;
+      return target.data?.label || this.meta[target.type]?.label || target.type || raw;
+    }
+
+    resolveNoBranchLabel(node) {
+      return this.resolveBranchLabel(node, 'no_target');
     }
 
     conditionBranchEl(node) {
@@ -380,15 +441,16 @@
       el.className = 'relative z-10 mt-2 flex w-full items-stretch gap-2 border-t border-solid border-white/10 pt-2';
       el.setAttribute('data-drip-condition-branches', '');
       el.innerHTML =
-        '<div class="flex min-w-0 flex-1 items-center gap-1.5">' +
-          '<span class="inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-[#22c55e] text-[10px] font-bold leading-none text-white" title="Yes path continues to next step">Y</span>' +
-          '<span class="truncate text-[11px] font-medium leading-[1.3] text-[#86efac]">Next step</span>' +
-        '</div>' +
-        '<div class="flex min-w-0 flex-1 items-center justify-end gap-1.5">' +
-          '<span class="truncate text-right text-[11px] font-medium leading-[1.3] text-[#fca5a5]" data-drip-no-label></span>' +
-          '<span class="inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-[#ef4444] text-[10px] font-bold leading-none text-white" title="No path">N</span>' +
-        '</div>';
-      el.querySelector('[data-drip-no-label]').textContent = this.resolveNoBranchLabel(node);
+        '<button type="button" class="flex min-w-0 flex-1 items-center gap-1.5 text-left" data-drip-branch="yes" title="Configure Yes path">' +
+          '<span class="inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-[#22c55e] text-[10px] font-bold leading-none text-white">Y</span>' +
+          '<span class="truncate text-[11px] font-medium leading-[1.3] text-[#86efac]" data-drip-yes-label></span>' +
+        '</button>' +
+        '<button type="button" class="flex min-w-0 flex-1 items-center justify-end gap-1.5 text-right" data-drip-branch="no" title="Configure No path">' +
+          '<span class="truncate text-[11px] font-medium leading-[1.3] text-[#fca5a5]" data-drip-no-label></span>' +
+          '<span class="inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-[#ef4444] text-[10px] font-bold leading-none text-white">N</span>' +
+        '</button>';
+      el.querySelector('[data-drip-yes-label]').textContent = this.resolveBranchLabel(node, 'yes_target');
+      el.querySelector('[data-drip-no-label]').textContent = this.resolveBranchLabel(node, 'no_target');
       return el;
     }
 
@@ -547,34 +609,22 @@
     }
 
     buildEdges() {
-      const noTargets = new Set();
-      this.nodes.forEach((node) => {
-        if (node.type !== 'condition' && node.type !== 'enhancedCondition') {
-          return;
-        }
-        const noTarget = node.data?.no_target;
-        if (noTarget && noTarget !== 'end') {
-          noTargets.add(noTarget);
-        }
-      });
-
-      const nextLinear = (index) => this.nodes.slice(index + 1).find((candidate) => !noTargets.has(candidate.id));
       const edges = [];
 
       this.nodes.forEach((node, index) => {
         if (node.type === 'condition' || node.type === 'enhancedCondition') {
-          const yesTarget = nextLinear(index);
-          if (yesTarget) {
-            edges.push({ source: node.id, target: yesTarget.id, sourceHandle: 'yes' });
+          const yesId = this.resolveBranchTargetId(node, index, 'yes_target');
+          if (yesId) {
+            edges.push({ source: node.id, target: yesId, sourceHandle: 'yes' });
           }
-          const noTarget = node.data?.no_target;
-          if (noTarget && noTarget !== 'end' && noTarget !== node.id) {
-            edges.push({ source: node.id, target: noTarget, sourceHandle: 'no' });
+          const noId = this.resolveBranchTargetId(node, index, 'no_target');
+          if (noId) {
+            edges.push({ source: node.id, target: noId, sourceHandle: 'no' });
           }
           return;
         }
 
-        const next = nextLinear(index);
+        const next = this.nextLinearNode(index);
         if (next) {
           edges.push({ source: node.id, target: next.id });
         }

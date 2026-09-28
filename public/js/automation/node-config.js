@@ -98,6 +98,8 @@
       condition_variable: '',
       condition_operator: 'equals',
       condition_value: '',
+      yes_target: 'next',
+      no_target: 'end',
       function_name: '',
       target_node: '',
       operation_type: 'tag',
@@ -301,18 +303,37 @@
           { value: 'custom_variable', label: 'Custom Contact Field / Variable' },
         ], true);
 
-        // Previous template selection
-        const previousTemplates = [{ value: '', label: '-- Latest / Previous Template in Flow --' }];
-        (context.allNodes || []).forEach(function (n) {
-          if (n.type === 'templateMessage' && n.id !== node.id) {
-            const tCode = n.data?.template_name || n.data?.templateCode || n.data?.label || n.id;
-            previousTemplates.push({ value: tCode, label: 'Step: ' + (n.data?.label || n.id) + ' (' + tCode + ')' });
+        // Target template: all approved templates + any already used in this flow.
+        const templateOptions = [{ value: '', label: '-- Latest / Previous Template in Flow --' }];
+        const seenCodes = Object.create(null);
+        (context.templates || []).forEach(function (tpl) {
+          const code = String(tpl.value || '').trim();
+          if (!code || seenCodes[code]) {
+            return;
           }
+          seenCodes[code] = true;
+          templateOptions.push({ value: code, label: tpl.label || code });
+        });
+        (context.allNodes || []).forEach(function (n) {
+          if (n.type !== 'templateMessage' || n.id === node.id) {
+            return;
+          }
+          const tCode = n.data?.template_name || n.data?.templateCode || '';
+          if (!tCode || seenCodes[tCode]) {
+            return;
+          }
+          seenCodes[tCode] = true;
+          const tName = n.data?.template_display_name || n.data?.label || tCode;
+          templateOptions.push({
+            value: tCode,
+            label: 'In flow: ' + tName + (tName !== tCode ? ' (' + tCode + ')' : ''),
+          });
         });
 
         const isWa = curType !== 'custom_variable';
         html += '<div id="cfg-group-wa-condition" class="' + (isWa ? '' : 'hidden') + '">';
-        html += selectField('Target Template', 'cfg-target-template', data.target_template || '', previousTemplates, false);
+        html += selectField('Target Template', 'cfg-target-template', data.target_template || '', templateOptions, false);
+        html += helpText('Which WhatsApp template to check for read/delivered/reply. Lists all approved templates.');
 
         const waitOptions = [
           { value: '15 minutes', label: 'Wait up to 15 minutes' },
@@ -357,17 +378,30 @@
         html += field('Value', 'cfg-condition-value', data.condition_value || '', 'text', false);
         html += '</div>';
 
-        const noTargets = [{ value: 'end', label: 'Stop automation (No path)' }];
+        const branchTargets = [
+          { value: 'next', label: 'Continue to next step below' },
+          { value: 'end', label: 'Stop automation' },
+        ];
         (context.allNodes || []).forEach(function (candidate) {
-          if (candidate.id && candidate.id !== node.id) {
-            noTargets.push({
-              value: candidate.id,
-              label: (candidate.data && candidate.data.label) || candidate.type || candidate.id,
-            });
+          if (!candidate.id || candidate.id === node.id) {
+            return;
           }
+          let branchLabel = (candidate.data && candidate.data.label) || candidate.type || candidate.id;
+          if (candidate.type === 'templateMessage') {
+            branchLabel = candidate.data?.template_display_name
+              || candidate.data?.template_name
+              || branchLabel;
+          }
+          branchTargets.push({
+            value: candidate.id,
+            label: branchLabel + ' (' + (candidate.type || 'step') + ')',
+          });
         });
-        html += selectField('If condition is No', 'cfg-no-target', data.no_target || 'end', noTargets, true);
-        html += helpText('If the condition is Yes, the flow continues to the next step.');
+
+        html += sectionTitle('Branches (Y / N)');
+        html += helpText('Y = condition met. N = condition not met (or wait timed out). Pick where each path goes. For “next step”, add a node with + below on the canvas.');
+        html += selectField('Y path (Yes)', 'cfg-yes-target', data.yes_target || 'next', branchTargets, true);
+        html += selectField('N path (No)', 'cfg-no-target', data.no_target || 'end', branchTargets, true);
         break;
       }
 
@@ -684,6 +718,7 @@
     node.data.condition_variable = get('cfg-condition-variable');
     node.data.condition_operator = get('cfg-condition-operator') || 'equals';
     node.data.condition_value = get('cfg-condition-value');
+    node.data.yes_target = get('cfg-yes-target') || node.data.yes_target || 'next';
     node.data.no_target = get('cfg-no-target') || node.data.no_target || 'end';
 
     // Contact operation handling

@@ -406,7 +406,25 @@ class DripFlowEngine
                 }
             }
 
-            return ($noTarget !== '' && $noTarget !== 'end') ? $noTarget : null;
+            return ($noTarget !== '' && $noTarget !== 'end' && $noTarget !== 'next')
+                ? $noTarget
+                : ($noTarget === 'next' ? $this->linearNextNodeId($nodesList, $currentNodeId) : null);
+        }
+
+        if ($branch === 'yes') {
+            $yesTarget = '';
+            foreach ($nodesList as $node) {
+                if (is_array($node) && (string) ($node['id'] ?? '') === $currentNodeId) {
+                    $yesTarget = (string) data_get($node, 'data.yes_target', 'next');
+                    break;
+                }
+            }
+
+            if ($yesTarget === '' || $yesTarget === 'next') {
+                return $this->linearNextNodeId($nodesList, $currentNodeId);
+            }
+
+            return ($yesTarget !== 'end') ? $yesTarget : null;
         }
 
         // 2. Generic edge from this source
@@ -441,6 +459,31 @@ class DripFlowEngine
         }
 
         return null;
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $nodesList
+     */
+    private function linearNextNodeId(array $nodesList, string $currentNodeId): ?string
+    {
+        $currentIndex = null;
+        foreach ($nodesList as $idx => $node) {
+            if (is_array($node) && (string) ($node['id'] ?? '') === $currentNodeId) {
+                $currentIndex = $idx;
+                break;
+            }
+        }
+
+        if ($currentIndex === null || ! isset($nodesList[$currentIndex + 1])) {
+            return null;
+        }
+
+        $next = $nodesList[$currentIndex + 1];
+        if (! is_array($next) || empty($next['id'])) {
+            return null;
+        }
+
+        return (string) $next['id'];
     }
 
     /**

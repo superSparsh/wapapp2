@@ -199,18 +199,30 @@
                       ?? $canvasLabel;
                   }
                   $noTarget = (string) ($nodeData['no_target'] ?? 'end');
+                  $yesTarget = (string) ($nodeData['yes_target'] ?? 'next');
                   $noLabel = 'End';
-                  if ($isCondition && $noTarget !== '' && $noTarget !== 'end') {
-                    $noNode = collect($nodes)->firstWhere('id', $noTarget);
-                    if (is_array($noNode)) {
-                      $noData = is_array($noNode['data'] ?? null) ? $noNode['data'] : [];
-                      $noLabel = $noData['template_display_name']
-                        ?? $noData['template_name']
-                        ?? $noData['label']
-                        ?? ($noNode['type'] ?? $noTarget);
-                    } else {
-                      $noLabel = $noTarget;
+                  $yesLabel = 'Next step';
+                  $resolveBranch = function (string $target) use ($nodes): string {
+                    if ($target === '' || $target === 'end') {
+                      return 'End';
                     }
+                    if ($target === 'next') {
+                      return 'Next step';
+                    }
+                    $found = collect($nodes)->firstWhere('id', $target);
+                    if (! is_array($found)) {
+                      return $target;
+                    }
+                    $foundData = is_array($found['data'] ?? null) ? $found['data'] : [];
+
+                    return $foundData['template_display_name']
+                      ?? $foundData['template_name']
+                      ?? $foundData['label']
+                      ?? ($found['type'] ?? $target);
+                  };
+                  if ($isCondition) {
+                    $yesLabel = $resolveBranch($yesTarget !== '' ? $yesTarget : 'next');
+                    $noLabel = $resolveBranch($noTarget !== '' ? $noTarget : 'end');
                   }
                 @endphp
                 <div class="min-w-0">
@@ -227,8 +239,8 @@
               @if ($isCondition)
                 <div class="relative z-10 mt-2 flex w-full items-stretch gap-2 border-t border-solid border-white/10 pt-2" data-drip-condition-branches>
                   <div class="flex min-w-0 flex-1 items-center gap-1.5">
-                    <span class="inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-[#22c55e] text-[10px] font-bold leading-none text-white" title="Yes path continues to next step">Y</span>
-                    <span class="truncate text-[11px] font-medium leading-[1.3] text-[#86efac]">Next step</span>
+                    <span class="inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-[#22c55e] text-[10px] font-bold leading-none text-white" title="Yes path">Y</span>
+                    <span class="truncate text-[11px] font-medium leading-[1.3] text-[#86efac]">{{ $yesLabel }}</span>
                   </div>
                   <div class="flex min-w-0 flex-1 items-center justify-end gap-1.5">
                     <span class="truncate text-right text-[11px] font-medium leading-[1.3] text-[#fca5a5]">{{ $noLabel }}</span>
