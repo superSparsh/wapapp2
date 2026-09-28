@@ -13,8 +13,8 @@ use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 /**
- * Public customer readiness endpoints (legacy route parity).
- * Form blades are imported separately — this controller is the backend only.
+ * Public customer readiness endpoints.
+ * Views are the legacy pages: customer_readiness and customer_readiness_result.
  */
 class CustomerReadinessController extends Controller
 {
@@ -24,9 +24,7 @@ class CustomerReadinessController extends Controller
 
     public function create(): View
     {
-        return view('customer-readiness.create', [
-            'docTypes' => config('customer-readiness.doc_types', []),
-        ]);
+        return view('customer_readiness');
     }
 
     public function store(Request $request): RedirectResponse
@@ -34,7 +32,7 @@ class CustomerReadinessController extends Controller
         $result = $this->readiness->process($request);
 
         return redirect()
-            ->route('customer-readiness.result')
+            ->route('customer.readiness.result')
             ->with('readiness_result', $result['result']);
     }
 
@@ -92,16 +90,11 @@ class CustomerReadinessController extends Controller
     public function result(): View|RedirectResponse
     {
         if (! session()->has('readiness_result')) {
-            return redirect()->route('customer-readiness.create');
+            return redirect()->route('customer.readiness');
         }
 
-        return view('customer-readiness.result', [
+        return view('customer_readiness_result', [
             'result' => session('readiness_result'),
         ]);
-    }
-
-    public function thanks(): View
-    {
-        return view('customer-readiness.thanks');
     }
 }

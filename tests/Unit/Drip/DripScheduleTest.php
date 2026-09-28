@@ -49,7 +49,37 @@ class DripScheduleTest extends TestCase
 
         $this->assertSame('week-2026-09-21', $schedule->enrollmentKey($campaign, $contact));
 
+        // Catch-up window: still due later the same day after the clock time.
         Carbon::setTestNow(Carbon::parse('2026-09-21 09:01:00', 'Asia/Kolkata'));
+        $this->assertSame('week-2026-09-21', $schedule->enrollmentKey($campaign, $contact));
+
+        // Before the scheduled clock time — not due yet.
+        Carbon::setTestNow(Carbon::parse('2026-09-21 08:59:00', 'Asia/Kolkata'));
+        $this->assertNull($schedule->enrollmentKey($campaign, $contact));
+
+        Carbon::setTestNow();
+    }
+
+    public function test_specific_date_catch_up_after_scheduled_minute(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-09-28 14:30:00', 'Asia/Kolkata'));
+
+        $campaign = DripCampaign::factory()->create([
+            'timezone' => 'Asia/Kolkata',
+            'trigger_type' => 'specific-date',
+            'trigger_options' => [
+                'date' => '2026-09-28',
+                'at' => '10:00',
+            ],
+        ]);
+
+        $contact = Contact::factory()->create();
+        $schedule = app(DripSchedule::class);
+
+        $this->assertSame('date-2026-09-28-10-00', $schedule->enrollmentKey($campaign, $contact));
+        $this->assertTrue($schedule->shouldEnrollAudienceOnActivate($campaign));
+
+        Carbon::setTestNow(Carbon::parse('2026-09-28 09:59:00', 'Asia/Kolkata'));
         $this->assertNull($schedule->enrollmentKey($campaign, $contact));
 
         Carbon::setTestNow();

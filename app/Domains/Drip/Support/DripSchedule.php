@@ -10,6 +10,10 @@ use Illuminate\Support\Carbon;
 
 /**
  * Decides when a saved drip trigger is due, using the same option keys the settings form stores.
+ *
+ * Scheduled triggers use a catch-up window: once the due clock time has passed on the
+ * occurrence day, enrollment stays open for the rest of that day (deduped by enrollment key).
+ * Exact-minute-only matching silently missed runs whenever the scheduler skipped a tick.
  */
 final class DripSchedule
 {
@@ -40,6 +44,32 @@ final class DripSchedule
     }
 
     /**
+     * True when activating an automation should immediately enroll the audience
+     * (scheduled time already due / overdue today).
+     */
+    public function shouldEnrollAudienceOnActivate(DripCampaign $campaign, ?Carbon $now = null): bool
+    {
+        $type = DripTriggerCatalog::normalizeType((string) $campaign->trigger_type);
+        if (! in_array($type, [
+            'specific-date',
+            'weekly-recurring',
+            'monthly-recurring',
+            'say-happy-birthday',
+            'subscriber-added-date',
+            'specific-date-time-of-user',
+        ], true)) {
+            return false;
+        }
+
+        // Need at least one contact-agnostic check for specific-date / weekly / monthly.
+        if (in_array($type, ['specific-date', 'weekly-recurring', 'monthly-recurring'], true)) {
+            return $this->enrollmentKey($campaign, new Contact, $now) !== null;
+        }
+
+        return true;
+    }
+
+    /**
      * @param  array<string, mixed>  $options
      */
     private function specificDateKey(array $options, Carbon $now): ?string
@@ -51,7 +81,8 @@ final class DripSchedule
 
         $target = $this->atClock(Carbon::parse($date, $now->timezoneName), (string) ($options['at'] ?? $options['time'] ?? '00:00'));
 
-        if (! $target->isSameMinute($now)) {
+        // Catch-up: fire once the scheduled minute has arrived (same calendar day as target).
+        if ($now->lt($target) || ! $now->isSameDay($target)) {
             return null;
         }
 
@@ -74,7 +105,12 @@ final class DripSchedule
         }
 
         $time = (string) ($options['at'] ?? $options['time'] ?? '09:00');
-        if ($days === [] || ! in_array($now->dayOfWeek, $days, true) || ! $this->sameClockMinute($now, $time)) {
+        if ($days === [] || ! in_array($now->dayOfWeek, $days, true)) {
+            return null;
+        }
+
+        $due = $this->atClock($now->copy()->startOfDay(), $time);
+        if ($now->lt($due)) {
             return null;
         }
 
@@ -92,7 +128,12 @@ final class DripSchedule
         }
 
         $time = (string) ($options['at'] ?? $options['time'] ?? '09:00');
-        if ($days === [] || ! in_array($now->day, $days, true) || ! $this->sameClockMinute($now, $time)) {
+        if ($days === [] || ! in_array($now->day, $days, true)) {
+            return null;
+        }
+
+        $due = $this->atClock($now->copy()->startOfDay(), $time);
+        if ($now->lt($due)) {
             return null;
         }
 
@@ -114,7 +155,7 @@ final class DripSchedule
             (string) ($options['delay'] ?? $options['before'] ?? '0 day'),
         );
 
-        if (! $occurrence->isSameMinute($now) || ! $occurrence->greaterThan($joined->copy()->addDay())) {
+        if ($now->lt($occurrence) || ! $now->isSameDay($occurrence) || ! $occurrence->greaterThan($joined->copy()->addDay())) {
             return null;
         }
 
@@ -144,7 +185,7 @@ final class DripSchedule
             (string) ($options['before'] ?? '0 day'),
         );
 
-        if (! $occurrence->isSameMinute($now)) {
+        if ($now->lt($occurrence) || ! $now->isSameDay($occurrence)) {
             return null;
         }
 
@@ -156,13 +197,6 @@ final class DripSchedule
         [$hour, $minute] = array_pad(explode(':', $time), 2, '0');
 
         return $date->copy()->setTime((int) $hour, (int) $minute);
-    }
-
-    private function sameClockMinute(Carbon $now, string $time): bool
-    {
-        [$hour, $minute] = array_pad(explode(':', $time), 2, '0');
-
-        return $now->hour === (int) $hour && $now->minute === (int) $minute;
     }
 
     private function applyBefore(Carbon $moment, string $before): Carbon

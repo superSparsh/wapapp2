@@ -61,9 +61,9 @@ class CustomerReadinessTest extends TestCase
 
     public function test_eligible_submission_persists_and_redirects_to_result(): void
     {
-        $response = $this->post(route('customer-readiness.store'), $this->eligiblePayload());
+        $response = $this->post(route('customer.readiness.store'), $this->eligiblePayload());
 
-        $response->assertRedirect(route('customer-readiness.result'));
+        $response->assertRedirect(route('customer.readiness.result'));
         $response->assertSessionHas('readiness_result.eligible', true);
 
         $submission = CustomerReadinessSubmission::query()->firstOrFail();
@@ -73,19 +73,19 @@ class CustomerReadinessTest extends TestCase
         $this->assertTrue((bool) data_get($submission->meta, 'eligible'));
         $this->assertSame('1234567890', data_get($submission->data, 'Business Portfolio ID'));
 
-        $this->get(route('customer-readiness.result'))
+        $this->get(route('customer.readiness.result'))
             ->assertOk()
             ->assertSee('ready for onboarding', false);
     }
 
     public function test_not_eligible_when_voip_or_missing_meta_admin(): void
     {
-        $this->post(route('customer-readiness.store'), $this->eligiblePayload([
+        $this->post(route('customer.readiness.store'), $this->eligiblePayload([
             'mbm_admin' => 'employee',
             'num_type' => 'virtual',
             'fb_page_created' => 'no',
             'fb_page_name' => null,
-        ]))->assertRedirect(route('customer-readiness.result'))
+        ]))->assertRedirect(route('customer.readiness.result'))
             ->assertSessionHas('readiness_result.eligible', false);
 
         $submission = CustomerReadinessSubmission::query()->firstOrFail();
@@ -96,19 +96,19 @@ class CustomerReadinessTest extends TestCase
 
     public function test_rejects_free_business_email_domains(): void
     {
-        $this->post(route('customer-readiness.store'), $this->eligiblePayload([
+        $this->post(route('customer.readiness.store'), $this->eligiblePayload([
             'business_email' => 'ops@gmail.com',
         ]))->assertSessionHasErrors('business_email');
     }
 
     public function test_validate_business_email_endpoint(): void
     {
-        $this->postJson(route('customer-readiness.validate.business-email'), [
+        $this->postJson(route('customer.readiness.validate.business-email'), [
             'business_email' => 'hello@gmail.com',
         ])->assertStatus(422)
             ->assertJson(['valid' => false]);
 
-        $this->postJson(route('customer-readiness.validate.business-email'), [
+        $this->postJson(route('customer.readiness.validate.business-email'), [
             'business_email' => 'hello@acme-corp.test',
         ])->assertOk()
             ->assertJson(['valid' => true]);
@@ -116,7 +116,7 @@ class CustomerReadinessTest extends TestCase
 
     public function test_validate_facebook_page_endpoint(): void
     {
-        $this->postJson(route('customer-readiness.validate.facebook-page'), [
+        $this->postJson(route('customer.readiness.validate.facebook-page'), [
             'page_name' => 'Acme Corp',
         ])->assertOk()
             ->assertJsonPath('valid', true);
@@ -134,7 +134,7 @@ class CustomerReadinessTest extends TestCase
 
     public function test_admin_can_view_eligibility_meta(): void
     {
-        $this->post(route('customer-readiness.store'), $this->eligiblePayload());
+        $this->post(route('customer.readiness.store'), $this->eligiblePayload());
         $submission = CustomerReadinessSubmission::query()->firstOrFail();
 
         $this->actingAs($this->admin, 'admin')

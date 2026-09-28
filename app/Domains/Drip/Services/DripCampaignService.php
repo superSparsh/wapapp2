@@ -90,7 +90,8 @@ class DripCampaignService
 
     public function toggle(DripCampaign $campaign): DripCampaign
     {
-        $newStatus = $campaign->isActive()
+        $wasActive = $campaign->isActive();
+        $newStatus = $wasActive
             ? ChatbotFlowStatus::Inactive
             : ChatbotFlowStatus::Active;
 
@@ -98,6 +99,17 @@ class DripCampaignService
 
         if (! $campaign->isActive()) {
             $this->cacheManager->forgetNodeMap($campaign->id);
+        } else {
+            // If a scheduled automation is turned on after its due time, enroll now
+            // instead of waiting for an exact-minute scheduler tick that already passed.
+            $schedule = app(\App\Domains\Drip\Support\DripSchedule::class);
+            if ($schedule->shouldEnrollAudienceOnActivate($campaign)) {
+                $tenantId = (string) (tenant('id') ?? '');
+                if ($tenantId !== '') {
+                    \App\Domains\Drip\Jobs\EnrollDripAudienceJob::dispatch($tenantId, (int) $campaign->id)
+                        ->onQueue((string) config('chatbot.drip.queue', 'default'));
+                }
+            }
         }
 
         return $campaign->refresh();

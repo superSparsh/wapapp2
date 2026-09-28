@@ -59,12 +59,21 @@ class DripAudienceController extends Controller
         $phone = (string) $request->validated('phone');
         $contact = Contact::query()->where('phone', $phone)->first();
 
-        if ($contact !== null) {
-            $this->triggerDispatcher->enroll($campaign, $contact, force: true);
+        if ($contact === null) {
+            return redirect()
+                ->route('automation.drip.audience', $campaign)
+                ->with('error', "No contact found for {$phone}.");
         }
+
+        $started = $this->triggerDispatcher->enroll($campaign, $contact, force: true);
 
         return redirect()
             ->route('automation.drip.audience', $campaign)
-            ->with('status', "Trigger initiated for {$phone}.");
+            ->with(
+                $started ? 'status' : 'error',
+                $started
+                    ? "Automation started for {$phone}."
+                    : "Could not start for {$phone}. Check automation is Active, has a saved flow, WhatsApp line exists, and contact is in the selected audience."
+            );
     }
 }

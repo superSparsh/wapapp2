@@ -213,7 +213,7 @@ class AdminExtendedModulesTest extends TestCase
             '*' => \Illuminate\Support\Facades\Http::response('ok', 200),
         ]);
 
-        $this->get(route('customer-readiness.create'))->assertOk();
+        $this->get(route('customer.readiness'))->assertOk();
 
         $payload = [
             'customer_name' => 'Riya Sharma',
@@ -233,8 +233,8 @@ class AdminExtendedModulesTest extends TestCase
             'whatsapp_display_name' => 'Sharma Traders',
         ];
 
-        $this->post(route('customer-readiness.store'), $payload)
-            ->assertRedirect(route('customer-readiness.result'));
+        $this->post(route('customer.readiness.store'), $payload)
+            ->assertRedirect(route('customer.readiness.result'));
 
         $submission = CustomerReadinessSubmission::query()->firstOrFail();
         $this->assertSame('Sharma Traders', $submission->business_name);

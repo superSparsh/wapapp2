@@ -93,17 +93,19 @@ Route::middleware('web')->group(function () {
         ->name('commerce.payment.callback');
 });
 
-// Public customer readiness form (no auth, no tenancy — stored centrally)
-// Pages/views are imported separately; routes match legacy URLs for the form JS/actions.
-Route::middleware('web')->prefix('customer-readiness')->name('customer-readiness.')->group(function () {
-    Route::get('/', [CustomerReadinessController::class, 'create'])->name('create');
-    Route::post('/', [CustomerReadinessController::class, 'store'])->name('store');
-    Route::post('/validate-facebook-page', [CustomerReadinessController::class, 'validateFacebookPage'])
-        ->name('validate.facebook-page');
-    Route::post('/validate-business-email', [CustomerReadinessController::class, 'validateBusinessEmail'])
-        ->name('validate.business-email');
-    Route::get('/result', [CustomerReadinessController::class, 'result'])->name('result');
-    Route::get('/thanks', [CustomerReadinessController::class, 'thanks'])->name('thanks');
+// Public customer readiness form (no auth, no tenancy — stored centrally).
+// Blade files and route names match legacy so the imported pages work unchanged.
+Route::middleware('web')->group(function () {
+    Route::get('/customer-readiness', [CustomerReadinessController::class, 'create'])
+        ->name('customer.readiness');
+    Route::post('/customer-readiness', [CustomerReadinessController::class, 'store'])
+        ->name('customer.readiness.store');
+    Route::post('/customer-readiness/validate-facebook-page', [CustomerReadinessController::class, 'validateFacebookPage'])
+        ->name('customer.readiness.validate.facebook-page');
+    Route::post('/customer-readiness/validate-business-email', [CustomerReadinessController::class, 'validateBusinessEmail'])
+        ->name('customer.readiness.validate.business-email');
+    Route::get('/customer-readiness/result', [CustomerReadinessController::class, 'result'])
+        ->name('customer.readiness.result');
 });
 
 // JSON API (same payload as web form — for SPA / imported frontends)

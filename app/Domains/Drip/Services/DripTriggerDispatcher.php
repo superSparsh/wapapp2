@@ -13,6 +13,7 @@ use App\Models\Contact;
 use App\Models\DripCampaign;
 use App\Models\DripCampaignState;
 use App\Models\WhatsappLine;
+use Illuminate\Support\Facades\Log;
 
 class DripTriggerDispatcher
 {
@@ -62,15 +63,33 @@ class DripTriggerDispatcher
         ?string $enrollmentKey = null,
     ): bool {
         if (! $campaign->isActive() || ! $campaign->isWithinDateRange() || ! $campaign->hasFlowData()) {
+            Log::info('drip.enroll_skipped', [
+                'campaign_id' => $campaign->id,
+                'contact_id' => $contact->id,
+                'reason' => ! $campaign->isActive() ? 'inactive' : (! $campaign->isWithinDateRange() ? 'outside_date_range' : 'no_flow_data'),
+            ]);
+
             return false;
         }
 
         if ($campaign->audience_id !== null && (int) $campaign->audience_id !== (int) $contact->mail_list_id) {
+            Log::info('drip.enroll_skipped', [
+                'campaign_id' => $campaign->id,
+                'contact_id' => $contact->id,
+                'reason' => 'audience_mismatch',
+            ]);
+
             return false;
         }
 
         $startNodeId = $this->resolveStartNodeId($campaign);
         if ($startNodeId === null) {
+            Log::warning('drip.enroll_skipped', [
+                'campaign_id' => $campaign->id,
+                'contact_id' => $contact->id,
+                'reason' => 'no_start_node',
+            ]);
+
             return false;
         }
 
@@ -78,6 +97,12 @@ class DripTriggerDispatcher
             ?? WhatsappLine::query()->orderBy('id')->first();
 
         if ($line === null) {
+            Log::warning('drip.enroll_skipped', [
+                'campaign_id' => $campaign->id,
+                'contact_id' => $contact->id,
+                'reason' => 'no_whatsapp_line',
+            ]);
+
             return false;
         }
 

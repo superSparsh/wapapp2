@@ -5,12 +5,16 @@ declare(strict_types=1);
 namespace App\Domains\Drip\Console\Commands;
 
 use App\Domains\Admin\Support\RespectsMaintenanceModules;
+use App\Domains\Drip\Jobs\ExecuteDripStepJob;
 use App\Domains\Drip\Services\DripTriggerDispatcher;
 use App\Domains\Drip\Support\DripSchedule;
+use App\Enums\ChatbotFlowStateStatus;
 use App\Models\Contact;
 use App\Models\DripCampaign;
+use App\Models\DripCampaignState;
 use App\Support\Console\Concerns\IteratesTenants;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Log;
 
 class ProcessDripAutomationsCommand extends Command
 {
@@ -19,7 +23,7 @@ class ProcessDripAutomationsCommand extends Command
 
     protected $signature = 'drip:process-due {--tenants=* : Tenant IDs to process}';
 
-    protected $description = 'Process due drip automations for scheduled trigger types.';
+    protected $description = 'Process due drip automations for scheduled trigger types and resume expired waits.';
 
     public function handle(DripTriggerDispatcher $dispatcher, DripSchedule $schedule): int
     {
@@ -28,8 +32,11 @@ class ProcessDripAutomationsCommand extends Command
         }
 
         $processed = 0;
+        $resumed = 0;
 
-        $this->foreachTenant(function () use ($dispatcher, $schedule, &$processed): void {
+        $this->foreachTenant(function () use ($dispatcher, $schedule, &$processed, &$resumed): void {
+            $resumed += $this->resumeExpiredWaits();
+
             $campaigns = DripCampaign::query()
                 ->active()
                 ->whereIn('trigger_type', [
@@ -65,8 +72,40 @@ class ProcessDripAutomationsCommand extends Command
             }
         });
 
-        $this->info("Processed {$processed} drip trigger(s).");
+        $this->info("Processed {$processed} drip trigger(s); resumed {$resumed} waiting state(s).");
 
         return self::SUCCESS;
+    }
+
+    /**
+     * If a delayed ExecuteDripStepJob was lost (queue restart / Redis flush),
+     * re-dispatch Waiting states whose expires_at has passed.
+     */
+    private function resumeExpiredWaits(): int
+    {
+        $states = DripCampaignState::query()
+            ->where('status', ChatbotFlowStateStatus::Waiting)
+            ->whereNotNull('expires_at')
+            ->where('expires_at', '<=', now())
+            ->orderBy('id')
+            ->limit(200)
+            ->get();
+
+        $count = 0;
+
+        foreach ($states as $state) {
+            try {
+                ExecuteDripStepJob::dispatch($state->id)
+                    ->onQueue((string) config('chatbot.drip.queue', 'default'));
+                $count++;
+            } catch (\Throwable $e) {
+                Log::warning('drip.resume_expired_wait_failed', [
+                    'state_id' => $state->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        return $count;
     }
 }
