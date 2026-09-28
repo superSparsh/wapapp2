@@ -48,10 +48,17 @@ class DripCampaignService
         return DB::transaction(function () use ($campaign, $data): DripCampaign {
             $fillable = [];
 
-            foreach (['name', 'timezone'] as $field) {
+            foreach (['name'] as $field) {
                 if (isset($data[$field])) {
                     $fillable[$field] = $data[$field];
                 }
+            }
+
+            if (array_key_exists('timezone', $data)) {
+                $timezone = trim((string) ($data['timezone'] ?? ''));
+                $fillable['timezone'] = $timezone !== ''
+                    ? $timezone
+                    : (string) config('chatbot.drip.default_timezone', 'Asia/Kolkata');
             }
 
             if (isset($data['trigger_type'])) {

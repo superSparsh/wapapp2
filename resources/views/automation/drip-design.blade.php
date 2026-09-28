@@ -65,15 +65,14 @@
 
             <div class="flex flex-col gap-3">
               <label for="audience_id" class="text-sm font-semibold leading-[1.4] text-text-primary">
-                Audience <x-form.required />
+                Audience
               </label>
               <select
                 id="audience_id"
                 name="audience_id"
-                required
                 class="w-full rounded-xl border border-solid border-border bg-elevated p-3.5 text-sm font-medium text-text-muted focus:outline-none focus:ring-2 focus:ring-green-500 @error('audience_id') border-red-500 @enderror"
               >
-                <option value="" disabled @selected(! old('audience_id', $campaign->audience?->uuid))>-- Select Audience --</option>
+                <option value="" @selected(! old('audience_id', $campaign->audience?->uuid))>-- Select Audience (optional) --</option>
                 @foreach ($audiences as $list)
                   <option
                     value="{{ $list->uuid }}"
@@ -86,12 +85,13 @@
                   </option>
                 @endforeach
               </select>
+              <p class="text-xs font-medium leading-[1.4] text-text-muted">Optional. Leave empty to allow any audience (legacy behaviour).</p>
               @error('audience_id') <p class="text-xs text-red-500">{{ $message }}</p> @enderror
             </div>
 
             <div class="flex flex-col gap-3">
               <label for="timezone" class="text-sm font-semibold leading-[1.4] text-text-primary">
-                Time zone <x-form.required />
+                Time zone
               </label>
               <input
                 type="search"
@@ -104,10 +104,12 @@
                 id="timezone"
                 name="timezone"
                 size="6"
-                required
                 class="w-full rounded-xl border border-solid border-border bg-elevated p-2 text-sm font-medium text-text-muted focus:outline-none focus:ring-2 focus:ring-green-500 @error('timezone') border-red-500 @enderror"
                 data-tz-list
               >
+                <option value="" @selected(old('timezone', $campaign->timezone) === null || old('timezone', $campaign->timezone) === '')>
+                  -- Use default timezone --
+                </option>
                 @foreach ($timezoneOptions as $option)
                   <option
                     value="{{ $option['value'] }}"
@@ -118,6 +120,7 @@
                   </option>
                 @endforeach
               </select>
+              <p class="text-xs font-medium leading-[1.4] text-text-muted">Optional. Defaults to Asia/Kolkata when empty.</p>
               @error('timezone') <p class="text-xs text-red-500">{{ $message }}</p> @enderror
             </div>
 

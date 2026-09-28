@@ -86,6 +86,7 @@
       headers: {},
       body: '',
       template_name: '',
+      template_display_name: '',
       media_url: '',
       media_type: 'image',
       interactive_type: 'button',
@@ -114,7 +115,9 @@
       case 'welcomeMessage':
         return data.message ? truncate(data.message, 60) : 'Click to configure...';
       case 'templateMessage':
-        return data.template_name ? 'Template: ' + truncate(data.template_name, 40) : 'Click to configure...';
+        return data.template_display_name
+          ? truncate(data.template_display_name, 48)
+          : (data.template_name ? 'Template: ' + truncate(data.template_name, 40) : 'Click to configure...');
       case 'interactiveMessage':
         return data.interactive_type
           ? data.interactive_type + ': ' + (data.options || []).length + ' options'
@@ -625,6 +628,16 @@
     node.data.message = get('cfg-message');
     node.data.keywords = get('cfg-keywords');
     node.data.template_name = get('cfg-template-name');
+    const templateSelect = root.querySelector('#cfg-template-name');
+    if (templateSelect && templateSelect.tagName === 'SELECT' && templateSelect.selectedOptions[0]) {
+      const selectedLabel = String(templateSelect.selectedOptions[0].textContent || '').trim();
+      const nameOnly = selectedLabel.replace(/\s*\([^)]*\)\s*$/, '').trim();
+      node.data.template_display_name = nameOnly || selectedLabel || node.data.template_name;
+    } else if (node.data.template_name) {
+      node.data.template_display_name = node.data.template_display_name || node.data.template_name;
+    } else {
+      node.data.template_display_name = '';
+    }
     node.data.media_url = get('cfg-media-url');
     node.data.media_type = get('cfg-media-type');
     node.data.interactive_type = get('cfg-interactive-type');

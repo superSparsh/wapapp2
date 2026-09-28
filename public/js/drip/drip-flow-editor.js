@@ -254,6 +254,7 @@
               ? item.name + (item.code ? ' (' + item.code + ')' : '')
               : (item.label || item.code || ''),
           })).filter((item) => item.value);
+          this.hydrateTemplateDisplayNames();
           return this.templates;
         })
         .catch(() => {
@@ -359,11 +360,70 @@
       return el;
     }
 
+    resolveNoBranchLabel(node) {
+      const noTarget = String(node?.data?.no_target || 'end').trim();
+      if (!noTarget || noTarget === 'end') {
+        return 'End';
+      }
+      const target = this.nodes.find((candidate) => candidate.id === noTarget);
+      if (!target) {
+        return noTarget;
+      }
+      if (target.type === 'templateMessage') {
+        return target.data?.template_display_name || target.data?.template_name || target.data?.label || target.type;
+      }
+      return target.data?.label || this.meta[target.type]?.label || target.type || noTarget;
+    }
+
+    conditionBranchEl(node) {
+      const el = document.createElement('div');
+      el.className = 'relative z-10 mt-2 flex w-full items-stretch gap-2 border-t border-solid border-white/10 pt-2';
+      el.setAttribute('data-drip-condition-branches', '');
+      el.innerHTML =
+        '<div class="flex min-w-0 flex-1 items-center gap-1.5">' +
+          '<span class="inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-[#22c55e] text-[10px] font-bold leading-none text-white" title="Yes path continues to next step">Y</span>' +
+          '<span class="truncate text-[11px] font-medium leading-[1.3] text-[#86efac]">Next step</span>' +
+        '</div>' +
+        '<div class="flex min-w-0 flex-1 items-center justify-end gap-1.5">' +
+          '<span class="truncate text-right text-[11px] font-medium leading-[1.3] text-[#fca5a5]" data-drip-no-label></span>' +
+          '<span class="inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-[#ef4444] text-[10px] font-bold leading-none text-white" title="No path">N</span>' +
+        '</div>';
+      el.querySelector('[data-drip-no-label]').textContent = this.resolveNoBranchLabel(node);
+      return el;
+    }
+
+    conditionConnectorEl() {
+      const el = document.createElement('div');
+      el.className = 'relative z-10 flex w-full flex-col items-center';
+      el.setAttribute('data-drip-condition-connector', '');
+      el.innerHTML =
+        '<div class="flex w-full max-w-[220px] items-start justify-between px-1">' +
+          '<div class="flex w-10 flex-col items-center">' +
+            '<span class="mb-1 inline-flex size-5 items-center justify-center rounded-full bg-[#22c55e] text-[10px] font-bold leading-none text-white">Y</span>' +
+            '<div class="flex h-8 w-px items-center justify-center">' +
+              '<img src="' + ASSET + 'flow-connector-line.svg" alt="" class="h-8 w-px" width="1" height="32">' +
+            '</div>' +
+          '</div>' +
+          '<div class="flex w-10 flex-col items-center opacity-70">' +
+            '<span class="mb-1 inline-flex size-5 items-center justify-center rounded-full bg-[#ef4444] text-[10px] font-bold leading-none text-white">N</span>' +
+            '<div class="h-8 w-px border-l border-dashed border-[#ef4444]/70"></div>' +
+          '</div>' +
+        '</div>';
+      return el;
+    }
+
     nodeEl(node, index) {
       const meta = this.meta[node.type] || {};
-      const label = node.data?.label || meta.label || node.type;
+      let label = node.data?.label || meta.label || node.type;
+      if (node.type === 'templateMessage') {
+        const templateTitle = node.data?.template_display_name || node.data?.template_name;
+        if (templateTitle) {
+          label = templateTitle;
+        }
+      }
       const icon = meta.icon || 'play-circle-dark.svg';
       const preview = configApi.getPreview(node);
+      const isCondition = node.type === 'condition' || node.type === 'enhancedCondition';
 
       const el = document.createElement('div');
       el.className = 'group relative z-10 w-full rounded-lg bg-[#2c3c5e] p-3 shadow-[0px_6px_4px_rgba(109,187,72,0.25)]';
@@ -373,8 +433,8 @@
           '<button type="button" class="flex min-w-0 flex-1 items-start gap-2 text-left" data-drip-configure="' + index + '">' +
             '<img src="' + ASSET + icon + '" alt="" class="mt-0.5 size-5 shrink-0" width="20" height="20">' +
             '<div class="min-w-0 flex-1">' +
-              '<span class="block text-sm font-medium leading-[1.5] text-[#eaecef]"></span>' +
-              '<p class="mt-1 text-xs leading-[1.4] text-[#eaecef]/60"></p>' +
+              '<span class="block truncate text-sm font-medium leading-[1.5] text-[#eaecef]"></span>' +
+              '<p class="mt-1 truncate text-xs leading-[1.4] text-[#eaecef]/60"></p>' +
             '</div>' +
           '</button>' +
           '<button type="button" data-remove-node="' + index + '" class="shrink-0 rounded bg-[rgba(255,0,0,0.15)] p-1.5 opacity-70 transition-opacity hover:opacity-100 group-hover:opacity-100" aria-label="Remove step">' +
@@ -382,7 +442,18 @@
           '</button>' +
         '</div>';
       el.querySelector('[data-drip-configure] span').textContent = label;
-      el.querySelector('p').textContent = preview;
+      const previewEl = el.querySelector('p');
+      // Avoid repeating the same template name in title + preview.
+      if (node.type === 'templateMessage' && node.data?.template_display_name && node.data?.template_name) {
+        previewEl.textContent = node.data.template_name !== node.data.template_display_name
+          ? ('Code: ' + node.data.template_name)
+          : 'WhatsApp template';
+      } else {
+        previewEl.textContent = preview;
+      }
+      if (isCondition) {
+        el.appendChild(this.conditionBranchEl(node));
+      }
       return el;
     }
 
@@ -399,7 +470,11 @@
         this.nodes.forEach((node, index) => {
           fragment.appendChild(connectorEl());
           fragment.appendChild(this.nodeEl(node, index));
-          fragment.appendChild(connectorEl());
+          if (node.type === 'condition' || node.type === 'enhancedCondition') {
+            fragment.appendChild(this.conditionConnectorEl());
+          } else {
+            fragment.appendChild(connectorEl());
+          }
           fragment.appendChild(addButtonEl(index + 1));
         });
       }
@@ -414,6 +489,34 @@
       }
       this.saveBtn.disabled = this.saving;
       this.saveBtn.setAttribute('aria-busy', this.saving ? 'true' : 'false');
+    }
+
+    hydrateTemplateDisplayNames() {
+      if (!Array.isArray(this.templates) || this.templates.length === 0) {
+        return false;
+      }
+
+      let changed = false;
+      this.nodes.forEach((node) => {
+        if (node.type !== 'templateMessage' || !node.data) {
+          return;
+        }
+        const code = String(node.data.template_name || node.data.templateCode || '').trim();
+        if (!code) {
+          return;
+        }
+        const match = this.templates.find((item) => item.value === code);
+        if (!match) {
+          return;
+        }
+        const label = String(match.label || '').replace(/\s*\([^)]*\)\s*$/, '').trim() || match.label || code;
+        if (node.data.template_display_name !== label) {
+          node.data.template_display_name = label;
+          changed = true;
+        }
+      });
+
+      return changed;
     }
 
     load() {
@@ -432,6 +535,13 @@
           this.nodes = Array.isArray(data.nodes) ? data.nodes : [];
           this.dirty = false;
           this.render();
+          if (this.templatesUrl && this.nodes.some((n) => n.type === 'templateMessage')) {
+            this.ensureTemplates().then(() => {
+              if (this.hydrateTemplateDisplayNames()) {
+                this.render();
+              }
+            });
+          }
         })
         .catch(() => this.render());
     }

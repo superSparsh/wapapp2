@@ -167,27 +167,102 @@
 
         @if ($hasFlowData && count($nodes) > 0)
           @foreach ($nodes as $node)
-            <div class="flex h-8 w-px items-center justify-center">
-              <img src="{{ asset('images/automation/flow-connector-line.svg') }}" alt="" class="h-8 w-px" width="1" height="32">
-            </div>
+            @php
+              $nodeType = $node['type'] ?? '';
+              $nodeData = is_array($node['data'] ?? null) ? $node['data'] : [];
+              $isCondition = in_array($nodeType, ['condition', 'enhancedCondition'], true);
+              $prevWasCondition = false;
+              if (! $loop->first) {
+                $prev = $nodes[$loop->index - 1] ?? null;
+                $prevWasCondition = in_array(($prev['type'] ?? ''), ['condition', 'enhancedCondition'], true);
+              }
+            @endphp
+            @unless ($prevWasCondition)
+              <div class="flex h-8 w-px items-center justify-center">
+                <img src="{{ asset('images/automation/flow-connector-line.svg') }}" alt="" class="h-8 w-px" width="1" height="32">
+              </div>
+            @endunless
             <div class="relative z-10 flex size-10 items-center justify-center rounded-full border border-solid border-green-500 bg-elevated p-2">
               <img src="{{ asset('images/automation/add-circle.svg') }}" alt="" class="size-6" width="24" height="24">
             </div>
             <div class="flex h-8 w-px items-center justify-center">
               <img src="{{ asset('images/automation/flow-connector-line.svg') }}" alt="" class="h-8 w-px" width="1" height="32">
             </div>
-            <div class="relative z-10 rounded-lg bg-[#2c3c5e] p-3 shadow-[0px_6px_4px_rgba(109,187,72,0.25)]">
+            <div class="relative z-10 w-full max-w-[320px] rounded-lg bg-[#2c3c5e] p-3 shadow-[0px_6px_4px_rgba(109,187,72,0.25)]">
               <div class="flex items-center gap-2">
-                <img src="{{ asset('images/automation/play-circle-dark.svg') }}" alt="" class="size-5" width="20" height="20">
-                <span class="text-sm font-medium leading-[1.5] whitespace-nowrap text-[#eaecef]">
-                  {{ $node['data']['label'] ?? $node['type'] ?? 'Node' }}
-                </span>
+                <img src="{{ asset('images/automation/play-circle-dark.svg') }}" alt="" class="size-5 shrink-0" width="20" height="20">
+                @php
+                  $canvasLabel = $nodeData['label'] ?? $nodeType ?: 'Node';
+                  if ($nodeType === 'templateMessage') {
+                    $canvasLabel = $nodeData['template_display_name']
+                      ?? $nodeData['template_name']
+                      ?? $canvasLabel;
+                  }
+                  $noTarget = (string) ($nodeData['no_target'] ?? 'end');
+                  $noLabel = 'End';
+                  if ($isCondition && $noTarget !== '' && $noTarget !== 'end') {
+                    $noNode = collect($nodes)->firstWhere('id', $noTarget);
+                    if (is_array($noNode)) {
+                      $noData = is_array($noNode['data'] ?? null) ? $noNode['data'] : [];
+                      $noLabel = $noData['template_display_name']
+                        ?? $noData['template_name']
+                        ?? $noData['label']
+                        ?? ($noNode['type'] ?? $noTarget);
+                    } else {
+                      $noLabel = $noTarget;
+                    }
+                  }
+                @endphp
+                <div class="min-w-0">
+                  <span class="block truncate text-sm font-medium leading-[1.5] text-[#eaecef]">
+                    {{ $canvasLabel }}
+                  </span>
+                  @if ($nodeType === 'templateMessage' && ! empty($nodeData['template_name']) && ($nodeData['template_display_name'] ?? '') !== ($nodeData['template_name'] ?? ''))
+                    <span class="mt-0.5 block truncate text-xs text-[#eaecef]/60">
+                      Code: {{ $nodeData['template_name'] }}
+                    </span>
+                  @endif
+                </div>
               </div>
+              @if ($isCondition)
+                <div class="relative z-10 mt-2 flex w-full items-stretch gap-2 border-t border-solid border-white/10 pt-2" data-drip-condition-branches>
+                  <div class="flex min-w-0 flex-1 items-center gap-1.5">
+                    <span class="inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-[#22c55e] text-[10px] font-bold leading-none text-white" title="Yes path continues to next step">Y</span>
+                    <span class="truncate text-[11px] font-medium leading-[1.3] text-[#86efac]">Next step</span>
+                  </div>
+                  <div class="flex min-w-0 flex-1 items-center justify-end gap-1.5">
+                    <span class="truncate text-right text-[11px] font-medium leading-[1.3] text-[#fca5a5]">{{ $noLabel }}</span>
+                    <span class="inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-[#ef4444] text-[10px] font-bold leading-none text-white" title="No path">N</span>
+                  </div>
+                </div>
+              @endif
             </div>
+            @if ($isCondition)
+              <div class="relative z-10 flex w-full flex-col items-center" data-drip-condition-connector>
+                <div class="flex w-full max-w-[220px] items-start justify-between px-1">
+                  <div class="flex w-10 flex-col items-center">
+                    <span class="mb-1 inline-flex size-5 items-center justify-center rounded-full bg-[#22c55e] text-[10px] font-bold leading-none text-white">Y</span>
+                    <div class="flex h-8 w-px items-center justify-center">
+                      <img src="{{ asset('images/automation/flow-connector-line.svg') }}" alt="" class="h-8 w-px" width="1" height="32">
+                    </div>
+                  </div>
+                  <div class="flex w-10 flex-col items-center opacity-70">
+                    <span class="mb-1 inline-flex size-5 items-center justify-center rounded-full bg-[#ef4444] text-[10px] font-bold leading-none text-white">N</span>
+                    <div class="h-8 w-px border-l border-dashed border-[#ef4444]/70"></div>
+                  </div>
+                </div>
+              </div>
+            @endif
           @endforeach
-          <div class="flex h-8 w-px items-center justify-center">
-            <img src="{{ asset('images/automation/flow-connector-line.svg') }}" alt="" class="h-8 w-px" width="1" height="32">
-          </div>
+          @php
+            $lastNode = $nodes[count($nodes) - 1] ?? null;
+            $lastWasCondition = in_array(($lastNode['type'] ?? ''), ['condition', 'enhancedCondition'], true);
+          @endphp
+          @unless ($lastWasCondition)
+            <div class="flex h-8 w-px items-center justify-center">
+              <img src="{{ asset('images/automation/flow-connector-line.svg') }}" alt="" class="h-8 w-px" width="1" height="32">
+            </div>
+          @endunless
         @else
           <div class="flex h-8 w-px items-center justify-center">
             <img src="{{ asset('images/automation/flow-connector-line.svg') }}" alt="" class="h-8 w-px" width="1" height="32">

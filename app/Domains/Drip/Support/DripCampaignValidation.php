@@ -30,8 +30,8 @@ final class DripCampaignValidation
     {
         return array_merge([
             'name' => ['required', 'string', 'min:2', 'max:191'],
-            'audience_id' => PublicId::uuidExistsRules(MailList::class, nullable: false),
-            'timezone' => ['required', 'timezone:all'],
+            'audience_id' => PublicId::uuidExistsRules(MailList::class),
+            'timezone' => ['nullable', 'timezone:all'],
             'start_date' => ['required', 'date'],
             'end_date' => ['required', 'date', 'after_or_equal:start_date'],
         ], DripTriggerCatalog::validationRules($triggerType));

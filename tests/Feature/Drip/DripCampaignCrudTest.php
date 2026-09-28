@@ -140,7 +140,8 @@ class DripCampaignCrudTest extends TestCase
         $this->actingAsTenantUser()
             ->post(route('automation.drip.store'), [
                 'name' => 'Drip with Audience',
-                'audience_id' => $audience->id,
+                'audience_id' => $audience->uuid,
+                'trigger_type' => 'welcome-new-subscriber',
             ])
             ->assertRedirect();
 
@@ -186,11 +187,12 @@ class DripCampaignCrudTest extends TestCase
      */
     private function settingsPayload(DripCampaign $campaign, array $overrides = []): array
     {
-        $audienceId = $campaign->audience_id ?? MailList::factory()->create()->id;
+        $audienceUuid = $campaign->audience?->uuid
+            ?? MailList::factory()->create()->uuid;
 
         return array_merge([
             'name' => $campaign->name,
-            'audience_id' => $audienceId,
+            'audience_id' => $audienceUuid,
             'timezone' => $campaign->timezone ?? 'Asia/Kolkata',
             'start_date' => $campaign->start_date?->format('Y-m-d') ?? now()->format('Y-m-d'),
             'end_date' => $campaign->end_date?->format('Y-m-d') ?? now()->addMonth()->format('Y-m-d'),
@@ -199,15 +201,23 @@ class DripCampaignCrudTest extends TestCase
         ], $overrides);
     }
 
-    public function test_update_settings_requires_audience_when_full_form_submitted(): void
+    public function test_update_settings_allows_optional_audience_and_timezone(): void
     {
         $campaign = DripCampaign::factory()->create();
 
         $this->actingAsTenantUser()
             ->put(route('automation.drip.design.update', $campaign), $this->settingsPayload($campaign, [
                 'audience_id' => '',
+                'timezone' => '',
             ]))
-            ->assertSessionHasErrors('audience_id');
+            ->assertRedirect();
+
+        $campaign->refresh();
+        $this->assertNull($campaign->audience_id);
+        $this->assertSame(
+            (string) config('chatbot.drip.default_timezone', 'Asia/Kolkata'),
+            (string) ($campaign->timezone ?: config('chatbot.drip.default_timezone', 'Asia/Kolkata')),
+        );
     }
 
     public function test_update_settings_requires_valid_date_range(): void
