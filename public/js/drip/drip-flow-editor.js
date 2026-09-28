@@ -634,7 +634,20 @@
     }
 
     save() {
-      const notify = (message, title) => {
+      const notify = (message, title, type) => {
+        const toastType = type || 'info';
+        if (toastType === 'success' && typeof window.showSuccessToast === 'function') {
+          window.showSuccessToast(message, title);
+          return;
+        }
+        if (toastType === 'error' && typeof window.showErrorToast === 'function') {
+          window.showErrorToast(message, title);
+          return;
+        }
+        if (typeof window.showAppToast === 'function') {
+          window.showAppToast({ type: toastType, message: message, title: title });
+          return;
+        }
         if (typeof window.showAppAlert === 'function') {
           window.showAppAlert(message, title);
           return;
@@ -643,7 +656,7 @@
       };
 
       if (!this.saveUrl) {
-        notify('Save URL is missing. Refresh the page and try again.', 'Save failed');
+        notify('Save URL is missing. Refresh the page and try again.', 'Save failed', 'error');
         return;
       }
       if (this.saving) {
@@ -659,7 +672,7 @@
       });
 
       if (flowErrors.length) {
-        notify(flowErrors[0], 'Cannot save flow');
+        notify(flowErrors[0], 'Cannot save flow', 'error');
         return;
       }
 
@@ -696,10 +709,10 @@
             throw new Error(message);
           }
           this.dirty = false;
-          notify('Drip flow saved successfully.', 'Saved');
+          notify('Automation flow saved successfully.', 'Saved', 'success');
         })
         .catch((error) => {
-          notify(error.message || 'Unable to save flow.', 'Save failed');
+          notify(error.message || 'Unable to save flow.', 'Save failed', 'error');
         })
         .finally(() => {
           this.saving = false;

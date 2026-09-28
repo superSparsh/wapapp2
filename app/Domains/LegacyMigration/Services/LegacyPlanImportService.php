@@ -57,8 +57,10 @@ class LegacyPlanImportService
                 'slug' => $slug,
                 'description' => $row->description ?? null,
                 'price' => (float) ($row->price ?? 0),
+                'starting_wallet_balance' => $this->startingWalletFromRow($row, $options),
                 'currency' => $this->resolveCurrency($row),
                 'billing_cycle' => $this->mapBillingCycle($row),
+                'validity_days' => $this->validityDaysFromRow($row),
                 'messages_limit' => $this->limitFromOptions($options, ['email_max', 'sending_quota', 'message_max']),
                 'contacts_limit' => $this->limitFromOptions($options, ['subscriber_max', 'contact_max', 'list_max']),
                 'team_members_limit' => $this->limitFromOptions($options, ['max_users', 'team_max', 'user_max']),
@@ -194,8 +196,10 @@ class LegacyPlanImportService
             'slug' => 'professional',
             'description' => 'Default plan for migrated tenants',
             'price' => 0,
+            'starting_wallet_balance' => 0,
             'currency' => 'INR',
             'billing_cycle' => BillingCycle::Monthly,
+            'validity_days' => BillingCycle::Monthly->defaultValidityDays(),
             'messages_limit' => 50000,
             'contacts_limit' => 10000,
             'team_members_limit' => 10,
@@ -204,6 +208,46 @@ class LegacyPlanImportService
             'is_active' => true,
             'features' => ['source' => 'auto_seed'],
         ]);
+    }
+
+    private function validityDaysFromRow(object $row): int
+    {
+        $amount = (int) ($row->frequency_amount ?? 0);
+        $unit = strtolower((string) ($row->frequency_unit ?? 'month'));
+
+        if ($amount > 0) {
+            return match (true) {
+                str_contains($unit, 'year') => $amount * 365,
+                str_contains($unit, 'quarter') => $amount * 90,
+                str_contains($unit, 'week') => $amount * 7,
+                str_contains($unit, 'day') => $amount,
+                default => $amount * 30,
+            };
+        }
+
+        return $this->mapBillingCycle($row)->defaultValidityDays();
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $options
+     */
+    private function startingWalletFromRow(object $row, ?array $options): float
+    {
+        foreach (['credit_option', 'wallet_credit', 'starting_credit', 'credits'] as $key) {
+            if (isset($row->{$key}) && is_numeric($row->{$key})) {
+                return max(0, (float) $row->{$key});
+            }
+        }
+
+        if (is_array($options)) {
+            foreach (['credit', 'credits', 'wallet', 'starting_wallet', 'wallet_credit'] as $key) {
+                if (isset($options[$key]) && is_numeric($options[$key])) {
+                    return max(0, (float) $options[$key]);
+                }
+            }
+        }
+
+        return 0.0;
     }
 
     public function findByLegacyPlanId(int $legacyId): ?Plan

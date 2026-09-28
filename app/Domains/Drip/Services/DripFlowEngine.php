@@ -677,7 +677,7 @@ class DripFlowEngine
     ): void {
         $data = (array) ($node['data'] ?? $node);
         $templateCode = (string) ($data['template_code'] ?? $data['templateCode'] ?? $data['template_name'] ?? $data['template_id'] ?? '');
-        $templateParams = (array) ($data['template_params'] ?? $data['templateParams'] ?? $data['variables'] ?? []);
+        $rawParams = (array) ($data['template_params'] ?? $data['templateParams'] ?? $data['variables'] ?? []);
         $language = isset($data['language']) ? (string) $data['language'] : null;
 
         if ($templateCode === '' && isset($data['template_uid'])) {
@@ -698,6 +698,12 @@ class DripFlowEngine
 
             return;
         }
+
+        $templateParams = $this->resolveDripTemplateParams(
+            $rawParams,
+            $conversation,
+            (array) ($state->variables ?? []),
+        );
 
         $message = $this->outboundService->sendTemplate(
             conversation: $conversation,
@@ -724,6 +730,80 @@ class DripFlowEngine
             action: ChatbotFlowStatAction::Completed,
             conversation: $conversation,
         );
+    }
+
+    /**
+     * Resolve drip template variable lines (supports $(name) and name=value).
+     *
+     * @param  array<int|string, mixed>  $rawParams
+     * @param  array<string, mixed>  $stateVariables
+     * @return array<string, string>
+     */
+    private function resolveDripTemplateParams(
+        array $rawParams,
+        Conversation $conversation,
+        array $stateVariables,
+    ): array {
+        $conversation->loadMissing('contact');
+        $context = $this->variableResolver->withConversationContext($stateVariables, $conversation);
+
+        $contact = $conversation->contact;
+        if ($contact !== null) {
+            $customFields = is_array($contact->custom_fields) ? $contact->custom_fields : [];
+            foreach ($customFields as $key => $value) {
+                if (! is_string($key) || $key === '' || array_key_exists($key, $context)) {
+                    continue;
+                }
+                if (! is_scalar($value) && $value !== null) {
+                    continue;
+                }
+                $stringValue = trim((string) ($value ?? ''));
+                if ($stringValue !== '') {
+                    $context[$key] = $stringValue;
+                }
+            }
+        }
+
+        $params = [];
+        $position = 1;
+
+        foreach ($rawParams as $key => $value) {
+            if (is_array($value)) {
+                continue;
+            }
+            if (! is_scalar($value) && $value !== null) {
+                continue;
+            }
+
+            $line = trim((string) ($value ?? ''));
+            if ($line === '') {
+                continue;
+            }
+
+            $keyString = trim((string) $key);
+            $isPositionalKey = $keyString === '' || ctype_digit($keyString);
+
+            if ($isPositionalKey
+                && preg_match('/^([A-Za-z_][\w.]*)\s*=\s*(.*)$/s', $line, $matches) === 1
+                && ! str_starts_with($line, '$(')
+                && ! str_starts_with($line, '{{')
+            ) {
+                $params[$matches[1]] = $this->variableResolver->resolve(trim($matches[2]), $context);
+
+                continue;
+            }
+
+            if ($isPositionalKey) {
+                $params[(string) $position] = $this->variableResolver->resolve($line, $context);
+                $position++;
+
+                continue;
+            }
+
+            $params[$keyString] = $this->variableResolver->resolve($line, $context);
+        }
+
+        return $params;
     }
 
     /**

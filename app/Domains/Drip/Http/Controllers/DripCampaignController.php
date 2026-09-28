@@ -67,7 +67,7 @@ class DripCampaignController extends Controller
 
         return redirect()
             ->route('automation.drip.design', $campaign)
-            ->with('status', 'Drip campaign created successfully.');
+            ->with('status', 'Automation created successfully.');
     }
 
     /**
@@ -91,7 +91,7 @@ class DripCampaignController extends Controller
 
         return redirect()
             ->route('automation.drip.index')
-            ->with('status', 'Drip campaign deleted successfully.');
+            ->with('status', 'Automation deleted successfully.');
     }
 
     /**
@@ -115,7 +115,7 @@ class DripCampaignController extends Controller
 
         return redirect()
             ->route('automation.drip.index')
-            ->with('status', "Drip campaign {$status} successfully.");
+            ->with('status', "Automation {$status} successfully.");
     }
 
     /**
@@ -127,6 +127,6 @@ class DripCampaignController extends Controller
 
         return redirect()
             ->route('automation.drip.design', $clone)
-            ->with('status', 'Drip campaign duplicated successfully.');
+            ->with('status', 'Automation duplicated successfully.');
     }
 }

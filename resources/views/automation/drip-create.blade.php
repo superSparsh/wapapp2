@@ -1,9 +1,9 @@
-<x-layouts.app title="Create Drip Campaign - WapApp" active="automation.drip.index">
+<x-layouts.app title="Create Automation - WapApp" active="automation.drip.index">
   <div class="flex flex-col bg-surface">
     <div class="flex flex-col gap-4 p-4">
       <div class="flex flex-col gap-1">
         <a href="{{ route('automation.drip.index') }}" class="text-sm font-medium text-green-500 hover:underline">&larr; Back to Drip Marketing</a>
-        <h1 class="text-2xl font-bold leading-[1.5] text-text-primary">Create Drip Campaign</h1>
+        <h1 class="text-2xl font-bold leading-[1.5] text-text-primary">Create Automation</h1>
         <p class="max-w-[854px] text-sm font-normal leading-[1.4] text-text-subtle opacity-50">
           Set a name and trigger to start building your automation flow.
         </p>
@@ -33,7 +33,7 @@
             minlength="2"
             maxlength="191"
             class="w-full rounded-xl border border-solid border-border bg-elevated p-3.5 text-sm font-medium text-text-body focus:outline-none focus:ring-2 focus:ring-green-500 @error('name') border-red-500 @enderror"
-            placeholder="Enter campaign name"
+            placeholder="Enter automation name"
           >
           @error('name') <p class="text-xs text-red-500">{{ $message }}</p> @enderror
         </div>

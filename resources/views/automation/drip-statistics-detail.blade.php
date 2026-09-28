@@ -10,7 +10,7 @@
           {{ $campaign->name }}
         </h1>
         <p class="max-w-[854px] text-sm font-normal leading-[1.4] text-text-subtle opacity-50">
-          Detailed message log for this drip campaign.
+          Detailed message log for this automation.
         </p>
       </div>
 

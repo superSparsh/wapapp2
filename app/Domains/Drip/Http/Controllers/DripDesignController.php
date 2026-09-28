@@ -29,7 +29,8 @@ class DripDesignController extends Controller
 
         $audiences = MailList::query()
             ->select('id', 'uuid', 'name')
-            ->orderBy('name')
+            ->orderByDesc('updated_at')
+            ->orderByDesc('id')
             ->get();
 
         $timezones = \DateTimeZone::listIdentifiers();
@@ -80,6 +81,6 @@ class DripDesignController extends Controller
 
         return redirect()
             ->route('automation.drip.design', $campaign)
-            ->with('status', 'Campaign settings updated successfully.');
+            ->with('status', 'Automation settings updated successfully.');
     }
 }

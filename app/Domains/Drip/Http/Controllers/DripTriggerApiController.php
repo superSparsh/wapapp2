@@ -18,7 +18,7 @@ class DripTriggerApiController extends Controller
     {
         $model = DripCampaign::query()->where('uuid', $campaign)->first();
         if ($model === null) {
-            return response()->json(['message' => 'Drip campaign was not found.'], 404);
+            return response()->json(['message' => 'Automation was not found.'], 404);
         }
 
         $phone = PhoneNormalizer::normalize((string) ($request->input('phone') ?: $request->input('whatsapp_number')));
@@ -36,8 +36,8 @@ class DripTriggerApiController extends Controller
         return response()->json([
             'ok' => $started,
             'message' => $started
-                ? 'Drip campaign started for this contact.'
-                : 'Drip campaign could not start. Check that it is running and has a saved flow.',
+                ? 'Automation started for this contact.'
+                : 'Automation could not start. Check that it is running and has a saved flow.',
         ], $started ? 200 : 422);
     }
 }

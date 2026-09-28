@@ -17,7 +17,7 @@
           />
 
           <p class="w-full text-sm font-normal leading-[1.4] text-text-subtle opacity-50">
-            There are&nbsp;{{ $totalContacts }}&nbsp;contacts in total targeted for this automation / campaign
+            There are&nbsp;{{ $totalContacts }}&nbsp;contacts in total targeted for this automation
           </p>
 
           <form method="GET" action="{{ route('automation.drip.audience', $campaign) }}" class="flex w-full flex-col gap-3">
@@ -91,7 +91,7 @@
                   </div>
                 </div>
               @empty
-                <p class="w-full py-8 text-center text-sm text-text-body">No contacts found for this campaign.</p>
+                <p class="w-full py-8 text-center text-sm text-text-body">No contacts found for this automation.</p>
               @endforelse
             </div>
           </div>

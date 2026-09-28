@@ -12,7 +12,7 @@ $tabs = [
 ];
 $triggerConfirmOpen = request('modal') === 'trigger-confirm';
 $description = sprintf(
-    'Automated drip campaign "%s"%s',
+    'Drip automation "%s"%s',
     $campaign->name,
     $campaign->audience ? ', targeting audience "' . $campaign->audience->name . '"' : '',
 );
@@ -28,7 +28,7 @@ $description = sprintf(
         <x-ui.toggle-switch
           :active="$campaign->isActive()"
           :submit="true"
-          aria-label="Toggle campaign"
+          aria-label="Toggle automation"
         />
       </form>
     </div>

@@ -66,6 +66,41 @@
     return '<p class="mb-3 text-sm font-semibold leading-[1.4] text-text-primary">' + escapeHtml(text) + '</p>';
   }
 
+  const DYNAMIC_VARIABLES = [
+    { syntax: '$(subscriber_first_name)', label: 'First name' },
+    { syntax: '$(subscriber_last_name)', label: 'Last name' },
+    { syntax: '$(subscriber_full_name)', label: 'Full name' },
+    { syntax: '$(phone_number)', label: 'Phone' },
+    { syntax: '$(subscriber_email)', label: 'Email' },
+    { syntax: '$(current_date)', label: 'Today' },
+    { syntax: '$(current_time)', label: 'Time' },
+  ];
+
+  function templateVariablesField(data) {
+    const value = Array.isArray(data.variables) ? data.variables.join('\n') : String(data.variables || '');
+    let html = '';
+    html += '<div class="mb-4 flex flex-col gap-2" data-cfg-field="cfg-variables">';
+    html += '<label for="cfg-variables" class="text-sm font-semibold leading-[1.4] text-text-primary">Variables / Parameters</label>';
+    html += '<textarea id="cfg-variables" rows="4" placeholder="$(subscriber_first_name)&#10;Mumbai&#10;order_id=$(subscriber_uid)" class="w-full rounded-xl border border-solid border-border bg-elevated p-3.5 text-sm font-medium leading-[1.4] text-text-body placeholder:text-text-body/40 focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500">' + escapeHtml(value) + '</textarea>';
+    html += '<p class="hidden text-xs text-red-500" data-cfg-error></p>';
+    html += '<div class="rounded-xl border border-solid border-border bg-surface p-3 text-xs leading-[1.5] text-text-muted">';
+    html += '<p class="font-semibold text-text-primary">How to fill</p>';
+    html += '<ul class="mt-1 list-disc space-y-1 pl-4">';
+    html += '<li>One value per line, in template order (<code>{{1}}</code>, <code>{{2}}</code>, …).</li>';
+    html += '<li>Fixed text: <code>Rahul</code></li>';
+    html += '<li>Dynamic contact value: <code>$(subscriber_first_name)</code></li>';
+    html += '<li>Named param (optional): <code>first_name=$(subscriber_full_name)</code></li>';
+    html += '<li>Leave empty if the template has no variables.</li>';
+    html += '</ul>';
+    html += '<p class="mt-2 font-semibold text-text-primary">Insert dynamic value</p>';
+    html += '<div class="mt-1.5 flex flex-wrap gap-1.5">';
+    DYNAMIC_VARIABLES.forEach(function (item) {
+      html += '<button type="button" data-insert-variable="' + escapeHtml(item.syntax) + '" class="rounded-lg border border-solid border-green-500/40 bg-green-50 px-2 py-1 text-[11px] font-semibold text-green-700 transition-colors hover:bg-green-100" title="' + escapeHtml(item.syntax) + '">' + escapeHtml(item.label) + '</button>';
+    });
+    html += '</div></div></div>';
+    return html;
+  }
+
   function defaultData(label) {
     return {
       label: label || '',
@@ -274,7 +309,7 @@
           html += field('Template Name', 'cfg-template-name', data.template_name || data.templateCode || '', 'text', true, 'template_code');
           html += helpText('No approved templates loaded. Enter the template code manually, or approve templates first.');
         }
-        html += textarea('Variables / Parameters (one per line)', 'cfg-variables', (data.variables || []).join('\n'), false, 'e.g. {{1}} or parameter values');
+        html += templateVariablesField(data);
         html += field('Keywords (comma-separated)', 'cfg-keywords', data.keywords || data.triggerKeyword || '', 'text', false, 'optional reply keywords');
         break;
 
@@ -303,37 +338,23 @@
           { value: 'custom_variable', label: 'Custom Contact Field / Variable' },
         ], true);
 
-        // Target template: all approved templates + any already used in this flow.
-        const templateOptions = [{ value: '', label: '-- Latest / Previous Template in Flow --' }];
-        const seenCodes = Object.create(null);
-        (context.templates || []).forEach(function (tpl) {
-          const code = String(tpl.value || '').trim();
-          if (!code || seenCodes[code]) {
-            return;
-          }
-          seenCodes[code] = true;
-          templateOptions.push({ value: code, label: tpl.label || code });
-        });
+        // Target template: previous template nodes in this flow only.
+        const previousTemplates = [{ value: '', label: '-- Latest / Previous Template in Flow --' }];
         (context.allNodes || []).forEach(function (n) {
-          if (n.type !== 'templateMessage' || n.id === node.id) {
-            return;
+          if (n.type === 'templateMessage' && n.id !== node.id) {
+            const tCode = n.data?.template_name || n.data?.templateCode || n.data?.label || n.id;
+            const tName = n.data?.template_display_name || n.data?.label || tCode;
+            previousTemplates.push({
+              value: tCode,
+              label: 'Step: ' + tName + (tName !== tCode ? ' (' + tCode + ')' : ''),
+            });
           }
-          const tCode = n.data?.template_name || n.data?.templateCode || '';
-          if (!tCode || seenCodes[tCode]) {
-            return;
-          }
-          seenCodes[tCode] = true;
-          const tName = n.data?.template_display_name || n.data?.label || tCode;
-          templateOptions.push({
-            value: tCode,
-            label: 'In flow: ' + tName + (tName !== tCode ? ' (' + tCode + ')' : ''),
-          });
         });
 
         const isWa = curType !== 'custom_variable';
         html += '<div id="cfg-group-wa-condition" class="' + (isWa ? '' : 'hidden') + '">';
-        html += selectField('Target Template', 'cfg-target-template', data.target_template || '', templateOptions, false);
-        html += helpText('Which WhatsApp template to check for read/delivered/reply. Lists all approved templates.');
+        html += selectField('Target Template', 'cfg-target-template', data.target_template || '', previousTemplates, false);
+        html += helpText('Checks the previous template step in this flow (or leave blank for the latest outbound template).');
 
         const waitOptions = [
           { value: '15 minutes', label: 'Wait up to 15 minutes' },
@@ -570,6 +591,26 @@
 
   function bindFormEvents(node, root) {
     if (!root) return;
+
+    root.querySelectorAll('[data-insert-variable]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        const syntax = btn.getAttribute('data-insert-variable') || '';
+        const textarea = root.querySelector('#cfg-variables');
+        if (!textarea || !syntax) {
+          return;
+        }
+        const start = textarea.selectionStart || textarea.value.length;
+        const end = textarea.selectionEnd || start;
+        const before = textarea.value.slice(0, start);
+        const after = textarea.value.slice(end);
+        const needsNewline = before.length > 0 && !before.endsWith('\n');
+        const insert = (needsNewline ? '\n' : '') + syntax;
+        textarea.value = before + insert + after;
+        const cursor = start + insert.length;
+        textarea.focus();
+        textarea.setSelectionRange(cursor, cursor);
+      });
+    });
 
     // Operation type switch
     const opSelect = root.querySelector('#cfg-operation-type');

@@ -7,7 +7,7 @@
         <x-automation.audience-view-tabs :campaign="$campaign" active="timeline" />
 
         <p class="max-w-[388px] text-sm font-normal leading-[1.4] text-text-subtle opacity-50">
-          Audience' activities recorded for your automated campaign.
+          Audience' activities recorded for your automation.
         </p>
 
         <div class="flex flex-col gap-2 bg-surface px-4 pb-4">
@@ -54,7 +54,7 @@
                 </div>
               </div>
             @empty
-              <p class="w-full py-8 text-center text-sm text-text-body">No activity recorded yet for this campaign.</p>
+              <p class="w-full py-8 text-center text-sm text-text-body">No activity recorded yet for this automation.</p>
             @endforelse
           </div>
 

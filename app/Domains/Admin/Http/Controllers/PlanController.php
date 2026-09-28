@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domains\Admin\Http\Controllers;
 
 use App\Domains\Admin\Support\AdminListQuery;
+use App\Enums\BillingCycle;
 use App\Http\Controllers\Controller;
 use App\Models\Plan;
 use Illuminate\Http\RedirectResponse;
@@ -106,8 +107,10 @@ class PlanController extends Controller
             ],
             'description' => ['nullable', 'string'],
             'price' => ['required', 'numeric', 'min:0'],
+            'starting_wallet_balance' => ['nullable', 'numeric', 'min:0'],
             'currency' => ['required', 'string', 'size:3'],
             'billing_cycle' => ['required', 'string', 'max:32'],
+            'validity_days' => ['nullable', 'integer', 'min:1', 'max:3650'],
             'messages_limit' => ['nullable', 'integer', 'min:0'],
             'contacts_limit' => ['nullable', 'integer', 'min:0'],
             'team_members_limit' => ['nullable', 'integer', 'min:0'],
@@ -118,6 +121,12 @@ class PlanController extends Controller
 
         $data['is_active'] = $request->boolean('is_active', $plan?->is_active ?? true);
         $data['sort_order'] = (int) ($data['sort_order'] ?? 0);
+        $data['starting_wallet_balance'] = round((float) ($data['starting_wallet_balance'] ?? 0), 2);
+
+        $cycle = BillingCycle::tryFrom((string) $data['billing_cycle']) ?? BillingCycle::Monthly;
+        $data['billing_cycle'] = $cycle->value;
+        $validityDays = (int) ($data['validity_days'] ?? 0);
+        $data['validity_days'] = $validityDays > 0 ? $validityDays : $cycle->defaultValidityDays();
 
         return $data;
     }

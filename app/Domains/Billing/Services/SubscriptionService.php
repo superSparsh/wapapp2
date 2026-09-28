@@ -163,9 +163,7 @@ class SubscriptionService
             $this->razorpayService->markOrderPaid($order, $paymentId);
 
             $plan = tenancy()->central(fn () => Plan::query()->findOrFail($order->plan_id));
-            $endsAt = $plan->billing_cycle->value === 'yearly'
-                ? now()->addYear()
-                : now()->addMonth();
+            $endsAt = now()->addDays($plan->resolvedValidityDays());
 
             Subscription::query()
                 ->where('status', SubscriptionStatus::Active)
@@ -182,6 +180,14 @@ class SubscriptionService
                 'starts_at' => now(),
                 'ends_at' => $endsAt,
             ]);
+
+            $startingWallet = (float) ($plan->starting_wallet_balance ?? 0);
+            if ($startingWallet > 0) {
+                $this->walletService->adminCredit(
+                    $startingWallet,
+                    'Starting wallet balance for plan: '.$plan->name,
+                );
+            }
 
             $tenant = $this->currentTenant();
             if ($tenant) {

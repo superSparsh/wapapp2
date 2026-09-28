@@ -36,7 +36,7 @@
           </div>
 
           <p class="w-full text-sm font-normal leading-[1.4] text-text-subtle opacity-50">
-            Below is the insight of your campaign performance and how users respond to your campaign
+            Below is the insight of your automation performance and how users respond to your automation
           </p>
 
           <div class="flex w-full flex-col items-start">
@@ -66,7 +66,7 @@
                 </div>
               </div>
             @empty
-              <p class="w-full py-8 text-center text-sm text-text-body">No performance data yet. Campaign needs to be triggered.</p>
+              <p class="w-full py-8 text-center text-sm text-text-body">No performance data yet. Automation needs to be triggered.</p>
             @endforelse
           </div>
         </div>

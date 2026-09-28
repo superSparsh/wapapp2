@@ -248,7 +248,7 @@
               </p>
             @else
               <p class="text-xs leading-[1.4] text-text-subtle">
-                Save the campaign first to view your unique API trigger endpoint.
+                Save the automation first to view your unique API trigger endpoint.
               </p>
             @endif
           </div>

@@ -97,7 +97,7 @@
         </section>
 
         <div class="flex flex-col gap-4 bg-surface px-4 pb-4">
-          <h3 class="text-base font-semibold leading-[1.5] text-text-primary">Campaign Performance</h3>
+          <h3 class="text-base font-semibold leading-[1.5] text-text-primary">Automation Performance</h3>
 
           <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <div class="rounded-xl border border-border bg-elevated p-5 shadow-[0px_4px_6px_rgba(0,0,0,0.04)]">

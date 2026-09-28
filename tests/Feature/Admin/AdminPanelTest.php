@@ -324,22 +324,42 @@ class AdminPanelTest extends TestCase
                 'name' => 'Starter',
                 'slug' => 'starter',
                 'price' => 499,
+                'starting_wallet_balance' => 100,
                 'currency' => 'INR',
                 'billing_cycle' => 'monthly',
+                'validity_days' => 45,
                 'is_active' => 1,
                 'sort_order' => 0,
             ])
             ->assertRedirect(route('admin.plans.index'));
 
-        $this->assertDatabaseHas('plans', ['slug' => 'starter'], config('tenancy.database.central_connection'));
+        $this->assertDatabaseHas('plans', [
+            'slug' => 'starter',
+            'starting_wallet_balance' => 100,
+            'validity_days' => 45,
+        ], config('tenancy.database.central_connection'));
 
         $plan = Plan::query()->where('slug', 'starter')->firstOrFail();
         $this->assertNotEmpty($plan->uuid);
+        $this->assertSame(45, $plan->resolvedValidityDays());
+
+        $this->actingAs($this->admin, 'admin')
+            ->post(route('admin.plans.toggle-status', $plan))
+            ->assertRedirect();
+        $this->assertFalse($plan->fresh()->is_active);
+
+        $this->actingAs($this->admin, 'admin')
+            ->get(route('admin.plans.index'))
+            ->assertOk()
+            ->assertSee('Activate')
+            ->assertSee('Wallet start');
 
         $this->actingAs($this->admin, 'admin')
             ->get(route('admin.plans.edit', $plan))
             ->assertOk()
-            ->assertSee($plan->name);
+            ->assertSee($plan->name)
+            ->assertSee('Starting wallet balance')
+            ->assertSee('Validity days');
 
         $this->assertStringContainsString($plan->uuid, route('admin.plans.edit', $plan));
         $this->assertStringNotContainsString('/plans/'.$plan->id.'/', route('admin.plans.edit', $plan));

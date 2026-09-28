@@ -25,7 +25,7 @@
 
   function confirmDelete(message, title) {
     if (typeof window.showAppConfirm === 'function') {
-      return window.showAppConfirm(message, title || 'Delete campaign', 'Delete', 'danger');
+      return window.showAppConfirm(message, title || 'Delete automation', 'Delete', 'danger');
     }
 
     return Promise.resolve(window.confirm(message));
@@ -77,6 +77,16 @@
                 ? 'inline-flex items-center justify-center rounded bg-[rgba(0,128,0,0.1)] px-2 py-1 text-[10px] font-medium leading-[1.2] whitespace-nowrap text-[green]'
                 : 'inline-flex items-center justify-center rounded bg-[rgba(0,0,0,0.1)] px-2 py-1 text-[10px] font-medium leading-[1.2] whitespace-nowrap text-text-muted';
             }
+
+            const status = payload.status || (payload.active ? 'activated' : 'deactivated');
+            const toastMessage = `Automation ${status} successfully.`;
+            if (typeof window.showSuccessToast === 'function') {
+              window.showSuccessToast(toastMessage);
+            } else if (typeof window.showAppToast === 'function') {
+              window.showAppToast({ type: 'success', message: toastMessage });
+            } else if (typeof window.showAppAlert === 'function') {
+              window.showAppAlert(toastMessage, 'Success');
+            }
           })
           .catch(() => window.location.reload())
           .finally(() => {
@@ -98,8 +108,8 @@
       form.addEventListener('submit', (event) => {
         event.preventDefault();
 
-        const message = form.dataset.confirm || 'Are you sure you want to delete this campaign? This action cannot be undone.';
-        const title = form.dataset.confirmTitle || 'Delete campaign';
+        const message = form.dataset.confirm || 'Are you sure you want to delete this automation? This action cannot be undone.';
+        const title = form.dataset.confirmTitle || 'Delete automation';
 
         confirmDelete(message, title).then((confirmed) => {
           if (!confirmed) {
@@ -122,6 +132,13 @@
                 row.style.transition = 'opacity 0.3s';
                 row.style.opacity = '0';
                 window.setTimeout(() => row.remove(), 300);
+                if (typeof window.showSuccessToast === 'function') {
+                  window.showSuccessToast('Automation deleted successfully.');
+                } else if (typeof window.showAppToast === 'function') {
+                  window.showAppToast({ type: 'success', message: 'Automation deleted successfully.' });
+                } else if (typeof window.showAppAlert === 'function') {
+                  window.showAppAlert('Automation deleted successfully.', 'Success');
+                }
                 return;
               }
 

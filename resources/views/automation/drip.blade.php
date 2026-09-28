@@ -40,7 +40,7 @@
             <thead>
               <tr class="">
                 <th class="w-[54px] p-2 text-[13px]  leading-[1.5] whitespace-nowrap">SI. No</th>
-                <th class="w-[320px] p-2 text-[13px]  leading-[1.5] ">Campaign Name</th>
+                <th class="w-[320px] p-2 text-[13px]  leading-[1.5] ">Automation Name</th>
                 <th class="p-2 text-[13px]  leading-[1.5] ">Contacts</th>
                 <th class="p-2 text-[13px] leading-[1.5] ">Templates</th>
                 <th class="p-2 text-[13px]  leading-[1.5] ">Complete</th>
@@ -96,8 +96,8 @@
                       </form>
                       <x-automation.listing-delete-button
                         :action="route('automation.drip.destroy', $campaign)"
-                        confirm="Delete this drip campaign? This action cannot be undone."
-                        title="Delete campaign"
+                        confirm="Delete this automation? This action cannot be undone."
+                        title="Delete automation"
                         :ajax="true"
                       />
                     </div>
@@ -113,7 +113,7 @@
               @empty
                 <tr class="border-t border-divider bg-elevated">
                   <td colspan="9" class="p-8 text-center text-sm text-text-body">
-                    No drip campaigns yet. Click "Add New" to create your first campaign.
+                    No automations yet. Click "Add New" to create your first automation.
                   </td>
                 </tr>
               @endforelse
