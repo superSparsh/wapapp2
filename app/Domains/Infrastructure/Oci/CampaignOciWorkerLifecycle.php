@@ -50,15 +50,16 @@ final class CampaignOciWorkerLifecycle
         }
 
         $campaignId = (int) $campaign->id;
+        $ref = $this->campaignRefKey($campaign);
         $recipients = max(0, (int) ($campaign->total_recipients ?? 0));
 
-        $this->withLock(function () use ($campaignId, $recipients): void {
+        $this->withLock(function () use ($ref, $recipients): void {
             $active = $this->activeCampaignIds();
-            $active[$campaignId] = true;
+            $active[$ref] = true;
             $this->storeActiveCampaignIds($active);
 
             $load = $this->campaignLoad();
-            $load[$campaignId] = $recipients;
+            $load[$ref] = $recipients;
             $this->storeCampaignLoad($load);
         });
 
@@ -72,16 +73,16 @@ final class CampaignOciWorkerLifecycle
             return;
         }
 
-        $campaignId = (int) $campaign->id;
+        $ref = $this->campaignRefKey($campaign);
         $shouldTeardown = false;
 
-        $this->withLock(function () use ($campaignId, &$shouldTeardown): void {
+        $this->withLock(function () use ($ref, &$shouldTeardown): void {
             $active = $this->activeCampaignIds();
-            unset($active[$campaignId]);
+            unset($active[$ref]);
             $this->storeActiveCampaignIds($active);
 
             $load = $this->campaignLoad();
-            unset($load[$campaignId]);
+            unset($load[$ref]);
             $this->storeCampaignLoad($load);
 
             $shouldTeardown = $active === [];
@@ -318,7 +319,21 @@ final class CampaignOciWorkerLifecycle
     }
 
     /**
-     * @return array<int, int>
+     * Stable cross-tenant key: "{tenant_id}:{campaign_id}".
+     * Prevents two tenants with the same numeric campaign id from colliding.
+     */
+    public function campaignRefKey(Campaign $campaign): string
+    {
+        $tenantId = tenant('id');
+        if (! is_string($tenantId) || $tenantId === '') {
+            $tenantId = '_';
+        }
+
+        return $tenantId.':'.(int) $campaign->id;
+    }
+
+    /**
+     * @return array<string, int>
      */
     public function campaignLoad(): array
     {
@@ -333,21 +348,34 @@ final class CampaignOciWorkerLifecycle
         }
 
         $out = [];
-        foreach ($decoded as $id => $recipients) {
-            $out[(int) $id] = max(0, (int) $recipients);
+        foreach ($decoded as $key => $recipients) {
+            $ref = $this->normalizeCampaignRef($key);
+            if ($ref === null) {
+                continue;
+            }
+            $out[$ref] = max(0, (int) $recipients);
         }
 
         return $out;
     }
 
     /**
-     * @param  array<int, int>  $load
+     * @param  array<string, int>  $load
      */
     public function storeCampaignLoad(array $load): void
     {
+        $normalized = [];
+        foreach ($load as $key => $recipients) {
+            $ref = $this->normalizeCampaignRef($key);
+            if ($ref === null) {
+                continue;
+            }
+            $normalized[$ref] = max(0, (int) $recipients);
+        }
+
         $this->redis()->set(
             $this->redisKey(self::CACHE_CAMPAIGN_LOAD),
-            json_encode($load),
+            json_encode($normalized),
         );
     }
 
@@ -394,7 +422,7 @@ final class CampaignOciWorkerLifecycle
     }
 
     /**
-     * @return array<int, true>
+     * @return array<string, true>
      */
     public function activeCampaignIds(): array
     {
@@ -410,21 +438,58 @@ final class CampaignOciWorkerLifecycle
 
         $out = [];
         foreach ($decoded as $id) {
-            $out[(int) $id] = true;
+            $ref = $this->normalizeCampaignRef($id);
+            if ($ref === null) {
+                continue;
+            }
+            $out[$ref] = true;
         }
 
         return $out;
     }
 
     /**
-     * @param  array<int, true>  $active
+     * @param  array<string, true>  $active
      */
     public function storeActiveCampaignIds(array $active): void
     {
+        $refs = [];
+        foreach (array_keys($active) as $key) {
+            $ref = $this->normalizeCampaignRef($key);
+            if ($ref !== null) {
+                $refs[] = $ref;
+            }
+        }
+
         $this->redis()->set(
             $this->redisKey(self::CACHE_ACTIVE_CAMPAIGNS),
-            json_encode(array_map('intval', array_keys($active))),
+            json_encode(array_values(array_unique($refs))),
         );
+    }
+
+    /**
+     * Accept "tenant:id" or legacy bare numeric campaign id (maps to "_:{id}").
+     */
+    private function normalizeCampaignRef(mixed $value): ?string
+    {
+        if (is_int($value) || (is_string($value) && ctype_digit($value))) {
+            return '_:'.(int) $value;
+        }
+
+        if (! is_string($value) || $value === '') {
+            return null;
+        }
+
+        if (! str_contains($value, ':')) {
+            return null;
+        }
+
+        [$tenantId, $campaignId] = explode(':', $value, 2);
+        if ($tenantId === '' || ! ctype_digit($campaignId)) {
+            return null;
+        }
+
+        return $tenantId.':'.(int) $campaignId;
     }
 
     public function instanceOcid(): ?string
@@ -518,7 +583,7 @@ final class CampaignOciWorkerLifecycle
      *   started_at: string|null,
      *   active_seconds: int|null,
      *   active_for_humans: string|null,
-     *   active_campaign_ids: list<int>,
+     *   active_campaign_ids: list<string>,
      *   max_recipients: int,
      *   last_session: array{started_at: string, ended_at: string, active_seconds: int, active_for_humans: string}|null
      * }
@@ -553,7 +618,7 @@ final class CampaignOciWorkerLifecycle
             'started_at' => $startedAt,
             'active_seconds' => $activeSeconds,
             'active_for_humans' => $activeSeconds !== null ? $this->formatDurationSeconds($activeSeconds) : null,
-            'active_campaign_ids' => array_map('intval', array_keys($this->activeCampaignIds())),
+            'active_campaign_ids' => array_keys($this->activeCampaignIds()),
             'max_recipients' => $this->maxRecipientDemand(),
             'last_session' => $lastFormatted,
         ];

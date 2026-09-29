@@ -10,7 +10,6 @@ use App\Enums\TeamMemberRole;
 use App\Models\AiSetting;
 use App\Models\Contact;
 use App\Models\Conversation;
-use App\Models\ManagerMemberAssignment;
 use App\Models\TeamMember;
 use App\Models\User;
 use App\Models\WhatsappLine;
@@ -107,7 +106,8 @@ class InboxConversationService
     }
 
     /**
-     * Legacy-style least-load assign when owner and/or manager has auto_assign_chats enabled.
+     * Legacy-style least-load assign when the account owner has auto_assign_chats enabled.
+     * Owner Team Settings is the master switch — managers cannot auto-assign while owner has it off.
      * Assignees are active members (agents) who can handle this WhatsApp line.
      */
     private function nextAutoAssignee(WhatsappLine $line): ?TeamMember
@@ -117,34 +117,16 @@ class InboxConversationService
             ->where('is_active', true)
             ->exists();
 
-        $enabledManagerIds = TeamMember::query()
-            ->where('role', TeamMemberRole::Manager)
-            ->where('status', RecordStatus::Active)
-            ->where('auto_assign_chats', true)
-            ->pluck('id');
-
-        if (! $ownerEnabled && $enabledManagerIds->isEmpty()) {
+        // Master kill-switch: owner (users.auto_assign_chats) must be on.
+        if (! $ownerEnabled) {
             return null;
         }
 
-        $query = TeamMember::query()
+        $candidates = TeamMember::query()
             ->where('status', RecordStatus::Active)
             ->where('role', TeamMemberRole::Member)
-            ->orderBy('id');
-
-        if (! $ownerEnabled) {
-            $memberIds = ManagerMemberAssignment::query()
-                ->whereIn('manager_id', $enabledManagerIds)
-                ->pluck('member_id');
-
-            if ($memberIds->isEmpty()) {
-                return null;
-            }
-
-            $query->whereIn('id', $memberIds);
-        }
-
-        $candidates = $query->get(['id', 'assigned_whatsapp_line_ids']);
+            ->orderBy('id')
+            ->get(['id', 'assigned_whatsapp_line_ids']);
 
         if ($candidates->isEmpty()) {
             return null;

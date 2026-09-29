@@ -83,6 +83,38 @@ class InboxPhase2Test extends TestCase
         $this->assertNull($conversation->assigned_team_member_id);
     }
 
+    public function test_manager_auto_assign_flag_does_not_override_owner_off(): void
+    {
+        $this->testUser->forceFill(['auto_assign_chats' => false])->save();
+
+        $manager = TeamMember::factory()->manager()->create([
+            'parent_user_id' => $this->testUser->id,
+            'auto_assign_chats' => true,
+            'status' => RecordStatus::Active,
+        ]);
+
+        $member = TeamMember::factory()->create([
+            'parent_user_id' => $this->testUser->id,
+            'role' => TeamMemberRole::Member,
+            'status' => RecordStatus::Active,
+            'assigned_whatsapp_line_ids' => [$this->testLine->id],
+        ]);
+
+        \App\Models\ManagerMemberAssignment::query()->create([
+            'parent_user_id' => $this->testUser->id,
+            'manager_id' => $manager->id,
+            'member_id' => $member->id,
+        ]);
+
+        $conversation = app(InboxConversationService::class)->findOrCreateConversation(
+            $this->testLine,
+            '919988776657',
+            'Manager Flag Ignored',
+        );
+
+        $this->assertNull($conversation->assigned_team_member_id);
+    }
+
     public function test_it_assigns_conversation_to_team_member(): void
     {
         $member = TeamMember::query()->create([

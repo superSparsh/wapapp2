@@ -8,11 +8,12 @@
       @csrf
       @method('PATCH')
       <p class="mb-3 text-sm text-text-subtle opacity-50">
-        When enabled, new incoming chats will be assigned automatically to your team members (least open chats first). Turn off to assign manually.
+        This manager toggle is informational for your team workflow. New-chat auto-assign is controlled by the account owner under
+        <span class="font-medium text-text-primary">My Team → Settings</span>. When the owner has auto-assign off, chats stay unassigned.
       </p>
       <label class="flex items-center gap-3">
         <input type="checkbox" name="auto_assign_chats" value="1" @checked($autoAssignChats) class="size-4 rounded border-border text-green-500">
-        <span class="text-sm text-text-primary">Enable auto-assign chats for my team</span>
+        <span class="text-sm text-text-primary">Prefer auto-assign for my team (owner setting required)</span>
       </label>
       <button type="submit" class="mt-4 rounded bg-green-500 px-4 py-2 text-sm font-semibold text-primary-2">Save</button>
     </form>
