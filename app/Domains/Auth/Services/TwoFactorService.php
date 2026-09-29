@@ -35,7 +35,7 @@ class TwoFactorService
     public function qrCodeSvg(Authenticatable $user, string $secret): string
     {
         $email = $user->email ?? 'user@wapapp.test';
-        $company = config('app.name', 'WapApp');
+        $company = (string) config('app.two_factor_issuer', config('app.name', 'WapApp'));
         $otpauth = $this->google2fa->getQRCodeUrl($company, $email, $secret);
 
         $renderer = new ImageRenderer(

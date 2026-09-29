@@ -17,6 +17,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Two-Factor Authenticator Issuer
+    |--------------------------------------------------------------------------
+    |
+    | Label shown in Google Authenticator / Authy when scanning the 2FA QR.
+    | Keep this short (e.g. WAPAPP). Does not affect Redis prefixes — those
+    | still use APP_NAME / REDIS_PREFIX.
+    |
+    */
+    'two_factor_issuer' => env('TWO_FACTOR_ISSUER', env('APP_NAME', 'WapApp')),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Environment
     |--------------------------------------------------------------------------
     |
