@@ -59,7 +59,7 @@ class CampaignOciWorkerLifecycleTest extends TestCase
         $this->lifecycle->onCampaignStarted($campaign);
 
         Queue::assertPushed(EnsureOciCampaignWorkerJob::class);
-        $this->assertSame(['_:42' => true], $this->lifecycle->activeCampaignIds());
+        $this->assertSame([42 => true], $this->lifecycle->activeCampaignIds());
     }
 
     public function test_last_campaign_finished_dispatches_teardown_job(): void
@@ -76,7 +76,7 @@ class CampaignOciWorkerLifecycleTest extends TestCase
         $this->assertSame([], $this->lifecycle->activeCampaignIds());
     }
 
-    public function test_teardown_still_dispatched_while_other_campaigns_active(): void
+    public function test_teardown_skipped_while_other_campaigns_active(): void
     {
         $a = new Campaign;
         $a->id = 1;
@@ -89,46 +89,13 @@ class CampaignOciWorkerLifecycleTest extends TestCase
 
         $this->lifecycle->onCampaignFinished($a);
 
-        // Always schedule teardown; job no-ops while B is still active.
-        Queue::assertPushed(TeardownOciCampaignWorkerJob::class);
-        $this->assertSame(['_:2' => true], $this->lifecycle->activeCampaignIds());
-    }
-
-    public function test_same_campaign_id_across_tenants_does_not_collide(): void
-    {
-        $this->lifecycle->storeActiveCampaignIds([
-            'acme:5' => true,
-            'beta:5' => true,
-        ]);
-        $this->lifecycle->storeCampaignLoad([
-            'acme:5' => 1000,
-            'beta:5' => 50000,
-        ]);
-
-        $active = $this->lifecycle->activeCampaignIds();
-        $this->assertArrayHasKey('acme:5', $active);
-        $this->assertArrayHasKey('beta:5', $active);
-        $this->assertCount(2, $active);
-        $this->assertSame(50000, $this->lifecycle->maxRecipientDemand());
-
-        // Finishing only acme:5 must not drop beta:5 or teardown.
-        $campaign = new Campaign;
-        $campaign->id = 5;
-        // Simulate tenant context for acme via direct unset path:
-        $active = $this->lifecycle->activeCampaignIds();
-        unset($active['acme:5']);
-        $this->lifecycle->storeActiveCampaignIds($active);
-        $load = $this->lifecycle->campaignLoad();
-        unset($load['acme:5']);
-        $this->lifecycle->storeCampaignLoad($load);
-
-        $this->assertSame(['beta:5' => true], $this->lifecycle->activeCampaignIds());
         Queue::assertNotPushed(TeardownOciCampaignWorkerJob::class);
+        $this->assertSame([2 => true], $this->lifecycle->activeCampaignIds());
     }
 
     public function test_ensure_worker_creates_and_stores_ocid(): void
     {
-        $this->lifecycle->storeActiveCampaignIds(['_:99' => true]);
+        $this->lifecycle->storeActiveCampaignIds([99 => true]);
 
         $this->lifecycle->ensureWorker(app(OciContainerInstanceClient::class));
 
@@ -163,7 +130,7 @@ class CampaignOciWorkerLifecycleTest extends TestCase
 
         $this->lifecycle->onCampaignStarted($campaign);
 
-        $this->assertSame(['_:55' => 25000], $this->lifecycle->campaignLoad());
+        $this->assertSame([55 => 25000], $this->lifecycle->campaignLoad());
         $this->assertSame(25000, $this->lifecycle->maxRecipientDemand());
         $this->assertSame(2.0, $this->lifecycle->resolveShape()['ocpus']);
     }
@@ -184,8 +151,8 @@ class CampaignOciWorkerLifecycleTest extends TestCase
 
     public function test_force_destroy_clears_state_and_records_session(): void
     {
-        $this->lifecycle->storeActiveCampaignIds(['_:1' => true]);
-        $this->lifecycle->storeCampaignLoad(['_:1' => 100]);
+        $this->lifecycle->storeActiveCampaignIds([1 => true]);
+        $this->lifecycle->storeCampaignLoad([1 => 100]);
         $this->lifecycle->storeInstanceOcid('ocid1.containerinstance.oc1.test.force');
         $this->lifecycle->storeInstanceStartedAt(now()->subHour()->toIso8601String());
 
@@ -198,44 +165,23 @@ class CampaignOciWorkerLifecycleTest extends TestCase
         $this->assertGreaterThanOrEqual(3500, $result['session']['active_seconds']);
     }
 
-    public function test_legacy_numeric_active_ids_are_normalized(): void
+    public function test_legacy_tenant_prefixed_refs_collapse_to_campaign_id(): void
     {
-        // Old format before tenant-scoped refs.
-        $this->lifecycle->storeActiveCampaignIds([7 => true, 9 => true]);
+        // Leftover keys from the tenant_id:campaign_id experiment must still finish cleanly.
+        $this->lifecycle->storeActiveCampaignIds([
+            'acme:12' => true,
+            'beta:12' => true,
+        ]);
 
-        $this->assertSame(['_:7' => true, '_:9' => true], $this->lifecycle->activeCampaignIds());
-    }
+        $this->assertSame([12 => true], $this->lifecycle->activeCampaignIds());
 
-    public function test_forget_campaign_refs_clears_tenant_and_legacy_aliases(): void
-    {
         $campaign = new Campaign;
         $campaign->id = 12;
-
-        $this->lifecycle->storeActiveCampaignIds([
-            '_:12' => true,
-            'other:12' => true,
-        ]);
-        $this->lifecycle->storeCampaignLoad([
-            '_:12' => 100,
-            'other:12' => 200,
-        ]);
-
-        $this->lifecycle->forgetCampaignRefs($campaign);
-
-        $this->assertSame(['other:12' => true], $this->lifecycle->activeCampaignIds());
-        $this->assertSame(['other:12' => 200], $this->lifecycle->campaignLoad());
-    }
-
-    public function test_prune_drops_legacy_underscore_refs(): void
-    {
-        $this->lifecycle->storeActiveCampaignIds([
-            '_:99' => true,
-            'ghost-tenant:1' => true,
-        ]);
-
-        $this->lifecycle->pruneFinishedCampaignRefs();
+        Queue::fake();
+        $this->lifecycle->onCampaignFinished($campaign);
 
         $this->assertSame([], $this->lifecycle->activeCampaignIds());
+        Queue::assertPushed(TeardownOciCampaignWorkerJob::class);
     }
 
     public function test_status_snapshot_includes_last_session_duration(): void

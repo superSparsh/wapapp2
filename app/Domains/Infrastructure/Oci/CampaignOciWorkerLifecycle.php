@@ -8,7 +8,6 @@ use App\Domains\Infrastructure\Oci\Contracts\OciContainerInstanceClient;
 use App\Domains\Infrastructure\Oci\Jobs\EnsureOciCampaignWorkerJob;
 use App\Domains\Infrastructure\Oci\Jobs\TeardownOciCampaignWorkerJob;
 use App\Models\Campaign;
-use App\Models\Tenant;
 use App\Support\OciWorkload;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
@@ -51,16 +50,15 @@ final class CampaignOciWorkerLifecycle
         }
 
         $campaignId = (int) $campaign->id;
-        $ref = $this->campaignRefKey($campaign);
         $recipients = max(0, (int) ($campaign->total_recipients ?? 0));
 
-        $this->withLock(function () use ($ref, $recipients): void {
+        $this->withLock(function () use ($campaignId, $recipients): void {
             $active = $this->activeCampaignIds();
-            $active[$ref] = true;
+            $active[$campaignId] = true;
             $this->storeActiveCampaignIds($active);
 
             $load = $this->campaignLoad();
-            $load[$ref] = $recipients;
+            $load[$campaignId] = $recipients;
             $this->storeCampaignLoad($load);
         });
 
@@ -74,12 +72,25 @@ final class CampaignOciWorkerLifecycle
             return;
         }
 
-        $this->withLock(function () use ($campaign): void {
-            $this->forgetCampaignRefs($campaign);
+        $campaignId = (int) $campaign->id;
+        $shouldTeardown = false;
+
+        $this->withLock(function () use ($campaignId, &$shouldTeardown): void {
+            $active = $this->activeCampaignIds();
+            unset($active[$campaignId]);
+            $this->storeActiveCampaignIds($active);
+
+            $load = $this->campaignLoad();
+            unset($load[$campaignId]);
+            $this->storeCampaignLoad($load);
+
+            $shouldTeardown = $active === [];
         });
 
-        // Always schedule teardown. pruneFinishedCampaignRefs() drops completed/stale
-        // refs (incl. pre-tenant-key format). If another campaign is still Sending, teardown no-ops.
+        if (! $shouldTeardown) {
+            return;
+        }
+
         $grace = max(0, (int) config('oci-workers.ephemeral.grace_seconds', 120));
 
         TeardownOciCampaignWorkerJob::dispatch()
@@ -230,25 +241,16 @@ final class CampaignOciWorkerLifecycle
         }
 
         $this->withLock(function () use ($client): void {
-            // Drop Redis refs for campaigns that are no longer Sending (stale keys / key-format mismatch).
-            $this->pruneFinishedCampaignRefs();
-
             $active = $this->activeCampaignIds();
             if ($active !== []) {
                 Log::info('OCI ephemeral: skip teardown - campaigns still active', [
                     'active' => array_keys($active),
                 ]);
 
-                // Keep retrying — stale refs after tenant-key migration used to skip once forever.
-                TeardownOciCampaignWorkerJob::dispatch()
-                    ->delay(now()->addSeconds(max(30, (int) config('oci-workers.ephemeral.grace_seconds', 120))))
-                    ->onQueue((string) config('oci-workers.ephemeral.provisioning_queue', 'provisioning'));
-
                 return;
             }
 
-            // Active list empty = no Sending campaigns. Do not block forever on leftover
-            // campaign-queue jobs (old prefix / retries); next CI can drain them if needed.
+            // No active campaigns left. Do not block forever on leftover queue jobs.
             $depth = $this->campaignQueueDepth();
             if ($depth > 0) {
                 Log::info('OCI ephemeral: destroying despite leftover campaign queue jobs', [
@@ -362,144 +364,7 @@ final class CampaignOciWorkerLifecycle
     }
 
     /**
-     * Stable cross-tenant key: "{tenant_id}:{campaign_id}".
-     * Prevents two tenants with the same numeric campaign id from colliding.
-     */
-    public function campaignRefKey(Campaign $campaign): string
-    {
-        $tenantId = tenant('id');
-        if (! is_string($tenantId) || $tenantId === '') {
-            $tenantId = '_';
-        }
-
-        return $tenantId.':'.(int) $campaign->id;
-    }
-
-    /**
-     * Remove this campaign from active/load maps.
-     * Clears current tenant ref, legacy "_:id", and any leftover bare-id aliases.
-     */
-    public function forgetCampaignRefs(Campaign $campaign): void
-    {
-        $id = (int) $campaign->id;
-        $suffix = ':'.$id;
-        $aliases = [
-            $this->campaignRefKey($campaign),
-            '_:'.$id,
-        ];
-
-        $active = $this->activeCampaignIds();
-        $load = $this->campaignLoad();
-
-        foreach ($aliases as $ref) {
-            unset($active[$ref], $load[$ref]);
-        }
-
-        // Same campaign id under current tenant only (do not touch other tenants' ids).
-        $tenantId = tenant('id');
-        $tenantPrefix = (is_string($tenantId) && $tenantId !== '') ? $tenantId.':' : null;
-        foreach (array_keys($active) as $ref) {
-            if ($ref === '_:'.$id) {
-                unset($active[$ref], $load[$ref]);
-
-                continue;
-            }
-            if ($tenantPrefix !== null && str_starts_with($ref, $tenantPrefix) && str_ends_with($ref, $suffix)) {
-                unset($active[$ref], $load[$ref]);
-            }
-        }
-
-        $this->storeActiveCampaignIds($active);
-        $this->storeCampaignLoad($load);
-    }
-
-    /**
-     * Clear active Redis refs whose campaigns are no longer Sending (or tenant/campaign gone).
-     * Fixes containers stuck after complete when refs used a different key format.
-     */
-    public function pruneFinishedCampaignRefs(): void
-    {
-        $active = $this->activeCampaignIds();
-        if ($active === []) {
-            return;
-        }
-
-        $wasInitialized = tenancy()->initialized;
-        $previousTenant = $wasInitialized ? tenant() : null;
-
-        $keptActive = [];
-        $load = $this->campaignLoad();
-        $keptLoad = [];
-
-        foreach (array_keys($active) as $ref) {
-            if (! str_contains($ref, ':')) {
-                continue;
-            }
-
-            [$tenantId, $campaignId] = explode(':', $ref, 2);
-            $campaignId = (int) $campaignId;
-
-            if ($tenantId === '_' || $tenantId === '' || $campaignId < 1) {
-                // Legacy / unknown tenant — drop if we cannot verify Sending state.
-                unset($load[$ref]);
-
-                continue;
-            }
-
-            try {
-                $tenant = Tenant::query()->find($tenantId);
-                if ($tenant === null) {
-                    unset($load[$ref]);
-
-                    continue;
-                }
-
-                tenancy()->initialize($tenant);
-                $campaign = Campaign::query()->find($campaignId);
-                if ($campaign !== null && $campaign->isSending()) {
-                    $keptActive[$ref] = true;
-                    if (isset($load[$ref])) {
-                        $keptLoad[$ref] = $load[$ref];
-                    }
-                }
-            } catch (\Throwable $e) {
-                Log::warning('OCI ephemeral: prune active ref failed', [
-                    'ref' => $ref,
-                    'error' => $e->getMessage(),
-                ]);
-                // Keep ref on unexpected errors to avoid tearing down a live campaign.
-                $keptActive[$ref] = true;
-                if (isset($load[$ref])) {
-                    $keptLoad[$ref] = $load[$ref];
-                }
-            } finally {
-                if (tenancy()->initialized) {
-                    tenancy()->end();
-                }
-            }
-        }
-
-        if ($wasInitialized && $previousTenant !== null) {
-            try {
-                tenancy()->initialize($previousTenant);
-            } catch (\Throwable) {
-                // ignore restore failures
-            }
-        }
-
-        if ($keptActive !== $active) {
-            Log::info('OCI ephemeral: pruned finished campaign refs', [
-                'before' => array_keys($active),
-                'after' => array_keys($keptActive),
-            ]);
-        }
-
-        $this->storeActiveCampaignIds($keptActive);
-        $this->storeCampaignLoad($keptLoad);
-    }
-
-    /**
-     * @return array<string, int>
+     * @return array<int, int>
      */
     public function campaignLoad(): array
     {
@@ -515,28 +380,29 @@ final class CampaignOciWorkerLifecycle
 
         $out = [];
         foreach ($decoded as $key => $recipients) {
-            $ref = $this->normalizeCampaignRef($key);
-            if ($ref === null) {
+            $id = $this->parseCampaignId($key);
+            if ($id === null) {
                 continue;
             }
-            $out[$ref] = max(0, (int) $recipients);
+            // If duplicate keys collapse (legacy tenant:id leftovers), keep the larger load.
+            $out[$id] = max($out[$id] ?? 0, max(0, (int) $recipients));
         }
 
         return $out;
     }
 
     /**
-     * @param  array<string, int>  $load
+     * @param  array<int, int>  $load
      */
     public function storeCampaignLoad(array $load): void
     {
         $normalized = [];
         foreach ($load as $key => $recipients) {
-            $ref = $this->normalizeCampaignRef($key);
-            if ($ref === null) {
+            $id = $this->parseCampaignId($key);
+            if ($id === null) {
                 continue;
             }
-            $normalized[$ref] = max(0, (int) $recipients);
+            $normalized[$id] = max(0, (int) $recipients);
         }
 
         $this->redis()->set(
@@ -560,8 +426,6 @@ final class CampaignOciWorkerLifecycle
         $base = (array) config('oci-workers.ephemeral.container_environment', []);
 
         // Same payload shape as the first working ephemeral CI (Sept 26).
-        // Do NOT inject APP_NAME / REDIS_PREFIX / config:clear — the OCIR image's
-        // baked config/.env is the Redis source of truth (OCI_REDIS_HOST was never required).
         $fromApp = array_filter([
             'APP_ENV' => (string) config('app.env'),
             'APP_KEY' => (string) config('app.key'),
@@ -588,7 +452,7 @@ final class CampaignOciWorkerLifecycle
     }
 
     /**
-     * @return array<string, true>
+     * @return array<int, true>
      */
     public function activeCampaignIds(): array
     {
@@ -604,58 +468,58 @@ final class CampaignOciWorkerLifecycle
 
         $out = [];
         foreach ($decoded as $id) {
-            $ref = $this->normalizeCampaignRef($id);
-            if ($ref === null) {
+            $campaignId = $this->parseCampaignId($id);
+            if ($campaignId === null) {
                 continue;
             }
-            $out[$ref] = true;
+            $out[$campaignId] = true;
         }
 
         return $out;
     }
 
     /**
-     * @param  array<string, true>  $active
+     * @param  array<int, true>  $active
      */
     public function storeActiveCampaignIds(array $active): void
     {
-        $refs = [];
+        $ids = [];
         foreach (array_keys($active) as $key) {
-            $ref = $this->normalizeCampaignRef($key);
-            if ($ref !== null) {
-                $refs[] = $ref;
+            $id = $this->parseCampaignId($key);
+            if ($id !== null) {
+                $ids[] = $id;
             }
         }
 
         $this->redis()->set(
             $this->redisKey(self::CACHE_ACTIVE_CAMPAIGNS),
-            json_encode(array_values(array_unique($refs))),
+            json_encode(array_values(array_unique($ids))),
         );
     }
 
     /**
-     * Accept "tenant:id" or legacy bare numeric campaign id (maps to "_:{id}").
+     * Accept bare campaign id or leftover "tenant:id" refs from the short-lived tenant-key experiment.
      */
-    private function normalizeCampaignRef(mixed $value): ?string
+    private function parseCampaignId(mixed $value): ?int
     {
         if (is_int($value) || (is_string($value) && ctype_digit($value))) {
-            return '_:'.(int) $value;
+            $id = (int) $value;
+
+            return $id > 0 ? $id : null;
         }
 
-        if (! is_string($value) || $value === '') {
+        if (! is_string($value) || ! str_contains($value, ':')) {
             return null;
         }
 
-        if (! str_contains($value, ':')) {
+        $part = substr($value, strrpos($value, ':') + 1);
+        if (! ctype_digit($part)) {
             return null;
         }
 
-        [$tenantId, $campaignId] = explode(':', $value, 2);
-        if ($tenantId === '' || ! ctype_digit($campaignId)) {
-            return null;
-        }
+        $id = (int) $part;
 
-        return $tenantId.':'.(int) $campaignId;
+        return $id > 0 ? $id : null;
     }
 
     public function instanceOcid(): ?string
@@ -749,7 +613,7 @@ final class CampaignOciWorkerLifecycle
      *   started_at: string|null,
      *   active_seconds: int|null,
      *   active_for_humans: string|null,
-     *   active_campaign_ids: list<string>,
+     *   active_campaign_ids: list<int>,
      *   max_recipients: int,
      *   last_session: array{started_at: string, ended_at: string, active_seconds: int, active_for_humans: string}|null
      * }
