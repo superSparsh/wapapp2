@@ -61,10 +61,12 @@ final class HttpOciContainerInstanceClient implements OciContainerInstanceClient
                 'displayName' => 'horizon',
                 'imageUrl' => $cfg['image_url'],
                 'environmentVariables' => $envMap === [] ? new \stdClass : $envMap,
-                // Keep simple entrypoint: config:clear + injecting web REDIS_HOST=127.0.0.1
-                // previously overrode the image's reachable Redis and silently stopped sends.
-                'command' => ['php'],
-                'arguments' => ['artisan', 'horizon'],
+                // Apply injected REDIS_HOST / REDIS_PREFIX / APP_NAME (must be non-loopback Redis).
+                'command' => ['/bin/sh'],
+                'arguments' => [
+                    '-c',
+                    'php artisan config:clear >/dev/null 2>&1; exec php artisan horizon',
+                ],
                 'workingDirectory' => '/var/www/html',
             ]],
             'vnics' => [[

@@ -32,6 +32,7 @@ class CampaignOciWorkerLifecycleTest extends TestCase
             'oci-workers.ephemeral.driver' => 'log',
             'oci-workers.ephemeral.grace_seconds' => 60,
             'oci-workers.ephemeral.provisioning_queue' => 'provisioning',
+            'oci-workers.ephemeral.redis_host' => '10.0.0.203',
         ]);
 
         $this->app->bind(OciContainerInstanceClient::class, LogOciContainerInstanceClient::class);
@@ -204,5 +205,45 @@ class CampaignOciWorkerLifecycleTest extends TestCase
         $env = $this->lifecycle->workerEnvironment();
 
         $this->assertArrayNotHasKey('REDIS_HOST', $env);
+        $this->assertSame('', $this->lifecycle->resolveWorkerRedisHost());
+    }
+
+    public function test_ensure_refuses_provision_without_reachable_redis(): void
+    {
+        config([
+            'database.redis.default.host' => '127.0.0.1',
+            'oci-workers.ephemeral.redis_host' => '',
+        ]);
+
+        $this->lifecycle->storeActiveCampaignIds([99 => true]);
+
+        $client = new class implements OciContainerInstanceClient
+        {
+            public bool $created = false;
+
+            public function isConfigured(): bool
+            {
+                return true;
+            }
+
+            public function createCampaignWorker(string $displayName, array $environment = [], array $shape = []): array
+            {
+                $this->created = true;
+
+                return ['ocid' => 'ocid1.should-not-create', 'display_name' => $displayName];
+            }
+
+            public function delete(string $ocid): void {}
+
+            public function listCampaignWorkerOcids(): array
+            {
+                return [];
+            }
+        };
+
+        $this->lifecycle->ensureWorker($client);
+
+        $this->assertFalse($client->created);
+        $this->assertNull($this->lifecycle->instanceOcid());
     }
 }
