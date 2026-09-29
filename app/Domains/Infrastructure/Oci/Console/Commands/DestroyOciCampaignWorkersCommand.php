@@ -49,8 +49,19 @@ class DestroyOciCampaignWorkersCommand extends Command
         }
 
         if ($this->option('dry-run')) {
-            $orphans = $client->isConfigured() ? $client->listCampaignWorkerOcids() : [];
+            $orphans = [];
+            try {
+                if ($client->isConfigured()) {
+                    $orphans = $client->listCampaignWorkerOcids();
+                }
+            } catch (\Throwable $e) {
+                $this->warn('Could not list OCI instances: '.$e->getMessage());
+            }
+
             $this->warn('Dry-run: would delete tracked + '.count($orphans).' listed instance(s).');
+            if ($tracked) {
+                $this->line('  - '.$tracked.' (tracked)');
+            }
             foreach ($orphans as $ocid) {
                 $this->line('  - '.$ocid);
             }
