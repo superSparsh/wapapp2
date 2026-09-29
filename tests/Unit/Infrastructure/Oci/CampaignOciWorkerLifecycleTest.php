@@ -193,4 +193,16 @@ class CampaignOciWorkerLifecycleTest extends TestCase
 
         $this->assertSame('10.0.0.203', $env['REDIS_HOST']);
     }
+
+    public function test_worker_environment_omits_loopback_redis_host(): void
+    {
+        config([
+            'database.redis.default.host' => '127.0.0.1',
+            'oci-workers.ephemeral.redis_host' => '',
+        ]);
+
+        $env = $this->lifecycle->workerEnvironment();
+
+        $this->assertArrayNotHasKey('REDIS_HOST', $env);
+    }
 }

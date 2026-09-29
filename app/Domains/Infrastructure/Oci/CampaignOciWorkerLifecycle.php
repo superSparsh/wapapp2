@@ -365,6 +365,16 @@ final class CampaignOciWorkerLifecycle
         $shape ??= $this->resolveShape();
         $base = (array) config('oci-workers.ephemeral.container_environment', []);
 
+        // Never inject web-loopback Redis into the CI — it cannot reach 127.0.0.1 on the app VM.
+        // Prefer OCI_REDIS_HOST; otherwise omit REDIS_HOST so the image/.env value wins.
+        $redisHost = trim((string) (config('oci-workers.ephemeral.redis_host') ?: ''));
+        if ($redisHost === '') {
+            $appRedisHost = (string) config('database.redis.default.host', '');
+            if ($appRedisHost !== '' && ! in_array($appRedisHost, ['127.0.0.1', 'localhost', '::1'], true)) {
+                $redisHost = $appRedisHost;
+            }
+        }
+
         $fromApp = array_filter([
             'APP_NAME' => (string) config('app.name', 'WapApp'),
             'APP_ENV' => (string) config('app.env'),
@@ -377,15 +387,10 @@ final class CampaignOciWorkerLifecycle
             'DB_USERNAME' => (string) config('database.connections.mysql.username', ''),
             'DB_PASSWORD' => (string) config('database.connections.mysql.password', ''),
             'REDIS_CLIENT' => (string) config('database.redis.client', 'phpredis'),
-            // Prefer OCI_REDIS_HOST: web may use 127.0.0.1, but the CI cannot reach that.
-            'REDIS_HOST' => (string) (
-                config('oci-workers.ephemeral.redis_host')
-                ?: config('database.redis.default.host', '127.0.0.1')
-            ),
+            'REDIS_HOST' => $redisHost,
             'REDIS_PASSWORD' => (string) (config('database.redis.default.password') ?? ''),
             'REDIS_PORT' => (string) config('database.redis.default.port', 6379),
             'REDIS_DB' => (string) config('database.redis.default.database', 0),
-            // Critical: same Redis key namespace as the web app or Horizon never sees campaign jobs.
             'REDIS_PREFIX' => (string) config('database.redis.options.prefix', ''),
             'HORIZON_PREFIX' => (string) config('horizon.prefix', ''),
             'QUEUE_CONNECTION' => 'redis',
