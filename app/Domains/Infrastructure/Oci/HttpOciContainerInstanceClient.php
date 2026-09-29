@@ -149,6 +149,62 @@ final class HttpOciContainerInstanceClient implements OciContainerInstanceClient
     }
 
     /**
+     * @return list<string>
+     */
+    public function listCampaignWorkerOcids(): array
+    {
+        if (! $this->isConfigured()) {
+            return [];
+        }
+
+        $cfg = config('oci-workers.ephemeral');
+        $region = (string) $cfg['region'];
+        $host = "compute-containers.{$region}.oci.oraclecloud.com";
+        $compartment = rawurlencode((string) $cfg['compartment_id']);
+        $path = '/20210415/containerInstances?compartmentId='.$compartment.'&limit=100';
+        $prefix = (string) ($cfg['display_name_prefix'] ?? 'wapapp-campaign-worker');
+
+        $response = $this->signedRequest('GET', $host, $path, '');
+        if ($response['status'] < 200 || $response['status'] >= 300) {
+            Log::warning('OCI ephemeral: list Container Instances failed', [
+                'status' => $response['status'],
+                'body' => $this->truncateBody($response['body']),
+            ]);
+
+            return [];
+        }
+
+        /** @var array<string, mixed> $json */
+        $json = json_decode($response['body'], true) ?? [];
+        $items = is_array($json['items'] ?? null) ? $json['items'] : [];
+        $ocids = [];
+
+        foreach ($items as $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+            $ocid = (string) ($item['id'] ?? '');
+            $name = (string) ($item['displayName'] ?? '');
+            $tags = is_array($item['freeformTags'] ?? null) ? $item['freeformTags'] : [];
+            $role = (string) ($tags['role'] ?? '');
+            $lifecycle = strtoupper((string) ($item['lifecycleState'] ?? ''));
+
+            if ($ocid === '' || in_array($lifecycle, ['DELETED', 'DELETING'], true)) {
+                continue;
+            }
+
+            $matchesPrefix = $prefix !== '' && str_starts_with($name, $prefix);
+            $matchesTag = $role === 'campaign-worker';
+
+            if ($matchesPrefix || $matchesTag) {
+                $ocids[] = $ocid;
+            }
+        }
+
+        return $ocids;
+    }
+
+    /**
      * Use cURL so signed Content-Length / body bytes are not mutated by Guzzle.
      *
      * @return array{status: int, body: string}

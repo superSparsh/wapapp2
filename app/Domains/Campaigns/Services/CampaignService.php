@@ -164,13 +164,16 @@ class CampaignService
 
         $campaign->update(['status' => $newStatus]);
 
-        // Resume: ensure worker is up again (idempotent). Pause keeps the instance.
-        if ($newStatus === CampaignStatus::Sending) {
-            try {
-                app(CampaignOciWorkerLifecycle::class)->onCampaignStarted($campaign->fresh() ?? $campaign);
-            } catch (Throwable $e) {
-                Log::warning('OCI campaign worker ensure on resume failed', ['error' => $e->getMessage()]);
+        try {
+            $lifecycle = app(CampaignOciWorkerLifecycle::class);
+            if ($newStatus === CampaignStatus::Paused) {
+                // Release OCI refcount so idle containers are not billed while paused.
+                $lifecycle->onCampaignFinished($campaign->fresh() ?? $campaign);
+            } else {
+                $lifecycle->onCampaignStarted($campaign->fresh() ?? $campaign);
             }
+        } catch (Throwable $e) {
+            Log::warning('OCI campaign worker lifecycle on pause/resume failed', ['error' => $e->getMessage()]);
         }
 
         return $campaign->refresh();

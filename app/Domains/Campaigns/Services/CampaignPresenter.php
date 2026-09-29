@@ -85,6 +85,7 @@ class CampaignPresenter
             'completion_rate' => $campaign->completionRate(),
             'created_at' => $campaign->created_at?->format('d M Y h:i A') ?? '',
             'scheduled_at' => $campaign->scheduled_at?->format('d M Y h:i A'),
+            'duration' => $campaign->durationForHumans(),
         ];
     }
 

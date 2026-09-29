@@ -29,6 +29,10 @@ final class CampaignOciWorkerLifecycle
 
     public const CACHE_CAMPAIGN_LOAD = 'oci.campaign_worker.campaign_load';
 
+    public const CACHE_INSTANCE_STARTED_AT = 'oci.campaign_worker.instance_started_at';
+
+    public const CACHE_LAST_SESSION = 'oci.campaign_worker.last_session';
+
     public const CACHE_LOCK = 'oci.campaign_worker.lock';
 
     public function enabled(): bool
@@ -155,11 +159,63 @@ final class CampaignOciWorkerLifecycle
             }
 
             $this->storeInstanceOcid($created['ocid']);
+            $this->storeInstanceStartedAt(now()->toIso8601String());
 
             Log::info('OCI ephemeral: stored campaign worker ocid', [
                 'ocid' => $created['ocid'],
+                'started_at' => $this->instanceStartedAt(),
             ]);
         });
+    }
+
+    /**
+     * Force-destroy the tracked campaign worker (and optional OCI orphans), clear Redis state,
+     * and record how long the container was active.
+     *
+     * @return array{deleted: list<string>, session: array<string, mixed>|null}
+     */
+    public function forceDestroy(OciContainerInstanceClient $client, bool $includeOrphans = true): array
+    {
+        $deleted = [];
+
+        $this->withLock(function () use ($client, $includeOrphans, &$deleted): void {
+            $tracked = $this->instanceOcid();
+            if ($tracked !== null) {
+                $client->delete($tracked);
+                $deleted[] = $tracked;
+            }
+
+            if ($includeOrphans) {
+                foreach ($client->listCampaignWorkerOcids() as $ocid) {
+                    if ($ocid === '' || in_array($ocid, $deleted, true)) {
+                        continue;
+                    }
+                    $client->delete($ocid);
+                    $deleted[] = $ocid;
+                }
+            }
+
+            $session = $this->closeSession();
+            $this->forgetInstanceOcid();
+            $this->forgetInstanceStartedAt();
+            $this->forgetCampaignLoad();
+            $this->storeActiveCampaignIds([]);
+
+            if ($session !== null) {
+                $this->storeLastSession($session);
+                Log::info('OCI ephemeral: force-destroyed campaign worker(s)', [
+                    'deleted' => $deleted,
+                    'active_seconds' => $session['active_seconds'] ?? null,
+                    'started_at' => $session['started_at'] ?? null,
+                    'ended_at' => $session['ended_at'] ?? null,
+                ]);
+            }
+        });
+
+        return [
+            'deleted' => $deleted,
+            'session' => $this->lastSession(),
+        ];
     }
 
     public function teardownWorker(OciContainerInstanceClient $client): void
@@ -198,8 +254,19 @@ final class CampaignOciWorkerLifecycle
             }
 
             $client->delete($ocid);
+            $session = $this->closeSession();
             $this->forgetInstanceOcid();
+            $this->forgetInstanceStartedAt();
             $this->forgetCampaignLoad();
+            if ($session !== null) {
+                $this->storeLastSession($session);
+                Log::info('OCI ephemeral: worker session closed', [
+                    'ocid' => $ocid,
+                    'active_seconds' => $session['active_seconds'],
+                    'started_at' => $session['started_at'],
+                    'ended_at' => $session['ended_at'],
+                ]);
+            }
         });
     }
 
@@ -372,6 +439,137 @@ final class CampaignOciWorkerLifecycle
     public function forgetInstanceOcid(): void
     {
         $this->redis()->del($this->redisKey(self::CACHE_INSTANCE_OCID));
+    }
+
+    public function instanceStartedAt(): ?string
+    {
+        $value = $this->redis()->get($this->redisKey(self::CACHE_INSTANCE_STARTED_AT));
+
+        return is_string($value) && $value !== '' ? $value : null;
+    }
+
+    public function storeInstanceStartedAt(string $iso8601): void
+    {
+        $this->redis()->set($this->redisKey(self::CACHE_INSTANCE_STARTED_AT), $iso8601);
+    }
+
+    public function forgetInstanceStartedAt(): void
+    {
+        $this->redis()->del($this->redisKey(self::CACHE_INSTANCE_STARTED_AT));
+    }
+
+    /**
+     * @return array{started_at: string, ended_at: string, active_seconds: int}|null
+     */
+    public function lastSession(): ?array
+    {
+        $raw = $this->redis()->get($this->redisKey(self::CACHE_LAST_SESSION));
+        if (! is_string($raw) || $raw === '') {
+            return null;
+        }
+
+        $decoded = json_decode($raw, true);
+
+        return is_array($decoded) ? $decoded : null;
+    }
+
+    /**
+     * @param  array{started_at: string, ended_at: string, active_seconds: int}  $session
+     */
+    public function storeLastSession(array $session): void
+    {
+        $this->redis()->set($this->redisKey(self::CACHE_LAST_SESSION), json_encode($session));
+    }
+
+    /**
+     * @return array{started_at: string, ended_at: string, active_seconds: int}|null
+     */
+    private function closeSession(): ?array
+    {
+        $startedAt = $this->instanceStartedAt();
+        if ($startedAt === null) {
+            return null;
+        }
+
+        try {
+            $start = \Illuminate\Support\Carbon::parse($startedAt);
+        } catch (\Throwable) {
+            return null;
+        }
+
+        $end = now();
+
+        return [
+            'started_at' => $start->toIso8601String(),
+            'ended_at' => $end->toIso8601String(),
+            'active_seconds' => max(0, (int) $start->diffInSeconds($end)),
+        ];
+    }
+
+    /**
+     * Admin-facing snapshot of the shared campaign worker (current + last session).
+     *
+     * @return array{
+     *   enabled: bool,
+     *   ocid: string|null,
+     *   started_at: string|null,
+     *   active_seconds: int|null,
+     *   active_for_humans: string|null,
+     *   active_campaign_ids: list<int>,
+     *   max_recipients: int,
+     *   last_session: array{started_at: string, ended_at: string, active_seconds: int, active_for_humans: string}|null
+     * }
+     */
+    public function statusSnapshot(): array
+    {
+        $startedAt = $this->instanceStartedAt();
+        $activeSeconds = null;
+        if ($startedAt !== null) {
+            try {
+                $activeSeconds = max(0, (int) \Illuminate\Support\Carbon::parse($startedAt)->diffInSeconds(now()));
+            } catch (\Throwable) {
+                $activeSeconds = null;
+            }
+        }
+
+        $last = $this->lastSession();
+        $lastFormatted = null;
+        if (is_array($last)) {
+            $secs = (int) ($last['active_seconds'] ?? 0);
+            $lastFormatted = [
+                'started_at' => (string) ($last['started_at'] ?? ''),
+                'ended_at' => (string) ($last['ended_at'] ?? ''),
+                'active_seconds' => $secs,
+                'active_for_humans' => $this->formatDurationSeconds($secs),
+            ];
+        }
+
+        return [
+            'enabled' => $this->enabled(),
+            'ocid' => $this->instanceOcid(),
+            'started_at' => $startedAt,
+            'active_seconds' => $activeSeconds,
+            'active_for_humans' => $activeSeconds !== null ? $this->formatDurationSeconds($activeSeconds) : null,
+            'active_campaign_ids' => array_map('intval', array_keys($this->activeCampaignIds())),
+            'max_recipients' => $this->maxRecipientDemand(),
+            'last_session' => $lastFormatted,
+        ];
+    }
+
+    public function formatDurationSeconds(int $seconds): string
+    {
+        $h = intdiv($seconds, 3600);
+        $m = intdiv($seconds % 3600, 60);
+        $s = $seconds % 60;
+
+        if ($h > 0) {
+            return sprintf('%dh %dm %ds', $h, $m, $s);
+        }
+        if ($m > 0) {
+            return sprintf('%dm %ds', $m, $s);
+        }
+
+        return sprintf('%ds', $s);
     }
 
     private function withLock(callable $callback): void

@@ -18,7 +18,7 @@ class ProcessDueCampaignsCommand extends Command
 
     protected $signature = 'campaigns:process-due {--tenants=* : Tenant IDs to process}';
 
-    protected $description = 'Queue due scheduled campaigns and resume sending campaigns.';
+    protected $description = 'Queue due scheduled campaigns, reconcile finished Sending, and auto-pause stuck Sending.';
 
     public function handle(CampaignSendService $sendService): int
     {
@@ -27,8 +27,10 @@ class ProcessDueCampaignsCommand extends Command
         }
 
         $total = 0;
+        $reconciled = 0;
+        $pausedIdle = 0;
 
-        $this->foreachTenant(function () use ($sendService, &$total): void {
+        $this->foreachTenant(function () use ($sendService, &$total, &$reconciled, &$pausedIdle): void {
             $due = Campaign::query()
                 ->where('status', CampaignStatus::Scheduled)
                 ->where('scheduled_at', '<=', now())
@@ -39,10 +41,11 @@ class ProcessDueCampaignsCommand extends Command
                 $total++;
             }
 
-            $sendService->reconcileStuckSendingCampaigns();
+            $reconciled += $sendService->reconcileStuckSendingCampaigns();
+            $pausedIdle += $sendService->pauseIdleSendingCampaigns();
         });
 
-        $this->info("Queued {$total} due campaign(s).");
+        $this->info("Queued {$total} due campaign(s). Reconciled {$reconciled}. Auto-paused idle {$pausedIdle}.");
 
         return self::SUCCESS;
     }

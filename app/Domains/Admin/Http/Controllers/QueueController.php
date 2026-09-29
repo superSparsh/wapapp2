@@ -6,6 +6,7 @@ namespace App\Domains\Admin\Http\Controllers;
 
 use App\Domains\Admin\Services\QueueAdminService;
 use App\Domains\Admin\Support\AdminListQuery;
+use App\Domains\Infrastructure\Oci\CampaignOciWorkerLifecycle;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -15,6 +16,7 @@ class QueueController extends Controller
 {
     public function __construct(
         private readonly QueueAdminService $queues,
+        private readonly CampaignOciWorkerLifecycle $ociWorkers,
     ) {}
 
     public function index(Request $request): View
@@ -31,7 +33,7 @@ class QueueController extends Controller
         $queue = $request->query('queue');
         $queue = is_string($queue) ? $queue : '';
 
-        return view('admin.queues.index', $this->queues->dashboard(
+        $data = $this->queues->dashboard(
             max(1, (int) $request->integer('page', 1)),
             max(1, (int) $request->integer('failed_page', 1)),
             25,
@@ -44,7 +46,10 @@ class QueueController extends Controller
                 'sort' => $parsed['sort'],
                 'direction' => $parsed['direction'],
             ],
-        ));
+        );
+        $data['oci_worker'] = $this->ociWorkers->statusSnapshot();
+
+        return view('admin.queues.index', $data);
     }
 
     public function retry(string $uuid): RedirectResponse

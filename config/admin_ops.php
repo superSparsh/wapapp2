@@ -92,6 +92,22 @@ return [
             'command' => 'horizon:snapshot',
             'danger' => false,
         ],
+        'oci_destroy_campaign_workers' => [
+            'group' => 'OCI campaign workers',
+            'label' => 'Destroy campaign containers now',
+            'description' => 'oci:destroy-campaign-workers — force-delete ephemeral CI, clear Redis, pause Sending campaigns.',
+            'type' => 'artisan',
+            'command' => 'oci:destroy-campaign-workers',
+            'danger' => true,
+        ],
+        'oci_destroy_campaign_workers_dry' => [
+            'group' => 'OCI campaign workers',
+            'label' => 'Dry-run destroy campaign containers',
+            'description' => 'oci:destroy-campaign-workers --dry-run',
+            'type' => 'artisan',
+            'command' => 'oci:destroy-campaign-workers --dry-run',
+            'danger' => false,
+        ],
         'horizon_clear' => [
             'group' => 'Queue / Horizon',
             'label' => 'Clear Horizon jobs',

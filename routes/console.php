@@ -12,6 +12,7 @@ use App\Domains\Billing\Console\Commands\ProcessSubscriptionRenewalsCommand;
 use App\Domains\Billing\Console\Commands\ReconcileZohoWalletCommand;
 use App\Domains\Billing\Console\Commands\SyncRazorpaySubscriptionsCommand;
 use App\Domains\Campaigns\Console\Commands\ProcessDueCampaignsCommand;
+use App\Domains\Infrastructure\Oci\Console\Commands\DestroyOciCampaignWorkersCommand;
 use App\Domains\Drip\Console\Commands\ProcessDripAutomationsCommand;
 use App\Domains\Operations\Console\Commands\ProcessInboundResponsesCommand;
 use App\Domains\Operations\Console\Commands\ScheduleIntegrationSyncCommand;
@@ -43,6 +44,10 @@ Schedule::command(DeleteSoftDeletedTemplates::class)->everyFifteenMinutes();
 
 // Campaign & automation execution
 Schedule::command(ProcessDueCampaignsCommand::class)->everyMinute();
+Schedule::command(DestroyOciCampaignWorkersCommand::class)
+    ->dailyAt((string) config('oci-workers.ephemeral.nightly_destroy_at', '01:00'))
+    ->withoutOverlapping()
+    ->onOneServer();
 Schedule::command(ProcessDripAutomationsCommand::class)->everyMinute();
 Schedule::command(ProcessShopifyWebhooksCommand::class)->everyMinute();
 Schedule::command(ProcessAutomationEventsCommand::class)->dailyAt('02:00');

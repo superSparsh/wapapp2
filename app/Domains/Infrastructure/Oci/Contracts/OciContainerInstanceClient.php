@@ -21,6 +21,14 @@ interface OciContainerInstanceClient
     public function delete(string $ocid): void;
 
     /**
+     * List campaign-worker Container Instance OCIDs in the configured compartment
+     * (display-name prefix / freeform tag filter). Empty when unsupported.
+     *
+     * @return list<string>
+     */
+    public function listCampaignWorkerOcids(): array;
+
+    /**
      * Whether the client can talk to OCI (credentials / config present).
      */
     public function isConfigured(): bool;

@@ -42,4 +42,9 @@ final class LogOciContainerInstanceClient implements OciContainerInstanceClient
             'ocid' => $ocid,
         ]);
     }
+
+    public function listCampaignWorkerOcids(): array
+    {
+        return [];
+    }
 }

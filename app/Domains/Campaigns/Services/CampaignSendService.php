@@ -312,6 +312,109 @@ class CampaignSendService
         return $resolved;
     }
 
+    /**
+     * Pause Sending campaigns that still have pending recipients but no recent progress.
+     * Releases OCI worker refcount so containers are not billed for stuck jobs.
+     */
+    public function pauseIdleSendingCampaigns(?int $idleMinutes = null): int
+    {
+        $idleMinutes = max(5, $idleMinutes ?? (int) config('campaigns.stuck_idle_minutes', 60));
+        $cutoff = now()->subMinutes($idleMinutes);
+
+        $ids = Campaign::query()
+            ->where('status', CampaignStatus::Sending)
+            ->whereNotNull('started_at')
+            ->where('started_at', '<=', $cutoff)
+            ->whereHas('recipients', function ($query): void {
+                $query->where('status', CampaignRecipientStatus::Pending);
+            })
+            ->pluck('id');
+
+        $paused = 0;
+        foreach ($ids as $id) {
+            $campaign = Campaign::query()->find($id);
+            if ($campaign === null || ! $campaign->isSending()) {
+                continue;
+            }
+
+            $lastProgress = $this->lastRecipientProgressAt($campaign);
+            if ($lastProgress !== null && $lastProgress->greaterThan($cutoff)) {
+                continue;
+            }
+
+            if ($this->pauseSendingCampaign($campaign, 'stuck_idle')) {
+                $paused++;
+            }
+        }
+
+        return $paused;
+    }
+
+    /**
+     * Pause every Sending campaign in the current tenant (e.g. nightly OCI sweep).
+     */
+    public function pauseAllSendingCampaigns(string $reason = 'nightly_oci_destroy'): int
+    {
+        $ids = Campaign::query()
+            ->where('status', CampaignStatus::Sending)
+            ->pluck('id');
+
+        $paused = 0;
+        foreach ($ids as $id) {
+            $campaign = Campaign::query()->find($id);
+            if ($campaign === null || ! $campaign->isSending()) {
+                continue;
+            }
+            if ($this->pauseSendingCampaign($campaign, $reason)) {
+                $paused++;
+            }
+        }
+
+        return $paused;
+    }
+
+    private function pauseSendingCampaign(Campaign $campaign, string $reason): bool
+    {
+        $campaign->update(['status' => CampaignStatus::Paused]);
+
+        Log::warning('Campaign auto-paused', [
+            'campaign_id' => $campaign->id,
+            'reason' => $reason,
+            'started_at' => optional($campaign->started_at)?->toDateTimeString(),
+        ]);
+
+        try {
+            app(CampaignOciWorkerLifecycle::class)->onCampaignFinished($campaign->fresh() ?? $campaign);
+        } catch (Throwable $e) {
+            Log::warning('OCI campaign worker teardown on auto-pause failed', ['error' => $e->getMessage()]);
+        }
+
+        return true;
+    }
+
+    private function lastRecipientProgressAt(Campaign $campaign): ?\Illuminate\Support\Carbon
+    {
+        $sent = CampaignRecipient::query()
+            ->where('campaign_id', $campaign->id)
+            ->whereNotNull('sent_at')
+            ->max('sent_at');
+        $failed = CampaignRecipient::query()
+            ->where('campaign_id', $campaign->id)
+            ->whereNotNull('failed_at')
+            ->max('failed_at');
+
+        $candidates = array_filter([$sent, $failed]);
+        if ($candidates === []) {
+            return null;
+        }
+
+        try {
+            return \Illuminate\Support\Carbon::parse(max($candidates));
+        } catch (Throwable) {
+            return null;
+        }
+    }
+
     private function markFailed(CampaignRecipient $recipient, string $reason): void
     {
         $recipient->update([

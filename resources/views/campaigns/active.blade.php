@@ -74,6 +74,9 @@
               <td class="p-2 align-middle">
                 <div class="flex flex-col items-center justify-center gap-2.5">
                   <x-ui.status-chip :label="$card['status_label']" :variant="$card['status_variant']" />
+                  @if (\App\Domains\Admin\Support\AdminSession::impersonation() !== null && ! empty($card['duration']))
+                    <p class="max-w-[172px] text-center text-[10px] leading-[1.5] text-[#626262]">Duration: {{ $card['duration'] }}</p>
+                  @endif
                 </div>
               </td>
               <td class="w-[160px] p-2 align-middle">

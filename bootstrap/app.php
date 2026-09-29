@@ -173,6 +173,7 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withCommands([
         ProcessDueCampaignsCommand::class,
+        \App\Domains\Infrastructure\Oci\Console\Commands\DestroyOciCampaignWorkersCommand::class,
         ProcessDripAutomationsCommand::class,
         ProcessAutomationEventsCommand::class,
         CheckWalletAutoRechargeCommand::class,

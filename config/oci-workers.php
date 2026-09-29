@@ -116,6 +116,11 @@ return [
         ],
 
         /*
+        | Nightly force-destroy schedule time (Asia/Kolkata app timezone unless overridden).
+        */
+        'nightly_destroy_at' => env('OCI_CI_NIGHTLY_DESTROY_AT', '01:00'),
+
+        /*
         | Extra env injected into the Horizon container (merged with Redis/DB from
         | the app .env when HTTP driver builds the create payload).
         */

@@ -17,6 +17,11 @@ return [
     'mass_threshold' => (int) env('CAMPAIGN_MASS_THRESHOLD', PHP_INT_MAX),
     'mass_batch_size' => (int) env('CAMPAIGN_MASS_BATCH_SIZE', 1000),
     'mass_api_enabled' => (bool) env('CAMPAIGN_MASS_API_ENABLED', false),
+    /*
+    | Auto-pause Sending campaigns that still have pending recipients but no
+    | send/fail progress for this many minutes (releases OCI worker refcount).
+    */
+    'stuck_idle_minutes' => (int) env('CAMPAIGN_STUCK_IDLE_MINUTES', 60),
     'cost' => [
         'currency' => 'INR',
         /** Used when admin CountryPricing row is missing. */

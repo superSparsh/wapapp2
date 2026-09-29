@@ -139,9 +139,46 @@ class CampaignOciWorkerLifecycleTest extends TestCase
     {
         $this->lifecycle->storeActiveCampaignIds([]);
         $this->lifecycle->storeInstanceOcid('ocid1.containerinstance.oc1.test.deadbeef');
+        $this->lifecycle->storeInstanceStartedAt(now()->subMinutes(12)->toIso8601String());
 
         $this->lifecycle->teardownWorker(app(OciContainerInstanceClient::class));
 
         $this->assertNull($this->lifecycle->instanceOcid());
+        $session = $this->lifecycle->lastSession();
+        $this->assertIsArray($session);
+        $this->assertGreaterThan(0, $session['active_seconds']);
+    }
+
+    public function test_force_destroy_clears_state_and_records_session(): void
+    {
+        $this->lifecycle->storeActiveCampaignIds([1 => true]);
+        $this->lifecycle->storeCampaignLoad([1 => 100]);
+        $this->lifecycle->storeInstanceOcid('ocid1.containerinstance.oc1.test.force');
+        $this->lifecycle->storeInstanceStartedAt(now()->subHour()->toIso8601String());
+
+        $result = $this->lifecycle->forceDestroy(app(OciContainerInstanceClient::class));
+
+        $this->assertContains('ocid1.containerinstance.oc1.test.force', $result['deleted']);
+        $this->assertNull($this->lifecycle->instanceOcid());
+        $this->assertSame([], $this->lifecycle->activeCampaignIds());
+        $this->assertIsArray($result['session']);
+        $this->assertGreaterThanOrEqual(3500, $result['session']['active_seconds']);
+    }
+
+    public function test_status_snapshot_includes_last_session_duration(): void
+    {
+        $this->lifecycle->storeInstanceOcid('ocid1.containerinstance.oc1.test.live');
+        $this->lifecycle->storeInstanceStartedAt(now()->subMinutes(5)->toIso8601String());
+        $this->lifecycle->storeLastSession([
+            'started_at' => now()->subHour()->toIso8601String(),
+            'ended_at' => now()->subMinutes(30)->toIso8601String(),
+            'active_seconds' => 1800,
+        ]);
+
+        $snap = $this->lifecycle->statusSnapshot();
+
+        $this->assertNotNull($snap['ocid']);
+        $this->assertNotNull($snap['active_for_humans']);
+        $this->assertSame('30m 0s', $snap['last_session']['active_for_humans']);
     }
 }

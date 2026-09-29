@@ -58,6 +58,10 @@
     </div>
   @endif
 
+  <section class="px-4 pb-4">
+    <x-admin.oci-campaign-worker-status :oci-worker="$oci_worker ?? []" />
+  </section>
+
   <section class="space-y-4 p-4 pt-0">
     <div class="grid gap-4 xl:grid-cols-2">
       @foreach ($ops_groups as $group => $commands)

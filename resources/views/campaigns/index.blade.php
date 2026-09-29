@@ -97,6 +97,9 @@
                   @if ($card['scheduled_at'])
                     <p class="max-w-[172px] text-center text-[10px] leading-[1.5] text-[#626262]">Scheduled: {{ $card['scheduled_at'] }}</p>
                   @endif
+                  @if (\App\Domains\Admin\Support\AdminSession::impersonation() !== null && ! empty($card['duration']))
+                    <p class="max-w-[172px] text-center text-[10px] leading-[1.5] text-[#626262]">Duration: {{ $card['duration'] }}</p>
+                  @endif
                 </div>
               </td>
               <td class="w-[200px] p-2 align-middle">

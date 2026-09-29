@@ -109,4 +109,44 @@ class CampaignCompletionStatusTest extends TestCase
         $this->assertSame(CampaignStatus::Failed, $campaign->fresh()->status);
         $this->assertNotNull($campaign->fresh()->completed_at);
     }
+
+    public function test_idle_sending_campaign_is_auto_paused(): void
+    {
+        config(['campaigns.stuck_idle_minutes' => 30]);
+
+        $campaign = Campaign::factory()->create([
+            'status' => CampaignStatus::Sending,
+            'started_at' => now()->subHours(2),
+            'total_recipients' => 2,
+        ]);
+
+        CampaignRecipient::factory()->for($campaign)->pending()->count(2)->create();
+
+        $paused = app(CampaignSendService::class)->pauseIdleSendingCampaigns(30);
+
+        $this->assertSame(1, $paused);
+        $this->assertSame(CampaignStatus::Paused, $campaign->fresh()->status);
+    }
+
+    public function test_recent_progress_prevents_idle_auto_pause(): void
+    {
+        config(['campaigns.stuck_idle_minutes' => 30]);
+
+        $campaign = Campaign::factory()->create([
+            'status' => CampaignStatus::Sending,
+            'started_at' => now()->subHours(2),
+            'total_recipients' => 2,
+        ]);
+
+        CampaignRecipient::factory()->for($campaign)->create([
+            'status' => CampaignRecipientStatus::Sent,
+            'sent_at' => now()->subMinutes(5),
+        ]);
+        CampaignRecipient::factory()->for($campaign)->pending()->create();
+
+        $paused = app(CampaignSendService::class)->pauseIdleSendingCampaigns(30);
+
+        $this->assertSame(0, $paused);
+        $this->assertSame(CampaignStatus::Sending, $campaign->fresh()->status);
+    }
 }

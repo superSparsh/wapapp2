@@ -28,6 +28,9 @@ $statusColor = match ($campaign->status) {
       <span class="shrink-0 inline-flex items-center rounded px-2 py-1 text-[10px] font-medium leading-[1.2] whitespace-nowrap {{ $statusColor }}">
         {{ $statusLabel }}
       </span>
+      @if ($campaign->isPaused())
+        <span class="shrink-0 text-[10px] font-medium text-orange-600">Paused — resume when ready</span>
+      @endif
       @if ($campaign->isSending() || $campaign->isPaused())
         <form method="POST" action="{{ route('campaigns.toggle', $campaign) }}" data-campaign-toggle class="flex shrink-0 items-center gap-2">
           @csrf

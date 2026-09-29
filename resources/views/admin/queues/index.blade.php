@@ -60,6 +60,10 @@
     </div>
   </div>
 
+  <section class="px-4 pb-4">
+    <x-admin.oci-campaign-worker-status :oci-worker="$oci_worker ?? []" />
+  </section>
+
   <div class="flex flex-wrap items-center gap-2 px-4 pb-3">
     <a
       href="{{ route('admin.queues.index', array_filter([

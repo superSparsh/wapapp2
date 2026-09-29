@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domains\Admin\Http\Controllers;
 
 use App\Domains\Admin\Services\ServerOpsService;
+use App\Domains\Infrastructure\Oci\CampaignOciWorkerLifecycle;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -15,6 +16,7 @@ class ServerOpsController extends Controller
 {
     public function __construct(
         private readonly ServerOpsService $ops,
+        private readonly CampaignOciWorkerLifecycle $ociWorkers,
     ) {}
 
     public function index(): View
@@ -25,6 +27,7 @@ class ServerOpsController extends Controller
             'ops_groups' => $this->ops->catalogByGroup(),
             'horizon' => $probes['horizon'],
             'redis_probe' => $probes['redis'],
+            'oci_worker' => $this->ociWorkers->statusSnapshot(),
         ]);
     }
 

@@ -43,6 +43,36 @@
             <p class="text-xs text-text-subtle">Scheduled At</p>
             <p class="text-sm font-medium text-text-primary">{{ $campaign->scheduled_at?->format('d M Y h:i A') ?? 'Not scheduled' }}</p>
           </div>
+          @if (\App\Domains\Admin\Support\AdminSession::impersonation() !== null)
+            <div>
+              <p class="text-xs text-text-subtle">Started</p>
+              <p class="text-sm font-medium text-text-primary">{{ $campaign->started_at?->format('d M Y h:i A') ?? '—' }}</p>
+            </div>
+            <div>
+              <p class="text-xs text-text-subtle">Completed</p>
+              <p class="text-sm font-medium text-text-primary">{{ $campaign->completed_at?->format('d M Y h:i A') ?? ($campaign->isSending() || $campaign->isPaused() ? 'In progress' : '—') }}</p>
+            </div>
+            <div>
+              <p class="text-xs text-text-subtle">Campaign duration</p>
+              <p class="text-sm font-medium text-text-primary">{{ $campaign->durationForHumans() ?? '—' }}</p>
+            </div>
+            @php
+              $ociSnap = app(\App\Domains\Infrastructure\Oci\CampaignOciWorkerLifecycle::class)->statusSnapshot();
+              $ociLast = $ociSnap['last_session'] ?? null;
+            @endphp
+            <div>
+              <p class="text-xs text-text-subtle">Container (shared)</p>
+              <p class="text-sm font-medium text-text-primary">
+                @if (! empty($ociSnap['ocid']))
+                  Active {{ $ociSnap['active_for_humans'] ?? '—' }}
+                @elseif (is_array($ociLast))
+                  Last ran {{ $ociLast['active_for_humans'] ?? '—' }}
+                @else
+                  —
+                @endif
+              </p>
+            </div>
+          @endif
           <div>
             <p class="text-xs text-text-subtle">Completion Rate</p>
             <p class="text-sm font-medium text-text-primary">{{ $campaign->completionRate() }}</p>

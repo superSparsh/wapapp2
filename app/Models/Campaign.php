@@ -165,4 +165,39 @@ class Campaign extends TenantModel
 
         return number_format(($this->total_delivered / $total) * 100, 2) . '%';
     }
+
+    /**
+     * Wall-clock seconds the campaign has been / was running (started_at → completed_at|now).
+     */
+    public function durationSeconds(): ?int
+    {
+        if ($this->started_at === null) {
+            return null;
+        }
+
+        $end = $this->completed_at ?? now();
+
+        return max(0, (int) $this->started_at->diffInSeconds($end));
+    }
+
+    public function durationForHumans(): ?string
+    {
+        $seconds = $this->durationSeconds();
+        if ($seconds === null) {
+            return null;
+        }
+
+        $h = intdiv($seconds, 3600);
+        $m = intdiv($seconds % 3600, 60);
+        $s = $seconds % 60;
+
+        if ($h > 0) {
+            return sprintf('%dh %dm', $h, $m);
+        }
+        if ($m > 0) {
+            return sprintf('%dm %ds', $m, $s);
+        }
+
+        return sprintf('%ds', $s);
+    }
 }
