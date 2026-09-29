@@ -130,19 +130,9 @@ final class CampaignOciWorkerLifecycle
             }
 
             $shape = $this->resolveShape();
-            $environment = $this->workerEnvironment($shape);
-            $redisHost = (string) ($environment['REDIS_HOST'] ?? '');
-            if ($redisHost === '' || $this->isLoopbackHost($redisHost)) {
-                Log::error('OCI ephemeral: refusing to provision — Redis host unreachable from CI', [
-                    'hint' => 'Set OCI_REDIS_HOST to the app VM private IP (prod: 10.0.0.203). Web REDIS_HOST=127.0.0.1 cannot be used inside the container.',
-                    'resolved_redis_host' => $redisHost === '' ? '(empty)' : $redisHost,
-                ]);
-
-                return;
-            }
-
             $prefix = (string) config('oci-workers.ephemeral.display_name_prefix', 'wapapp-campaign-worker');
             $displayName = $prefix.'-'.now()->format('Ymd-His');
+            $environment = $this->workerEnvironment($shape);
 
             Log::info('OCI ephemeral: provisioning campaign worker', [
                 'display_name' => $displayName,
@@ -151,8 +141,6 @@ final class CampaignOciWorkerLifecycle
                 'ocpus' => $shape['ocpus'],
                 'memory_in_gbs' => $shape['memory_in_gbs'],
                 'campaign_max_processes' => $shape['campaign_max_processes'],
-                'redis_host' => $redisHost,
-                'redis_prefix' => (string) ($environment['REDIS_PREFIX'] ?? ''),
                 'driver' => (string) config('oci-workers.ephemeral.driver', 'log'),
             ]);
 
@@ -376,10 +364,11 @@ final class CampaignOciWorkerLifecycle
     {
         $shape ??= $this->resolveShape();
         $base = (array) config('oci-workers.ephemeral.container_environment', []);
-        $redisHost = $this->resolveWorkerRedisHost();
 
+        // Same payload shape as the first working ephemeral CI (Sept 26).
+        // Do NOT inject APP_NAME / REDIS_PREFIX / config:clear — the OCIR image's
+        // baked config/.env is the Redis source of truth (OCI_REDIS_HOST was never required).
         $fromApp = array_filter([
-            'APP_NAME' => (string) config('app.name', 'WapApp'),
             'APP_ENV' => (string) config('app.env'),
             'APP_KEY' => (string) config('app.key'),
             'APP_URL' => (string) config('app.url'),
@@ -390,13 +379,10 @@ final class CampaignOciWorkerLifecycle
             'DB_USERNAME' => (string) config('database.connections.mysql.username', ''),
             'DB_PASSWORD' => (string) config('database.connections.mysql.password', ''),
             'REDIS_CLIENT' => (string) config('database.redis.client', 'phpredis'),
-            'REDIS_HOST' => $redisHost,
+            'REDIS_HOST' => (string) config('database.redis.default.host', '127.0.0.1'),
             'REDIS_PASSWORD' => (string) (config('database.redis.default.password') ?? ''),
             'REDIS_PORT' => (string) config('database.redis.default.port', 6379),
             'REDIS_DB' => (string) config('database.redis.default.database', 0),
-            // Must match web after APP_NAME / REDIS_PREFIX changes.
-            'REDIS_PREFIX' => (string) config('database.redis.options.prefix', ''),
-            'HORIZON_PREFIX' => (string) config('horizon.prefix', ''),
             'QUEUE_CONNECTION' => 'redis',
             'CAMPAIGN_QUEUE' => OciWorkload::campaignQueue(),
             'HORIZON_ROLE' => 'oci-heavy',
@@ -405,29 +391,6 @@ final class CampaignOciWorkerLifecycle
         ], static fn ($v) => $v !== null && $v !== '');
 
         return array_merge($fromApp, $base);
-    }
-
-    /**
-     * Redis host the Container Instance can actually reach (never web loopback).
-     */
-    public function resolveWorkerRedisHost(): string
-    {
-        $configured = trim((string) (config('oci-workers.ephemeral.redis_host') ?: ''));
-        if ($configured !== '' && ! $this->isLoopbackHost($configured)) {
-            return $configured;
-        }
-
-        $appRedisHost = trim((string) config('database.redis.default.host', ''));
-        if ($appRedisHost !== '' && ! $this->isLoopbackHost($appRedisHost)) {
-            return $appRedisHost;
-        }
-
-        return '';
-    }
-
-    private function isLoopbackHost(string $host): bool
-    {
-        return in_array(strtolower(trim($host)), ['127.0.0.1', 'localhost', '::1'], true);
     }
 
     /**
