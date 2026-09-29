@@ -171,20 +171,46 @@ function initPasswordToggle() {
 
 function initOtpInputs() {
     document.querySelectorAll('[data-otp-inputs]').forEach((container) => {
+        if (container.dataset.otpBound === '1') {
+            return;
+        }
+        container.dataset.otpBound = '1';
+
         const inputs = [...container.querySelectorAll('input')];
+        const hidden = container.parentElement?.querySelector('[data-otp-hidden]');
+
+        const sync = () => {
+            if (!hidden) {
+                return;
+            }
+            hidden.value = inputs.map((input) => input.value.replace(/\D/g, '').slice(0, 1)).join('');
+        };
 
         inputs.forEach((input, index) => {
             input.addEventListener('input', () => {
-                input.value = input.value.replace(/\D/g, '').slice(0, 1);
-
-                if (input.value && index < inputs.length - 1) {
-                    inputs[index + 1].focus();
+                const raw = input.value.replace(/\D/g, '');
+                if (raw.length > 1) {
+                    raw.slice(0, inputs.length).split('').forEach((digit, offset) => {
+                        if (inputs[index + offset]) {
+                            inputs[index + offset].value = digit;
+                        }
+                    });
+                    const focusAt = Math.min(index + raw.length, inputs.length - 1);
+                    inputs[focusAt]?.focus();
+                } else {
+                    input.value = raw.slice(0, 1);
+                    if (input.value && index < inputs.length - 1) {
+                        inputs[index + 1].focus();
+                    }
                 }
+                sync();
             });
 
             input.addEventListener('keydown', (event) => {
                 if (event.key === 'Backspace' && !input.value && index > 0) {
                     inputs[index - 1].focus();
+                    inputs[index - 1].value = '';
+                    sync();
                 }
             });
 
@@ -200,8 +226,13 @@ function initOtpInputs() {
 
                 const nextIndex = Math.min(digits.length, inputs.length - 1);
                 inputs[nextIndex]?.focus();
+                sync();
             });
+
+            input.addEventListener('focus', () => input.select());
         });
+
+        sync();
     });
 }
 

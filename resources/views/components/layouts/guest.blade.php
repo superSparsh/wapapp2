@@ -11,7 +11,6 @@
     <x-layouts.theme-boot />
     @fonts
     @vite(['resources/css/app.css', 'resources/js/app.js'])
-    @stack('scripts')
 </head>
 <body class="min-h-screen bg-surface font-sans text-text-primary antialiased">
     {{ $slot }}
@@ -31,5 +30,6 @@
     @if (! empty($flashToasts))
       <script>window.__FLASH_TOASTS__ = @json($flashToasts);</script>
     @endif
+    @stack('scripts')
 </body>
 </html>

@@ -46,17 +46,12 @@
                         @csrf
                         <input type="hidden" name="secret" value="{{ $secret }}">
 
-                        <x-form.input
-                            id="code"
+                        <x-auth.otp-inputs
                             name="code"
-                            type="text"
-                            inputmode="numeric"
-                            placeholder="000000"
+                            label="Confirm with 6-digit code"
                             :error="$errors->first('code')"
-                            required
-                        >
-                            <x-slot:label>Confirm with 6-digit code</x-slot:label>
-                        </x-form.input>
+                            :old="old('code')"
+                        />
 
                         <x-ui.button type="submit" class="rounded-xl p-3.5">Enable 2FA</x-ui.button>
                     </form>
