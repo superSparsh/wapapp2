@@ -64,20 +64,7 @@ class CampaignSendService
 
         try {
             // Simple SendChatappMessage only (mass API disabled until tested).
-            $batchSize = (int) config('campaigns.dispatch_batch_size', 100);
-
-            CampaignRecipient::query()
-                ->where('campaign_id', $campaign->id)
-                ->where('status', CampaignRecipientStatus::Pending)
-                ->orderBy('id')
-                ->chunkById($batchSize, function ($recipients) use ($campaign): void {
-                    foreach ($recipients as $recipient) {
-                        SendCampaignRecipientJob::dispatch(
-                            (int) $campaign->id,
-                            (int) $recipient->id,
-                        )->onQueue(OciWorkload::campaignQueue());
-                    }
-                });
+            $this->dispatchPendingRecipientJobs($campaign);
 
             $this->refreshCampaignCompletion($campaign);
 
@@ -92,6 +79,32 @@ class CampaignSendService
 
             throw $e;
         }
+    }
+
+    /**
+     * Dispatch (or re-dispatch) pending recipient jobs onto the campaign queue.
+     * Used on launch and on resume after pause / nightly OCI destroy.
+     */
+    public function dispatchPendingRecipientJobs(Campaign $campaign): int
+    {
+        $batchSize = (int) config('campaigns.dispatch_batch_size', 100);
+        $dispatched = 0;
+
+        CampaignRecipient::query()
+            ->where('campaign_id', $campaign->id)
+            ->where('status', CampaignRecipientStatus::Pending)
+            ->orderBy('id')
+            ->chunkById($batchSize, function ($recipients) use ($campaign, &$dispatched): void {
+                foreach ($recipients as $recipient) {
+                    SendCampaignRecipientJob::dispatch(
+                        (int) $campaign->id,
+                        (int) $recipient->id,
+                    )->onQueue(OciWorkload::campaignQueue());
+                    $dispatched++;
+                }
+            });
+
+        return $dispatched;
     }
 
     public function sendRecipient(Campaign $campaign, CampaignRecipient $recipient): void
@@ -321,6 +334,16 @@ class CampaignSendService
         $idleMinutes = max(5, $idleMinutes ?? (int) config('campaigns.stuck_idle_minutes', 60));
         $cutoff = now()->subMinutes($idleMinutes);
 
+        // Jobs waiting on campaign queue = worker lag, not a stuck campaign.
+        $queueDepth = $this->campaignQueueDepth();
+        if ($queueDepth > 0) {
+            Log::info('Skipping idle campaign auto-pause — campaign queue still has jobs', [
+                'depth' => $queueDepth,
+            ]);
+
+            return 0;
+        }
+
         $ids = Campaign::query()
             ->where('status', CampaignStatus::Sending)
             ->whereNotNull('started_at')
@@ -348,6 +371,20 @@ class CampaignSendService
         }
 
         return $paused;
+    }
+
+    private function campaignQueueDepth(): int
+    {
+        try {
+            $queue = OciWorkload::campaignQueue();
+            $connection = config('queue.connections.redis.connection', 'default');
+            $prefix = (string) config('database.redis.options.prefix', '');
+            $key = $prefix.'queues:'.$queue;
+
+            return (int) \Illuminate\Support\Facades\Redis::connection($connection)->llen($key);
+        } catch (Throwable) {
+            return 0;
+        }
     }
 
     /**

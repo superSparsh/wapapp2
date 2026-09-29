@@ -110,6 +110,21 @@ class CampaignServiceTest extends TestCase
         $this->assertSame(CampaignStatus::Sending, $result->status);
     }
 
+    public function test_toggle_resume_redispatches_pending_recipients(): void
+    {
+        \Illuminate\Support\Facades\Queue::fake();
+
+        $campaign = Campaign::factory()->paused()->create();
+        CampaignRecipient::factory()->for($campaign)->pending()->count(3)->create();
+
+        $this->service->toggle($campaign);
+
+        \Illuminate\Support\Facades\Queue::assertPushed(
+            \App\Domains\Campaigns\Jobs\SendCampaignRecipientJob::class,
+            3,
+        );
+    }
+
     public function test_delete_removes_campaign_and_recipients(): void
     {
         $campaign = Campaign::factory()->create();

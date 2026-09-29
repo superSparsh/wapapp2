@@ -16,11 +16,36 @@
       <h2 class="text-lg font-bold text-text-primary">OCI campaign worker</h2>
       <p class="mt-1 text-sm text-text-subtle">Shared ephemeral container — live status and last session duration (admin only).</p>
     </div>
-    <span @class([
-      'inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset',
-      'bg-green-50 text-green-700 ring-green-200' => $active,
-      'bg-surface text-text-subtle ring-border' => ! $active,
-    ])>{{ $active ? 'Container active' : 'No container' }}</span>
+    <div class="flex flex-wrap items-center gap-2">
+      <span @class([
+        'inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset',
+        'bg-green-50 text-green-700 ring-green-200' => $active,
+        'bg-surface text-text-subtle ring-border' => ! $active,
+      ])>{{ $active ? 'Container active' : 'No container' }}</span>
+
+      <form method="POST" action="{{ route('admin.server-ops.run') }}">
+        @csrf
+        <input type="hidden" name="command" value="oci_destroy_campaign_workers_dry">
+        <button type="submit" class="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold hover:bg-surface">
+          Dry-run destroy
+        </button>
+      </form>
+
+      <form
+        method="POST"
+        action="{{ route('admin.server-ops.run') }}"
+        data-confirm="Destroy campaign container(s) now? This will delete the OCI instance, clear Redis state, and pause any Sending campaigns."
+        data-confirm-title="Destroy OCI container"
+        data-confirm-label="Destroy"
+        data-confirm-variant="danger"
+      >
+        @csrf
+        <input type="hidden" name="command" value="oci_destroy_campaign_workers">
+        <button type="submit" class="rounded-lg bg-red-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-600">
+          Destroy container
+        </button>
+      </form>
+    </div>
   </div>
 
   <dl class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 text-sm">
