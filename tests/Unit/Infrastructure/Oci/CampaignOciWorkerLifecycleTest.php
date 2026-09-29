@@ -76,7 +76,7 @@ class CampaignOciWorkerLifecycleTest extends TestCase
         $this->assertSame([], $this->lifecycle->activeCampaignIds());
     }
 
-    public function test_teardown_skipped_while_other_campaigns_active(): void
+    public function test_teardown_still_dispatched_while_other_campaigns_active(): void
     {
         $a = new Campaign;
         $a->id = 1;
@@ -89,7 +89,8 @@ class CampaignOciWorkerLifecycleTest extends TestCase
 
         $this->lifecycle->onCampaignFinished($a);
 
-        Queue::assertNotPushed(TeardownOciCampaignWorkerJob::class);
+        // Always schedule teardown; job no-ops while B is still active.
+        Queue::assertPushed(TeardownOciCampaignWorkerJob::class);
         $this->assertSame(['_:2' => true], $this->lifecycle->activeCampaignIds());
     }
 

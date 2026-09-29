@@ -74,18 +74,12 @@ final class CampaignOciWorkerLifecycle
             return;
         }
 
-        $shouldTeardown = false;
-
-        $this->withLock(function () use ($campaign, &$shouldTeardown): void {
+        $this->withLock(function () use ($campaign): void {
             $this->forgetCampaignRefs($campaign);
-
-            $shouldTeardown = $this->activeCampaignIds() === [];
         });
 
-        if (! $shouldTeardown) {
-            return;
-        }
-
+        // Always schedule teardown. pruneFinishedCampaignRefs() drops completed/stale
+        // refs (incl. pre-tenant-key format). If another campaign is still Sending, teardown no-ops.
         $grace = max(0, (int) config('oci-workers.ephemeral.grace_seconds', 120));
 
         TeardownOciCampaignWorkerJob::dispatch()
@@ -229,6 +223,11 @@ final class CampaignOciWorkerLifecycle
                     'active' => array_keys($active),
                 ]);
 
+                // Keep retrying — stale refs after tenant-key migration used to skip once forever.
+                TeardownOciCampaignWorkerJob::dispatch()
+                    ->delay(now()->addSeconds(max(30, (int) config('oci-workers.ephemeral.grace_seconds', 120))))
+                    ->onQueue((string) config('oci-workers.ephemeral.provisioning_queue', 'provisioning'));
+
                 return;
             }
 
@@ -332,21 +331,37 @@ final class CampaignOciWorkerLifecycle
     }
 
     /**
-     * Remove this campaign from active/load maps (current tenant ref + legacy "_:id").
+     * Remove this campaign from active/load maps.
+     * Clears current tenant ref, legacy "_:id", and any leftover bare-id aliases.
      */
     public function forgetCampaignRefs(Campaign $campaign): void
     {
         $id = (int) $campaign->id;
-        $aliases = array_values(array_unique(array_filter([
+        $suffix = ':'.$id;
+        $aliases = [
             $this->campaignRefKey($campaign),
             '_:'.$id,
-        ])));
+        ];
 
         $active = $this->activeCampaignIds();
         $load = $this->campaignLoad();
 
         foreach ($aliases as $ref) {
             unset($active[$ref], $load[$ref]);
+        }
+
+        // Same campaign id under current tenant only (do not touch other tenants' ids).
+        $tenantId = tenant('id');
+        $tenantPrefix = (is_string($tenantId) && $tenantId !== '') ? $tenantId.':' : null;
+        foreach (array_keys($active) as $ref) {
+            if ($ref === '_:'.$id) {
+                unset($active[$ref], $load[$ref]);
+
+                continue;
+            }
+            if ($tenantPrefix !== null && str_starts_with($ref, $tenantPrefix) && str_ends_with($ref, $suffix)) {
+                unset($active[$ref], $load[$ref]);
+            }
         }
 
         $this->storeActiveCampaignIds($active);
