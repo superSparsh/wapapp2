@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\Redis;
 /**
  * Refcounted shared campaign Container Instance lifecycle.
  *
- * First sending campaign → ensure CI exists.
+ * First sending campaign → ensure CI exists (auto-sized by recipient demand).
  * Last completed/cancelled campaign → destroy CI after grace (if queue drained).
  *
  * State is stored on the Redis connection directly (not Cache facade) so tenant
@@ -26,6 +26,8 @@ final class CampaignOciWorkerLifecycle
     public const CACHE_INSTANCE_OCID = 'oci.campaign_worker.instance_ocid';
 
     public const CACHE_ACTIVE_CAMPAIGNS = 'oci.campaign_worker.active_campaign_ids';
+
+    public const CACHE_CAMPAIGN_LOAD = 'oci.campaign_worker.campaign_load';
 
     public const CACHE_LOCK = 'oci.campaign_worker.lock';
 
@@ -44,11 +46,16 @@ final class CampaignOciWorkerLifecycle
         }
 
         $campaignId = (int) $campaign->id;
+        $recipients = max(0, (int) ($campaign->total_recipients ?? 0));
 
-        $this->withLock(function () use ($campaignId): void {
+        $this->withLock(function () use ($campaignId, $recipients): void {
             $active = $this->activeCampaignIds();
             $active[$campaignId] = true;
             $this->storeActiveCampaignIds($active);
+
+            $load = $this->campaignLoad();
+            $load[$campaignId] = $recipients;
+            $this->storeCampaignLoad($load);
         });
 
         EnsureOciCampaignWorkerJob::dispatch()
@@ -68,6 +75,11 @@ final class CampaignOciWorkerLifecycle
             $active = $this->activeCampaignIds();
             unset($active[$campaignId]);
             $this->storeActiveCampaignIds($active);
+
+            $load = $this->campaignLoad();
+            unset($load[$campaignId]);
+            $this->storeCampaignLoad($load);
+
             $shouldTeardown = $active === [];
         });
 
@@ -113,18 +125,26 @@ final class CampaignOciWorkerLifecycle
                 return;
             }
 
+            $shape = $this->resolveShape();
             $prefix = (string) config('oci-workers.ephemeral.display_name_prefix', 'wapapp-campaign-worker');
             $displayName = $prefix.'-'.now()->format('Ymd-His');
-            $environment = $this->workerEnvironment();
+            $environment = $this->workerEnvironment($shape);
 
             Log::info('OCI ephemeral: provisioning campaign worker', [
                 'display_name' => $displayName,
                 'active' => array_keys($active),
+                'max_recipients' => $this->maxRecipientDemand(),
+                'ocpus' => $shape['ocpus'],
+                'memory_in_gbs' => $shape['memory_in_gbs'],
+                'campaign_max_processes' => $shape['campaign_max_processes'],
                 'driver' => (string) config('oci-workers.ephemeral.driver', 'log'),
             ]);
 
             try {
-                $created = $client->createCampaignWorker($displayName, $environment);
+                $created = $client->createCampaignWorker($displayName, $environment, [
+                    'ocpus' => $shape['ocpus'],
+                    'memory_in_gbs' => $shape['memory_in_gbs'],
+                ]);
             } catch (\Throwable $e) {
                 Log::error('OCI ephemeral: create threw', [
                     'error' => $e->getMessage(),
@@ -179,14 +199,103 @@ final class CampaignOciWorkerLifecycle
 
             $client->delete($ocid);
             $this->forgetInstanceOcid();
+            $this->forgetCampaignLoad();
         });
     }
 
     /**
+     * Pick OCPU / RAM / Horizon campaign processes from recipient demand.
+     *
+     * @return array{ocpus: float, memory_in_gbs: float, campaign_max_processes: int}
+     */
+    public function resolveShape(?int $maxRecipients = null): array
+    {
+        $fallback = [
+            'ocpus' => (float) config('oci-workers.ephemeral.ocpus', 1),
+            'memory_in_gbs' => (float) config('oci-workers.ephemeral.memory_in_gbs', 4),
+            'campaign_max_processes' => 2,
+        ];
+
+        if (! (bool) config('oci-workers.ephemeral.auto_size.enabled', true)) {
+            return $fallback;
+        }
+
+        $demand = $maxRecipients ?? $this->maxRecipientDemand();
+        /** @var list<array{max_recipients?: int|null, ocpus?: float|int, memory_in_gbs?: float|int, campaign_max_processes?: int}> $tiers */
+        $tiers = (array) config('oci-workers.ephemeral.auto_size.tiers', []);
+
+        foreach ($tiers as $tier) {
+            $cap = $tier['max_recipients'] ?? null;
+            if ($cap !== null && $demand > (int) $cap) {
+                continue;
+            }
+
+            return [
+                'ocpus' => (float) ($tier['ocpus'] ?? $fallback['ocpus']),
+                'memory_in_gbs' => (float) ($tier['memory_in_gbs'] ?? $fallback['memory_in_gbs']),
+                'campaign_max_processes' => max(1, (int) ($tier['campaign_max_processes'] ?? $fallback['campaign_max_processes'])),
+            ];
+        }
+
+        return $fallback;
+    }
+
+    public function maxRecipientDemand(): int
+    {
+        $load = $this->campaignLoad();
+        if ($load === []) {
+            return 0;
+        }
+
+        return (int) max($load);
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    public function campaignLoad(): array
+    {
+        $raw = $this->redis()->get($this->redisKey(self::CACHE_CAMPAIGN_LOAD));
+        if (! is_string($raw) || $raw === '') {
+            return [];
+        }
+
+        $decoded = json_decode($raw, true);
+        if (! is_array($decoded)) {
+            return [];
+        }
+
+        $out = [];
+        foreach ($decoded as $id => $recipients) {
+            $out[(int) $id] = max(0, (int) $recipients);
+        }
+
+        return $out;
+    }
+
+    /**
+     * @param  array<int, int>  $load
+     */
+    public function storeCampaignLoad(array $load): void
+    {
+        $this->redis()->set(
+            $this->redisKey(self::CACHE_CAMPAIGN_LOAD),
+            json_encode($load),
+        );
+    }
+
+    public function forgetCampaignLoad(): void
+    {
+        $this->redis()->del($this->redisKey(self::CACHE_CAMPAIGN_LOAD));
+    }
+
+    /**
+     * @param  array{ocpus?: float, memory_in_gbs?: float, campaign_max_processes?: int}|null  $shape
      * @return array<string, string>
      */
-    public function workerEnvironment(): array
+    public function workerEnvironment(?array $shape = null): array
     {
+        $shape ??= $this->resolveShape();
         $base = (array) config('oci-workers.ephemeral.container_environment', []);
 
         $fromApp = array_filter([
@@ -207,6 +316,7 @@ final class CampaignOciWorkerLifecycle
             'QUEUE_CONNECTION' => 'redis',
             'CAMPAIGN_QUEUE' => OciWorkload::campaignQueue(),
             'HORIZON_ROLE' => 'oci-heavy',
+            'HORIZON_CAMPAIGN_MAX_PROCESSES' => (string) ($shape['campaign_max_processes'] ?? 2),
             'OCI_WORKERS_ENABLED' => 'false',
         ], static fn ($v) => $v !== null && $v !== '');
 

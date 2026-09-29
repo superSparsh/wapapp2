@@ -114,7 +114,7 @@ $horizon = [
             'queue' => ['campaign'],
             'balance' => 'auto',
             'autoScalingStrategy' => 'time',
-            'maxProcesses' => 3,
+            'maxProcesses' => (int) env('HORIZON_CAMPAIGN_MAX_PROCESSES', 3),
             'memory' => 128,
             'tries' => 3,
             'timeout' => 120,
@@ -216,7 +216,7 @@ $horizon = [
                 'balanceCooldown' => 3,
             ],
             'campaign' => [
-                'maxProcesses' => 5,
+                'maxProcesses' => (int) env('HORIZON_CAMPAIGN_MAX_PROCESSES', 5),
                 'balanceMaxShift' => 1,
                 'balanceCooldown' => 5,
             ],

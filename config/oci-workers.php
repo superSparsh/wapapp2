@@ -77,12 +77,43 @@ return [
         'availability_domain' => env('OCI_AVAILABILITY_DOMAIN', ''),
         'subnet_id' => env('OCI_SUBNET_ID', ''),
         'shape' => env('OCI_CI_SHAPE', 'CI.Standard.E4.Flex'),
+        // Used when auto_size is disabled, or as floor defaults.
         'ocpus' => (float) env('OCI_CI_OCPUS', 1),
         'memory_in_gbs' => (float) env('OCI_CI_MEMORY_GB', 4),
         'image_url' => env('OCI_CI_IMAGE_URL', ''),
         'display_name_prefix' => env('OCI_CI_DISPLAY_NAME_PREFIX', 'wapapp-campaign-worker'),
         'assign_public_ip' => (bool) env('OCI_CI_ASSIGN_PUBLIC_IP', false),
         'container_restart_policy' => env('OCI_CI_RESTART_POLICY', 'ALWAYS'),
+
+        /*
+        | Auto-size the shared CI from the largest active campaign recipient count.
+        | Small jobs stay cheap; large jobs get more OCPU/RAM + Horizon campaign processes.
+        | Size is chosen once at create time (running CI is not resized mid-flight).
+        */
+        'auto_size' => [
+            'enabled' => (bool) env('OCI_CI_AUTO_SIZE', true),
+            'tiers' => [
+                // max_recipients null = catch-all (largest)
+                [
+                    'max_recipients' => (int) env('OCI_CI_TIER_SMALL_MAX', 5000),
+                    'ocpus' => (float) env('OCI_CI_TIER_SMALL_OCPUS', 1),
+                    'memory_in_gbs' => (float) env('OCI_CI_TIER_SMALL_MEMORY_GB', 4),
+                    'campaign_max_processes' => (int) env('OCI_CI_TIER_SMALL_PROCESSES', 2),
+                ],
+                [
+                    'max_recipients' => (int) env('OCI_CI_TIER_MEDIUM_MAX', 50000),
+                    'ocpus' => (float) env('OCI_CI_TIER_MEDIUM_OCPUS', 2),
+                    'memory_in_gbs' => (float) env('OCI_CI_TIER_MEDIUM_MEMORY_GB', 8),
+                    'campaign_max_processes' => (int) env('OCI_CI_TIER_MEDIUM_PROCESSES', 4),
+                ],
+                [
+                    'max_recipients' => null,
+                    'ocpus' => (float) env('OCI_CI_TIER_LARGE_OCPUS', 4),
+                    'memory_in_gbs' => (float) env('OCI_CI_TIER_LARGE_MEMORY_GB', 16),
+                    'campaign_max_processes' => (int) env('OCI_CI_TIER_LARGE_PROCESSES', 8),
+                ],
+            ],
+        ],
 
         /*
         | Extra env injected into the Horizon container (merged with Redis/DB from

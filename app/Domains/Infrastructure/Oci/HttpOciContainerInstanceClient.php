@@ -27,7 +27,7 @@ final class HttpOciContainerInstanceClient implements OciContainerInstanceClient
             && filled($cfg['image_url'] ?? null);
     }
 
-    public function createCampaignWorker(string $displayName, array $environment = []): array
+    public function createCampaignWorker(string $displayName, array $environment = [], array $shape = []): array
     {
         if (! $this->isConfigured()) {
             throw new RuntimeException('OCI ephemeral HTTP driver is not fully configured.');
@@ -38,6 +38,9 @@ final class HttpOciContainerInstanceClient implements OciContainerInstanceClient
         // Official OCI SDK template: https://compute-containers.{region}.oci.{secondLevelDomain}
         $host = "compute-containers.{$region}.oci.oraclecloud.com";
         $path = '/20210415/containerInstances';
+
+        $ocpus = (float) ($shape['ocpus'] ?? $cfg['ocpus']);
+        $memoryInGbs = (float) ($shape['memory_in_gbs'] ?? $cfg['memory_in_gbs']);
 
         // OCI API expects a string map, not [{name,value}, ...].
         $envMap = [];
@@ -51,8 +54,8 @@ final class HttpOciContainerInstanceClient implements OciContainerInstanceClient
             'availabilityDomain' => $cfg['availability_domain'],
             'shape' => $cfg['shape'],
             'shapeConfig' => [
-                'ocpus' => (float) $cfg['ocpus'],
-                'memoryInGBs' => (float) $cfg['memory_in_gbs'],
+                'ocpus' => $ocpus,
+                'memoryInGBs' => $memoryInGbs,
             ],
             'containers' => [[
                 'displayName' => 'horizon',
@@ -82,6 +85,8 @@ final class HttpOciContainerInstanceClient implements OciContainerInstanceClient
                 'status' => $response['status'],
                 'body' => $this->truncateBody($response['body']),
                 'display_name' => $displayName,
+                'ocpus' => $ocpus,
+                'memory_in_gbs' => $memoryInGbs,
                 'host' => $host,
             ]);
 
@@ -100,6 +105,8 @@ final class HttpOciContainerInstanceClient implements OciContainerInstanceClient
         Log::info('OCI ephemeral: created campaign worker', [
             'ocid' => $ocid,
             'display_name' => $displayName,
+            'ocpus' => $ocpus,
+            'memory_in_gbs' => $memoryInGbs,
         ]);
 
         return [

@@ -10,9 +10,10 @@ interface OciContainerInstanceClient
      * Create a campaign Horizon worker Container Instance.
      *
      * @param  array<string, string>  $environment
+     * @param  array{ocpus?: float, memory_in_gbs?: float}  $shape
      * @return array{ocid: string, display_name: string}
      */
-    public function createCampaignWorker(string $displayName, array $environment = []): array;
+    public function createCampaignWorker(string $displayName, array $environment = [], array $shape = []): array;
 
     /**
      * Delete a Container Instance by OCID (idempotent if already gone).

@@ -18,7 +18,7 @@ final class LogOciContainerInstanceClient implements OciContainerInstanceClient
         return true;
     }
 
-    public function createCampaignWorker(string $displayName, array $environment = []): array
+    public function createCampaignWorker(string $displayName, array $environment = [], array $shape = []): array
     {
         $ocid = 'ocid1.containerinstance.oc1.test.'.Str::lower(Str::random(24));
 
@@ -26,6 +26,8 @@ final class LogOciContainerInstanceClient implements OciContainerInstanceClient
             'ocid' => $ocid,
             'display_name' => $displayName,
             'env_keys' => array_keys($environment),
+            'ocpus' => $shape['ocpus'] ?? config('oci-workers.ephemeral.ocpus'),
+            'memory_in_gbs' => $shape['memory_in_gbs'] ?? config('oci-workers.ephemeral.memory_in_gbs'),
         ]);
 
         return [

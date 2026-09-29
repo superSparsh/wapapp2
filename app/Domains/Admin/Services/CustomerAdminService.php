@@ -5,12 +5,21 @@ declare(strict_types=1);
 namespace App\Domains\Admin\Services;
 
 use App\Domains\Admin\Support\AdminListQuery;
+use App\Enums\MessageDirection;
+use App\Enums\MessageStatus;
 use App\Enums\SubscriptionStatus;
 use App\Enums\TenantStatus;
+use App\Models\Campaign;
+use App\Models\Contact;
+use App\Models\Message;
 use App\Models\Plan;
 use App\Models\Subscription;
+use App\Models\Template;
 use App\Models\Tenant;
 use App\Models\TenantUserAccess;
+use App\Models\WalletAccount;
+use App\Models\WalletTransaction;
+use App\Models\WhatsappLine;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
@@ -79,14 +88,175 @@ class CustomerAdminService
         $ownerEmail = $accessRows->first()?->email;
 
         $settings = is_array($tenant->settings) ? $tenant->settings : [];
+        $validUntil = $this->parseValidUntil($settings);
+        $daysLeft = $validUntil === null
+            ? null
+            : (int) now()->startOfDay()->diffInDays($validUntil->copy()->startOfDay(), false);
+
+        $ops = $this->operationalSnapshot($tenant);
 
         return [
             'tenant' => $tenant->loadMissing('plan'),
             'access_rows' => $accessRows,
             'owner_email' => $ownerEmail,
             'settings' => $settings,
+            'valid_until' => $validUntil,
+            'days_left' => $daysLeft,
+            'wallet' => $ops['wallet'],
+            'subscription' => $ops['subscription'],
+            'lines' => $ops['lines'],
+            'usage' => $ops['usage'],
+            'recent_wallet' => $ops['recent_wallet'],
             'plans' => Plan::query()->where('is_active', true)->orderBy('sort_order')->get(['id', 'name', 'price', 'currency']),
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $settings
+     */
+    private function parseValidUntil(array $settings): ?Carbon
+    {
+        $raw = $settings['valid_until'] ?? null;
+        if ($raw === null || $raw === '') {
+            return null;
+        }
+
+        try {
+            return Carbon::parse((string) $raw)->startOfDay();
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    /**
+     * Tenant-DB snapshot for the admin customer profile (safe no-op if DB missing).
+     *
+     * @return array{
+     *   wallet: array{balance: float|null, currency: string},
+     *   subscription: array{status: string|null, starts_at: string|null, ends_at: string|null, amount: string|null, currency: string|null},
+     *   lines: list<array{phone: string, display_name: string, quality: string, tier: string, connected: bool, is_default: bool}>,
+     *   usage: array{outbound_7d: int, inbound_7d: int, failed_7d: int, contacts: int, campaigns: int, templates: int, lines_total: int, lines_connected: int},
+     *   recent_wallet: list<array{type: string, amount: string, description: string, created_at: string|null}>
+     * }
+     */
+    private function operationalSnapshot(Tenant $tenant): array
+    {
+        $empty = [
+            'wallet' => ['balance' => null, 'currency' => 'INR'],
+            'subscription' => [
+                'status' => null,
+                'starts_at' => null,
+                'ends_at' => null,
+                'amount' => null,
+                'currency' => null,
+            ],
+            'lines' => [],
+            'usage' => [
+                'outbound_7d' => 0,
+                'inbound_7d' => 0,
+                'failed_7d' => 0,
+                'contacts' => 0,
+                'campaigns' => 0,
+                'templates' => 0,
+                'lines_total' => 0,
+                'lines_connected' => 0,
+            ],
+            'recent_wallet' => [],
+        ];
+
+        $wasInitialized = tenancy()->initialized;
+        $previous = $wasInitialized ? tenant() : null;
+
+        if ($wasInitialized) {
+            tenancy()->end();
+        }
+
+        try {
+            tenancy()->initialize($tenant);
+
+            $wallet = WalletAccount::query()->first();
+            $subscription = Subscription::query()
+                ->where('status', SubscriptionStatus::Active)
+                ->latest('id')
+                ->first()
+                ?? Subscription::query()->latest('id')->first();
+
+            $lines = WhatsappLine::query()
+                ->orderByDesc('is_default')
+                ->orderBy('id')
+                ->get()
+                ->map(fn (WhatsappLine $line): array => [
+                    'phone' => $line->displayPhone(),
+                    'display_name' => (string) ($line->display_name ?? ''),
+                    'quality' => strtoupper((string) ($line->quality_rating ?: 'UNKNOWN')),
+                    'tier' => (string) ($line->messaging_limit_tier ?: '-'),
+                    'connected' => $line->isConnected(),
+                    'is_default' => (bool) $line->is_default,
+                ])
+                ->all();
+
+            $since = now()->subDays(7);
+
+            $outbound = Message::query()
+                ->where('direction', MessageDirection::Outbound)
+                ->where('created_at', '>=', $since)
+                ->count();
+            $inbound = Message::query()
+                ->where('direction', MessageDirection::Inbound)
+                ->where('created_at', '>=', $since)
+                ->count();
+            $failed = Message::query()
+                ->where('status', MessageStatus::Failed)
+                ->where('created_at', '>=', $since)
+                ->count();
+
+            $recentWallet = WalletTransaction::query()
+                ->orderByDesc('id')
+                ->limit(5)
+                ->get()
+                ->map(fn (WalletTransaction $tx): array => [
+                    'type' => $tx->type?->value ?? (string) $tx->type,
+                    'amount' => number_format((float) $tx->amount, 2),
+                    'description' => (string) ($tx->description ?: '-'),
+                    'created_at' => $tx->created_at?->toDateTimeString(),
+                ])
+                ->all();
+
+            return [
+                'wallet' => [
+                    'balance' => $wallet !== null ? (float) $wallet->balance : null,
+                    'currency' => strtoupper((string) ($wallet?->currency ?: 'INR')),
+                ],
+                'subscription' => [
+                    'status' => $subscription?->status?->value,
+                    'starts_at' => $subscription?->starts_at?->toDateTimeString(),
+                    'ends_at' => $subscription?->ends_at?->toDateTimeString(),
+                    'amount' => $subscription?->amount !== null ? number_format((float) $subscription->amount, 2) : null,
+                    'currency' => $subscription?->currency,
+                ],
+                'lines' => $lines,
+                'usage' => [
+                    'outbound_7d' => $outbound,
+                    'inbound_7d' => $inbound,
+                    'failed_7d' => $failed,
+                    'contacts' => Contact::query()->count(),
+                    'campaigns' => Campaign::query()->count(),
+                    'templates' => Template::query()->count(),
+                    'lines_total' => count($lines),
+                    'lines_connected' => collect($lines)->where('connected', true)->count(),
+                ],
+                'recent_wallet' => $recentWallet,
+            ];
+        } catch (\Throwable) {
+            return $empty;
+        } finally {
+            if (tenancy()->initialized) {
+                tenancy()->end();
+            }
+            if ($wasInitialized && $previous) {
+                tenancy()->initialize($previous);
+            }
+        }
     }
 
     /**

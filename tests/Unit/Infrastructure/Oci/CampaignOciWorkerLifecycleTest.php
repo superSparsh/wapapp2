@@ -38,6 +38,7 @@ class CampaignOciWorkerLifecycleTest extends TestCase
         $this->lifecycle = app(CampaignOciWorkerLifecycle::class);
         $this->lifecycle->storeActiveCampaignIds([]);
         $this->lifecycle->forgetInstanceOcid();
+        $this->lifecycle->forgetCampaignLoad();
     }
 
     public function test_disabled_when_flag_off(): void
@@ -101,6 +102,37 @@ class CampaignOciWorkerLifecycleTest extends TestCase
         $ocid = $this->lifecycle->instanceOcid();
         $this->assertIsString($ocid);
         $this->assertStringStartsWith('ocid1.containerinstance.', $ocid);
+    }
+
+    public function test_resolve_shape_picks_tier_by_recipients(): void
+    {
+        $small = $this->lifecycle->resolveShape(1000);
+        $this->assertSame(1.0, $small['ocpus']);
+        $this->assertSame(4.0, $small['memory_in_gbs']);
+        $this->assertSame(2, $small['campaign_max_processes']);
+
+        $medium = $this->lifecycle->resolveShape(20000);
+        $this->assertSame(2.0, $medium['ocpus']);
+        $this->assertSame(8.0, $medium['memory_in_gbs']);
+        $this->assertSame(4, $medium['campaign_max_processes']);
+
+        $large = $this->lifecycle->resolveShape(100000);
+        $this->assertSame(4.0, $large['ocpus']);
+        $this->assertSame(16.0, $large['memory_in_gbs']);
+        $this->assertSame(8, $large['campaign_max_processes']);
+    }
+
+    public function test_campaign_started_stores_recipient_load(): void
+    {
+        $campaign = new Campaign;
+        $campaign->id = 55;
+        $campaign->total_recipients = 25000;
+
+        $this->lifecycle->onCampaignStarted($campaign);
+
+        $this->assertSame([55 => 25000], $this->lifecycle->campaignLoad());
+        $this->assertSame(25000, $this->lifecycle->maxRecipientDemand());
+        $this->assertSame(2.0, $this->lifecycle->resolveShape()['ocpus']);
     }
 
     public function test_teardown_worker_deletes_when_idle(): void
