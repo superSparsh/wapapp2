@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Domains\Admin\Http\Middleware;
 
 use App\Domains\Admin\Services\MaintenanceModeService;
+use App\Domains\Admin\Support\AdminSession;
+use App\Domains\Admin\Support\AdminViewAccess;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -23,6 +25,16 @@ class EnsureCustomerSiteAvailable
 
         // Admin panel + health always reachable.
         if ($request->is('admin', 'admin/*', 'up', 'horizon', 'horizon/*')) {
+            return $next($request);
+        }
+
+        // Platform admins using a customer account (Admin View / login-as) keep full access.
+        if ($this->customerAdminMayAccess()) {
+            return $next($request);
+        }
+
+        // Let those admins reach login / 2FA so they can sign into their customer account.
+        if ($this->isCustomerAdminAuthRoute($request)) {
             return $next($request);
         }
 
@@ -66,5 +78,28 @@ class EnsureCustomerSiteAvailable
                 'appName' => config('app.name', 'WapApp'),
             ], 503)
             ->header('Retry-After', '3600');
+    }
+
+    private function customerAdminMayAccess(): bool
+    {
+        if (AdminSession::isImpersonating()) {
+            return true;
+        }
+
+        return AdminViewAccess::canAccess();
+    }
+
+    private function isCustomerAdminAuthRoute(Request $request): bool
+    {
+        return $request->is(
+            'login',
+            'login/*',
+            'logout',
+            'two-factor-challenge',
+            'auth/google',
+            'auth/google/callback',
+            'auth/facebook',
+            'auth/facebook/callback',
+        );
     }
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Auth\Http\Controllers;
 
+use App\Domains\Admin\Support\MaintenanceLoginGate;
 use App\Domains\Auth\Exceptions\AccountInactiveException;
 use App\Domains\Auth\Exceptions\InvalidOtpException;
 use App\Domains\Auth\Exceptions\OtpDeliveryException;
@@ -54,6 +55,10 @@ class OtpLoginController extends Controller
                 ->route('login', ['tab' => 'mobile'])
                 ->withInput($request->only('phone', 'remember'))
                 ->withErrors(['otp' => $exception->getMessage()]);
+        }
+
+        if ($blocked = MaintenanceLoginGate::rejectUnlessCustomerAdmin($result->user, $result->guard)) {
+            return $blocked->withInput($request->only('phone', 'remember'));
         }
 
         if ($result->requiresTwoFactor) {

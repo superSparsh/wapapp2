@@ -7,12 +7,10 @@ namespace App\Domains\Billing\Services;
 use App\Domains\Campaigns\Services\CampaignCostCalculator;
 use App\Enums\MessageDirection;
 use App\Enums\MessageType;
-use App\Enums\WalletTransactionType;
 use App\Models\Campaign;
 use App\Models\CampaignRecipient;
 use App\Models\Message;
 use App\Models\WalletTransaction;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
@@ -20,8 +18,8 @@ use Throwable;
  * Debit wallet once per delivered billable WhatsApp message.
  *
  * - Templates: always (campaign / inbox / chatbot / …), category from metadata.
- * - Service (session) messages: from META_SERVICE_BILLING_STARTS_AT (default 2026-10-01).
- * - Utility 24h same-conversation skip only applies before that date.
+ * - Service (session) messages: charged on delivery (Meta conversation pricing).
+ * - Utility templates: every delivery is charged (no free 24h same-conversation skip).
  */
 class TemplateWalletChargeService
 {
@@ -62,21 +60,6 @@ class TemplateWalletChargeService
         $category = $isTemplate
             ? strtoupper((string) ($meta['template_category'] ?? 'MARKETING'))
             : 'SERVICE';
-
-        // Pre–Oct 1 Meta parity: second utility in same conversation within 24h is free.
-        if (
-            $isTemplate
-            && $category === 'UTILITY'
-            && ! $this->serviceBillingStarted()
-            && $this->hasOpenUtilityWindow($message, $meta)
-        ) {
-            Log::info('Wallet charge skipped: utility 24h window still open', [
-                'message_id' => $message->id,
-                'conversation_id' => $message->conversation_id,
-            ]);
-
-            return null;
-        }
 
         $unitCost = $this->costCalculator->unitCostForCategory($category);
         if ($unitCost <= 0) {
@@ -176,30 +159,8 @@ class TemplateWalletChargeService
         }
     }
 
-    public function serviceBillingStarted(?Carbon $at = null): bool
-    {
-        $raw = trim((string) config('campaigns.meta_service_billing_starts_at', '2026-10-01'));
-        if ($raw === '') {
-            return true;
-        }
-
-        try {
-            $start = Carbon::parse($raw, 'Asia/Kolkata')->startOfDay();
-        } catch (Throwable) {
-            $start = Carbon::parse('2026-10-01', 'Asia/Kolkata')->startOfDay();
-        }
-
-        $point = ($at ?? now())->copy()->timezone('Asia/Kolkata');
-
-        return $point->greaterThanOrEqualTo($start);
-    }
-
     private function isServiceMessage(Message $message): bool
     {
-        if (! $this->serviceBillingStarted()) {
-            return false;
-        }
-
         $direction = $message->direction instanceof MessageDirection
             ? $message->direction
             : MessageDirection::tryFrom((string) $message->direction);
@@ -273,23 +234,5 @@ class TemplateWalletChargeService
             'test' => 'Campaign test message ('.$category.')'.$suffix,
             default => 'WhatsApp template message ('.$category.', delivered)'.$suffix,
         };
-    }
-
-    /**
-     * @param  array<string, mixed>  $meta
-     */
-    private function hasOpenUtilityWindow(Message $message, array $meta): bool
-    {
-        $conversationId = (int) ($message->conversation_id ?: ($meta['conversation_id'] ?? 0));
-        if ($conversationId <= 0) {
-            return false;
-        }
-
-        return WalletTransaction::query()
-            ->where('type', WalletTransactionType::Debit)
-            ->where('metadata->template_category', 'UTILITY')
-            ->where('metadata->conversation_id', $conversationId)
-            ->where('created_at', '>=', now()->subHours(24))
-            ->exists();
     }
 }

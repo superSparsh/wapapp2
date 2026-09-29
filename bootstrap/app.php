@@ -113,6 +113,12 @@ return Application::configure(basePath: dirname(__DIR__))
             InitializeTenancyFromSession::class,
         );
 
+        // Show maintenance page before auth redirects guests to /login.
+        $middleware->prependToPriorityList(
+            \Illuminate\Auth\Middleware\Authenticate::class,
+            EnsureCustomerSiteAvailable::class,
+        );
+
         $middleware->api(append: [
             EnsureCustomerSiteAvailable::class,
         ]);

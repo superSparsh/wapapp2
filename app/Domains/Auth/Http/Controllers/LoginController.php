@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domains\Auth\Http\Controllers;
 
 use App\Domains\Account\Services\ActivityLogService;
+use App\Domains\Admin\Support\MaintenanceLoginGate;
 use App\Domains\Auth\Exceptions\AccountInactiveException;
 use App\Domains\Auth\Exceptions\InvalidCredentialsException;
 use App\Domains\Auth\Http\Requests\LoginRequest;
@@ -37,6 +38,10 @@ class LoginController extends Controller
             return back()
                 ->withInput($request->only('email', 'remember'))
                 ->withErrors(['email' => $exception->getMessage()]);
+        }
+
+        if ($blocked = MaintenanceLoginGate::rejectUnlessCustomerAdmin($result->user, $result->guard)) {
+            return $blocked->withInput($request->only('email', 'remember'));
         }
 
         $user = $result->user;

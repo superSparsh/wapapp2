@@ -11,6 +11,25 @@ use Illuminate\Support\Str;
 
 final class AdminViewAccess
 {
+    public static function emailHasAdminAccess(?string $email = null): bool
+    {
+        $email = strtolower(trim((string) ($email ?? self::currentEmail())));
+        if ($email === '') {
+            return false;
+        }
+
+        if (self::emailIsAllowlisted($email)) {
+            return true;
+        }
+
+        return self::onCentral(static function () use ($email): bool {
+            return Admin::query()
+                ->whereRaw('LOWER(email) = ?', [$email])
+                ->where('is_active', true)
+                ->exists();
+        }) === true;
+    }
+
     /**
      * Admin View ONLY for:
      * 1) email present on an active row in central `admins` table, OR
@@ -20,16 +39,7 @@ final class AdminViewAccess
      */
     public static function canAccess(): bool
     {
-        $email = self::currentEmail();
-        if ($email === '') {
-            return false;
-        }
-
-        if (self::emailIsAllowlisted($email)) {
-            return true;
-        }
-
-        return self::findActiveAdminByEmail() !== null;
+        return self::emailHasAdminAccess();
     }
 
     /**
@@ -82,21 +92,6 @@ final class AdminViewAccess
         );
 
         return in_array($email, $allowlist, true);
-    }
-
-    private static function findActiveAdminByEmail(): ?Admin
-    {
-        $email = self::currentEmail();
-        if ($email === '') {
-            return null;
-        }
-
-        return self::onCentral(static function () use ($email): ?Admin {
-            return Admin::query()
-                ->whereRaw('LOWER(email) = ?', [$email])
-                ->where('is_active', true)
-                ->first();
-        });
     }
 
     private static function findAdminByEmailIncludingTrashed(string $email): ?Admin

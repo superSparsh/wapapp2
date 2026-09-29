@@ -17,11 +17,6 @@ return [
     'mass_threshold' => (int) env('CAMPAIGN_MASS_THRESHOLD', PHP_INT_MAX),
     'mass_batch_size' => (int) env('CAMPAIGN_MASS_BATCH_SIZE', 1000),
     'mass_api_enabled' => (bool) env('CAMPAIGN_MASS_API_ENABLED', false),
-    /*
-    | Meta Oct 1 2026: charge service (session) messages + utility in 24h CSW.
-    | Before this date, utility 24h skip still applies and free-form is not charged.
-    */
-    'meta_service_billing_starts_at' => env('META_SERVICE_BILLING_STARTS_AT', '2026-10-01'),
     'cost' => [
         'currency' => 'INR',
         /** Used when admin CountryPricing row is missing. */

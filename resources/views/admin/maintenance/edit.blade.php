@@ -65,11 +65,12 @@
           <ul class="mt-2 list-disc space-y-1 pl-5 text-emerald-900/80">
             <li>Admin panel (`/admin`)</li>
             <li>Health check (`/up`)</li>
+            <li>Customer admin accounts (Admin View / Login as)</li>
             <li>Queue workers / scheduler processes (module flags control work)</li>
           </ul>
           <p class="mt-4 font-semibold">Always locked when maintenance is ON</p>
           <ul class="mt-2 list-disc space-y-1 pl-5 text-emerald-900/80">
-            <li>Customer login / signup / dashboard UI</li>
+            <li>Regular customer login / signup / dashboard UI</li>
             <li>Customer API (unless enabled below)</li>
           </ul>
         </div>
