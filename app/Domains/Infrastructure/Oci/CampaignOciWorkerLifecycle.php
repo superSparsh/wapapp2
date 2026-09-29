@@ -168,19 +168,35 @@ final class CampaignOciWorkerLifecycle
         $deleted = [];
 
         $this->withLock(function () use ($client, $includeOrphans, &$deleted): void {
+            $candidates = [];
             $tracked = $this->instanceOcid();
-            if ($tracked !== null) {
-                $client->delete($tracked);
-                $deleted[] = $tracked;
+            if ($tracked !== null && $tracked !== '') {
+                $candidates[] = $tracked;
             }
 
             if ($includeOrphans) {
-                foreach ($client->listCampaignWorkerOcids() as $ocid) {
-                    if ($ocid === '' || in_array($ocid, $deleted, true)) {
-                        continue;
+                try {
+                    foreach ($client->listCampaignWorkerOcids() as $ocid) {
+                        if ($ocid !== '' && ! in_array($ocid, $candidates, true)) {
+                            $candidates[] = $ocid;
+                        }
                     }
+                } catch (\Throwable $e) {
+                    Log::warning('OCI ephemeral: list orphans during forceDestroy failed', [
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+
+            foreach ($candidates as $ocid) {
+                try {
                     $client->delete($ocid);
                     $deleted[] = $ocid;
+                } catch (\Throwable $e) {
+                    Log::error('OCI ephemeral: forceDestroy delete failed', [
+                        'ocid' => $ocid,
+                        'error' => $e->getMessage(),
+                    ]);
                 }
             }
 
@@ -231,41 +247,70 @@ final class CampaignOciWorkerLifecycle
                 return;
             }
 
-            if ($this->campaignQueueDepth() > 0) {
-                Log::info('OCI ephemeral: skip teardown - campaign queue not empty', [
-                    'depth' => $this->campaignQueueDepth(),
+            // Active list empty = no Sending campaigns. Do not block forever on leftover
+            // campaign-queue jobs (old prefix / retries); next CI can drain them if needed.
+            $depth = $this->campaignQueueDepth();
+            if ($depth > 0) {
+                Log::info('OCI ephemeral: destroying despite leftover campaign queue jobs', [
+                    'depth' => $depth,
                 ]);
+            }
 
-                TeardownOciCampaignWorkerJob::dispatch()
-                    ->delay(now()->addSeconds(max(30, (int) config('oci-workers.ephemeral.grace_seconds', 120))))
-                    ->onQueue((string) config('oci-workers.ephemeral.provisioning_queue', 'provisioning'));
+            $toDelete = [];
+            $tracked = $this->instanceOcid();
+            if ($tracked !== null && $tracked !== '') {
+                $toDelete[] = $tracked;
+            }
+
+            try {
+                foreach ($client->listCampaignWorkerOcids() as $ocid) {
+                    if ($ocid !== '' && ! in_array($ocid, $toDelete, true)) {
+                        $toDelete[] = $ocid;
+                    }
+                }
+            } catch (\Throwable $e) {
+                Log::warning('OCI ephemeral: list orphans during teardown failed', [
+                    'error' => $e->getMessage(),
+                ]);
+            }
+
+            if ($toDelete === []) {
+                $this->forgetInstanceOcid();
+                $this->forgetInstanceStartedAt();
+                $this->forgetCampaignLoad();
+                $this->storeActiveCampaignIds([]);
+                Log::info('OCI ephemeral: teardown skipped - no tracked OCID and no listed instances');
 
                 return;
             }
 
-            $ocid = $this->instanceOcid();
-            if ($ocid === null) {
-                Log::info('OCI ephemeral: teardown skipped - no instance OCID in redis state');
-
-                return;
+            foreach ($toDelete as $ocid) {
+                try {
+                    $client->delete($ocid);
+                } catch (\Throwable $e) {
+                    Log::error('OCI ephemeral: delete failed during teardown', [
+                        'ocid' => $ocid,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
             }
 
-            $client->delete($ocid);
             $session = $this->closeSession();
             $this->forgetInstanceOcid();
             $this->forgetInstanceStartedAt();
             $this->forgetCampaignLoad();
+            $this->storeActiveCampaignIds([]);
             if ($session !== null) {
                 $this->storeLastSession($session);
                 Log::info('OCI ephemeral: worker session closed', [
-                    'ocid' => $ocid,
+                    'deleted' => $toDelete,
                     'active_seconds' => $session['active_seconds'],
                     'started_at' => $session['started_at'],
                     'ended_at' => $session['ended_at'],
                 ]);
             }
 
-            Log::info('OCI ephemeral: destroyed campaign worker', ['ocid' => $ocid]);
+            Log::info('OCI ephemeral: destroyed campaign worker(s)', ['deleted' => $toDelete]);
         });
     }
 
