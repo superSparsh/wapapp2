@@ -51,16 +51,14 @@
             if (resp && typeof resp.active !== 'undefined') {
               var toggle = form.querySelector('[role="switch"]');
               if (toggle) {
-                var isActive = resp.active;
+                var isActive = !!resp.active;
                 toggle.setAttribute('aria-checked', isActive ? 'true' : 'false');
-                toggle.className = toggle.className
-                  .replace(/bg-green-500/g, isActive ? 'bg-green-500' : 'bg-green-50')
-                  .replace(/bg-green-50/g, isActive ? 'bg-green-500' : 'bg-green-50');
+                toggle.classList.remove('bg-green-500', 'bg-green-50');
+                toggle.classList.add(isActive ? 'bg-green-500' : 'bg-green-50');
                 var knob = toggle.querySelector('span');
                 if (knob) {
-                  knob.className = knob.className
-                    .replace(/left-\[24px\]/g, isActive ? 'left-[24px]' : 'left-[2px]')
-                    .replace(/left-\[2px\]/g, isActive ? 'left-[24px]' : 'left-[2px]');
+                  knob.classList.remove('left-[24px]', 'left-[2px]');
+                  knob.classList.add(isActive ? 'left-[24px]' : 'left-[2px]');
                 }
                 toggle.setAttribute('aria-label', isActive ? 'Pause campaign' : 'Resume campaign');
               }
@@ -69,6 +67,9 @@
                 label.textContent = isActive ? 'Pause' : 'Resume';
                 label.className = 'text-xs font-semibold leading-[1.2] ' + (isActive ? 'text-teal-700' : 'text-orange-500');
               }
+              // Refresh badge / status chip on the page after toggle.
+              window.setTimeout(function () { window.location.reload(); }, 400);
+              return;
             }
           } else {
             window.location.reload();

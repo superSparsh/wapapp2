@@ -120,8 +120,8 @@ class CampaignServiceTest extends TestCase
         $this->service->toggle($campaign);
 
         \Illuminate\Support\Facades\Queue::assertPushed(
-            \App\Domains\Campaigns\Jobs\SendCampaignRecipientJob::class,
-            3,
+            \App\Domains\Campaigns\Jobs\RedispatchPendingCampaignJobs::class,
+            1,
         );
     }
 

@@ -95,7 +95,7 @@ return [
         'oci_destroy_campaign_workers' => [
             'group' => 'OCI campaign workers',
             'label' => 'Destroy campaign containers now',
-            'description' => 'oci:destroy-campaign-workers — force-delete ephemeral CI, clear Redis, pause Sending campaigns.',
+            'description' => 'oci:destroy-campaign-workers - force-delete ephemeral CI, clear Redis, pause Sending campaigns.',
             'type' => 'artisan',
             'command' => 'oci:destroy-campaign-workers',
             'danger' => true,

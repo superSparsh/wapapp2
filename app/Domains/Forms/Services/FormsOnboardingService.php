@@ -383,8 +383,8 @@ class FormsOnboardingService
 
         $wabaRaw = trim((string) ($setup['waba_existing'] ?? ''));
         $wabaMap = [
-            'yes_migrate' => 'Yes — migrating to Tittu',
-            'no_new' => 'No — new number',
+            'yes_migrate' => 'Yes - migrating to Tittu',
+            'no_new' => 'No - new number',
         ];
         $resolvedWabaExisting = $wabaMap[strtolower($wabaRaw)] ?? $wabaRaw;
 

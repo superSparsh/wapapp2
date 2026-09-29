@@ -23,7 +23,7 @@
         <x-admin.status-badge :status="$tenant->status" />
       </div>
       <p class="mt-1 text-sm text-text-subtle">
-        {{ $tenant->email ?: '—' }}
+        {{ $tenant->email ?: '-' }}
         @if ($tenant->phone)
           · {{ $tenant->phone }}
         @endif
@@ -51,7 +51,7 @@
       <p class="text-[11px] font-semibold uppercase tracking-wide text-text-subtle">Wallet</p>
       <p @class(['mt-2 text-2xl font-bold tabular-nums', 'text-red-600' => $walletLow, 'text-text-primary' => ! $walletLow])>
         @if ($walletBalance === null)
-          —
+          -
         @else
           {{ $walletCurrency === 'USD' ? '$' : '₹' }}{{ number_format($walletBalance, 2) }}
         @endif
@@ -67,7 +67,7 @@
         'text-text-primary' => $validityTone === 'ok' || $validityTone === 'muted',
       ])>
         @if ($daysLeft === null)
-          —
+          -
         @elseif ($daysLeft < 0)
           Expired
         @else
@@ -167,19 +167,19 @@
         <dl class="mt-4 space-y-3 text-sm">
           <div class="flex justify-between gap-3">
             <dt class="text-text-subtle">Plan</dt>
-            <dd class="font-semibold text-text-primary">{{ $tenant->plan?->name ?: '—' }}</dd>
+            <dd class="font-semibold text-text-primary">{{ $tenant->plan?->name ?: '-' }}</dd>
           </div>
           <div class="flex justify-between gap-3">
             <dt class="text-text-subtle">Status</dt>
-            <dd class="font-semibold text-text-primary">{{ $subscription['status'] ?: '—' }}</dd>
+            <dd class="font-semibold text-text-primary">{{ $subscription['status'] ?: '-' }}</dd>
           </div>
           <div class="flex justify-between gap-3">
             <dt class="text-text-subtle">Starts</dt>
-            <dd class="font-semibold text-text-primary">{{ $subscription['starts_at'] ? \Illuminate\Support\Carbon::parse($subscription['starts_at'])->toFormattedDateString() : '—' }}</dd>
+            <dd class="font-semibold text-text-primary">{{ $subscription['starts_at'] ? \Illuminate\Support\Carbon::parse($subscription['starts_at'])->toFormattedDateString() : '-' }}</dd>
           </div>
           <div class="flex justify-between gap-3">
             <dt class="text-text-subtle">Ends</dt>
-            <dd class="font-semibold text-text-primary">{{ $subscription['ends_at'] ? \Illuminate\Support\Carbon::parse($subscription['ends_at'])->toFormattedDateString() : ($valid_until?->toFormattedDateString() ?: '—') }}</dd>
+            <dd class="font-semibold text-text-primary">{{ $subscription['ends_at'] ? \Illuminate\Support\Carbon::parse($subscription['ends_at'])->toFormattedDateString() : ($valid_until?->toFormattedDateString() ?: '-') }}</dd>
           </div>
           @if ($subscription['amount'])
             <div class="flex justify-between gap-3">
@@ -195,23 +195,23 @@
         <dl class="mt-4 space-y-3 text-sm">
           <div class="flex justify-between gap-3">
             <dt class="text-text-subtle">Name</dt>
-            <dd class="text-right font-semibold text-text-primary">{{ $tenant->name ?: '—' }}</dd>
+            <dd class="text-right font-semibold text-text-primary">{{ $tenant->name ?: '-' }}</dd>
           </div>
           <div class="flex justify-between gap-3">
             <dt class="text-text-subtle">Company</dt>
-            <dd class="text-right font-semibold text-text-primary">{{ $tenant->company_name ?: '—' }}</dd>
+            <dd class="text-right font-semibold text-text-primary">{{ $tenant->company_name ?: '-' }}</dd>
           </div>
           <div class="flex justify-between gap-3">
             <dt class="text-text-subtle">Timezone</dt>
-            <dd class="font-semibold text-text-primary">{{ $tenant->timezone ?: '—' }}</dd>
+            <dd class="font-semibold text-text-primary">{{ $tenant->timezone ?: '-' }}</dd>
           </div>
           <div class="flex justify-between gap-3">
             <dt class="text-text-subtle">Created</dt>
-            <dd class="font-semibold text-text-primary">{{ optional($tenant->created_at)->toFormattedDateString() ?: '—' }}</dd>
+            <dd class="font-semibold text-text-primary">{{ optional($tenant->created_at)->toFormattedDateString() ?: '-' }}</dd>
           </div>
           <div class="flex justify-between gap-3">
             <dt class="text-text-subtle">Provisioned</dt>
-            <dd class="font-semibold text-text-primary">{{ optional($tenant->provisioned_at)->toFormattedDateString() ?: '—' }}</dd>
+            <dd class="font-semibold text-text-primary">{{ optional($tenant->provisioned_at)->toFormattedDateString() ?: '-' }}</dd>
           </div>
         </dl>
       </div>
@@ -272,7 +272,7 @@
             @forelse ($access_rows as $row)
               <tr>
                 <td class="py-2 pr-3">{{ $row->email }}</td>
-                <td class="py-2 pr-3">{{ $row->phone ?: '—' }}</td>
+                <td class="py-2 pr-3">{{ $row->phone ?: '-' }}</td>
                 <td class="py-2 pr-3">{{ $row->account_type?->value }}</td>
                 <td class="py-2"><x-admin.status-badge :status="$row->is_active" /></td>
               </tr>
@@ -307,7 +307,7 @@
       <h2 class="text-lg font-bold text-text-primary">Extend validity &amp; wallet</h2>
       <p class="mt-1 text-xs text-text-subtle">
         Current: {{ $valid_until?->toFormattedDateString() ?: 'no date' }}
-        · Wallet {{ $walletBalance === null ? '—' : (($walletCurrency === 'USD' ? '$' : '₹').number_format($walletBalance, 2)) }}
+        · Wallet {{ $walletBalance === null ? '-' : (($walletCurrency === 'USD' ? '$' : '₹').number_format($walletBalance, 2)) }}
       </p>
       <form method="POST" action="{{ route('admin.customers.extend-validity', $tenant) }}" class="mt-4 flex flex-col gap-3">
         @csrf

@@ -337,7 +337,7 @@ class CampaignSendService
         // Jobs waiting on campaign queue = worker lag, not a stuck campaign.
         $queueDepth = $this->campaignQueueDepth();
         if ($queueDepth > 0) {
-            Log::info('Skipping idle campaign auto-pause — campaign queue still has jobs', [
+            Log::info('Skipping idle campaign auto-pause - campaign queue still has jobs', [
                 'depth' => $queueDepth,
             ]);
 

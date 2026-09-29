@@ -29,7 +29,7 @@ $statusColor = match ($campaign->status) {
         {{ $statusLabel }}
       </span>
       @if ($campaign->isPaused())
-        <span class="shrink-0 text-[10px] font-medium text-orange-600">Paused — resume when ready</span>
+        <span class="shrink-0 text-[10px] font-medium text-orange-600">Paused - resume when ready</span>
       @endif
       @if ($campaign->isSending() || $campaign->isPaused())
         <form method="POST" action="{{ route('campaigns.toggle', $campaign) }}" data-campaign-toggle class="flex shrink-0 items-center gap-2">
@@ -38,12 +38,12 @@ $statusColor = match ($campaign->status) {
           <span data-campaign-pause-label class="text-xs font-semibold leading-[1.2] {{ $campaign->isSending() ? 'text-teal-700' : 'text-orange-500' }}">
             {{ $campaign->isSending() ? 'Pause' : 'Resume' }}
           </span>
-          <button type="submit" class="cursor-pointer" aria-label="{{ $campaign->isSending() ? 'Pause campaign' : 'Resume campaign' }}">
-            <x-ui.toggle-switch
-              :active="$campaign->isSending()"
-              :aria-label="$campaign->isSending() ? 'Pause campaign' : 'Resume campaign'"
-            />
-          </button>
+          {{-- submit=true: single button (nested <button> breaks click / form submit) --}}
+          <x-ui.toggle-switch
+            :active="$campaign->isSending()"
+            :submit="true"
+            :aria-label="$campaign->isSending() ? 'Pause campaign' : 'Resume campaign'"
+          />
         </form>
       @endif
     </div>

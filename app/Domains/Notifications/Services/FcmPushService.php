@@ -63,7 +63,7 @@ class FcmPushService
             return $existing->fresh() ?? $existing;
         }
 
-        // One device_id per actor — replace stale row for that device.
+        // One device_id per actor - replace stale row for that device.
         if ($deviceId !== null) {
             FcmToken::query()
                 ->when($userId !== null, fn ($q) => $q->where('user_id', $userId))

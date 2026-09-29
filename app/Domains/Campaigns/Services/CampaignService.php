@@ -170,15 +170,11 @@ class CampaignService
                 $lifecycle->onCampaignFinished($campaign->fresh() ?? $campaign);
             } else {
                 $lifecycle->onCampaignStarted($campaign->fresh() ?? $campaign);
-                // Pause/nightly destroy drop or no-op jobs; re-queue remaining pending rows.
+                // Async re-queue so pause/resume toggle stays fast under large audiences.
                 try {
-                    $count = app(CampaignSendService::class)->dispatchPendingRecipientJobs($campaign->fresh() ?? $campaign);
-                    Log::info('Campaign resume re-dispatched pending recipients', [
-                        'campaign_id' => $campaign->id,
-                        'dispatched' => $count,
-                    ]);
+                    \App\Domains\Campaigns\Jobs\RedispatchPendingCampaignJobs::dispatch((int) $campaign->id);
                 } catch (Throwable $e) {
-                    Log::error('Campaign resume re-dispatch failed', [
+                    Log::error('Campaign resume re-dispatch job failed to queue', [
                         'campaign_id' => $campaign->id,
                         'error' => $e->getMessage(),
                     ]);

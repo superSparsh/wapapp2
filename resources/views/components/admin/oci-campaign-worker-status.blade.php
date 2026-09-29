@@ -14,7 +14,7 @@
   <div class="flex flex-wrap items-start justify-between gap-3">
     <div>
       <h2 class="text-lg font-bold text-text-primary">OCI campaign worker</h2>
-      <p class="mt-1 text-sm text-text-subtle">Shared ephemeral container — live status and last session duration (admin only).</p>
+      <p class="mt-1 text-sm text-text-subtle">Shared ephemeral container - live status and last session duration (admin only).</p>
     </div>
     <div class="flex flex-wrap items-center gap-2">
       <span @class([
@@ -55,7 +55,7 @@
     </div>
     <div>
       <dt class="text-xs uppercase tracking-wide text-text-subtle">Active duration</dt>
-      <dd class="mt-1 font-semibold tabular-nums text-text-primary">{{ $active ? ($ociWorker['active_for_humans'] ?? '—') : '—' }}</dd>
+      <dd class="mt-1 font-semibold tabular-nums text-text-primary">{{ $active ? ($ociWorker['active_for_humans'] ?? '-') : '-' }}</dd>
     </div>
     <div>
       <dt class="text-xs uppercase tracking-wide text-text-subtle">Started at</dt>
@@ -63,7 +63,7 @@
         @if (! empty($ociWorker['started_at']))
           {{ \Illuminate\Support\Carbon::parse($ociWorker['started_at'])->timezone(config('app.timezone'))->format('d M Y h:i A') }}
         @else
-          —
+          -
         @endif
       </dd>
     </div>
@@ -87,9 +87,9 @@
         Ran for <span class="tabular-nums">{{ $last['active_for_humans'] }}</span>
       </p>
       <p class="mt-1 text-xs text-text-subtle">
-        {{ ! empty($last['started_at']) ? \Illuminate\Support\Carbon::parse($last['started_at'])->timezone(config('app.timezone'))->format('d M Y h:i A') : '—' }}
+        {{ ! empty($last['started_at']) ? \Illuminate\Support\Carbon::parse($last['started_at'])->timezone(config('app.timezone'))->format('d M Y h:i A') : '-' }}
         →
-        {{ ! empty($last['ended_at']) ? \Illuminate\Support\Carbon::parse($last['ended_at'])->timezone(config('app.timezone'))->format('d M Y h:i A') : '—' }}
+        {{ ! empty($last['ended_at']) ? \Illuminate\Support\Carbon::parse($last['ended_at'])->timezone(config('app.timezone'))->format('d M Y h:i A') : '-' }}
       </p>
     @else
       <p class="mt-2 text-sm text-text-subtle">No closed session recorded yet.</p>
