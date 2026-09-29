@@ -121,6 +121,14 @@ return [
         'nightly_destroy_at' => env('OCI_CI_NIGHTLY_DESTROY_AT', '01:00'),
 
         /*
+        | Redis host reachable FROM the Container Instance (VCN private IP of the
+        | app VM). Web can keep REDIS_HOST=127.0.0.1; without this override the CI
+        | inherits localhost and never consumes campaign jobs.
+        | App VM private IP (prod): 10.0.0.203
+        */
+        'redis_host' => env('OCI_REDIS_HOST', ''),
+
+        /*
         | Extra env injected into the Horizon container (merged with Redis/DB from
         | the app .env when HTTP driver builds the create payload).
         */

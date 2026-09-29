@@ -181,4 +181,16 @@ class CampaignOciWorkerLifecycleTest extends TestCase
         $this->assertNotNull($snap['active_for_humans']);
         $this->assertSame('30m 0s', $snap['last_session']['active_for_humans']);
     }
+
+    public function test_worker_environment_prefers_oci_redis_host_over_localhost(): void
+    {
+        config([
+            'database.redis.default.host' => '127.0.0.1',
+            'oci-workers.ephemeral.redis_host' => '10.0.0.203',
+        ]);
+
+        $env = $this->lifecycle->workerEnvironment();
+
+        $this->assertSame('10.0.0.203', $env['REDIS_HOST']);
+    }
 }

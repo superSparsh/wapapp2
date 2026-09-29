@@ -377,7 +377,11 @@ final class CampaignOciWorkerLifecycle
             'DB_USERNAME' => (string) config('database.connections.mysql.username', ''),
             'DB_PASSWORD' => (string) config('database.connections.mysql.password', ''),
             'REDIS_CLIENT' => (string) config('database.redis.client', 'phpredis'),
-            'REDIS_HOST' => (string) config('database.redis.default.host', '127.0.0.1'),
+            // Prefer OCI_REDIS_HOST: web may use 127.0.0.1, but the CI cannot reach that.
+            'REDIS_HOST' => (string) (
+                config('oci-workers.ephemeral.redis_host')
+                ?: config('database.redis.default.host', '127.0.0.1')
+            ),
             'REDIS_PASSWORD' => (string) (config('database.redis.default.password') ?? ''),
             'REDIS_PORT' => (string) config('database.redis.default.port', 6379),
             'REDIS_DB' => (string) config('database.redis.default.database', 0),
