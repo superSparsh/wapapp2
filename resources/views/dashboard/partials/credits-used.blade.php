@@ -43,6 +43,6 @@
     <x-ui.credit-stat-card label="Sent" icon="send" data-credit-key="sent" :value="number_format((int) ($credits['sent'] ?? 0)).'/'.number_format((int) ($credits['sent_limit'] ?? 1000))" />
     <x-ui.credit-stat-card label="Marketing Conversations" icon="megaphone" data-credit-key="marketing" :value="number_format((int) ($credits['marketing'] ?? 0)).'/'.number_format((int) ($credits['marketing_limit'] ?? 1000))" />
     <x-ui.credit-stat-card label="Utility Conversations" icon="wrench" data-credit-key="utility" :value="number_format((int) ($credits['utility'] ?? 0)).'/'.number_format((int) ($credits['utility_limit'] ?? 1000))" />
-    <x-ui.credit-stat-card label="Services Conversations" icon="headset" data-credit-key="service" :value="number_format((int) ($credits['service'] ?? 0)).'/'.number_format((int) ($credits['service_limit'] ?? 1000))" />
+    <x-ui.credit-stat-card label="Service messages" icon="headset" data-credit-key="service" :value="number_format((int) ($credits['service'] ?? 0))" />
   </div>
 </section>

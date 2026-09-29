@@ -62,6 +62,7 @@ class DashboardTest extends TestCase
             ->get(route('dashboard', ['credits_period' => 'daily']))
             ->assertOk()
             ->assertSee('Credits Used')
+            ->assertSee('Service messages')
             ->assertSee('Sort by : Daily');
     }
 
@@ -109,6 +110,58 @@ class DashboardTest extends TestCase
             ->assertJsonPath('credits.marketing', 3)
             ->assertJsonPath('credits.utility', 2)
             ->assertJsonPath('credits.sent', 5);
+    }
+
+    public function test_service_credits_count_messages_without_tier_limit(): void
+    {
+        $conversation = \App\Models\Conversation::factory()->create([
+            'whatsapp_line_id' => $this->testLine->id,
+        ]);
+
+        // Counted: outbound free-form delivered/sent
+        \App\Models\Message::factory()->outbound()->count(3)->create([
+            'conversation_id' => $conversation->id,
+            'message_type' => \App\Enums\MessageType::Text,
+            'status' => \App\Enums\MessageStatus::Delivered,
+            'sent_at' => now(),
+            'delivered_at' => now(),
+        ]);
+
+        // Same conversation again — still +1 message (not conversation-collapsed)
+        \App\Models\Message::factory()->outbound()->create([
+            'conversation_id' => $conversation->id,
+            'message_type' => \App\Enums\MessageType::Interactive,
+            'status' => \App\Enums\MessageStatus::Sent,
+            'sent_at' => now(),
+        ]);
+
+        // Excluded: template / system / inbound / failed
+        \App\Models\Message::factory()->outbound()->create([
+            'conversation_id' => $conversation->id,
+            'message_type' => \App\Enums\MessageType::Template,
+            'status' => \App\Enums\MessageStatus::Delivered,
+            'sent_at' => now(),
+            'delivered_at' => now(),
+        ]);
+        \App\Models\Message::factory()->create([
+            'conversation_id' => $conversation->id,
+            'direction' => \App\Enums\MessageDirection::Inbound,
+            'message_type' => \App\Enums\MessageType::Text,
+            'status' => \App\Enums\MessageStatus::Delivered,
+            'delivered_at' => now(),
+        ]);
+        \App\Models\Message::factory()->outbound()->create([
+            'conversation_id' => $conversation->id,
+            'message_type' => \App\Enums\MessageType::Text,
+            'status' => \App\Enums\MessageStatus::Failed,
+            'sent_at' => now(),
+        ]);
+
+        $this->actingAsTenantUser()
+            ->getJson(route('dashboard.credits', ['period' => 'daily']))
+            ->assertOk()
+            ->assertJsonPath('credits.service', 4)
+            ->assertJsonPath('credits.service_limit', null);
     }
 
     public function test_dashboard_shows_plan_from_subscription_when_tenant_plan_missing(): void

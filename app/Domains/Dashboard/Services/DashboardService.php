@@ -11,6 +11,8 @@ use App\Domains\Campaigns\Services\CampaignStatsService;
 use App\Enums\CampaignRecipientStatus;
 use App\Enums\ContactOptInStatus;
 use App\Enums\MessageDirection;
+use App\Enums\MessageStatus;
+use App\Enums\MessageType;
 use App\Models\Campaign;
 use App\Models\CampaignRecipient;
 use App\Models\Contact;
@@ -234,12 +236,12 @@ class DashboardService
     }
 
     /**
-     * Credits Used cards (legacy-aligned):
+     * Credits Used cards:
      * - marketing / utility = successful campaign sends by template category
-     * - service = inbox conversations with outbound activity in the window
-     * - sent = marketing + utility (service excluded, same as legacy)
+     * - service = delivered free-form (session) messages — no Meta messaging-tier cap
+     * - sent = marketing + utility (service excluded)
      *
-     * @return array<string, int|string>
+     * @return array<string, int|string|null>
      */
     private function creditsSummary(string $period): array
     {
@@ -267,28 +269,32 @@ class DashboardService
             )
             ->selectRaw("
                 SUM(CASE WHEN UPPER(COALESCE(templates.category, 'MARKETING')) IN ('MARKETING', 'CAROUSEL') THEN 1 ELSE 0 END) as marketing,
-                SUM(CASE WHEN UPPER(COALESCE(templates.category, '')) = 'UTILITY' THEN 1 ELSE 0 END) as utility,
-                SUM(CASE WHEN UPPER(COALESCE(templates.category, '')) IN ('AUTHENTICATION', 'SERVICE', 'LIMITED_TIME_OFFER') THEN 1 ELSE 0 END) as auth_service
+                SUM(CASE WHEN UPPER(COALESCE(templates.category, '')) = 'UTILITY' THEN 1 ELSE 0 END) as utility
             ")
             ->first();
 
         $marketing = (int) ($row->marketing ?? 0);
         $utility = (int) ($row->utility ?? 0);
-        $authService = (int) ($row->auth_service ?? 0);
 
-        // Legacy: service conversations come from inbox (outbound), not campaign marketing sends.
-        $serviceInbox = (int) Message::query()
+        // Per delivered/sent free-form message (inbox, chatbot, AI, …) — not conversation count.
+        $service = (int) Message::query()
             ->where('direction', MessageDirection::Outbound)
+            ->whereNotIn('message_type', [
+                MessageType::Template->value,
+                MessageType::System->value,
+            ])
+            ->whereIn('status', [
+                MessageStatus::Sent->value,
+                MessageStatus::Delivered->value,
+                MessageStatus::Read->value,
+            ])
             ->whereBetween(
-                DB::raw('COALESCE(messages.sent_at, messages.created_at)'),
+                DB::raw('COALESCE(messages.sent_at, messages.delivered_at, messages.created_at)'),
                 [$from, $to],
             )
-            ->distinct()
-            ->count('conversation_id');
+            ->count();
 
-        $service = max($serviceInbox, $authService);
-
-        // Legacy Sent card = marketing + utility only (service excluded).
+        // Sent card = marketing + utility only (service excluded).
         $sent = $marketing + $utility;
 
         return [
@@ -300,7 +306,8 @@ class DashboardService
             'utility' => $utility,
             'utility_limit' => $limit,
             'service' => $service,
-            'service_limit' => $limit,
+            // Messaging-tier limits do not apply to session/service replies.
+            'service_limit' => null,
         ];
     }
 

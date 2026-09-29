@@ -192,8 +192,13 @@ function initCreditsFilter(root) {
                     return;
                 }
                 const used = credits[key] ?? 0;
-                const limit = credits[`${key}_limit`] ?? credits.sent_limit ?? 1000;
-                valueEl.textContent = `${formatNumber(used)}/${formatNumber(limit)}`;
+                const limit = credits[`${key}_limit`];
+                // Service replies are not capped by Meta messaging-tier limits.
+                if (limit === null || (limit === undefined && key === 'service')) {
+                    valueEl.textContent = formatNumber(used);
+                    return;
+                }
+                valueEl.textContent = `${formatNumber(used)}/${formatNumber(limit ?? credits.sent_limit ?? 1000)}`;
             });
 
             if (fromRefresh) {
