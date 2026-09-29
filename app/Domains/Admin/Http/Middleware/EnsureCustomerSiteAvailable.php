@@ -48,6 +48,7 @@ class EnsureCustomerSiteAvailable
             'v1/flow-exchange/*',
             'api/v1/webhooks/*',
             'webhooks/*',
+            'api/forms/onboarding',
         )) {
             return $next($request);
         }

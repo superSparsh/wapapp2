@@ -21,14 +21,20 @@ class BillingAddressService
      */
     public function save(array $data): BillingAddress
     {
-        BillingAddress::query()->update(['is_default' => false]);
-
-        $existing = $this->default();
+        $existing = BillingAddress::query()
+            ->where('is_default', true)
+            ->latest('id')
+            ->first()
+            ?? BillingAddress::query()->latest('id')->first();
 
         if ($existing) {
+            BillingAddress::query()
+                ->where('id', '!=', $existing->id)
+                ->update(['is_default' => false]);
+
             $existing->update(array_merge($data, ['is_default' => true]));
 
-            return $existing->fresh();
+            return $existing->fresh() ?? $existing;
         }
 
         return BillingAddress::query()->create(array_merge($data, ['is_default' => true]));

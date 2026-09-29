@@ -8,6 +8,7 @@ use App\Domains\Api\Http\Controllers\V1\ListApiController;
 use App\Domains\Api\Http\Controllers\V1\SubscriberApiController;
 use App\Domains\Api\Http\Middleware\AuthenticateApiToken;
 use App\Domains\Drip\Http\Controllers\DripTriggerApiController;
+use App\Domains\Forms\Http\Controllers\FormsOnboardingController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/drip/{campaign}/trigger', DripTriggerApiController::class)
@@ -16,6 +17,11 @@ Route::post('/drip/{campaign}/trigger', DripTriggerApiController::class)
 
 Route::post('/ai/internal/log-usage', AiInternalUsageController::class)
     ->name('api.ai.internal.log-usage');
+
+// Forms site (forms.tekprocloud.com) → create/reuse customer account (legacy /api/forms/onboarding).
+Route::post('/forms/onboarding', [FormsOnboardingController::class, 'store'])
+    ->middleware('throttle:30,1')
+    ->name('api.forms.onboarding');
 
 Route::prefix('v1')
     ->middleware(AuthenticateApiToken::class)
