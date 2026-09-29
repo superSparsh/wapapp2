@@ -61,8 +61,12 @@ final class HttpOciContainerInstanceClient implements OciContainerInstanceClient
                 'displayName' => 'horizon',
                 'imageUrl' => $cfg['image_url'],
                 'environmentVariables' => $envMap === [] ? new \stdClass : $envMap,
-                'command' => ['php'],
-                'arguments' => ['artisan', 'horizon'],
+                // Clear baked config cache so injected REDIS_PREFIX / CAMPAIGN_QUEUE / HORIZON_ROLE apply.
+                'command' => ['/bin/sh'],
+                'arguments' => [
+                    '-c',
+                    'php artisan config:clear >/dev/null 2>&1; exec php artisan horizon',
+                ],
                 'workingDirectory' => '/var/www/html',
             ]],
             'vnics' => [[

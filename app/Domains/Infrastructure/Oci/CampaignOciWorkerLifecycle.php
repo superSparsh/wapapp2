@@ -366,6 +366,7 @@ final class CampaignOciWorkerLifecycle
         $base = (array) config('oci-workers.ephemeral.container_environment', []);
 
         $fromApp = array_filter([
+            'APP_NAME' => (string) config('app.name', 'WapApp'),
             'APP_ENV' => (string) config('app.env'),
             'APP_KEY' => (string) config('app.key'),
             'APP_URL' => (string) config('app.url'),
@@ -380,6 +381,9 @@ final class CampaignOciWorkerLifecycle
             'REDIS_PASSWORD' => (string) (config('database.redis.default.password') ?? ''),
             'REDIS_PORT' => (string) config('database.redis.default.port', 6379),
             'REDIS_DB' => (string) config('database.redis.default.database', 0),
+            // Critical: same Redis key namespace as the web app or Horizon never sees campaign jobs.
+            'REDIS_PREFIX' => (string) config('database.redis.options.prefix', ''),
+            'HORIZON_PREFIX' => (string) config('horizon.prefix', ''),
             'QUEUE_CONNECTION' => 'redis',
             'CAMPAIGN_QUEUE' => OciWorkload::campaignQueue(),
             'HORIZON_ROLE' => 'oci-heavy',

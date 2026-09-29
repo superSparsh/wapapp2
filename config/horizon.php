@@ -111,7 +111,7 @@ $horizon = [
         ],
         'campaign' => [
             'connection' => 'redis',
-            'queue' => ['campaign'],
+            'queue' => [env('CAMPAIGN_QUEUE', 'campaign')],
             'balance' => 'auto',
             'autoScalingStrategy' => 'time',
             'maxProcesses' => (int) env('HORIZON_CAMPAIGN_MAX_PROCESSES', 3),

@@ -20,7 +20,10 @@ COPY composer.json composer.lock ./
 RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist
 
 COPY . .
-RUN composer dump-autoload --optimize --no-dev \
+# Never ship a host-baked config cache into the worker image (web role would
+# strip campaign supervisors when HORIZON_ROLE=oci-heavy at runtime).
+RUN rm -f bootstrap/cache/config.php bootstrap/cache/routes*.php \
+    && composer dump-autoload --optimize --no-dev \
     && php artisan package:discover --ansi || true \
     && chown -R www-data:www-data storage bootstrap/cache \
     && chmod -R ug+rwx storage bootstrap/cache
