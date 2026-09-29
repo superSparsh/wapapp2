@@ -268,15 +268,34 @@ class CampaignCrudTest extends TestCase
     {
         $campaign = Campaign::factory()->create(['name' => 'Original']);
 
-        $this->actingAsTenantUser()
-            ->post(route('campaigns.duplicate', $campaign))
-            ->assertRedirect();
+        $response = $this->actingAsTenantUser()
+            ->post(route('campaigns.duplicate', $campaign));
+
+        $copy = Campaign::query()->where('name', 'Original (Copy)')->firstOrFail();
+
+        $response->assertRedirect(route('campaigns.edit', ['bulkCampaign' => $copy, 'step' => 6]));
 
         $this->assertDatabaseHas('campaigns', [
             'name' => 'Original (Copy)',
         ]);
 
         $this->assertDatabaseHas('campaigns', ['name' => 'Original']);
+    }
+
+    public function test_duplicate_opens_wizard_on_last_step(): void
+    {
+        $campaign = Campaign::factory()->create(['name' => 'Original']);
+
+        $response = $this->actingAsTenantUser()
+            ->post(route('campaigns.duplicate', $campaign));
+
+        $copy = Campaign::query()->where('name', 'Original (Copy)')->firstOrFail();
+
+        $this->actingAsTenantUser()
+            ->get($response->headers->get('Location'))
+            ->assertRedirect(route('campaigns.create.step', 6));
+
+        $this->assertSame($copy->id, session('campaign_wizard.draft_id'));
     }
 
     public function test_duplicate_resets_counters(): void

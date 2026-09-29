@@ -78,7 +78,17 @@ class CampaignCreateController extends Controller
 
         $request->session()->put(self::SESSION_KEY, $wizardData);
 
-        return redirect()->route('campaigns.create.step', $this->resumeStep($wizardData));
+        $step = (int) $request->query('step', 0);
+        if ($step < 1 || $step > self::MAX_STEPS) {
+            $step = $this->resumeStep($wizardData);
+        }
+
+        // Step 5 is a legacy review screen - send users to Schedule & Confirm.
+        if ($step === 5) {
+            $step = 6;
+        }
+
+        return redirect()->route('campaigns.create.step', $step);
     }
 
     /**

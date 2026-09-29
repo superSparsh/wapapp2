@@ -164,7 +164,7 @@ class CampaignController extends Controller
         $clone = $this->adapter->duplicate($bulkCampaign);
 
         return redirect()
-            ->route('campaigns.show', $clone)
+            ->route('campaigns.edit', ['bulkCampaign' => $clone, 'step' => 6])
             ->with('status', 'Campaign duplicated successfully.');
     }
 

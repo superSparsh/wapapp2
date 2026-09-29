@@ -49,16 +49,16 @@ final class CampaignOciWorkerLifecycle
             return;
         }
 
-        $ref = $this->campaignRefKey($campaign);
+        $campaignId = (int) $campaign->id;
         $recipients = max(0, (int) ($campaign->total_recipients ?? 0));
 
-        $this->withLock(function () use ($ref, $recipients): void {
+        $this->withLock(function () use ($campaignId, $recipients): void {
             $active = $this->activeCampaignIds();
-            $active[$ref] = true;
+            $active[$campaignId] = true;
             $this->storeActiveCampaignIds($active);
 
             $load = $this->campaignLoad();
-            $load[$ref] = $recipients;
+            $load[$campaignId] = $recipients;
             $this->storeCampaignLoad($load);
         });
 
@@ -72,11 +72,19 @@ final class CampaignOciWorkerLifecycle
             return;
         }
 
+        $campaignId = (int) $campaign->id;
         $shouldTeardown = false;
 
-        $this->withLock(function () use ($campaign, &$shouldTeardown): void {
-            $this->forgetCampaignRefs($campaign);
-            $shouldTeardown = $this->activeCampaignIds() === [];
+        $this->withLock(function () use ($campaignId, &$shouldTeardown): void {
+            $active = $this->activeCampaignIds();
+            unset($active[$campaignId]);
+            $this->storeActiveCampaignIds($active);
+
+            $load = $this->campaignLoad();
+            unset($load[$campaignId]);
+            $this->storeCampaignLoad($load);
+
+            $shouldTeardown = $active === [];
         });
 
         if (! $shouldTeardown) {
@@ -356,45 +364,7 @@ final class CampaignOciWorkerLifecycle
     }
 
     /**
-     * Globally unique Redis key for a campaign (public uuid).
-     * Avoids cross-tenant numeric id collisions without depending on tenant() context.
-     */
-    public function campaignRefKey(Campaign $campaign): string
-    {
-        $uuid = trim((string) ($campaign->uuid ?? ''));
-        if ($uuid !== '') {
-            return $uuid;
-        }
-
-        // Unsaved models in unit tests — still unique enough within one process.
-        return 'id:'.(int) $campaign->id;
-    }
-
-    /**
-     * Clear uuid key + any leftover numeric / tenant:id aliases for this campaign.
-     */
-    public function forgetCampaignRefs(Campaign $campaign): void
-    {
-        $id = (int) $campaign->id;
-        $aliases = array_values(array_unique(array_filter([
-            $this->campaignRefKey($campaign),
-            'id:'.$id,
-            (string) $id,
-        ])));
-
-        $active = $this->activeCampaignIds();
-        $load = $this->campaignLoad();
-
-        foreach ($aliases as $ref) {
-            unset($active[$ref], $load[$ref]);
-        }
-
-        $this->storeActiveCampaignIds($active);
-        $this->storeCampaignLoad($load);
-    }
-
-    /**
-     * @return array<string, int>
+     * @return array<int, int>
      */
     public function campaignLoad(): array
     {
@@ -410,28 +380,29 @@ final class CampaignOciWorkerLifecycle
 
         $out = [];
         foreach ($decoded as $key => $recipients) {
-            $ref = $this->parseCampaignRef($key);
-            if ($ref === null) {
+            $id = $this->parseCampaignId($key);
+            if ($id === null) {
                 continue;
             }
-            $out[$ref] = max($out[$ref] ?? 0, max(0, (int) $recipients));
+            // If duplicate keys collapse (legacy tenant:id / uuid leftovers), keep the larger load.
+            $out[$id] = max($out[$id] ?? 0, max(0, (int) $recipients));
         }
 
         return $out;
     }
 
     /**
-     * @param  array<string, int>  $load
+     * @param  array<int, int>  $load
      */
     public function storeCampaignLoad(array $load): void
     {
         $normalized = [];
         foreach ($load as $key => $recipients) {
-            $ref = $this->parseCampaignRef($key);
-            if ($ref === null) {
+            $id = $this->parseCampaignId($key);
+            if ($id === null) {
                 continue;
             }
-            $normalized[$ref] = max(0, (int) $recipients);
+            $normalized[$id] = max(0, (int) $recipients);
         }
 
         $this->redis()->set(
@@ -480,7 +451,7 @@ final class CampaignOciWorkerLifecycle
     }
 
     /**
-     * @return array<string, true>
+     * @return array<int, true>
      */
     public function activeCampaignIds(): array
     {
@@ -496,66 +467,59 @@ final class CampaignOciWorkerLifecycle
 
         $out = [];
         foreach ($decoded as $id) {
-            $ref = $this->parseCampaignRef($id);
-            if ($ref === null) {
+            $campaignId = $this->parseCampaignId($id);
+            if ($campaignId === null) {
                 continue;
             }
-            $out[$ref] = true;
+            $out[$campaignId] = true;
         }
 
         return $out;
     }
 
     /**
-     * @param  array<string, true>  $active
+     * @param  array<int, true>  $active
      */
     public function storeActiveCampaignIds(array $active): void
     {
-        $refs = [];
+        $ids = [];
         foreach (array_keys($active) as $key) {
-            $ref = $this->parseCampaignRef($key);
-            if ($ref !== null) {
-                $refs[] = $ref;
+            $id = $this->parseCampaignId($key);
+            if ($id !== null) {
+                $ids[] = $id;
             }
         }
 
         $this->redis()->set(
             $this->redisKey(self::CACHE_ACTIVE_CAMPAIGNS),
-            json_encode(array_values(array_unique($refs))),
+            json_encode(array_values(array_unique($ids))),
         );
     }
 
     /**
-     * Normalize Redis campaign refs:
-     * - campaign uuid (preferred)
-     * - legacy bare id / "tenant:id" → "id:{n}" so finish can still clear them
+     * Accept bare campaign id or leftover "tenant:id" / "id:n" refs.
+     * UUID keys from the short-lived uuid experiment are ignored (dropped on next store).
      */
-    private function parseCampaignRef(mixed $value): ?string
+    private function parseCampaignId(mixed $value): ?int
     {
         if (is_int($value) || (is_string($value) && ctype_digit($value))) {
             $id = (int) $value;
 
-            return $id > 0 ? 'id:'.$id : null;
+            return $id > 0 ? $id : null;
         }
 
-        if (! is_string($value) || $value === '') {
+        if (! is_string($value) || ! str_contains($value, ':')) {
             return null;
         }
 
-        if (str_starts_with($value, 'id:') && ctype_digit(substr($value, 3))) {
-            return $value;
+        $part = substr($value, strrpos($value, ':') + 1);
+        if (! ctype_digit($part)) {
+            return null;
         }
 
-        // Leftover tenant_id:campaign_id experiment keys.
-        if (str_contains($value, ':')) {
-            $part = substr($value, strrpos($value, ':') + 1);
-            if (ctype_digit($part) && (int) $part > 0) {
-                return 'id:'.$part;
-            }
-        }
+        $id = (int) $part;
 
-        // Public campaign uuid.
-        return $value;
+        return $id > 0 ? $id : null;
     }
 
     public function instanceOcid(): ?string
