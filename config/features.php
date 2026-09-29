@@ -48,6 +48,10 @@ return [
             'default' => true,
             'description' => 'Bulk contact import via CSV',
         ],
+        'fcm-push' => [
+            'default' => true,
+            'description' => 'Send Firebase Cloud Messaging push on new inbound inbox messages (no-op without FIREBASE_CREDENTIALS)',
+        ],
     ],
 
     // ── Campaigns ──

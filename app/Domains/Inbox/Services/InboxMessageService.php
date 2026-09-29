@@ -349,6 +349,24 @@ class InboxMessageService
             ]);
         }
 
+        try {
+            $push = app(\App\Domains\Notifications\Services\FcmPushService::class);
+            $tenantId = (string) (tenant('id') ?? '');
+            if ($tenantId !== '' && $push->shouldSend()) {
+                \App\Domains\Notifications\Jobs\SendInboxFcmPushJob::dispatch(
+                    $tenantId,
+                    (int) $conversation->id,
+                    (int) $message->id,
+                );
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Inbox inbound FCM dispatch failed', [
+                'conversation_id' => $conversation->id,
+                'message_id' => $message->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
         return $message;
     }
 

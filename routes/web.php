@@ -27,6 +27,7 @@ use App\Domains\HelpCenter\Http\Controllers\FaqController;
 use App\Domains\HelpCenter\Http\Controllers\TutorialController;
 use App\Domains\Inbox\Http\Controllers\InboxController;
 use App\Domains\Inbox\Services\InboxService;
+use App\Domains\Notifications\Http\Controllers\DeviceTokenController;
 use App\Domains\Integration\Http\Controllers\LineLoginController;
 use App\Domains\Integration\Http\Controllers\OnboardingController;
 use App\Domains\Team\Http\Controllers\ManagerSettingsController;
@@ -446,6 +447,8 @@ Route::middleware(['tenancy.session', 'auth:web,team', '2fa', 'team.redirect-das
         Route::prefix('api')->name('api.')->group(function () {
             Route::get('/threads', [InboxController::class, 'threads'])->name('threads');
             Route::get('/unread-count', [InboxController::class, 'unreadCount'])->name('unread-count');
+            Route::post('/device-token', [DeviceTokenController::class, 'store'])->name('device-token.store');
+            Route::delete('/device-token', [DeviceTokenController::class, 'destroy'])->name('device-token.destroy');
             Route::get('/templates', [InboxController::class, 'templates'])->name('templates');
             Route::get('/interactive-messages', [InboxController::class, 'interactiveMessages'])->name('interactive-messages');
             Route::post('/contacts', [InboxController::class, 'storeContact'])->name('contacts.store');

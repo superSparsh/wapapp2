@@ -9,6 +9,7 @@ use App\Domains\Api\Http\Controllers\V1\SubscriberApiController;
 use App\Domains\Api\Http\Middleware\AuthenticateApiToken;
 use App\Domains\Drip\Http\Controllers\DripTriggerApiController;
 use App\Domains\Forms\Http\Controllers\FormsOnboardingController;
+use App\Domains\Notifications\Http\Controllers\DeviceTokenController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/drip/{campaign}/trigger', DripTriggerApiController::class)
@@ -33,4 +34,10 @@ Route::prefix('v1')
 
         Route::get('/subscribers', [SubscriberApiController::class, 'index']);
         Route::post('/subscribers', [SubscriberApiController::class, 'store']);
+
+        // Mobile / API clients — FCM device token register & revoke (legacy parity).
+        Route::post('/device-token', [DeviceTokenController::class, 'store']);
+        Route::delete('/device-token', [DeviceTokenController::class, 'destroy']);
+        Route::post('/mobile/device-token', [DeviceTokenController::class, 'store']);
+        Route::delete('/mobile/device-token', [DeviceTokenController::class, 'destroy']);
     });
