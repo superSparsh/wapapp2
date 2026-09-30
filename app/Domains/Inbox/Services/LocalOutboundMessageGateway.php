@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace App\Domains\Inbox\Services;
 
+use App\Domains\Billing\Services\TemplateWalletChargeService;
 use App\Domains\Inbox\Contracts\OutboundMessageGateway;
 use App\Enums\MessageStatus;
 use App\Models\Message;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 
 /**
  * Stub gateway until Alibaba CAMS / Meta send is wired.
@@ -27,8 +30,20 @@ class LocalOutboundMessageGateway implements OutboundMessageGateway
         ])->save();
 
         try {
+            app(TemplateWalletChargeService::class)->chargeIfDelivered(
+                message: $message->refresh(),
+                deliveryStatus: 'Sent',
+            );
+        } catch (Throwable $e) {
+            Log::warning('Local outbound Sent wallet charge failed', [
+                'message_id' => $message->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        try {
             app(InboxBroadcastService::class)->messageStatusUpdated($message->refresh());
-        } catch (\Throwable) {
+        } catch (Throwable) {
             // Best-effort realtime status.
         }
     }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Inbox\Services;
 
+use App\Domains\Billing\Services\TemplateWalletChargeService;
 use App\Domains\WhatsApp\Services\AlibabaCamsClient;
 use App\Domains\WhatsApp\Services\CamsTemplateMediaUploader;
 use App\Domains\Webhooks\Services\WhatsappLineRegistryService;
@@ -16,6 +17,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
+use Throwable;
 
 class AlibabaOutboundMessageGateway implements \App\Domains\Inbox\Contracts\OutboundMessageGateway
 {
@@ -98,6 +100,8 @@ class AlibabaOutboundMessageGateway implements \App\Domains\Inbox\Contracts\Outb
                 'external_message_id' => $externalId !== '' ? $externalId : ('local_'.$message->uuid),
                 'failed_reason' => null,
             ])->save();
+
+            $this->chargeServiceMessageIfNeeded($message->refresh());
 
             try {
                 app(InboxBroadcastService::class)->messageStatusUpdated($message->refresh());
@@ -231,6 +235,25 @@ class AlibabaOutboundMessageGateway implements \App\Domains\Inbox\Contracts\Outb
             'failed_at' => now(),
             'failed_reason' => $reason,
         ])->save();
+    }
+
+    /**
+     * Debit service (free-form) messages as soon as CAMS accepts them (Sent).
+     * Idempotent with MessageObserver / later Delivered webhooks.
+     */
+    private function chargeServiceMessageIfNeeded(Message $message): void
+    {
+        try {
+            app(TemplateWalletChargeService::class)->chargeIfDelivered(
+                message: $message,
+                deliveryStatus: 'Sent',
+            );
+        } catch (Throwable $e) {
+            Log::warning('Outbound Sent wallet charge failed', [
+                'message_id' => $message->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     private function extractCamsError(string $body): string

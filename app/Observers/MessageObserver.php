@@ -39,7 +39,15 @@ class MessageObserver
      */
     public function updated(Message $message): void
     {
-        if (! tenancy()->initialized || ! $message->wasChanged('status')) {
+        if (! tenancy()->initialized) {
+            Log::warning('MessageObserver wallet charge skipped: tenancy not initialized', [
+                'message_id' => $message->id,
+            ]);
+
+            return;
+        }
+
+        if (! $message->wasChanged('status')) {
             return;
         }
 
