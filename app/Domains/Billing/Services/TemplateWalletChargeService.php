@@ -33,7 +33,8 @@ class TemplateWalletChargeService
         string $deliveryStatus,
         ?CampaignRecipient $recipient = null,
     ): ?WalletTransaction {
-        if (! in_array($deliveryStatus, ['Delivered', 'Read'], true)) {
+        $statusKey = strtolower(trim($deliveryStatus));
+        if (! in_array($statusKey, ['delivered', 'read'], true)) {
             return null;
         }
 
@@ -47,7 +48,8 @@ class TemplateWalletChargeService
             return null;
         }
 
-        $isTemplate = $message->message_type === MessageType::Template;
+        $isTemplate = $message->message_type === MessageType::Template
+            || (is_string($message->message_type) && strtolower($message->message_type) === 'template');
         $isService = $this->isServiceMessage($message);
 
         if (! $isTemplate && ! $isService) {
@@ -67,6 +69,9 @@ class TemplateWalletChargeService
                 'message_id' => $message->id,
                 'category' => $category,
                 'source' => $source,
+                'message_type' => $message->message_type instanceof MessageType
+                    ? $message->message_type->value
+                    : (string) $message->message_type,
             ]);
 
             return null;
@@ -212,10 +217,10 @@ class TemplateWalletChargeService
 
         if ($isService || $category === 'SERVICE') {
             return match ($source) {
-                'chatbot' => 'Chatbot service message (delivered)'.$suffix,
-                'trigger' => 'Trigger service message (delivered)'.$suffix,
-                'drip' => 'Drip service message (delivered)'.$suffix,
-                default => 'Service message (session, delivered)'.$suffix,
+                'chatbot' => 'Chatbot service conversation (delivered)'.$suffix,
+                'trigger' => 'Trigger service conversation (delivered)'.$suffix,
+                'drip' => 'Drip service conversation (delivered)'.$suffix,
+                default => 'Service conversation (delivered)'.$suffix,
             };
         }
 

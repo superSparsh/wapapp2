@@ -75,7 +75,7 @@ class CampaignCostCalculator
         $marketing = $this->inrUnitCost($pricing, 'MARKETING', $conversion, $fallback);
         $utility = $this->inrUnitCost($pricing, 'UTILITY', $conversion, $fallback);
         $auth = $this->inrUnitCost($pricing, 'AUTHENTICATION', $conversion, $fallback);
-        $service = $this->serviceUnitCost($pricing, $utility, $conversion, $fallback);
+        $service = $this->serviceUnitCost($pricing, $conversion, $fallback);
         $default = $marketing > 0 ? $marketing : (float) ($fallback['DEFAULT'] ?? 0.78);
 
         return [
@@ -88,25 +88,20 @@ class CampaignCostCalculator
     }
 
     /**
-     * Prefer admin service_price / tekpro_service_price; else utility; else config fallback.
+     * Service messages: use admin country_pricing.service_price only (as INR/USD per currency).
      *
      * @param  array<string, float|int|string>  $fallback
      */
     private function serviceUnitCost(
         ?CountryPricing $pricing,
-        float $utility,
         float $conversion,
         array $fallback,
     ): float {
         if ($pricing instanceof CountryPricing) {
-            $raw = $this->rawCategoryPrice($pricing, 'SERVICE');
-            if ($raw !== null && $raw > 0) {
-                return round($this->toInr($raw, $pricing, $conversion), 4);
+            $raw = $pricing->service_price;
+            if ($raw !== null && (float) $raw > 0) {
+                return round($this->toInr((float) $raw, $pricing, $conversion), 4);
             }
-        }
-
-        if ($utility > 0) {
-            return $utility;
         }
 
         return round((float) ($fallback['SERVICE'] ?? $fallback['UTILITY'] ?? 0), 4);
@@ -146,7 +141,6 @@ class CampaignCostCalculator
             'MARKETING' => ['tekpro_marketing_price', 'marketing_price'],
             'UTILITY' => ['tekpro_utility_price', 'utility_price'],
             'AUTHENTICATION' => ['tekpro_auth_price', 'auth_price'],
-            'SERVICE' => ['tekpro_service_price', 'service_price'],
             default => [null, null],
         };
 

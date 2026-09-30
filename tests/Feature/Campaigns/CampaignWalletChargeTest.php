@@ -229,11 +229,10 @@ class CampaignWalletChargeTest extends TestCase
             ->chargeIfDelivered($message, 'Delivered');
 
         $this->assertNotNull($txn);
-        // SERVICE falls back to UTILITY = 0.005 USD * 100 conversion = 0.5 INR
-        // when service_price / tekpro_service_price are empty.
-        $this->assertEquals(0.5, (float) $txn->amount);
+        // No service_price on country row → config campaigns.cost.category_rates.SERVICE = 0.35
+        $this->assertEquals(0.35, (float) $txn->amount);
         $this->assertSame('SERVICE', $txn->metadata['pricing_category'] ?? null);
-        $this->assertEquals(9.5, (float) app(WalletService::class)->balance());
+        $this->assertEquals(9.65, (float) app(WalletService::class)->balance());
     }
 
     public function test_delivery_webhook_charges_service_message_using_admin_service_rate(): void
@@ -291,7 +290,7 @@ class CampaignWalletChargeTest extends TestCase
 
         tenancy()->initialize($this->testTenant);
 
-        // Meta service_price 0.008 × conversion 100 = 0.8 INR
+        // service_price 0.008 × conversion 100 = 0.8 INR
         $this->assertEquals(19.2, (float) app(WalletService::class)->balance());
         $this->assertSame(1, WalletTransaction::query()->where('type', WalletTransactionType::Debit)->count());
 
@@ -300,7 +299,7 @@ class CampaignWalletChargeTest extends TestCase
         $this->assertEquals(0.8, (float) $debit->amount);
         $this->assertSame('SERVICE', $debit->metadata['pricing_category'] ?? null);
         $this->assertSame(Message::class, $debit->reference_type);
-        $this->assertStringContainsString('Service message', (string) $debit->description);
+        $this->assertStringContainsString('Service conversation', (string) $debit->description);
 
         $message->refresh();
         $this->assertTrue((bool) ($message->metadata['wallet_charged'] ?? false));

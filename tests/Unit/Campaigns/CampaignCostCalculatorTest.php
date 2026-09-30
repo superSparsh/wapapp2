@@ -85,11 +85,11 @@ class CampaignCostCalculatorTest extends TestCase
 
         $calculator = app(CampaignCostCalculator::class);
 
-        // Meta service 0.007 × 100 = 0.7 (not utility, not tekpro when meta exists)
+        // service_price 0.007 × 100 = 0.7 (tekpro_service_price ignored)
         $this->assertSame(0.7, $calculator->unitCostForCategory('SERVICE'));
     }
 
-    public function test_service_rate_falls_back_to_tekpro_then_utility(): void
+    public function test_service_rate_falls_back_to_config_when_service_price_empty(): void
     {
         PlatformSetting::query()->updateOrCreate(
             ['key' => 'wallet.conversion_price'],
@@ -108,7 +108,8 @@ class CampaignCostCalculatorTest extends TestCase
 
         $calculator = app(CampaignCostCalculator::class);
 
-        $this->assertSame(1.2, $calculator->unitCostForCategory('SERVICE'));
+        // No service_price → config campaigns.cost.category_rates.SERVICE (0.35)
+        $this->assertSame(0.35, $calculator->unitCostForCategory('SERVICE'));
     }
 
     public function test_inr_currency_skips_conversion_multiply(): void
