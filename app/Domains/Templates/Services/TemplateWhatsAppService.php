@@ -8,6 +8,7 @@ use App\Domains\Templates\Enums\TemplateStatus;
 use App\Domains\Templates\Enums\TemplateSource;
 use App\Domains\Templates\Support\CamsTemplateIdentity;
 use App\Domains\Templates\Support\TemplateCategoryCatalog;
+use App\Domains\Templates\Support\WhatsAppTextFormatter;
 use App\Domains\WhatsApp\Services\AlibabaCamsClient;
 use App\Domains\WhatsApp\Services\CamsTemplateMediaUploader;
 use App\Domains\WhatsApp\Support\CamsComponentEncoder;
@@ -307,7 +308,7 @@ class TemplateWhatsAppService
         // BODY
         $components[] = [
             'type' => 'BODY',
-            'text' => (string) ($payload['body']['text'] ?? ''),
+            'text' => WhatsAppTextFormatter::toWhatsAppApi((string) ($payload['body']['text'] ?? '')),
             'format' => 'TEXT',
         ];
 
@@ -316,7 +317,7 @@ class TemplateWhatsAppService
         if ($lto['enabled'] ?? false) {
             $components[] = [
                 'type' => 'LIMITED_TIME_OFFER',
-                'text' => (string) ($lto['discount_introduction'] ?? ''),
+                'text' => WhatsAppTextFormatter::toWhatsAppApi((string) ($lto['discount_introduction'] ?? '')),
                 'hasExpiration' => (bool) ($lto['expiration_time'] ?? false),
                 'codeExpirationMinutes' => $lto['expiration_time'] ? ($lto['time_variable'] ?? null) : null,
             ];
@@ -328,7 +329,7 @@ class TemplateWhatsAppService
         if ($headerType === 'text') {
             $components[] = [
                 'type' => 'HEADER',
-                'text' => (string) ($header['text'] ?? ''),
+                'text' => WhatsAppTextFormatter::toWhatsAppApi((string) ($header['text'] ?? '')),
                 'format' => 'TEXT',
             ];
         } elseif ($headerType === 'image') {
@@ -465,7 +466,7 @@ class TemplateWhatsAppService
                     ],
                     [
                         'type' => 'BODY',
-                        'text' => (string) ($card['body'] ?? ''),
+                        'text' => WhatsAppTextFormatter::toWhatsAppApi((string) ($card['body'] ?? '')),
                     ],
                 ];
 
@@ -520,7 +521,7 @@ class TemplateWhatsAppService
 
         $components[] = [
             'type' => 'BODY',
-            'text' => $intro,
+            'text' => WhatsAppTextFormatter::toWhatsAppApi($intro),
             'format' => 'TEXT',
         ];
 

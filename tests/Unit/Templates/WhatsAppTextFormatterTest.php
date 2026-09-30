@@ -22,6 +22,15 @@ final class WhatsAppTextFormatterTest extends TestCase
     }
 
     #[Test]
+    public function it_converts_legacy_caret_bold_for_whatsapp_api(): void
+    {
+        $this->assertSame(
+            'Hello *bold* and *also*',
+            WhatsAppTextFormatter::toWhatsAppApi('Hello ^bold^ and *also*'),
+        );
+    }
+
+    #[Test]
     public function it_escapes_html_and_preserves_line_breaks(): void
     {
         $html = WhatsAppTextFormatter::toHtml("<script>alert(1)</script>\nNext");

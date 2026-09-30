@@ -59,7 +59,7 @@
         {{-- <p class="text-xs text-text-subtle">Use <code>$(variable_name)</code> for dynamic variables. Pick from + Variable.</p> --}}
 
         <div class="flex flex-wrap items-center gap-2 border-t border-divider pt-2">
-          <button type="button" data-editor-action="bold" class="template-editor-btn" title="Bold (^text^)">Bold</button>
+          <button type="button" data-editor-action="bold" class="template-editor-btn" title="Bold (*text*)">Bold</button>
           <button type="button" data-editor-action="italic" class="template-editor-btn" title="Italic (_text_)">Italic</button>
           <button type="button" data-editor-action="strike" class="template-editor-btn" title="Strikethrough (~text~)">Strike</button>
           <button type="button" data-editor-action="emoji" class="template-editor-btn" title="Emoji">😀</button>

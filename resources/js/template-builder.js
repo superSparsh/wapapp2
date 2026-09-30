@@ -544,8 +544,8 @@ function initBodyEditor(root, preview, scheduleUpdate) {
             const action = button.dataset.editorAction;
 
             if (action === 'bold') {
-                // Legacy template bold marker (^text^) - also rendered as bold in preview
-                wrapSelection(textarea, '^');
+                // WhatsApp bold marker (*text*) — legacy used ^text^ (converted on save/submit)
+                wrapSelection(textarea, '*');
             } else if (action === 'italic') {
                 wrapSelection(textarea, '_');
             } else if (action === 'strike') {

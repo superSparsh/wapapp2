@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace App\Domains\Templates\Support;
 
 /**
- * Renders WhatsApp / legacy template body markers as HTML for previews.
+ * Renders WhatsApp / legacy template body markers as HTML for previews,
+ * and normalizes legacy markers for Meta / WhatsApp API payloads.
  *
  * Supported markers (same as WhatsApp + legacy caret bold):
  * - *bold* or ^bold^
@@ -15,6 +16,22 @@ namespace App\Domains\Templates\Support;
  */
 final class WhatsAppTextFormatter
 {
+    /**
+     * Convert legacy caret bold (^text^) to WhatsApp bold (*text*).
+     * Meta / WhatsApp only recognize asterisk bold — caret is preview-only legacy UI.
+     */
+    public static function toWhatsAppApi(?string $text): string
+    {
+        $text = (string) $text;
+        if ($text === '') {
+            return '';
+        }
+
+        $converted = preg_replace('/\^([^\^\n]+)\^/u', '*$1*', $text);
+
+        return is_string($converted) ? $converted : $text;
+    }
+
     public static function toHtml(?string $text): string
     {
         $text = (string) $text;

@@ -64,7 +64,9 @@ final class TemplateImporter implements LegacyImporter
                 ? $ids->getInt('line', (int) $row->new_contact_id)
                 : null;
 
-            $body = (string) ($row->actual_body ?? $row->body ?? '');
+            $body = \App\Domains\Templates\Support\WhatsAppTextFormatter::toWhatsAppApi(
+                (string) ($row->actual_body ?? $row->body ?? '')
+            );
             $status = $this->mapStatus($row->status ?? null);
             $mappedCategory = LegacyTemplateCategoryMapper::fromLegacyRow($row);
             $isCarousel = TemplateCategoryCatalog::isCarousel($mappedCategory)

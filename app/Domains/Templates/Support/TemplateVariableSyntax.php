@@ -20,8 +20,10 @@ final class TemplateVariableSyntax
   public static function normalizeBodyText(string $text): string
   {
     $normalized = preg_replace('/\{\{([a-zA-Z0-9_]+)\}\}/', '$(\1)', $text);
+    $text = is_string($normalized) ? $normalized : $text;
 
-    return is_string($normalized) ? $normalized : $text;
+    // Legacy UI used ^bold^; WhatsApp / Meta only accept *bold*.
+    return \App\Domains\Templates\Support\WhatsAppTextFormatter::toWhatsAppApi($text);
   }
 
   /**
