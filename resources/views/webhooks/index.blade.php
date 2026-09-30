@@ -501,10 +501,16 @@ TXT;
       })
         .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
         .then(function (result) {
-          alert((result.data && result.data.message) ? result.data.message : (result.ok ? 'Webhook test succeeded.' : 'Webhook test failed.'));
+          var msg = (result.data && result.data.message) ? result.data.message : (result.ok ? 'Webhook test succeeded.' : 'Webhook test failed.');
+          if (result.ok) {
+            window.showSuccessToast ? window.showSuccessToast(msg) : window.showAppToast({ type: 'success', message: msg });
+          } else {
+            window.showErrorToast ? window.showErrorToast(msg) : window.showAppToast({ type: 'error', message: msg });
+          }
         })
         .catch(function (err) {
-          alert('Error testing webhook: ' + (err && err.message ? err.message : 'unknown error'));
+          var msg = 'Error testing webhook: ' + (err && err.message ? err.message : 'unknown error');
+          window.showErrorToast ? window.showErrorToast(msg) : window.showAppToast({ type: 'error', message: msg });
         })
         .finally(function () {
           btn.disabled = false;
@@ -559,13 +565,9 @@ TXT;
       testBtn.addEventListener('click', function () {
         var url = urlInput ? (urlInput.value || '').trim() : '';
         if (!url) {
-            if (testResultEl) {
-            testResultEl.classList.remove('hidden');
-            testResultEl.textContent = 'Please enter a webhook URL first.';
-            testResultEl.className = 'text-sm font-medium text-red-500';
-          } else {
-            alert('Please enter a webhook URL first.');
-          }
+          window.showErrorToast
+            ? window.showErrorToast('Please enter a webhook URL first.')
+            : window.showAppToast({ type: 'error', message: 'Please enter a webhook URL first.' });
           return;
         }
 
@@ -573,9 +575,7 @@ TXT;
         var original = testBtn.textContent;
         testBtn.textContent = 'Testing...';
         if (testResultEl) {
-          testResultEl.classList.remove('hidden');
-          testResultEl.textContent = 'Testing webhook...';
-          testResultEl.className = 'text-sm font-medium text-text-muted';
+          testResultEl.classList.add('hidden');
         }
 
         fetch('{{ route('webhooks.test-url') }}', {
@@ -591,25 +591,15 @@ TXT;
           .then(function (res) { return res.json().then(function (data) { return { ok: res.ok, data: data }; }); })
           .then(function (result) {
             var msg = (result.data && result.data.message) ? result.data.message : (result.ok ? 'Webhook test succeeded.' : 'Webhook test failed.');
-            if (testResultEl) {
-              testResultEl.classList.remove('hidden');
-              testResultEl.textContent = msg;
-              testResultEl.className = result.ok
-                ? 'text-sm font-medium text-green-600'
-                : 'text-sm font-medium text-red-500';
+            if (result.ok) {
+              window.showSuccessToast ? window.showSuccessToast(msg) : window.showAppToast({ type: 'success', message: msg });
             } else {
-              alert(msg);
+              window.showErrorToast ? window.showErrorToast(msg) : window.showAppToast({ type: 'error', message: msg });
             }
           })
           .catch(function (err) {
             var msg = 'Error testing webhook: ' + (err && err.message ? err.message : 'unknown error');
-            if (testResultEl) {
-              testResultEl.classList.remove('hidden');
-              testResultEl.textContent = msg;
-              testResultEl.className = 'text-sm font-medium text-red-500';
-            } else {
-              alert(msg);
-            }
+            window.showErrorToast ? window.showErrorToast(msg) : window.showAppToast({ type: 'error', message: msg });
           })
           .finally(function () {
             testBtn.textContent = original || 'Test Webhook';
