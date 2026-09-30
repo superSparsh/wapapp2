@@ -44,6 +44,12 @@ final class TeamModuleActivityLabel
     private static function mappedDescription(string $verb, string $routeName): ?string
     {
         $labels = [
+            'my-team.login-as' => [
+                'POST' => 'Logged in as a team member',
+            ],
+            'manager.team.login-as' => [
+                'POST' => 'Logged in as a team member',
+            ],
             'templates.builder.submit.save' => [
                 'POST' => 'Submitted template for WhatsApp approval',
             ],
@@ -100,6 +106,10 @@ final class TeamModuleActivityLabel
     private static function humanizeRoute(string $routeName): string
     {
         $trimmed = preg_replace('/\.(save|store|update|destroy|create|edit|index)$/', '', $routeName) ?? $routeName;
+
+        if (str_ends_with($trimmed, '.login-as') || str_ends_with($trimmed, 'login-as')) {
+            return 'team member login';
+        }
 
         return (string) Str::of($trimmed)
             ->replace(['.', '_', '-'], ' ')
