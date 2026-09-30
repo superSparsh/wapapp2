@@ -2,7 +2,7 @@
     'size' => 'default',
     'previewData' => null,
     'live' => false,
-    'scrollBody' => false,
+    'scrollBody' => true,
 ])
 
 @php
@@ -21,6 +21,7 @@
   $showHeaderText = in_array($headerType, ['text', 'location'], true) && $headerText !== '';
   $carouselCards = is_array($previewData['carousel_cards'] ?? null) ? $previewData['carousel_cards'] : [];
   $isCarousel = (bool) ($previewData['is_carousel'] ?? false) || $carouselCards !== [];
+  $bodyScrollable = $scrollBody && ! $isCarousel;
 @endphp
 
 <div
@@ -65,10 +66,12 @@
   <div
     data-preview-body
     @class([
-      'wa-preview-body w-full font-normal leading-[1.4] text-text-body',
+      'wa-preview-body w-full font-normal leading-[1.4] text-text-body break-words',
       'text-base' => ! $isCompact,
       'text-sm' => $isCompact,
-      'max-h-[400px] mt-5 overflow-y-scroll' => $scrollBody && ! $isCarousel,
+      'wa-preview-body--scrollable overflow-x-hidden overflow-y-auto pr-1' => $bodyScrollable,
+      'max-h-[320px]' => $bodyScrollable && ! $isCompact,
+      'max-h-[220px]' => $bodyScrollable && $isCompact,
     ])
   >{!! $bodyHtml !== '' ? $bodyHtml : e($bodyText) !!}</div>
 
