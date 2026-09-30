@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace App\Observers;
 
+use App\Domains\Billing\Services\TemplateWalletChargeService;
 use App\Domains\Webhooks\Services\WhatsappLineRegistryService;
+use App\Enums\MessageStatus;
 use App\Models\Message;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class MessageObserver
 {
@@ -27,5 +31,39 @@ class MessageObserver
         }
 
         $this->registryService->indexMessage($tenantId, $externalId, (int) $message->id);
+    }
+
+    /**
+     * Safety net: charge wallet whenever a message flips to Delivered/Read
+     * (covers paths that update status outside DeliveryStatusHandler).
+     */
+    public function updated(Message $message): void
+    {
+        if (! tenancy()->initialized || ! $message->wasChanged('status')) {
+            return;
+        }
+
+        $status = $message->status instanceof MessageStatus
+            ? $message->status
+            : MessageStatus::tryFrom((string) $message->status);
+
+        if ($status !== MessageStatus::Delivered && $status !== MessageStatus::Read) {
+            return;
+        }
+
+        $deliveryStatus = $status === MessageStatus::Read ? 'Read' : 'Delivered';
+
+        try {
+            app(TemplateWalletChargeService::class)->chargeIfDelivered(
+                message: $message,
+                deliveryStatus: $deliveryStatus,
+            );
+        } catch (Throwable $e) {
+            Log::warning('MessageObserver wallet charge failed', [
+                'message_id' => $message->id,
+                'status' => $deliveryStatus,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 }
