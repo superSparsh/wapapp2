@@ -76,6 +76,11 @@ class TemplateWhatsAppService
         try {
             $this->ensureProviderMediaUrls($template, (string) $line->alibaba_cust_space_id);
             $components = $this->buildComponents($template);
+            if ($bodyError = $this->validateComponentsForSubmit($template, $components)) {
+                $this->handleSubmissionError($template, $bodyError);
+
+                return false;
+            }
             Log::info('Submitting CreateChatappTemplate', [
                 'template_id' => $template->id,
                 'header_url' => collect($components)->firstWhere('type', 'HEADER')['url'] ?? null,
@@ -144,6 +149,11 @@ class TemplateWhatsAppService
         try {
             $this->ensureProviderMediaUrls($template, (string) $line->alibaba_cust_space_id);
             $components = $this->buildComponents($template);
+            if ($bodyError = $this->validateComponentsForSubmit($template, $components)) {
+                $this->handleSubmissionError($template, $bodyError);
+
+                return false;
+            }
             Log::info('Submitting ModifyChatappTemplate', [
                 'template_id' => $template->id,
                 'header_url' => collect($components)->firstWhere('type', 'HEADER')['url'] ?? null,
@@ -245,6 +255,45 @@ class TemplateWhatsAppService
         }
 
         return $this->buildStandardComponents($payload, $template);
+    }
+
+    /**
+     * Guard against CAMS InvalidParameter ("Message must not be null") when BODY Text is missing.
+     *
+     * @param  array<int, array<string, mixed>>  $components
+     */
+    private function validateComponentsForSubmit(Template $template, array $components): ?string
+    {
+        if (TemplateCategoryCatalog::isAuthentication((string) $template->category)) {
+            return null;
+        }
+
+        $body = collect($components)->first(function (mixed $component): bool {
+            if (! is_array($component)) {
+                return false;
+            }
+
+            $type = strtoupper((string) ($component['type'] ?? $component['Type'] ?? ''));
+
+            return $type === 'BODY';
+        });
+
+        if (! is_array($body)) {
+            return json_encode([
+                'Code' => 'InvalidParameter',
+                'Message' => 'Message must not be null',
+            ], JSON_THROW_ON_ERROR);
+        }
+
+        $text = trim((string) ($body['text'] ?? $body['Text'] ?? ''));
+        if ($text === '') {
+            return json_encode([
+                'Code' => 'InvalidParameter',
+                'Message' => 'Message must not be null',
+            ], JSON_THROW_ON_ERROR);
+        }
+
+        return null;
     }
 
     /**
@@ -563,9 +612,10 @@ class TemplateWhatsAppService
                     ],
                     'quick_reply' => [
                         'type' => 'QUICK_REPLY',
-                        ...(((bool) ($payload['is_opt_out'] ?? false)) && strtolower(trim($btn['text'])) === 'stop promotions'
+                        'text' => $btn['text'],
+                        ...(((bool) ($payload['is_opt_out'] ?? false)) && strtolower(trim((string) $btn['text'])) === 'stop promotions'
                             ? ['isOptOut' => true]
-                            : ['text' => $btn['text']]),
+                            : []),
                     ],
                     'flow' => [
                         'type' => 'FLOW',

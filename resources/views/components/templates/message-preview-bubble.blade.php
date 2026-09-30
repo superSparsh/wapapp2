@@ -70,7 +70,7 @@
       'text-base' => ! $isCompact,
       'text-sm' => $isCompact,
       'wa-preview-body--scrollable overflow-x-hidden overflow-y-auto pr-1' => $bodyScrollable,
-      'max-h-[320px]' => $bodyScrollable && ! $isCompact,
+      'max-h-[250px]' => $bodyScrollable && ! $isCompact,
       'max-h-[220px]' => $bodyScrollable && $isCompact,
     ])
   >{!! $bodyHtml !== '' ? $bodyHtml : e($bodyText) !!}</div>

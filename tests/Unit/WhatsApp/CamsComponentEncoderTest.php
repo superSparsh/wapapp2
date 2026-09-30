@@ -12,6 +12,22 @@ use Tests\TestCase;
 final class CamsComponentEncoderTest extends TestCase
 {
     #[Test]
+    public function it_preserves_empty_body_text_for_cams(): void
+    {
+        $encoded = CamsComponentEncoder::forRpc([
+            [
+                'type' => 'BODY',
+                'text' => '',
+                'format' => 'TEXT',
+            ],
+        ]);
+
+        $this->assertSame('BODY', $encoded[0]['Type']);
+        $this->assertSame('', $encoded[0]['Text']);
+        $this->assertSame('TEXT', $encoded[0]['Format']);
+    }
+
+    #[Test]
     public function it_maps_component_type_to_pascal_case_for_rpc(): void
     {
         $encoded = CamsComponentEncoder::forRpc([

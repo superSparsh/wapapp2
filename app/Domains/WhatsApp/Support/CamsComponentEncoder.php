@@ -96,7 +96,12 @@ final class CamsComponentEncoder
         $out = [];
 
         foreach ($node as $key => $value) {
-            if ($value === null || $value === '') {
+            // Keep empty Text — CAMS rejects BODY/HEADER/FOOTER without Text as
+            // InvalidParameter ("Message must not be null"). Skip other empty strings.
+            if ($value === null) {
+                continue;
+            }
+            if ($value === '' && ! self::isPreservedEmptyStringKey($key)) {
                 continue;
             }
 
@@ -141,5 +146,12 @@ final class CamsComponentEncoder
         }
 
         return $out;
+    }
+
+    private static function isPreservedEmptyStringKey(string|int $key): bool
+    {
+        $normalized = strtolower((string) $key);
+
+        return $normalized === 'text';
     }
 }

@@ -511,6 +511,7 @@ class AlibabaCamsClient
                     'request_id' => is_array($json)
                         ? ($json['RequestId'] ?? $json['requestId'] ?? null)
                         : null,
+                    'action' => $actionName,
                 ],
             );
         } catch (\Throwable) {

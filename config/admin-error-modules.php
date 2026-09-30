@@ -84,6 +84,7 @@ return [
         'ListProductCatalog' => 'commerce',
         'ListProduct' => 'commerce',
         'CreateChatappTemplate' => 'templates',
+        'ModifyChatappTemplate' => 'templates',
         'GetChatappTemplateDetail' => 'templates',
         'DeleteChatappTemplate' => 'templates',
         'ModifyChatappTemplateReview' => 'templates',
