@@ -25,6 +25,7 @@ final class CampaignWizardValidation
             ],
             2 => [
                 'audience_id' => PublicId::uuidExistsRules(MailList::class, nullable: false),
+                'policy_confirmed' => ['accepted'],
             ],
             3 => [
                 'template_id' => array_merge(
@@ -67,6 +68,7 @@ final class CampaignWizardValidation
             'send_mode.required' => 'Please choose when to send the campaign.',
             'scheduled_at.required_if' => 'Scheduled date and time are required.',
             'scheduled_at.after' => 'Scheduled time must be in the future.',
+            'policy_confirmed.accepted' => 'Please confirm that this campaign complies with WhatsApp\'s policies.',
         ];
     }
 
@@ -87,6 +89,7 @@ final class CampaignWizardValidation
             'template_variables.*' => ['nullable', 'string', 'max:60'],
             'scheduled_at' => ['required_if:send_mode,schedule', 'nullable', 'date', 'after:now'],
             'send_mode' => ['required', 'in:now,schedule'],
+            'policy_confirmed' => ['accepted'],
         ];
     }
 

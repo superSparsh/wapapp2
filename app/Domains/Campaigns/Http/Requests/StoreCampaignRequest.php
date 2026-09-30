@@ -31,6 +31,7 @@ class StoreCampaignRequest extends FormRequest
             'audience_id.required' => 'Please select an audience list before sending.',
             'whatsapp_line_id.required' => 'Please choose a From Number before sending.',
             'template_id.required' => 'Please select a template before sending.',
+            'policy_confirmed.accepted' => 'Please confirm that this campaign complies with WhatsApp\'s policies.',
         ]);
     }
 }

@@ -32,5 +32,9 @@
         @endforeach
       </select>
     </div>
+
+    <x-campaigns.policy-confirmation
+      :checked="(bool) old('policy_confirmed', $wizardData['policy_confirmed'] ?? false)"
+    />
   </form>
 </x-campaigns.create-layout>

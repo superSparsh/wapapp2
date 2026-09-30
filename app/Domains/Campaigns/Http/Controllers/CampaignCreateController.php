@@ -325,6 +325,7 @@ class CampaignCreateController extends Controller
         if ($step === 2 && isset($wizardData['audience_id'])) {
             $audience = PublicId::find(MailList::class, (string) $wizardData['audience_id']);
             $wizardData['audience_id'] = $audience?->id;
+            $wizardData['policy_confirmed'] = $request->boolean('policy_confirmed') ? '1' : null;
         }
 
         if ($step === 3 && isset($wizardData['template_id'])) {
@@ -353,7 +354,7 @@ class CampaignCreateController extends Controller
     {
         return match ($step) {
             1 => ['name', 'whatsapp_line_id'],
-            2 => ['audience_id'],
+            2 => ['audience_id', 'policy_confirmed'],
             3 => ['template_id'],
             4 => [],
             5 => [],

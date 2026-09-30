@@ -48,7 +48,8 @@ class CampaignWizardTest extends TestCase
         $this->actingAsTenantUser()
             ->get(route('campaigns.create.step', 2))
             ->assertOk()
-            ->assertViewIs('campaigns.create.step-2');
+            ->assertViewIs('campaigns.create.step-2')
+            ->assertSee('I confirm that this campaign complies with WhatsApp', false);
     }
 
     public function test_step_3_renders(): void
@@ -112,9 +113,25 @@ class CampaignWizardTest extends TestCase
 
         $this->actingAsTenantUser()
             ->post(route('campaigns.create.save', 2), [
-                'audience_id' => $audience->id,
+                'audience_id' => $audience->uuid,
+                'policy_confirmed' => '1',
             ])
             ->assertRedirect(route('campaigns.create.step', 3));
+
+        $wizard = session('campaign_wizard', []);
+        $this->assertSame($audience->id, $wizard['audience_id'] ?? null);
+        $this->assertSame('1', $wizard['policy_confirmed'] ?? null);
+    }
+
+    public function test_save_step_2_requires_policy_confirmation(): void
+    {
+        $audience = MailList::factory()->create();
+
+        $this->actingAsTenantUser()
+            ->post(route('campaigns.create.save', 2), [
+                'audience_id' => $audience->uuid,
+            ])
+            ->assertSessionHasErrors('policy_confirmed');
     }
 
     public function test_save_step_3_with_variables_goes_to_variables_step(): void
@@ -180,6 +197,7 @@ class CampaignWizardTest extends TestCase
         $this->actingAsTenantUser()
             ->post(route('campaigns.create.save', 2), [
                 'audience_id' => $audience->id,
+                'policy_confirmed' => '1',
             ]);
 
         $this->actingAsTenantUser()
@@ -293,6 +311,7 @@ class CampaignWizardTest extends TestCase
         $this->actingAsTenantUser()
             ->post(route('campaigns.create.save', 2), [
                 'audience_id' => $audience->id,
+                'policy_confirmed' => '1',
             ]);
         $this->actingAsTenantUser()
             ->post(route('campaigns.create.save', 3), [
@@ -339,6 +358,7 @@ class CampaignWizardTest extends TestCase
         $response = $this->actingAsTenantUser()
             ->post(route('campaigns.create.save', 2), [
                 'audience_id' => $audience->id,
+                'policy_confirmed' => '1',
             ]);
 
         $response->assertRedirect(route('campaigns.create.step', 3));
@@ -360,6 +380,7 @@ class CampaignWizardTest extends TestCase
         $this->actingAsTenantUser()
             ->post(route('campaigns.create.save', 2), [
                 'audience_id' => $audience->id,
+                'policy_confirmed' => '1',
             ]);
 
         $payload = Template::defaultPayload();
@@ -601,10 +622,11 @@ class CampaignWizardTest extends TestCase
             ->post(route('campaigns.store'), [
                 'name' => 'Single Campaign',
                 'whatsapp_line_id' => $this->testLine->uuid,
-                'audience_id' => $audience->id,
-                'template_id' => $template->id,
+                'audience_id' => $audience->uuid,
+                'template_id' => $template->uuid,
                 'send_mode' => 'schedule',
                 'scheduled_at' => now()->addDay()->toDateTimeString(),
+                'policy_confirmed' => '1',
             ])
             ->assertRedirect();
 

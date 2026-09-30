@@ -87,6 +87,8 @@
       @error('whatsapp_line_id') <p class="text-sm font-medium text-red-500">{{ $message }}</p> @enderror
       @error('template_id') <p class="text-sm font-medium text-red-500">{{ $message }}</p> @enderror
 
+      <input type="hidden" name="policy_confirmed" value="{{ ! empty($wizardData['policy_confirmed']) ? '1' : '' }}">
+
       <div class="flex flex-col gap-6">
         <h2 class="text-xl font-semibold leading-[1.4] text-text-primary">You're all set to send</h2>
 

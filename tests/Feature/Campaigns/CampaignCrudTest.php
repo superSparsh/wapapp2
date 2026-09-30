@@ -127,6 +127,7 @@ class CampaignCrudTest extends TestCase
                 'audience_id' => $audience->uuid,
                 'template_id' => $template->uuid,
                 'send_mode' => 'now',
+                'policy_confirmed' => '1',
             ])
             ->assertRedirect();
 
@@ -154,6 +155,22 @@ class CampaignCrudTest extends TestCase
             ->assertSessionHasErrors('send_mode');
     }
 
+    public function test_store_requires_policy_confirmation(): void
+    {
+        $audience = MailList::factory()->create();
+        $template = Template::factory()->create();
+
+        $this->actingAsTenantUser()
+            ->post(route('campaigns.store'), [
+                'name' => 'Policy Check Campaign',
+                'whatsapp_line_id' => $this->testLine->uuid,
+                'audience_id' => $audience->uuid,
+                'template_id' => $template->uuid,
+                'send_mode' => 'now',
+            ])
+            ->assertSessionHasErrors('policy_confirmed');
+    }
+
     public function test_store_with_audience(): void
     {
         $audience = MailList::factory()->create();
@@ -166,6 +183,7 @@ class CampaignCrudTest extends TestCase
                 'audience_id' => $audience->uuid,
                 'template_id' => $template->uuid,
                 'send_mode' => 'now',
+                'policy_confirmed' => '1',
             ])
             ->assertRedirect();
 
@@ -188,6 +206,7 @@ class CampaignCrudTest extends TestCase
                 'template_id' => $template->uuid,
                 'send_mode' => 'schedule',
                 'scheduled_at' => now()->addDays(3)->toDateTimeString(),
+                'policy_confirmed' => '1',
             ])
             ->assertRedirect();
 
