@@ -31,7 +31,7 @@
 
   <div class="p-4 pt-0">
     <x-ui.data-table
-      :headers="['Customer', 'Email / Phone', 'Plan', 'Validity', 'Status', 'Created', 'Actions']"
+      :headers="['Customer', 'Email / Phone', 'Plan', 'Wallet', 'Validity', 'Status', 'Created', 'Actions']"
       :paginator="$customers"
     >
       @forelse ($customers as $customer)
@@ -45,6 +45,9 @@
                   $validityDays = null;
               }
           }
+          $walletBalance = $customer->wallet_balance;
+          $walletCurrency = strtoupper((string) ($customer->wallet_currency ?: 'INR'));
+          $walletLow = $walletBalance !== null && (float) $walletBalance <= 500;
         @endphp
         <tr class="bg-elevated">
           <td class="fd-table-cell p-2 align-middle">
@@ -58,6 +61,18 @@
             <div>{{ $customer->phone ?: '-' }}</div>
           </td>
           <td class="fd-table-cell p-2 align-middle text-sm">{{ $customer->plan?->name ?: '-' }}</td>
+          <td class="fd-table-cell p-2 align-middle text-sm tabular-nums">
+            @if ($walletBalance === null)
+              <span class="text-text-subtle">-</span>
+            @else
+              <span @class(['font-semibold', 'text-red-600' => $walletLow, 'text-text-primary' => ! $walletLow])>
+                {{ $walletCurrency === 'USD' ? '$' : '₹' }}{{ number_format((float) $walletBalance, 2) }}
+              </span>
+              @if ($walletLow)
+                <div class="text-xs text-red-600">Low</div>
+              @endif
+            @endif
+          </td>
           <td class="fd-table-cell p-2 align-middle text-sm">
             @if ($validityDays === null)
               <span class="text-text-subtle">-</span>
@@ -82,7 +97,7 @@
         </tr>
       @empty
         <tr>
-          <td colspan="7" class="p-6 text-center text-sm text-text-subtle">No customers found.</td>
+          <td colspan="8" class="p-6 text-center text-sm text-text-subtle">No customers found.</td>
         </tr>
       @endforelse
     </x-ui.data-table>

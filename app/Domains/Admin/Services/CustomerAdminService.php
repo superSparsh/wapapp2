@@ -72,7 +72,64 @@ class CustomerAdminService
             'created_at',
         );
 
-        return $query->paginate($perPage)->withQueryString();
+        $paginator = $query->paginate($perPage)->withQueryString();
+        $wallets = $this->walletBalancesForTenants($paginator->getCollection());
+
+        $paginator->getCollection()->transform(function (Tenant $tenant) use ($wallets): Tenant {
+            $info = $wallets[(string) $tenant->id] ?? ['balance' => null, 'currency' => 'INR'];
+            $tenant->setAttribute('wallet_balance', $info['balance']);
+            $tenant->setAttribute('wallet_currency', $info['currency']);
+
+            return $tenant;
+        });
+
+        return $paginator;
+    }
+
+    /**
+     * Lightweight per-tenant wallet snapshot for the customers index table.
+     *
+     * @param  \Illuminate\Support\Collection<int, Tenant>  $tenants
+     * @return array<string, array{balance: float|null, currency: string}>
+     */
+    public function walletBalancesForTenants($tenants): array
+    {
+        $balances = [];
+
+        $wasInitialized = tenancy()->initialized;
+        $previous = $wasInitialized ? tenant() : null;
+
+        if ($wasInitialized) {
+            tenancy()->end();
+        }
+
+        try {
+            foreach ($tenants as $tenant) {
+                $tenantId = (string) $tenant->id;
+                $balances[$tenantId] = ['balance' => null, 'currency' => 'INR'];
+
+                try {
+                    tenancy()->initialize($tenant);
+                    $wallet = WalletAccount::query()->first();
+                    $balances[$tenantId] = [
+                        'balance' => $wallet !== null ? (float) $wallet->balance : null,
+                        'currency' => strtoupper((string) ($wallet?->currency ?: 'INR')),
+                    ];
+                } catch (\Throwable) {
+                    // Tenant DB missing / unreachable - leave balance null.
+                } finally {
+                    if (tenancy()->initialized) {
+                        tenancy()->end();
+                    }
+                }
+            }
+        } finally {
+            if ($wasInitialized && $previous) {
+                tenancy()->initialize($previous);
+            }
+        }
+
+        return $balances;
     }
 
     /**
