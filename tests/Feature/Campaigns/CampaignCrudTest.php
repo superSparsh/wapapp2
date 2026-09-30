@@ -391,4 +391,40 @@ class CampaignCrudTest extends TestCase
                 return $c->id === $campaign->id;
             });
     }
+
+    public function test_overview_metric_cards_link_to_recipient_detail_logs(): void
+    {
+        $campaign = Campaign::factory()->create();
+
+        $html = $this->actingAsTenantUser()
+            ->get(route('campaigns.show', $campaign))
+            ->assertOk()
+            ->assertSee('Total Recipients')
+            ->assertSee('Delivered')
+            ->assertSee('Failed')
+            ->assertSee('Read')
+            ->assertSee('Response')
+            ->getContent();
+
+        $this->assertStringContainsString(
+            route('campaigns.statistics.detail', $campaign),
+            $html,
+        );
+        $this->assertStringContainsString(
+            route('campaigns.statistics.detail', ['bulkCampaign' => $campaign, 'status' => 'delivered']),
+            $html,
+        );
+        $this->assertStringContainsString(
+            route('campaigns.statistics.detail', ['bulkCampaign' => $campaign, 'status' => 'failed']),
+            $html,
+        );
+        $this->assertStringContainsString(
+            route('campaigns.statistics.detail', ['bulkCampaign' => $campaign, 'status' => 'read']),
+            $html,
+        );
+        $this->assertStringContainsString(
+            route('campaigns.statistics.detail', ['bulkCampaign' => $campaign, 'status' => 'response']),
+            $html,
+        );
+    }
 }

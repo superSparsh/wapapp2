@@ -1,27 +1,56 @@
 <x-layouts.app title="{{ $campaign->name }} - WapApp" active="campaigns.index">
   <x-campaigns.campaign-header :campaign="$campaign" activeTab="overview">
     <div class="flex flex-col gap-4 bg-surface px-4 pb-4">
+      @php
+        $detailRoute = fn (?string $status = null) => route('campaigns.statistics.detail', array_filter([
+            'bulkCampaign' => $campaign,
+            'status' => $status,
+        ]));
+
+        $overviewMetrics = [
+            [
+                'label' => 'Total Recipients',
+                'value' => number_format($metrics['total'] ?? $campaign->total_recipients),
+                'valueClass' => 'text-text-primary',
+                'status' => null,
+            ],
+            [
+                'label' => 'Delivered',
+                'value' => number_format($metrics['delivered'] ?? $campaign->total_delivered),
+                'valueClass' => 'text-green-500',
+                'status' => 'delivered',
+            ],
+            [
+                'label' => 'Failed',
+                'value' => number_format($metrics['failed'] ?? $campaign->total_failed),
+                'valueClass' => 'text-red-500',
+                'status' => 'failed',
+            ],
+            [
+                'label' => 'Read',
+                'value' => number_format($metrics['read'] ?? $campaign->total_read),
+                'valueClass' => 'text-blue-500',
+                'status' => 'read',
+            ],
+            [
+                'label' => 'Response',
+                'value' => number_format($metrics['response'] ?? $campaign->total_response),
+                'valueClass' => 'text-purple-500',
+                'status' => 'response',
+            ],
+        ];
+      @endphp
       <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-        <div class="rounded-lg bg-elevated p-4">
-          <p class="text-xs font-medium text-text-subtle">Total Recipients</p>
-          <p class="mt-1 text-2xl font-bold text-text-primary">{{ number_format($metrics['total'] ?? $campaign->total_recipients) }}</p>
-        </div>
-        <div class="rounded-lg bg-elevated p-4">
-          <p class="text-xs font-medium text-text-subtle">Delivered</p>
-          <p class="mt-1 text-2xl font-bold text-green-500">{{ number_format($metrics['delivered'] ?? $campaign->total_delivered) }}</p>
-        </div>
-        <div class="rounded-lg bg-elevated p-4">
-          <p class="text-xs font-medium text-text-subtle">Failed</p>
-          <p class="mt-1 text-2xl font-bold text-red-500">{{ number_format($metrics['failed'] ?? $campaign->total_failed) }}</p>
-        </div>
-        <div class="rounded-lg bg-elevated p-4">
-          <p class="text-xs font-medium text-text-subtle">Read</p>
-          <p class="mt-1 text-2xl font-bold text-blue-500">{{ number_format($metrics['read'] ?? $campaign->total_read) }}</p>
-        </div>
-        <div class="rounded-lg bg-elevated p-4">
-          <p class="text-xs font-medium text-text-subtle">Response</p>
-          <p class="mt-1 text-2xl font-bold text-purple-500">{{ number_format($metrics['response'] ?? $campaign->total_response) }}</p>
-        </div>
+        @foreach ($overviewMetrics as $metric)
+          <a
+            href="{{ $detailRoute($metric['status']) }}"
+            class="group rounded-lg bg-elevated p-4 transition hover:ring-2 hover:ring-green-500/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
+          >
+            <p class="text-xs font-medium text-text-subtle">{{ $metric['label'] }}</p>
+            <p class="mt-1 text-2xl font-bold {{ $metric['valueClass'] }}">{{ $metric['value'] }}</p>
+            <p class="mt-2 text-xs font-semibold text-green-500 opacity-0 transition group-hover:opacity-100">View logs →</p>
+          </a>
+        @endforeach
       </div>
 
       <div class="flex flex-col gap-3 rounded-lg bg-elevated p-4">

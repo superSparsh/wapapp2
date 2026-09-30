@@ -78,6 +78,36 @@ class DashboardController extends Controller
         );
     }
 
+    public function walletCampaigns(WalletService $walletService): View
+    {
+        return view('dashboard.wallet-campaigns', [
+            'summaries' => $walletService->paginateCampaignWalletSummaries(
+                perPage: (int) config('billing.wallet.history_per_page', 25),
+            ),
+        ]);
+    }
+
+    public function walletCampaign(
+        Campaign $campaign,
+        WalletService $walletService,
+    ): View {
+        return view('dashboard.wallet-campaign-detail', [
+            'campaign' => $campaign->loadMissing(['template:id,name,category', 'audience:id,name', 'whatsappLine:id,phone,display_name']),
+            'charges' => $walletService->paginateCampaignCharges(
+                campaign: $campaign,
+                perPage: (int) config('billing.wallet.history_per_page', 25),
+            ),
+            'totalAmount' => $walletService->campaignChargesTotal($campaign),
+        ]);
+    }
+
+    public function exportWalletCampaign(
+        Campaign $campaign,
+        WalletService $walletService,
+    ): StreamedResponse {
+        return $walletService->exportCampaignChargesCsv($campaign);
+    }
+
     public function analytics(): View
     {
         return view('dashboard.analytics');

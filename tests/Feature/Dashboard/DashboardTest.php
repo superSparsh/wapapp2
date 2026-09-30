@@ -361,6 +361,98 @@ class DashboardTest extends TestCase
         $this->assertStringContainsString('Description', $csv);
     }
 
+    public function test_service_wallet_detail_hides_campaign_id(): void
+    {
+        WalletTransaction::query()->create([
+            'type' => WalletTransactionType::Debit,
+            'amount' => 0.8,
+            'currency' => 'INR',
+            'balance_after' => 99,
+            'description' => 'Service conversation (sent) · 919811122233',
+            'reference_type' => \App\Models\Message::class,
+            'reference_id' => 55,
+            'metadata' => [
+                'pricing_category' => 'SERVICE',
+                'wallet_source' => 'inbox',
+                'contact_phone' => '919811122233',
+                'external_message_id' => 'wamid.SVC-1',
+            ],
+            'created_at' => now(),
+        ]);
+
+        $html = $this->actingAsTenantUser()
+            ->get(route('dashboard.wallet', ['period' => 'all']))
+            ->assertOk()
+            ->assertSee('Service conversation (sent)')
+            ->assertSee('By campaign')
+            ->getContent();
+
+        $this->assertStringContainsString('"show_campaign_id":false', $html);
+        $this->assertStringNotContainsString('"legacy_campaign_id":"55"', $html);
+    }
+
+    public function test_wallet_by_campaign_lists_and_exports_recipient_charges(): void
+    {
+        $campaign = Campaign::factory()->create(['name' => 'Diwali Blast']);
+        $contact = Contact::factory()->create(['name' => 'Asha', 'phone' => '919900112233']);
+        $recipient = CampaignRecipient::factory()->create([
+            'campaign_id' => $campaign->id,
+            'contact_id' => $contact->id,
+            'contact_phone' => $contact->phone,
+            'status' => CampaignRecipientStatus::Delivered,
+            'delivered_at' => now(),
+        ]);
+
+        WalletTransaction::query()->create([
+            'type' => WalletTransactionType::Debit,
+            'amount' => 1.25,
+            'currency' => 'INR',
+            'balance_after' => 50,
+            'description' => 'Campaign: Diwali Blast · MARKETING · 919900112233',
+            'reference_type' => Campaign::class,
+            'reference_id' => $campaign->id,
+            'metadata' => [
+                'wallet_source' => 'campaign',
+                'campaign_id' => $campaign->id,
+                'campaign_recipient_id' => $recipient->id,
+                'pricing_category' => 'MARKETING',
+                'template_category' => 'MARKETING',
+                'contact_phone' => '919900112233',
+                'external_message_id' => 'wamid.CAMP-1',
+                'message_id' => 99,
+            ],
+            'created_at' => now(),
+        ]);
+
+        $this->actingAsTenantUser()
+            ->get(route('dashboard.wallet.campaigns'))
+            ->assertOk()
+            ->assertSee('Diwali Blast')
+            ->assertSee('1.25');
+
+        $this->actingAsTenantUser()
+            ->get(route('dashboard.wallet.campaign', $campaign))
+            ->assertOk()
+            ->assertSee('919900112233')
+            ->assertSee('Asha')
+            ->assertSee('MARKETING')
+            ->assertSee('wamid.CAMP-1')
+            ->assertSee('Export CSV');
+
+        $response = $this->actingAsTenantUser()
+            ->get(route('dashboard.wallet.campaign.export', $campaign));
+
+        $response->assertOk();
+
+        ob_start();
+        $response->sendContent();
+        $csv = (string) ob_get_clean();
+
+        $this->assertStringContainsString('919900112233', $csv);
+        $this->assertStringContainsString('Asha', $csv);
+        $this->assertStringContainsString('wamid.CAMP-1', $csv);
+    }
+
     public function test_mark_all_notifications_read_endpoint(): void
     {
         $this->actingAsTenantUser()

@@ -167,6 +167,9 @@ Route::middleware(['tenancy.session', 'auth:web,team', '2fa', 'team.redirect-das
             Route::get('/campaigns', [DashboardController::class, 'campaigns'])->name('dashboard.campaigns');
             Route::get('/wallet', [DashboardController::class, 'wallet'])->name('dashboard.wallet');
             Route::get('/wallet/export', [DashboardController::class, 'exportWallet'])->name('dashboard.wallet.export');
+            Route::get('/wallet/campaigns', [DashboardController::class, 'walletCampaigns'])->name('dashboard.wallet.campaigns');
+            Route::get('/wallet/campaigns/{campaign}', [DashboardController::class, 'walletCampaign'])->name('dashboard.wallet.campaign');
+            Route::get('/wallet/campaigns/{campaign}/export', [DashboardController::class, 'exportWalletCampaign'])->name('dashboard.wallet.campaign.export');
         });
 
         Route::prefix('features')->name('announcements.')->group(function () {

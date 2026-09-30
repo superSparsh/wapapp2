@@ -44,6 +44,12 @@
           >
         </form>
         <div class="flex flex-wrap items-center gap-3">
+          <a
+            href="{{ route('dashboard.wallet.campaigns') }}"
+            class="fd-btn inline-flex shrink-0 items-center justify-center gap-2 rounded border border-border-light bg-elevated px-4 py-3 text-sm font-semibold text-green-500 hover:bg-surface"
+          >
+            By campaign
+          </a>
           <form method="GET" action="{{ route('dashboard.wallet') }}" class="flex flex-wrap items-center gap-2">
             @if (filled($search))
               <input type="hidden" name="q" value="{{ $search }}">
@@ -134,8 +140,25 @@
                     ?: ($meta['legacy_type'] ?? null)
                     ?: ($isCredit ? 'Wallet credit' : 'Wallet withdrawal');
                   $balanceAfter = (float) ($transaction->display_balance_after ?? $transaction->balance_after);
-                  $campaignId = $meta['campaign_id'] ?? $meta['legacy_campaign_id'] ?? $transaction->reference_id ?? null;
-                  $category = $meta['template_category'] ?? $meta['legacy_category'] ?? null;
+                  $pricingCategory = strtoupper((string) ($meta['pricing_category'] ?? $meta['template_category'] ?? ''));
+                  $walletSource = strtolower((string) ($meta['wallet_source'] ?? ''));
+                  $isService = $pricingCategory === 'SERVICE'
+                    || str_contains(strtolower((string) $description), 'service conversation')
+                    || in_array($walletSource, ['inbox', 'chatbot', 'trigger', 'drip'], true);
+                  $campaignId = null;
+                  if (! $isService) {
+                    $campaignId = $meta['campaign_id'] ?? $meta['legacy_campaign_id'] ?? null;
+                    if (
+                      (blank($campaignId) || (string) $campaignId === '0')
+                      && $transaction->reference_type === \App\Models\Campaign::class
+                    ) {
+                      $campaignId = $transaction->reference_id;
+                    }
+                    if (blank($campaignId) || (string) $campaignId === '0') {
+                      $campaignId = null;
+                    }
+                  }
+                  $category = $meta['template_category'] ?? $meta['pricing_category'] ?? $meta['legacy_category'] ?? null;
                   $msgId = $meta['external_message_id'] ?? $meta['legacy_msg_id'] ?? $meta['message_id'] ?? null;
                   $detailPayload = [
                     'description' => $description,
@@ -145,10 +168,12 @@
                     'date' => $transaction->created_at?->format('d M Y h:i A') ?? '-',
                     'legacy_msg_id' => filled($msgId) ? (string) $msgId : '-',
                     'legacy_category' => filled($category) ? (string) $category : '-',
+                    'show_campaign_id' => ! $isService && filled($campaignId),
                     'legacy_campaign_id' => filled($campaignId) ? (string) $campaignId : '-',
                     'legacy_sender_name' => filled($meta['legacy_sender_name'] ?? $meta['campaign_name'] ?? null)
                       ? (string) ($meta['legacy_sender_name'] ?? $meta['campaign_name'])
                       : '-',
+                    'contact_phone' => filled($meta['contact_phone'] ?? null) ? (string) $meta['contact_phone'] : '-',
                   ];
                 @endphp
                 <tr
@@ -210,7 +235,8 @@
         <div class="my-1 h-px w-full bg-divider"></div>
         <div class="flex justify-between gap-4"><span class="text-text-muted">Msg ID</span><span data-detail-msg-id class="text-right font-medium text-text-primary"></span></div>
         <div class="flex justify-between gap-4"><span class="text-text-muted">Category</span><span data-detail-category class="text-right font-medium text-text-primary"></span></div>
-        <div class="flex justify-between gap-4"><span class="text-text-muted">Campaign ID</span><span data-detail-campaign-id class="text-right font-medium text-text-primary"></span></div>
+        <div class="flex justify-between gap-4" data-detail-phone-row><span class="text-text-muted">Phone</span><span data-detail-phone class="text-right font-medium text-text-primary"></span></div>
+        <div class="flex justify-between gap-4" data-detail-campaign-row><span class="text-text-muted">Campaign ID</span><span data-detail-campaign-id class="text-right font-medium text-text-primary"></span></div>
         <div class="flex justify-between gap-4"><span class="text-text-muted">Sender</span><span data-detail-sender class="text-right font-medium text-text-primary"></span></div>
       </div>
       <div class="border-t border-divider px-5 py-3 text-right">
@@ -239,6 +265,17 @@
         fill('[data-detail-category]', data.legacy_category);
         fill('[data-detail-campaign-id]', data.legacy_campaign_id);
         fill('[data-detail-sender]', data.legacy_sender_name);
+        fill('[data-detail-phone]', data.contact_phone);
+
+        const campaignRow = modal.querySelector('[data-detail-campaign-row]');
+        if (campaignRow) {
+          campaignRow.classList.toggle('hidden', !data.show_campaign_id);
+        }
+        const phoneRow = modal.querySelector('[data-detail-phone-row]');
+        if (phoneRow) {
+          phoneRow.classList.toggle('hidden', !data.contact_phone || data.contact_phone === '-');
+        }
+
         modal.classList.remove('hidden');
         modal.classList.add('flex');
         modal.setAttribute('aria-hidden', 'false');

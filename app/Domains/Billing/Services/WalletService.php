@@ -9,6 +9,8 @@ use App\Domains\Dashboard\Services\DashboardService;
 use App\Enums\RazorpayOrderPurpose;
 use App\Enums\RazorpayOrderStatus;
 use App\Enums\WalletTransactionType;
+use App\Models\Campaign;
+use App\Models\CampaignRecipient;
 use App\Models\RazorpayOrder;
 use App\Models\WalletAccount;
 use App\Models\WalletTransaction;
@@ -193,6 +195,231 @@ class WalletService
         }
 
         return [$from, $to];
+    }
+
+    /**
+     * Campaigns that have wallet debits, with totals (for campaign-wise wallet history).
+     *
+     * @return LengthAwarePaginator<int, object{
+     *     campaign: ?Campaign,
+     *     campaign_id: int,
+     *     charge_count: int,
+     *     total_amount: float,
+     *     last_charged_at: ?\Illuminate\Support\Carbon
+     * }>
+     */
+    public function paginateCampaignWalletSummaries(int $perPage = 25): LengthAwarePaginator
+    {
+        $rows = WalletTransaction::query()
+            ->where('type', WalletTransactionType::Debit)
+            ->where(function ($query): void {
+                $query->where('reference_type', Campaign::class)
+                    ->orWhere('metadata->wallet_source', 'campaign')
+                    ->orWhere(function ($nested): void {
+                        $nested->whereNotNull('metadata->campaign_id')
+                            ->where('metadata->campaign_id', '!=', '')
+                            ->where('metadata->campaign_id', '!=', '0')
+                            ->where('metadata->campaign_id', '!=', 0);
+                    })
+                    ->orWhere(function ($nested): void {
+                        $nested->whereNotNull('metadata->legacy_campaign_id')
+                            ->where('metadata->legacy_campaign_id', '!=', '')
+                            ->where('metadata->legacy_campaign_id', '!=', '0')
+                            ->where('metadata->legacy_campaign_id', '!=', 0);
+                    });
+            })
+            ->orderByDesc('id')
+            ->get(['id', 'amount', 'reference_type', 'reference_id', 'metadata', 'created_at']);
+
+        $grouped = [];
+        foreach ($rows as $transaction) {
+            $meta = is_array($transaction->metadata) ? $transaction->metadata : [];
+            $campaignId = (int) ($meta['campaign_id'] ?? $meta['legacy_campaign_id'] ?? 0);
+            if ($campaignId <= 0 && $transaction->reference_type === Campaign::class) {
+                $campaignId = (int) $transaction->reference_id;
+            }
+            if ($campaignId <= 0) {
+                continue;
+            }
+
+            if (! isset($grouped[$campaignId])) {
+                $grouped[$campaignId] = [
+                    'campaign_id' => $campaignId,
+                    'charge_count' => 0,
+                    'total_amount' => 0.0,
+                    'last_charged_at' => $transaction->created_at,
+                ];
+            }
+
+            $grouped[$campaignId]['charge_count']++;
+            $grouped[$campaignId]['total_amount'] += abs((float) $transaction->amount);
+            if ($transaction->created_at !== null
+                && ($grouped[$campaignId]['last_charged_at'] === null
+                    || $transaction->created_at->greaterThan($grouped[$campaignId]['last_charged_at']))) {
+                $grouped[$campaignId]['last_charged_at'] = $transaction->created_at;
+            }
+        }
+
+        $campaigns = Campaign::query()
+            ->withTrashed()
+            ->whereIn('id', array_keys($grouped))
+            ->with(['template:id,name,category', 'audience:id,name'])
+            ->get()
+            ->keyBy('id');
+
+        $summaries = collect($grouped)
+            ->map(function (array $row) use ($campaigns): object {
+                return (object) [
+                    'campaign_id' => $row['campaign_id'],
+                    'campaign' => $campaigns->get($row['campaign_id']),
+                    'charge_count' => $row['charge_count'],
+                    'total_amount' => round($row['total_amount'], 2),
+                    'last_charged_at' => $row['last_charged_at'],
+                ];
+            })
+            ->sortByDesc(fn (object $row): int => $row->last_charged_at?->getTimestamp() ?? 0)
+            ->values();
+
+        $page = max(1, (int) request()->integer('page', 1));
+        $perPage = max(1, $perPage);
+        $slice = $summaries->forPage($page, $perPage)->values();
+
+        return new \Illuminate\Pagination\LengthAwarePaginator(
+            $slice,
+            $summaries->count(),
+            $perPage,
+            $page,
+            [
+                'path' => request()->url(),
+                'query' => request()->query(),
+            ],
+        );
+    }
+
+    /**
+     * Wallet debits for one campaign (recipient / message level).
+     */
+    public function paginateCampaignCharges(Campaign $campaign, int $perPage = 50): LengthAwarePaginator
+    {
+        $paginator = $this->campaignChargesQuery($campaign)
+            ->paginate($perPage)
+            ->withQueryString();
+
+        $recipientIds = $paginator->getCollection()
+            ->map(function (WalletTransaction $txn): int {
+                $meta = is_array($txn->metadata) ? $txn->metadata : [];
+
+                return (int) ($meta['campaign_recipient_id'] ?? 0);
+            })
+            ->filter(fn (int $id): bool => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        $recipients = $recipientIds === []
+            ? collect()
+            : CampaignRecipient::query()
+                ->with('contact:id,name,phone')
+                ->whereIn('id', $recipientIds)
+                ->get()
+                ->keyBy('id');
+
+        $paginator->setCollection(
+            $paginator->getCollection()->map(function (WalletTransaction $txn) use ($recipients): WalletTransaction {
+                $meta = is_array($txn->metadata) ? $txn->metadata : [];
+                $recipientId = (int) ($meta['campaign_recipient_id'] ?? 0);
+                $txn->setAttribute('campaign_recipient', $recipientId > 0 ? $recipients->get($recipientId) : null);
+
+                return $txn;
+            }),
+        );
+
+        return $paginator;
+    }
+
+    public function exportCampaignChargesCsv(Campaign $campaign): \Symfony\Component\HttpFoundation\StreamedResponse
+    {
+        $safeName = preg_replace('/[^A-Za-z0-9_\-]+/', '_', (string) $campaign->name) ?: 'campaign';
+        $filename = 'wallet-campaign-'.$safeName.'-'.now()->format('Y-m-d').'.csv';
+
+        return response()->streamDownload(function () use ($campaign): void {
+            $handle = fopen('php://output', 'w');
+            fputcsv($handle, [
+                'SI. No',
+                'Phone',
+                'Name',
+                'Recipient Status',
+                'Amount (INR)',
+                'Category',
+                'Description',
+                'Msg ID',
+                'Message ID',
+                'Recipient ID',
+                'Date',
+            ]);
+
+            $seq = 0;
+            $this->campaignChargesQuery($campaign)
+                ->cursor()
+                ->each(function (WalletTransaction $transaction) use ($handle, &$seq): void {
+                    $meta = is_array($transaction->metadata) ? $transaction->metadata : [];
+                    $recipientId = (int) ($meta['campaign_recipient_id'] ?? 0);
+                    $recipient = $recipientId > 0
+                        ? CampaignRecipient::query()->with('contact:id,name,phone')->find($recipientId)
+                        : null;
+
+                    $phone = (string) (
+                        $meta['contact_phone']
+                        ?? $recipient?->contact_phone
+                        ?? $recipient?->contact?->phone
+                        ?? ''
+                    );
+                    $name = (string) ($recipient?->contact?->name ?? '');
+
+                    fputcsv($handle, [
+                        ++$seq,
+                        $phone !== '' ? $phone : 'N/A',
+                        $name !== '' ? $name : 'N/A',
+                        $recipient?->status?->label() ?? 'N/A',
+                        number_format(abs((float) $transaction->amount), 2, '.', ''),
+                        (string) ($meta['pricing_category'] ?? $meta['template_category'] ?? $meta['legacy_category'] ?? 'N/A'),
+                        (string) ($transaction->description ?: 'N/A'),
+                        (string) ($meta['external_message_id'] ?? $meta['legacy_msg_id'] ?? 'N/A'),
+                        (string) ($meta['message_id'] ?? 'N/A'),
+                        $recipientId > 0 ? (string) $recipientId : 'N/A',
+                        $transaction->created_at?->format('d M Y h:i:s A') ?? 'N/A',
+                    ]);
+                });
+
+            fclose($handle);
+        }, $filename, ['Content-Type' => 'text/csv']);
+    }
+
+    public function campaignChargesTotal(Campaign $campaign): float
+    {
+        return round(abs((float) $this->campaignChargesQuery($campaign)->sum('amount')), 2);
+    }
+
+    /**
+     * @return \Illuminate\Database\Eloquent\Builder<\App\Models\WalletTransaction>
+     */
+    private function campaignChargesQuery(Campaign $campaign)
+    {
+        $id = (int) $campaign->id;
+
+        return WalletTransaction::query()
+            ->where('type', WalletTransactionType::Debit)
+            ->where(function ($query) use ($id, $campaign): void {
+                $query->where(function ($nested) use ($campaign): void {
+                    $nested->where('reference_type', Campaign::class)
+                        ->where('reference_id', $campaign->id);
+                })
+                    ->orWhere('metadata->campaign_id', $id)
+                    ->orWhere('metadata->campaign_id', (string) $id)
+                    ->orWhere('metadata->legacy_campaign_id', $id)
+                    ->orWhere('metadata->legacy_campaign_id', (string) $id);
+            })
+            ->latest('id');
     }
 
     /**
