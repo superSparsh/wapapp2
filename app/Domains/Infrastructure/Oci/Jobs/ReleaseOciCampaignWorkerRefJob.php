@@ -16,9 +16,9 @@ use Throwable;
 /**
  * Clears OCI active-campaign refs and schedules teardown on the main app.
  *
- * Campaign completion often runs inside the ephemeral CI (OCI_WORKERS_ENABLED=false,
- * possibly stale image). Hopping to the provisioning queue keeps Redis + destroy
- * logic on the host that has current code and OCI credentials.
+ * Campaign completion often runs inside the ephemeral CI (OCI_WORKERS_ENABLED=false).
+ * Hopping to the provisioning queue keeps Redis + destroy logic on the host that has
+ * OCI_WORKERS_ENABLED=true and OCI API credentials.
  */
 class ReleaseOciCampaignWorkerRefJob implements ShouldQueue
 {
@@ -34,16 +34,22 @@ class ReleaseOciCampaignWorkerRefJob implements ShouldQueue
     public function __construct(
         public readonly string $tenantId,
         public readonly int $campaignId,
+        public readonly ?int $workerRef = null,
     ) {}
 
     public function handle(CampaignOciWorkerLifecycle $lifecycle): void
     {
         try {
-            $lifecycle->releaseCampaignRef($this->tenantId, $this->campaignId);
+            $lifecycle->releaseCampaignRef(
+                $this->tenantId,
+                $this->campaignId,
+                $this->workerRef,
+            );
         } catch (Throwable $e) {
             Log::error('ReleaseOciCampaignWorkerRefJob failed', [
                 'tenant_id' => $this->tenantId,
                 'campaign_id' => $this->campaignId,
+                'worker_ref' => $this->workerRef,
                 'error' => $e->getMessage(),
             ]);
 
