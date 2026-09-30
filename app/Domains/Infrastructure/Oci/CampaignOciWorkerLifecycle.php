@@ -37,14 +37,29 @@ final class CampaignOciWorkerLifecycle
 
     public function enabled(): bool
     {
+        // Full provision/destroy API path (main app / provisioning workers).
+        return $this->provisioningEnabled();
+    }
+
+    /**
+     * Redis refcount + teardown job dispatch. Must work inside ephemeral CIs too
+     * (those set OCI_WORKERS_ENABLED=false so they do not nest-provision).
+     */
+    public function trackingEnabled(): bool
+    {
+        return (bool) config('oci-workers.ephemeral.enabled', false);
+    }
+
+    public function provisioningEnabled(): bool
+    {
         return OciWorkload::enabled()
-            && (bool) config('oci-workers.ephemeral.enabled', false);
+            && $this->trackingEnabled();
     }
 
     public function onCampaignStarted(Campaign $campaign, ?string $tenantId = null): void
     {
-        if (! $this->enabled()) {
-            Log::info('OCI ephemeral: onCampaignStarted skipped - feature disabled');
+        if (! $this->trackingEnabled()) {
+            Log::info('OCI ephemeral: onCampaignStarted skipped - ephemeral disabled');
 
             return;
         }
@@ -71,22 +86,46 @@ final class CampaignOciWorkerLifecycle
             $this->storeCampaignLoad($load);
         });
 
+        Log::info('OCI ephemeral: campaign started tracked', [
+            'ref' => $ref,
+            'recipients' => $recipients,
+            'active' => array_keys($this->activeCampaignIds()),
+        ]);
+
         EnsureOciCampaignWorkerJob::dispatch()
             ->onQueue((string) config('oci-workers.ephemeral.provisioning_queue', 'provisioning'));
     }
 
     public function onCampaignFinished(Campaign $campaign, ?string $tenantId = null): void
     {
-        if (! $this->enabled()) {
+        // IMPORTANT: do not gate on OciWorkload::enabled().
+        // Last recipient often completes inside the ephemeral CI where
+        // OCI_WORKERS_ENABLED=false — silencing finish left Redis refs stuck
+        // and containers never destroyed.
+        if (! $this->trackingEnabled() && $this->instanceOcid() === null) {
+            Log::info('OCI ephemeral: onCampaignFinished skipped - ephemeral off and no tracked instance', [
+                'campaign_id' => $campaign->id ?? null,
+            ]);
+
             return;
         }
 
+        $ref = $this->campaignRefKeyOrNull($campaign, $tenantId);
         $shouldTeardown = false;
+        $remaining = [];
 
-        $this->withLock(function () use ($campaign, $tenantId, &$shouldTeardown): void {
+        $this->withLock(function () use ($campaign, $tenantId, $ref, &$shouldTeardown, &$remaining): void {
             $this->forgetCampaignRefs($campaign, $tenantId);
-            $shouldTeardown = $this->activeCampaignIds() === [];
+            $remaining = array_keys($this->activeCampaignIds());
+            $shouldTeardown = $remaining === [];
         });
+
+        Log::info('OCI ephemeral: campaign finished tracked', [
+            'ref' => $ref,
+            'campaign_id' => $campaign->id ?? null,
+            'remaining_active' => $remaining,
+            'will_teardown' => $shouldTeardown,
+        ]);
 
         if (! $shouldTeardown) {
             return;
@@ -97,12 +136,17 @@ final class CampaignOciWorkerLifecycle
         TeardownOciCampaignWorkerJob::dispatch()
             ->delay(now()->addSeconds($grace))
             ->onQueue((string) config('oci-workers.ephemeral.provisioning_queue', 'provisioning'));
+
+        Log::info('OCI ephemeral: teardown job dispatched', [
+            'grace_seconds' => $grace,
+            'queue' => (string) config('oci-workers.ephemeral.provisioning_queue', 'provisioning'),
+        ]);
     }
 
     public function ensureWorker(OciContainerInstanceClient $client): void
     {
-        if (! $this->enabled()) {
-            Log::info('OCI ephemeral: ensure skipped - feature disabled');
+        if (! $this->provisioningEnabled()) {
+            Log::info('OCI ephemeral: ensure skipped - provisioning disabled (OCI workers / ephemeral)');
 
             return;
         }
@@ -237,7 +281,11 @@ final class CampaignOciWorkerLifecycle
 
     public function teardownWorker(OciContainerInstanceClient $client): void
     {
-        if (! $this->enabled()) {
+        // Destroy must run on a host with OCI credentials (provisioning queue / main app).
+        // Still allow when workers flag is off if an instance is tracked (ops recovery).
+        if (! $this->provisioningEnabled() && $this->instanceOcid() === null) {
+            Log::info('OCI ephemeral: teardown skipped - provisioning disabled and no tracked instance');
+
             return;
         }
 

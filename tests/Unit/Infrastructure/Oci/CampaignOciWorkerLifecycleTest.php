@@ -235,6 +235,25 @@ class CampaignOciWorkerLifecycleTest extends TestCase
         $this->assertSame([], $this->lifecycle->activeCampaignIds());
     }
 
+    public function test_finish_clears_and_tears_down_when_workers_flag_off(): void
+    {
+        // Ephemeral CI sets OCI_WORKERS_ENABLED=false; finish must still clear refs.
+        config(['oci-workers.enabled' => false]);
+
+        $campaign = $this->campaign(7);
+        // Simulate start that already happened on the main app:
+        $this->lifecycle->storeActiveCampaignIds([
+            $this->ref(self::TENANT_A, 7) => true,
+        ]);
+        $this->lifecycle->storeInstanceOcid('ocid1.containerinstance.oc1.test.live');
+
+        Queue::fake();
+        $this->lifecycle->onCampaignFinished($campaign, self::TENANT_A);
+
+        $this->assertSame([], $this->lifecycle->activeCampaignIds());
+        Queue::assertPushed(TeardownOciCampaignWorkerJob::class);
+    }
+
     public function test_status_snapshot_includes_last_session_duration(): void
     {
         $this->lifecycle->storeInstanceOcid('ocid1.containerinstance.oc1.test.live');
