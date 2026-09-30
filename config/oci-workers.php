@@ -126,9 +126,7 @@ return [
         */
         'container_environment' => [
             'HORIZON_ROLE' => 'oci-heavy',
-            // CI must not nest-provision, but must still track finish → teardown dispatch.
             'OCI_WORKERS_ENABLED' => 'false',
-            'OCI_EPHEMERAL_CONTAINERS' => 'true',
             'QUEUE_CONNECTION' => 'redis',
         ],
     ],
