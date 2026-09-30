@@ -269,7 +269,7 @@ class InboxOutboundTest extends TestCase
 
         $file = UploadedFile::fake()->image('photo.jpg');
 
-        $this->actingAsTenantUser()
+        $response = $this->actingAsTenantUser()
             ->post(route('inbox.api.send-media', $conversation), [
                 'media_type' => 'image',
                 'file' => $file,
@@ -278,11 +278,50 @@ class InboxOutboundTest extends TestCase
             ->assertCreated()
             ->assertJsonPath('message.message_type', MessageType::Image->value);
 
+        $mediaUrl = (string) $response->json('message.media_url');
+        $this->assertStringContainsString('/inbox/media/', $mediaUrl);
+        $this->assertStringNotContainsString('/storage/', $mediaUrl);
+
         $this->assertDatabaseHas('messages', [
             'conversation_id' => $conversation->id,
             'message_type' => MessageType::Image->value,
             'body' => 'Check this',
         ]);
+    }
+
+    public function test_inbox_media_stream_serves_tenant_disk_file(): void
+    {
+        $conversation = $this->createConversation();
+        $this->messageService->recordInbound($conversation, 'Recent hello');
+
+        $response = $this->actingAsTenantUser()
+            ->post(route('inbox.api.send-media', $conversation), [
+                'media_type' => 'image',
+                'file' => UploadedFile::fake()->image('preview-test.png'),
+            ])
+            ->assertCreated();
+
+        $path = (string) (Message::query()->latest('id')->value('metadata')['media_path'] ?? '');
+        $this->assertNotSame('', $path);
+        $this->assertStringStartsWith('inbox/outbound/', $path);
+
+        $this->actingAsTenantUser()
+            ->get(route('inbox.media.show', ['path' => $path]))
+            ->assertOk();
+
+        $this->assertStringContainsString('/inbox/media/', (string) $response->json('message.media_url'));
+    }
+
+    public function test_legacy_storage_inbox_url_rewrites_to_stream_route(): void
+    {
+        $url = \App\Domains\Inbox\Support\InboxPresenter::displayMediaUrl([
+            'media_url' => 'https://wapapp2.tittu.in/storage/inbox/outbound/18MmagtwOyNBDONU4i1DBccyi0ElI2arSyvofNZc.png',
+            'media_path' => 'inbox/outbound/18MmagtwOyNBDONU4i1DBccyi0ElI2arSyvofNZc.png',
+        ]);
+
+        $this->assertNotNull($url);
+        $this->assertStringContainsString('/inbox/media/inbox/outbound/', $url);
+        $this->assertStringNotContainsString('/storage/', $url);
     }
 
     public function test_media_send_rejects_oversized_image(): void

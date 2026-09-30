@@ -442,6 +442,9 @@ Route::middleware(['tenancy.session', 'auth:web,team', '2fa', 'team.redirect-das
 
     Route::middleware('team.permission:inbox_read')->prefix('inbox')->name('inbox.')->group(function () {
         Route::get('/', [InboxController::class, 'index'])->name('index');
+        Route::get('/media/{path}', [InboxController::class, 'showMedia'])
+            ->where('path', '.*')
+            ->name('media.show');
         Route::redirect('/compose', '/inbox')->name('compose');
 
         Route::prefix('api')->name('api.')->group(function () {

@@ -85,6 +85,11 @@ class InboxController extends Controller
         return $adapter->sendMedia($request, $conversation);
     }
 
+    public function showMedia(string $path, \App\Domains\Inbox\Services\InboxMediaService $mediaService): StreamedResponse
+    {
+        return $mediaService->stream($path);
+    }
+
     public function sendTemplate(
         SendInboxTemplateRequest $request,
         Conversation $conversation,

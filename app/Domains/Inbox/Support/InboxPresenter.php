@@ -132,27 +132,32 @@ final class InboxPresenter
      * URL to show in the inbox UI.
      * Outbound media is uploaded to Alibaba OSS for WhatsApp delivery (media_url),
      * but browsers often cannot load that private/hosted object - prefer the local
-     * public disk copy (media_url_local / media_path) for display.
+     * public disk copy (media_url_local / media_path) via the tenant stream route.
+     * Legacy /storage/... URLs 403 under filesystem tenancy.
      *
      * @param  array<string, mixed>  $metadata
      */
     public static function displayMediaUrl(array $metadata): ?string
     {
-        foreach (['media_url_local', 'media_url'] as $key) {
-            $value = trim((string) ($metadata[$key] ?? ''));
-            if ($value !== '') {
-                return $value;
-            }
-        }
+        $mediaService = app(\App\Domains\Inbox\Services\InboxMediaService::class);
 
         $path = trim((string) ($metadata['media_path'] ?? ''));
         if ($path !== '') {
-            try {
-                $disk = (string) config('whatsapp.media.disk', 'public');
+            $fromPath = $mediaService->displayUrl(null, $path);
+            if ($fromPath !== null && $fromPath !== '') {
+                return $fromPath;
+            }
+        }
 
-                return \Illuminate\Support\Facades\Storage::disk($disk)->url($path);
-            } catch (\Throwable) {
-                return '/storage/'.ltrim($path, '/');
+        foreach (['media_url_local', 'media_url'] as $key) {
+            $value = trim((string) ($metadata[$key] ?? ''));
+            if ($value === '') {
+                continue;
+            }
+
+            $resolved = $mediaService->displayUrl($value, null);
+            if ($resolved !== null && $resolved !== '') {
+                return $resolved;
             }
         }
 
