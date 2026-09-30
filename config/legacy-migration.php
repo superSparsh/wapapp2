@@ -63,7 +63,7 @@ return [
     |
     */
     'daily_sync' => [
-        'enabled' => (bool) env('LEGACY_DAILY_SYNC_ENABLED', true),
+        'enabled' => (bool) env('LEGACY_DAILY_SYNC_ENABLED', false),
         'at' => env('LEGACY_DAILY_SYNC_AT', '00:00'),
         // Soft cap - null/0 = no cap (all customers). Useful for staging.
         'limit' => env('LEGACY_DAILY_SYNC_LIMIT') !== null && env('LEGACY_DAILY_SYNC_LIMIT') !== ''

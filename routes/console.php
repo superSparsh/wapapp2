@@ -78,11 +78,12 @@ Schedule::command(PurgeSoftDeletedContactsCommand::class)->dailyAt('04:15');
 Schedule::command(CleanOldFlowSubmissions::class)->daily();
 Schedule::command(RetryFailedDeliveriesCommand::class)->everyFifteenMinutes();
 
-// Legacy → 2.0 nightly full sync (all modules, all customers, duplicate-safe upserts)
-if ((bool) config('legacy-migration.daily_sync.enabled', true)) {
-    Schedule::command('legacy:sync-daily')
-        ->dailyAt((string) config('legacy-migration.daily_sync.at', '00:00'))
-        ->withoutOverlapping((int) config('legacy-migration.daily_sync.lock_seconds', 82800))
-        ->onOneServer()
-        ->runInBackground();
-}
+// Legacy nightly all-customers sync DISABLED — use only per-customer:
+//   php artisan legacy:migrate-customer {uid} --force --since=3months
+// if ((bool) config('legacy-migration.daily_sync.enabled', true)) {
+//     Schedule::command('legacy:sync-daily')
+//         ->dailyAt((string) config('legacy-migration.daily_sync.at', '00:00'))
+//         ->withoutOverlapping((int) config('legacy-migration.daily_sync.lock_seconds', 82800))
+//         ->onOneServer()
+//         ->runInBackground();
+// }
