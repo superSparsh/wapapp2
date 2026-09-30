@@ -260,11 +260,15 @@ class CampaignWalletChargeTest extends TestCase
             ],
         ]);
 
-        // Dashboard counts Service on Sent; wallet should debit once here (no Delivered needed).
+        // Dashboard counts Service on Sent; wallet debit is triggered by outbound gateway
+        // (not MessageObserver) so media metadata is not wiped mid-save.
         $message->forceFill([
             'status' => MessageStatus::Sent,
             'sent_at' => now(),
         ])->save();
+
+        app(\App\Domains\Billing\Services\TemplateWalletChargeService::class)
+            ->chargeIfDelivered($message->refresh(), 'Sent');
 
         $this->assertEquals(9.65, (float) app(WalletService::class)->balance());
         $this->assertSame(1, WalletTransaction::query()->where('type', WalletTransactionType::Debit)->count());

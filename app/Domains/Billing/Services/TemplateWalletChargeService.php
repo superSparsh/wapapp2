@@ -36,7 +36,13 @@ class TemplateWalletChargeService
     ): ?WalletTransaction {
         $statusKey = strtolower(trim($deliveryStatus));
 
-        $meta = is_array($message->metadata) ? $message->metadata : [];
+        // Always re-read from DB so we never overwrite media_* with a stale in-memory copy
+        // (Sent charge runs from MessageObserver mid-outbound gateway save).
+        if ($message->exists) {
+            $message->refresh();
+        }
+
+        $meta = $this->metadataArray($message);
         if (! empty($meta['wallet_charged'])) {
             return null;
         }
@@ -137,10 +143,13 @@ class TemplateWalletChargeService
                 allowNegative: true,
             );
 
-            $meta['wallet_charged'] = true;
-            $meta['wallet_transaction_id'] = $transaction->id;
-            $meta['wallet_charged_at'] = now()->toIso8601String();
-            $message->forceFill(['metadata' => $meta])->save();
+            // Merge wallet flags onto the latest DB metadata (media upload may have
+            // written media_url_local after this method first read the model).
+            $latestMeta = $this->metadataArray($message->refresh());
+            $latestMeta['wallet_charged'] = true;
+            $latestMeta['wallet_transaction_id'] = $transaction->id;
+            $latestMeta['wallet_charged_at'] = now()->toIso8601String();
+            $message->forceFill(['metadata' => $latestMeta])->save();
 
             Log::info('Wallet delivery charge applied', [
                 'message_id' => $message->id,
@@ -169,6 +178,26 @@ class TemplateWalletChargeService
 
             return null;
         }
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function metadataArray(Message $message): array
+    {
+        $meta = $message->metadata;
+
+        if (is_array($meta)) {
+            return $meta;
+        }
+
+        if (is_string($meta) && $meta !== '') {
+            $decoded = json_decode($meta, true);
+
+            return is_array($decoded) ? $decoded : [];
+        }
+
+        return [];
     }
 
     private function isServiceMessage(Message $message): bool

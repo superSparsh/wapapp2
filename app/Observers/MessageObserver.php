@@ -34,8 +34,9 @@ class MessageObserver
     }
 
     /**
-     * Safety net: charge wallet when status flips to Sent/Delivered/Read.
-     * Service messages bill on Sent (dashboard Credits parity); templates on Delivered/Read.
+     * Safety net: charge wallet when status flips to Delivered/Read
+     * (covers paths that update status outside DeliveryStatusHandler).
+     * Service Sent charges run from the outbound gateway after media metadata is stable.
      */
     public function updated(Message $message): void
     {
@@ -55,19 +56,11 @@ class MessageObserver
             ? $message->status
             : MessageStatus::tryFrom((string) $message->status);
 
-        if (
-            $status !== MessageStatus::Sent
-            && $status !== MessageStatus::Delivered
-            && $status !== MessageStatus::Read
-        ) {
+        if ($status !== MessageStatus::Delivered && $status !== MessageStatus::Read) {
             return;
         }
 
-        $deliveryStatus = match ($status) {
-            MessageStatus::Read => 'Read',
-            MessageStatus::Delivered => 'Delivered',
-            default => 'Sent',
-        };
+        $deliveryStatus = $status === MessageStatus::Read ? 'Read' : 'Delivered';
 
         try {
             app(TemplateWalletChargeService::class)->chargeIfDelivered(

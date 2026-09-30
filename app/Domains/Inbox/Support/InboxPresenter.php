@@ -132,7 +132,7 @@ final class InboxPresenter
      * URL to show in the inbox UI.
      * Outbound media is uploaded to Alibaba OSS for WhatsApp delivery (media_url),
      * but browsers often cannot load that private/hosted object - prefer the local
-     * public disk copy (media_url_local) for display.
+     * public disk copy (media_url_local / media_path) for display.
      *
      * @param  array<string, mixed>  $metadata
      */
@@ -142,6 +142,17 @@ final class InboxPresenter
             $value = trim((string) ($metadata[$key] ?? ''));
             if ($value !== '') {
                 return $value;
+            }
+        }
+
+        $path = trim((string) ($metadata['media_path'] ?? ''));
+        if ($path !== '') {
+            try {
+                $disk = (string) config('whatsapp.media.disk', 'public');
+
+                return \Illuminate\Support\Facades\Storage::disk($disk)->url($path);
+            } catch (\Throwable) {
+                return '/storage/'.ltrim($path, '/');
             }
         }
 

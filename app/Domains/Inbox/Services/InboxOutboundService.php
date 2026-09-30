@@ -69,6 +69,7 @@ class InboxOutboundService
             messageType: $messageType,
             metadata: [
                 'media_url' => $stored['url'],
+                'media_url_local' => $stored['url'],
                 'media_path' => $stored['path'],
                 'file_name' => $stored['original_name'],
                 'file_type' => $stored['mime'],
@@ -137,6 +138,7 @@ class InboxOutboundService
             messageType: MessageType::Sticker,
             metadata: [
                 'media_url' => $stored['url'],
+                'media_url_local' => $stored['url'],
                 'media_path' => $stored['path'],
                 'file_name' => $stored['original_name'],
                 'file_type' => $stored['mime'],
