@@ -12,6 +12,9 @@ use Throwable;
 /**
  * Allocates a globally unique sequential integer (central campaign_worker_refs.id)
  * and stores it on the tenant campaign as worker_ref for OCI lifecycle tracking.
+ *
+ * Uses the central DB connection directly — never tenancy()->central() — so an open
+ * tenant transaction (e.g. CampaignService::duplicate) is not rolled back.
  */
 final class CampaignWorkerRefAllocator
 {
@@ -35,25 +38,27 @@ final class CampaignWorkerRefAllocator
         $campaignId = (int) $campaign->id;
         $uuid = trim((string) ($campaign->uuid ?? ''));
 
+        if ($campaignId < 1) {
+            return null;
+        }
+
         try {
-            $ref = (int) tenancy()->central(function () use ($tenantId, $campaignId, $uuid) {
-                $existingRow = DB::table('campaign_worker_refs')
-                    ->where('tenant_id', $tenantId)
-                    ->where('tenant_campaign_id', $campaignId)
-                    ->value('id');
+            $central = DB::connection($this->centralConnection());
 
-                if ($existingRow) {
-                    return (int) $existingRow;
-                }
+            $existingRow = $central->table('campaign_worker_refs')
+                ->where('tenant_id', $tenantId)
+                ->where('tenant_campaign_id', $campaignId)
+                ->value('id');
 
-                return (int) DB::table('campaign_worker_refs')->insertGetId([
+            $ref = $existingRow
+                ? (int) $existingRow
+                : (int) $central->table('campaign_worker_refs')->insertGetId([
                     'tenant_id' => $tenantId,
-                    'tenant_campaign_id' => $campaignId > 0 ? $campaignId : null,
+                    'tenant_campaign_id' => $campaignId,
                     'campaign_uuid' => $uuid !== '' ? $uuid : null,
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]);
-            });
         } catch (Throwable $e) {
             Log::error('Campaign worker_ref allocation failed', [
                 'campaign_id' => $campaignId,
@@ -75,5 +80,10 @@ final class CampaignWorkerRefAllocator
         }
 
         return $ref;
+    }
+
+    private function centralConnection(): string
+    {
+        return (string) config('tenancy.database.central_connection', config('database.default', 'mysql'));
     }
 }

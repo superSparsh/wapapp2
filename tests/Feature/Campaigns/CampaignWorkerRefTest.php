@@ -57,7 +57,8 @@ class CampaignWorkerRefTest extends TestCase
         $original = Campaign::factory()->create(['name' => 'Original']);
         $copy = app(\App\Domains\Campaigns\Services\CampaignService::class)->duplicate($original);
 
-        $this->assertNotNull($copy->worker_ref);
-        $this->assertNotSame((int) $original->worker_ref, (int) $copy->worker_ref);
+        $this->assertDatabaseHas('campaigns', ['name' => 'Original (Copy)']);
+        $this->assertNotNull($copy->fresh()->worker_ref);
+        $this->assertNotSame((int) $original->worker_ref, (int) $copy->fresh()->worker_ref);
     }
 }

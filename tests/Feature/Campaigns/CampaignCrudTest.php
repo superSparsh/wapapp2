@@ -95,7 +95,14 @@ class CampaignCrudTest extends TestCase
 
     public function test_index_status_filter(): void
     {
-        Campaign::factory()->sending()->count(2)->create();
+        $sending = Campaign::factory()->sending()->count(2)->create();
+        foreach ($sending as $campaign) {
+            // Keep them Sending — index reconciles idle Sending (no pending) to Completed.
+            CampaignRecipient::factory()->create([
+                'campaign_id' => $campaign->id,
+                'status' => \App\Enums\CampaignRecipientStatus::Pending,
+            ]);
+        }
         Campaign::factory()->draft()->create();
 
         $this->actingAsTenantUser()
@@ -116,9 +123,9 @@ class CampaignCrudTest extends TestCase
         $this->actingAsTenantUser()
             ->post(route('campaigns.store'), [
                 'name' => 'My New Campaign',
-                'whatsapp_line_id' => $this->testLine->id,
-                'audience_id' => $audience->id,
-                'template_id' => $template->id,
+                'whatsapp_line_id' => $this->testLine->uuid,
+                'audience_id' => $audience->uuid,
+                'template_id' => $template->uuid,
                 'send_mode' => 'now',
             ])
             ->assertRedirect();
@@ -155,9 +162,9 @@ class CampaignCrudTest extends TestCase
         $this->actingAsTenantUser()
             ->post(route('campaigns.store'), [
                 'name' => 'Campaign with Audience',
-                'whatsapp_line_id' => $this->testLine->id,
-                'audience_id' => $audience->id,
-                'template_id' => $template->id,
+                'whatsapp_line_id' => $this->testLine->uuid,
+                'audience_id' => $audience->uuid,
+                'template_id' => $template->uuid,
                 'send_mode' => 'now',
             ])
             ->assertRedirect();
@@ -176,9 +183,9 @@ class CampaignCrudTest extends TestCase
         $this->actingAsTenantUser()
             ->post(route('campaigns.store'), [
                 'name' => 'Scheduled Campaign',
-                'whatsapp_line_id' => $this->testLine->id,
-                'audience_id' => $audience->id,
-                'template_id' => $template->id,
+                'whatsapp_line_id' => $this->testLine->uuid,
+                'audience_id' => $audience->uuid,
+                'template_id' => $template->uuid,
                 'send_mode' => 'schedule',
                 'scheduled_at' => now()->addDays(3)->toDateTimeString(),
             ])
