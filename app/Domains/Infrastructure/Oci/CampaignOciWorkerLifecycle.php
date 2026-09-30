@@ -51,8 +51,9 @@ final class CampaignOciWorkerLifecycle
 
         $ref = $this->campaignRefKey($campaign);
         if ($ref === null) {
-            Log::error('OCI ephemeral: onCampaignStarted skipped - missing tenant context', [
+            Log::error('OCI ephemeral: onCampaignStarted skipped - campaign has no usable ref', [
                 'campaign_id' => (int) $campaign->id,
+                'uuid' => $campaign->uuid ?? null,
             ]);
 
             return;
@@ -82,8 +83,9 @@ final class CampaignOciWorkerLifecycle
 
         $ref = $this->campaignRefKey($campaign);
         if ($ref === null) {
-            Log::error('OCI ephemeral: onCampaignFinished skipped - missing tenant context', [
+            Log::error('OCI ephemeral: onCampaignFinished skipped - campaign has no usable ref', [
                 'campaign_id' => (int) $campaign->id,
+                'uuid' => $campaign->uuid ?? null,
             ]);
 
             return;
@@ -374,39 +376,36 @@ final class CampaignOciWorkerLifecycle
     }
 
     /**
-     * Stable cross-tenant Redis key: "{tenant_id}:{campaign_id}".
-     * Never fall back to bare campaign id — that collides across tenants.
+     * Globally unique Redis key from the campaign's public uuid.
+     * Does not depend on tenant() — OCI queue workers often lack tenancy context
+     * at finish time, which broke tenant:id refs; bare numeric ids collide across tenants.
      */
-    public function campaignRefKey(Campaign $campaign, ?string $tenantId = null): ?string
+    public function campaignRefKey(Campaign $campaign): ?string
     {
-        $tenantId = $tenantId ?? $this->currentTenantId();
-        if ($tenantId === null) {
-            return null;
+        $uuid = strtolower(trim((string) ($campaign->uuid ?? '')));
+        if ($this->isUuid($uuid)) {
+            return $uuid;
         }
 
-        $campaignId = (int) $campaign->id;
-        if ($campaignId < 1) {
-            return null;
-        }
-
-        return $tenantId.':'.$campaignId;
+        return null;
     }
 
     /**
-     * Remove this campaign's tenant ref (+ legacy bare / "_:id" aliases only).
-     * Does not touch other tenants' refs that share the same numeric campaign id.
+     * Remove this campaign's uuid ref + legacy bare / tenant:id / id:n aliases.
      */
     public function forgetCampaignRefs(Campaign $campaign, ?string $ref = null): void
     {
         $ref ??= $this->campaignRefKey($campaign);
         $campaignId = (int) $campaign->id;
+        $tenantId = $this->currentTenantId();
 
         $aliases = array_values(array_unique(array_filter([
             $ref,
-            // Pre-tenant-key leftovers from older builds:
+            // Legacy formats from earlier experiments:
             $campaignId > 0 ? (string) $campaignId : null,
             $campaignId > 0 ? '_:'.$campaignId : null,
             $campaignId > 0 ? 'id:'.$campaignId : null,
+            ($tenantId !== null && $campaignId > 0) ? $tenantId.':'.$campaignId : null,
         ])));
 
         $active = $this->activeCampaignIds();
@@ -430,6 +429,14 @@ final class CampaignOciWorkerLifecycle
         $id = trim($id);
 
         return $id !== '' ? $id : null;
+    }
+
+    private function isUuid(string $value): bool
+    {
+        return (bool) preg_match(
+            '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/',
+            $value,
+        );
     }
 
     /**
@@ -565,10 +572,10 @@ final class CampaignOciWorkerLifecycle
     }
 
     /**
-     * Normalize Redis campaign refs without collapsing tenants together.
-     * - "tenant:id" kept as-is
-     * - bare numeric / "id:n" → legacy bare form (migration leftovers only)
-     * - uuid-only leftovers dropped
+     * Normalize Redis campaign refs:
+     * - campaign uuid (preferred, globally unique, no tenant() needed)
+     * - "tenant:id" kept (legacy tenant-key experiment)
+     * - bare numeric / "id:n" kept as legacy migration leftovers
      */
     private function parseCampaignRef(mixed $value): ?string
     {
@@ -580,6 +587,12 @@ final class CampaignOciWorkerLifecycle
 
         if (! is_string($value) || $value === '') {
             return null;
+        }
+
+        $value = trim($value);
+        $lower = strtolower($value);
+        if ($this->isUuid($lower)) {
+            return $lower;
         }
 
         if (str_starts_with($value, 'id:') && ctype_digit(substr($value, 3))) {
@@ -596,11 +609,9 @@ final class CampaignOciWorkerLifecycle
                 return null;
             }
 
-            // Keep full tenant-scoped key (including legacy "_:id").
             return $tenantPart.':'.$idPart;
         }
 
-        // Bare uuid / unknown → drop.
         return null;
     }
 
