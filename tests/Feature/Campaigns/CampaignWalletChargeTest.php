@@ -235,6 +235,52 @@ class CampaignWalletChargeTest extends TestCase
         $this->assertEquals(9.65, (float) app(WalletService::class)->balance());
     }
 
+    public function test_service_message_is_charged_on_sent_like_dashboard(): void
+    {
+        tenancy()->initialize($this->testTenant);
+
+        WalletAccount::query()->firstOrCreate([], ['balance' => 10, 'currency' => 'INR']);
+
+        $conversation = Conversation::factory()->create([
+            'whatsapp_line_id' => $this->testLine->id,
+            'contact_phone' => '919988776655',
+        ]);
+
+        $message = Message::query()->create([
+            'conversation_id' => $conversation->id,
+            'direction' => MessageDirection::Outbound,
+            'message_type' => MessageType::Text,
+            'status' => MessageStatus::Queued,
+            'body' => 'Hi',
+            'external_message_id' => 'wamid.SVC-SENT-001',
+            'metadata' => [
+                'billable' => true,
+                'wallet_source' => 'inbox',
+                'pricing_category' => 'SERVICE',
+            ],
+        ]);
+
+        // Dashboard counts Service on Sent; wallet should debit once here (no Delivered needed).
+        $message->forceFill([
+            'status' => MessageStatus::Sent,
+            'sent_at' => now(),
+        ])->save();
+
+        $this->assertEquals(9.65, (float) app(WalletService::class)->balance());
+        $this->assertSame(1, WalletTransaction::query()->where('type', WalletTransactionType::Debit)->count());
+
+        $debit = WalletTransaction::query()->where('type', WalletTransactionType::Debit)->first();
+        $this->assertNotNull($debit);
+        $this->assertStringContainsString('Service conversation (sent)', (string) $debit->description);
+
+        // Later Delivered must not double-charge.
+        app(\App\Domains\Billing\Services\TemplateWalletChargeService::class)
+            ->chargeIfDelivered($message->refresh(), 'Delivered');
+
+        $this->assertSame(1, WalletTransaction::query()->where('type', WalletTransactionType::Debit)->count());
+        $this->assertEquals(9.65, (float) app(WalletService::class)->balance());
+    }
+
     public function test_delivery_webhook_charges_service_message_using_admin_service_rate(): void
     {
         CountryPricing::query()->where('country_code', 'IN')->update([

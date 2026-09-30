@@ -15,10 +15,11 @@ use Illuminate\Support\Facades\Log;
 use Throwable;
 
 /**
- * Debit wallet once per delivered billable WhatsApp message.
+ * Debit wallet once per billable WhatsApp message.
  *
- * - Templates: always (campaign / inbox / chatbot / …), category from metadata.
- * - Service (session) messages: charged on delivery (Meta conversation pricing).
+ * - Templates: on Delivered/Read (campaign / inbox / chatbot / …), category from metadata.
+ * - Service (session) messages: same statuses as dashboard Credits “service” card —
+ *   Sent / Delivered / Read (charge once; idempotent). Aligns wallet cut with the count.
  * - Utility templates: every delivery is charged (no free 24h same-conversation skip).
  */
 class TemplateWalletChargeService
@@ -34,9 +35,6 @@ class TemplateWalletChargeService
         ?CampaignRecipient $recipient = null,
     ): ?WalletTransaction {
         $statusKey = strtolower(trim($deliveryStatus));
-        if (! in_array($statusKey, ['delivered', 'read'], true)) {
-            return null;
-        }
 
         $meta = is_array($message->metadata) ? $message->metadata : [];
         if (! empty($meta['wallet_charged'])) {
@@ -53,6 +51,15 @@ class TemplateWalletChargeService
         $isService = $this->isServiceMessage($message);
 
         if (! $isTemplate && ! $isService) {
+            return null;
+        }
+
+        // Service = dashboard parity (Sent+). Templates still wait for Delivered/Read.
+        $allowedStatuses = $isService
+            ? ['sent', 'delivered', 'read']
+            : ['delivered', 'read'];
+
+        if (! in_array($statusKey, $allowedStatuses, true)) {
             return null;
         }
 
@@ -94,7 +101,7 @@ class TemplateWalletChargeService
             ?? ''
         );
 
-        $description = $this->descriptionFor($source, $category, $campaign, $meta, $phone, $isService);
+        $description = $this->descriptionFor($source, $category, $campaign, $meta, $phone, $isService, $statusKey);
 
         try {
             $transaction = $this->walletService->debit(
@@ -212,15 +219,17 @@ class TemplateWalletChargeService
         array $meta,
         string $phone,
         bool $isService,
+        string $statusKey = 'delivered',
     ): string {
         $suffix = $phone !== '' ? ' · '.$phone : '';
+        $serviceWhen = $statusKey === 'sent' ? 'sent' : 'delivered';
 
         if ($isService || $category === 'SERVICE') {
             return match ($source) {
-                'chatbot' => 'Chatbot service conversation (delivered)'.$suffix,
-                'trigger' => 'Trigger service conversation (delivered)'.$suffix,
-                'drip' => 'Drip service conversation (delivered)'.$suffix,
-                default => 'Service conversation (delivered)'.$suffix,
+                'chatbot' => 'Chatbot service conversation ('.$serviceWhen.')'.$suffix,
+                'trigger' => 'Trigger service conversation ('.$serviceWhen.')'.$suffix,
+                'drip' => 'Drip service conversation ('.$serviceWhen.')'.$suffix,
+                default => 'Service conversation ('.$serviceWhen.')'.$suffix,
             };
         }
 
