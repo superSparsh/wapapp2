@@ -137,7 +137,10 @@ class CampaignService
 
         if ($wasSendingOrPaused) {
             try {
-                app(CampaignOciWorkerLifecycle::class)->onCampaignFinished($campaign->fresh() ?? $campaign);
+                app(CampaignOciWorkerLifecycle::class)->onCampaignFinished(
+                    $campaign->fresh() ?? $campaign,
+                    is_string(tenant('id')) ? tenant('id') : null,
+                );
             } catch (Throwable $e) {
                 Log::warning('OCI campaign worker teardown on cancel failed', ['error' => $e->getMessage()]);
             }
@@ -167,9 +170,15 @@ class CampaignService
             $lifecycle = app(CampaignOciWorkerLifecycle::class);
             if ($newStatus === CampaignStatus::Paused) {
                 // Release OCI refcount so idle containers are not billed while paused.
-                $lifecycle->onCampaignFinished($campaign->fresh() ?? $campaign);
+                $lifecycle->onCampaignFinished(
+                    $campaign->fresh() ?? $campaign,
+                    is_string(tenant('id')) ? tenant('id') : null,
+                );
             } else {
-                $lifecycle->onCampaignStarted($campaign->fresh() ?? $campaign);
+                $lifecycle->onCampaignStarted(
+                    $campaign->fresh() ?? $campaign,
+                    is_string(tenant('id')) ? tenant('id') : null,
+                );
                 // Async re-queue so pause/resume toggle stays fast under large audiences.
                 try {
                     \App\Domains\Campaigns\Jobs\RedispatchPendingCampaignJobs::dispatch((int) $campaign->id);

@@ -66,7 +66,10 @@ class CampaignResendService
             ]);
 
             try {
-                app(CampaignOciWorkerLifecycle::class)->onCampaignStarted($campaign->fresh() ?? $campaign);
+                app(CampaignOciWorkerLifecycle::class)->onCampaignStarted(
+                    $campaign->fresh() ?? $campaign,
+                    is_string(tenant('id')) ? tenant('id') : null,
+                );
             } catch (Throwable $e) {
                 Log::warning('OCI campaign worker provision on resend failed', ['error' => $e->getMessage()]);
             }

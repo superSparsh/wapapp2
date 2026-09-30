@@ -41,7 +41,7 @@ final class CampaignOciWorkerLifecycle
             && (bool) config('oci-workers.ephemeral.enabled', false);
     }
 
-    public function onCampaignStarted(Campaign $campaign): void
+    public function onCampaignStarted(Campaign $campaign, ?string $tenantId = null): void
     {
         if (! $this->enabled()) {
             Log::info('OCI ephemeral: onCampaignStarted skipped - feature disabled');
@@ -49,16 +49,25 @@ final class CampaignOciWorkerLifecycle
             return;
         }
 
-        $campaignId = (int) $campaign->id;
+        $ref = $this->campaignRefKeyOrNull($campaign, $tenantId);
+        if ($ref === null) {
+            Log::warning('OCI ephemeral: onCampaignStarted skipped - tenant context or campaign id missing', [
+                'campaign_id' => $campaign->id ?? null,
+                'tenancy_initialized' => function_exists('tenancy') && tenancy()->initialized,
+            ]);
+
+            return;
+        }
+
         $recipients = max(0, (int) ($campaign->total_recipients ?? 0));
 
-        $this->withLock(function () use ($campaignId, $recipients): void {
+        $this->withLock(function () use ($ref, $recipients): void {
             $active = $this->activeCampaignIds();
-            $active[$campaignId] = true;
+            $active[$ref] = true;
             $this->storeActiveCampaignIds($active);
 
             $load = $this->campaignLoad();
-            $load[$campaignId] = $recipients;
+            $load[$ref] = $recipients;
             $this->storeCampaignLoad($load);
         });
 
@@ -66,25 +75,17 @@ final class CampaignOciWorkerLifecycle
             ->onQueue((string) config('oci-workers.ephemeral.provisioning_queue', 'provisioning'));
     }
 
-    public function onCampaignFinished(Campaign $campaign): void
+    public function onCampaignFinished(Campaign $campaign, ?string $tenantId = null): void
     {
         if (! $this->enabled()) {
             return;
         }
 
-        $campaignId = (int) $campaign->id;
         $shouldTeardown = false;
 
-        $this->withLock(function () use ($campaignId, &$shouldTeardown): void {
-            $active = $this->activeCampaignIds();
-            unset($active[$campaignId]);
-            $this->storeActiveCampaignIds($active);
-
-            $load = $this->campaignLoad();
-            unset($load[$campaignId]);
-            $this->storeCampaignLoad($load);
-
-            $shouldTeardown = $active === [];
+        $this->withLock(function () use ($campaign, $tenantId, &$shouldTeardown): void {
+            $this->forgetCampaignRefs($campaign, $tenantId);
+            $shouldTeardown = $this->activeCampaignIds() === [];
         });
 
         if (! $shouldTeardown) {
@@ -364,7 +365,65 @@ final class CampaignOciWorkerLifecycle
     }
 
     /**
-     * @return array<int, int>
+     * Stable cross-tenant Redis key: "{tenant_id}:{campaign_id}".
+     * Never falls back to "_" — missing tenant must not invent a colliding key.
+     */
+    public function campaignRefKey(Campaign $campaign, ?string $tenantId = null): string
+    {
+        $ref = $this->campaignRefKeyOrNull($campaign, $tenantId);
+        if ($ref === null) {
+            throw new \RuntimeException('OCI ephemeral: tenant context and campaign id are required for campaign ref.');
+        }
+
+        return $ref;
+    }
+
+    public function campaignRefKeyOrNull(Campaign $campaign, ?string $tenantId = null): ?string
+    {
+        $resolvedTenantId = $this->resolveTenantId($tenantId);
+        $campaignId = (int) ($campaign->id ?? 0);
+
+        if ($resolvedTenantId === null || $campaignId < 1) {
+            return null;
+        }
+
+        return $resolvedTenantId.':'.$campaignId;
+    }
+
+    /**
+     * Clear this tenant's ref + legacy bare numeric id only.
+     * Does not touch other tenants' "{other}:{same_id}" keys.
+     */
+    public function forgetCampaignRefs(Campaign $campaign, ?string $tenantId = null): void
+    {
+        $campaignId = (int) ($campaign->id ?? 0);
+        $aliases = array_values(array_unique(array_filter([
+            $this->campaignRefKeyOrNull($campaign, $tenantId),
+            $campaignId > 0 ? (string) $campaignId : null,
+        ])));
+
+        if ($aliases === []) {
+            Log::warning('OCI ephemeral: forgetCampaignRefs skipped - no resolvable refs', [
+                'campaign_id' => $campaign->id ?? null,
+                'tenancy_initialized' => function_exists('tenancy') && tenancy()->initialized,
+            ]);
+
+            return;
+        }
+
+        $active = $this->activeCampaignIds();
+        $load = $this->campaignLoad();
+
+        foreach ($aliases as $ref) {
+            unset($active[$ref], $load[$ref]);
+        }
+
+        $this->storeActiveCampaignIds($active);
+        $this->storeCampaignLoad($load);
+    }
+
+    /**
+     * @return array<string, int>
      */
     public function campaignLoad(): array
     {
@@ -380,29 +439,28 @@ final class CampaignOciWorkerLifecycle
 
         $out = [];
         foreach ($decoded as $key => $recipients) {
-            $id = $this->parseCampaignId($key);
-            if ($id === null) {
+            $ref = $this->parseCampaignRef($key);
+            if ($ref === null) {
                 continue;
             }
-            // If duplicate keys collapse (legacy tenant:id / uuid leftovers), keep the larger load.
-            $out[$id] = max($out[$id] ?? 0, max(0, (int) $recipients));
+            $out[$ref] = max($out[$ref] ?? 0, max(0, (int) $recipients));
         }
 
         return $out;
     }
 
     /**
-     * @param  array<int, int>  $load
+     * @param  array<string, int>  $load
      */
     public function storeCampaignLoad(array $load): void
     {
         $normalized = [];
         foreach ($load as $key => $recipients) {
-            $id = $this->parseCampaignId($key);
-            if ($id === null) {
+            $ref = $this->parseCampaignRef($key);
+            if ($ref === null) {
                 continue;
             }
-            $normalized[$id] = max(0, (int) $recipients);
+            $normalized[$ref] = max(0, (int) $recipients);
         }
 
         $this->redis()->set(
@@ -451,7 +509,7 @@ final class CampaignOciWorkerLifecycle
     }
 
     /**
-     * @return array<int, true>
+     * @return array<string, true>
      */
     public function activeCampaignIds(): array
     {
@@ -467,59 +525,80 @@ final class CampaignOciWorkerLifecycle
 
         $out = [];
         foreach ($decoded as $id) {
-            $campaignId = $this->parseCampaignId($id);
-            if ($campaignId === null) {
+            $ref = $this->parseCampaignRef($id);
+            if ($ref === null) {
                 continue;
             }
-            $out[$campaignId] = true;
+            $out[$ref] = true;
         }
 
         return $out;
     }
 
     /**
-     * @param  array<int, true>  $active
+     * @param  array<string, true>  $active
      */
     public function storeActiveCampaignIds(array $active): void
     {
-        $ids = [];
+        $refs = [];
         foreach (array_keys($active) as $key) {
-            $id = $this->parseCampaignId($key);
-            if ($id !== null) {
-                $ids[] = $id;
+            $ref = $this->parseCampaignRef($key);
+            if ($ref !== null) {
+                $refs[] = $ref;
             }
         }
 
         $this->redis()->set(
             $this->redisKey(self::CACHE_ACTIVE_CAMPAIGNS),
-            json_encode(array_values(array_unique($ids))),
+            json_encode(array_values(array_unique($refs))),
         );
     }
 
     /**
-     * Accept bare campaign id or leftover "tenant:id" / "id:n" refs.
-     * UUID keys from the short-lived uuid experiment are ignored (dropped on next store).
+     * Keep "{tenant}:{campaign_id}" intact. Accept legacy bare numeric ids.
+     * Drop "_" fallback keys and UUID leftovers (do not collapse tenants together).
      */
-    private function parseCampaignId(mixed $value): ?int
+    private function parseCampaignRef(mixed $value): ?string
     {
         if (is_int($value) || (is_string($value) && ctype_digit($value))) {
             $id = (int) $value;
 
-            return $id > 0 ? $id : null;
+            return $id > 0 ? (string) $id : null;
         }
 
-        if (! is_string($value) || ! str_contains($value, ':')) {
+        if (! is_string($value) || $value === '' || ! str_contains($value, ':')) {
             return null;
         }
 
-        $part = substr($value, strrpos($value, ':') + 1);
-        if (! ctype_digit($part)) {
+        $pos = strrpos($value, ':');
+        $tenantId = substr($value, 0, $pos);
+        $idPart = substr($value, $pos + 1);
+
+        if ($tenantId === '' || $tenantId === '_' || ! ctype_digit($idPart)) {
             return null;
         }
 
-        $id = (int) $part;
+        $id = (int) $idPart;
 
-        return $id > 0 ? $id : null;
+        return $id > 0 ? $tenantId.':'.$id : null;
+    }
+
+    private function resolveTenantId(?string $explicit = null): ?string
+    {
+        if (is_string($explicit) && $explicit !== '' && $explicit !== '_') {
+            return $explicit;
+        }
+
+        if (! function_exists('tenancy') || ! tenancy()->initialized) {
+            return null;
+        }
+
+        $id = tenant('id');
+        if (! is_string($id) || $id === '' || $id === '_') {
+            return null;
+        }
+
+        return $id;
     }
 
     public function instanceOcid(): ?string

@@ -57,7 +57,7 @@ class CampaignSendService
         ]);
 
         try {
-            app(CampaignOciWorkerLifecycle::class)->onCampaignStarted($campaign);
+            app(CampaignOciWorkerLifecycle::class)->onCampaignStarted($campaign, is_string(tenant('id')) ? tenant('id') : null);
         } catch (Throwable $e) {
             Log::warning('OCI campaign worker provision trigger failed', ['error' => $e->getMessage()]);
         }
@@ -267,7 +267,10 @@ class CampaignSendService
         ]);
 
         try {
-            app(CampaignOciWorkerLifecycle::class)->onCampaignFinished($campaign->fresh() ?? $campaign);
+            app(CampaignOciWorkerLifecycle::class)->onCampaignFinished(
+                $campaign->fresh() ?? $campaign,
+                is_string(tenant('id')) ? tenant('id') : null,
+            );
         } catch (Throwable $e) {
             Log::warning('OCI campaign worker teardown trigger failed', ['error' => $e->getMessage()]);
         }
@@ -289,7 +292,10 @@ class CampaignSendService
         ]);
 
         try {
-            app(CampaignOciWorkerLifecycle::class)->onCampaignFinished($campaign->fresh() ?? $campaign);
+            app(CampaignOciWorkerLifecycle::class)->onCampaignFinished(
+                $campaign->fresh() ?? $campaign,
+                is_string(tenant('id')) ? tenant('id') : null,
+            );
         } catch (Throwable $e) {
             Log::warning('OCI campaign worker teardown on technical failure failed', ['error' => $e->getMessage()]);
         }
@@ -421,7 +427,10 @@ class CampaignSendService
         ]);
 
         try {
-            app(CampaignOciWorkerLifecycle::class)->onCampaignFinished($campaign->fresh() ?? $campaign);
+            app(CampaignOciWorkerLifecycle::class)->onCampaignFinished(
+                $campaign->fresh() ?? $campaign,
+                is_string(tenant('id')) ? tenant('id') : null,
+            );
         } catch (Throwable $e) {
             Log::warning('OCI campaign worker teardown on auto-pause failed', ['error' => $e->getMessage()]);
         }
