@@ -15,6 +15,8 @@ use App\Support\PhoneNormalizer;
 
 final class ContactImporter implements LegacyImporter
 {
+    use \App\Domains\LegacyMigration\Support\AppliesMigrationSince;
+
     public function __construct(
         private readonly LegacyConnection $legacy,
     ) {}
@@ -45,9 +47,11 @@ final class ContactImporter implements LegacyImporter
 
         $chunk = (int) config('legacy-migration.chunks.contacts', 500);
 
-        $this->legacy->db()->table('subscribers')
-            ->whereIn('mail_list_id', $listIds)
-            ->orderBy('id')
+        $query = $this->legacy->db()->table('subscribers')
+            ->whereIn('mail_list_id', $listIds);
+        $this->applySince($query, 'subscribers');
+
+        $query->orderBy('id')
             ->chunkById($chunk, function ($rows) use ($ids, $report, $dryRun): void {
                 foreach ($rows as $row) {
                     $this->importOne($row, $ids, $report, $dryRun);

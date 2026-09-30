@@ -22,6 +22,7 @@ class MigrateLegacyCustomerCommand extends Command
                             {--yes : Skip confirmation prompts (for --all / cron)}
                             {--skip-inbox : Skip inbox threads/messages}
                             {--skip-billing : Skip wallet/billing}
+                            {--since= : Only import rows since this window (3months, 90d, or YYYY-MM-DD)}
                             {--only=* : Limit to modules (owner,lines,lists,list_fields,contacts,segments,templates,interactive_messages,variables,forms,trigger_templates,team,campaigns,chatbots,drips,whatsapp_flows,ai,ai_settings,inbox,billing,integrations,commerce,webhooks)}';
 
     protected $description = 'Migrate one or all legacy WapApp customers into WapApp 2.0 tenants (duplicate-safe). FAQs/tutorials: php artisan help-center:import-legacy --force';
@@ -40,12 +41,27 @@ class MigrateLegacyCustomerCommand extends Command
             return self::FAILURE;
         }
 
+        try {
+            $since = \App\Domains\LegacyMigration\Support\MigrationSinceParser::parse(
+                $this->option('since') !== null ? (string) $this->option('since') : null
+            );
+        } catch (Throwable $exception) {
+            $this->error($exception->getMessage());
+
+            return self::FAILURE;
+        }
+
+        if ($since !== null) {
+            $this->info('Window: importing rows since '.$since->toDateTimeString());
+        }
+
         $options = new MigrationOptions(
             dryRun: (bool) $this->option('dry-run'),
             force: (bool) $this->option('force'),
             onlyModules: $this->option('only') ?: null,
             skipInbox: (bool) $this->option('skip-inbox'),
             skipBilling: (bool) $this->option('skip-billing'),
+            since: $since,
         );
 
         if ($this->option('all')) {
@@ -146,13 +162,29 @@ class MigrateLegacyCustomerCommand extends Command
         }
 
         if ($result['dry_run'] && isset($result['report']['preview']['counts'])) {
+            if (! empty($result['report']['preview']['since'])) {
+                $this->line($prefix.'Since: '.$result['report']['preview']['since']);
+            }
+
             $this->table(
-                ['Group', 'Rows'],
+                ['Group', 'All rows'],
                 collect($result['report']['preview']['counts'])
                     ->map(fn ($count, $key) => [$key, $count])
                     ->values()
                     ->all(),
             );
+
+            if (! empty($result['report']['preview']['filtered_counts'])) {
+                $this->newLine();
+                $this->info($prefix.'Filtered (--since) estimates:');
+                $this->table(
+                    ['Group', 'Since window'],
+                    collect($result['report']['preview']['filtered_counts'])
+                        ->map(fn ($count, $key) => [$key, $count])
+                        ->values()
+                        ->all(),
+                );
+            }
 
             return;
         }

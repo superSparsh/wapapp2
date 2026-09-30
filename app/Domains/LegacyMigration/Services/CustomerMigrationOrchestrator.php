@@ -33,6 +33,8 @@ use App\Domains\LegacyMigration\Importers\WhatsappLineImporter;
 use App\Domains\LegacyMigration\Support\LegacyConnection;
 use App\Domains\LegacyMigration\Support\MigrationIdMap;
 use App\Domains\LegacyMigration\Support\MigrationReport;
+use App\Domains\LegacyMigration\Support\MigrationScope;
+use App\Domains\LegacyMigration\Support\MigrationSinceCounter;
 use App\Models\LegacyCustomerMigration;
 use App\Models\Tenant;
 use RuntimeException;
@@ -47,6 +49,8 @@ class CustomerMigrationOrchestrator
         private readonly LegacyConnection $legacy,
         private readonly LegacyCustomerResolver $resolver,
         private readonly TenantBootstrapper $bootstrapper,
+        private readonly MigrationScope $scope,
+        private readonly MigrationSinceCounter $sinceCounter,
         OwnerUserImporter $owner,
         WhatsappLineImporter $lines,
         MailListImporter $lists,
@@ -310,9 +314,33 @@ class CustomerMigrationOrchestrator
      */
     private function migrateSnapshot(LegacyCustomerSnapshot $customer, MigrationOptions $options): array
     {
+        $this->scope->since = $options->since;
         $report = new MigrationReport();
         $ids = new MigrationIdMap();
 
+        try {
+            return $this->runMigrateSnapshot($customer, $options, $report, $ids);
+        } finally {
+            $this->scope->reset();
+        }
+    }
+
+    /**
+     * @return array{
+     *     customer: LegacyCustomerSnapshot,
+     *     tenant_id: ?string,
+     *     created_tenant: bool,
+     *     reused_reason: ?string,
+     *     dry_run: bool,
+     *     report: array<string, mixed>
+     * }
+     */
+    private function runMigrateSnapshot(
+        LegacyCustomerSnapshot $customer,
+        MigrationOptions $options,
+        MigrationReport $report,
+        MigrationIdMap $ids,
+    ): array {
         $record = $this->beginRecord($customer);
 
         if ($record->status === 'completed' && ! $options->force && ! $options->dryRun) {
@@ -339,6 +367,10 @@ class CustomerMigrationOrchestrator
                 'company' => $customer->displayName(),
                 'counts' => $customer->counts,
                 'modules' => $options->modules(),
+                'since' => $options->since?->toDateTimeString(),
+                'filtered_counts' => $options->since !== null
+                    ? $this->sinceCounter->count($customer, $options->since)
+                    : [],
             ];
 
             return [
@@ -386,6 +418,7 @@ class CustomerMigrationOrchestrator
             $payload = [
                 ...$report->toArray(),
                 'id_map' => $ids->all(),
+                'since' => $options->since?->toDateTimeString(),
             ];
 
             tenancy()->end();
@@ -413,6 +446,7 @@ class CustomerMigrationOrchestrator
             $payload = [
                 ...$report->toArray(),
                 'id_map' => $ids->all(),
+                'since' => $options->since?->toDateTimeString(),
             ];
 
             $record->forceFill([

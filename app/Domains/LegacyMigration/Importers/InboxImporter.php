@@ -22,6 +22,8 @@ use App\Support\PhoneNormalizer;
 
 final class InboxImporter implements LegacyImporter
 {
+    use \App\Domains\LegacyMigration\Support\AppliesMigrationSince;
+
     public function __construct(
         private readonly LegacyConnection $legacy,
     ) {}
@@ -62,9 +64,11 @@ final class InboxImporter implements LegacyImporter
         $phones = $lines->pluck('phone')->filter()->values()->all();
         $chunk = (int) config('legacy-migration.chunks.inbox_threads', 200);
 
-        $this->legacy->db()->table('sub_replies')
-            ->whereIn('msg_to', $phones)
-            ->orderBy('id')
+        $query = $this->legacy->db()->table('sub_replies')
+            ->whereIn('msg_to', $phones);
+        $this->applySince($query, 'sub_replies');
+
+        $query->orderBy('id')
             ->chunkById($chunk, function ($threads) use ($ids, $report, $dryRun, $phoneToLegacyLine): void {
                 foreach ($threads as $thread) {
                     $this->importThread($thread, $ids, $report, $dryRun, $phoneToLegacyLine);
@@ -144,9 +148,11 @@ final class InboxImporter implements LegacyImporter
     {
         $messageChunk = (int) config('legacy-migration.chunks.messages', 300);
 
-        $this->legacy->db()->table('conversations')
-            ->where('sub_reply_id', $legacyThreadId)
-            ->orderBy('id')
+        $query = $this->legacy->db()->table('conversations')
+            ->where('sub_reply_id', $legacyThreadId);
+        $this->applySince($query, 'conversations');
+
+        $query->orderBy('id')
             ->chunkById($messageChunk, function ($rows) use ($conversationId, $report): void {
                 foreach ($rows as $row) {
                     $externalId = filled($row->msg_id ?? null)

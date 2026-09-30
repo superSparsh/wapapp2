@@ -27,6 +27,8 @@ use Throwable;
  */
 final class WebhookImporter implements LegacyImporter
 {
+    use \App\Domains\LegacyMigration\Support\AppliesMigrationSince;
+
     public function __construct(
         private readonly LegacyConnection $legacy,
     ) {}
@@ -165,9 +167,15 @@ final class WebhookImporter implements LegacyImporter
 
         $chunk = (int) config('legacy-migration.chunks.webhook_logs', 300);
 
-        $this->legacy->db()->table('webhook_logs')
-            ->where('customer_id', $customer->id)
-            ->orderBy('id')
+        $query = $this->legacy->db()->table('webhook_logs')
+            ->where('customer_id', $customer->id);
+        if ($this->legacy->hasColumn('webhook_logs', 'created_at')) {
+            $this->applySince($query, 'webhook_logs', 'created_at');
+        } elseif ($this->legacy->hasColumn('webhook_logs', 'sent_at')) {
+            $this->applySince($query, 'webhook_logs', 'sent_at');
+        }
+
+        $query->orderBy('id')
             ->chunkById($chunk, function ($rows) use ($ids, $report, $dryRun): void {
                 foreach ($rows as $row) {
                     try {

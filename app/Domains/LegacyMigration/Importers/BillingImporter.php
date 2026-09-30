@@ -18,6 +18,8 @@ use Illuminate\Support\Carbon;
 
 final class BillingImporter implements LegacyImporter
 {
+    use \App\Domains\LegacyMigration\Support\AppliesMigrationSince;
+
     public function __construct(
         private readonly LegacyConnection $legacy,
     ) {}
@@ -35,9 +37,13 @@ final class BillingImporter implements LegacyImporter
         bool $dryRun = false,
     ): void {
         if ($dryRun) {
-            $txCount = $this->legacy->tableExists('wallet_transactions')
-                ? (int) $this->legacy->db()->table('wallet_transactions')->where('customer_id', $customer->id)->count()
-                : 0;
+            $txQuery = $this->legacy->tableExists('wallet_transactions')
+                ? $this->legacy->db()->table('wallet_transactions')->where('customer_id', $customer->id)
+                : null;
+            if ($txQuery !== null) {
+                $this->applySince($txQuery, 'wallet_transactions');
+            }
+            $txCount = $txQuery !== null ? (int) $txQuery->count() : 0;
             $report->bump($this->key(), 'created', 1);
             if ($txCount > 0) {
                 $report->bump('wallet_transactions', 'created', $txCount);
@@ -68,10 +74,10 @@ final class BillingImporter implements LegacyImporter
             return;
         }
 
-        $rows = $this->legacy->db()->table('wallet_transactions')
-            ->where('customer_id', $customer->id)
-            ->orderBy('id')
-            ->get();
+        $query = $this->legacy->db()->table('wallet_transactions')
+            ->where('customer_id', $customer->id);
+        $this->applySince($query, 'wallet_transactions');
+        $rows = $query->orderBy('id')->get();
 
         foreach ($rows as $row) {
             $legacyId = (int) $row->id;

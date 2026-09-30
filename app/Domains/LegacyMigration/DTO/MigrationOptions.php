@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Domains\LegacyMigration\DTO;
 
+use Illuminate\Support\Carbon;
+
 final class MigrationOptions
 {
     /**
@@ -15,6 +17,7 @@ final class MigrationOptions
         public readonly ?array $onlyModules = null,
         public readonly bool $skipInbox = false,
         public readonly bool $skipBilling = false,
+        public readonly ?Carbon $since = null,
     ) {}
 
     /**

@@ -25,6 +25,8 @@ use Illuminate\Support\Carbon;
  */
 final class CommerceImporter implements LegacyImporter
 {
+    use \App\Domains\LegacyMigration\Support\AppliesMigrationSince;
+
     public function __construct(
         private readonly LegacyConnection $legacy,
     ) {}
@@ -116,10 +118,10 @@ final class CommerceImporter implements LegacyImporter
             return;
         }
 
-        $rows = $this->legacy->db()->table('orders')
-            ->whereIn('waba_id', $wabaIds)
-            ->orderBy('id')
-            ->get();
+        $rowsQuery = $this->legacy->db()->table('orders')
+            ->whereIn('waba_id', $wabaIds);
+        $this->applySince($rowsQuery, 'orders');
+        $rows = $rowsQuery->orderBy('id')->get();
 
         $lineByWaba = WhatsappLine::query()
             ->whereIn('waba_id', $wabaIds)
@@ -194,10 +196,10 @@ final class CommerceImporter implements LegacyImporter
             return;
         }
 
-        $rows = $this->legacy->db()->table('payments')
-            ->where('customer_id', $customer->id)
-            ->orderBy('id')
-            ->get();
+        $rowsQuery = $this->legacy->db()->table('payments')
+            ->where('customer_id', $customer->id);
+        $this->applySince($rowsQuery, 'payments');
+        $rows = $rowsQuery->orderBy('id')->get();
 
         foreach ($rows as $row) {
             $legacyId = (int) $row->id;

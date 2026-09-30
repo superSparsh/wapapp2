@@ -18,6 +18,8 @@ use App\Support\PhoneNormalizer;
 
 final class CampaignImporter implements LegacyImporter
 {
+    use \App\Domains\LegacyMigration\Support\AppliesMigrationSince;
+
     public function __construct(
         private readonly LegacyConnection $legacy,
     ) {}
@@ -38,10 +40,10 @@ final class CampaignImporter implements LegacyImporter
             return;
         }
 
-        $rows = $this->legacy->db()->table('new_campaigns')
-            ->where('customer_id', $customer->id)
-            ->orderBy('id')
-            ->get();
+        $query = $this->legacy->db()->table('new_campaigns')
+            ->where('customer_id', $customer->id);
+        $this->applySince($query, 'new_campaigns');
+        $rows = $query->orderBy('id')->get();
 
         foreach ($rows as $row) {
             $legacyId = (int) $row->id;

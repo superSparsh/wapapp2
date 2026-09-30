@@ -34,6 +34,8 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->bind(OutboundMessageGateway::class, DelegatingOutboundMessageGateway::class);
 
+        $this->app->singleton(\App\Domains\LegacyMigration\Support\MigrationScope::class);
+
         $this->app->bind(OciContainerInstanceClient::class, function () {
             $driver = (string) config('oci-workers.ephemeral.driver', 'log');
 
