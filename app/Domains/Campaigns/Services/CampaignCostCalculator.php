@@ -75,16 +75,41 @@ class CampaignCostCalculator
         $marketing = $this->inrUnitCost($pricing, 'MARKETING', $conversion, $fallback);
         $utility = $this->inrUnitCost($pricing, 'UTILITY', $conversion, $fallback);
         $auth = $this->inrUnitCost($pricing, 'AUTHENTICATION', $conversion, $fallback);
+        $service = $this->serviceUnitCost($pricing, $utility, $conversion, $fallback);
         $default = $marketing > 0 ? $marketing : (float) ($fallback['DEFAULT'] ?? 0.78);
 
         return [
             'MARKETING' => $marketing,
             'UTILITY' => $utility,
             'AUTHENTICATION' => $auth,
-            // Meta Oct 2026: service message rates match utility/authentication.
-            'SERVICE' => $utility > 0 ? $utility : (float) ($fallback['SERVICE'] ?? $fallback['UTILITY'] ?? 0),
+            'SERVICE' => $service,
             'DEFAULT' => $default,
         ];
+    }
+
+    /**
+     * Prefer admin service_price / tekpro_service_price; else utility; else config fallback.
+     *
+     * @param  array<string, float|int|string>  $fallback
+     */
+    private function serviceUnitCost(
+        ?CountryPricing $pricing,
+        float $utility,
+        float $conversion,
+        array $fallback,
+    ): float {
+        if ($pricing instanceof CountryPricing) {
+            $raw = $this->rawCategoryPrice($pricing, 'SERVICE');
+            if ($raw !== null && $raw > 0) {
+                return round($this->toInr($raw, $pricing, $conversion), 4);
+            }
+        }
+
+        if ($utility > 0) {
+            return $utility;
+        }
+
+        return round((float) ($fallback['SERVICE'] ?? $fallback['UTILITY'] ?? 0), 4);
     }
 
     public function conversionPrice(): float
@@ -121,6 +146,7 @@ class CampaignCostCalculator
             'MARKETING' => ['tekpro_marketing_price', 'marketing_price'],
             'UTILITY' => ['tekpro_utility_price', 'utility_price'],
             'AUTHENTICATION' => ['tekpro_auth_price', 'auth_price'],
+            'SERVICE' => ['tekpro_service_price', 'service_price'],
             default => [null, null],
         };
 

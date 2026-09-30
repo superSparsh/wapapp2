@@ -133,7 +133,7 @@ class DeliveryStatusHandler
             // Form sync may have linked outbound_message_id - re-resolve for wallet charge.
             $message ??= $this->findOutboundMessage($messageId, $item);
 
-            if ($message !== null && $message->message_type === MessageType::Template) {
+            if ($message !== null) {
                 $recipient = CampaignRecipient::query()->where('message_id', $messageId)->first()
                     ?? CampaignRecipient::query()->where('message_id', (string) $message->id)->first();
 
@@ -144,8 +144,11 @@ class DeliveryStatusHandler
                         recipient: $recipient,
                     );
                 } catch (\Throwable $e) {
-                    Log::warning('Template wallet charge hook failed', [
+                    Log::warning('Wallet delivery charge hook failed', [
                         'message_id' => $message->id,
+                        'message_type' => $message->message_type instanceof MessageType
+                            ? $message->message_type->value
+                            : (string) $message->message_type,
                         'status' => $status,
                         'error' => $e->getMessage(),
                     ]);
@@ -212,7 +215,7 @@ class DeliveryStatusHandler
 
         return Message::query()
             ->where('direction', 'outbound')
-            ->where('message_type', MessageType::Template)
+            ->where('message_type', '!=', MessageType::System->value)
             ->whereHas('conversation', function ($query) use ($variants): void {
                 $query->whereIn('contact_phone', $variants);
             })

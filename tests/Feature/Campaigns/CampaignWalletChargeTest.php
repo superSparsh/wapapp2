@@ -229,10 +229,81 @@ class CampaignWalletChargeTest extends TestCase
             ->chargeIfDelivered($message, 'Delivered');
 
         $this->assertNotNull($txn);
-        // SERVICE rate = UTILITY = 0.005 USD * 100 conversion = 0.5 INR
+        // SERVICE falls back to UTILITY = 0.005 USD * 100 conversion = 0.5 INR
+        // when service_price / tekpro_service_price are empty.
         $this->assertEquals(0.5, (float) $txn->amount);
         $this->assertSame('SERVICE', $txn->metadata['pricing_category'] ?? null);
         $this->assertEquals(9.5, (float) app(WalletService::class)->balance());
+    }
+
+    public function test_delivery_webhook_charges_service_message_using_admin_service_rate(): void
+    {
+        CountryPricing::query()->where('country_code', 'IN')->update([
+            'service_price' => 0.008,
+            'tekpro_service_price' => 0.02,
+        ]);
+
+        tenancy()->initialize($this->testTenant);
+
+        WalletAccount::query()->firstOrCreate([], ['balance' => 20, 'currency' => 'INR']);
+
+        $conversation = Conversation::factory()->create([
+            'whatsapp_line_id' => $this->testLine->id,
+            'contact_phone' => '919811122233',
+        ]);
+
+        $message = Message::query()->create([
+            'conversation_id' => $conversation->id,
+            'direction' => MessageDirection::Outbound,
+            'message_type' => MessageType::Text,
+            'status' => MessageStatus::Sent,
+            'body' => 'Session reply',
+            'external_message_id' => 'wamid.SVC-001',
+            'metadata' => [
+                'billable' => true,
+                'wallet_source' => 'inbox',
+                'pricing_category' => 'SERVICE',
+            ],
+            'sent_at' => now(),
+        ]);
+
+        app(\App\Domains\Webhooks\Services\WhatsappLineRegistryService::class)
+            ->indexMessage($this->testTenant->id, 'wamid.SVC-001', (int) $message->id);
+
+        tenancy()->end();
+
+        $event = InboundWebhookEvent::query()->create([
+            'event_type' => InboundWebhookEventType::Status,
+            'idempotency_key' => 'svc-status-1',
+            'payload' => [[
+                'MessageId' => 'wamid.SVC-001',
+                'Status' => 'Delivered',
+                'To' => '919811122233',
+                'From' => $this->testLine->phone,
+            ]],
+            'headers' => [],
+            'status' => InboundWebhookStatus::Received,
+            'retry_count' => 0,
+            'created_at' => now(),
+        ]);
+
+        app(DeliveryStatusHandler::class)->handle($event);
+
+        tenancy()->initialize($this->testTenant);
+
+        // Meta service_price 0.008 × conversion 100 = 0.8 INR
+        $this->assertEquals(19.2, (float) app(WalletService::class)->balance());
+        $this->assertSame(1, WalletTransaction::query()->where('type', WalletTransactionType::Debit)->count());
+
+        $debit = WalletTransaction::query()->where('type', WalletTransactionType::Debit)->first();
+        $this->assertNotNull($debit);
+        $this->assertEquals(0.8, (float) $debit->amount);
+        $this->assertSame('SERVICE', $debit->metadata['pricing_category'] ?? null);
+        $this->assertSame(Message::class, $debit->reference_type);
+        $this->assertStringContainsString('Service message', (string) $debit->description);
+
+        $message->refresh();
+        $this->assertTrue((bool) ($message->metadata['wallet_charged'] ?? false));
     }
 
     public function test_inbox_template_delivery_is_charged(): void

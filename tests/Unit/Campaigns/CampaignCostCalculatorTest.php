@@ -66,6 +66,51 @@ class CampaignCostCalculatorTest extends TestCase
         $this->assertSame(1.0, $calculator->unitCostForCategory('MARKETING'));
     }
 
+    public function test_service_rate_uses_admin_service_price(): void
+    {
+        PlatformSetting::query()->updateOrCreate(
+            ['key' => 'wallet.conversion_price'],
+            ['value' => '100'],
+        );
+
+        CountryPricing::query()->create([
+            'country_code' => 'IN',
+            'country_name' => 'India',
+            'currency' => 'USD',
+            'utility_price' => 0.005,
+            'service_price' => 0.007,
+            'tekpro_service_price' => 0.02,
+            'status' => 1,
+        ]);
+
+        $calculator = app(CampaignCostCalculator::class);
+
+        // Meta service 0.007 × 100 = 0.7 (not utility, not tekpro when meta exists)
+        $this->assertSame(0.7, $calculator->unitCostForCategory('SERVICE'));
+    }
+
+    public function test_service_rate_falls_back_to_tekpro_then_utility(): void
+    {
+        PlatformSetting::query()->updateOrCreate(
+            ['key' => 'wallet.conversion_price'],
+            ['value' => '100'],
+        );
+
+        CountryPricing::query()->create([
+            'country_code' => 'IN',
+            'country_name' => 'India',
+            'currency' => 'USD',
+            'utility_price' => 0.005,
+            'service_price' => null,
+            'tekpro_service_price' => 0.012,
+            'status' => 1,
+        ]);
+
+        $calculator = app(CampaignCostCalculator::class);
+
+        $this->assertSame(1.2, $calculator->unitCostForCategory('SERVICE'));
+    }
+
     public function test_inr_currency_skips_conversion_multiply(): void
     {
         PlatformSetting::query()->updateOrCreate(
