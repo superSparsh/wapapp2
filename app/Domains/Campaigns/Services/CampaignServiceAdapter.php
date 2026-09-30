@@ -35,6 +35,13 @@ class CampaignServiceAdapter
     ): LengthAwarePaginator {
         $this->localSendService->reconcileStuckSendingCampaigns();
 
+        try {
+            app(\App\Domains\Infrastructure\Oci\CampaignOciWorkerLifecycle::class)
+                ->pruneStaleActiveCampaignRefs();
+        } catch (\Throwable) {
+            // non-blocking — listing must not fail if OCI redis is down
+        }
+
         return $this->localQueryService->paginate(
             perPage: $perPage,
             search: $search,

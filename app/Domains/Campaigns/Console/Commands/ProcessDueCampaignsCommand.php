@@ -45,7 +45,15 @@ class ProcessDueCampaignsCommand extends Command
             $pausedIdle += $sendService->pauseIdleSendingCampaigns();
         });
 
-        $this->info("Queued {$total} due campaign(s). Reconciled {$reconciled}. Auto-paused idle {$pausedIdle}.");
+        $pruned = 0;
+        try {
+            $pruned = app(\App\Domains\Infrastructure\Oci\CampaignOciWorkerLifecycle::class)
+                ->pruneStaleActiveCampaignRefs();
+        } catch (\Throwable $e) {
+            $this->warn('OCI active-ref prune failed: '.$e->getMessage());
+        }
+
+        $this->info("Queued {$total} due campaign(s). Reconciled {$reconciled}. Auto-paused idle {$pausedIdle}. OCI refs pruned {$pruned}.");
 
         return self::SUCCESS;
     }

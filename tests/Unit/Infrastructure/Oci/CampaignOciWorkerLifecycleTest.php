@@ -228,6 +228,57 @@ class CampaignOciWorkerLifecycleTest extends TestCase
         Queue::assertNotPushed(TeardownOciCampaignWorkerJob::class);
     }
 
+    public function test_prune_removes_worker_ref_when_campaign_not_sending(): void
+    {
+        tenancy()->central(function (): void {
+            \Illuminate\Support\Facades\DB::table('campaign_worker_refs')->insert([
+                'id' => 5001,
+                'tenant_id' => 'gone-tenant',
+                'tenant_campaign_id' => 99,
+                'campaign_uuid' => null,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        });
+
+        $this->lifecycle->storeActiveCampaignIds([
+            '5001' => true,
+            '9001' => true, // no central row — kept
+        ]);
+        $this->lifecycle->storeInstanceOcid('ocid1.containerinstance.oc1.test.prune');
+
+        Queue::fake();
+        $removed = $this->lifecycle->pruneStaleActiveCampaignRefs();
+
+        $this->assertSame(1, $removed);
+        $this->assertSame(['9001' => true], $this->lifecycle->activeCampaignIds());
+        Queue::assertNotPushed(TeardownOciCampaignWorkerJob::class);
+    }
+
+    public function test_prune_schedules_teardown_when_last_stale_ref_removed(): void
+    {
+        tenancy()->central(function (): void {
+            \Illuminate\Support\Facades\DB::table('campaign_worker_refs')->insert([
+                'id' => 5002,
+                'tenant_id' => 'missing-tenant',
+                'tenant_campaign_id' => 7,
+                'campaign_uuid' => null,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        });
+
+        $this->lifecycle->storeActiveCampaignIds(['5002' => true]);
+        $this->lifecycle->storeInstanceOcid('ocid1.containerinstance.oc1.test.last');
+
+        Queue::fake();
+        $removed = $this->lifecycle->pruneStaleActiveCampaignRefs();
+
+        $this->assertSame(1, $removed);
+        $this->assertSame([], $this->lifecycle->activeCampaignIds());
+        Queue::assertPushed(TeardownOciCampaignWorkerJob::class);
+    }
+
     public function test_status_snapshot_includes_last_session_duration(): void
     {
         $this->lifecycle->storeInstanceOcid('ocid1.containerinstance.oc1.test.live');

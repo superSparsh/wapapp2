@@ -136,6 +136,9 @@ final class CampaignOciWorkerLifecycle
         $shouldTeardown = false;
 
         $this->withLock(function () use ($tenantId, $campaignId, $workerRef, &$shouldTeardown): void {
+            // Drop leftover refs for campaigns that already left Sending (crash / missed hop).
+            $this->pruneStaleActiveCampaignRefsLocked();
+
             $this->forgetRefAliases($workerRef, $campaignId, $tenantId !== '' ? $tenantId : null);
             $shouldTeardown = $this->activeCampaignIds() === [];
         });
@@ -150,6 +153,71 @@ final class CampaignOciWorkerLifecycle
             return;
         }
 
+        $this->scheduleTeardown();
+    }
+
+    /**
+     * Drop Redis active refs whose campaigns are no longer Sending.
+     * Returns how many refs were removed. Schedules teardown when the set becomes empty.
+     */
+    public function pruneStaleActiveCampaignRefs(): int
+    {
+        if (! (bool) config('oci-workers.ephemeral.enabled', false)) {
+            return 0;
+        }
+
+        $removed = 0;
+
+        $this->withLock(function () use (&$removed): void {
+            $removed = $this->pruneStaleActiveCampaignRefsLocked();
+        });
+
+        if ($removed > 0) {
+            Log::info('OCI ephemeral: pruned stale active campaign refs', [
+                'removed' => $removed,
+                'remaining' => array_keys($this->activeCampaignIds()),
+            ]);
+        }
+
+        if ($removed > 0 && $this->activeCampaignIds() === [] && $this->instanceOcid() !== null) {
+            $this->scheduleTeardown();
+        }
+
+        return $removed;
+    }
+
+    /**
+     * @return int Number of refs removed (caller must hold the lifecycle lock).
+     */
+    private function pruneStaleActiveCampaignRefsLocked(): int
+    {
+        $active = $this->activeCampaignIds();
+        if ($active === []) {
+            return 0;
+        }
+
+        $load = $this->campaignLoad();
+        $removed = 0;
+
+        foreach (array_keys($active) as $ref) {
+            if ($this->isRefStillSending((string) $ref)) {
+                continue;
+            }
+
+            unset($active[$ref], $load[$ref]);
+            $removed++;
+        }
+
+        if ($removed > 0) {
+            $this->storeActiveCampaignIds($active);
+            $this->storeCampaignLoad($load);
+        }
+
+        return $removed;
+    }
+
+    private function scheduleTeardown(): void
+    {
         $grace = max(0, (int) config('oci-workers.ephemeral.grace_seconds', 120));
 
         TeardownOciCampaignWorkerJob::dispatch()
@@ -157,10 +225,114 @@ final class CampaignOciWorkerLifecycle
             ->onQueue((string) config('oci-workers.ephemeral.provisioning_queue', 'provisioning'));
 
         Log::info('OCI ephemeral: teardown scheduled after last campaign finished', [
-            'campaign_id' => $campaignId,
-            'worker_ref' => $workerRef,
             'grace_seconds' => $grace,
         ]);
+    }
+
+    /**
+     * True when this Redis ref still maps to a Sending campaign.
+     */
+    private function isRefStillSending(string $ref): bool
+    {
+        $ref = trim($ref);
+        if ($ref === '') {
+            return false;
+        }
+
+        if ($this->isUuid(strtolower($ref))) {
+            return false;
+        }
+
+        if (str_contains($ref, ':') && ! str_starts_with($ref, 'id:')) {
+            $pos = strrpos($ref, ':');
+            $tenantId = substr($ref, 0, (int) $pos);
+            $campaignId = (int) substr($ref, (int) $pos + 1);
+
+            return $this->tenantCampaignIsSending($tenantId, $campaignId);
+        }
+
+        if (str_starts_with($ref, 'id:') && ctype_digit(substr($ref, 3))) {
+            // Legacy id:n — not globally unique; treat as stale.
+            return false;
+        }
+
+        if (! ctype_digit($ref)) {
+            return false;
+        }
+
+        $workerRef = (int) $ref;
+        try {
+            $central = \Illuminate\Support\Facades\DB::connection(
+                (string) config('tenancy.database.central_connection', config('database.default', 'mysql'))
+            );
+            $row = $central->table('campaign_worker_refs')->where('id', $workerRef)->first();
+        } catch (\Throwable $e) {
+            Log::warning('OCI ephemeral: could not resolve worker_ref during prune', [
+                'ref' => $ref,
+                'error' => $e->getMessage(),
+            ]);
+
+            // Fail closed — keep the ref if central is unavailable.
+            return true;
+        }
+
+        if ($row === null) {
+            // Digit ref with no central row: could be a legacy bare campaign id still
+            // in Redis, or a test fixture. Keep it — explicit release/forceDestroy clears it.
+            // (Prune only drops worker_refs whose campaign is verifiably not Sending.)
+            return true;
+        }
+
+        return $this->tenantCampaignIsSending(
+            (string) ($row->tenant_id ?? ''),
+            (int) ($row->tenant_campaign_id ?? 0),
+        );
+    }
+
+    private function tenantCampaignIsSending(string $tenantId, int $campaignId): bool
+    {
+        $tenantId = trim($tenantId);
+        if ($tenantId === '' || $tenantId === '_' || $campaignId < 1) {
+            return false;
+        }
+
+        $wasInitialized = tenancy()->initialized;
+        $previous = $wasInitialized ? tenant() : null;
+
+        try {
+            $tenant = \App\Models\Tenant::query()->find($tenantId);
+            if ($tenant === null) {
+                return false;
+            }
+
+            tenancy()->initialize($tenant);
+
+            $campaign = Campaign::query()->find($campaignId);
+            if ($campaign === null) {
+                return false;
+            }
+
+            return $campaign->status === \App\Enums\CampaignStatus::Sending;
+        } catch (\Throwable $e) {
+            Log::warning('OCI ephemeral: tenant campaign status check failed during prune', [
+                'tenant_id' => $tenantId,
+                'campaign_id' => $campaignId,
+                'error' => $e->getMessage(),
+            ]);
+
+            // Fail closed — do not prune an unknown active campaign.
+            return true;
+        } finally {
+            try {
+                if ($previous !== null) {
+                    tenancy()->initialize($previous);
+                } elseif (tenancy()->initialized) {
+                    tenancy()->end();
+                }
+            } catch (\Throwable) {
+                // ignore restore errors
+            }
+        }
     }
 
     public function ensureWorker(OciContainerInstanceClient $client): void
@@ -172,6 +344,8 @@ final class CampaignOciWorkerLifecycle
         }
 
         $this->withLock(function () use ($client): void {
+            $this->pruneStaleActiveCampaignRefsLocked();
+
             $active = $this->activeCampaignIds();
             if ($active === []) {
                 Log::info('OCI ephemeral: ensure skipped - no active campaigns in redis state');
@@ -306,6 +480,8 @@ final class CampaignOciWorkerLifecycle
         }
 
         $this->withLock(function () use ($client): void {
+            $this->pruneStaleActiveCampaignRefsLocked();
+
             $active = $this->activeCampaignIds();
             if ($active !== []) {
                 Log::info('OCI ephemeral: skip teardown - campaigns still active', [
@@ -794,6 +970,15 @@ final class CampaignOciWorkerLifecycle
                 'active_seconds' => $secs,
                 'active_for_humans' => $this->formatDurationSeconds($secs),
             ];
+        }
+
+        // Keep admin UI honest: drop completed/cancelled leftovers before reporting.
+        try {
+            $this->pruneStaleActiveCampaignRefs();
+        } catch (\Throwable $e) {
+            Log::warning('OCI ephemeral: prune during statusSnapshot failed', [
+                'error' => $e->getMessage(),
+            ]);
         }
 
         return [
