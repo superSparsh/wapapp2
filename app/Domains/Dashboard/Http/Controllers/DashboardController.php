@@ -47,6 +47,7 @@ class DashboardController extends Controller
         );
         $from = $request->string('from')->toString() ?: null;
         $to = $request->string('to')->toString() ?: null;
+        $category = $request->string('category')->toString() ?: null;
 
         return view('dashboard.wallet', [
             'transactions' => $walletService->paginateTransactions(
@@ -55,11 +56,14 @@ class DashboardController extends Controller
                 period: $period,
                 fromDate: $from,
                 toDate: $to,
+                category: $category,
             ),
             'search' => $request->string('q')->toString(),
             'period' => $period,
             'from' => $from,
             'to' => $to,
+            'category' => $category,
+            'categoryOptions' => WalletService::historyCategoryOptions(),
         ]);
     }
 
@@ -75,6 +79,7 @@ class DashboardController extends Controller
             period: $period,
             fromDate: $request->string('from')->toString() ?: null,
             toDate: $request->string('to')->toString() ?: null,
+            category: $request->string('category')->toString() ?: null,
         );
     }
 

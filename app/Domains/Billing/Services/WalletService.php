@@ -50,9 +50,11 @@ class WalletService
         ?string $period = null,
         ?string $fromDate = null,
         ?string $toDate = null,
+        ?string $category = null,
     ): LengthAwarePaginator {
         [$from, $to] = $this->resolveHistoryRange($period, $fromDate, $toDate);
         $search = trim((string) $search);
+        $categoryKey = $this->normalizeHistoryCategory($category);
 
         $paginator = WalletTransaction::query()
             ->select([
@@ -80,6 +82,7 @@ class WalletService
                         ->orWhere('metadata->campaign_id', 'like', "%{$search}%");
                 });
             })
+            ->when($categoryKey !== null, fn ($query) => $this->applyHistoryCategoryFilter($query, $categoryKey))
             ->latest('id')
             ->paginate($perPage)
             ->withQueryString();
@@ -97,12 +100,14 @@ class WalletService
         ?string $period = null,
         ?string $fromDate = null,
         ?string $toDate = null,
+        ?string $category = null,
     ): \Symfony\Component\HttpFoundation\StreamedResponse {
         [$from, $to] = $this->resolveHistoryRange($period, $fromDate, $toDate);
         $search = trim((string) $search);
+        $categoryKey = $this->normalizeHistoryCategory($category);
         $filename = 'wallet-history-'.now()->format('Y-m-d').'.csv';
 
-        return response()->streamDownload(function () use ($from, $to, $search): void {
+        return response()->streamDownload(function () use ($from, $to, $search, $categoryKey): void {
             $handle = fopen('php://output', 'w');
             fputcsv($handle, [
                 'SI. No',
@@ -129,6 +134,7 @@ class WalletService
                             ->orWhere('metadata->campaign_id', 'like', "%{$search}%");
                     });
                 })
+                ->when($categoryKey !== null, fn ($q) => $this->applyHistoryCategoryFilter($q, $categoryKey))
                 ->latest('id');
 
             $liveBalance = $this->balance();
@@ -156,12 +162,72 @@ class WalletService
                     number_format($balanceAfter, 2, '.', ''),
                     $transaction->razorpay_payment_id ?: 'N/A',
                     (string) ($meta['legacy_campaign_id'] ?? $transaction->reference_id ?? 'N/A'),
-                    (string) ($meta['legacy_category'] ?? 'N/A'),
+                    (string) ($meta['pricing_category'] ?? $meta['template_category'] ?? $meta['legacy_category'] ?? 'N/A'),
                 ]);
             });
 
             fclose($handle);
         }, $filename, ['Content-Type' => 'text/csv']);
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public static function historyCategoryOptions(): array
+    {
+        return [
+            'marketing' => 'Marketing',
+            'utility' => 'Utility',
+            'authentication' => 'Auth',
+            'service' => 'Service',
+        ];
+    }
+
+    private function normalizeHistoryCategory(?string $category): ?string
+    {
+        $key = strtolower(trim((string) $category));
+        if ($key === '' || $key === 'all') {
+            return null;
+        }
+
+        if ($key === 'auth') {
+            $key = 'authentication';
+        }
+
+        return array_key_exists($key, self::historyCategoryOptions()) ? $key : null;
+    }
+
+    /**
+     * @param  \Illuminate\Database\Eloquent\Builder<\App\Models\WalletTransaction>  $query
+     * @return \Illuminate\Database\Eloquent\Builder<\App\Models\WalletTransaction>
+     */
+    private function applyHistoryCategoryFilter($query, string $categoryKey)
+    {
+        $aliases = match ($categoryKey) {
+            'marketing' => ['MARKETING', 'CAROUSEL'],
+            'utility' => ['UTILITY'],
+            'authentication' => ['AUTHENTICATION', 'AUTH'],
+            'service' => ['SERVICE'],
+            default => [],
+        };
+
+        if ($aliases === []) {
+            return $query;
+        }
+
+        return $query->where(function ($nested) use ($aliases, $categoryKey): void {
+            foreach ($aliases as $alias) {
+                $nested->orWhere('metadata->pricing_category', $alias)
+                    ->orWhere('metadata->template_category', $alias)
+                    ->orWhere('metadata->legacy_category', $alias)
+                    ->orWhere('metadata->pricing_category', strtolower($alias))
+                    ->orWhere('metadata->template_category', strtolower($alias));
+            }
+
+            if ($categoryKey === 'service') {
+                $nested->orWhere('description', 'like', '%service conversation%');
+            }
+        });
     }
 
     /**

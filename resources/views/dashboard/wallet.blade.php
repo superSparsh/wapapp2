@@ -2,6 +2,8 @@
   $period = $period ?? 'all';
   $from = $from ?? null;
   $to = $to ?? null;
+  $category = $category ?? null;
+  $categoryOptions = $categoryOptions ?? \App\Domains\Billing\Services\WalletService::historyCategoryOptions();
   $periodLabels = [
     'daily' => 'Daily',
     'weekly' => 'Weekly',
@@ -14,6 +16,7 @@
     'period' => $period,
     'from' => $from,
     'to' => $to,
+    'category' => $category,
   ], fn ($v) => filled($v));
 @endphp
 
@@ -34,6 +37,9 @@
           @if (filled($to))
             <input type="hidden" name="to" value="{{ $to }}">
           @endif
+          @if (filled($category))
+            <input type="hidden" name="category" value="{{ $category }}">
+          @endif
           <img src="{{ asset('images/templates/search.svg') }}" alt="" class="size-5 shrink-0 opacity-60" width="20" height="20">
           <input
             type="search"
@@ -50,9 +56,37 @@
           >
             By campaign
           </a>
+          <form method="GET" action="{{ route('dashboard.wallet') }}" class="shrink-0">
+            @if (filled($search))
+              <input type="hidden" name="q" value="{{ $search }}">
+            @endif
+            @if (filled($from))
+              <input type="hidden" name="from" value="{{ $from }}">
+            @endif
+            @if (filled($to))
+              <input type="hidden" name="to" value="{{ $to }}">
+            @endif
+            <input type="hidden" name="period" value="{{ $period }}">
+            <label class="sr-only" for="wallet_category">Category</label>
+            <select
+              id="wallet_category"
+              name="category"
+              data-native-select="true"
+              onchange="this.form.submit()"
+              class="min-w-[9.5rem] rounded-lg border border-border bg-elevated py-2.5 pl-3 pr-8 text-sm font-medium text-text-primary outline-none focus:border-green-500"
+            >
+              <option value="" @selected(blank($category))>Category : All</option>
+              @foreach ($categoryOptions as $value => $label)
+                <option value="{{ $value }}" @selected($category === $value)>{{ $label }}</option>
+              @endforeach
+            </select>
+          </form>
           <form method="GET" action="{{ route('dashboard.wallet') }}" class="flex flex-wrap items-center gap-2">
             @if (filled($search))
               <input type="hidden" name="q" value="{{ $search }}">
+            @endif
+            @if (filled($category))
+              <input type="hidden" name="category" value="{{ $category }}">
             @endif
             <input type="hidden" name="period" value="{{ $period }}">
             <label class="sr-only" for="wallet_from">From date</label>
@@ -79,6 +113,15 @@
           <form method="GET" action="{{ route('dashboard.wallet') }}" class="shrink-0">
             @if (filled($search))
               <input type="hidden" name="q" value="{{ $search }}">
+            @endif
+            @if (filled($category))
+              <input type="hidden" name="category" value="{{ $category }}">
+            @endif
+            @if (filled($from))
+              <input type="hidden" name="from" value="{{ $from }}">
+            @endif
+            @if (filled($to))
+              <input type="hidden" name="to" value="{{ $to }}">
             @endif
             <label class="sr-only" for="wallet_period">Sort by period</label>
             <select

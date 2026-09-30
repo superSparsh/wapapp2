@@ -361,6 +361,55 @@ class DashboardTest extends TestCase
         $this->assertStringContainsString('Description', $csv);
     }
 
+    public function test_wallet_history_filters_by_pricing_category(): void
+    {
+        WalletTransaction::query()->create([
+            'type' => WalletTransactionType::Debit,
+            'amount' => 1.0,
+            'currency' => 'INR',
+            'balance_after' => 90,
+            'description' => 'Marketing charge',
+            'metadata' => ['pricing_category' => 'MARKETING', 'template_category' => 'MARKETING'],
+            'created_at' => now(),
+        ]);
+        WalletTransaction::query()->create([
+            'type' => WalletTransactionType::Debit,
+            'amount' => 0.5,
+            'currency' => 'INR',
+            'balance_after' => 89.5,
+            'description' => 'Service conversation (sent)',
+            'metadata' => ['pricing_category' => 'SERVICE', 'wallet_source' => 'inbox'],
+            'created_at' => now(),
+        ]);
+        WalletTransaction::query()->create([
+            'type' => WalletTransactionType::Debit,
+            'amount' => 0.7,
+            'currency' => 'INR',
+            'balance_after' => 88.8,
+            'description' => 'Utility charge',
+            'metadata' => ['pricing_category' => 'UTILITY', 'template_category' => 'UTILITY'],
+            'created_at' => now(),
+        ]);
+
+        $this->actingAsTenantUser()
+            ->get(route('dashboard.wallet', ['period' => 'all', 'category' => 'service']))
+            ->assertOk()
+            ->assertSee('Service conversation (sent)')
+            ->assertDontSee('Marketing charge')
+            ->assertDontSee('Utility charge')
+            ->assertSee('Category : All');
+
+        $this->actingAsTenantUser()
+            ->get(route('dashboard.wallet', ['period' => 'all', 'category' => 'marketing']))
+            ->assertOk()
+            ->assertSee('Marketing charge')
+            ->assertDontSee('Service conversation (sent)');
+
+        $this->actingAsTenantUser()
+            ->get(route('dashboard.wallet.export', ['period' => 'all', 'category' => 'utility']))
+            ->assertOk();
+    }
+
     public function test_service_wallet_detail_hides_campaign_id(): void
     {
         WalletTransaction::query()->create([
