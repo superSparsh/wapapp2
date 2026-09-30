@@ -13,7 +13,7 @@
                 <table role="presentation" width="620" cellpadding="0" cellspacing="0" style="max-width:620px;width:100%;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 8px 28px rgba(4,56,94,0.08);border-collapse:separate;">
                     <tr>
                         <td align="center" bgcolor="#1f4f9f" style="padding:22px 26px;background-color:#1f4f9f;background-image:linear-gradient(90deg,#1f4f9f 0%,#0f8f8f 55%,#17a84e 100%);text-align:center;">
-                            <img src="{{ asset('images/tittu-logo.jpeg') }}" alt="WAPAPP" width="96" height="96" style="display:block;border:0;border-radius:8px;margin:0 auto;outline:none;text-decoration:none;-ms-interpolation-mode:bicubic;">
+                            <img src="{{ $logoUrl ?? \App\Domains\Alerts\Support\EmailBrandAssets::logoPublicUrl() }}" alt="WAPAPP" width="96" height="96" style="display:block;border:0;border-radius:8px;margin:0 auto;outline:none;text-decoration:none;-ms-interpolation-mode:bicubic;">
                         </td>
                     </tr>
                     <tr>

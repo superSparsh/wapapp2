@@ -20,7 +20,7 @@
 <body style="margin: 0; padding: 0; background-color: #f4f6f8;" bgcolor="#f4f6f8">
 @php
     $siteName = config('app.name', 'WAPAPP');
-    $logoUrl = asset('images/tittu-logo.jpeg');
+    $logoUrl = $logoUrl ?? \App\Domains\Alerts\Support\EmailBrandAssets::logoPublicUrl();
     $supportEmail = config('operational-alerts.support.email', 'support@wapapp.in');
 @endphp
 

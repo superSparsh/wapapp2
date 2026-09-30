@@ -1,7 +1,7 @@
 @php
     $rows = $rows ?? [];
     $generatedAt = $generated_at ?? now()->format('d M Y h:i A');
-    $logoUrl = asset('images/tittu-logo.jpeg');
+    $logoUrl = $logoUrl ?? \App\Domains\Alerts\Support\EmailBrandAssets::logoPublicUrl();
     $font = 'Arial, Helvetica, sans-serif';
 
     $within30 = [];

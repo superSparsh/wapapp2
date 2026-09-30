@@ -48,7 +48,7 @@
             $recipientName = trim((string) ($adminUser->name ?? ''));
         }
     }
-    $logoUrl = asset('images/tittu-logo.jpeg');
+    $logoUrl = $logoUrl ?? \App\Domains\Alerts\Support\EmailBrandAssets::logoPublicUrl();
     $healthLink = $healthUrl ?? $health_url ?? url('/admin/whatsapp-health');
     $performanceLink = $messagePerformanceUrl ?? $message_performance_url ?? $healthLink;
     $templatesLink = $healthLink.(str_contains((string) $healthLink, '?') ? '&' : '?').'tab=templates&template_status=REJECTED';

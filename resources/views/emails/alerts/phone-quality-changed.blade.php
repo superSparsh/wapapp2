@@ -178,7 +178,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <img src="{{ asset('images/tittu-logo.jpeg') }}" alt="{{ config('app.name', 'WAPAPP') }}">
+            <img src="{{ $logoUrl ?? \App\Domains\Alerts\Support\EmailBrandAssets::logoPublicUrl() }}" alt="{{ config('app.name', 'WAPAPP') }}">
             <h1>WhatsApp Business Account</h1>
             <p>Status Update Notification</p>
         </div>
