@@ -184,6 +184,17 @@ class CampaignOciWorkerLifecycleTest extends TestCase
         Queue::assertPushed(TeardownOciCampaignWorkerJob::class);
     }
 
+    public function test_uuid_refs_are_ignored_and_dropped(): void
+    {
+        $this->lifecycle->storeActiveCampaignIds([
+            '12121212-1212-1212-1212-121212121212' => true,
+            12 => true,
+        ]);
+
+        // UUID leftovers are ignored; only numeric id remains.
+        $this->assertSame([12 => true], $this->lifecycle->activeCampaignIds());
+    }
+
     public function test_status_snapshot_includes_last_session_duration(): void
     {
         $this->lifecycle->storeInstanceOcid('ocid1.containerinstance.oc1.test.live');

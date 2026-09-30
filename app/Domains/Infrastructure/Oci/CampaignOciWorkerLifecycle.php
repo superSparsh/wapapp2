@@ -384,7 +384,7 @@ final class CampaignOciWorkerLifecycle
             if ($id === null) {
                 continue;
             }
-            // If duplicate keys collapse (legacy tenant:id leftovers), keep the larger load.
+            // If duplicate keys collapse (legacy tenant:id / uuid leftovers), keep the larger load.
             $out[$id] = max($out[$id] ?? 0, max(0, (int) $recipients));
         }
 
@@ -425,7 +425,6 @@ final class CampaignOciWorkerLifecycle
         $shape ??= $this->resolveShape();
         $base = (array) config('oci-workers.ephemeral.container_environment', []);
 
-        // Same payload shape as the first working ephemeral CI (Sept 26).
         $fromApp = array_filter([
             'APP_ENV' => (string) config('app.env'),
             'APP_KEY' => (string) config('app.key'),
@@ -498,7 +497,8 @@ final class CampaignOciWorkerLifecycle
     }
 
     /**
-     * Accept bare campaign id or leftover "tenant:id" refs from the short-lived tenant-key experiment.
+     * Accept bare campaign id or leftover "tenant:id" / "id:n" refs.
+     * UUID keys from the short-lived uuid experiment are ignored (dropped on next store).
      */
     private function parseCampaignId(mixed $value): ?int
     {
@@ -613,7 +613,7 @@ final class CampaignOciWorkerLifecycle
      *   started_at: string|null,
      *   active_seconds: int|null,
      *   active_for_humans: string|null,
-     *   active_campaign_ids: list<int>,
+     *   active_campaign_ids: list<string>,
      *   max_recipients: int,
      *   last_session: array{started_at: string, ended_at: string, active_seconds: int, active_for_humans: string}|null
      * }
