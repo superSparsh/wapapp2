@@ -204,7 +204,7 @@ class CampaignService
     public function duplicate(Campaign $campaign): Campaign
     {
         return DB::transaction(function () use ($campaign): Campaign {
-            $clone = $campaign->replicate(['uuid']);
+            $clone = $campaign->replicate(['uuid', 'worker_ref']);
             $clone->name = $campaign->name . ' (Copy)';
             $clone->status = CampaignStatus::Draft;
             $clone->started_at = null;
