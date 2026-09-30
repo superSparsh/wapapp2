@@ -32,7 +32,6 @@ class Campaign extends TenantModel
         'total_response',
         'total_unsubscribed',
         'created_by',
-        'worker_ref',
     ];
 
     protected function casts(): array
@@ -49,22 +48,7 @@ class Campaign extends TenantModel
             'total_read' => 'integer',
             'total_response' => 'integer',
             'total_unsubscribed' => 'integer',
-            'worker_ref' => 'integer',
         ];
-    }
-
-    protected static function booted(): void
-    {
-        static::created(function (Campaign $campaign): void {
-            try {
-                app(\App\Domains\Campaigns\Services\CampaignWorkerRefAllocator::class)->ensure($campaign);
-            } catch (\Throwable $e) {
-                \Illuminate\Support\Facades\Log::warning('Campaign worker_ref allocation on create failed', [
-                    'campaign_id' => $campaign->id,
-                    'error' => $e->getMessage(),
-                ]);
-            }
-        });
     }
 
     // ─── Relationships ─────────────────────────────────────────────

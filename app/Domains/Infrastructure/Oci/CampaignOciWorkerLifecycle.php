@@ -6,7 +6,6 @@ namespace App\Domains\Infrastructure\Oci;
 
 use App\Domains\Infrastructure\Oci\Contracts\OciContainerInstanceClient;
 use App\Domains\Infrastructure\Oci\Jobs\EnsureOciCampaignWorkerJob;
-use App\Domains\Infrastructure\Oci\Jobs\ReleaseOciCampaignWorkerRefJob;
 use App\Domains\Infrastructure\Oci\Jobs\TeardownOciCampaignWorkerJob;
 use App\Models\Campaign;
 use App\Support\OciWorkload;
@@ -52,8 +51,9 @@ final class CampaignOciWorkerLifecycle
 
         $ref = $this->campaignRefKey($campaign);
         if ($ref === null) {
-            Log::error('OCI ephemeral: onCampaignStarted skipped - no worker_ref', [
+            Log::error('OCI ephemeral: onCampaignStarted skipped - campaign has no usable ref', [
                 'campaign_id' => (int) $campaign->id,
+                'uuid' => $campaign->uuid ?? null,
             ]);
 
             return;
@@ -77,89 +77,37 @@ final class CampaignOciWorkerLifecycle
 
     public function onCampaignFinished(Campaign $campaign): void
     {
-        // Ephemeral feature flag only — do NOT require OciWorkload::enabled().
-        // The CI itself runs with OCI_WORKERS_ENABLED=false; finish must still hop out.
-        if (! (bool) config('oci-workers.ephemeral.enabled', false)) {
+        if (! $this->enabled()) {
             return;
         }
 
-        $workerRef = (int) ($campaign->worker_ref ?? 0);
-        if ($workerRef < 1) {
-            $workerRef = (int) (app(\App\Domains\Campaigns\Services\CampaignWorkerRefAllocator::class)
-                ->ensure($campaign) ?? 0);
-        }
-
-        $tenantId = $this->currentTenantId() ?? '';
-        $campaignId = (int) $campaign->id;
-        $queue = (string) config('oci-workers.ephemeral.provisioning_queue', 'provisioning');
-
-        // Inside ephemeral CI (or any host with OCI workers disabled): hop to main app.
-        if (! OciWorkload::enabled()) {
-            ReleaseOciCampaignWorkerRefJob::dispatch(
-                $tenantId,
-                $campaignId,
-                $workerRef > 0 ? $workerRef : null,
-            )->onQueue($queue);
-
-            Log::info('OCI ephemeral: finish hopped to provisioning queue', [
-                'campaign_id' => $campaignId,
-                'worker_ref' => $workerRef > 0 ? $workerRef : null,
-                'tenant_id' => $tenantId !== '' ? $tenantId : null,
+        $ref = $this->campaignRefKey($campaign);
+        if ($ref === null) {
+            Log::error('OCI ephemeral: onCampaignFinished skipped - campaign has no usable ref', [
+                'campaign_id' => (int) $campaign->id,
+                'uuid' => $campaign->uuid ?? null,
             ]);
 
             return;
-        }
-
-        $this->releaseCampaignRef($tenantId, $campaignId, $workerRef > 0 ? $workerRef : null);
-    }
-
-    /**
-     * Clear Redis refs for a campaign and schedule teardown when none remain.
-     * Safe to call from the main app / provisioning worker.
-     */
-    public function releaseCampaignRef(string $tenantId, int $campaignId, ?int $workerRef = null): void
-    {
-        if (! (bool) config('oci-workers.ephemeral.enabled', false)) {
-            return;
-        }
-
-        if (($workerRef === null || $workerRef < 1) && $tenantId !== '' && $campaignId > 0) {
-            $workerRef = (int) tenancy()->central(function () use ($tenantId, $campaignId) {
-                return \Illuminate\Support\Facades\DB::table('campaign_worker_refs')
-                    ->where('tenant_id', $tenantId)
-                    ->where('tenant_campaign_id', $campaignId)
-                    ->value('id');
-            });
         }
 
         $shouldTeardown = false;
 
-        $this->withLock(function () use ($tenantId, $campaignId, $workerRef, &$shouldTeardown): void {
-            $this->forgetRefAliases($workerRef, $campaignId, $tenantId !== '' ? $tenantId : null);
+        $this->withLock(function () use ($campaign, $ref, &$shouldTeardown): void {
+            $this->forgetCampaignRefs($campaign, $ref);
             $shouldTeardown = $this->activeCampaignIds() === [];
         });
 
         if (! $shouldTeardown) {
-            Log::info('OCI ephemeral: refs cleared but other campaigns still active', [
-                'campaign_id' => $campaignId,
-                'worker_ref' => $workerRef,
-                'active' => array_keys($this->activeCampaignIds()),
-            ]);
-
             return;
         }
 
+        // Last active campaign across all tenants → destroy shared CI after grace.
         $grace = max(0, (int) config('oci-workers.ephemeral.grace_seconds', 120));
 
         TeardownOciCampaignWorkerJob::dispatch()
             ->delay(now()->addSeconds($grace))
             ->onQueue((string) config('oci-workers.ephemeral.provisioning_queue', 'provisioning'));
-
-        Log::info('OCI ephemeral: teardown scheduled after last campaign finished', [
-            'campaign_id' => $campaignId,
-            'worker_ref' => $workerRef,
-            'grace_seconds' => $grace,
-        ]);
     }
 
     public function ensureWorker(OciContainerInstanceClient $client): void
@@ -428,45 +376,36 @@ final class CampaignOciWorkerLifecycle
     }
 
     /**
-     * Globally unique integer Redis key from central campaign_worker_refs.id (worker_ref).
-     * Pure digits — same shape that already worked with local campaign ids, without collisions.
+     * Globally unique Redis key from the campaign's public uuid.
+     * Does not depend on tenant() — OCI queue workers often lack tenancy context
+     * at finish time, which broke tenant:id refs; bare numeric ids collide across tenants.
      */
     public function campaignRefKey(Campaign $campaign): ?string
     {
-        $ref = (int) ($campaign->worker_ref ?? 0);
-        if ($ref < 1) {
-            $ref = (int) (app(\App\Domains\Campaigns\Services\CampaignWorkerRefAllocator::class)
-                ->ensure($campaign) ?? 0);
+        $uuid = strtolower(trim((string) ($campaign->uuid ?? '')));
+        if ($this->isUuid($uuid)) {
+            return $uuid;
         }
 
-        return $ref > 0 ? (string) $ref : null;
+        return null;
     }
 
     /**
-     * @deprecated use forgetRefAliases / releaseCampaignRef
+     * Remove this campaign's uuid ref + legacy bare / tenant:id / id:n aliases.
      */
     public function forgetCampaignRefs(Campaign $campaign, ?string $ref = null): void
     {
-        $workerRef = (int) ($ref ?? $campaign->worker_ref ?? 0);
-        $this->forgetRefAliases(
-            $workerRef > 0 ? $workerRef : null,
-            (int) $campaign->id,
-            $this->currentTenantId(),
-        );
-    }
+        $ref ??= $this->campaignRefKey($campaign);
+        $campaignId = (int) $campaign->id;
+        $tenantId = $this->currentTenantId();
 
-    /**
-     * Remove worker_ref + legacy bare / tenant:id / uuid aliases for one campaign.
-     */
-    public function forgetRefAliases(?int $workerRef, int $campaignId, ?string $tenantId = null, ?string $uuid = null): void
-    {
         $aliases = array_values(array_unique(array_filter([
-            ($workerRef !== null && $workerRef > 0) ? (string) $workerRef : null,
+            $ref,
+            // Legacy formats from earlier experiments:
             $campaignId > 0 ? (string) $campaignId : null,
             $campaignId > 0 ? '_:'.$campaignId : null,
             $campaignId > 0 ? 'id:'.$campaignId : null,
-            ($tenantId !== null && $tenantId !== '' && $campaignId > 0) ? $tenantId.':'.$campaignId : null,
-            ($uuid !== null && $this->isUuid(strtolower($uuid))) ? strtolower($uuid) : null,
+            ($tenantId !== null && $campaignId > 0) ? $tenantId.':'.$campaignId : null,
         ])));
 
         $active = $this->activeCampaignIds();
@@ -580,7 +519,6 @@ final class CampaignOciWorkerLifecycle
             'CAMPAIGN_QUEUE' => OciWorkload::campaignQueue(),
             'HORIZON_ROLE' => 'oci-heavy',
             'HORIZON_CAMPAIGN_MAX_PROCESSES' => (string) ($shape['campaign_max_processes'] ?? 2),
-            // CI must not re-provision, but finish still hops via ReleaseOciCampaignWorkerRefJob.
             'OCI_WORKERS_ENABLED' => 'false',
         ], static fn ($v) => $v !== null && $v !== '');
 
@@ -634,8 +572,10 @@ final class CampaignOciWorkerLifecycle
     }
 
     /**
-     * Normalize Redis campaign refs. Preferred form is a pure integer worker_ref.
-     * Legacy uuid / tenant:id / bare campaign id are still accepted so leftovers can clear.
+     * Normalize Redis campaign refs:
+     * - campaign uuid (preferred, globally unique, no tenant() needed)
+     * - "tenant:id" kept (legacy tenant-key experiment)
+     * - bare numeric / "id:n" kept as legacy migration leftovers
      */
     private function parseCampaignRef(mixed $value): ?string
     {
