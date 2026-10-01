@@ -106,8 +106,10 @@ class MobileInboxTest extends TestCase
             ->assertOk()
             ->assertJsonPath('success', true);
         $this->assertIsArray($list->json('data'));
-        $this->assertIsArray($list->json('data.0'));
-        $this->assertSame('Mobile User', $list->json('data.0.customer_name'));
+        $this->assertIsArray($list->json('data.data'));
+        $this->assertSame('Mobile User', $list->json('data.data.0.customer_name'));
+        $this->assertSame('918888888801', $list->json('data.data.0.msg_from'));
+        $this->assertArrayHasKey('has_more', $list->json('data'));
 
         $paginated = $this->withToken($this->accessToken)
             ->getJson('/api/v1/mobile/inbox/conversations/paginated?whatsapp_number=919999999999')
@@ -117,20 +119,23 @@ class MobileInboxTest extends TestCase
         $this->assertIsArray($paginated->json('data.data'));
         $this->assertArrayHasKey('has_more', $paginated->json('data'));
 
-        $this->withToken($this->accessToken)
+        $dash = $this->withToken($this->accessToken)
             ->getJson('/api/v1/mobile/dashboard')
             ->assertOk()
             ->assertJsonPath('success', true)
             ->assertJsonStructure([
                 'data' => [
-                    'user_info' => ['uid', 'name', 'timezone'],
-                    'subscription_info',
+                    'user_info' => ['uid', 'name', 'timezone', 'wallet_amount'],
+                    'subscription_info' => ['plan_name', 'remaining_days', 'valid_until'],
                     'stats' => ['today', 'last_7_days', 'last_30_days'],
                     'conversation_estimates',
                     'list_growth',
                     'recent_campaigns',
+                    'wallet_amount',
+                    'valid_until',
                 ],
             ]);
+        $this->assertIsNumeric($dash->json('data.wallet_amount'));
 
         $this->withToken($this->accessToken)
             ->getJson('/api/v1/mobile/inbox/new-message-count')

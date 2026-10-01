@@ -110,16 +110,32 @@ class MobileInboxController extends Controller
 
     public function getConversations(Request $request): JsonResponse
     {
-        $rows = $this->conversationQuery($request)
-            ->limit(min(100, max(1, $request->integer('per_page') ?: 50)))
-            ->get();
+        // Legacy leftDataForOpen shape: data is a Map with nested `data` list.
+        // Flutter parses `response['data']` as Map — a top-level List crashes the app.
+        $limit = min(100, max(1, $request->integer('per_page') ?: 20));
+        $rows = $this->conversationQuery($request)->limit($limit + 1)->get();
+        $hasMore = $rows->count() > $limit;
+        if ($hasMore) {
+            $rows = $rows->take($limit);
+        }
+
+        $items = $rows
+            ->map(fn (Conversation $c): array => MobileInboxPresenter::conversation($c))
+            ->values()
+            ->all();
+
+        $last = $rows->last();
 
         return response()->json([
             'success' => true,
-            'data' => $rows
-                ->map(fn (Conversation $c): array => MobileInboxPresenter::conversation($c))
-                ->values()
-                ->all(),
+            'data' => [
+                'data' => $items,
+                'next_cursor' => $hasMore && $last !== null
+                    ? ($last->last_message_at?->toIso8601String() ?? (string) $last->id)
+                    : null,
+                'has_more' => $hasMore,
+                'inbox_phone_masking_enabled' => false,
+            ],
         ]);
     }
 
@@ -778,30 +794,71 @@ class MobileInboxController extends Controller
         return response()->json(['success' => true, 'message' => 'User deleted']);
     }
 
-    public function getNewMessageCount(): JsonResponse
+    public function getNewMessageCount(Request $request): JsonResponse
     {
-        $snapshot = $this->queryService->unreadSnapshot();
+        $line = null;
+        try {
+            $line = $this->lines->resolve($request->input('whatsapp_number'));
+        } catch (\Throwable) {
+            //
+        }
+
+        $count = $line !== null
+            ? $this->queryService->totalUnreadCount($line)
+            : (int) ($this->queryService->unreadSnapshot()['unread_total'] ?? 0);
 
         return response()->json([
             'success' => true,
             'data' => [
-                'count' => (int) ($snapshot['total'] ?? $snapshot['unread_total'] ?? 0),
-                'snapshot' => $snapshot,
+                'whatsapp_number' => $line?->phone,
+                'unread_count' => $count,
+                'msg_count' => $count,
+                'count' => $count,
+                'last_checked' => now()->toIso8601String(),
+                'message' => 'Inbox count success',
             ],
         ]);
     }
 
     public function checkPlanStatus(): JsonResponse
     {
-        $tenant = tenant();
+        $subscription = app(\App\Domains\Billing\Services\SubscriptionService::class)->subscriptionSummary();
+        $planName = $subscription['plan_name'] ?? $subscription['plan']?->name;
+        $expiresAt = $subscription['expires_at'] ?? null;
+        $remainingDays = null;
+        if ($expiresAt instanceof \Illuminate\Support\Carbon) {
+            $remainingDays = (int) now()->startOfDay()->diffInDays($expiresAt->copy()->startOfDay(), false);
+        }
+
+        $wallet = 0.0;
+        try {
+            $wallet = app(\App\Domains\Billing\Services\WalletService::class)->balance();
+        } catch (\Throwable) {
+            //
+        }
 
         return response()->json([
             'success' => true,
             'data' => [
-                'tenant_id' => $tenant?->id,
-                'plan_id' => $tenant?->plan_id,
-                'status' => $tenant?->status?->value ?? $tenant?->status,
-                'active' => true,
+                'plan_name' => $planName,
+                'status' => $subscription['subscription']?->status?->value
+                    ?? ($subscription['subscription'] !== null || filled($planName) ? 'active' : 'inactive'),
+                'remaining_days' => $remainingDays,
+                'valid_until' => $expiresAt instanceof \Illuminate\Support\Carbon ? $expiresAt->toDateString() : null,
+                'expires_at' => $expiresAt instanceof \Illuminate\Support\Carbon ? $expiresAt->toIso8601String() : null,
+                'wallet_amount' => $wallet,
+                'wallet_balance' => $wallet,
+                'message_limit' => $subscription['plan']?->messages_limit,
+                'messages_used' => null,
+                'features' => [
+                    'ai_responses' => true,
+                    'team_management' => true,
+                    'templates' => true,
+                    'media_messages' => true,
+                ],
+                'tenant_id' => tenant('id'),
+                'plan_id' => tenant()?->plan_id ?? $subscription['plan']?->id,
+                'active' => ($remainingDays === null) || $remainingDays >= 0,
             ],
         ]);
     }

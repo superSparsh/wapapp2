@@ -36,22 +36,36 @@ final class MobileInboxPresenter
             : $conversation->latestMessage()->first();
 
         $isAi = $conversation->response_type?->isAi() ?? false;
+        $customerPhone = (string) $conversation->contact_phone;
+        $customerName = (string) ($conversation->contact_name ?: $conversation->contact_phone);
+        $linePhone = (string) ($conversation->line_phone ?: '');
+        $latestBody = $latest?->body;
+        $latestAt = ($latest?->created_at ?? $conversation->last_message_at)?->toIso8601String();
+        $msgType = $latest?->message_type?->value ?? 'text';
 
         return [
+            // 2.0 / docs fields
             'id' => $conversation->id,
             'uuid' => $conversation->uuid,
-            'customer_phone' => (string) $conversation->contact_phone,
-            'customer_name' => (string) ($conversation->contact_name ?: $conversation->contact_phone),
-            'whatsapp_number' => (string) ($conversation->line_phone ?: ''),
-            'last_message' => $latest?->body,
+            'customer_phone' => $customerPhone,
+            'customer_name' => $customerName,
+            'whatsapp_number' => $linePhone,
+            'last_message' => $latestBody,
             'last_message_time' => ($conversation->last_message_at ?? $latest?->created_at)?->toIso8601String(),
-            'latest_msg' => $latest?->body,
-            'latest_msg_type' => $latest?->message_type?->value ?? 'text',
-            'latest_msg_time' => ($latest?->created_at ?? $conversation->last_message_at)?->toIso8601String(),
+            'latest_msg' => $latestBody,
+            'latest_msg_type' => $msgType,
+            'latest_msg_time' => $latestAt,
             'unread_count' => (int) $conversation->unread_count,
             'response_type' => $conversation->response_type?->value ?? 'human_response',
             'status' => $conversation->status?->value ?? 'open',
             'is_ai_enabled' => $isAi,
+            // Legacy leftDataForOpen / SubReply field aliases (mobile app parsers)
+            'sender_name' => $customerName,
+            'msg_from' => $customerPhone,
+            'msg_to' => $linePhone,
+            'msg_created_at' => $latestAt,
+            'msg_type' => $msgType,
+            'msg_status' => $latest?->status?->value ?? null,
         ];
     }
 
@@ -60,7 +74,8 @@ final class MobileInboxPresenter
      */
     public static function assignedNumber(WhatsappLine $line): array
     {
-        $phone = (string) $line->phone;
+        $raw = (string) $line->phone;
+        $phone = preg_replace('/\D+/', '', $raw) ?: $raw;
 
         return [
             'id' => $line->id,

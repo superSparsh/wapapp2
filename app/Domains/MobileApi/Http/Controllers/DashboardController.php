@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\MobileApi\Http\Controllers;
 
+use App\Domains\Billing\Services\ServiceMessageFreeAllowanceService;
 use App\Domains\Billing\Services\SubscriptionService;
 use App\Domains\Billing\Services\WalletService;
 use App\Domains\Dashboard\Services\DashboardService;
@@ -16,6 +17,7 @@ use App\Models\TeamMember;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 
 class DashboardController extends Controller
@@ -24,6 +26,7 @@ class DashboardController extends Controller
         private readonly DashboardService $dashboard,
         private readonly SubscriptionService $subscriptions,
         private readonly WalletService $wallet,
+        private readonly ServiceMessageFreeAllowanceService $freeService,
         private readonly MobileLineResolver $lines,
     ) {}
 
@@ -35,9 +38,10 @@ class DashboardController extends Controller
         $today = $this->dashboard->creditsPayload(DashboardService::PERIOD_DAILY)['credits'];
         $week = $this->dashboard->creditsPayload(DashboardService::PERIOD_WEEKLY)['credits'];
         $month = $this->dashboard->creditsPayload(DashboardService::PERIOD_MONTHLY)['credits'];
+        $free = $this->freeService->summary();
 
         $subscription = $this->subscriptions->subscriptionSummary();
-        $walletBalance = $this->wallet->balance();
+        $walletBalance = round($this->wallet->balance(), 2);
 
         $lists = MailList::query()
             ->orderByDesc('id')
@@ -67,8 +71,10 @@ class DashboardController extends Controller
         $planName = $subscription['plan_name'] ?? $subscription['plan']?->name ?? null;
         $expiresAt = $subscription['expires_at'] ?? null;
         $remainingDays = null;
-        if ($expiresAt instanceof \Illuminate\Support\Carbon) {
+        $validUntil = null;
+        if ($expiresAt instanceof Carbon) {
             $remainingDays = (int) now()->startOfDay()->diffInDays($expiresAt->copy()->startOfDay(), false);
+            $validUntil = $expiresAt->toDateString();
         }
 
         $costMarketing = 1.0;
@@ -76,16 +82,27 @@ class DashboardController extends Controller
         $costService = 0.57;
         $dailyLimit = max(1, (int) ($today['marketing_limit'] ?? 250));
 
+        // Service card on mobile: free Meta-style service allowance (matches web wallet cards),
+        // not raw outbound session message volume (that looked "wrong" vs web).
+        $serviceToday = (int) ($today['service'] ?? 0);
+        $serviceWeek = (int) ($week['service'] ?? 0);
+        $serviceMonth = (int) ($free['used'] ?? $month['service'] ?? 0);
+        $serviceLimit = (int) ($free['limit'] ?? 0);
+
         $dashboardData = [
             'user_info' => [
                 'uid' => $uid,
                 'name' => $name !== '' ? $name : 'User',
                 'timezone' => $timezone,
                 'current_time' => now()->setTimezone($timezone)->toIso8601String(),
+                'wallet_amount' => $walletBalance,
+                'wallet_balance' => $walletBalance,
             ],
             'subscription_info' => [
                 'plan_name' => $planName,
                 'remaining_days' => $remainingDays,
+                'valid_until' => $validUntil,
+                'expires_at' => $expiresAt instanceof Carbon ? $expiresAt->toIso8601String() : null,
                 'status' => $subscription['subscription']?->status?->value
                     ?? ($subscription['subscription'] !== null || filled($planName) ? 'active' : null),
             ],
@@ -93,20 +110,23 @@ class DashboardController extends Controller
                 'today' => [
                     'marketing' => (int) ($today['marketing'] ?? 0),
                     'utility' => (int) ($today['utility'] ?? 0),
-                    'service' => (int) ($today['service'] ?? 0),
-                    'total_delivered' => (int) (($today['marketing'] ?? 0) + ($today['utility'] ?? 0) + ($today['service'] ?? 0)),
+                    'service' => $serviceToday,
+                    // Legacy mobile UI treated total as marketing+utility (service shown separately).
+                    'total_delivered' => (int) (($today['marketing'] ?? 0) + ($today['utility'] ?? 0)),
                 ],
                 'last_7_days' => [
                     'marketing' => (int) ($week['marketing'] ?? 0),
                     'utility' => (int) ($week['utility'] ?? 0),
-                    'service' => (int) ($week['service'] ?? 0),
-                    'total_delivered' => (int) (($week['marketing'] ?? 0) + ($week['utility'] ?? 0) + ($week['service'] ?? 0)),
+                    'service' => $serviceWeek,
+                    'total_delivered' => (int) (($week['marketing'] ?? 0) + ($week['utility'] ?? 0)),
                 ],
                 'last_30_days' => [
                     'marketing' => (int) ($month['marketing'] ?? 0),
                     'utility' => (int) ($month['utility'] ?? 0),
-                    'service' => (int) ($month['service'] ?? 0),
-                    'total_delivered' => (int) (($month['marketing'] ?? 0) + ($month['utility'] ?? 0) + ($month['service'] ?? 0)),
+                    'service' => $serviceMonth,
+                    'service_limit' => $serviceLimit > 0 ? $serviceLimit : null,
+                    'service_remaining' => (int) ($free['remaining'] ?? 0),
+                    'total_delivered' => (int) (($month['marketing'] ?? 0) + ($month['utility'] ?? 0)),
                 ],
             ],
             'conversation_estimates' => [
@@ -149,8 +169,17 @@ class DashboardController extends Controller
                     ],
                 ],
             ],
-            // Extra helpers (ignored by older clients that only read known keys)
+            // Top-level aliases — mobile clients read different keys historically.
+            'wallet_amount' => $walletBalance,
             'wallet_balance' => $walletBalance,
+            'valid_until' => $validUntil,
+            'remaining_days' => $remainingDays,
+            'service_free' => [
+                'used' => (int) ($free['used'] ?? 0),
+                'remaining' => (int) ($free['remaining'] ?? 0),
+                'limit' => $serviceLimit,
+                'per_line' => $free['per_line'] ?? [],
+            ],
             'default_whatsapp_number' => $this->safeDefaultLinePhone(),
             'tenant_id' => $tenant?->id,
             'auth_guard' => Auth::getDefaultDriver(),
@@ -166,7 +195,9 @@ class DashboardController extends Controller
     private function safeDefaultLinePhone(): ?string
     {
         try {
-            return $this->lines->resolve()->phone;
+            $phone = (string) $this->lines->resolve()->phone;
+
+            return preg_replace('/\D+/', '', $phone) ?: $phone;
         } catch (\Throwable) {
             return null;
         }

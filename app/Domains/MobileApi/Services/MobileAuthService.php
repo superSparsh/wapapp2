@@ -231,6 +231,28 @@ final class MobileAuthService
             $last = $parts[1] ?? '';
         }
 
+        $wallet = 0.0;
+        $validUntil = null;
+        $remainingDays = null;
+        $planName = null;
+        try {
+            if (tenancy()->initialized || $tenantId !== '') {
+                if (! tenancy()->initialized && $tenant !== null) {
+                    tenancy()->initialize($tenant);
+                }
+                $wallet = round(app(\App\Domains\Billing\Services\WalletService::class)->balance(), 2);
+                $summary = app(\App\Domains\Billing\Services\SubscriptionService::class)->subscriptionSummary();
+                $planName = $summary['plan_name'] ?? $summary['plan']?->name;
+                $expiresAt = $summary['expires_at'] ?? null;
+                if ($expiresAt instanceof \Illuminate\Support\Carbon) {
+                    $validUntil = $expiresAt->toDateString();
+                    $remainingDays = (int) now()->startOfDay()->diffInDays($expiresAt->copy()->startOfDay(), false);
+                }
+            }
+        } catch (\Throwable) {
+            //
+        }
+
         return [
             'id' => (int) $user->getAuthIdentifier(),
             'uid' => (string) ($user->uuid ?? $user->getAuthIdentifier()),
@@ -243,6 +265,11 @@ final class MobileAuthService
             'status' => $user instanceof User
                 ? ($user->is_active ? 'active' : 'inactive')
                 : (string) ($user->status->value ?? 'active'),
+            'wallet_amount' => $wallet,
+            'wallet_balance' => $wallet,
+            'plan_name' => $planName,
+            'valid_until' => $validUntil,
+            'remaining_days' => $remainingDays,
             'created_at' => $user->created_at?->toIso8601String(),
             'updated_at' => $user->updated_at?->toIso8601String(),
         ];
