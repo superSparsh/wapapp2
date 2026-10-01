@@ -4,47 +4,48 @@ declare(strict_types=1);
 
 namespace App\Domains\Alerts\Services;
 
-use App\Enums\SubscriptionStatus;
 use App\Enums\TenantStatus;
-use App\Models\Subscription;
 use App\Models\Tenant;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
 /**
- * Monthly account expiry report — mirrors legacy AccountExpirationReportService buckets.
+ * Monthly account expiry report from central 2.0 tenants only
+ * (tenants.settings.valid_until — same source as Admin → Retention).
+ *
+ * Buckets match the legacy email layout: ≤30d, 31–90d, expired.
  */
 class AccountExpirationReportService
 {
     /**
      * @return array{
-     *     generated_at: Carbon,
+     *     generated_at: string,
      *     expired: list<array<string, mixed>>,
      *     expiring_within_30: list<array<string, mixed>>,
      *     expiring_30_90: list<array<string, mixed>>,
+     *     meta: array{tenants_scanned: int, with_validity: int, beyond_90: int, missing_validity: int}
      * }
      */
     public function buildReport(?Carbon $asOf = null): array
     {
         $asOf = ($asOf ?? now())->copy()->startOfDay();
-
         $rows = $this->collectRows($asOf);
 
-        $expired = $rows
+        $expired = $rows['items']
             ->filter(fn (array $row): bool => $row['days_left'] <= 0)
             ->sortByDesc('ends_at_ts')
             ->values()
             ->map(fn (array $row): array => $this->mapRow($row, 'expired'))
             ->all();
 
-        $within30 = $rows
+        $within30 = $rows['items']
             ->filter(fn (array $row): bool => $row['days_left'] >= 1 && $row['days_left'] <= 30)
             ->sortBy('ends_at_ts')
             ->values()
             ->map(fn (array $row): array => $this->mapRow($row, 'expiring'))
             ->all();
 
-        $within90 = $rows
+        $within90 = $rows['items']
             ->filter(fn (array $row): bool => $row['days_left'] >= 31 && $row['days_left'] <= 90)
             ->sortBy('ends_at_ts')
             ->values()
@@ -52,34 +53,47 @@ class AccountExpirationReportService
             ->all();
 
         return [
-            'generated_at' => $asOf,
+            'generated_at' => $asOf->format('F j, Y'),
             'expired' => $expired,
             'expiring_within_30' => $within30,
             'expiring_30_90' => $within90,
+            'meta' => $rows['meta'],
         ];
     }
 
     /**
-     * @return Collection<int, array{tenant_id: string, name: string, email: string, plan_name: string, ends_at: Carbon, ends_at_ts: int, days_left: int}>
+     * @return array{
+     *     items: Collection<int, array{tenant_id: string, name: string, email: string, plan_name: string, ends_at: Carbon, ends_at_ts: int, days_left: int}>,
+     *     meta: array{tenants_scanned: int, with_validity: int, beyond_90: int, missing_validity: int}
+     * }
      */
-    private function collectRows(Carbon $asOf): Collection
+    private function collectRows(Carbon $asOf): array
     {
         $out = collect();
+        $scanned = 0;
+        $withValidity = 0;
+        $beyond90 = 0;
+        $missing = 0;
 
         Tenant::query()
-            ->where('status', TenantStatus::Active)
+            ->whereIn('status', [TenantStatus::Active, TenantStatus::Suspended])
             ->with('plan:id,name')
             ->orderBy('id')
             ->cursor()
-            ->each(function (Tenant $tenant) use ($asOf, $out): void {
-                $endsAt = $this->resolveExpiresAt($tenant);
+            ->each(function (Tenant $tenant) use ($asOf, $out, &$scanned, &$withValidity, &$beyond90, &$missing): void {
+                $scanned++;
+                $endsAt = $this->parseValidUntil($tenant);
                 if ($endsAt === null) {
+                    $missing++;
+
                     return;
                 }
 
+                $withValidity++;
                 $daysLeft = (int) $asOf->copy()->startOfDay()->diffInDays($endsAt->copy()->startOfDay(), false);
-                // Legacy only includes ≤90 days ahead + all expired; skip farther future.
                 if ($daysLeft > 90) {
+                    $beyond90++;
+
                     return;
                 }
 
@@ -94,51 +108,40 @@ class AccountExpirationReportService
                 ]);
             });
 
-        return $out;
+        return [
+            'items' => $out,
+            'meta' => [
+                'tenants_scanned' => $scanned,
+                'with_validity' => $withValidity,
+                'beyond_90' => $beyond90,
+                'missing_validity' => $missing,
+            ],
+        ];
     }
 
     /**
-     * Prefer central tenant settings.valid_until (admin / legacy migration source of truth),
-     * then fall back to active subscription ends_at in the tenant DB.
+     * Central tenants.settings.valid_until only (2.0 admin source of truth).
      */
-    private function resolveExpiresAt(Tenant $tenant): ?Carbon
+    private function parseValidUntil(Tenant $tenant): ?Carbon
     {
-        $settings = is_array($tenant->settings) ? $tenant->settings : [];
-        $raw = $settings['valid_until'] ?? null;
-        if (filled($raw)) {
-            try {
-                return Carbon::parse((string) $raw)->endOfDay();
-            } catch (\Throwable) {
-                // fall through
-            }
+        $settings = $tenant->settings;
+        if (is_string($settings) && $settings !== '') {
+            $decoded = json_decode($settings, true);
+            $settings = is_array($decoded) ? $decoded : [];
+        }
+        if (! is_array($settings)) {
+            $settings = [];
         }
 
-        $wasInitialized = tenancy()->initialized;
-        $previous = $wasInitialized ? tenant() : null;
-
-        if ($wasInitialized) {
-            tenancy()->end();
+        $raw = $settings['valid_until'] ?? null;
+        if ($raw === null || $raw === '') {
+            return null;
         }
 
         try {
-            tenancy()->initialize($tenant);
-
-            $subscription = Subscription::query()
-                ->whereIn('status', [SubscriptionStatus::Active, SubscriptionStatus::Expired])
-                ->whereNotNull('ends_at')
-                ->orderByDesc('ends_at')
-                ->first();
-
-            return $subscription?->ends_at?->copy()->endOfDay();
+            return Carbon::parse((string) $raw)->startOfDay();
         } catch (\Throwable) {
             return null;
-        } finally {
-            if (tenancy()->initialized) {
-                tenancy()->end();
-            }
-            if ($wasInitialized && $previous) {
-                tenancy()->initialize($previous);
-            }
         }
     }
 
@@ -173,7 +176,6 @@ class AccountExpirationReportService
             'expires_at_formatted' => $row['ends_at']->format('M j, Y'),
             'days_label' => $daysLabel,
             'days_left' => $daysLeft,
-            'edit_url' => route('admin.customers.show', $row['tenant_id']),
         ];
     }
 }

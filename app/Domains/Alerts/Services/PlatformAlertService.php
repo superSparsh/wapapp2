@@ -27,6 +27,7 @@ class PlatformAlertService
         string $view,
         array $emailData = [],
         ?array $overrideEmails = null,
+        bool $sync = false,
     ): void {
         $emails = $overrideEmails ?? (array) config('operational-alerts.admin_emails', []);
         if ($emails === []) {
@@ -37,7 +38,7 @@ class PlatformAlertService
             return;
         }
 
-        $this->alerts->notifyEmails($emails, $type, $subject, $view, $emailData);
+        $this->alerts->notifyEmails($emails, $type, $subject, $view, $emailData, $sync);
     }
 
     /**

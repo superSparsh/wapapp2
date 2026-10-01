@@ -1,7 +1,16 @@
 @php
-    $generatedAt = $report['generated_at'] ?? now();
-    if (! $generatedAt instanceof \DateTimeInterface) {
-        $generatedAt = \Illuminate\Support\Carbon::parse((string) $generatedAt);
+    $report = $report ?? [];
+    $generatedAt = $report['generated_at'] ?? now()->format('F j, Y');
+    if ($generatedAt instanceof \DateTimeInterface) {
+        $generatedAtLabel = $generatedAt->format('F j, Y');
+        $generatedTitle = $generatedAt->format('F Y');
+    } else {
+        $generatedAtLabel = (string) $generatedAt;
+        try {
+            $generatedTitle = \Illuminate\Support\Carbon::parse((string) $generatedAt)->format('F Y');
+        } catch (\Throwable) {
+            $generatedTitle = $generatedAtLabel;
+        }
     }
     $expired = $report['expired'] ?? [];
     $expiringWithin30 = $report['expiring_within_30'] ?? [];
@@ -15,7 +24,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Account expiry report — {{ $generatedAt->format('F Y') }}</title>
+    <title>Account expiry report — {{ $generatedTitle }}</title>
 </head>
 <body style="margin:0;padding:0;background:#f2f6fb;font-family:{{ $font }};color:#13334c;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f2f6fb;padding:24px 12px;">
@@ -30,7 +39,7 @@
                     <tr>
                         <td style="padding:24px 24px 12px;">
                             <h2 style="margin:0 0 6px;font-size:20px;color:#123a60;">Account expiry report</h2>
-                            <p style="margin:0;font-size:14px;color:#5b7288;">{{ $generatedAt->format('F j, Y') }}</p>
+                            <p style="margin:0;font-size:14px;color:#5b7288;">{{ $generatedAtLabel }}</p>
                         </td>
                     </tr>
                     <tr>

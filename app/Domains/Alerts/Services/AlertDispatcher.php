@@ -342,6 +342,7 @@ class AlertDispatcher
             )));
         }
 
+        // Sync send so the email uses the current blade (avoids stale queued workers / view cache).
         $this->platform->notifyAdmins(
             OperationalAlertType::AccountExpirationReport,
             'Account expiration report — '.now()->format('F Y'),
@@ -352,6 +353,7 @@ class AlertDispatcher
                 'logoUrl' => \App\Domains\Alerts\Support\EmailBrandAssets::logoPublicUrl(),
             ],
             $emails !== [] ? $emails : null,
+            sync: true,
         );
     }
 

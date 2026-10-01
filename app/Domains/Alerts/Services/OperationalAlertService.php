@@ -88,9 +88,10 @@ class OperationalAlertService
         string $subject,
         string $view,
         array $emailData = [],
+        bool $sync = false,
     ): void {
         foreach (array_unique(array_filter($emails)) as $email) {
-            $this->sendEmail((string) $email, $type, $subject, $view, $emailData);
+            $this->sendEmail((string) $email, $type, $subject, $view, $emailData, $sync);
         }
     }
 
@@ -124,6 +125,7 @@ class OperationalAlertService
         string $subject,
         string $view,
         array $emailData,
+        bool $sync = false,
     ): void {
         $email = trim($email);
         if ($email === '' || ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
@@ -131,9 +133,13 @@ class OperationalAlertService
         }
 
         try {
-            Notification::route('mail', $email)->notify(
-                new OperationalAlertMailNotification($type, $subject, $view, $emailData)
-            );
+            $notification = new OperationalAlertMailNotification($type, $subject, $view, $emailData);
+            $pending = Notification::route('mail', $email);
+            if ($sync) {
+                $pending->notifyNow($notification);
+            } else {
+                $pending->notify($notification);
+            }
         } catch (\Throwable $e) {
             Log::error('Operational alert email failed', [
                 'type' => $type->value,
