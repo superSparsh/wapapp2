@@ -57,12 +57,14 @@ class CampaignTestMessageService
         $normalized = PhoneNormalizer::normalize($phone) ?? preg_replace('/\D+/', '', $phone) ?? $phone;
         abort_if($normalized === null || $normalized === '', 422, 'Enter a valid phone number with country code.');
 
-        $templateCode = CamsTemplateIdentity::code(
-            $template->code,
-            is_array($template->payload) ? ($template->payload['legacy_template_code'] ?? null) : null,
-        );
+        $payload = is_array($template->payload) ? $template->payload : [];
+        $templateCode = $template->whatsappCode()
+            ?? CamsTemplateIdentity::code(
+                is_string($payload['legacy_template_code'] ?? null) ? $payload['legacy_template_code'] : null,
+                is_string(data_get($payload, 'meta.archived_code')) ? data_get($payload, 'meta.archived_code') : null,
+            );
         abort_if(
-            $templateCode === null,
+            $templateCode === null || ! CamsTemplateIdentity::isProviderCode($templateCode),
             422,
             'Selected template is missing a valid WhatsApp template_code. Re-import from legacy (must have template_code) or update the template code.',
         );

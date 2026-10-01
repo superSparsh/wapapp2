@@ -24,13 +24,32 @@ class CampaignActionsController extends Controller
             'template_variables' => ['nullable', 'array'],
         ]);
 
-        $this->adapter->sendTestMessage(
-            campaign: $bulkCampaign,
-            phone: (string) $validated['phone'],
-            templateVariables: (array) ($validated['template_variables'] ?? []),
-        );
+        try {
+            $this->adapter->sendTestMessage(
+                campaign: $bulkCampaign,
+                phone: (string) $validated['phone'],
+                templateVariables: (array) ($validated['template_variables'] ?? []),
+            );
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpExceptionInterface $exception) {
+            return response()->json([
+                'success' => false,
+                'message' => $exception->getMessage() ?: 'Unable to send test message.',
+            ], $exception->getStatusCode() ?: 422);
+        } catch (\Throwable $exception) {
+            report($exception);
 
-        return response()->json(['success' => true, 'message' => 'Test message queued.']);
+            return response()->json([
+                'success' => false,
+                'message' => $exception->getMessage() !== ''
+                    ? $exception->getMessage()
+                    : 'Unable to send test message. Please try again.',
+            ], 422);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Test WhatsApp message sent successfully to '.$validated['phone'].'.',
+        ]);
     }
 
     public function resendFailed(Request $request, Campaign $bulkCampaign): RedirectResponse|JsonResponse

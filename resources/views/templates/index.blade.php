@@ -123,8 +123,8 @@
     </div>
 
     <section class="bg-surface p-4 pt-0">
-      <div class="relative overflow-hidden rounded-xl bg-elevated shadow-[0px_4px_6px_rgba(0,0,0,0.04)]">
-        <div class="overflow-x-auto">
+      <div class="relative overflow-visible rounded-xl bg-elevated shadow-[0px_4px_6px_rgba(0,0,0,0.04)]">
+        <div class="overflow-x-auto overflow-y-visible">
           <table class="w-full min-w-[1100px] text-left">
             <thead>
               <tr class="bg-elevated">

@@ -52,7 +52,18 @@ class TemplateSyncService
     public function syncBatch(int $limit = 50): array
     {
         $templates = Template::query()
-            ->where('status', TemplateStatus::PendingReview)
+            ->where(function ($query): void {
+                $query->where('status', TemplateStatus::PendingReview)
+                    ->orWhere(function ($rejected): void {
+                        // Keep polling rejected rows missing a provider reason (Alibaba sometimes
+                        // returns Reason=None on the first fail, then fills it later).
+                        $rejected->where('status', TemplateStatus::Rejected)
+                            ->where(function ($reason): void {
+                                $reason->whereNull('rejection_reason')
+                                    ->orWhere('rejection_reason', '');
+                            });
+                    });
+            })
             ->whereNotNull('code')
             ->where('code', '!=', '')
             ->orderBy('synced_at')

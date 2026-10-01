@@ -13,6 +13,7 @@ use App\Domains\Templates\Enums\TemplateSource;
 use App\Domains\Templates\Enums\TemplateStatus;
 use App\Domains\Templates\Services\TemplateRegistryService;
 use App\Domains\Templates\Support\TemplateCategoryCatalog;
+use App\Domains\WhatsApp\Support\CamsErrorPresenter;
 use App\Models\Template;
 use App\Models\Tenant;
 use Illuminate\Support\Facades\Storage;
@@ -99,6 +100,8 @@ final class TemplateImporter implements LegacyImporter
                 'team_member_name' => $row->team_member_name ?? null,
                 'payload' => $payload,
                 'body_preview' => Str::limit(strip_tags($body), 240),
+                // Legacy stores Alibaba/Meta rejection text in last_status.
+                'rejection_reason' => $this->mapRejectionReason($row->last_status ?? null),
                 'synced_at' => null,
             ];
 
@@ -390,5 +393,28 @@ final class TemplateImporter implements LegacyImporter
             in_array($value, ['pending', 'submitted', 'in_review', 'review'], true) => TemplateStatus::PendingReview,
             default => TemplateStatus::Draft,
         };
+    }
+
+    /**
+     * Legacy new_templates.last_status holds Alibaba/Meta rejection / submit error text.
+     */
+    private function mapRejectionReason(mixed $lastStatus): ?string
+    {
+        $raw = trim((string) $lastStatus);
+        if ($raw === '') {
+            return null;
+        }
+
+        // Placeholder while CAMS audit is still pending - not a real provider reason.
+        if (str_starts_with(strtolower($raw), 'status yet to updated')) {
+            return null;
+        }
+
+        $cleaned = CamsErrorPresenter::cleanRejectionReason($raw);
+        if ($cleaned === '' || CamsErrorPresenter::isEmptyProviderReason($cleaned)) {
+            return null;
+        }
+
+        return Str::limit($cleaned, 2000);
     }
 }

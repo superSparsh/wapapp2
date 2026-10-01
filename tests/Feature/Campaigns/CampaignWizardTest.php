@@ -431,13 +431,14 @@ class CampaignWizardTest extends TestCase
     public function test_wizard_test_message_sends_and_reports_success(): void
     {
         config([
+            'whatsapp.outbound_driver' => 'local',
             'whatsapp.alibaba.access_key_id' => null,
             'whatsapp.alibaba.access_key_secret' => null,
         ]);
 
         $line = WhatsappLine::factory()->create();
         $template = Template::factory()->create([
-            'code' => 'TEST_TEMPLATE_CODE',
+            'code' => '1125253687146348544',
             'language' => 'en',
         ]);
 
@@ -480,7 +481,7 @@ class CampaignWizardTest extends TestCase
             'alibaba_cust_space_id' => 'SP123',
         ]);
         $template = Template::factory()->create([
-            'code' => 'BAD_CODE',
+            'code' => '1125253687146348545',
             'language' => 'en',
         ]);
 
@@ -499,7 +500,7 @@ class CampaignWizardTest extends TestCase
             ->assertJsonPath('success', false)
             ->assertJsonFragment(['success' => false])
             ->assertSee('Template code is invalid (InvalidTemplate)', false)
-            ->assertSee('debug TemplateCode=BAD_CODE', false)
+            ->assertSee('debug TemplateCode=1125253687146348545', false)
             ->assertSee('Language=en_GB', false);
     }
 
