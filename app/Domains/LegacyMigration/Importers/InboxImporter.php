@@ -19,10 +19,15 @@ use App\Models\Message;
 use App\Models\Tenant;
 use App\Models\WhatsappLine;
 use App\Support\PhoneNormalizer;
+use Illuminate\Support\Str;
 
 final class InboxImporter implements LegacyImporter
 {
     use \App\Domains\LegacyMigration\Support\AppliesMigrationSince;
+
+    private const CONTACT_NAME_MAX = 150;
+
+    private const QUALIFICATION_STATUS_MAX = 32;
 
     public function __construct(
         private readonly LegacyConnection $legacy,
@@ -71,7 +76,16 @@ final class InboxImporter implements LegacyImporter
         $query->orderBy('id')
             ->chunkById($chunk, function ($threads) use ($ids, $report, $dryRun, $phoneToLegacyLine): void {
                 foreach ($threads as $thread) {
-                    $this->importThread($thread, $ids, $report, $dryRun, $phoneToLegacyLine);
+                    try {
+                        $this->importThread($thread, $ids, $report, $dryRun, $phoneToLegacyLine);
+                    } catch (\Throwable $e) {
+                        $report->bump($this->key(), 'failed');
+                        $report->warn(sprintf(
+                            'Inbox thread sub_replies#%s failed: %s',
+                            (string) ($thread->id ?? '?'),
+                            Str::limit($e->getMessage(), 240),
+                        ));
+                    }
                 }
             });
     }
@@ -118,6 +132,13 @@ final class InboxImporter implements LegacyImporter
         $contactId = $ids->get('contact_phone', $contactPhone);
         $contactId = $contactId !== null ? (int) $contactId : Contact::query()->where('phone', $contactPhone)->value('id');
 
+        $contactName = filled($thread->sender_name ?? null)
+            ? $this->truncateUtf8((string) $thread->sender_name, self::CONTACT_NAME_MAX)
+            : null;
+        $qualification = filled($thread->qualification_status ?? null)
+            ? $this->truncateUtf8((string) $thread->qualification_status, self::QUALIFICATION_STATUS_MAX)
+            : 'pending';
+
         $conversation = Conversation::query()->updateOrCreate(
             [
                 'whatsapp_line_id' => $lineId,
@@ -126,13 +147,11 @@ final class InboxImporter implements LegacyImporter
             [
                 'contact_id' => $contactId,
                 'line_phone' => $linePhone,
-                'contact_name' => filled($thread->sender_name ?? null) ? (string) $thread->sender_name : null,
+                'contact_name' => $contactName,
                 'status' => ConversationStatus::Open,
                 'response_type' => $this->mapResponseType($thread->response_type ?? null),
                 'lead_score' => (int) ($thread->lead_score ?? 0),
-                'qualification_status' => filled($thread->qualification_status ?? null)
-                    ? (string) $thread->qualification_status
-                    : 'pending',
+                'qualification_status' => $qualification !== '' ? $qualification : 'pending',
                 'last_message_at' => $this->sanitizeDateTime($thread->messaged_at ?? $thread->updated_at ?? null),
                 'replied_at' => $this->sanitizeDateTime($thread->replied_at ?? null),
             ],
@@ -169,27 +188,38 @@ final class InboxImporter implements LegacyImporter
                     $direction = $this->mapDirection($row->type ?? $row->new_type ?? null);
                     $createdAt = $this->sanitizeDateTime($row->created_at ?? null) ?? now();
 
-                    Message::query()->create([
-                        'conversation_id' => $conversationId,
-                        'external_message_id' => $externalId,
-                        'body' => $row->msg ?? $row->reply_msg ?? null,
-                        'direction' => $direction,
-                        'message_type' => MessageType::Text,
-                        'status' => $this->mapMessageStatus($row),
-                        'failed_reason' => $row->failed_reason ?? null,
-                        'sent_at' => $this->sanitizeDateTime($row->sent_at ?? $row->created_at ?? null),
-                        'delivered_at' => $this->sanitizeDateTime($row->delivered_at ?? null),
-                        'read_at' => $this->sanitizeDateTime($row->read_at ?? null),
-                        'failed_at' => $this->sanitizeDateTime($row->failed_at ?? null),
-                        'metadata' => [
-                            'legacy_conversation_id' => (int) $row->id,
-                            'legacy_sub_reply_id' => (int) ($row->sub_reply_id ?? 0),
-                        ],
-                        'created_at' => $createdAt,
-                        'updated_at' => $this->sanitizeDateTime($row->updated_at ?? null) ?? $createdAt,
-                    ]);
+                    try {
+                        Message::query()->create([
+                            'conversation_id' => $conversationId,
+                            'external_message_id' => $externalId,
+                            'body' => $row->msg ?? $row->reply_msg ?? null,
+                            'direction' => $direction,
+                            'message_type' => MessageType::Text,
+                            'status' => $this->mapMessageStatus($row),
+                            'failed_reason' => filled($row->failed_reason ?? null)
+                                ? Str::limit((string) $row->failed_reason, 1000)
+                                : null,
+                            'sent_at' => $this->sanitizeDateTime($row->sent_at ?? $row->created_at ?? null),
+                            'delivered_at' => $this->sanitizeDateTime($row->delivered_at ?? null),
+                            'read_at' => $this->sanitizeDateTime($row->read_at ?? null),
+                            'failed_at' => $this->sanitizeDateTime($row->failed_at ?? null),
+                            'metadata' => [
+                                'legacy_conversation_id' => (int) $row->id,
+                                'legacy_sub_reply_id' => (int) ($row->sub_reply_id ?? 0),
+                            ],
+                            'created_at' => $createdAt,
+                            'updated_at' => $this->sanitizeDateTime($row->updated_at ?? null) ?? $createdAt,
+                        ]);
 
-                    $report->bump('inbox_messages', 'created');
+                        $report->bump('inbox_messages', 'created');
+                    } catch (\Throwable $e) {
+                        $report->bump('inbox_messages', 'failed');
+                        $report->warn(sprintf(
+                            'Inbox message conversations#%s failed: %s',
+                            (string) ($row->id ?? '?'),
+                            Str::limit($e->getMessage(), 240),
+                        ));
+                    }
                 }
             });
     }
@@ -250,5 +280,15 @@ final class InboxImporter implements LegacyImporter
         }
 
         return MessageStatus::Pending;
+    }
+
+    private function truncateUtf8(string $value, int $maxChars): string
+    {
+        $value = trim($value);
+        if ($value === '' || mb_strlen($value) <= $maxChars) {
+            return $value;
+        }
+
+        return mb_substr($value, 0, $maxChars);
     }
 }
