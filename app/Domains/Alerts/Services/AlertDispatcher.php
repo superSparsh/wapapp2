@@ -324,20 +324,33 @@ class AlertDispatcher
     }
 
     /**
-     * @param  list<array<string, mixed>>  $rows
+     * @param  array{
+     *     generated_at?: \DateTimeInterface|string,
+     *     expired?: list<array<string, mixed>>,
+     *     expiring_within_30?: list<array<string, mixed>>,
+     *     expiring_30_90?: list<array<string, mixed>>,
+     * }  $report
+     * @param  list<string>|null  $overrideEmails
      */
-    public function accountExpirationReport(array $rows): void
+    public function accountExpirationReport(array $report, ?array $overrideEmails = null): void
     {
-        $emails = array_values(array_filter(array_map(
-            'trim',
-            explode(',', (string) (config('services.account_expiration.report_emails') ?: ''))
-        )));
+        $emails = $overrideEmails;
+        if ($emails === null) {
+            $emails = array_values(array_filter(array_map(
+                'trim',
+                explode(',', (string) (config('services.account_expiration.report_emails') ?: ''))
+            )));
+        }
 
         $this->platform->notifyAdmins(
             OperationalAlertType::AccountExpirationReport,
-            'Monthly account expiration report - '.now()->format('F Y'),
+            'Account expiration report — '.now()->format('F Y'),
             'emails.alerts.account-expiration-report',
-            ['rows' => $rows, 'generated_at' => now()->format('d M Y h:i A')],
+            [
+                'report' => $report,
+                'customersUrl' => route('admin.customers.index'),
+                'logoUrl' => \App\Domains\Alerts\Support\EmailBrandAssets::logoPublicUrl(),
+            ],
             $emails !== [] ? $emails : null,
         );
     }

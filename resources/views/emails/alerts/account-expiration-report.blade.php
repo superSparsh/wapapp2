@@ -1,26 +1,21 @@
 @php
-    $rows = $rows ?? [];
-    $generatedAt = $generated_at ?? now()->format('d M Y h:i A');
-    $logoUrl = $logoUrl ?? \App\Domains\Alerts\Support\EmailBrandAssets::logoPublicUrl();
-    $font = 'Arial, Helvetica, sans-serif';
-
-    $within30 = [];
-    $beyond30 = [];
-    foreach ($rows as $row) {
-        $days = (int) ($row['days_left'] ?? 999);
-        if ($days <= 30) {
-            $within30[] = $row;
-        } else {
-            $beyond30[] = $row;
-        }
+    $generatedAt = $report['generated_at'] ?? now();
+    if (! $generatedAt instanceof \DateTimeInterface) {
+        $generatedAt = \Illuminate\Support\Carbon::parse((string) $generatedAt);
     }
+    $expired = $report['expired'] ?? [];
+    $expiringWithin30 = $report['expiring_within_30'] ?? [];
+    $expiring = $report['expiring_30_90'] ?? [];
+    $logoUrl = $logoUrl ?? \App\Domains\Alerts\Support\EmailBrandAssets::logoPublicUrl();
+    $customersUrl = $customersUrl ?? route('admin.customers.index');
+    $font = 'Arial, Helvetica, sans-serif';
 @endphp
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Account expiry report - {{ $generatedAt }}</title>
+    <title>Account expiry report — {{ $generatedAt->format('F Y') }}</title>
 </head>
 <body style="margin:0;padding:0;background:#f2f6fb;font-family:{{ $font }};color:#13334c;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f2f6fb;padding:24px 12px;">
@@ -35,23 +30,29 @@
                     <tr>
                         <td style="padding:24px 24px 12px;">
                             <h2 style="margin:0 0 6px;font-size:20px;color:#123a60;">Account expiry report</h2>
-                            <p style="margin:0;font-size:14px;color:#5b7288;">Generated {{ $generatedAt }}</p>
+                            <p style="margin:0;font-size:14px;color:#5b7288;">{{ $generatedAt->format('F j, Y') }}</p>
                         </td>
                     </tr>
                     <tr>
                         <td style="padding:0 24px 16px;">
                             <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
                                 <tr>
-                                    <td width="50%" style="padding-right:6px;">
+                                    <td width="33%" style="padding-right:6px;">
                                         <div style="padding:12px 14px;border:1px solid #fde4c8;border-radius:8px;background:#fffaf5;">
                                             <div style="font-size:12px;color:#9a5b1a;">Expiring within 30 days</div>
-                                            <div style="font-size:24px;font-weight:bold;color:#c05621;">{{ count($within30) }}</div>
+                                            <div style="font-size:24px;font-weight:bold;color:#c05621;">{{ count($expiringWithin30) }}</div>
                                         </div>
                                     </td>
-                                    <td width="50%" style="padding-left:6px;">
+                                    <td width="33%" style="padding:0 3px;">
                                         <div style="padding:12px 14px;border:1px solid #dbe8f5;border-radius:8px;background:#f8fcff;">
-                                            <div style="font-size:12px;color:#35658f;">Expiring in 31+ days</div>
-                                            <div style="font-size:24px;font-weight:bold;color:#1f4f9f;">{{ count($beyond30) }}</div>
+                                            <div style="font-size:12px;color:#35658f;">Expiring in 31–90 days</div>
+                                            <div style="font-size:24px;font-weight:bold;color:#1f4f9f;">{{ count($expiring) }}</div>
+                                        </div>
+                                    </td>
+                                    <td width="33%" style="padding-left:6px;">
+                                        <div style="padding:12px 14px;border:1px solid #f0d4d4;border-radius:8px;background:#fff8f8;">
+                                            <div style="font-size:12px;color:#9b4b4b;">Expired</div>
+                                            <div style="font-size:24px;font-weight:bold;color:#b42318;">{{ count($expired) }}</div>
                                         </div>
                                     </td>
                                 </tr>
@@ -59,45 +60,109 @@
                         </td>
                     </tr>
 
-                    @foreach ([
-                        ['title' => 'Expiring within 30 days', 'items' => $within30, 'daysColor' => '#c05621'],
-                        ['title' => 'Expiring in 31+ days', 'items' => $beyond30, 'daysColor' => '#1f4f9f'],
-                    ] as $section)
-                        <tr>
-                            <td style="padding:0 24px 16px;">
-                                <h3 style="margin:0 0 10px;font-size:16px;color:#123a60;">{{ $section['title'] }}</h3>
-                                @if (count($section['items']) > 0)
-                                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e6eef6;border-radius:8px;">
-                                        <tr style="background:#f7fbff;">
-                                            <th align="left" style="padding:8px 10px;font-size:12px;color:#5b7288;">Customer</th>
-                                            <th align="left" style="padding:8px 10px;font-size:12px;color:#5b7288;">Plan</th>
-                                            <th align="left" style="padding:8px 10px;font-size:12px;color:#5b7288;">Ends on</th>
-                                            <th align="left" style="padding:8px 10px;font-size:12px;color:#5b7288;">Left</th>
+                    <tr>
+                        <td style="padding:0 24px 16px;">
+                            <h3 style="margin:0 0 10px;font-size:16px;color:#123a60;">Expiring within 30 days</h3>
+                            @if (count($expiringWithin30) > 0)
+                                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e6eef6;border-radius:8px;">
+                                    <tr style="background:#f7fbff;">
+                                        <th align="left" style="padding:8px 10px;font-size:12px;color:#5b7288;">Customer</th>
+                                        <th align="left" style="padding:8px 10px;font-size:12px;color:#5b7288;">Plan</th>
+                                        <th align="left" style="padding:8px 10px;font-size:12px;color:#5b7288;">Ends on</th>
+                                        <th align="left" style="padding:8px 10px;font-size:12px;color:#5b7288;">Left</th>
+                                        <th align="left" style="padding:8px 10px;font-size:12px;color:#5b7288;">Status</th>
+                                    </tr>
+                                    @foreach ($expiringWithin30 as $row)
+                                        <tr>
+                                            <td style="padding:8px 10px;font-size:13px;border-top:1px solid #eef3f8;">
+                                                <strong>{{ $row['name'] }}</strong><br>
+                                                <span style="color:#6a8196;">{{ $row['email'] ?: '—' }}</span>
+                                            </td>
+                                            <td style="padding:8px 10px;font-size:13px;border-top:1px solid #eef3f8;">{{ $row['plan_name'] }}</td>
+                                            <td style="padding:8px 10px;font-size:13px;border-top:1px solid #eef3f8;">{{ $row['expires_at_formatted'] }}</td>
+                                            <td style="padding:8px 10px;font-size:13px;border-top:1px solid #eef3f8;color:#c05621;">{{ $row['days_label'] }}</td>
+                                            <td style="padding:8px 10px;font-size:13px;border-top:1px solid #eef3f8;">
+                                                <span style="padding:3px 8px;border-radius:999px;font-size:12px;font-weight:bold;color:{{ $row['status_color'] }};background:{{ $row['status_bg'] }};">{{ $row['status_label'] }}</span>
+                                            </td>
                                         </tr>
-                                        @foreach ($section['items'] as $row)
-                                            <tr>
-                                                <td style="padding:8px 10px;font-size:13px;border-top:1px solid #eef3f8;">
-                                                    <strong>{{ $row['tenant'] ?? '-' }}</strong><br>
-                                                    <span style="color:#6a8196;">{{ $row['email'] ?? '-' }}</span>
-                                                </td>
-                                                <td style="padding:8px 10px;font-size:13px;border-top:1px solid #eef3f8;">{{ $row['plan'] ?? '-' }}</td>
-                                                <td style="padding:8px 10px;font-size:13px;border-top:1px solid #eef3f8;">{{ $row['ends_at'] ?? '-' }}</td>
-                                                <td style="padding:8px 10px;font-size:13px;border-top:1px solid #eef3f8;color:{{ $section['daysColor'] }};">
-                                                    {{ isset($row['days_left']) ? $row['days_left'].' day(s)' : '-' }}
-                                                </td>
-                                            </tr>
-                                        @endforeach
-                                    </table>
-                                @else
-                                    <p style="margin:0;font-size:14px;color:#5b7288;">None.</p>
-                                @endif
-                            </td>
-                        </tr>
-                    @endforeach
+                                    @endforeach
+                                </table>
+                            @else
+                                <p style="margin:0;font-size:14px;color:#5b7288;">None.</p>
+                            @endif
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <td style="padding:0 24px 16px;">
+                            <h3 style="margin:0 0 10px;font-size:16px;color:#123a60;">Expiring in 31–90 days</h3>
+                            @if (count($expiring) > 0)
+                                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e6eef6;border-radius:8px;">
+                                    <tr style="background:#f7fbff;">
+                                        <th align="left" style="padding:8px 10px;font-size:12px;color:#5b7288;">Customer</th>
+                                        <th align="left" style="padding:8px 10px;font-size:12px;color:#5b7288;">Plan</th>
+                                        <th align="left" style="padding:8px 10px;font-size:12px;color:#5b7288;">Ends on</th>
+                                        <th align="left" style="padding:8px 10px;font-size:12px;color:#5b7288;">Left</th>
+                                        <th align="left" style="padding:8px 10px;font-size:12px;color:#5b7288;">Status</th>
+                                    </tr>
+                                    @foreach ($expiring as $row)
+                                        <tr>
+                                            <td style="padding:8px 10px;font-size:13px;border-top:1px solid #eef3f8;">
+                                                <strong>{{ $row['name'] }}</strong><br>
+                                                <span style="color:#6a8196;">{{ $row['email'] ?: '—' }}</span>
+                                            </td>
+                                            <td style="padding:8px 10px;font-size:13px;border-top:1px solid #eef3f8;">{{ $row['plan_name'] }}</td>
+                                            <td style="padding:8px 10px;font-size:13px;border-top:1px solid #eef3f8;">{{ $row['expires_at_formatted'] }}</td>
+                                            <td style="padding:8px 10px;font-size:13px;border-top:1px solid #eef3f8;color:#1f4f9f;">{{ $row['days_label'] }}</td>
+                                            <td style="padding:8px 10px;font-size:13px;border-top:1px solid #eef3f8;">
+                                                <span style="padding:3px 8px;border-radius:999px;font-size:12px;font-weight:bold;color:{{ $row['status_color'] }};background:{{ $row['status_bg'] }};">{{ $row['status_label'] }}</span>
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </table>
+                            @else
+                                <p style="margin:0;font-size:14px;color:#5b7288;">None.</p>
+                            @endif
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <td style="padding:0 24px 20px;">
+                            <h3 style="margin:0 0 10px;font-size:16px;color:#123a60;">Expired</h3>
+                            @if (count($expired) > 0)
+                                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e6eef6;border-radius:8px;">
+                                    <tr style="background:#f7fbff;">
+                                        <th align="left" style="padding:8px 10px;font-size:12px;color:#5b7288;">Customer</th>
+                                        <th align="left" style="padding:8px 10px;font-size:12px;color:#5b7288;">Plan</th>
+                                        <th align="left" style="padding:8px 10px;font-size:12px;color:#5b7288;">Ended on</th>
+                                        <th align="left" style="padding:8px 10px;font-size:12px;color:#5b7288;">Status</th>
+                                    </tr>
+                                    @foreach ($expired as $row)
+                                        <tr>
+                                            <td style="padding:8px 10px;font-size:13px;border-top:1px solid #eef3f8;">
+                                                <strong>{{ $row['name'] }}</strong><br>
+                                                <span style="color:#6a8196;">{{ $row['email'] ?: '—' }}</span>
+                                            </td>
+                                            <td style="padding:8px 10px;font-size:13px;border-top:1px solid #eef3f8;">{{ $row['plan_name'] }}</td>
+                                            <td style="padding:8px 10px;font-size:13px;border-top:1px solid #eef3f8;">
+                                                {{ $row['expires_at_formatted'] }}<br>
+                                                <span style="color:#b42318;font-size:12px;">{{ $row['days_label'] }}</span>
+                                            </td>
+                                            <td style="padding:8px 10px;font-size:13px;border-top:1px solid #eef3f8;">
+                                                <span style="padding:3px 8px;border-radius:999px;font-size:12px;font-weight:bold;color:{{ $row['status_color'] }};background:{{ $row['status_bg'] }};">{{ $row['status_label'] }}</span>
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </table>
+                            @else
+                                <p style="margin:0;font-size:14px;color:#5b7288;">None.</p>
+                            @endif
+                        </td>
+                    </tr>
 
                     <tr>
                         <td style="padding:12px 24px;background:#f7fbff;border-top:1px solid #e6eef6;font-size:12px;color:#6a8196;">
-                            Monthly report · WAPAPP
+                            Monthly report · <a href="{{ $customersUrl }}" style="color:#1f4f9f;">Open customers</a>
                         </td>
                     </tr>
                 </table>

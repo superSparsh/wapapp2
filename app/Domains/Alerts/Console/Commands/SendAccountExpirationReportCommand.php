@@ -4,95 +4,68 @@ declare(strict_types=1);
 
 namespace App\Domains\Alerts\Console\Commands;
 
+use App\Domains\Alerts\Services\AccountExpirationReportService;
 use App\Domains\Alerts\Services\AlertDispatcher;
-use App\Enums\SubscriptionStatus;
-use App\Models\Subscription;
-use App\Models\Tenant;
 use Illuminate\Console\Command;
-use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 
 class SendAccountExpirationReportCommand extends Command
 {
-    protected $signature = 'alerts:account-expiration-report {--within-days=45 : Include accounts ending within N days}';
+    protected $signature = 'alerts:account-expiration-report {--force : Send even if this month\'s report was already sent}';
 
-    protected $description = 'Email admins a monthly account expiration report.';
+    protected $description = 'Email monthly account expiration report (expiring within 30 days, 31–90 days, and expired).';
 
-    public function handle(AlertDispatcher $dispatcher): int
+    public function handle(AccountExpirationReportService $reportService, AlertDispatcher $dispatcher): int
     {
-        $within = max(1, (int) $this->option('within-days'));
-        $windowStart = now()->startOfDay();
-        $windowEnd = now()->addDays($within)->endOfDay();
-        $rows = [];
+        $monthKey = 'account_expiration_report_sent:'.now()->format('Y-m');
 
-        foreach (Tenant::query()->with('plan:id,name')->cursor() as $tenant) {
-            $endsAt = $this->resolveExpiresAt($tenant);
-            if ($endsAt === null) {
-                continue;
-            }
+        if (! $this->option('force') && ! Cache::add($monthKey, 1, now()->endOfMonth())) {
+            $this->info('Account expiration report already sent this month — skipped.');
 
-            if ($endsAt->lt($windowStart) || $endsAt->gt($windowEnd)) {
-                continue;
-            }
-
-            $rows[] = [
-                'tenant' => $tenant->company_name ?: $tenant->name ?: (string) $tenant->id,
-                'email' => (string) ($tenant->email ?? ''),
-                'plan' => $tenant->plan?->name ?? '-',
-                'ends_at' => $endsAt->format('d M Y'),
-                'days_left' => (int) now()->startOfDay()->diffInDays($endsAt->copy()->startOfDay(), false),
-            ];
+            return self::SUCCESS;
         }
 
-        usort($rows, static fn (array $a, array $b): int => ($a['days_left'] <=> $b['days_left']));
+        $recipients = $this->resolveRecipientEmails();
+        if ($recipients === []) {
+            if (! $this->option('force')) {
+                Cache::forget($monthKey);
+            }
+            $this->warn('No recipient emails configured for account expiration report.');
 
-        $dispatcher->accountExpirationReport($rows);
-        $this->info('Account expiration report sent ('.count($rows).' row(s)).');
+            return self::SUCCESS;
+        }
+
+        $report = $reportService->buildReport();
+        $dispatcher->accountExpirationReport($report, $recipients);
+
+        $expiredCount = count($report['expired'] ?? []);
+        $within30 = count($report['expiring_within_30'] ?? []);
+        $within90 = count($report['expiring_30_90'] ?? []);
+
+        $this->info("Account expiration report sent to ".count($recipients)." recipient(s). Within 30d: {$within30}, 31–90d: {$within90}, expired: {$expiredCount}.");
 
         return self::SUCCESS;
     }
 
     /**
-     * Prefer central tenant settings.valid_until (admin / legacy source of truth),
-     * then fall back to active subscription ends_at in the tenant DB.
+     * @return list<string>
      */
-    private function resolveExpiresAt(Tenant $tenant): ?Carbon
+    private function resolveRecipientEmails(): array
     {
-        $settings = is_array($tenant->settings) ? $tenant->settings : [];
-        $raw = $settings['valid_until'] ?? null;
-        if (filled($raw)) {
-            try {
-                return Carbon::parse((string) $raw)->endOfDay();
-            } catch (\Throwable) {
-                // fall through
-            }
+        $configured = (string) config('services.account_expiration.report_emails', '');
+        if ($configured === '') {
+            $configured = implode(',', (array) config('operational-alerts.admin_emails', []));
         }
 
-        $wasInitialized = tenancy()->initialized;
-        $previous = $wasInitialized ? tenant() : null;
-
-        if ($wasInitialized) {
-            tenancy()->end();
+        $unique = [];
+        foreach (array_map('trim', explode(',', $configured)) as $email) {
+            $key = strtolower($email);
+            if ($key === '' || isset($unique[$key])) {
+                continue;
+            }
+            $unique[$key] = $email;
         }
 
-        try {
-            tenancy()->initialize($tenant);
-
-            $subscription = Subscription::query()
-                ->where('status', SubscriptionStatus::Active)
-                ->whereNotNull('ends_at')
-                ->orderByDesc('ends_at')
-                ->first();
-
-            return $subscription?->ends_at?->copy()->endOfDay();
-        } catch (\Throwable) {
-            return null;
-        } finally {
-            if (tenancy()->initialized) {
-                tenancy()->end();
-            }
-            if ($wasInitialized && $previous) {
-                tenancy()->initialize($previous);
-            }
-        }
+        return array_values($unique);
     }
 }
