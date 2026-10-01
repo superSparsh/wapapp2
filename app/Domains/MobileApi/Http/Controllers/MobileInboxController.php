@@ -50,18 +50,38 @@ class MobileInboxController extends Controller
 
     public function getAssignedNumbers(): JsonResponse
     {
+        $lines = WhatsappLine::query()
+            ->orderByDesc('is_default')
+            ->orderBy('id');
+
+        $assigned = $this->accessService->assignedLineIds();
+        if ($assigned !== []) {
+            $lines->whereIn('id', $assigned);
+        }
+
+        $numbers = $lines->get()
+            ->map(fn (WhatsappLine $line): array => MobileInboxPresenter::assignedNumber($line))
+            ->values()
+            ->all();
+
+        $defaultPhone = $numbers[0]['phone'] ?? null;
+        $walletBalance = 0.0;
+        try {
+            $walletBalance = app(\App\Domains\Billing\Services\WalletService::class)->balance();
+        } catch (\Throwable) {
+            //
+        }
+
         return response()->json([
             'success' => true,
-            'data' => collect($this->inboxService->availableLines())
-                ->map(fn (array $line): array => [
-                    'uuid' => $line['uuid'],
-                    'phone' => $line['phone'],
-                    'whatsapp_number' => $line['phone'],
-                    'display_name' => $line['label'],
-                    'is_default' => $line['is_default'],
-                ])
-                ->values()
-                ->all(),
+            'data' => [
+                'message' => 'sucess',
+                'userassigned' => $defaultPhone,
+                'numbers' => $numbers,
+                'wallet_amount' => $walletBalance,
+                'line_context_locked' => false,
+                'inbox_phone_masking_enabled' => false,
+            ],
         ]);
     }
 
@@ -77,48 +97,46 @@ class MobileInboxController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Number assignment recorded for this session.',
-            'data' => MobileInboxPresenter::line($line),
+            'message' => 'Number assigned successfully',
+            'data' => [
+                'assignment_id' => $line->id,
+                'whatsapp_number' => (string) $line->phone,
+                'user_id' => $validated['user_id'] ?? null,
+                'assigned_at' => now()->toIso8601String(),
+                'line' => MobileInboxPresenter::line($line),
+            ],
         ]);
     }
 
     public function getConversations(Request $request): JsonResponse
     {
-        $line = $this->lines->resolve($request->input('whatsapp_number'));
-        $payload = $this->queryService->paginateThreads(
-            line: $line,
-            search: $request->input('search') ?: $request->input('q'),
-            unreadOnly: $request->boolean('unread_only') || $request->boolean('unread'),
-            lookbackDays: $request->integer('days') ?: null,
-            limit: min(100, max(1, $request->integer('per_page') ?: 50)),
-        );
+        $rows = $this->conversationQuery($request)
+            ->limit(min(100, max(1, $request->integer('per_page') ?: 50)))
+            ->get();
 
         return response()->json([
             'success' => true,
-            'data' => collect($payload['items'])->map(fn (array $item): array => [
-                'id' => $item['uuid'] ?? null,
-                'uuid' => $item['uuid'] ?? null,
-                'customer_name' => $item['name'] ?? null,
-                'customer_phone' => $item['phone'] ?? null,
-                'last_message' => $item['preview'] ?? null,
-                'unread_count' => $item['unread'] ?? 0,
-                'time' => $item['time'] ?? null,
-            ])->values()->all(),
-            'has_more' => $payload['has_more'],
-            'next_cursor' => $payload['next_cursor'],
+            'data' => $rows
+                ->map(fn (Conversation $c): array => MobileInboxPresenter::conversation($c))
+                ->values()
+                ->all(),
         ]);
     }
 
     public function getConversationsPaginated(Request $request): JsonResponse
     {
-        return $this->getConversations($request);
+        return response()->json([
+            'success' => true,
+            'data' => $this->paginatedConversationPayload($request, unreadOnly: false),
+        ]);
     }
 
     public function getUnreadConversations(Request $request): JsonResponse
     {
-        $request->merge(['unread_only' => true]);
-
-        return $this->getConversations($request);
+        return response()->json([
+            'success' => true,
+            'data' => $this->paginatedConversationPayload($request, unreadOnly: true),
+        ]);
     }
 
     public function searchConversations(Request $request): JsonResponse
@@ -837,6 +855,71 @@ class MobileInboxController extends Controller
             'success' => true,
             'message' => 'Client data clear acknowledged (server-side no-op).',
         ]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function paginatedConversationPayload(Request $request, bool $unreadOnly): array
+    {
+        $page = max(1, $request->integer('page') ?: 1);
+        $perPage = min(50, max(1, $request->integer('per_page') ?: 20));
+
+        $paginator = $this->conversationQuery($request, $unreadOnly)
+            ->paginate($perPage, ['*'], 'page', $page);
+
+        $items = collect($paginator->items())
+            ->map(fn (Conversation $c): array => MobileInboxPresenter::conversation($c))
+            ->values()
+            ->all();
+
+        return [
+            'data' => $items,
+            'current_page' => $paginator->currentPage(),
+            'last_page' => $paginator->lastPage(),
+            'per_page' => $paginator->perPage(),
+            'total' => $paginator->total(),
+            'has_more' => $paginator->hasMorePages(),
+            'next_page_url' => $paginator->nextPageUrl(),
+            'prev_page_url' => $paginator->previousPageUrl(),
+        ];
+    }
+
+    private function conversationQuery(Request $request, bool $unreadOnly = false): \Illuminate\Database\Eloquent\Builder
+    {
+        $line = $this->lines->resolve($request->input('whatsapp_number'));
+        $lookbackDays = $request->integer('days') ?: ($request->integer('months') ? $request->integer('months') * 30 : 90);
+        $lookbackDays = max(1, min(365, $lookbackDays));
+
+        $query = Conversation::query()
+            ->where('whatsapp_line_id', $line->id)
+            ->where(function ($builder) use ($lookbackDays): void {
+                $builder->where('last_message_at', '>=', now()->subDays($lookbackDays))
+                    ->orWhereNull('last_message_at');
+            })
+            ->with(['latestMessage'])
+            ->orderByDesc('last_message_at')
+            ->orderByDesc('id');
+
+        if ($unreadOnly || $request->boolean('unread_only') || $request->boolean('unread')) {
+            $query->where('unread_count', '>', 0);
+        }
+
+        $search = $request->input('search') ?: $request->input('q');
+        if (filled($search)) {
+            $term = '%'.trim((string) $search).'%';
+            $query->where(function ($builder) use ($term): void {
+                $builder->where('contact_name', 'like', $term)
+                    ->orWhere('contact_phone', 'like', $term);
+            });
+        }
+
+        $assigned = $this->accessService->assignedLineIds();
+        if ($assigned !== [] && ! in_array((int) $line->id, array_map('intval', $assigned), true)) {
+            abort(403, 'This WhatsApp number is not assigned to your account.');
+        }
+
+        return $query;
     }
 
     private function sendResult(\App\Models\Message $message): JsonResponse

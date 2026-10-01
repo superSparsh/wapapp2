@@ -65,11 +65,15 @@ class MobileInboxTest extends TestCase
 
     public function test_assigned_numbers_lists_lines(): void
     {
-        $this->withToken($this->accessToken)
+        $response = $this->withToken($this->accessToken)
             ->getJson('/api/v1/mobile/inbox/assigned-numbers')
             ->assertOk()
-            ->assertJsonPath('success', true)
-            ->assertJsonPath('data.0.phone', '919999999999');
+            ->assertJsonPath('success', true);
+
+        $this->assertIsArray($response->json('data'));
+        $this->assertIsArray($response->json('data.numbers'));
+        $this->assertSame('919999999999', $response->json('data.numbers.0.phone'));
+        $this->assertArrayHasKey('userassigned', $response->json('data'));
     }
 
     public function test_conversations_and_dashboard(): void
@@ -97,16 +101,36 @@ class MobileInboxTest extends TestCase
 
         tenancy()->end();
 
-        $this->withToken($this->accessToken)
+        $list = $this->withToken($this->accessToken)
             ->getJson('/api/v1/mobile/inbox/conversations?whatsapp_number=919999999999')
             ->assertOk()
             ->assertJsonPath('success', true);
+        $this->assertIsArray($list->json('data'));
+        $this->assertIsArray($list->json('data.0'));
+        $this->assertSame('Mobile User', $list->json('data.0.customer_name'));
+
+        $paginated = $this->withToken($this->accessToken)
+            ->getJson('/api/v1/mobile/inbox/conversations/paginated?whatsapp_number=919999999999')
+            ->assertOk()
+            ->assertJsonPath('success', true);
+        $this->assertIsArray($paginated->json('data'));
+        $this->assertIsArray($paginated->json('data.data'));
+        $this->assertArrayHasKey('has_more', $paginated->json('data'));
 
         $this->withToken($this->accessToken)
             ->getJson('/api/v1/mobile/dashboard')
             ->assertOk()
             ->assertJsonPath('success', true)
-            ->assertJsonStructure(['data' => ['unread_messages', 'tenant_id']]);
+            ->assertJsonStructure([
+                'data' => [
+                    'user_info' => ['uid', 'name', 'timezone'],
+                    'subscription_info',
+                    'stats' => ['today', 'last_7_days', 'last_30_days'],
+                    'conversation_estimates',
+                    'list_growth',
+                    'recent_campaigns',
+                ],
+            ]);
 
         $this->withToken($this->accessToken)
             ->getJson('/api/v1/mobile/inbox/new-message-count')
