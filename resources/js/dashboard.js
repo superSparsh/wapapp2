@@ -160,6 +160,107 @@ function flashRefreshTarget(root) {
     root.classList.add('dashboard-refresh-flash');
 }
 
+function updateServiceFreeInfo(root, credits) {
+    const card = root.querySelector('[data-service-free-card], [data-credit-key="service"]');
+    if (!card) {
+        return;
+    }
+
+    const summary = card.querySelector('[data-service-free-summary]');
+    const rule = card.querySelector('[data-service-free-rule]');
+    const linesEl = card.querySelector('[data-service-free-lines]');
+    if (!summary || credits.service_limit == null) {
+        return;
+    }
+
+    const perNumber = Number(credits.service_free_per_number ?? 1000);
+    const numbers = Math.max(1, Number(credits.service_whatsapp_numbers ?? 1));
+    const remaining = Number(credits.service_free_remaining ?? 0);
+    const numberLabel = numbers === 1 ? 'WhatsApp number' : 'WhatsApp numbers';
+
+    summary.textContent = `${formatNumber(remaining)} free left this month`;
+    if (rule) {
+        rule.textContent = `${formatNumber(perNumber)} free × ${numbers} ${numberLabel} · not shared across numbers`;
+    }
+
+    if (linesEl) {
+        const perLine = Array.isArray(credits.service_free_per_line) ? credits.service_free_per_line : [];
+        linesEl.innerHTML = perLine
+            .map(
+                (line) => `<li class="flex items-center justify-between gap-3">
+                    <span class="truncate font-medium text-text-primary">${escapeHtml(line.label || 'WhatsApp')}</span>
+                    <span class="shrink-0 tabular-nums text-text-muted">${formatNumber(line.remaining)}/${formatNumber(line.limit)}</span>
+                </li>`,
+            )
+            .join('');
+    }
+}
+
+function initCreditInfoPopovers(root) {
+    const closeAll = (except = null) => {
+        root.querySelectorAll('[data-credit-info-panel]').forEach((panel) => {
+            if (except && panel === except) {
+                return;
+            }
+            panel.classList.add('hidden');
+            panel.classList.remove('pointer-events-auto');
+            panel.classList.add('pointer-events-none');
+            const trigger = panel.parentElement?.querySelector('[data-credit-info-trigger]');
+            if (trigger) {
+                trigger.setAttribute('aria-expanded', 'false');
+            }
+        });
+    };
+
+    root.querySelectorAll('[data-credit-info-trigger]').forEach((trigger) => {
+        const card = trigger.closest('.relative');
+        const panel = card?.querySelector('[data-credit-info-panel]');
+        if (!card || !panel) {
+            return;
+        }
+
+        const open = () => {
+            closeAll(panel);
+            panel.classList.remove('hidden', 'pointer-events-none');
+            panel.classList.add('pointer-events-auto');
+            trigger.setAttribute('aria-expanded', 'true');
+        };
+
+        const close = () => {
+            panel.classList.add('hidden', 'pointer-events-none');
+            panel.classList.remove('pointer-events-auto');
+            trigger.setAttribute('aria-expanded', 'false');
+        };
+
+        trigger.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            if (panel.classList.contains('hidden')) {
+                open();
+            } else {
+                close();
+            }
+        });
+
+        card.addEventListener('mouseenter', () => open());
+        card.addEventListener('mouseleave', () => close());
+    });
+
+    document.addEventListener('click', (event) => {
+        if (!root.contains(event.target)) {
+            closeAll();
+            return;
+        }
+        if (!(event.target instanceof Element)) {
+            return;
+        }
+        if (event.target.closest('[data-credit-info-trigger], [data-credit-info-panel]')) {
+            return;
+        }
+        closeAll();
+    });
+}
+
 function initCreditsFilter(root) {
     const select = root.querySelector('[data-credits-period]');
     const url = root.dataset.creditsUrl;
@@ -201,20 +302,7 @@ function initCreditsFilter(root) {
                 valueEl.textContent = `${formatNumber(used)}/${formatNumber(limit)}`;
             });
 
-            const freeNote = root.querySelector('[data-service-free-note]');
-            if (freeNote && credits.service_limit != null) {
-                const perNumber = Number(credits.service_free_per_number ?? 1000);
-                const numbers = Math.max(1, Number(credits.service_whatsapp_numbers ?? 1));
-                const remaining = Number(credits.service_free_remaining ?? 0);
-                const numberLabel = numbers === 1 ? 'WhatsApp number' : 'WhatsApp numbers';
-                let html = `<p>${formatNumber(remaining)} free left this month · ${formatNumber(perNumber)} free × ${numbers} ${numberLabel} (not shared)</p>`;
-                const perLine = Array.isArray(credits.service_free_per_line) ? credits.service_free_per_line : [];
-                if (perLine.length > 1) {
-                    const parts = perLine.map((line) => `${line.label}: ${formatNumber(line.remaining)}/${formatNumber(line.limit)}`);
-                    html += `<p class="mt-1">${parts.join(' · ')}</p>`;
-                }
-                freeNote.innerHTML = html;
-            }
+            updateServiceFreeInfo(root, credits);
 
             if (fromRefresh) {
                 flashRefreshTarget(root.querySelector('.grid') || root);
@@ -408,6 +496,7 @@ function initCampaignReview(root) {
 export function initDashboard() {
     document.querySelectorAll('[data-dashboard-credits]').forEach((root) => {
         initCreditsFilter(root);
+        initCreditInfoPopovers(root);
     });
 
     document.querySelectorAll('[data-dashboard-campaign-review]').forEach((root) => {
