@@ -43,17 +43,17 @@ class TemplateApiController extends Controller
             ->get(['uuid', 'name', 'status', 'rejection_reason'])
             ->map(function (Template $template): array {
                 $isRejected = $template->status->value === 'rejected';
-                $hasRejectionText = filled($template->rejection_reason);
+                $displayReason = ($isRejected || filled($template->rejection_reason))
+                    ? CamsErrorPresenter::resolveForTemplate($template)
+                    : null;
+                $hasRejectionText = filled($displayReason);
                 $error = ($isRejected || $hasRejectionText)
-                    ? CamsComponentEncoder::presentError($template->rejection_reason)
+                    ? CamsComponentEncoder::presentError($displayReason)
                     : null;
 
-                $rejectionMessage = $error['message'] ?? null;
-                if (filled($template->rejection_reason) && ! CamsErrorPresenter::isGenericFiller($template->rejection_reason)) {
-                    $cleaned = CamsErrorPresenter::cleanRejectionReason($template->rejection_reason);
-                    if ($cleaned !== '') {
-                        $rejectionMessage = $cleaned;
-                    }
+                $rejectionMessage = $displayReason;
+                if ($rejectionMessage === null && ($isRejected || $hasRejectionText)) {
+                    $rejectionMessage = $error['message'] ?? null;
                 }
 
                 return [
@@ -64,7 +64,7 @@ class TemplateApiController extends Controller
                     'status_variant' => $template->status->chipVariant(),
                     'error' => $isRejected || $hasRejectionText,
                     'rejection_title' => $error['title'] ?? null,
-                    'rejection_reason' => $rejectionMessage ?? $template->rejection_reason,
+                    'rejection_reason' => $rejectionMessage,
                     'rejection_hint' => $error['hint'] ?? null,
                 ];
             })

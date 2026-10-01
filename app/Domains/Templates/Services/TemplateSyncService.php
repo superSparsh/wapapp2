@@ -581,39 +581,6 @@ class TemplateSyncService
      */
     private function recoverRejectionReason(Template $template): ?string
     {
-        $current = trim((string) $template->rejection_reason);
-        if ($current !== ''
-            && ! CamsErrorPresenter::isGenericFiller($current)
-            && ! CamsErrorPresenter::isEmptyProviderReason($current)
-        ) {
-            return \Illuminate\Support\Str::limit(
-                CamsErrorPresenter::cleanRejectionReason($current) ?: $current,
-                2000,
-            );
-        }
-
-        $fromLog = TemplateStatusLog::query()
-            ->where('template_id', $template->id)
-            ->whereNotNull('reason')
-            ->orderByDesc('id')
-            ->limit(10)
-            ->pluck('reason');
-
-        foreach ($fromLog as $reason) {
-            $candidate = CamsErrorPresenter::cleanRejectionReason((string) $reason);
-            if ($candidate === '' || CamsErrorPresenter::isEmptyProviderReason($candidate)) {
-                continue;
-            }
-            if (str_starts_with(strtolower($candidate), 'category updated')) {
-                continue;
-            }
-            if (strcasecmp($candidate, 'alibaba_webhook_audit') === 0) {
-                continue;
-            }
-
-            return \Illuminate\Support\Str::limit($candidate, 2000);
-        }
-
-        return null;
+        return CamsErrorPresenter::resolveForTemplate($template);
     }
 }

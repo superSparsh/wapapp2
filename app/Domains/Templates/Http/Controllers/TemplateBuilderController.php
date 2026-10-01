@@ -22,6 +22,7 @@ use App\Domains\Templates\Support\TemplateBuilderFlow;
 use App\Domains\Templates\Support\TemplateCategoryCatalog;
 use App\Domains\Templates\Support\TemplateVariableSyntax;
 use App\Domains\WhatsApp\Support\CamsComponentEncoder;
+use App\Domains\WhatsApp\Support\CamsErrorPresenter;
 use App\Domains\WhatsappFlow\Services\WhatsappFlowInteractiveService;
 use App\Http\Controllers\Controller;
 use App\Models\Template;
@@ -512,9 +513,12 @@ class TemplateBuilderController extends Controller
         $template->refresh();
 
         if ($template->status === TemplateStatus::Rejected) {
-            $presented = CamsComponentEncoder::presentError($template->rejection_reason);
-            $flash = $presented['message'];
-            if (filled($presented['hint'])) {
+            $displayReason = CamsErrorPresenter::resolveForTemplate($template);
+            $presented = CamsComponentEncoder::presentError($displayReason);
+            $flash = $displayReason ?: $presented['message'];
+            if ($displayReason === null && filled($presented['hint'])) {
+                $flash .= ' '.$presented['hint'];
+            } elseif ($displayReason !== null && filled($presented['hint'])) {
                 $flash .= ' '.$presented['hint'];
             }
 

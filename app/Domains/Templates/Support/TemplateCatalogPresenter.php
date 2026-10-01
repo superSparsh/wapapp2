@@ -31,18 +31,18 @@ class TemplateCatalogPresenter
                     || filled($template->whatsappCode());
 
                 $isRejected = $template->status === TemplateStatus::Rejected;
-                $hasRejectionText = filled($template->rejection_reason);
+                $displayReason = ($isRejected || filled($template->rejection_reason))
+                    ? CamsErrorPresenter::resolveForTemplate($template)
+                    : null;
+                $hasRejectionText = filled($displayReason);
                 $error = ($isRejected || $hasRejectionText)
-                    ? CamsComponentEncoder::presentError($template->rejection_reason)
+                    ? CamsComponentEncoder::presentError($displayReason)
                     : null;
 
-                // Prefer the cleaned provider text (legacy last_status) over rewritten filler.
-                $rejectionMessage = $error['message'] ?? null;
-                if (filled($template->rejection_reason) && ! CamsErrorPresenter::isGenericFiller($template->rejection_reason)) {
-                    $cleaned = CamsErrorPresenter::cleanRejectionReason($template->rejection_reason);
-                    if ($cleaned !== '') {
-                        $rejectionMessage = $cleaned;
-                    }
+                // Legacy list parity: show real CAMS/Meta text, never invent filler over a real reason.
+                $rejectionMessage = $displayReason;
+                if ($rejectionMessage === null && ($isRejected || $hasRejectionText)) {
+                    $rejectionMessage = $error['message'] ?? null;
                 }
 
                 return [
@@ -73,7 +73,7 @@ class TemplateCatalogPresenter
                     'status_variant' => $template->status->chipVariant(),
                     'error' => $isRejected || $hasRejectionText,
                     'rejection_title' => $error['title'] ?? null,
-                    'rejection_reason' => $rejectionMessage ?? $template->rejection_reason,
+                    'rejection_reason' => $rejectionMessage,
                     'rejection_hint' => $error['hint'] ?? null,
                     'preview_url' => route('templates.preview', array_filter([
                         'code' => $template->code,

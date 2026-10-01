@@ -829,7 +829,7 @@ class TemplateWhatsAppService
     {
         $previous = $template->status;
         // Legacy last_status: store the cleaned CAMS/Meta Message, not a rewritten UI title.
-        $stored = CamsErrorPresenter::cleanRejectionReason($error);
+        $stored = CamsErrorPresenter::legacyDisplayReason($error) ?? '';
 
         if ($stored === '') {
             $decoded = json_decode($error, true);
@@ -837,12 +837,26 @@ class TemplateWhatsAppService
                 $fallback = trim((string) (
                     $decoded['Message']
                     ?? $decoded['message']
+                    ?? $decoded['Reason']
+                    ?? $decoded['reason']
                     ?? data_get($decoded, 'Error.Message')
+                    ?? data_get($decoded, 'Data.Reason')
+                    ?? data_get($decoded, 'data.reason')
+                    ?? data_get($decoded, 'Data.Message')
+                    ?? data_get($decoded, 'data.Message')
                     ?? data_get($decoded, 'AccessDeniedDetail')
                     ?? ''
                 ));
-                $code = trim((string) ($decoded['Code'] ?? $decoded['code'] ?? ''));
-                if ($fallback !== '' && ! CamsErrorPresenter::isEmptyProviderReason($fallback)) {
+                $code = trim((string) (
+                    $decoded['Code']
+                    ?? $decoded['code']
+                    ?? data_get($decoded, 'Error.Code')
+                    ?? data_get($decoded, 'Data.Code')
+                    ?? ''
+                ));
+                if ($fallback !== '' && ! CamsErrorPresenter::isEmptyProviderReason($fallback)
+                    && ! in_array(strtolower($fallback), ['ok', 'success', 'successful'], true)
+                ) {
                     $stored = $code !== '' ? $fallback.' ('.$code.')' : $fallback;
                 } elseif ($code !== '' && ! CamsErrorPresenter::isEmptyProviderReason($code)) {
                     $stored = $code;
@@ -856,6 +870,8 @@ class TemplateWhatsAppService
                 ? \Illuminate\Support\Str::limit($raw, 2000)
                 : 'WhatsApp provider returned an error without a readable message.';
         }
+
+        $stored = CamsErrorPresenter::legacyDisplayReason($stored) ?? $stored;
 
         $presented = CamsComponentEncoder::presentError($stored);
 

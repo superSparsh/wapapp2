@@ -23,6 +23,7 @@ final class CamsErrorPresenter
 
         [$code, $message] = self::extractCodeAndMessage($raw);
         $text = $message !== '' ? $message : self::stripNoise($raw);
+        $text = self::stripMessageLabel($text);
         $text = self::stripStoredFiller($text);
 
         // Legacy: remove Meta "(#123)" prefixes.
@@ -36,6 +37,68 @@ final class CamsErrorPresenter
         }
 
         return \Illuminate\Support\Str::limit($text, 2000);
+    }
+
+    /**
+     * UI display string like legacy last_status: prefer cleaned CAMS/Meta text,
+     * fall back to lightly stripped raw — never invent "No error details…".
+     */
+    public static function legacyDisplayReason(?string $raw): ?string
+    {
+        $raw = trim((string) $raw);
+        if ($raw === '' || self::isGenericFiller($raw) || self::isEmptyProviderReason($raw)) {
+            return null;
+        }
+
+        $cleaned = self::cleanRejectionReason($raw);
+        if ($cleaned !== '') {
+            return $cleaned;
+        }
+
+        // clean() emptied noise-only strings (request id / http code). Keep a readable remnant if any.
+        $fallback = self::stripMessageLabel(self::stripNoise($raw));
+        $fallback = self::stripStoredFiller($fallback);
+        $fallback = trim((string) preg_replace('/\s+/', ' ', $fallback));
+        if ($fallback === '' || self::isGenericFiller($fallback) || self::isEmptyProviderReason($fallback)) {
+            return null;
+        }
+
+        return \Illuminate\Support\Str::limit($fallback, 2000);
+    }
+
+    /**
+     * Resolve the best rejection text for a template (column, then status logs).
+     */
+    public static function resolveForTemplate(\App\Models\Template $template): ?string
+    {
+        $fromColumn = self::legacyDisplayReason($template->rejection_reason);
+        if ($fromColumn !== null) {
+            return $fromColumn;
+        }
+
+        $fromLog = \App\Models\TemplateStatusLog::query()
+            ->where('template_id', $template->id)
+            ->whereNotNull('reason')
+            ->orderByDesc('id')
+            ->limit(10)
+            ->pluck('reason');
+
+        foreach ($fromLog as $reason) {
+            $candidate = self::legacyDisplayReason((string) $reason);
+            if ($candidate === null) {
+                continue;
+            }
+            if (str_starts_with(strtolower($candidate), 'category updated')) {
+                continue;
+            }
+            if (strcasecmp($candidate, 'alibaba_webhook_audit') === 0) {
+                continue;
+            }
+
+            return $candidate;
+        }
+
+        return null;
     }
 
     /**
@@ -283,12 +346,27 @@ final class CamsErrorPresenter
             $code = trim($match[1]);
         }
 
-        $message = self::stripNoise($raw);
+        $message = '';
+        if (preg_match('/\bMessage\s*[:=]\s*(.+?)(?=(?:,\s*RequestId\b)|$)/is', $raw, $match) === 1) {
+            $message = self::stripMessageLabel(trim($match[1], " \t\n\r\0\x0B,;"));
+        }
+
+        if ($message === '') {
+            $message = self::stripNoise($raw);
+        }
+
         if ($code !== '' && strcasecmp(trim($message, ' .'), $code) === 0) {
             $message = '';
         }
 
         return [$code, $message];
+    }
+
+    private static function stripMessageLabel(string $text): string
+    {
+        $text = preg_replace('/^\s*Message\s*[:=]\s*/i', '', $text) ?? $text;
+
+        return trim($text, " \t\n\r\0\x0B,;");
     }
 
     private static function polishProviderMessage(string $message): string
