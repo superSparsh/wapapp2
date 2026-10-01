@@ -20,6 +20,8 @@ use Throwable;
  * - Templates: on Delivered/Read (campaign / inbox / chatbot / …), category from metadata.
  * - Service (session) messages: same statuses as dashboard Credits “service” card -
  *   Sent / Delivered / Read (charge once; idempotent). Aligns wallet cut with the count.
+ * - Free tier: first N SERVICE messages per calendar month per WhatsApp line
+ *   (config billing.service_free_messages_per_month, default 1000) skip debit.
  * - Utility templates: every delivery is charged (no free 24h same-conversation skip).
  */
 class TemplateWalletChargeService
@@ -27,6 +29,7 @@ class TemplateWalletChargeService
     public function __construct(
         private readonly WalletService $walletService,
         private readonly CampaignCostCalculator $costCalculator,
+        private readonly ServiceMessageFreeAllowanceService $serviceFreeAllowance,
     ) {}
 
     public function chargeIfDelivered(
@@ -75,6 +78,27 @@ class TemplateWalletChargeService
         $category = $isTemplate
             ? strtoupper((string) ($meta['template_category'] ?? 'MARKETING'))
             : 'SERVICE';
+
+        // Meta-style free tier: first N SERVICE messages / month / business phone are free.
+        if ($isService || $category === 'SERVICE') {
+            $lineId = (int) ($message->conversation?->whatsapp_line_id ?? 0);
+            if ($this->serviceFreeAllowance->tryConsumeFree($lineId > 0 ? $lineId : null)) {
+                $latestMeta = $this->metadataArray($message->refresh());
+                $latestMeta['wallet_charged'] = true;
+                $latestMeta['wallet_free'] = true;
+                $latestMeta['wallet_free_reason'] = 'service_monthly_allowance';
+                $latestMeta['wallet_charged_at'] = now()->toIso8601String();
+                $message->forceFill(['metadata' => $latestMeta])->save();
+
+                Log::info('Service message covered by free monthly allowance', [
+                    'message_id' => $message->id,
+                    'whatsapp_line_id' => $lineId > 0 ? $lineId : null,
+                    'source' => $source,
+                ]);
+
+                return null;
+            }
+        }
 
         $unitCost = $this->costCalculator->unitCostForCategory($category);
         if ($unitCost <= 0) {

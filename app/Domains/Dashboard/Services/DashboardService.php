@@ -297,6 +297,8 @@ class DashboardService
         // Sent card = marketing + utility only (service excluded).
         $sent = $marketing + $utility;
 
+        $free = app(\App\Domains\Billing\Services\ServiceMessageFreeAllowanceService::class)->summary();
+
         return [
             'period' => $period,
             'sent' => $sent,
@@ -306,8 +308,10 @@ class DashboardService
             'utility' => $utility,
             'utility_limit' => $limit,
             'service' => $service,
-            // Messaging-tier limits do not apply to session/service replies.
-            'service_limit' => null,
+            // Free SERVICE messages this calendar month (Meta-style, per business phone × lines).
+            'service_limit' => $free['limit'] > 0 ? $free['limit'] : null,
+            'service_free_used' => $free['used'],
+            'service_free_remaining' => $free['remaining'],
         ];
     }
 

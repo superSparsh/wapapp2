@@ -30,6 +30,18 @@ return [
         'history_max_days' => (int) env('WALLET_HISTORY_MAX_DAYS', 365),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Free service messages (Meta-style)
+    |--------------------------------------------------------------------------
+    |
+    | First N outbound SERVICE (session) messages per calendar month are free
+    | for each WhatsApp business phone number (whatsapp_lines row). Templates
+    | (marketing / utility / authentication) are always charged as usual.
+    |
+    */
+    'service_free_messages_per_month' => (int) env('SERVICE_FREE_MESSAGES_PER_MONTH', 1000),
+
     'data_deletion' => [
         'modules' => [
             'campaigns' => 'Campaigns',

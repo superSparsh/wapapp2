@@ -52,6 +52,9 @@ class CampaignWalletChargeTest extends TestCase
             'utility_price' => 0.005,
             'status' => 1,
         ]);
+
+        // Existing charge assertions expect SERVICE debits; free tier covered in dedicated tests.
+        config(['billing.service_free_messages_per_month' => 0]);
     }
 
     protected function tearDown(): void
@@ -437,5 +440,65 @@ class CampaignWalletChargeTest extends TestCase
         $this->assertEquals(0.5, (float) $txn->amount);
         // Both utilities charged: 10 - 0.5 - 0.5 = 9.0
         $this->assertEquals(9.0, (float) app(WalletService::class)->balance());
+    }
+
+    public function test_first_service_messages_are_free_until_monthly_line_allowance(): void
+    {
+        tenancy()->initialize($this->testTenant);
+        config(['billing.service_free_messages_per_month' => 2]);
+
+        WalletAccount::query()->firstOrCreate([], ['balance' => 10, 'currency' => 'INR']);
+
+        $conversation = Conversation::factory()->create([
+            'whatsapp_line_id' => $this->testLine->id,
+            'contact_phone' => '919988776655',
+        ]);
+
+        $charger = app(\App\Domains\Billing\Services\TemplateWalletChargeService::class);
+
+        foreach (['FREE-1', 'FREE-2'] as $externalId) {
+            $message = Message::query()->create([
+                'conversation_id' => $conversation->id,
+                'direction' => MessageDirection::Outbound,
+                'message_type' => MessageType::Text,
+                'status' => MessageStatus::Sent,
+                'body' => 'Hi',
+                'external_message_id' => 'wamid.'.$externalId,
+                'metadata' => [
+                    'billable' => true,
+                    'wallet_source' => 'inbox',
+                    'pricing_category' => 'SERVICE',
+                ],
+                'sent_at' => now(),
+            ]);
+
+            $txn = $charger->chargeIfDelivered($message, 'Sent');
+            $this->assertNull($txn);
+            $this->assertTrue((bool) ($message->refresh()->metadata['wallet_free'] ?? false));
+            $this->assertTrue((bool) ($message->metadata['wallet_charged'] ?? false));
+        }
+
+        $this->assertEquals(10.0, (float) app(WalletService::class)->balance());
+        $this->assertSame(0, WalletTransaction::query()->where('type', WalletTransactionType::Debit)->count());
+
+        $paid = Message::query()->create([
+            'conversation_id' => $conversation->id,
+            'direction' => MessageDirection::Outbound,
+            'message_type' => MessageType::Text,
+            'status' => MessageStatus::Sent,
+            'body' => 'Paid',
+            'external_message_id' => 'wamid.PAID-1',
+            'metadata' => [
+                'billable' => true,
+                'wallet_source' => 'inbox',
+                'pricing_category' => 'SERVICE',
+            ],
+            'sent_at' => now(),
+        ]);
+
+        $txn = $charger->chargeIfDelivered($paid, 'Sent');
+        $this->assertNotNull($txn);
+        $this->assertEquals(9.65, (float) app(WalletService::class)->balance());
+        $this->assertFalse((bool) ($paid->refresh()->metadata['wallet_free'] ?? false));
     }
 }

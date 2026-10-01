@@ -43,6 +43,19 @@
     <x-ui.credit-stat-card label="Sent" icon="send" data-credit-key="sent" :value="number_format((int) ($credits['sent'] ?? 0)).'/'.number_format((int) ($credits['sent_limit'] ?? 1000))" />
     <x-ui.credit-stat-card label="Marketing Conversations" icon="megaphone" data-credit-key="marketing" :value="number_format((int) ($credits['marketing'] ?? 0)).'/'.number_format((int) ($credits['marketing_limit'] ?? 1000))" />
     <x-ui.credit-stat-card label="Utility Conversations" icon="wrench" data-credit-key="utility" :value="number_format((int) ($credits['utility'] ?? 0)).'/'.number_format((int) ($credits['utility_limit'] ?? 1000))" />
-    <x-ui.credit-stat-card label="Service messages" icon="headset" data-credit-key="service" :value="number_format((int) ($credits['service'] ?? 0))" />
+    @php
+      $serviceUsed = (int) ($credits['service'] ?? 0);
+      $serviceLimit = $credits['service_limit'] ?? null;
+      $serviceValue = $serviceLimit !== null
+        ? number_format($serviceUsed).'/'.number_format((int) $serviceLimit)
+        : number_format($serviceUsed);
+    @endphp
+    <x-ui.credit-stat-card label="Service messages" icon="headset" data-credit-key="service" :value="$serviceValue" />
   </div>
+  @if (($credits['service_limit'] ?? null) !== null)
+    <p class="text-xs text-text-muted">
+      {{ number_format((int) ($credits['service_free_remaining'] ?? 0)) }} free service messages left this month
+      ({{ number_format((int) config('billing.service_free_messages_per_month', 1000)) }} free / WhatsApp number).
+    </p>
+  @endif
 </section>
