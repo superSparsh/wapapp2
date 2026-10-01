@@ -125,21 +125,50 @@ class MobileInboxTest extends TestCase
             ->assertJsonPath('success', true)
             ->assertJsonStructure([
                 'data' => [
-                    'user_info' => ['uid', 'name', 'timezone', 'wallet_amount'],
+                    'user_info' => ['uid', 'name', 'timezone', 'wallet_amount', 'wallet_balance'],
+                    'wallet_info' => ['wallet_amount', 'wallet_balance'],
                     'subscription_info' => ['plan_name', 'remaining_days', 'valid_until'],
                     'stats' => ['today', 'last_7_days', 'last_30_days'],
-                    'conversation_estimates' => ['based_on_wallet_balance'],
+                    'conversation_estimates' => [
+                        'based_on_wallet_balance' => [
+                            'daily_marketing',
+                            'daily_utility',
+                            'monthly_marketing',
+                            'monthly_utility',
+                            'service',
+                        ],
+                    ],
                     'list_growth' => ['available_lists', 'latest_list_stats'],
                     'recent_campaigns' => ['available_campaigns', 'latest_campaign_stats'],
                 ],
             ]);
         // Flutter casts every top-level data value with Map.from — keep only maps.
+        $dataKeys = array_keys($dash->json('data'));
+        sort($dataKeys);
         $this->assertSame(
-            ['user_info', 'subscription_info', 'stats', 'conversation_estimates', 'list_growth', 'recent_campaigns'],
-            array_keys($dash->json('data')),
+            ['conversation_estimates', 'list_growth', 'recent_campaigns', 'stats', 'subscription_info', 'user_info', 'wallet_info'],
+            $dataKeys,
         );
         $this->assertIsArray($dash->json('data.list_growth.available_lists'));
         $this->assertIsNumeric($dash->json('data.user_info.wallet_amount'));
+        $this->assertSame(500.0, (float) $dash->json('data.user_info.wallet_amount'));
+        $this->assertSame(500.0, (float) $dash->json('data.wallet_info.wallet_amount'));
+        $today = $dash->json('data.stats.today');
+        $this->assertSame(
+            (int) $today['marketing'] + (int) $today['utility'],
+            (int) $today['total_delivered'],
+        );
+        $estimates = $dash->json('data.conversation_estimates.based_on_wallet_balance');
+        $this->assertArrayHasKey('service', $estimates);
+        $this->assertGreaterThanOrEqual(0, (int) $estimates['service']);
+
+        $walletTx = $this->withToken($this->accessToken)
+            ->getJson('/api/v1/wallet-transactions')
+            ->assertOk()
+            ->assertJsonPath('success', true);
+        $this->assertSame(500.0, (float) $walletTx->json('wallet_amount'));
+        $this->assertSame(500.0, (float) $walletTx->json('current_wallet_amount.wallet_amount'));
+        $this->assertIsArray($walletTx->json('wallet_transactions'));
 
         $this->withToken($this->accessToken)
             ->getJson('/api/v1/mobile/inbox/new-message-count')

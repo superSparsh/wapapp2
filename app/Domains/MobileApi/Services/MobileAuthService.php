@@ -247,9 +247,11 @@ final class MobileAuthService
                 $summary = app(\App\Domains\Billing\Services\SubscriptionService::class)->subscriptionSummary();
                 $planName = $summary['plan_name'] ?? $summary['plan']?->name;
                 $expiresAt = $summary['expires_at'] ?? null;
-                if ($expiresAt instanceof \Illuminate\Support\Carbon) {
-                    $validUntil = $expiresAt->toDateString();
-                    $remainingDays = (int) floor((float) now()->startOfDay()->diffInDays($expiresAt->copy()->startOfDay(), false));
+                // SubscriptionService returns Carbon\Carbon; do not require Illuminate\Support\Carbon.
+                if ($expiresAt instanceof \Carbon\CarbonInterface) {
+                    $expires = \Carbon\Carbon::instance($expiresAt);
+                    $validUntil = $expires->toDateString();
+                    $remainingDays = max(0, (int) floor((float) now()->startOfDay()->diffInDays($expires->copy()->startOfDay(), false)));
                 }
             }
         } catch (\Throwable) {

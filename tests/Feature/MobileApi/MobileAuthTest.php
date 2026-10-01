@@ -61,6 +61,9 @@ class MobileAuthTest extends TestCase
 
         $this->assertSame('Bearer', $response->json('data.token_type'));
         $this->assertNotEmpty($response->json('data.access_token'));
+        $this->assertArrayHasKey('wallet_amount', $response->json('data.user'));
+        $this->assertArrayHasKey('valid_until', $response->json('data.user'));
+        $this->assertArrayHasKey('remaining_days', $response->json('data.user'));
     }
 
     public function test_login_rejects_invalid_credentials(): void

@@ -885,8 +885,13 @@ class MobileInboxController extends Controller
         $planName = $subscription['plan_name'] ?? $subscription['plan']?->name;
         $expiresAt = $subscription['expires_at'] ?? null;
         $remainingDays = null;
-        if ($expiresAt instanceof \Illuminate\Support\Carbon) {
-            $remainingDays = (int) now()->startOfDay()->diffInDays($expiresAt->copy()->startOfDay(), false);
+        $validUntil = null;
+        $expiresIso = null;
+        if ($expiresAt instanceof \Carbon\CarbonInterface) {
+            $expires = \Carbon\Carbon::instance($expiresAt);
+            $remainingDays = max(0, (int) now()->startOfDay()->diffInDays($expires->copy()->startOfDay(), false));
+            $validUntil = $expires->toDateString();
+            $expiresIso = $expires->toIso8601String();
         }
 
         $wallet = 0.0;
@@ -903,8 +908,8 @@ class MobileInboxController extends Controller
                 'status' => $subscription['subscription']?->status?->value
                     ?? ($subscription['subscription'] !== null || filled($planName) ? 'active' : 'inactive'),
                 'remaining_days' => $remainingDays,
-                'valid_until' => $expiresAt instanceof \Illuminate\Support\Carbon ? $expiresAt->toDateString() : null,
-                'expires_at' => $expiresAt instanceof \Illuminate\Support\Carbon ? $expiresAt->toIso8601String() : null,
+                'valid_until' => $validUntil,
+                'expires_at' => $expiresIso,
                 'wallet_amount' => $wallet,
                 'wallet_balance' => $wallet,
                 'message_limit' => $subscription['plan']?->messages_limit,

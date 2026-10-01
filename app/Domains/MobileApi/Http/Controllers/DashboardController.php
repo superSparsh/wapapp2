@@ -4,26 +4,28 @@ declare(strict_types=1);
 
 namespace App\Domains\MobileApi\Http\Controllers;
 
+use App\Domains\Billing\Services\ServiceMessageFreeAllowanceService;
 use App\Domains\Billing\Services\SubscriptionService;
 use App\Domains\Billing\Services\WalletService;
 use App\Domains\Dashboard\Services\DashboardService;
-use App\Domains\MobileApi\Services\MobileLineResolver;
 use App\Enums\CampaignStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Campaign;
+use App\Models\CountryPricing;
 use App\Models\MailList;
 use App\Models\TeamMember;
 use App\Models\User;
 use App\Models\WalletAccount;
+use Carbon\Carbon;
+use Carbon\CarbonInterface;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
 /**
  * Legacy-compatible mobile dashboard.
- * Response `data` must contain ONLY the six map keys the Flutter app casts with Map.from().
+ * Top-level `data` values must all be Maps (Flutter Map.from on each key).
  */
 class DashboardController extends Controller
 {
@@ -31,7 +33,7 @@ class DashboardController extends Controller
         private readonly DashboardService $dashboard,
         private readonly SubscriptionService $subscriptions,
         private readonly WalletService $wallet,
-        private readonly MobileLineResolver $lines,
+        private readonly ServiceMessageFreeAllowanceService $freeService,
     ) {}
 
     public function dashboard(Request $request): JsonResponse
@@ -42,15 +44,13 @@ class DashboardController extends Controller
             $today = $this->safeCredits(DashboardService::PERIOD_DAILY);
             $week = $this->safeCredits(DashboardService::PERIOD_WEEKLY);
             $month = $this->safeCredits(DashboardService::PERIOD_MONTHLY);
+            $free = $this->freeService->summary();
 
             $subscription = $this->subscriptions->subscriptionSummary();
             $walletBalance = $this->resolveWalletBalance();
+            [$costMarketing, $costUtility, $costService] = $this->conversationCosts();
 
-            $lists = MailList::query()
-                ->orderByDesc('id')
-                ->limit(20)
-                ->get(['id', 'name']);
-
+            $lists = MailList::query()->orderByDesc('id')->limit(20)->get(['id', 'name']);
             $campaigns = Campaign::query()
                 ->where('status', CampaignStatus::Completed)
                 ->orderByDesc('id')
@@ -64,24 +64,36 @@ class DashboardController extends Controller
             $expiresAt = $subscription['expires_at'] ?? null;
             $remainingDays = null;
             $validUntil = null;
-            if ($expiresAt instanceof Carbon) {
-                $remainingDays = (int) floor((float) now()->startOfDay()->diffInDays($expiresAt->copy()->startOfDay(), false));
-                $validUntil = $expiresAt->toDateString();
+            // SubscriptionService returns Carbon\Carbon (not Illuminate\Support\Carbon).
+            if ($expiresAt instanceof CarbonInterface) {
+                $expires = Carbon::instance($expiresAt);
+                $remainingDays = max(0, (int) floor((float) now()->startOfDay()->diffInDays($expires->copy()->startOfDay(), false)));
+                $validUntil = $expires->toDateString();
+                $expiresAt = $expires;
             }
 
-            $costMarketing = 1.0;
-            $costUtility = 0.58;
-            $costService = 0.57;
             $dailyTierLimit = max(1, (int) ($today['marketing_limit'] ?? 1000));
+            $monthlyTierLimit = $dailyTierLimit * 30;
 
-            // Exact legacy key set — do not add top-level list/scalar keys (Flutter Map.from crash).
+            // Match web credits card: free service remaining this calendar month.
+            $serviceFreeRemaining = max(0, (int) ($free['remaining'] ?? 0));
+
+            $marketingToday = (int) ($today['marketing'] ?? 0);
+            $utilityToday = (int) ($today['utility'] ?? 0);
+            $serviceToday = (int) ($today['service'] ?? 0);
+            $marketingWeek = (int) ($week['marketing'] ?? 0);
+            $utilityWeek = (int) ($week['utility'] ?? 0);
+            $serviceWeek = (int) ($week['service'] ?? 0);
+            $marketingMonth = (int) ($month['marketing'] ?? 0);
+            $utilityMonth = (int) ($month['utility'] ?? 0);
+            $serviceMonth = (int) ($month['service'] ?? 0);
+
             $dashboardData = [
                 'user_info' => [
                     'uid' => $uid,
                     'name' => $name !== '' ? $name : 'User',
                     'timezone' => $timezone,
                     'current_time' => now()->setTimezone($timezone)->toIso8601String(),
-                    // Nested inside user_info map (safe for Map.from parsers)
                     'wallet_amount' => $walletBalance,
                     'wallet_balance' => $walletBalance,
                 ],
@@ -89,43 +101,61 @@ class DashboardController extends Controller
                     'plan_name' => $planName,
                     'remaining_days' => $remainingDays,
                     'valid_until' => $validUntil,
-                    'expires_at' => $expiresAt instanceof Carbon ? $expiresAt->toIso8601String() : null,
+                    'expires_at' => $expiresAt instanceof CarbonInterface ? $expiresAt->toIso8601String() : null,
+                    'plan_expires' => $validUntil,
+                    'current_period_ends_at' => $validUntil,
                     'status' => $subscription['subscription']?->status?->value
                         ?? ($subscription['subscription'] !== null || filled($planName) ? 'active' : null),
+                    'wallet_amount' => $walletBalance,
+                ],
+                // Dedicated map so Flutter Map.from(data['wallet_info']) works and shows balance.
+                'wallet_info' => [
+                    'wallet_amount' => $walletBalance,
+                    'wallet_balance' => $walletBalance,
+                    'currency' => 'INR',
+                    'amount' => $walletBalance,
                 ],
                 'stats' => [
                     'today' => [
-                        'marketing' => (int) ($today['marketing'] ?? 0),
-                        'utility' => (int) ($today['utility'] ?? 0),
-                        'service' => (int) ($today['service'] ?? 0),
-                        'total_delivered' => (int) (
-                            ($today['marketing'] ?? 0) + ($today['utility'] ?? 0) + ($today['service'] ?? 0)
-                        ),
+                        'marketing' => $marketingToday,
+                        'utility' => $utilityToday,
+                        'service' => $serviceToday,
+                        // Mobile "Sent" must not include service conversations.
+                        'total_delivered' => $marketingToday + $utilityToday,
                     ],
                     'last_7_days' => [
-                        'marketing' => (int) ($week['marketing'] ?? 0),
-                        'utility' => (int) ($week['utility'] ?? 0),
-                        'service' => (int) ($week['service'] ?? 0),
-                        'total_delivered' => (int) (
-                            ($week['marketing'] ?? 0) + ($week['utility'] ?? 0) + ($week['service'] ?? 0)
-                        ),
+                        'marketing' => $marketingWeek,
+                        'utility' => $utilityWeek,
+                        'service' => $serviceWeek,
+                        'total_delivered' => $marketingWeek + $utilityWeek,
                     ],
                     'last_30_days' => [
-                        'marketing' => (int) ($month['marketing'] ?? 0),
-                        'utility' => (int) ($month['utility'] ?? 0),
-                        'service' => (int) ($month['service'] ?? 0),
-                        'total_delivered' => (int) (
-                            ($month['marketing'] ?? 0) + ($month['utility'] ?? 0) + ($month['service'] ?? 0)
-                        ),
+                        'marketing' => $marketingMonth,
+                        'utility' => $utilityMonth,
+                        'service' => $serviceMonth,
+                        'total_delivered' => $marketingMonth + $utilityMonth,
                     ],
                 ],
                 'conversation_estimates' => [
                     'based_on_wallet_balance' => [
-                        'daily_marketing' => max(0, (int) min(floor($walletBalance / $costMarketing), $dailyTierLimit - (int) ($today['marketing'] ?? 0))),
-                        'daily_utility' => max(0, (int) min(floor($walletBalance / $costUtility), $dailyTierLimit - (int) ($today['utility'] ?? 0))),
-                        'monthly_marketing' => max(0, (int) min(floor($walletBalance / $costMarketing), ($dailyTierLimit * 30) - (int) ($month['marketing'] ?? 0))),
-                        'monthly_utility' => max(0, (int) min(floor($walletBalance / $costUtility), ($dailyTierLimit * 30) - (int) ($month['utility'] ?? 0))),
-                        'service' => max(0, (int) floor($walletBalance / $costService)),
+                        'daily_marketing' => max(0, (int) min(
+                            floor($walletBalance / max(0.0001, $costMarketing)),
+                            max(0, $dailyTierLimit - $marketingToday),
+                        )),
+                        'daily_utility' => max(0, (int) min(
+                            floor($walletBalance / max(0.0001, $costUtility)),
+                            max(0, $dailyTierLimit - $utilityToday),
+                        )),
+                        'monthly_marketing' => max(0, (int) min(
+                            floor($walletBalance / max(0.0001, $costMarketing)),
+                            max(0, $monthlyTierLimit - $marketingMonth),
+                        )),
+                        'monthly_utility' => max(0, (int) min(
+                            floor($walletBalance / max(0.0001, $costUtility)),
+                            max(0, $monthlyTierLimit - $utilityMonth),
+                        )),
+                        // Service estimate = free service remaining (web free-allowance), not wallet/0.57.
+                        'service' => $serviceFreeRemaining,
                     ],
                 ],
                 'list_growth' => [
@@ -162,6 +192,30 @@ class DashboardController extends Controller
                 'error' => $e->getMessage(),
             ], 500);
         }
+    }
+
+    /**
+     * @return array{0: float, 1: float, 2: float}
+     */
+    private function conversationCosts(): array
+    {
+        try {
+            $pricing = CountryPricing::query()
+                ->where('country_code', 'IN')
+                ->first();
+            if ($pricing !== null) {
+                $m = (float) ($pricing->tekpro_marketing_price ?: $pricing->marketing_price ?: 0);
+                $u = (float) ($pricing->tekpro_utility_price ?: $pricing->utility_price ?: 0);
+                $s = (float) ($pricing->tekpro_service_price ?: $pricing->service_price ?: 0);
+                if ($m > 0 && $u > 0 && $s > 0) {
+                    return [$m, $u, $s];
+                }
+            }
+        } catch (Throwable) {
+            //
+        }
+
+        return [1.0, 0.58, 0.57];
     }
 
     /**
@@ -228,7 +282,6 @@ class DashboardController extends Controller
         return [
             'list_name' => (string) $list->name,
             'list_uid' => (string) ($list->uuid ?? $list->id),
-            // Must stay a Map with dates/values lists (legacy getGrowthChartData shape).
             'growth' => [
                 'dates' => [],
                 'values' => [],

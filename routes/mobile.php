@@ -6,6 +6,7 @@ use App\Domains\MobileApi\Http\Controllers\AuthController;
 use App\Domains\MobileApi\Http\Controllers\DashboardController;
 use App\Domains\MobileApi\Http\Controllers\MobileInboxController;
 use App\Domains\MobileApi\Http\Controllers\ProviderKeysController;
+use App\Domains\MobileApi\Http\Controllers\WalletController;
 use App\Domains\MobileApi\Http\Middleware\AuthenticateJwtOrApiToken;
 use App\Domains\Notifications\Http\Controllers\DeviceTokenController;
 use Illuminate\Support\Facades\Route;
@@ -28,6 +29,11 @@ Route::prefix('v1/auth')->group(function (): void {
     Route::middleware('jwt.auth')->group(function (): void {
         Route::get('me', [AuthController::class, 'me']);
     });
+});
+
+// Legacy wallet screen used by the mobile app (JWT).
+Route::prefix('v1')->middleware('jwt.auth')->group(function (): void {
+    Route::get('wallet-transactions', [WalletController::class, 'transactions']);
 });
 
 // Device tokens: JWT (mobile app) or partner api_token.

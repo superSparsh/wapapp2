@@ -60,6 +60,14 @@ class SubscriptionService
         $plan = $this->currentPlan();
         $tenant = $this->currentTenant();
 
+        // Always re-read central tenant so admin Extend-validity settings are fresh.
+        if ($tenant !== null) {
+            $fresh = tenancy()->central(fn () => Tenant::query()->find($tenant->id));
+            if ($fresh !== null) {
+                $tenant = $fresh;
+            }
+        }
+
         // Fallback plan name from subscription metadata when central plan row is missing.
         $planName = $plan?->name;
         if ($planName === null && is_array($subscription?->metadata ?? null)) {
@@ -67,15 +75,59 @@ class SubscriptionService
             $planName = is_string($metaName) && $metaName !== '' ? $metaName : null;
         }
 
-        // Account validity: prefer subscription ends_at, fall back to admin-managed
-        // tenant.settings.valid_until (legacy / Extend validity). Use the later date
-        // when both exist so admin extensions still show on the dashboard.
-        $expiresAt = $subscription?->ends_at;
-        $validUntil = $this->tenantValidUntil($tenant);
-        if ($expiresAt === null) {
-            $expiresAt = $validUntil;
-        } elseif ($validUntil !== null && $validUntil->greaterThan($expiresAt)) {
-            $expiresAt = $validUntil;
+        // Account validity resolution (later date wins when multiple sources exist).
+        $candidates = [];
+
+        if ($subscription?->ends_at instanceof Carbon) {
+            $candidates[] = $subscription->ends_at->copy();
+        }
+
+        $settingsUntil = $this->tenantValidUntil($tenant);
+        if ($settingsUntil instanceof Carbon) {
+            $candidates[] = $settingsUntil;
+        }
+
+        // Latest subscription row (even if not Active) may still carry ends_at from migration.
+        if ($subscription === null) {
+            $latest = Subscription::query()->latest('id')->first();
+            if ($latest?->ends_at instanceof Carbon) {
+                $candidates[] = $latest->ends_at->copy();
+            }
+            if ($subscription === null && $latest !== null) {
+                $subscription = $latest;
+                if ($planName === null && is_array($latest->metadata ?? null)) {
+                    $metaName = $latest->metadata['plan_name'] ?? $latest->metadata['name'] ?? null;
+                    $planName = is_string($metaName) && $metaName !== '' ? $metaName : null;
+                }
+            }
+        }
+
+        // Derive from plan validity when ends_at was never stored.
+        $validityDays = $plan instanceof Plan ? $plan->resolvedValidityDays() : 0;
+        if ($validityDays > 0) {
+            $start = $subscription?->starts_at instanceof Carbon
+                ? $subscription->starts_at->copy()
+                : null;
+            if ($start === null && $tenant?->provisioned_at) {
+                try {
+                    $start = Carbon::parse((string) $tenant->provisioned_at);
+                } catch (Throwable) {
+                    $start = null;
+                }
+            }
+            if ($start === null && $tenant?->created_at) {
+                $start = $tenant->created_at->copy();
+            }
+            if ($start instanceof Carbon) {
+                $candidates[] = $start->copy()->addDays($validityDays)->endOfDay();
+            }
+        }
+
+        $expiresAt = null;
+        foreach ($candidates as $candidate) {
+            if ($expiresAt === null || $candidate->greaterThan($expiresAt)) {
+                $expiresAt = $candidate;
+            }
         }
 
         return [

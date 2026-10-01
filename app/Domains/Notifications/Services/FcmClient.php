@@ -35,7 +35,7 @@ class FcmClient
     }
 
     /**
-     * @param  array<string, mixed>  $notification
+     * @param  array{title?: string, body?: string}  $notification
      * @param  array<string, string>  $data
      */
     public function sendToToken(string $token, array $notification, array $data = []): bool
@@ -55,12 +55,30 @@ class FcmClient
             $projectId = $this->projectId($credentials);
             $url = 'https://fcm.googleapis.com/v1/projects/'.$projectId.'/messages:send';
 
+            $title = trim((string) ($notification['title'] ?? ''));
+            $body = trim((string) ($notification['body'] ?? ''));
+            if ($body === '') {
+                return false;
+            }
+            if ($title === '') {
+                $title = 'WapApp';
+            }
+
+            // Put the real copy in data as well so Flutter does not fall back to
+            // a hardcoded "You have a new message" when building a local banner.
+            $data = array_merge([
+                'title' => $title,
+                'body' => $body,
+                'message' => $body,
+            ], $data);
+
             $payload = [
                 'message' => [
                     'token' => $token,
+                    // Real message only (contact + body) — never "You have a new message".
                     'notification' => [
-                        'title' => (string) ($notification['title'] ?? 'New message'),
-                        'body' => (string) ($notification['body'] ?? ''),
+                        'title' => $title,
+                        'body' => $body,
                     ],
                     'data' => $this->stringifyData($data),
                     'android' => [
@@ -72,6 +90,10 @@ class FcmClient
                         ],
                         'payload' => [
                             'aps' => [
+                                'alert' => [
+                                    'title' => $title,
+                                    'body' => $body,
+                                ],
                                 'sound' => 'default',
                             ],
                         ],
@@ -88,9 +110,9 @@ class FcmClient
                 return true;
             }
 
-            $body = $response->json();
-            $errorCode = (string) data_get($body, 'error.status', '');
-            $errorMessage = (string) data_get($body, 'error.message', $response->body());
+            $responseBody = $response->json();
+            $errorCode = (string) data_get($responseBody, 'error.status', '');
+            $errorMessage = (string) data_get($responseBody, 'error.message', $response->body());
 
             // Drop dead tokens so we don't keep retrying.
             if (in_array($errorCode, ['NOT_FOUND', 'INVALID_ARGUMENT'], true)

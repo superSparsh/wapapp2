@@ -119,6 +119,10 @@ class FcmPushService
 
             $title = $this->notificationTitle($conversation);
             $body = $this->notificationBody($message);
+            if ($body === '') {
+                return;
+            }
+
             $data = [
                 'type' => 'inbox_new_message',
                 'conversation_id' => (string) $conversation->id,
@@ -126,6 +130,10 @@ class FcmPushService
                 'message_id' => (string) $message->id,
                 'contact_phone' => (string) ($conversation->contact_phone ?? ''),
                 'contact_name' => (string) ($conversation->contact_name ?? ''),
+                // Flutter often reads these for the tray text (avoid hardcoded fallbacks).
+                'title' => $title,
+                'body' => $body,
+                'message' => $body,
             ];
 
             foreach ($tokens as $row) {
@@ -186,21 +194,38 @@ class FcmPushService
 
     private function notificationTitle(Conversation $conversation): string
     {
-        $name = trim((string) ($conversation->contact_name ?: $conversation->contact_phone ?: 'New WhatsApp message'));
+        $name = trim((string) ($conversation->contact_name ?: $conversation->contact_phone ?: ''));
 
-        return $name !== '' ? $name : 'New WhatsApp message';
+        return $name !== '' ? $name : 'WapApp';
     }
 
     private function notificationBody(Message $message): string
     {
         $body = trim(strip_tags((string) ($message->body ?? '')));
-        if ($body === '') {
-            $type = $message->message_type?->value ?? 'message';
-
-            return 'New '.$type;
+        if ($body !== '') {
+            return Str::limit($body, 140);
         }
 
-        return Str::limit($body, 140);
+        $meta = is_array($message->metadata ?? null) ? $message->metadata : [];
+        $caption = trim(strip_tags((string) ($meta['caption'] ?? $meta['raw_message']['caption'] ?? '')));
+        if ($caption !== '') {
+            return Str::limit($caption, 140);
+        }
+
+        $type = strtolower((string) ($message->message_type?->value ?? ''));
+
+        return match ($type) {
+            'image' => 'Photo',
+            'video' => 'Video',
+            'audio', 'voice' => 'Audio',
+            'document', 'file' => 'Document',
+            'sticker' => 'Sticker',
+            'location' => 'Location',
+            'contacts', 'contact' => 'Contact',
+            'interactive', 'button', 'list' => 'Interactive message',
+            'reaction' => 'Reaction',
+            default => '',
+        };
     }
 
     private function normalizePlatform(mixed $platform): ?string
