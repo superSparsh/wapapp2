@@ -312,6 +312,8 @@ class DashboardService
             'service_limit' => $free['limit'] > 0 ? $free['limit'] : null,
             'service_free_used' => $free['used'],
             'service_free_remaining' => $free['remaining'],
+            'service_free_per_number' => $free['limit_per_line'],
+            'service_whatsapp_numbers' => $free['lines'],
         ];
     }
 

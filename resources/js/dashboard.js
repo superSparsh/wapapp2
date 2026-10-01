@@ -201,6 +201,16 @@ function initCreditsFilter(root) {
                 valueEl.textContent = `${formatNumber(used)}/${formatNumber(limit)}`;
             });
 
+            const freeNote = root.querySelector('[data-service-free-note]');
+            if (freeNote && credits.service_limit != null) {
+                const perNumber = Number(credits.service_free_per_number ?? 1000);
+                const numbers = Math.max(1, Number(credits.service_whatsapp_numbers ?? 1));
+                const remaining = Number(credits.service_free_remaining ?? 0);
+                const total = Number(credits.service_limit ?? 0);
+                const numberLabel = numbers === 1 ? 'WhatsApp number' : 'WhatsApp numbers';
+                freeNote.textContent = `${formatNumber(remaining)} free left this month · ${formatNumber(perNumber)} free × ${numbers} ${numberLabel} = ${formatNumber(total)}`;
+            }
+
             if (fromRefresh) {
                 flashRefreshTarget(root.querySelector('.grid') || root);
                 setRefreshState(refreshButtons, 'done');

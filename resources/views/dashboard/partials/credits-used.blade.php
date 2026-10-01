@@ -53,9 +53,16 @@
     <x-ui.credit-stat-card label="Service messages" icon="headset" data-credit-key="service" :value="$serviceValue" />
   </div>
   @if (($credits['service_limit'] ?? null) !== null)
-    <p class="text-xs text-text-muted">
-      {{ number_format((int) ($credits['service_free_remaining'] ?? 0)) }} free service messages left this month
-      ({{ number_format((int) config('billing.service_free_messages_per_month', 1000)) }} free / WhatsApp number).
+    @php
+      $freePerNumber = (int) ($credits['service_free_per_number'] ?? config('billing.service_free_messages_per_month', 1000));
+      $whatsappNumbers = max(1, (int) ($credits['service_whatsapp_numbers'] ?? 1));
+      $freeRemaining = (int) ($credits['service_free_remaining'] ?? 0);
+      $freeTotal = (int) ($credits['service_limit'] ?? 0);
+    @endphp
+    <p class="text-right text-xs text-text-muted" data-service-free-note>
+      {{ number_format($freeRemaining) }} free left this month
+      · {{ number_format($freePerNumber) }} free × {{ $whatsappNumbers }} {{ $whatsappNumbers === 1 ? 'WhatsApp number' : 'WhatsApp numbers' }}
+      = {{ number_format($freeTotal) }}
     </p>
   @endif
 </section>
