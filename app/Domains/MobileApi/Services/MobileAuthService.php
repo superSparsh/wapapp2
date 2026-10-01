@@ -241,12 +241,15 @@ final class MobileAuthService
                     tenancy()->initialize($tenant);
                 }
                 $wallet = round(app(\App\Domains\Billing\Services\WalletService::class)->balance(), 2);
+                if ($wallet <= 0) {
+                    $wallet = round((float) (\App\Models\WalletAccount::query()->value('balance') ?? 0), 2);
+                }
                 $summary = app(\App\Domains\Billing\Services\SubscriptionService::class)->subscriptionSummary();
                 $planName = $summary['plan_name'] ?? $summary['plan']?->name;
                 $expiresAt = $summary['expires_at'] ?? null;
                 if ($expiresAt instanceof \Illuminate\Support\Carbon) {
                     $validUntil = $expiresAt->toDateString();
-                    $remainingDays = (int) now()->startOfDay()->diffInDays($expiresAt->copy()->startOfDay(), false);
+                    $remainingDays = (int) floor((float) now()->startOfDay()->diffInDays($expiresAt->copy()->startOfDay(), false));
                 }
             }
         } catch (\Throwable) {

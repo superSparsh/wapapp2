@@ -175,18 +175,58 @@ class MobileInboxTest extends TestCase
         ]);
     }
 
-    public function test_add_contact(): void
+    public function test_open_conversation_returns_legacy_messages(): void
     {
-        $this->withToken($this->accessToken)
-            ->postJson('/api/v1/mobile/inbox/contacts', [
-                'whatsapp_number' => '919999999999',
-                'phone' => '918777777701',
-                'name' => 'New Mobile Contact',
-            ])
-            ->assertCreated()
-            ->assertJsonPath('success', true)
-            ->assertJsonPath('data.customer_name', 'New Mobile Contact');
+        tenancy()->initialize($this->testTenant);
+
+        $contact = Contact::factory()->create(['name' => 'Open Chat', 'phone' => '918888888802']);
+        $conversation = Conversation::factory()->create([
+            'whatsapp_line_id' => $this->testLine->id,
+            'contact_id' => $contact->id,
+            'contact_phone' => $contact->phone,
+            'line_phone' => $this->testLine->phone,
+            'contact_name' => $contact->name,
+            'last_message_at' => now(),
+        ]);
+
+        Message::query()->create([
+            'conversation_id' => $conversation->id,
+            'body' => 'Customer hello',
+            'direction' => MessageDirection::Inbound,
+            'message_type' => MessageType::Text,
+            'status' => MessageStatus::Delivered,
+        ]);
+        Message::query()->create([
+            'conversation_id' => $conversation->id,
+            'body' => 'Agent reply',
+            'direction' => MessageDirection::Outbound,
+            'message_type' => MessageType::Text,
+            'status' => MessageStatus::Sent,
+        ]);
+
+        $conversationId = (int) $conversation->id;
+        tenancy()->end();
+
+        $open = $this->withToken($this->accessToken)
+            ->getJson('/api/v1/mobile/inbox/conversation?whatsapp_number=919999999999&conversation_id='.$conversationId)
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $this->assertIsArray($open->json('data.msgs'));
+        $this->assertNotEmpty($open->json('data.msgs'));
+        $this->assertSame('frnd', $open->json('data.msgs.0.type'));
+        $this->assertSame('Customer hello', $open->json('data.msgs.0.msg'));
+        $this->assertSame('my', $open->json('data.msgs.1.type'));
+
+        $sub = $this->withToken($this->accessToken)
+            ->getJson('/api/v1/mobile/inbox/conversations/sub-reply/'.$conversationId)
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $this->assertIsArray($sub->json('data.conversations'));
+        $this->assertSame('Customer hello', $sub->json('data.conversations.0.msg'));
     }
+
 
     public function test_provider_keys_and_ai_endpoints(): void
     {

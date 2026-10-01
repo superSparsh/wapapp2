@@ -22,6 +22,7 @@ use App\Enums\ConversationResponseType;
 use App\Enums\MessageStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Conversation;
+use App\Models\Message;
 use App\Models\TeamMember;
 use App\Models\Template;
 use App\Models\User;
@@ -67,9 +68,12 @@ class MobileInboxController extends Controller
         $defaultPhone = $numbers[0]['phone'] ?? null;
         $walletBalance = 0.0;
         try {
-            $walletBalance = app(\App\Domains\Billing\Services\WalletService::class)->balance();
+            $walletBalance = round(app(\App\Domains\Billing\Services\WalletService::class)->balance(), 2);
+            if ($walletBalance <= 0) {
+                $walletBalance = round((float) (\App\Models\WalletAccount::query()->value('balance') ?? 0), 2);
+            }
         } catch (\Throwable) {
-            //
+            $walletBalance = round((float) (\App\Models\WalletAccount::query()->value('balance') ?? 0), 2);
         }
 
         return response()->json([
@@ -79,6 +83,7 @@ class MobileInboxController extends Controller
                 'userassigned' => $defaultPhone,
                 'numbers' => $numbers,
                 'wallet_amount' => $walletBalance,
+                'wallet_balance' => $walletBalance,
                 'line_context_locked' => false,
                 'inbox_phone_masking_enabled' => false,
             ],
@@ -166,9 +171,85 @@ class MobileInboxController extends Controller
         abort_if($conversation === null, 404, 'Conversation not found.');
         $this->accessService->assertCanAccessConversation($conversation);
 
+        $messages = Message::query()
+            ->where('conversation_id', $conversation->id)
+            ->orderBy('id')
+            ->limit(500)
+            ->get();
+
+        $legacyMessages = MobileInboxPresenter::legacyChatMessages($messages, $conversation);
+        $this->messageService->markRead($conversation);
+
+        $latestInbound = $messages->last(
+            fn (Message $message): bool => ($message->direction?->value ?? '') === 'inbound'
+        );
+        $isTimeElapsed = true;
+        $timeElapsedHours = null;
+        if ($latestInbound?->created_at !== null) {
+            $deadline = $latestInbound->created_at->copy()->addHours(24);
+            $isTimeElapsed = now()->greaterThanOrEqualTo($deadline);
+            $timeElapsedHours = (int) $latestInbound->created_at->diffInHours(now());
+        }
+
+        $walletBalance = 0.0;
+        try {
+            $walletBalance = round(app(\App\Domains\Billing\Services\WalletService::class)->balance(), 2);
+        } catch (\Throwable) {
+            //
+        }
+
         return response()->json([
             'success' => true,
-            'data' => MobileInboxPresenter::conversation($conversation->load('latestMessage')),
+            'message' => 'Conversation data retrieved successfully',
+            'data' => [
+                // Legacy mobile open-chat payload
+                'conversations' => $legacyMessages,
+                'msgs' => $legacyMessages,
+                'messages' => $legacyMessages,
+                'is_time_elapsed' => $isTimeElapsed,
+                'time_elapsed_hours' => $timeElapsedHours,
+                'wallet_balance' => $walletBalance,
+                'wallet_amount' => $walletBalance,
+                'response_type' => $conversation->response_type?->value ?? 'human_response',
+                'has_assigned_users' => false,
+                'conversation' => MobileInboxPresenter::conversation($conversation->loadMissing('latestMessage')),
+            ],
+        ]);
+    }
+
+    public function getConversation(Request $request): JsonResponse
+    {
+        $line = $this->lines->resolve($request->input('whatsapp_number'));
+        $conversation = $this->lines->findConversation(
+            $line,
+            $request->input('customer_phone') ?: $request->input('to_number'),
+            $request->integer('conversation_id') ?: $request->integer('id') ?: null,
+        );
+
+        $this->messageService->markRead($conversation);
+
+        $messages = Message::query()
+            ->where('conversation_id', $conversation->id)
+            ->orderBy('id')
+            ->limit(500)
+            ->get();
+
+        $legacyMessages = MobileInboxPresenter::legacyChatMessages($messages, $conversation);
+        $meta = MobileInboxPresenter::conversation($conversation->loadMissing('latestMessage'));
+
+        return response()->json([
+            'success' => true,
+            'data' => array_merge($meta, [
+                // Docs + legacy aliases the mobile thread view reads
+                'messages' => $legacyMessages,
+                'msgs' => $legacyMessages,
+                'conversations' => $legacyMessages,
+                'customer_info' => [
+                    'name' => $meta['customer_name'],
+                    'phone' => $meta['customer_phone'],
+                    'email' => null,
+                ],
+            ]),
         ]);
     }
 
@@ -202,28 +283,6 @@ class MobileInboxController extends Controller
         );
 
         return $this->exportService->exportConversation($conversation);
-    }
-
-    public function getConversation(Request $request): JsonResponse
-    {
-        $line = $this->lines->resolve($request->input('whatsapp_number'));
-        $conversation = $this->lines->findConversation(
-            $line,
-            $request->input('customer_phone') ?: $request->input('to_number'),
-            $request->integer('conversation_id') ?: $request->integer('id') ?: null,
-        );
-
-        $this->messageService->markRead($conversation);
-        $messages = $this->messageService->paginateMessages($conversation, lookbackDays: 90);
-
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'conversation' => MobileInboxPresenter::conversation($conversation->fresh('latestMessage')),
-                'messages' => $messages['items'],
-                'has_more' => $messages['has_more'],
-            ],
-        ]);
     }
 
     public function updateConversationStatus(Request $request): JsonResponse

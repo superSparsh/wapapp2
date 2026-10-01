@@ -70,6 +70,59 @@ final class MobileInboxPresenter
     }
 
     /**
+     * Legacy mobile chat bubble fields (`frnd` = inbound, `my` = outbound).
+     *
+     * @return array<string, mixed>
+     */
+    public static function legacyChatMessage(Message $message, Conversation $conversation): array
+    {
+        $direction = $message->direction?->value ?? 'outbound';
+        $isInbound = $direction === 'inbound';
+        $type = $isInbound ? 'frnd' : 'my';
+        $body = (string) ($message->body ?? '');
+        $createdAt = $message->created_at?->toIso8601String();
+        $metadata = is_array($message->metadata) ? $message->metadata : [];
+        $mediaUrl = $metadata['media_url'] ?? $metadata['media_url_local'] ?? null;
+
+        return [
+            'id' => (int) $message->id,
+            'sub_reply_id' => (int) $conversation->id,
+            'msg' => $body,
+            'message' => $body,
+            'body' => $body,
+            'type' => $type,
+            'direction' => $isInbound ? 'incoming' : 'outgoing',
+            'msg_from' => $isInbound ? (string) $conversation->contact_phone : (string) ($conversation->line_phone ?? ''),
+            'msg_to' => $isInbound ? (string) ($conversation->line_phone ?? '') : (string) $conversation->contact_phone,
+            'message_type' => $message->message_type?->value ?? 'text',
+            'media_url' => $mediaUrl,
+            'media_type' => $metadata['file_type'] ?? null,
+            'message_id' => $message->external_message_id ?: (string) $message->id,
+            'status' => $message->status?->value ?? 'sent',
+            'is_read' => $message->read_at !== null || ($message->status?->value === 'read'),
+            'timestamp' => $createdAt,
+            'created_at' => $createdAt,
+            'updated_at' => $message->updated_at?->toIso8601String(),
+        ];
+    }
+
+    /**
+     * @param  iterable<int, Message>  $messages
+     * @return list<array<string, mixed>>
+     */
+    public static function legacyChatMessages(iterable $messages, Conversation $conversation): array
+    {
+        $out = [];
+        foreach ($messages as $message) {
+            if ($message instanceof Message) {
+                $out[] = self::legacyChatMessage($message, $conversation);
+            }
+        }
+
+        return $out;
+    }
+
+    /**
      * @return array<string, mixed>
      */
     public static function assignedNumber(WhatsappLine $line): array
