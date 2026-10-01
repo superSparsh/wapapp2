@@ -13,7 +13,7 @@ use Throwable;
  * Allocates a globally unique sequential integer (central campaign_worker_refs.id)
  * and stores it on the tenant campaign as worker_ref for OCI lifecycle tracking.
  *
- * Uses the central DB connection directly — never tenancy()->central() — so an open
+ * Uses the central DB connection directly - never tenancy()->central() - so an open
  * tenant transaction (e.g. CampaignService::duplicate) is not rolled back.
  */
 final class CampaignWorkerRefAllocator

@@ -39,7 +39,7 @@ class SendAccountExpirationReportCommand extends Command
         );
 
         if ($this->option('dry-run')) {
-            $this->info('Dry-run only — no email sent.');
+            $this->info('Dry-run only - no email sent.');
 
             return self::SUCCESS;
         }
@@ -47,7 +47,7 @@ class SendAccountExpirationReportCommand extends Command
         $monthKey = 'account_expiration_report_sent:'.now()->format('Y-m');
 
         if (! $this->option('force') && ! Cache::add($monthKey, 1, now()->endOfMonth())) {
-            $this->info('Account expiration report already sent this month — skipped. Use --force to resend.');
+            $this->info('Account expiration report already sent this month - skipped. Use --force to resend.');
 
             return self::SUCCESS;
         }

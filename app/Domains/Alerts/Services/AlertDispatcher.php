@@ -345,7 +345,7 @@ class AlertDispatcher
         // Sync send so the email uses the current blade (avoids stale queued workers / view cache).
         $this->platform->notifyAdmins(
             OperationalAlertType::AccountExpirationReport,
-            'Account expiration report — '.now()->format('F Y'),
+            'Account expiration report - '.now()->format('F Y'),
             'emails.alerts.account-expiration-report',
             [
                 'report' => $report,

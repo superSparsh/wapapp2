@@ -21,7 +21,7 @@ return [
     |--------------------------------------------------------------------------
     |
     | Label shown in Google Authenticator / Authy when scanning the 2FA QR.
-    | Keep this short (e.g. WAPAPP). Does not affect Redis prefixes — those
+    | Keep this short (e.g. WAPAPP). Does not affect Redis prefixes - those
     | still use APP_NAME / REDIS_PREFIX.
     |
     */

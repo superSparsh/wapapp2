@@ -127,7 +127,7 @@ class DashboardTest extends TestCase
             'delivered_at' => now(),
         ]);
 
-        // Same conversation again — still +1 message (not conversation-collapsed)
+        // Same conversation again - still +1 message (not conversation-collapsed)
         \App\Models\Message::factory()->outbound()->create([
             'conversation_id' => $conversation->id,
             'message_type' => \App\Enums\MessageType::Interactive,

@@ -11,7 +11,7 @@ use Illuminate\Support\Collection;
 
 /**
  * Monthly account expiry report from central 2.0 tenants only
- * (tenants.settings.valid_until — same source as Admin → Retention).
+ * (tenants.settings.valid_until - same source as Admin → Retention).
  *
  * Buckets match the legacy email layout: ≤30d, 31–90d, expired.
  */
@@ -101,7 +101,7 @@ class AccountExpirationReportService
                     'tenant_id' => (string) $tenant->id,
                     'name' => trim((string) ($tenant->company_name ?: $tenant->name ?: $tenant->id)) ?: (string) $tenant->id,
                     'email' => trim((string) ($tenant->email ?? '')),
-                    'plan_name' => trim((string) ($tenant->plan?->name ?? '')) ?: '—',
+                    'plan_name' => trim((string) ($tenant->plan?->name ?? '')) ?: '-',
                     'ends_at' => $endsAt->copy(),
                     'ends_at_ts' => $endsAt->timestamp,
                     'days_left' => $daysLeft,

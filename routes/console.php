@@ -78,7 +78,7 @@ Schedule::command(PurgeSoftDeletedContactsCommand::class)->dailyAt('04:15');
 Schedule::command(CleanOldFlowSubmissions::class)->daily();
 Schedule::command(RetryFailedDeliveriesCommand::class)->everyFifteenMinutes();
 
-// Legacy nightly all-customers sync DISABLED — use only per-customer:
+// Legacy nightly all-customers sync DISABLED - use only per-customer:
 //   php artisan legacy:migrate-customer {uid} --force --since=3months
 // if ((bool) config('legacy-migration.daily_sync.enabled', true)) {
 //     Schedule::command('legacy:sync-daily')

@@ -14,7 +14,7 @@ return new class extends Migration
             $table->unsignedBigInteger('worker_ref')
                 ->nullable()
                 ->after('id')
-                ->comment('Central campaign_worker_refs.id — globally unique OCI lifecycle key');
+                ->comment('Central campaign_worker_refs.id - globally unique OCI lifecycle key');
             $table->unique('worker_ref', 'campaigns_worker_ref_unique');
         });
     }

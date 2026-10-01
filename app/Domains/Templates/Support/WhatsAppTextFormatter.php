@@ -18,7 +18,7 @@ final class WhatsAppTextFormatter
 {
     /**
      * Convert legacy caret bold (^text^) to WhatsApp bold (*text*).
-     * Meta / WhatsApp only recognize asterisk bold — caret is preview-only legacy UI.
+     * Meta / WhatsApp only recognize asterisk bold - caret is preview-only legacy UI.
      */
     public static function toWhatsAppApi(?string $text): string
     {

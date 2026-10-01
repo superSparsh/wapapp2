@@ -39,7 +39,7 @@ class CampaignServiceAdapter
             app(\App\Domains\Infrastructure\Oci\CampaignOciWorkerLifecycle::class)
                 ->pruneStaleActiveCampaignRefs();
         } catch (\Throwable) {
-            // non-blocking — listing must not fail if OCI redis is down
+            // non-blocking - listing must not fail if OCI redis is down
         }
 
         return $this->localQueryService->paginate(

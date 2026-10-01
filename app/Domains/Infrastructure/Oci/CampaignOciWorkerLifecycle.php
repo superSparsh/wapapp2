@@ -77,7 +77,7 @@ final class CampaignOciWorkerLifecycle
 
     public function onCampaignFinished(Campaign $campaign): void
     {
-        // Ephemeral feature flag only — do NOT require OciWorkload::enabled().
+        // Ephemeral feature flag only - do NOT require OciWorkload::enabled().
         // The CI itself runs with OCI_WORKERS_ENABLED=false; finish must still hop out.
         if (! (bool) config('oci-workers.ephemeral.enabled', false)) {
             return;
@@ -252,7 +252,7 @@ final class CampaignOciWorkerLifecycle
         }
 
         if (str_starts_with($ref, 'id:') && ctype_digit(substr($ref, 3))) {
-            // Legacy id:n — not globally unique; treat as stale.
+            // Legacy id:n - not globally unique; treat as stale.
             return false;
         }
 
@@ -272,13 +272,13 @@ final class CampaignOciWorkerLifecycle
                 'error' => $e->getMessage(),
             ]);
 
-            // Fail closed — keep the ref if central is unavailable.
+            // Fail closed - keep the ref if central is unavailable.
             return true;
         }
 
         if ($row === null) {
             // Digit ref with no central row: could be a legacy bare campaign id still
-            // in Redis, or a test fixture. Keep it — explicit release/forceDestroy clears it.
+            // in Redis, or a test fixture. Keep it - explicit release/forceDestroy clears it.
             // (Prune only drops worker_refs whose campaign is verifiably not Sending.)
             return true;
         }
@@ -320,7 +320,7 @@ final class CampaignOciWorkerLifecycle
                 'error' => $e->getMessage(),
             ]);
 
-            // Fail closed — do not prune an unknown active campaign.
+            // Fail closed - do not prune an unknown active campaign.
             return true;
         } finally {
             try {
@@ -606,7 +606,7 @@ final class CampaignOciWorkerLifecycle
 
     /**
      * Globally unique integer Redis key from central campaign_worker_refs.id (worker_ref).
-     * Pure digits — same shape that already worked with local campaign ids, without collisions.
+     * Pure digits - same shape that already worked with local campaign ids, without collisions.
      */
     public function campaignRefKey(Campaign $campaign): ?string
     {

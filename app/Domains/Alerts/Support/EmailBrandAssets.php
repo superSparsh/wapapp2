@@ -6,7 +6,7 @@ namespace App\Domains\Alerts\Support;
 
 /**
  * Shared branding assets for transactional / ops emails.
- * Outlook often blocks remote images — prefer CID embeds over asset() URLs.
+ * Outlook often blocks remote images - prefer CID embeds over asset() URLs.
  */
 final class EmailBrandAssets
 {

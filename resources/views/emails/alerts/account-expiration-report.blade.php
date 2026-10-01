@@ -24,7 +24,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Account expiry report — {{ $generatedTitle }}</title>
+    <title>Account expiry report - {{ $generatedTitle }}</title>
 </head>
 <body style="margin:0;padding:0;background:#f2f6fb;font-family:{{ $font }};color:#13334c;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f2f6fb;padding:24px 12px;">
@@ -85,7 +85,7 @@
                                         <tr>
                                             <td style="padding:8px 10px;font-size:13px;border-top:1px solid #eef3f8;">
                                                 <strong>{{ $row['name'] }}</strong><br>
-                                                <span style="color:#6a8196;">{{ $row['email'] ?: '—' }}</span>
+                                                <span style="color:#6a8196;">{{ $row['email'] ?: '-' }}</span>
                                             </td>
                                             <td style="padding:8px 10px;font-size:13px;border-top:1px solid #eef3f8;">{{ $row['plan_name'] }}</td>
                                             <td style="padding:8px 10px;font-size:13px;border-top:1px solid #eef3f8;">{{ $row['expires_at_formatted'] }}</td>
@@ -118,7 +118,7 @@
                                         <tr>
                                             <td style="padding:8px 10px;font-size:13px;border-top:1px solid #eef3f8;">
                                                 <strong>{{ $row['name'] }}</strong><br>
-                                                <span style="color:#6a8196;">{{ $row['email'] ?: '—' }}</span>
+                                                <span style="color:#6a8196;">{{ $row['email'] ?: '-' }}</span>
                                             </td>
                                             <td style="padding:8px 10px;font-size:13px;border-top:1px solid #eef3f8;">{{ $row['plan_name'] }}</td>
                                             <td style="padding:8px 10px;font-size:13px;border-top:1px solid #eef3f8;">{{ $row['expires_at_formatted'] }}</td>
@@ -150,7 +150,7 @@
                                         <tr>
                                             <td style="padding:8px 10px;font-size:13px;border-top:1px solid #eef3f8;">
                                                 <strong>{{ $row['name'] }}</strong><br>
-                                                <span style="color:#6a8196;">{{ $row['email'] ?: '—' }}</span>
+                                                <span style="color:#6a8196;">{{ $row['email'] ?: '-' }}</span>
                                             </td>
                                             <td style="padding:8px 10px;font-size:13px;border-top:1px solid #eef3f8;">{{ $row['plan_name'] }}</td>
                                             <td style="padding:8px 10px;font-size:13px;border-top:1px solid #eef3f8;">

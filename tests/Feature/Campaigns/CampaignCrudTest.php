@@ -97,7 +97,7 @@ class CampaignCrudTest extends TestCase
     {
         $sending = Campaign::factory()->sending()->count(2)->create();
         foreach ($sending as $campaign) {
-            // Keep them Sending — index reconciles idle Sending (no pending) to Completed.
+            // Keep them Sending - index reconciles idle Sending (no pending) to Completed.
             CampaignRecipient::factory()->create([
                 'campaign_id' => $campaign->id,
                 'status' => \App\Enums\CampaignRecipientStatus::Pending,

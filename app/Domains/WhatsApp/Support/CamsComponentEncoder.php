@@ -96,7 +96,7 @@ final class CamsComponentEncoder
         $out = [];
 
         foreach ($node as $key => $value) {
-            // Keep empty Text — CAMS rejects BODY/HEADER/FOOTER without Text as
+            // Keep empty Text - CAMS rejects BODY/HEADER/FOOTER without Text as
             // InvalidParameter ("Message must not be null"). Skip other empty strings.
             if ($value === null) {
                 continue;

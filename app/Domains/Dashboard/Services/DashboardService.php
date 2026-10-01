@@ -238,7 +238,7 @@ class DashboardService
     /**
      * Credits Used cards:
      * - marketing / utility = successful campaign sends by template category
-     * - service = delivered free-form (session) messages — no Meta messaging-tier cap
+     * - service = delivered free-form (session) messages - no Meta messaging-tier cap
      * - sent = marketing + utility (service excluded)
      *
      * @return array<string, int|string|null>
@@ -276,7 +276,7 @@ class DashboardService
         $marketing = (int) ($row->marketing ?? 0);
         $utility = (int) ($row->utility ?? 0);
 
-        // Per delivered/sent free-form message (inbox, chatbot, AI, …) — not conversation count.
+        // Per delivered/sent free-form message (inbox, chatbot, AI, …) - not conversation count.
         $service = (int) Message::query()
             ->where('direction', MessageDirection::Outbound)
             ->whereNotIn('message_type', [

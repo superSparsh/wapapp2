@@ -107,7 +107,7 @@ class InboxConversationService
 
     /**
      * Legacy-style least-load assign when the account owner has auto_assign_chats enabled.
-     * Owner Team Settings is the master switch — managers cannot auto-assign while owner has it off.
+     * Owner Team Settings is the master switch - managers cannot auto-assign while owner has it off.
      * Assignees are active members (agents) who can handle this WhatsApp line.
      */
     private function nextAutoAssignee(WhatsappLine $line): ?TeamMember

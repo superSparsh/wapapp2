@@ -18,7 +18,7 @@ use Throwable;
  * Debit wallet once per billable WhatsApp message.
  *
  * - Templates: on Delivered/Read (campaign / inbox / chatbot / …), category from metadata.
- * - Service (session) messages: same statuses as dashboard Credits “service” card —
+ * - Service (session) messages: same statuses as dashboard Credits “service” card -
  *   Sent / Delivered / Read (charge once; idempotent). Aligns wallet cut with the count.
  * - Utility templates: every delivery is charged (no free 24h same-conversation skip).
  */

@@ -99,7 +99,7 @@ class CampaignOciWorkerLifecycleTest extends TestCase
                 && $job->queue === 'provisioning';
         });
         Queue::assertNotPushed(TeardownOciCampaignWorkerJob::class);
-        // Redis not cleared yet — hop job will do it on main app.
+        // Redis not cleared yet - hop job will do it on main app.
         $this->assertSame(['700' => true], $this->lifecycle->activeCampaignIds());
     }
 
@@ -243,7 +243,7 @@ class CampaignOciWorkerLifecycleTest extends TestCase
 
         $this->lifecycle->storeActiveCampaignIds([
             '5001' => true,
-            '9001' => true, // no central row — kept
+            '9001' => true, // no central row - kept
         ]);
         $this->lifecycle->storeInstanceOcid('ocid1.containerinstance.oc1.test.prune');
 
