@@ -15,6 +15,7 @@ use App\Domains\Auth\Http\Middleware\EnsureEmailIsVerified;
 use App\Domains\Auth\Http\Middleware\EnsureTwoFactorVerified;
 use App\Domains\Auth\Http\Middleware\InitializeTenancyFromSession;
 use App\Domains\Auth\Http\Middleware\RedirectIfAuthenticated;
+use App\Domains\MobileApi\Http\Middleware\AuthenticateJwt;
 use App\Domains\AutomationEvents\Console\Commands\ProcessAutomationEventsCommand;
 use App\Domains\Billing\Console\Commands\CheckWalletAutoRechargeCommand;
 use App\Domains\Billing\Console\Commands\ProcessSubscriptionRenewalsCommand;
@@ -67,6 +68,7 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
         then: function () {
             require base_path('routes/webhooks.php');
+            Route::middleware('api')->prefix('api')->group(base_path('routes/mobile.php'));
             Route::middleware('web')->group(base_path('routes/auth.php'));
             Route::middleware('web')->group(base_path('routes/admin.php'));
             Route::middleware(['web', 'tenancy.session', 'auth:web,team', '2fa', 'team.owner', 'waba.bound', 'line.context'])
@@ -137,6 +139,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'api.token' => AuthenticateApiToken::class,
+            'jwt.auth' => AuthenticateJwt::class,
             'tenancy.session' => InitializeTenancyFromSession::class,
             '2fa' => EnsureTwoFactorVerified::class,
             'verified' => EnsureEmailIsVerified::class,

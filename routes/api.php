@@ -35,9 +35,8 @@ Route::prefix('v1')
         Route::get('/subscribers', [SubscriberApiController::class, 'index']);
         Route::post('/subscribers', [SubscriberApiController::class, 'store']);
 
-        // Mobile / API clients - FCM device token register & revoke (legacy parity).
+        // Partner API clients - FCM device token register & revoke.
+        // Mobile JWT clients use /api/v1/mobile/device-token (routes/mobile.php).
         Route::post('/device-token', [DeviceTokenController::class, 'store']);
         Route::delete('/device-token', [DeviceTokenController::class, 'destroy']);
-        Route::post('/mobile/device-token', [DeviceTokenController::class, 'store']);
-        Route::delete('/mobile/device-token', [DeviceTokenController::class, 'destroy']);
     });
