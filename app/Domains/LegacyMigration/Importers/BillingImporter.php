@@ -80,61 +80,85 @@ final class BillingImporter implements LegacyImporter
         $rows = $query->orderBy('id')->get();
 
         foreach ($rows as $row) {
-            $legacyId = (int) $row->id;
-            $amount = abs((float) ($row->amount ?? 0));
-            $type = $this->mapType($row->type ?? null, (float) ($row->amount ?? 0));
-            $description = $this->buildDescription($row);
-
-            $attributes = [
-                'type' => $type,
-                'amount' => $amount,
-                'currency' => 'INR',
-                'balance_after' => 0,
-                'description' => $description,
-                'reference_type' => 'legacy_wallet_transaction',
-                'reference_id' => $legacyId,
-                'metadata' => [
-                    'legacy_id' => $legacyId,
-                    'legacy_type' => $row->type ?? null,
-                    'legacy_category' => $row->category_name ?? null,
-                    'legacy_msg_id' => $row->msg_id ?? null,
-                    'legacy_campaign_id' => $row->campaign_id ?? null,
-                    'legacy_sender_name' => $row->sender_name ?? null,
-                    'conversion_price_used' => $row->conversion_price_used ?? null,
-                ],
-                'created_at' => $row->created_at ?? now(),
-            ];
-
-            $existingId = $ids->getInt('wallet_tx', $legacyId);
-            $existing = null;
-            if ($existingId !== null) {
-                $existing = WalletTransaction::query()->find($existingId);
+            try {
+                $this->importOneTransaction($row, $ids, $report);
+            } catch (\Throwable $e) {
+                $report->bump('wallet_transactions', 'failed');
+                $report->error('Wallet tx legacy #'.((int) ($row->id ?? 0)).': '.$e->getMessage());
             }
-            $existing ??= WalletTransaction::query()
-                ->where('reference_type', 'legacy_wallet_transaction')
-                ->where('reference_id', $legacyId)
-                ->first();
-
-            if ($existing !== null) {
-                $existing->forceFill($attributes)->save();
-                $ids->put('wallet_tx', $legacyId, $existing->id);
-                $report->bump('wallet_transactions', 'updated');
-
-                continue;
-            }
-
-            $tx = WalletTransaction::query()->create($attributes);
-            $ids->put('wallet_tx', $legacyId, $tx->id);
-            $report->bump('wallet_transactions', 'created');
         }
 
         if ($customer->walletAmount !== null) {
             $wallet->forceFill(['balance' => (float) $customer->walletAmount])->save();
         }
 
-        $this->recomputeBalanceAfter((float) ($wallet->fresh()?->balance ?? 0));
-        $this->importBillingAddresses($customer, $ids, $report);
-        $this->importAutoRecharge($customer, $report);
+        try {
+            $this->recomputeBalanceAfter((float) ($wallet->fresh()?->balance ?? 0));
+        } catch (\Throwable $e) {
+            $report->error('Wallet balance_after recompute failed: '.$e->getMessage());
+        }
+
+        try {
+            $this->importBillingAddresses($customer, $ids, $report);
+        } catch (\Throwable $e) {
+            $report->error('Billing addresses failed: '.$e->getMessage());
+        }
+
+        try {
+            $this->importAutoRecharge($customer, $report);
+        } catch (\Throwable $e) {
+            $report->error('Wallet auto-recharge failed: '.$e->getMessage());
+        }
+    }
+
+    private function importOneTransaction(object $row, MigrationIdMap $ids, MigrationReport $report): void
+    {
+        $legacyId = (int) $row->id;
+        $amount = abs((float) ($row->amount ?? 0));
+        $type = $this->mapType($row->type ?? null, (float) ($row->amount ?? 0));
+        $description = mb_substr($this->buildDescription($row), 0, 255);
+
+        $attributes = [
+            'type' => $type,
+            'amount' => $amount,
+            'currency' => 'INR',
+            'balance_after' => 0,
+            'description' => $description,
+            'reference_type' => 'legacy_wallet_transaction',
+            'reference_id' => $legacyId,
+            'metadata' => [
+                'legacy_id' => $legacyId,
+                'legacy_type' => $row->type ?? null,
+                'legacy_category' => $row->category_name ?? null,
+                'legacy_msg_id' => $row->msg_id ?? null,
+                'legacy_campaign_id' => $row->campaign_id ?? null,
+                'legacy_sender_name' => $row->sender_name ?? null,
+                'conversion_price_used' => $row->conversion_price_used ?? null,
+            ],
+            'created_at' => $row->created_at ?? now(),
+        ];
+
+        $existingId = $ids->getInt('wallet_tx', $legacyId);
+        $existing = null;
+        if ($existingId !== null) {
+            $existing = WalletTransaction::query()->find($existingId);
+        }
+        $existing ??= WalletTransaction::query()
+            ->where('reference_type', 'legacy_wallet_transaction')
+            ->where('reference_id', $legacyId)
+            ->first();
+
+        if ($existing !== null) {
+            $existing->forceFill($attributes)->save();
+            $ids->put('wallet_tx', $legacyId, $existing->id);
+            $report->bump('wallet_transactions', 'updated');
+
+            return;
+        }
+
+        $tx = WalletTransaction::query()->create($attributes);
+        $ids->put('wallet_tx', $legacyId, $tx->id);
+        $report->bump('wallet_transactions', 'created');
     }
 
     private function importBillingAddresses(
@@ -153,49 +177,54 @@ final class BillingImporter implements LegacyImporter
 
         $first = true;
         foreach ($rows as $row) {
-            $legacyId = (int) $row->id;
-            $company = trim((string) (
-                $row->business_legal_name
-                ?? $row->business_trade_name
-                ?? $row->name
-                ?? $row->company_name
-                ?? ''
-            ));
-            $line1 = trim((string) ($row->address ?? $row->address_line_1 ?? ''));
+            try {
+                $legacyId = (int) $row->id;
+                $company = trim((string) (
+                    $row->business_legal_name
+                    ?? $row->business_trade_name
+                    ?? $row->name
+                    ?? $row->company_name
+                    ?? ''
+                ));
+                $line1 = trim((string) ($row->address ?? $row->address_line_1 ?? ''));
 
-            $attributes = [
-                'gst_treatment' => filled($row->gst_treatment ?? null) ? (string) $row->gst_treatment : null,
-                'company_name' => $company !== '' ? $company : null,
-                'pan' => filled($row->pan ?? null) ? (string) $row->pan : null,
-                'email' => filled($row->email ?? null) ? strtolower((string) $row->email) : null,
-                'phone' => filled($row->phone ?? null) ? (string) $row->phone : null,
-                'address_line_1' => $line1 !== '' ? $line1 : null,
-                'address_line_2' => filled($row->address_line_2 ?? null) ? (string) $row->address_line_2 : null,
-                'city' => filled($row->city ?? null) ? (string) $row->city : null,
-                'state' => filled($row->state ?? null) ? (string) $row->state : null,
-                'postal_code' => filled($row->zip ?? $row->postal_code ?? null)
-                    ? (string) ($row->zip ?? $row->postal_code)
-                    : null,
-                'country_code' => $this->resolveCountryCode($row),
-                'is_default' => $first,
-            ];
-            $first = false;
+                $attributes = [
+                    'gst_treatment' => filled($row->gst_treatment ?? null) ? (string) $row->gst_treatment : null,
+                    'company_name' => $company !== '' ? mb_substr($company, 0, 255) : null,
+                    'pan' => filled($row->pan ?? null) ? (string) $row->pan : null,
+                    'email' => filled($row->email ?? null) ? strtolower((string) $row->email) : null,
+                    'phone' => filled($row->phone ?? null) ? mb_substr((string) $row->phone, 0, 32) : null,
+                    'address_line_1' => $line1 !== '' ? mb_substr($line1, 0, 255) : null,
+                    'address_line_2' => filled($row->address_line_2 ?? null) ? mb_substr((string) $row->address_line_2, 0, 255) : null,
+                    'city' => filled($row->city ?? null) ? mb_substr((string) $row->city, 0, 100) : null,
+                    'state' => filled($row->state ?? null) ? mb_substr((string) $row->state, 0, 100) : null,
+                    'postal_code' => filled($row->zip ?? $row->postal_code ?? null)
+                        ? mb_substr((string) ($row->zip ?? $row->postal_code), 0, 20)
+                        : null,
+                    'country_code' => $this->resolveCountryCode($row),
+                    'is_default' => $first,
+                ];
+                $first = false;
 
-            $existingId = $ids->getInt('billing_address', $legacyId);
-            $existing = $existingId
-                ? BillingAddress::query()->find($existingId)
-                : null;
+                $existingId = $ids->getInt('billing_address', $legacyId);
+                $existing = $existingId
+                    ? BillingAddress::query()->find($existingId)
+                    : null;
 
-            if ($existing !== null) {
-                $existing->forceFill($attributes)->save();
-                $address = $existing;
-                $report->bump('billing_addresses', 'updated');
-            } else {
-                $address = BillingAddress::query()->create($attributes);
-                $report->bump('billing_addresses', 'created');
+                if ($existing !== null) {
+                    $existing->forceFill($attributes)->save();
+                    $address = $existing;
+                    $report->bump('billing_addresses', 'updated');
+                } else {
+                    $address = BillingAddress::query()->create($attributes);
+                    $report->bump('billing_addresses', 'created');
+                }
+
+                $ids->put('billing_address', $legacyId, $address->id);
+            } catch (\Throwable $e) {
+                $report->bump('billing_addresses', 'failed');
+                $report->error('Billing address legacy #'.((int) ($row->id ?? 0)).': '.$e->getMessage());
             }
-
-            $ids->put('billing_address', $legacyId, $address->id);
         }
     }
 

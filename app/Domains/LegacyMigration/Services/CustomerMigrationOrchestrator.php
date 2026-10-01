@@ -343,7 +343,7 @@ class CustomerMigrationOrchestrator
     ): array {
         $record = $this->beginRecord($customer);
 
-        if ($record->status === 'completed' && ! $options->force && ! $options->dryRun) {
+        if (in_array($record->status, ['completed', 'completed_with_errors'], true) && ! $options->force && ! $options->dryRun) {
             throw new RuntimeException(
                 "Legacy customer #{$customer->id} already migrated to tenant [{$record->tenant_id}]. Use --force to re-sync."
             );
@@ -403,6 +403,8 @@ class CustomerMigrationOrchestrator
 
         tenancy()->initialize($tenant);
 
+        $moduleFailures = [];
+
         try {
             foreach ($options->modules() as $module) {
                 $importer = $this->importers[$module] ?? null;
@@ -412,22 +414,32 @@ class CustomerMigrationOrchestrator
                     continue;
                 }
 
-                $importer->import($customer, $tenant, $ids, $report, false);
+                try {
+                    $importer->import($customer, $tenant, $ids, $report, false);
+                } catch (Throwable $moduleException) {
+                    $moduleFailures[] = $module;
+                    $report->bump($module, 'failed');
+                    $report->error("Module [{$module}] failed and was skipped: ".$moduleException->getMessage());
+                    report($moduleException);
+                }
             }
 
             $payload = [
                 ...$report->toArray(),
                 'id_map' => $ids->all(),
                 'since' => $options->since?->toDateTimeString(),
+                'module_failures' => $moduleFailures,
             ];
 
             tenancy()->end();
 
             $record->forceFill([
-                'status' => 'completed',
+                'status' => $moduleFailures === [] ? 'completed' : 'completed_with_errors',
                 'completed_at' => now(),
                 'report' => $payload,
-                'last_error' => null,
+                'last_error' => $moduleFailures === []
+                    ? null
+                    : 'Skipped modules: '.implode(', ', $moduleFailures),
             ])->save();
 
             return [
@@ -447,6 +459,7 @@ class CustomerMigrationOrchestrator
                 ...$report->toArray(),
                 'id_map' => $ids->all(),
                 'since' => $options->since?->toDateTimeString(),
+                'module_failures' => $moduleFailures,
             ];
 
             $record->forceFill([

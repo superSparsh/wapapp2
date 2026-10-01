@@ -91,6 +91,8 @@ return [
     */
     'modules' => [
         'owner',
+        // Wallet first so a long contacts/campaigns run cannot block balance sync.
+        'billing',
         'lines',
         'lists',
         'list_fields',
@@ -109,7 +111,6 @@ return [
         'ai',
         'ai_settings',
         'inbox',
-        'billing',
         'integrations',
         'commerce',
         'webhooks',

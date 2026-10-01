@@ -46,60 +46,65 @@ final class CampaignImporter implements LegacyImporter
         $rows = $query->orderBy('id')->get();
 
         foreach ($rows as $row) {
-            $legacyId = (int) $row->id;
-            $name = trim((string) ($row->name ?? 'Untitled Campaign'));
-            $existingId = $ids->getInt('campaign', $legacyId);
-            $existing = $existingId ? Campaign::query()->find($existingId) : null;
+            try {
+                $legacyId = (int) $row->id;
+                $name = trim((string) ($row->name ?? 'Untitled Campaign'));
+                $existingId = $ids->getInt('campaign', $legacyId);
+                $existing = $existingId ? Campaign::query()->find($existingId) : null;
 
-            if ($existing === null) {
-                $existing = Campaign::query()->where('name', $name)->first();
+                if ($existing === null) {
+                    $existing = Campaign::query()->where('name', $name)->first();
+                }
+
+                if ($dryRun) {
+                    $report->bump($this->key(), $existing ? 'updated' : 'created');
+
+                    continue;
+                }
+
+                $templateId = isset($row->template_id) && $row->template_id
+                    ? $ids->getInt('template', (int) $row->template_id)
+                    : null;
+                $audienceId = isset($row->mail_list_id) && $row->mail_list_id
+                    ? $ids->getInt('list', (int) $row->mail_list_id)
+                    : null;
+                $createdBy = isset($row->team_member_id) && $row->team_member_id
+                    ? $ids->getInt('team_member', (int) $row->team_member_id)
+                    : null;
+
+                $attributes = [
+                    'name' => mb_substr($name !== '' ? $name : 'Untitled Campaign', 0, 255),
+                    'status' => $this->mapStatus($row->status ?? null),
+                    'audience_id' => $audienceId,
+                    'whatsapp_line_id' => $this->resolveLineId($row, $ids),
+                    'template_id' => $templateId,
+                    'scheduled_at' => $row->schedule_time ?? null,
+                    'timezone' => 'Asia/Kolkata',
+                    'total_recipients' => (int) ($row->total_to_send ?? $row->total_recipients ?? 0),
+                    'total_delivered' => (int) ($row->sent ?? $row->delivered ?? $row->total_delivered ?? 0),
+                    'total_failed' => (int) ($row->failed ?? $row->total_failed ?? 0),
+                    'total_read' => (int) ($row->read ?? $row->total_read ?? 0),
+                    'total_response' => (int) ($row->response ?? $row->total_response ?? 0),
+                    'total_unsubscribed' => (int) ($row->unsubscribed ?? $row->total_unsubscribed ?? 0),
+                    'created_by' => $createdBy,
+                ];
+
+                if ($existing !== null) {
+                    $existing->forceFill($attributes)->save();
+                    $campaign = $existing;
+                    $report->bump($this->key(), 'updated');
+                } else {
+                    $campaign = Campaign::query()->create($attributes);
+                    $report->bump($this->key(), 'created');
+                }
+
+                $ids->put('campaign', $legacyId, $campaign->id);
+                $this->importRecipients($customer->id, $legacyId, $campaign, $report);
+                $this->refreshCampaignTotals($campaign);
+            } catch (\Throwable $e) {
+                $report->bump($this->key(), 'failed');
+                $report->error('Campaign legacy #'.((int) ($row->id ?? 0)).': '.$e->getMessage());
             }
-
-            if ($dryRun) {
-                $report->bump($this->key(), $existing ? 'updated' : 'created');
-
-                continue;
-            }
-
-            $templateId = isset($row->template_id) && $row->template_id
-                ? $ids->getInt('template', (int) $row->template_id)
-                : null;
-            $audienceId = isset($row->mail_list_id) && $row->mail_list_id
-                ? $ids->getInt('list', (int) $row->mail_list_id)
-                : null;
-            $createdBy = isset($row->team_member_id) && $row->team_member_id
-                ? $ids->getInt('team_member', (int) $row->team_member_id)
-                : null;
-
-            $attributes = [
-                'name' => $name,
-                'status' => $this->mapStatus($row->status ?? null),
-                'audience_id' => $audienceId,
-                'whatsapp_line_id' => $this->resolveLineId($row, $ids),
-                'template_id' => $templateId,
-                'scheduled_at' => $row->schedule_time ?? null,
-                'timezone' => 'Asia/Kolkata',
-                'total_recipients' => (int) ($row->total_to_send ?? $row->total_recipients ?? 0),
-                'total_delivered' => (int) ($row->sent ?? $row->delivered ?? $row->total_delivered ?? 0),
-                'total_failed' => (int) ($row->failed ?? $row->total_failed ?? 0),
-                'total_read' => (int) ($row->read ?? $row->total_read ?? 0),
-                'total_response' => (int) ($row->response ?? $row->total_response ?? 0),
-                'total_unsubscribed' => (int) ($row->unsubscribed ?? $row->total_unsubscribed ?? 0),
-                'created_by' => $createdBy,
-            ];
-
-            if ($existing !== null) {
-                $existing->forceFill($attributes)->save();
-                $campaign = $existing;
-                $report->bump($this->key(), 'updated');
-            } else {
-                $campaign = Campaign::query()->create($attributes);
-                $report->bump($this->key(), 'created');
-            }
-
-            $ids->put('campaign', $legacyId, $campaign->id);
-            $this->importRecipients($customer->id, $legacyId, $campaign, $report);
-            $this->refreshCampaignTotals($campaign);
         }
     }
 
@@ -132,56 +137,66 @@ final class CampaignImporter implements LegacyImporter
 
         $query->orderBy('id')->chunkById($chunk, function ($rows) use ($campaign, $report): void {
             foreach ($rows as $row) {
-                // Reply rows are not outbound campaign deliveries.
-                if ($this->truthy($row->is_response_message ?? null)) {
-                    $report->bump('campaign_recipients', 'skipped');
-
-                    continue;
-                }
-
-                $phone = $this->extractPhone($row);
-                if ($phone === null) {
-                    $report->bump('campaign_recipients', 'skipped');
-
-                    continue;
-                }
-
-                $status = $this->mapRecipientStatus($row);
-                $contactId = Contact::query()->where('phone', $phone)->value('id');
-
-                $existing = CampaignRecipient::query()
-                    ->where('campaign_id', $campaign->id)
-                    ->where('contact_phone', $phone)
-                    ->first();
-
-                $attributes = [
-                    'campaign_id' => $campaign->id,
-                    'contact_id' => $contactId,
-                    'contact_phone' => $phone,
-                    'status' => $status,
-                    'sent_at' => $this->nullableDate($row->sent_at ?? $row->created_at ?? null),
-                    'delivered_at' => $this->nullableDate($row->delivered_at ?? null),
-                    'read_at' => $this->nullableDate($row->read_at ?? $row->responded_at ?? null),
-                    'failed_at' => $this->nullableDate($row->failed_at ?? null),
-                    'failure_reason' => $row->failed_reason ?? $row->failure_reason ?? null,
-                    'message_id' => filled($row->msg_id ?? null) ? (string) $row->msg_id : null,
-                    'variable_values' => [
-                        'legacy_inbox_id' => (int) $row->id,
-                    ],
-                ];
-
-                if ($existing !== null) {
-                    // Keep the "highest" status if the same phone appears more than once.
-                    if ($this->statusRank($status) >= $this->statusRank($existing->status)) {
-                        $existing->forceFill($attributes)->save();
-                    }
-                    $report->bump('campaign_recipients', 'updated');
-                } else {
-                    CampaignRecipient::query()->create($attributes);
-                    $report->bump('campaign_recipients', 'created');
+                try {
+                    $this->importOneRecipient($campaign, $row, $report);
+                } catch (\Throwable $e) {
+                    $report->bump('campaign_recipients', 'failed');
+                    $report->error('Campaign recipient legacy inbox #'.((int) ($row->id ?? 0)).': '.$e->getMessage());
                 }
             }
         });
+    }
+
+    private function importOneRecipient(Campaign $campaign, object $row, MigrationReport $report): void
+    {
+        // Reply rows are not outbound campaign deliveries.
+        if ($this->truthy($row->is_response_message ?? null)) {
+            $report->bump('campaign_recipients', 'skipped');
+
+            return;
+        }
+
+        $phone = $this->extractPhone($row);
+        if ($phone === null) {
+            $report->bump('campaign_recipients', 'skipped');
+
+            return;
+        }
+
+        $status = $this->mapRecipientStatus($row);
+        $contactId = Contact::query()->where('phone', $phone)->value('id');
+
+        $existing = CampaignRecipient::query()
+            ->where('campaign_id', $campaign->id)
+            ->where('contact_phone', $phone)
+            ->first();
+
+        $attributes = [
+            'campaign_id' => $campaign->id,
+            'contact_id' => $contactId,
+            'contact_phone' => $phone,
+            'status' => $status,
+            'sent_at' => $this->nullableDate($row->sent_at ?? $row->created_at ?? null),
+            'delivered_at' => $this->nullableDate($row->delivered_at ?? null),
+            'read_at' => $this->nullableDate($row->read_at ?? $row->responded_at ?? null),
+            'failed_at' => $this->nullableDate($row->failed_at ?? null),
+            'failure_reason' => $row->failed_reason ?? $row->failure_reason ?? null,
+            'message_id' => filled($row->msg_id ?? null) ? (string) $row->msg_id : null,
+            'variable_values' => [
+                'legacy_inbox_id' => (int) $row->id,
+            ],
+        ];
+
+        if ($existing !== null) {
+            // Keep the "highest" status if the same phone appears more than once.
+            if ($this->statusRank($status) >= $this->statusRank($existing->status)) {
+                $existing->forceFill($attributes)->save();
+            }
+            $report->bump('campaign_recipients', 'updated');
+        } else {
+            CampaignRecipient::query()->create($attributes);
+            $report->bump('campaign_recipients', 'created');
+        }
     }
 
     private function refreshCampaignTotals(Campaign $campaign): void
@@ -232,9 +247,20 @@ final class CampaignImporter implements LegacyImporter
             }
 
             $normalized = PhoneNormalizer::normalize((string) $row->{$column});
-            if ($normalized !== null) {
-                return $normalized;
+            if ($normalized === null) {
+                continue;
             }
+
+            // Column is varchar(20); E.164 max is 15 digits. Skip garbage concatenated numbers.
+            if (strlen($normalized) < 8 || strlen($normalized) > 15) {
+                continue;
+            }
+
+            if (preg_match('/^(\d)\1{7,}$/', $normalized) === 1) {
+                continue;
+            }
+
+            return $normalized;
         }
 
         return null;

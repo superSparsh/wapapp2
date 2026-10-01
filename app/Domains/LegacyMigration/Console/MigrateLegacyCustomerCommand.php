@@ -206,5 +206,13 @@ class MigrateLegacyCustomerCommand extends Command
         foreach ($result['report']['warnings'] ?? [] as $warning) {
             $this->warn($prefix.$warning);
         }
+
+        foreach ($result['report']['errors'] ?? [] as $error) {
+            $this->error($prefix.$error);
+        }
+
+        if (! empty($result['report']['module_failures'])) {
+            $this->warn($prefix.'Skipped modules: '.implode(', ', $result['report']['module_failures']));
+        }
     }
 }
