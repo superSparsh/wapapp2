@@ -46,7 +46,6 @@
       class="pointer-events-none absolute left-0 right-0 top-[calc(100%+8px)] z-30 hidden rounded-xl border border-border bg-elevated p-3 text-left shadow-lg"
       role="tooltip"
     >
-      <div class="absolute -top-1.5 left-6 size-3 rotate-45 border-l border-t border-border bg-elevated"></div>
       <div data-credit-info-body class="space-y-2 text-xs leading-relaxed text-text-body">
         {{ $info }}
       </div>
