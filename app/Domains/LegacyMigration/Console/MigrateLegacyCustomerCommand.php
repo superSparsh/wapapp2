@@ -64,6 +64,15 @@ class MigrateLegacyCustomerCommand extends Command
             since: $since,
         );
 
+        $modules = $options->modules();
+        if ($modules === []) {
+            $this->error('No modules selected. Check --only values (e.g. --only=owner,billing).');
+
+            return self::FAILURE;
+        }
+
+        $this->line('Modules: '.implode(', ', $modules));
+
         if ($this->option('all')) {
             return $this->migrateAll($orchestrator, $options);
         }

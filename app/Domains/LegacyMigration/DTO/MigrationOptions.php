@@ -28,7 +28,9 @@ final class MigrationOptions
         $all = config('legacy-migration.modules', []);
 
         if ($this->onlyModules !== null && $this->onlyModules !== []) {
-            return array_values(array_intersect($all, $this->onlyModules));
+            $wanted = $this->normalizeModuleList($this->onlyModules);
+
+            return array_values(array_intersect($all, $wanted));
         }
 
         $modules = $all;
@@ -42,5 +44,26 @@ final class MigrationOptions
         }
 
         return $modules;
+    }
+
+    /**
+     * Accept --only=owner,billing and --only=owner --only=billing.
+     *
+     * @param  list<string>  $modules
+     * @return list<string>
+     */
+    private function normalizeModuleList(array $modules): array
+    {
+        $out = [];
+        foreach ($modules as $module) {
+            foreach (explode(',', (string) $module) as $part) {
+                $part = trim($part);
+                if ($part !== '') {
+                    $out[] = $part;
+                }
+            }
+        }
+
+        return array_values(array_unique($out));
     }
 }
