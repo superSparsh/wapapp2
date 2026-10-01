@@ -13,7 +13,7 @@
     'chart' => asset('images/icons/data.svg'),
     default => asset('images/icons/data.svg'),
   };
-  $hasInfo = isset($info);
+  $hasInfo = isset($info) && trim((string) $info) !== '';
 @endphp
 
 <div {{ $attributes->class(['relative flex items-center gap-4 rounded-lg border border-[0.5px] border-border-light bg-elevated p-4']) }}>

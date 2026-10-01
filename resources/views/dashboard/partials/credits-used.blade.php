@@ -24,6 +24,7 @@
   $freeRemaining = (int) ($credits['service_free_remaining'] ?? 0);
   $perLine = is_array($credits['service_free_per_line'] ?? null) ? $credits['service_free_per_line'] : [];
   $showServiceFreeInfo = $serviceLimit !== null;
+  $whatsappNumberLabel = $whatsappNumbers === 1 ? 'WhatsApp number' : 'WhatsApp numbers';
 @endphp
 
 <section
@@ -56,20 +57,20 @@
     <x-ui.credit-stat-card label="Marketing Conversations" icon="megaphone" data-credit-key="marketing" :value="number_format((int) ($credits['marketing'] ?? 0)).'/'.number_format((int) ($credits['marketing_limit'] ?? 1000))" />
     <x-ui.credit-stat-card label="Utility Conversations" icon="wrench" data-credit-key="utility" :value="number_format((int) ($credits['utility'] ?? 0)).'/'.number_format((int) ($credits['utility_limit'] ?? 1000))" />
 
-    <x-ui.credit-stat-card
-      label="Service messages"
-      icon="headset"
-      data-credit-key="service"
-      :value="$serviceValue"
-      @if ($showServiceFreeInfo) data-service-free-card @endif
-    >
-      @if ($showServiceFreeInfo)
-        <x-slot:info>
+    @if ($showServiceFreeInfo)
+      <x-ui.credit-stat-card
+        label="Service messages"
+        icon="headset"
+        data-credit-key="service"
+        data-service-free-card
+        :value="$serviceValue"
+      >
+        <x-slot name="info">
           <div data-service-free-summary class="font-semibold text-text-primary">
             {{ number_format($freeRemaining) }} free left this month
           </div>
           <p data-service-free-rule class="text-text-muted">
-            {{ number_format($freePerNumber) }} free × {{ $whatsappNumbers }} {{ $whatsappNumbers === 1 ? 'WhatsApp number' : 'WhatsApp numbers' }}
+            {{ number_format($freePerNumber) }} free × {{ $whatsappNumbers }} {{ $whatsappNumberLabel }}
             · not shared across numbers
           </p>
           @if (count($perLine) > 0)
@@ -82,8 +83,10 @@
               @endforeach
             </ul>
           @endif
-        </x-slot:info>
-      @endif
-    </x-ui.credit-stat-card>
+        </x-slot>
+      </x-ui.credit-stat-card>
+    @else
+      <x-ui.credit-stat-card label="Service messages" icon="headset" data-credit-key="service" :value="$serviceValue" />
+    @endif
   </div>
 </section>
