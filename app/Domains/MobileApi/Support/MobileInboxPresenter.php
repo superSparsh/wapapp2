@@ -129,19 +129,35 @@ final class MobileInboxPresenter
     {
         $raw = (string) $line->phone;
         $phone = preg_replace('/\D+/', '', $raw) ?: $raw;
+        $verifiedName = $line->display_name;
+        $createdAt = $line->created_at?->toIso8601String() ?? now()->toIso8601String();
+        $updatedAt = $line->updated_at?->toIso8601String() ?? $createdAt;
 
         return [
             'id' => $line->id,
+            'customer_id' => 0,
             'uuid' => $line->uuid,
             'phone' => $phone,
             'value' => $phone,
             'whatsapp_number' => $phone,
-            'verified_name' => $line->display_name,
+            'verified_name' => $verifiedName,
             'display_name' => $line->displayLabel(),
             'label' => $line->displayLabel(),
-            'status' => 'active',
+            // Flutter AssignedNumbersData expects these Meta-style fields.
+            'verification_status' => 'VERIFIED',
+            'message_limiter' => (string) ($line->messaging_limit_tier ?? 'TIER_1K'),
+            'name_status' => 'APPROVED',
+            'new_name_status' => 'NONE',
+            'quality_rating' => 'GREEN',
+            'status' => 'CONNECTED',
+            'status_callback_url' => null,
+            'status_queue' => null,
+            'up_callback_url' => null,
+            'up_queue' => null,
             'is_default' => (bool) $line->is_default,
-            'assigned_at' => $line->created_at?->toIso8601String(),
+            'created_at' => $createdAt,
+            'updated_at' => $updatedAt,
+            'assigned_at' => $createdAt,
         ];
     }
 

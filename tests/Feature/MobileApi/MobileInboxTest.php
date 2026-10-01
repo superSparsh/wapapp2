@@ -70,13 +70,11 @@ class MobileInboxTest extends TestCase
             ->assertOk()
             ->assertJsonPath('success', true);
 
-        $this->assertIsArray($response->json('data'));
-        $this->assertIsArray($response->json('data.numbers'));
-        $this->assertSame('919999999999', $response->json('data.numbers.0.phone'));
-        $this->assertArrayHasKey('userassigned', $response->json('data'));
-        // Legacy InboxService also exposes wallet_amount at the response root.
-        $this->assertSame('500.00', $response->json('wallet_amount'));
-        $this->assertSame('500.00', $response->json('data.wallet_amount'));
+        // Flutter AssignedNumbersResponse reads data.original.wallet_amount
+        $this->assertSame('500.00', $response->json('data.original.wallet_amount'));
+        $this->assertIsArray($response->json('data.original.numbers'));
+        $this->assertSame('919999999999', $response->json('data.original.numbers.0.phone'));
+        $this->assertArrayHasKey('userassigned', $response->json('data.original'));
     }
 
     public function test_conversations_and_dashboard(): void

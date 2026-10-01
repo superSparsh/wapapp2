@@ -68,23 +68,20 @@ class MobileInboxController extends Controller
         $defaultPhone = $numbers[0]['phone'] ?? null;
         $walletAmount = \App\Domains\MobileApi\Support\MobileWallet::amountString();
 
-        // Legacy InboxService returns wallet_amount at the root (not only under data).
-        return response()->json([
-            'success' => true,
+        // Legacy nested a JsonResponse inside data, so Flutter reads data['original'].
+        $payload = [
             'message' => 'sucess',
             'userassigned' => $defaultPhone,
             'numbers' => $numbers,
             'wallet_amount' => $walletAmount,
             'line_context_locked' => false,
             'inbox_phone_masking_enabled' => false,
+        ];
+
+        return response()->json([
+            'success' => true,
             'data' => [
-                'message' => 'sucess',
-                'userassigned' => $defaultPhone,
-                'numbers' => $numbers,
-                'wallet_amount' => $walletAmount,
-                'wallet_balance' => $walletAmount,
-                'line_context_locked' => false,
-                'inbox_phone_masking_enabled' => false,
+                'original' => $payload,
             ],
         ]);
     }
