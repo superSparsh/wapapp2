@@ -150,9 +150,8 @@ class MobileInboxTest extends TestCase
             $dataKeys,
         );
         $this->assertIsArray($dash->json('data.list_growth.available_lists'));
-        $this->assertIsNumeric($dash->json('data.user_info.wallet_amount'));
-        $this->assertSame(500.0, (float) $dash->json('data.user_info.wallet_amount'));
-        $this->assertSame(500.0, (float) $dash->json('data.wallet_info.wallet_amount'));
+        $this->assertSame('500.00', $dash->json('data.user_info.wallet_amount'));
+        $this->assertSame('500.00', $dash->json('data.wallet_info.wallet_amount'));
         $today = $dash->json('data.stats.today');
         $this->assertSame(
             (int) $today['marketing'] + (int) $today['utility'],
@@ -166,8 +165,9 @@ class MobileInboxTest extends TestCase
             ->getJson('/api/v1/wallet-transactions')
             ->assertOk()
             ->assertJsonPath('success', true);
-        $this->assertSame(500.0, (float) $walletTx->json('wallet_amount'));
-        $this->assertSame(500.0, (float) $walletTx->json('current_wallet_amount.wallet_amount'));
+        $this->assertSame('500.00', $walletTx->json('wallet_amount'));
+        $this->assertSame('500.00', $walletTx->json('data.wallet_amount'));
+        $this->assertSame('500.00', $walletTx->json('current_wallet_amount.wallet_amount'));
         $this->assertIsArray($walletTx->json('wallet_transactions'));
 
         $this->withToken($this->accessToken)

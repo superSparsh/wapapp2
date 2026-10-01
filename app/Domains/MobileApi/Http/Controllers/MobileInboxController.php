@@ -66,15 +66,7 @@ class MobileInboxController extends Controller
             ->all();
 
         $defaultPhone = $numbers[0]['phone'] ?? null;
-        $walletBalance = 0.0;
-        try {
-            $walletBalance = round(app(\App\Domains\Billing\Services\WalletService::class)->balance(), 2);
-            if ($walletBalance <= 0) {
-                $walletBalance = round((float) (\App\Models\WalletAccount::query()->value('balance') ?? 0), 2);
-            }
-        } catch (\Throwable) {
-            $walletBalance = round((float) (\App\Models\WalletAccount::query()->value('balance') ?? 0), 2);
-        }
+        $walletAmount = \App\Domains\MobileApi\Support\MobileWallet::amountString();
 
         return response()->json([
             'success' => true,
@@ -82,8 +74,8 @@ class MobileInboxController extends Controller
                 'message' => 'sucess',
                 'userassigned' => $defaultPhone,
                 'numbers' => $numbers,
-                'wallet_amount' => $walletBalance,
-                'wallet_balance' => $walletBalance,
+                'wallet_amount' => $walletAmount,
+                'wallet_balance' => $walletAmount,
                 'line_context_locked' => false,
                 'inbox_phone_masking_enabled' => false,
             ],
@@ -191,12 +183,7 @@ class MobileInboxController extends Controller
             $timeElapsedHours = (int) $latestInbound->created_at->diffInHours(now());
         }
 
-        $walletBalance = 0.0;
-        try {
-            $walletBalance = round(app(\App\Domains\Billing\Services\WalletService::class)->balance(), 2);
-        } catch (\Throwable) {
-            //
-        }
+        $walletAmount = \App\Domains\MobileApi\Support\MobileWallet::amountString();
 
         return response()->json([
             'success' => true,
@@ -208,8 +195,8 @@ class MobileInboxController extends Controller
                 'messages' => $legacyMessages,
                 'is_time_elapsed' => $isTimeElapsed,
                 'time_elapsed_hours' => $timeElapsedHours,
-                'wallet_balance' => $walletBalance,
-                'wallet_amount' => $walletBalance,
+                'wallet_balance' => $walletAmount,
+                'wallet_amount' => $walletAmount,
                 'response_type' => $conversation->response_type?->value ?? 'human_response',
                 'has_assigned_users' => false,
                 'conversation' => MobileInboxPresenter::conversation($conversation->loadMissing('latestMessage')),
@@ -894,12 +881,7 @@ class MobileInboxController extends Controller
             $expiresIso = $expires->toIso8601String();
         }
 
-        $wallet = 0.0;
-        try {
-            $wallet = app(\App\Domains\Billing\Services\WalletService::class)->balance();
-        } catch (\Throwable) {
-            //
-        }
+        $walletAmount = \App\Domains\MobileApi\Support\MobileWallet::amountString();
 
         return response()->json([
             'success' => true,
@@ -910,8 +892,8 @@ class MobileInboxController extends Controller
                 'remaining_days' => $remainingDays,
                 'valid_until' => $validUntil,
                 'expires_at' => $expiresIso,
-                'wallet_amount' => $wallet,
-                'wallet_balance' => $wallet,
+                'wallet_amount' => $walletAmount,
+                'wallet_balance' => $walletAmount,
                 'message_limit' => $subscription['plan']?->messages_limit,
                 'messages_used' => null,
                 'features' => [

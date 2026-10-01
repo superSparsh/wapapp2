@@ -6,8 +6,8 @@ namespace App\Domains\MobileApi\Http\Controllers;
 
 use App\Domains\Billing\Services\ServiceMessageFreeAllowanceService;
 use App\Domains\Billing\Services\SubscriptionService;
-use App\Domains\Billing\Services\WalletService;
 use App\Domains\Dashboard\Services\DashboardService;
+use App\Domains\MobileApi\Support\MobileWallet;
 use App\Enums\CampaignStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Campaign;
@@ -15,7 +15,6 @@ use App\Models\CountryPricing;
 use App\Models\MailList;
 use App\Models\TeamMember;
 use App\Models\User;
-use App\Models\WalletAccount;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Illuminate\Http\JsonResponse;
@@ -32,7 +31,6 @@ class DashboardController extends Controller
     public function __construct(
         private readonly DashboardService $dashboard,
         private readonly SubscriptionService $subscriptions,
-        private readonly WalletService $wallet,
         private readonly ServiceMessageFreeAllowanceService $freeService,
     ) {}
 
@@ -47,7 +45,8 @@ class DashboardController extends Controller
             $free = $this->freeService->summary();
 
             $subscription = $this->subscriptions->subscriptionSummary();
-            $walletBalance = $this->resolveWalletBalance();
+            $walletBalance = MobileWallet::balance();
+            $walletAmount = MobileWallet::amountString($walletBalance);
             [$costMarketing, $costUtility, $costService] = $this->conversationCosts();
 
             $lists = MailList::query()->orderByDesc('id')->limit(20)->get(['id', 'name']);
@@ -94,8 +93,9 @@ class DashboardController extends Controller
                     'name' => $name !== '' ? $name : 'User',
                     'timezone' => $timezone,
                     'current_time' => now()->setTimezone($timezone)->toIso8601String(),
-                    'wallet_amount' => $walletBalance,
-                    'wallet_balance' => $walletBalance,
+                    // Strings so Flutter double.tryParse works (JSON numbers often parse as 0).
+                    'wallet_amount' => $walletAmount,
+                    'wallet_balance' => $walletAmount,
                 ],
                 'subscription_info' => [
                     'plan_name' => $planName,
@@ -106,14 +106,16 @@ class DashboardController extends Controller
                     'current_period_ends_at' => $validUntil,
                     'status' => $subscription['subscription']?->status?->value
                         ?? ($subscription['subscription'] !== null || filled($planName) ? 'active' : null),
-                    'wallet_amount' => $walletBalance,
+                    'wallet_amount' => $walletAmount,
+                    'wallet_balance' => $walletAmount,
                 ],
                 // Dedicated map so Flutter Map.from(data['wallet_info']) works and shows balance.
                 'wallet_info' => [
-                    'wallet_amount' => $walletBalance,
-                    'wallet_balance' => $walletBalance,
+                    'wallet_amount' => $walletAmount,
+                    'wallet_balance' => $walletAmount,
                     'currency' => 'INR',
-                    'amount' => $walletBalance,
+                    'amount' => $walletAmount,
+                    'current_wallet_amount' => $walletAmount,
                 ],
                 'stats' => [
                     'today' => [
@@ -235,23 +237,6 @@ class DashboardController extends Controller
         }
     }
 
-    private function resolveWalletBalance(): float
-    {
-        try {
-            $balance = round($this->wallet->balance(), 2);
-            if ($balance > 0) {
-                return $balance;
-            }
-        } catch (Throwable) {
-            //
-        }
-
-        return round((float) (WalletAccount::query()->value('balance') ?? 0), 2);
-    }
-
-    /**
-     * @return array{0: string, 1: string}
-     */
     private function resolveUserLabel(mixed $user): array
     {
         if ($user instanceof User) {

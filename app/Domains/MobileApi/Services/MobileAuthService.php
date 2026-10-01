@@ -240,10 +240,7 @@ final class MobileAuthService
                 if (! tenancy()->initialized && $tenant !== null) {
                     tenancy()->initialize($tenant);
                 }
-                $wallet = round(app(\App\Domains\Billing\Services\WalletService::class)->balance(), 2);
-                if ($wallet <= 0) {
-                    $wallet = round((float) (\App\Models\WalletAccount::query()->value('balance') ?? 0), 2);
-                }
+                $wallet = \App\Domains\MobileApi\Support\MobileWallet::balance();
                 $summary = app(\App\Domains\Billing\Services\SubscriptionService::class)->subscriptionSummary();
                 $planName = $summary['plan_name'] ?? $summary['plan']?->name;
                 $expiresAt = $summary['expires_at'] ?? null;
@@ -258,6 +255,8 @@ final class MobileAuthService
             //
         }
 
+        $walletAmount = \App\Domains\MobileApi\Support\MobileWallet::amountString($wallet);
+
         return [
             'id' => (int) $user->getAuthIdentifier(),
             'uid' => (string) ($user->uuid ?? $user->getAuthIdentifier()),
@@ -270,8 +269,8 @@ final class MobileAuthService
             'status' => $user instanceof User
                 ? ($user->is_active ? 'active' : 'inactive')
                 : (string) ($user->status->value ?? 'active'),
-            'wallet_amount' => $wallet,
-            'wallet_balance' => $wallet,
+            'wallet_amount' => $walletAmount,
+            'wallet_balance' => $walletAmount,
             'plan_name' => $planName,
             'valid_until' => $validUntil,
             'remaining_days' => $remainingDays,

@@ -31,8 +31,8 @@ Route::prefix('v1/auth')->group(function (): void {
     });
 });
 
-// Legacy wallet screen used by the mobile app (JWT).
-Route::prefix('v1')->middleware('jwt.auth')->group(function (): void {
+// Legacy wallet screen used by the mobile app (JWT or partner api_token).
+Route::prefix('v1')->middleware(AuthenticateJwtOrApiToken::class)->group(function (): void {
     Route::get('wallet-transactions', [WalletController::class, 'transactions']);
 });
 
