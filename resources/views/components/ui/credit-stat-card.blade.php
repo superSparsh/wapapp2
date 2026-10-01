@@ -28,7 +28,9 @@
           aria-label="Free service messages info"
           aria-expanded="false"
         >
-          <x-icons.nav-icon name="info-circle" class="size-3.5 opacity-80" />
+          <svg class="size-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+          </svg>
         </button>
       @endif
     </div>
@@ -41,13 +43,13 @@
   @if ($hasInfo)
     <div
       data-credit-info-panel
-      class="pointer-events-none absolute bottom-[calc(100%+8px)] left-0 right-0 z-30 hidden rounded-xl border border-border bg-elevated p-3 text-left shadow-lg"
+      class="pointer-events-none absolute left-0 right-0 top-[calc(100%+8px)] z-30 hidden rounded-xl border border-border bg-elevated p-3 text-left shadow-lg"
       role="tooltip"
     >
+      <div class="absolute -top-1.5 left-6 size-3 rotate-45 border-l border-t border-border bg-elevated"></div>
       <div data-credit-info-body class="space-y-2 text-xs leading-relaxed text-text-body">
         {{ $info }}
       </div>
-      <div class="absolute -bottom-1.5 left-6 size-3 rotate-45 border-b border-r border-border bg-elevated"></div>
     </div>
   @endif
 </div>
