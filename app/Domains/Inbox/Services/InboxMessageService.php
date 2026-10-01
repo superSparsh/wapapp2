@@ -357,7 +357,12 @@ class InboxMessageService
                     $tenantId,
                     (int) $conversation->id,
                     (int) $message->id,
-                );
+                )->afterCommit();
+            } elseif ($tenantId !== '') {
+                \Illuminate\Support\Facades\Log::notice('Inbox FCM not dispatched (disabled or credentials missing)', [
+                    'conversation_id' => $conversation->id,
+                    'message_id' => $message->id,
+                ]);
             }
         } catch (\Throwable $e) {
             Log::warning('Inbox inbound FCM dispatch failed', [

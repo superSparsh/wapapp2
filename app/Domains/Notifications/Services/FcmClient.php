@@ -21,8 +21,8 @@ class FcmClient
             return false;
         }
 
-        $path = (string) config('fcm.credentials', '');
-        if ($path === '' || ! is_file($path) || ! is_readable($path)) {
+        $path = $this->credentialsPath();
+        if ($path === null) {
             return false;
         }
 
@@ -123,14 +123,37 @@ class FcmClient
      */
     private function credentials(): ?array
     {
-        $path = (string) config('fcm.credentials', '');
-        if ($path === '' || ! is_file($path)) {
+        $path = $this->credentialsPath();
+        if ($path === null) {
             return null;
         }
 
         $decoded = json_decode((string) file_get_contents($path), true);
 
         return is_array($decoded) ? $decoded : null;
+    }
+
+    /**
+     * Resolve a readable Firebase service-account JSON path.
+     * Tries configured env path first, then local storage fallbacks.
+     */
+    private function credentialsPath(): ?string
+    {
+        $candidates = [
+            (string) config('fcm.credentials', ''),
+            storage_path('app/firebase-credentials.json'),
+            storage_path('app/firebase/credentials.json'),
+            base_path('storage/app/firebase-credentials.json'),
+        ];
+
+        foreach ($candidates as $path) {
+            $path = trim($path);
+            if ($path !== '' && is_file($path) && is_readable($path)) {
+                return $path;
+            }
+        }
+
+        return null;
     }
 
     /**

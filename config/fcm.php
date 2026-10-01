@@ -14,7 +14,7 @@ return [
     */
     'enabled' => (bool) env('FCM_ENABLED', true),
 
-    'credentials' => env('FIREBASE_CREDENTIALS', storage_path('app/firebase-credentials.json')),
+    'credentials' => env('FIREBASE_CREDENTIALS') ?: storage_path('app/firebase-credentials.json'),
 
     /** Optional override; otherwise read from the service-account JSON. */
     'project_id' => env('FIREBASE_PROJECT_ID'),

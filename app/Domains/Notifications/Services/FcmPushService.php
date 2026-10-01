@@ -23,7 +23,16 @@ class FcmPushService
 
     public function shouldSend(): bool
     {
-        return $this->features->isEnabled('messaging.fcm-push') && $this->client->isReady();
+        $enabled = $this->features->isEnabled('messaging.fcm-push');
+        $ready = $this->client->isReady();
+
+        if ($enabled && ! $ready) {
+            Log::notice('FCM push skipped: feature on but Firebase credentials are not ready', [
+                'credentials' => config('fcm.credentials'),
+            ]);
+        }
+
+        return $enabled && $ready;
     }
 
     /**
@@ -147,30 +156,32 @@ class FcmPushService
      */
     private function resolveTokensForConversation(Conversation $conversation): Collection
     {
+        $tokens = collect();
+
         if ($conversation->assigned_team_member_id) {
-            return FcmToken::query()
+            $tokens = FcmToken::query()
                 ->where('team_member_id', (int) $conversation->assigned_team_member_id)
                 ->get();
-        }
-
-        if ($conversation->assigned_user_id) {
-            return FcmToken::query()
+        } elseif ($conversation->assigned_user_id) {
+            $tokens = FcmToken::query()
                 ->where('user_id', (int) $conversation->assigned_user_id)
                 ->get();
         }
 
-        // Unassigned: notify active owner/user accounts (they can see all chats).
+        // Always include active owner/user tokens so mobile owners still get pushes
+        // for assigned chats (legacy parity for single-owner accounts).
         $userIds = User::query()
             ->where('is_active', true)
             ->pluck('id');
 
-        if ($userIds->isEmpty()) {
-            return collect();
+        if ($userIds->isNotEmpty()) {
+            $ownerTokens = FcmToken::query()
+                ->whereIn('user_id', $userIds)
+                ->get();
+            $tokens = $tokens->concat($ownerTokens);
         }
 
-        return FcmToken::query()
-            ->whereIn('user_id', $userIds)
-            ->get();
+        return $tokens->unique('id')->values();
     }
 
     private function notificationTitle(Conversation $conversation): string

@@ -35,6 +35,7 @@ final class AuthenticateJwtOrApiToken
 
     private function looksLikeJwt(string $token): bool
     {
-        return substr_count($token, '.') === 2;
+        // Mobile JWTs are compact HS256 tokens starting with eyJ…; FCM tokens often contain colons.
+        return str_starts_with($token, 'eyJ') && substr_count($token, '.') === 2;
     }
 }

@@ -128,14 +128,18 @@ class MobileInboxTest extends TestCase
                     'user_info' => ['uid', 'name', 'timezone', 'wallet_amount'],
                     'subscription_info' => ['plan_name', 'remaining_days', 'valid_until'],
                     'stats' => ['today', 'last_7_days', 'last_30_days'],
-                    'conversation_estimates',
-                    'list_growth',
-                    'recent_campaigns',
-                    'wallet_amount',
-                    'valid_until',
+                    'conversation_estimates' => ['based_on_wallet_balance'],
+                    'list_growth' => ['available_lists', 'latest_list_stats'],
+                    'recent_campaigns' => ['available_campaigns', 'latest_campaign_stats'],
                 ],
             ]);
-        $this->assertIsNumeric($dash->json('data.wallet_amount'));
+        // Flutter casts every top-level data value with Map.from — keep only maps.
+        $this->assertSame(
+            ['user_info', 'subscription_info', 'stats', 'conversation_estimates', 'list_growth', 'recent_campaigns'],
+            array_keys($dash->json('data')),
+        );
+        $this->assertIsArray($dash->json('data.list_growth.available_lists'));
+        $this->assertIsNumeric($dash->json('data.user_info.wallet_amount'));
 
         $this->withToken($this->accessToken)
             ->getJson('/api/v1/mobile/inbox/new-message-count')

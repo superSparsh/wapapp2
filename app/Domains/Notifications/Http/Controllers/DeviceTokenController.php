@@ -21,8 +21,18 @@ class DeviceTokenController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        // Mobile clients send `token` or `fcm_token` / `device_token`.
+        if (! $request->filled('token')) {
+            foreach (['fcm_token', 'device_token', 'registration_id'] as $alias) {
+                if ($request->filled($alias)) {
+                    $request->merge(['token' => $request->input($alias)]);
+                    break;
+                }
+            }
+        }
+
         $validated = $request->validate([
-            'token' => ['required', 'string', 'min:20', 'max:512'],
+            'token' => ['required', 'string', 'min:20', 'max:4096'],
             'platform' => ['nullable', 'string', 'max:32'],
             'device_id' => ['nullable', 'string', 'max:191'],
         ]);
