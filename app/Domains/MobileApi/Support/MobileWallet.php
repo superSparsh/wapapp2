@@ -11,8 +11,8 @@ use Throwable;
 /**
  * Mobile/Flutter wallet helpers.
  *
- * Legacy Flutter often does double.tryParse(json['wallet_amount']) which fails
- * when the value is a JSON number — return money as "16849.28" strings.
+ * Legacy stored customers.wallet_amount as MySQL DECIMAL and returned it as a
+ * string in JSON (e.g. "16849.28"). Flutter uses double.tryParse on that string.
  */
 final class MobileWallet
 {
@@ -31,7 +31,7 @@ final class MobileWallet
     }
 
     /**
-     * String form Flutter can parse; also fine for display.
+     * Legacy-compatible decimal string (same idea as MySQL DECIMAL JSON).
      */
     public static function amountString(?float $balance = null): string
     {
@@ -39,8 +39,6 @@ final class MobileWallet
     }
 
     /**
-     * Common wallet keys used across login / dashboard / inbox.
-     *
      * @return array{wallet_amount: string, wallet_balance: string, amount: string, currency: string}
      */
     public static function fields(?float $balance = null): array

@@ -74,6 +74,9 @@ class MobileInboxTest extends TestCase
         $this->assertIsArray($response->json('data.numbers'));
         $this->assertSame('919999999999', $response->json('data.numbers.0.phone'));
         $this->assertArrayHasKey('userassigned', $response->json('data'));
+        // Legacy InboxService also exposes wallet_amount at the response root.
+        $this->assertSame('500.00', $response->json('wallet_amount'));
+        $this->assertSame('500.00', $response->json('data.wallet_amount'));
     }
 
     public function test_conversations_and_dashboard(): void
@@ -163,12 +166,11 @@ class MobileInboxTest extends TestCase
 
         $walletTx = $this->withToken($this->accessToken)
             ->getJson('/api/v1/wallet-transactions')
-            ->assertOk()
-            ->assertJsonPath('success', true);
-        $this->assertSame('500.00', $walletTx->json('wallet_amount'));
-        $this->assertSame('500.00', $walletTx->json('data.wallet_amount'));
+            ->assertOk();
+        // Exact legacy shape: { current_wallet_amount: { wallet_amount }, wallet_transactions: [] }
         $this->assertSame('500.00', $walletTx->json('current_wallet_amount.wallet_amount'));
         $this->assertIsArray($walletTx->json('wallet_transactions'));
+        $this->assertArrayNotHasKey('data', $walletTx->json());
 
         $this->withToken($this->accessToken)
             ->getJson('/api/v1/mobile/inbox/new-message-count')

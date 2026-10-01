@@ -68,8 +68,15 @@ class MobileInboxController extends Controller
         $defaultPhone = $numbers[0]['phone'] ?? null;
         $walletAmount = \App\Domains\MobileApi\Support\MobileWallet::amountString();
 
+        // Legacy InboxService returns wallet_amount at the root (not only under data).
         return response()->json([
             'success' => true,
+            'message' => 'sucess',
+            'userassigned' => $defaultPhone,
+            'numbers' => $numbers,
+            'wallet_amount' => $walletAmount,
+            'line_context_locked' => false,
+            'inbox_phone_masking_enabled' => false,
             'data' => [
                 'message' => 'sucess',
                 'userassigned' => $defaultPhone,
