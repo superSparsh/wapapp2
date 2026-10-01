@@ -2,7 +2,7 @@
   <div class="flex flex-col gap-1 p-4">
     <h1 class="text-2xl font-bold leading-[1.5] text-text-primary">Account security</h1>
     <p class="max-w-[854px] text-sm font-normal leading-[1.4] text-text-subtle opacity-50">
-      Protect your account with two-factor authentication (TOTP), same as legacy WapApp.
+      Protect your account with two-factor authentication (TOTP).
     </p>
   </div>
 
