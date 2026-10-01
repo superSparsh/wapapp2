@@ -54,7 +54,13 @@ final class ContactImporter implements LegacyImporter
         $query->orderBy('id')
             ->chunkById($chunk, function ($rows) use ($ids, $report, $dryRun): void {
                 foreach ($rows as $row) {
-                    $this->importOne($row, $ids, $report, $dryRun);
+                    try {
+                        $this->importOne($row, $ids, $report, $dryRun);
+                    } catch (\Throwable $e) {
+                        $legacyId = (int) ($row->id ?? 0);
+                        $report->bump($this->key(), 'failed');
+                        $report->error("Contact legacy #{$legacyId}: ".$e->getMessage());
+                    }
                 }
             });
     }
@@ -70,6 +76,8 @@ final class ContactImporter implements LegacyImporter
 
         $mailListId = $ids->getInt('list', (int) $row->mail_list_id);
         $name = trim(($row->first_name ?? '').' '.($row->last_name ?? ''));
+        $fullName = $name;
+        $name = $this->truncateUtf8($name, 150);
         $legacyId = (int) $row->id;
 
         if ($dryRun) {
@@ -81,22 +89,30 @@ final class ContactImporter implements LegacyImporter
         $contact = Contact::query()->where('phone', $phone)->first();
         $customFields = $this->loadCustomFields($legacyId, $ids, $contact?->custom_fields ?? []);
 
+        $email = filled($row->email ?? null) ? strtolower(trim((string) $row->email)) : null;
+        $email = $email !== null ? $this->truncateUtf8($email, 191) : null;
+
+        $metadata = array_merge($contact?->metadata ?? [], [
+            'legacy_subscriber_id' => $legacyId,
+            'legacy_uid' => $row->uid ?? null,
+            'legacy_tags' => $row->tags ?? null,
+            'legacy_country_code' => $row->country_code ?? null,
+            'legacy_phone_raw' => $row->phone_number ?? null,
+        ]);
+        if ($fullName !== '' && $fullName !== $name) {
+            $metadata['legacy_name_full'] = $fullName;
+        }
+
         $payload = [
             'phone' => $phone,
             'name' => $name !== '' ? $name : null,
-            'email' => filled($row->email ?? null) ? strtolower((string) $row->email) : null,
+            'email' => $email,
             'country_code' => $this->normalizeCountryCode($row->country_code ?? null, $phone),
             'opt_in_status' => $this->mapOptIn($row->status ?? null),
             'source' => 'legacy_import',
             'mail_list_id' => $mailListId ?? ($contact?->mail_list_id),
             'custom_fields' => $customFields,
-            'metadata' => array_merge($contact?->metadata ?? [], [
-                'legacy_subscriber_id' => $legacyId,
-                'legacy_uid' => $row->uid ?? null,
-                'legacy_tags' => $row->tags ?? null,
-                'legacy_country_code' => $row->country_code ?? null,
-                'legacy_phone_raw' => $row->phone_number ?? null,
-            ]),
+            'metadata' => $metadata,
         ];
 
         if ($contact !== null) {
@@ -109,6 +125,15 @@ final class ContactImporter implements LegacyImporter
 
         $ids->put('contact', $legacyId, $contact->id);
         $ids->put('contact_phone', $phone, $contact->id);
+    }
+
+    private function truncateUtf8(string $value, int $maxChars): string
+    {
+        if ($value === '' || mb_strlen($value) <= $maxChars) {
+            return $value;
+        }
+
+        return mb_substr($value, 0, $maxChars);
     }
 
     /**
