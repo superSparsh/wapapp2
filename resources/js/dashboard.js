@@ -206,9 +206,14 @@ function initCreditsFilter(root) {
                 const perNumber = Number(credits.service_free_per_number ?? 1000);
                 const numbers = Math.max(1, Number(credits.service_whatsapp_numbers ?? 1));
                 const remaining = Number(credits.service_free_remaining ?? 0);
-                const total = Number(credits.service_limit ?? 0);
                 const numberLabel = numbers === 1 ? 'WhatsApp number' : 'WhatsApp numbers';
-                freeNote.textContent = `${formatNumber(remaining)} free left this month · ${formatNumber(perNumber)} free × ${numbers} ${numberLabel} = ${formatNumber(total)}`;
+                let html = `<p>${formatNumber(remaining)} free left this month · ${formatNumber(perNumber)} free × ${numbers} ${numberLabel} (not shared)</p>`;
+                const perLine = Array.isArray(credits.service_free_per_line) ? credits.service_free_per_line : [];
+                if (perLine.length > 1) {
+                    const parts = perLine.map((line) => `${line.label}: ${formatNumber(line.remaining)}/${formatNumber(line.limit)}`);
+                    html += `<p class="mt-1">${parts.join(' · ')}</p>`;
+                }
+                freeNote.innerHTML = html;
             }
 
             if (fromRefresh) {

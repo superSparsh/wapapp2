@@ -63,9 +63,13 @@ class MessageObserver
         $deliveryStatus = $status === MessageStatus::Read ? 'Read' : 'Delivered';
 
         try {
+            $message->loadMissing('conversation');
             app(TemplateWalletChargeService::class)->chargeIfDelivered(
                 message: $message,
                 deliveryStatus: $deliveryStatus,
+                whatsappLineId: $message->conversation?->whatsapp_line_id
+                    ? (int) $message->conversation->whatsapp_line_id
+                    : null,
             );
         } catch (Throwable $e) {
             Log::warning('MessageObserver wallet charge failed', [

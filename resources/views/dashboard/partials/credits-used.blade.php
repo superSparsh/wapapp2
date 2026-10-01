@@ -57,12 +57,22 @@
       $freePerNumber = (int) ($credits['service_free_per_number'] ?? config('billing.service_free_messages_per_month', 1000));
       $whatsappNumbers = max(1, (int) ($credits['service_whatsapp_numbers'] ?? 1));
       $freeRemaining = (int) ($credits['service_free_remaining'] ?? 0);
-      $freeTotal = (int) ($credits['service_limit'] ?? 0);
+      $perLine = is_array($credits['service_free_per_line'] ?? null) ? $credits['service_free_per_line'] : [];
     @endphp
-    <p class="text-right text-xs text-text-muted" data-service-free-note>
-      {{ number_format($freeRemaining) }} free left this month
-      · {{ number_format($freePerNumber) }} free × {{ $whatsappNumbers }} {{ $whatsappNumbers === 1 ? 'WhatsApp number' : 'WhatsApp numbers' }}
-      = {{ number_format($freeTotal) }}
-    </p>
+    <div class="text-right text-xs text-text-muted" data-service-free-note>
+      <p>
+        {{ number_format($freeRemaining) }} free left this month
+        · {{ number_format($freePerNumber) }} free × {{ $whatsappNumbers }} {{ $whatsappNumbers === 1 ? 'WhatsApp number' : 'WhatsApp numbers' }}
+        (not shared)
+      </p>
+      @if (count($perLine) > 1)
+        <p class="mt-1">
+          @foreach ($perLine as $i => $line)
+            @if ($i > 0) · @endif
+            {{ $line['label'] }}: {{ number_format((int) $line['remaining']) }}/{{ number_format((int) $line['limit']) }}
+          @endforeach
+        </p>
+      @endif
+    </div>
   @endif
 </section>

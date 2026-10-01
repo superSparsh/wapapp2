@@ -101,7 +101,7 @@ class AlibabaOutboundMessageGateway implements \App\Domains\Inbox\Contracts\Outb
                 'failed_reason' => null,
             ])->save();
 
-            $this->chargeServiceMessageIfNeeded($message->refresh());
+            $this->chargeServiceMessageIfNeeded($message->refresh(), (int) $line->id);
 
             try {
                 app(InboxBroadcastService::class)->messageStatusUpdated($message->refresh());
@@ -241,12 +241,13 @@ class AlibabaOutboundMessageGateway implements \App\Domains\Inbox\Contracts\Outb
      * Debit service (free-form) messages as soon as CAMS accepts them (Sent).
      * Idempotent with MessageObserver / later Delivered webhooks.
      */
-    private function chargeServiceMessageIfNeeded(Message $message): void
+    private function chargeServiceMessageIfNeeded(Message $message, ?int $whatsappLineId = null): void
     {
         try {
             app(TemplateWalletChargeService::class)->chargeIfDelivered(
                 message: $message,
                 deliveryStatus: 'Sent',
+                whatsappLineId: $whatsappLineId,
             );
         } catch (Throwable $e) {
             Log::warning('Outbound Sent wallet charge failed', [

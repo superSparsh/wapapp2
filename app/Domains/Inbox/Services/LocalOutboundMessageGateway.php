@@ -29,10 +29,15 @@ class LocalOutboundMessageGateway implements OutboundMessageGateway
             'external_message_id' => $message->external_message_id ?? 'local_'.$message->uuid,
         ])->save();
 
+        $message->loadMissing('conversation');
+
         try {
             app(TemplateWalletChargeService::class)->chargeIfDelivered(
                 message: $message->refresh(),
                 deliveryStatus: 'Sent',
+                whatsappLineId: $message->conversation?->whatsapp_line_id
+                    ? (int) $message->conversation->whatsapp_line_id
+                    : null,
             );
         } catch (Throwable $e) {
             Log::warning('Local outbound Sent wallet charge failed', [

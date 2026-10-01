@@ -36,6 +36,7 @@ class TemplateWalletChargeService
         Message $message,
         string $deliveryStatus,
         ?CampaignRecipient $recipient = null,
+        ?int $whatsappLineId = null,
     ): ?WalletTransaction {
         $statusKey = strtolower(trim($deliveryStatus));
 
@@ -72,27 +73,29 @@ class TemplateWalletChargeService
             return null;
         }
 
-        $message->loadMissing('conversation');
+        $message->loadMissing(['conversation.whatsappLine']);
 
         $source = $this->resolveSource($meta, $recipient, $isService);
         $category = $isTemplate
             ? strtoupper((string) ($meta['template_category'] ?? 'MARKETING'))
             : 'SERVICE';
 
-        // Meta-style free tier: first N SERVICE messages / month / business phone are free.
+        // Meta-style free tier: first N SERVICE messages / month / WhatsApp number are free.
         if ($isService || $category === 'SERVICE') {
-            $lineId = (int) ($message->conversation?->whatsapp_line_id ?? 0);
-            if ($this->serviceFreeAllowance->tryConsumeFree($lineId > 0 ? $lineId : null)) {
+            $lineId = $whatsappLineId
+                ?? $this->resolveWhatsappLineId($message, $meta);
+            if ($this->serviceFreeAllowance->tryConsumeFree($lineId)) {
                 $latestMeta = $this->metadataArray($message->refresh());
                 $latestMeta['wallet_charged'] = true;
                 $latestMeta['wallet_free'] = true;
                 $latestMeta['wallet_free_reason'] = 'service_monthly_allowance';
+                $latestMeta['wallet_free_whatsapp_line_id'] = $lineId;
                 $latestMeta['wallet_charged_at'] = now()->toIso8601String();
                 $message->forceFill(['metadata' => $latestMeta])->save();
 
                 Log::info('Service message covered by free monthly allowance', [
                     'message_id' => $message->id,
-                    'whatsapp_line_id' => $lineId > 0 ? $lineId : null,
+                    'whatsapp_line_id' => $lineId,
                     'source' => $source,
                 ]);
 
@@ -243,6 +246,29 @@ class TemplateWalletChargeService
         }
 
         return true;
+    }
+
+    /**
+     * @param  array<string, mixed>  $meta
+     */
+    private function resolveWhatsappLineId(Message $message, array $meta): ?int
+    {
+        $fromConversation = (int) ($message->conversation?->whatsapp_line_id ?? 0);
+        if ($fromConversation > 0) {
+            return $fromConversation;
+        }
+
+        $fromRelation = (int) ($message->conversation?->whatsappLine?->id ?? 0);
+        if ($fromRelation > 0) {
+            return $fromRelation;
+        }
+
+        $fromMeta = (int) ($meta['whatsapp_line_id'] ?? $meta['line_id'] ?? 0);
+        if ($fromMeta > 0) {
+            return $fromMeta;
+        }
+
+        return null;
     }
 
     /**

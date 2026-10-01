@@ -138,10 +138,14 @@ class DeliveryStatusHandler
                     ?? CampaignRecipient::query()->where('message_id', (string) $message->id)->first();
 
                 try {
+                    $message->loadMissing('conversation');
                     $this->templateWalletChargeService->chargeIfDelivered(
                         message: $message->refresh(),
                         deliveryStatus: $status,
                         recipient: $recipient,
+                        whatsappLineId: $message->conversation?->whatsapp_line_id
+                            ? (int) $message->conversation->whatsapp_line_id
+                            : null,
                     );
                 } catch (\Throwable $e) {
                     Log::warning('Wallet delivery charge hook failed', [

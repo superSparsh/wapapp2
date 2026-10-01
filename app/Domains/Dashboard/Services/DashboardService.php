@@ -314,6 +314,7 @@ class DashboardService
             'service_free_remaining' => $free['remaining'],
             'service_free_per_number' => $free['limit_per_line'],
             'service_whatsapp_numbers' => $free['lines'],
+            'service_free_per_line' => $free['per_line'],
         ];
     }
 
