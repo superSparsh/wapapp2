@@ -203,18 +203,23 @@ class DashboardService
         $summary = $this->subscriptionService->subscriptionSummary();
         $plan = $summary['plan'];
         $subscription = $summary['subscription'];
-        $expiresAt = $summary['expires_at'];
+        $expiresAtRaw = $summary['expires_at'];
         $planName = $summary['plan_name'] ?? $plan?->name;
+
+        $expiresAt = $expiresAtRaw instanceof \DateTimeInterface
+            ? Carbon::instance($expiresAtRaw)
+            : null;
 
         $daysRemaining = null;
         $validityPercent = 0;
 
         if ($expiresAt instanceof Carbon) {
-            // Legacy DashboardService: Carbon::now()->diffInDays($planExpires)
+            // Signed remaining days (0 when already expired).
             $daysRemaining = max(0, (int) now()->startOfDay()->diffInDays($expiresAt->copy()->startOfDay(), false));
             $startsAt = $subscription?->starts_at;
 
-            if ($startsAt instanceof Carbon && $expiresAt->greaterThan($startsAt)) {
+            if ($startsAt instanceof \DateTimeInterface && $expiresAt->greaterThan($startsAt)) {
+                $startsAt = Carbon::instance($startsAt);
                 $totalDays = max(1, (int) $startsAt->copy()->startOfDay()->diffInDays($expiresAt->copy()->startOfDay()));
                 $validityPercent = min(100, (int) round(($daysRemaining / $totalDays) * 100));
             } elseif ($daysRemaining > 0) {

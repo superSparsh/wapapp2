@@ -1,9 +1,12 @@
 @php
   $plan = $summary['plan'] ?? null;
   $subscription = $summary['subscription'] ?? null;
-  $expiresAt = $summary['expires_at'] ?? null;
+  $expiresAtRaw = $summary['expires_at'] ?? null;
+  $expiresAt = $expiresAtRaw instanceof \DateTimeInterface
+      ? \Illuminate\Support\Carbon::instance($expiresAtRaw)
+      : null;
   $daysRemaining = $expiresAt
-      ? (int) now()->startOfDay()->diffInDays($expiresAt->copy()->startOfDay(), false)
+      ? max(0, (int) now()->startOfDay()->diffInDays($expiresAt->copy()->startOfDay(), false))
       : null;
   $validityUrgent = $daysRemaining !== null && $daysRemaining <= 60;
   $walletLowThreshold = 2000;

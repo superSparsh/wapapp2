@@ -12,7 +12,7 @@ use App\Models\Plan;
 use App\Models\RazorpayOrder;
 use App\Models\Subscription;
 use App\Models\Tenant;
-use Carbon\Carbon;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Throwable;
