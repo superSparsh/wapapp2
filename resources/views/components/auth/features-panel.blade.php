@@ -25,11 +25,13 @@
     <div class="h-[136px] shrink-0" aria-hidden="true"></div>
 
   {{-- Align with "Login to Dashboard" / signup title --}}
-    <div @class([
-        'flex min-h-0 flex-1 flex-col gap-8',
-        'style="margin-top:23%"' => ! $isSignup,
-        'mt-8' => $isSignup,
-    ])>
+  <div
+  @class([
+      'flex min-h-0 flex-1 flex-col gap-8',
+      'mt-8' => $isSignup,
+  ])
+  style="{{ ! $isSignup ? 'margin-top: 23%;' : '' }}"
+>
         <div class="flex w-full max-w-[520px] flex-col gap-5">
             <span class="inline-flex w-fit items-center justify-center rounded-lg border border-border bg-elevated px-3 py-2 text-sm font-semibold shadow-[0px_1px_2px_0px_rgba(35,39,46,0.08)]" style="font-family: var(--font-display)">
                 Features
