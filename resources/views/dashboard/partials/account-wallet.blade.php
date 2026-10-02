@@ -15,6 +15,8 @@
   $hasValidity = $expiresAt !== null || $daysRemaining !== null;
   // Legacy newdashboard: danger styling when ≤ 60 days remaining.
   $validityUrgent = $daysRemaining !== null && $daysRemaining <= 60;
+  $walletLowThreshold = 2000;
+  $walletLow = (float) $walletBalance < $walletLowThreshold;
 @endphp
 
 <section class="grid gap-4 p-4 pt-0 lg:grid-cols-[1fr_400px]">
@@ -30,7 +32,7 @@
       @endif
     </div>
     <div class="h-2.5 overflow-hidden rounded-full bg-blue-50">
-      <div class="h-full rounded-full bg-auth-gradient" style="width: {{ max($hasValidity || $hasPlan || $hasSubscription ? 8 : 0, $validityPercent) }}%"></div>
+      <div class="h-full rounded-full {{ $validityUrgent ? 'bg-danger-red' : 'bg-auth-gradient' }}" style="width: {{ max($hasValidity || $hasPlan || $hasSubscription ? 8 : 0, $validityPercent) }}%"></div>
     </div>
     <div class="grid gap-3 sm:grid-cols-2">
       <div class="flex items-center gap-2.5 rounded border border-border-light bg-elevated p-2">
@@ -48,10 +50,10 @@
         </p>
       </div>
       <div class="flex items-center gap-2.5 rounded border border-border-light bg-elevated p-2">
-        <div class="flex size-8 shrink-0 items-center justify-center rounded-full bg-blue-50">
+        <div class="flex size-8 shrink-0 items-center justify-center rounded-full {{ $validityUrgent ? 'bg-red-50' : 'bg-blue-50' }}">
           <img src="{{ asset('images/icons/clipboard-text.svg') }}" alt="" class="size-4" width="16" height="16">
         </div>
-        <p class="fd-label text-sm text-primary-2">
+        <p class="fd-label text-sm {{ $validityUrgent ? 'text-danger-red' : 'text-primary-2' }}">
           @if ($expiresAt)
             Expires on {{ $expiresAt->format('F d, Y') }}
           @elseif ($hasPlan || $hasSubscription)
@@ -71,10 +73,15 @@
   <div class="flex flex-col gap-4 rounded-lg border border-[0.5px] border-border-light bg-elevated p-4">
     <div class="flex items-start gap-3">
       <div class="min-w-0 flex-1">
-        <p class="text-2xl font-bold leading-[1.4] text-text-primary" style="font-family: var(--font-display)">₹ {{ number_format($walletBalance, 2) }}</p>
-        <p class="mt-2 text-sm leading-[1.4] text-text-primary opacity-70" style="font-family: var(--font-display)">Wallet Balance</p>
+        <p class="text-2xl font-bold leading-[1.4] {{ $walletLow ? 'text-danger-red' : 'text-text-primary' }}" style="font-family: var(--font-display)">₹ {{ number_format($walletBalance, 2) }}</p>
+        <p class="mt-2 text-sm leading-[1.4] {{ $walletLow ? 'text-danger-red' : 'text-text-primary opacity-70' }}" style="font-family: var(--font-display)">
+          Wallet Balance
+          @if ($walletLow)
+            <span class="opacity-80"> · Low</span>
+          @endif
+        </p>
       </div>
-      <img src="{{ asset('images/icons/wallet.svg') }}" alt="" class="size-[62px] shrink-0 rounded-full bg-green-50 p-3" width="62" height="62">
+      <img src="{{ asset('images/icons/wallet.svg') }}" alt="" class="size-[62px] shrink-0 rounded-full {{ $walletLow ? 'bg-red-50' : 'bg-green-50' }} p-3" width="62" height="62">
     </div>
     <div class="grid gap-4 sm:grid-cols-2">
       <x-ui.link-button href="{{ route('dashboard.wallet') }}" variant="outline" size="toolbar" class="w-full justify-center gap-3 px-4 py-3">

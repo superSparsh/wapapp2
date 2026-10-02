@@ -2,6 +2,12 @@
   $plan = $summary['plan'] ?? null;
   $subscription = $summary['subscription'] ?? null;
   $expiresAt = $summary['expires_at'] ?? null;
+  $daysRemaining = $expiresAt
+      ? (int) now()->startOfDay()->diffInDays($expiresAt->copy()->startOfDay(), false)
+      : null;
+  $validityUrgent = $daysRemaining !== null && $daysRemaining <= 60;
+  $walletLowThreshold = 2000;
+  $walletLow = (float) $walletBalance < $walletLowThreshold;
 @endphp
 
 <x-profile.layout title="Subscription - WapApp" headerTitle="Subscription" active="profile.subscription">
@@ -27,8 +33,11 @@
           <span> plan.</span>
           @if ($expiresAt)
             <br>
-            <span>Your subscription expires on </span>
-            <span class="font-bold text-text-body">{{ $expiresAt->format('d M Y') }}</span>
+            <span class="{{ $validityUrgent ? 'text-danger-red' : '' }}">Your subscription expires on </span>
+            <span class="font-bold {{ $validityUrgent ? 'text-danger-red' : 'text-text-body' }}">{{ $expiresAt->format('d M Y') }}</span>
+            @if ($validityUrgent && $daysRemaining !== null)
+              <span class="font-semibold text-danger-red">({{ max(0, $daysRemaining) }} days remaining)</span>
+            @endif
           @endif
         @else
           <span>No active plan selected. Choose a plan to get started.</span>
@@ -123,8 +132,13 @@
 
       <aside class="flex w-full flex-col gap-4 rounded-[20px] bg-elevated p-5 xl:max-w-[380px] xl:shrink-0">
         <div class="flex flex-col gap-1">
-          <h2 class="text-2xl font-bold leading-[1.5] text-text-primary">Wallet</h2>
-          <p class="text-sm text-text-subtle opacity-50">Balance: ₹ {{ number_format($walletBalance, 2) }}</p>
+          <h2 class="text-2xl font-bold leading-[1.5] {{ $walletLow ? 'text-danger-red' : 'text-text-primary' }}">Wallet</h2>
+          <p class="text-sm {{ $walletLow ? 'text-danger-red' : 'text-text-subtle opacity-50' }}">
+            Balance: ₹ {{ number_format($walletBalance, 2) }}
+            @if ($walletLow)
+              <span class="font-semibold"> · Low</span>
+            @endif
+          </p>
         </div>
 
         <form
