@@ -14,7 +14,7 @@
         : asset('images/logo.png');
 @endphp
 
-<span {{ $attributes->class('relative shrink-0 overflow-hidden rounded-2xl') }} style="width: 250px; height: 250px;left: -13%;">
+<span {{ $attributes->class('relative shrink-0 overflow-hidden rounded-2xl') }}>
     <img
         src="{{ $lightSrc }}"
         alt="WapApp"
