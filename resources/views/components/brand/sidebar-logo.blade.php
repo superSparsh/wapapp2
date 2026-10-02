@@ -4,7 +4,7 @@
     $darkSrc = asset('images/logo.png');
 @endphp
 
-<span {{ $attributes->class('relative inline-flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-lg') }}>
+<span {{ $attributes->class('relative inline-flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-lg') }} style="width: 50px; height: 70px">
     <img
         src="{{ $lightSrc }}"
         alt="WapApp"

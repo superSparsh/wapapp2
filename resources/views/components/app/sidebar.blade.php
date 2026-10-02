@@ -49,7 +49,7 @@
   <div class="flex h-[84px] shrink-0 items-center px-6" @if (! $mobile) data-sidebar-logo-row @endif>
     <a
       href="{{ route('dashboard') }}"
-      class="flex w-full items-center gap-3 transition-opacity hover:opacity-90 focus:outline-none"
+      class="flex w-full items-center gap-1 transition-opacity hover:opacity-90 focus:outline-none"
       @if (! $mobile) data-sidebar-item @endif
     >
       <x-brand.sidebar-logo />

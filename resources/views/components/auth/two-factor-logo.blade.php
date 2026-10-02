@@ -4,7 +4,7 @@
     $darkSrc = asset('images/auth/logo-green.png');
 @endphp
 
-<span {{ $attributes->class('relative inline-flex size-24 shrink-0 items-center justify-center overflow-hidden rounded-2xl') }}>
+<span {{ $attributes->class('flex size-24 shrink-0 items-center justify-center overflow-hidden rounded-2xl') }} style="width: 250px; height: 171px;margin-left: 18%;">
     <img
         src="{{ $lightSrc }}"
         alt="WapApp"
