@@ -75,7 +75,7 @@ class ChatbotFlowController extends Controller
         if ($request->expectsJson()) {
             return response()->json([
                 'success' => true,
-                'flow_id' => $flow->id,
+                'flow_id' => $flow->uuid,
                 'name' => $flow->name,
                 'edit_url' => route('chatbot.edit', $flow),
             ], 201);

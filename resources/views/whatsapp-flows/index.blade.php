@@ -323,7 +323,8 @@
                       return;
                   }
                   if (data.result.success) {
-                      window.location.href = '/whatsapp-flows/' + data.result.flow_id + '/edit';
+                      window.location.href = data.result.edit_url
+                          || ('/whatsapp-flows/' + data.result.flow_id + '/edit');
                   }
               }).catch(function (err) {
                   errorsEl.textContent = err.message || 'An error occurred';
