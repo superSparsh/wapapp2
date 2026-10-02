@@ -7,7 +7,7 @@
 
                     <header class="flex max-w-[520px] flex-col gap-4">
                         <h1 class="text-[32px] font-bold leading-[1.2] text-text-primary">Login to Dashboard</h1>
-                        <p class="text-base font-medium leading-[1.5] text-text-primary/54 mb-10">Fill the below form to login</p>
+                        <p class="text-base font-medium leading-[1.5] text-text-primary/54 mb-5">Fill the below form to login</p>
                     </header>
 
                     <div class="flex max-w-[520px] flex-col gap-12">
