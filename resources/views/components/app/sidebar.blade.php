@@ -52,7 +52,7 @@
       class="flex w-full items-center gap-3 transition-opacity hover:opacity-90 focus:outline-none"
       @if (! $mobile) data-sidebar-item @endif
     >
-      <x-brand.logo class="size-9 rounded-lg" />
+      <x-brand.logo class="size-11 rounded-lg" />
       <span
         class="fd-logo min-w-0 text-xl font-bold tracking-tight text-text-primary whitespace-nowrap"
         @if (! $mobile) data-sidebar-label @endif

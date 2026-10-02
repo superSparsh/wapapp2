@@ -18,14 +18,14 @@
     <img
         src="{{ $lightSrc }}"
         alt="WapApp"
-        class="h-full w-full object-contain dark:hidden"
+        class="h-full w-full object-cover dark:hidden"
         width="80"
         height="80"
     >
     <img
         src="{{ $darkSrc }}"
         alt="WapApp"
-        class="hidden h-full w-full object-contain dark:block"
+        class="hidden h-full w-full object-cover dark:block"
         width="80"
         height="80"
     >
