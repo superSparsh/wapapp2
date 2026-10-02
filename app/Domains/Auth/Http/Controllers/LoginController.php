@@ -70,7 +70,10 @@ class LoginController extends Controller
     public function destroy(): RedirectResponse
     {
         $guard = session(\App\Domains\Auth\Support\AuthSession::GUARD, 'web');
-        auth()->guard(is_string($guard) ? $guard : 'web')->logout();
+        $guard = is_string($guard) ? $guard : 'web';
+
+        auth()->guard($guard)->logout();
+        \App\Domains\Auth\Support\RememberTenantCookie::forget();
 
         request()->session()->invalidate();
         request()->session()->regenerateToken();

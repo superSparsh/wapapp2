@@ -66,11 +66,7 @@
                                     </x-form.input>
 
                                     <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                                        <label class="flex cursor-pointer items-center gap-1.5">
-                                            <input type="checkbox" name="remember" value="1" class="sr-only" @checked(old('remember'))>
-                                            <img src="{{ asset('images/auth/tick-square.svg') }}" alt="" class="size-5 shrink-0" width="20" height="20">
-                                            <span class="text-sm font-medium leading-[1.4] text-text-muted">Remember me</span>
-                                        </label>
+                                        <x-auth.remember-me />
 
                                         <p class="text-sm font-medium leading-[1.4] text-text-muted">
                                             Forgot your password?
@@ -141,11 +137,7 @@
                                         <input type="hidden" name="otp" value="{{ old('otp') }}" data-login-otp-hidden>
                                     </div>
 
-                                    <label class="flex cursor-pointer items-center gap-1.5">
-                                        <input type="checkbox" name="remember" value="1" class="sr-only" @checked(old('remember'))>
-                                        <img src="{{ asset('images/auth/tick-square.svg') }}" alt="" class="size-5 shrink-0" width="20" height="20">
-                                        <span class="text-sm font-medium leading-[1.4] text-text-muted">Remember me</span>
-                                    </label>
+                                    <x-auth.remember-me />
                                 </div>
 
                                 <x-ui.button type="submit" class="rounded-xl p-3.5">Verify OTP</x-ui.button>

@@ -4,17 +4,12 @@ declare(strict_types=1);
 
 namespace App\Domains\Auth\Services;
 
-use App\Domains\Auth\Exceptions\AccountInactiveException;
 use App\Domains\Auth\Exceptions\InvalidCredentialsException;
 use App\Domains\Auth\Support\AuthSession;
-use App\Enums\TenantUserAccountType;
-use App\Models\TeamMember;
+use App\Domains\Auth\Support\RememberTenantCookie;
 use App\Models\Tenant;
 use App\Models\TenantUserAccess;
-use App\Models\User;
-use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
 
 class TenantResolver
 {
@@ -65,6 +60,32 @@ class TenantResolver
         }
 
         tenancy()->initialize($tenant);
+    }
+
+    /**
+     * Boot tenancy from the remember-me companion cookie when the session has expired.
+     */
+    public function initializeFromRememberCookie(): bool
+    {
+        if (Auth::guard('admin')->check()) {
+            return false;
+        }
+
+        $remembered = RememberTenantCookie::read();
+        if ($remembered === null) {
+            return false;
+        }
+
+        $tenant = Tenant::query()->find($remembered['tenant_id']);
+        if ($tenant === null) {
+            RememberTenantCookie::forget();
+
+            return false;
+        }
+
+        tenancy()->initialize($tenant);
+
+        return true;
     }
 
     /**

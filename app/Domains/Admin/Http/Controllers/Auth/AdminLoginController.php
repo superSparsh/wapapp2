@@ -54,6 +54,7 @@ class AdminLoginController extends Controller
         Auth::guard('web')->logout();
         Auth::guard('team')->logout();
         app(TenantResolver::class)->forgetTenantScopedAuthSession();
+        \App\Domains\Auth\Support\RememberTenantCookie::forget();
 
         $admin->forceFill(['last_login_at' => now()])->save();
 

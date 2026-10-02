@@ -8,6 +8,7 @@ use App\Domains\Auth\DTOs\LoginResult;
 use App\Domains\Auth\Exceptions\AccountInactiveException;
 use App\Domains\Auth\Exceptions\InvalidCredentialsException;
 use App\Domains\Auth\Support\AuthSession;
+use App\Domains\Auth\Support\RememberTenantCookie;
 use App\Enums\TenantUserAccountType;
 use App\Models\TeamMember;
 use App\Models\TenantUserAccess;
@@ -47,6 +48,12 @@ class LoginService
         $user->forceFill(['last_login_at' => now()])->save();
 
         $this->tenantResolver->storeInSession($access->tenant_id, $guard);
+
+        if ($remember) {
+            RememberTenantCookie::queue($access->tenant_id, $guard);
+        } else {
+            RememberTenantCookie::forget();
+        }
 
         session()->forget(AuthSession::TWO_FACTOR_VERIFIED);
 
