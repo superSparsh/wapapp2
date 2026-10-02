@@ -27,7 +27,7 @@
   {{-- Align with "Login to Dashboard" / signup title --}}
     <div @class([
         'flex min-h-0 flex-1 flex-col gap-8',
-        'mt-20' => ! $isSignup,
+        'mt-[23%]' => ! $isSignup,
         'mt-8' => $isSignup,
     ])>
         <div class="flex w-full max-w-[520px] flex-col gap-5">

@@ -10,7 +10,7 @@
                         <p class="text-base font-medium leading-[1.5] text-text-primary/54">Fill the below form to login</p>
                     </header>
 
-                    <div class="mt-20 flex max-w-[520px] flex-col gap-12">
+                    <div class="flex max-w-[520px] flex-col gap-12">
                         <x-ui.tab-toggle
                             :tabs="[
                                 ['label' => 'Email', 'target' => 'email-form', 'href' => route('login')],
