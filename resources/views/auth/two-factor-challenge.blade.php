@@ -39,7 +39,7 @@
                     data-2fa-toggle
                 >Use a recovery code instead</button>
 
-                <x-ui.button type="submit" class="rounded-xl p-3.5">Verify</x-ui.button>
+                <x-ui.button type="submit" class="rounded-xl p-3.5" data-2fa-submit>Verify</x-ui.button>
             </form>
         </div>
     </main>
@@ -55,9 +55,44 @@
                 const toggle = form.querySelector('[data-2fa-toggle]');
                 const hiddenCode = form.querySelector('[data-otp-hidden]');
                 const recoveryInput = form.querySelector('#recovery_code');
+                const submitBtn = form.querySelector('[data-2fa-submit]');
                 let recoveryMode = false;
+                let submitting = false;
+
+                const setVerifying = () => {
+                    if (submitting) return false;
+                    submitting = true;
+                    form.dataset.submitting = '1';
+
+                    if (submitBtn) {
+                        submitBtn.disabled = true;
+                        submitBtn.textContent = 'Verifying...';
+                    }
+
+                    form.querySelectorAll('[data-otp-digit], #recovery_code, [data-2fa-toggle]').forEach((el) => {
+                        el.disabled = true;
+                    });
+
+                    return true;
+                };
+
+                const submitForm = () => {
+                    if (!setVerifying()) return;
+                    form.requestSubmit ? form.requestSubmit() : form.submit();
+                };
+
+                form.addEventListener('otp:complete', () => {
+                    if (recoveryMode) return;
+                    submitForm();
+                });
+
+                form.addEventListener('submit', () => {
+                    setVerifying();
+                });
 
                 toggle?.addEventListener('click', () => {
+                    if (submitting) return;
+
                     recoveryMode = !recoveryMode;
                     totpWrap?.classList.toggle('hidden', recoveryMode);
                     recoveryWrap?.classList.toggle('hidden', !recoveryMode);

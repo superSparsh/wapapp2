@@ -179,11 +179,18 @@ function initOtpInputs() {
         const inputs = [...container.querySelectorAll('input')];
         const hidden = container.parentElement?.querySelector('[data-otp-hidden]');
 
-        const sync = () => {
+        const sync = ({ emit = true } = {}) => {
             if (!hidden) {
                 return;
             }
             hidden.value = inputs.map((input) => input.value.replace(/\D/g, '').slice(0, 1)).join('');
+
+            if (emit && hidden.value.length === inputs.length) {
+                container.dispatchEvent(new CustomEvent('otp:complete', {
+                    bubbles: true,
+                    detail: { code: hidden.value },
+                }));
+            }
         };
 
         inputs.forEach((input, index) => {
@@ -210,7 +217,7 @@ function initOtpInputs() {
                 if (event.key === 'Backspace' && !input.value && index > 0) {
                     inputs[index - 1].focus();
                     inputs[index - 1].value = '';
-                    sync();
+                    sync({ emit: false });
                 }
             });
 
@@ -232,7 +239,7 @@ function initOtpInputs() {
             input.addEventListener('focus', () => input.select());
         });
 
-        sync();
+        sync({ emit: false });
     });
 }
 
