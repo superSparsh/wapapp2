@@ -13,7 +13,8 @@ use Throwable;
 class SyncMetaPricingCommand extends Command
 {
     protected $signature = 'operations:sync-meta-pricing
-                            {--discover : Only resolve/print the Meta USD CSV URL}';
+                            {--discover : Only resolve/print the Meta USD CSV URL}
+                            {--dry-run : Download + preview changes without writing to the database}';
 
     protected $description = 'Download Meta official USD WhatsApp rates and sync central country_pricing';
 
@@ -23,15 +24,25 @@ class SyncMetaPricingCommand extends Command
             return $this->discoverOnly($sync);
         }
 
-        $this->info('Syncing Meta USD WhatsApp pricing…');
+        $dryRun = (bool) $this->option('dry-run');
+        $this->info($dryRun
+            ? 'Dry-run: downloading Meta USD WhatsApp pricing (no DB writes)…'
+            : 'Syncing Meta USD WhatsApp pricing…');
 
         try {
-            $results = $sync->sync();
+            $results = $sync->sync(dryRun: $dryRun);
             $message = MetaPricingSyncMessageFormatter::oneLine($results, (int) ($results['plans_synced'] ?? 0));
-            $this->info($message);
-            Log::info('[operations:sync-meta-pricing] '.$message, [
+            if ($dryRun) {
+                $this->warn('[DRY RUN] '.$message);
+                $this->renderDryRunPreview($results);
+            } else {
+                $this->info($message);
+            }
+
+            Log::info('[operations:sync-meta-pricing] '.($dryRun ? '[dry-run] ' : '').$message, [
                 'batch_id' => $results['batch_id'] ?? null,
                 'csv_url' => $results['csv_url'] ?? null,
+                'dry_run' => $dryRun,
                 'updated' => count($results['updated'] ?? []),
                 'skipped' => count($results['skipped'] ?? []),
             ]);
@@ -42,6 +53,45 @@ class SyncMetaPricingCommand extends Command
             Log::error('[operations:sync-meta-pricing] failed: '.$e->getMessage());
 
             return self::FAILURE;
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $results
+     */
+    private function renderDryRunPreview(array $results): void
+    {
+        $updated = $results['updated'] ?? [];
+        if (! is_array($updated) || $updated === []) {
+            $this->line('No price changes would be applied.');
+
+            return;
+        }
+
+        $rows = [];
+        foreach (array_slice($updated, 0, 40) as $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+            $changes = is_array($item['changes'] ?? null) ? $item['changes'] : [];
+            $parts = [];
+            foreach ($changes as $field => $change) {
+                if (! is_array($change)) {
+                    continue;
+                }
+                $parts[] = $field.': '.($change['old'] ?? 'null').' → '.($change['new'] ?? 'null');
+            }
+            $rows[] = [
+                (string) ($item['country'] ?? $item['market'] ?? '-'),
+                implode('; ', $parts) ?: '-',
+            ];
+        }
+
+        $this->table(['Country / market', 'Changes'], $rows);
+
+        $total = count($updated);
+        if ($total > 40) {
+            $this->line('…and '.($total - 40).' more.');
         }
     }
 
@@ -60,8 +110,8 @@ class SyncMetaPricingCommand extends Command
 
         if (empty($url)) {
             $this->error('Could not discover CSV URL.');
-            $this->line('Open https://developers.facebook.com/docs/whatsapp/pricing → "USD rates",');
-            $this->line('copy the CSV link, and set META_USD_PRICING_CSV_URL in .env.');
+            $this->line('Open https://developers.facebook.com/documentation/business-messaging/whatsapp/pricing/ → "USD list rates",');
+            $this->line('copy the CSV/XLSX link, and set META_USD_PRICING_CSV_URL in .env.');
 
             return self::FAILURE;
         }

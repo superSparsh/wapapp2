@@ -29,8 +29,8 @@ class DiscoverMetaPricingCsvUrlCommand extends Command
         if (empty($url)) {
             $this->error('Could not discover CSV URL.');
             $this->line('Your server may block outbound HTTPS to developers.facebook.com / fbcdn.net.');
-            $this->line('Fix: open https://developers.facebook.com/docs/whatsapp/pricing in a browser,');
-            $this->line('click "USD rates" download, copy the CSV link, and add to .env:');
+            $this->line('Fix: open https://developers.facebook.com/documentation/business-messaging/whatsapp/pricing/ in a browser,');
+            $this->line('click "USD list rates" download, copy the link, and add to .env:');
             $this->line('META_USD_PRICING_CSV_URL=<paste-url-here>');
             $this->line('Then: php artisan config:clear');
 

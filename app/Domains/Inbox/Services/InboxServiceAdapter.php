@@ -23,6 +23,7 @@ use App\Models\Conversation;
 use App\Models\InteractiveMessage;
 use App\Models\Message;
 use App\Models\WhatsappFlow;
+use App\Support\Utf8;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -58,12 +59,12 @@ class InboxServiceAdapter
         );
         $payload['unread_total'] = $this->localQueryService->totalUnreadCount();
 
-        return response()->json($payload);
+        return $this->json($payload);
     }
 
     public function unreadCount(): JsonResponse
     {
-        return response()->json($this->localQueryService->unreadSnapshot());
+        return $this->json($this->localQueryService->unreadSnapshot());
     }
 
     public function messages(Request $request, Conversation $conversation): JsonResponse
@@ -71,7 +72,7 @@ class InboxServiceAdapter
         $this->localInboxService->authorizeConversation($conversation);
         $filters = $this->localInboxService->filtersFromRequest($request);
 
-        return response()->json($this->localMessageService->paginateMessages(
+        return $this->json($this->localMessageService->paginateMessages(
             conversation: $conversation,
             beforeId: $request->integer('before_id') ?: null,
             lookbackDays: $filters['lookback_days'],
@@ -84,7 +85,7 @@ class InboxServiceAdapter
 
         $message = $this->localOutboundService->sendText($conversation, $request->validated('body'));
 
-        return response()->json($this->messagePayload($message), 201);
+        return $this->json($this->messagePayload($message), 201);
     }
 
     public function sendMedia(SendInboxMediaRequest $request, Conversation $conversation): JsonResponse
@@ -102,12 +103,12 @@ class InboxServiceAdapter
         $message->refresh();
 
         if ($message->status === MessageStatus::Failed) {
-            return response()->json([
+            return $this->json([
                 'message' => (string) ($message->failed_reason ?: 'Unable to send media via WhatsApp.'),
             ], 422);
         }
 
-        return response()->json($this->messagePayload($message), 201);
+        return $this->json($this->messagePayload($message), 201);
     }
 
     public function sendTemplate(SendInboxTemplateRequest $request, Conversation $conversation): JsonResponse
@@ -125,12 +126,12 @@ class InboxServiceAdapter
         $message->refresh();
 
         if ($message->status === MessageStatus::Failed) {
-            return response()->json([
+            return $this->json([
                 'message' => (string) ($message->failed_reason ?: 'Unable to send template via WhatsApp.'),
             ], 422);
         }
 
-        return response()->json($this->messagePayload($message), 201);
+        return $this->json($this->messagePayload($message), 201);
     }
 
     public function sendLocation(SendInboxLocationRequest $request, Conversation $conversation): JsonResponse
@@ -143,7 +144,7 @@ class InboxServiceAdapter
             longitude: (float) $request->validated('longitude'),
         );
 
-        return response()->json($this->messagePayload($message), 201);
+        return $this->json($this->messagePayload($message), 201);
     }
 
     public function sendSticker(SendInboxStickerRequest $request, Conversation $conversation): JsonResponse
@@ -159,12 +160,12 @@ class InboxServiceAdapter
         $message->refresh();
 
         if ($message->status === MessageStatus::Failed) {
-            return response()->json([
+            return $this->json([
                 'message' => (string) ($message->failed_reason ?: 'Unable to send sticker via WhatsApp.'),
             ], 422);
         }
 
-        return response()->json($this->messagePayload($message), 201);
+        return $this->json($this->messagePayload($message), 201);
     }
 
     public function sendContact(SendInboxContactRequest $request, Conversation $conversation): JsonResponse
@@ -179,12 +180,12 @@ class InboxServiceAdapter
         $message->refresh();
 
         if ($message->status === MessageStatus::Failed) {
-            return response()->json([
+            return $this->json([
                 'message' => (string) ($message->failed_reason ?: 'Unable to send contact via WhatsApp.'),
             ], 422);
         }
 
-        return response()->json($this->messagePayload($message), 201);
+        return $this->json($this->messagePayload($message), 201);
     }
 
     public function sendFlow(
@@ -196,7 +197,7 @@ class InboxServiceAdapter
         $flow = WhatsappFlow::query()->findOrFail((int) $request->validated('flow_id'));
 
         if (! $flow->isActive() || blank($flow->meta_flow_id)) {
-            return response()->json([
+            return $this->json([
                 'message' => 'Select a published WhatsApp Flow with a Meta Flow ID.',
             ], 422);
         }
@@ -215,7 +216,7 @@ class InboxServiceAdapter
             enforceWindow: true,
         );
 
-        return response()->json($this->messagePayload($message), 201);
+        return $this->json($this->messagePayload($message), 201);
     }
 
     public function sendInteractiveMessage(Conversation $conversation, string $interactiveMessageId): JsonResponse
@@ -232,18 +233,18 @@ class InboxServiceAdapter
             ->first();
 
         if ($messageModel === null) {
-            return response()->json(['message' => 'Free template message not found.'], 404);
+            return $this->json(['message' => 'Free template message not found.'], 404);
         }
 
         $interactive = app(InteractiveMessagePayloadBuilder::class)
             ->forMessage($messageModel);
 
         if (($interactive['type'] ?? '') === 'button' && empty($interactive['action']['buttons'] ?? [])) {
-            return response()->json(['message' => 'This free template has no buttons configured.'], 422);
+            return $this->json(['message' => 'This free template has no buttons configured.'], 422);
         }
 
         if (($interactive['type'] ?? '') === 'list' && empty($interactive['action']['sections'] ?? [])) {
-            return response()->json(['message' => 'This free template has no list sections configured.'], 422);
+            return $this->json(['message' => 'This free template has no list sections configured.'], 422);
         }
 
         $message = $this->localOutboundService->sendInteractive(
@@ -253,7 +254,7 @@ class InboxServiceAdapter
             enforceWindow: true,
         );
 
-        return response()->json($this->messagePayload($message), 201);
+        return $this->json($this->messagePayload($message), 201);
     }
 
     public function sendInteractiveComposer(
@@ -286,15 +287,15 @@ class InboxServiceAdapter
             ->fromFlat($type, $flat);
 
         if ($type === 'button' && empty($interactive['action']['buttons'] ?? [])) {
-            return response()->json(['message' => 'Add at least one reply button.'], 422);
+            return $this->json(['message' => 'Add at least one reply button.'], 422);
         }
 
         if ($type === 'list' && empty($interactive['action']['sections'] ?? [])) {
-            return response()->json(['message' => 'Add at least one list option.'], 422);
+            return $this->json(['message' => 'Add at least one list option.'], 422);
         }
 
         if ($type === 'cta_url' && blank($interactive['action']['parameters']['url'] ?? null)) {
-            return response()->json(['message' => 'Enter a valid website URL.'], 422);
+            return $this->json(['message' => 'Enter a valid website URL.'], 422);
         }
 
         $message = $this->localOutboundService->sendInteractive(
@@ -304,7 +305,7 @@ class InboxServiceAdapter
             enforceWindow: true,
         );
 
-        return response()->json($this->messagePayload($message), 201);
+        return $this->json($this->messagePayload($message), 201);
     }
 
     public function markRead(Conversation $conversation): JsonResponse
@@ -313,14 +314,14 @@ class InboxServiceAdapter
 
         $this->localMessageService->markRead($conversation);
 
-        return response()->json(['ok' => true]);
+        return $this->json(['ok' => true]);
     }
 
     public function destroy(Conversation $conversation): JsonResponse
     {
         $this->localInboxService->deleteConversation($conversation);
 
-        return response()->json([
+        return $this->json([
             'ok' => true,
             'redirect' => route('inbox.index'),
         ]);
@@ -339,7 +340,7 @@ class InboxServiceAdapter
             assigneeFilter: $filters['assignee_filter'],
         );
 
-        return response()->json(['ok' => true, 'updated' => $updated]);
+        return $this->json(['ok' => true, 'updated' => $updated]);
     }
 
     public function assign(AssignInboxConversationRequest $request, Conversation $conversation): JsonResponse
@@ -357,7 +358,7 @@ class InboxServiceAdapter
             $resolvedKey = 'member:'.$conversation->assignedTeamMember->uuid;
         }
 
-        return response()->json([
+        return $this->json([
             'ok' => true,
             'assignee' => $resolvedKey,
         ]);
@@ -371,7 +372,7 @@ class InboxServiceAdapter
         $responseType = $aiEnabled ? ConversationResponseType::Ai : ConversationResponseType::Human;
         $conversation = $this->localResponseTypeService->setForConversation($conversation, $responseType);
 
-        return response()->json([
+        return $this->json([
             'ok' => true,
             'ai_enabled' => $conversation->response_type?->isAi() ?? false,
         ]);
@@ -393,7 +394,7 @@ class InboxServiceAdapter
             assigneeFilter: $filters['assignee_filter'],
         );
 
-        return response()->json([
+        return $this->json([
             'ok' => true,
             'updated' => $updated,
             'ai_enabled' => $responseType->isAi(),
@@ -404,7 +405,7 @@ class InboxServiceAdapter
     {
         $this->localInboxService->authorizeConversation($conversation);
 
-        return response()->json($this->localWindowService->status($conversation));
+        return $this->json($this->localWindowService->status($conversation));
     }
 
     public function storeContact(StoreInboxContactRequest $request): JsonResponse
@@ -418,7 +419,7 @@ class InboxServiceAdapter
             responseType: ConversationResponseType::from($request->validated('response_type')),
         );
 
-        return response()->json([
+        return $this->json([
             'ok' => true,
             'conversation_uuid' => $conversation->uuid,
             'redirect' => route('inbox.show', $conversation),
@@ -503,5 +504,19 @@ class InboxServiceAdapter
                 'failed_reason' => $message->failed_reason,
             ],
         ];
+    }
+
+    /**
+     * Inbox payloads can include legacy/webhook strings with invalid UTF-8 bytes.
+     * Scrub those so json_encode does not throw while keeping the response shape unchanged.
+     */
+    private function json(mixed $data, int $status = 200): JsonResponse
+    {
+        return response()->json(
+            Utf8::deepClean($data),
+            $status,
+            [],
+            JSON_INVALID_UTF8_SUBSTITUTE,
+        );
     }
 }

@@ -63,7 +63,7 @@ class ImportMetaPricingService
     /**
      * @return array{updated: list<array<string, mixed>>, skipped: list<array<string, mixed>>, errors: list<array<string, mixed>>}
      */
-    public function importFromCsv(string $filePath): array
+    public function importFromCsv(string $filePath, bool $dryRun = false): array
     {
         if (! file_exists($filePath)) {
             throw new \RuntimeException('CSV file not found');
@@ -81,7 +81,10 @@ class ImportMetaPricingService
         $this->marketRegions = new MetaMarketRegionService;
         $regionalRows = [];
 
-        DB::connection((new CountryPricing)->getConnectionName())->transaction(function () use ($csvData, &$regionalRows): void {
+        $connection = DB::connection((new CountryPricing)->getConnectionName());
+        $connection->beginTransaction();
+
+        try {
             foreach ($csvData as $index => $row) {
                 if (empty(trim((string) ($row['Market'] ?? '')))) {
                     continue;
@@ -106,7 +109,16 @@ class ImportMetaPricingService
                     ->whereNotIn('currency', ['USD', '$'])
                     ->update(['currency' => 'USD', 'updated_at' => now()]);
             }
-        });
+
+            if ($dryRun) {
+                $connection->rollBack();
+            } else {
+                $connection->commit();
+            }
+        } catch (\Throwable $e) {
+            $connection->rollBack();
+            throw $e;
+        }
 
         return $this->results;
     }

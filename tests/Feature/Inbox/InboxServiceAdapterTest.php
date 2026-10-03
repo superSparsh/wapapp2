@@ -47,4 +47,23 @@ class InboxServiceAdapterTest extends TestCase
             ->assertJsonPath('items.0.name', 'Direct Local Contact')
             ->assertJsonPath('items.0.preview', 'Direct local text');
     }
+
+    public function test_threads_api_tolerates_malformed_utf8(): void
+    {
+        $contact = Contact::factory()->create(['name' => "Bad\xC0Name"]);
+        $conversation = Conversation::factory()->create([
+            'whatsapp_line_id' => $this->testLine->id,
+            'contact_id' => $contact->id,
+            'contact_phone' => $contact->phone,
+            'line_phone' => $this->testLine->phone,
+            'contact_name' => "Bad\xC0Name",
+            'last_message_at' => now(),
+        ]);
+        app(InboxMessageService::class)->recordInbound($conversation, "Hi\xFF there");
+
+        $this->actingAsTenantUser()
+            ->getJson(route('inbox.api.threads'))
+            ->assertOk()
+            ->assertJsonStructure(['items', 'next_cursor', 'has_more', 'unread_total']);
+    }
 }
