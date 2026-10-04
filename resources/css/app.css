@@ -409,14 +409,6 @@
     }
 }
 
-[data-inbox-workspace] {
-    min-width: 0;
-}
-
-[data-inbox-workspace] [data-inbox-chat] {
-    min-width: 0;
-}
-
 [data-inbox-workspace][data-inbox-maximized='true'] [data-inbox-thread-panel] {
     display: none !important;
 }
@@ -425,7 +417,6 @@
     width: 100% !important;
     max-width: none !important;
     flex: 1 1 auto !important;
-    min-width: 0 !important;
 }
 
 [data-inbox-workspace][data-inbox-maximized='true'] {
