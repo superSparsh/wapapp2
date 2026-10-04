@@ -20,7 +20,7 @@
 @endphp
 
 <div
-  class="flex min-h-0 w-full shrink-0 flex-col gap-4 lg:w-[405px]"
+  class="flex min-h-0 w-full shrink-0 flex-col gap-4 lg:w-[300px] xl:w-[360px] 2xl:w-[405px]"
   data-inbox-thread-panel
   data-threads-cursor="{{ $threadsCursor ?? '' }}"
   data-threads-has-more="{{ $threadsHasMore ? '1' : '0' }}"

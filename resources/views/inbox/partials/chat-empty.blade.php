@@ -1,4 +1,4 @@
-<div class="relative flex h-full min-h-0 min-w-0 flex-1 flex-col items-center justify-center overflow-hidden rounded-xl border border-border-light bg-elevated/80 p-8 text-center">
+<div class="relative flex h-full min-h-0 min-w-0 flex-1 flex-col items-center justify-center overflow-hidden rounded-xl border border-border-light bg-elevated/80 p-6 text-center xl:p-8">
   <img
     src="{{ asset('images/inbox/chat-wallpaper.png') }}"
     alt=""

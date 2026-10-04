@@ -16,7 +16,7 @@
 @endphp
 
 <div
-  class="relative flex h-full min-h-0 min-w-0 flex-1 flex-col rounded-xl"
+  class="relative flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl"
   data-inbox-chat
   data-wallet-blocked="{{ $walletBlocked ? '1' : '0' }}"
   data-stopped="{{ ! empty($contact['stopped']) ? '1' : '0' }}"
@@ -52,16 +52,16 @@
     class="pointer-events-none absolute inset-0 size-full rounded-xl object-cover"
   >
 
-  <div class="relative flex shrink-0 items-center gap-2 rounded-t-xl bg-green-500 p-2">
+  <div class="relative flex shrink-0 flex-wrap items-center gap-x-1.5 gap-y-2 rounded-t-xl bg-green-500 p-2 xl:gap-x-2">
     <a href="{{ route('inbox.index') }}" class="flex size-8 shrink-0 items-center justify-center" aria-label="Back">
       <img src="{{ asset('images/inbox/arrow-square-left.svg') }}" alt="" class="size-8" width="32" height="32">
     </a>
-    <div class="fd-btn-sm flex size-10 shrink-0 items-center justify-center rounded-full bg-green-50 text-green-500">
+    <div class="fd-btn-sm flex size-9 shrink-0 items-center justify-center rounded-full bg-green-50 text-sm text-green-500 xl:size-10 xl:text-base">
       {{ $contact['initials'] }}
     </div>
-    <div class="min-w-0 flex-1">
+    <div class="min-w-0 flex-1 basis-[8rem]">
       <div class="flex flex-wrap items-center gap-2">
-        <p class="fd-card-title text-base text-text-subtle">{{ $contact['name'] }}</p>
+        <p class="fd-card-title truncate text-sm text-text-subtle xl:text-base">{{ $contact['name'] }}</p>
         @if (! empty($contact['stopped']))
           <span class="rounded bg-red-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-red-700" title="{{ $contact['stop_label'] ?? 'Marked STOP' }}">
             STOP
@@ -69,16 +69,16 @@
         @endif
       </div>
       @if (! empty($contact['phone']) && $contact['phone'] !== $contact['name'])
-        <p class="fd-table-cell truncate text-sm text-white">{{ $contact['phone'] }}</p>
+        <p class="fd-table-cell truncate text-xs text-white xl:text-sm">{{ $contact['phone'] }}</p>
       @endif
       @if (! empty($contact['stopped']))
-        <p class="mt-0.5 text-[11px] font-medium text-white/90">{{ $contact['stop_label'] ?? 'This contact marked STOP and is unsubscribed' }}</p>
+        <p class="mt-0.5 truncate text-[11px] font-medium text-white/90">{{ $contact['stop_label'] ?? 'This contact marked STOP and is unsubscribed' }}</p>
       @endif
     </div>
     @if ($conversation)
-      <div class="flex shrink-0 items-center gap-1.5 rounded-lg bg-white/10 px-2 py-1.5 sm:gap-2.5 sm:px-3 sm:py-2">
-        <div class="hidden min-w-0 flex-col sm:flex">
-          <span class="text-[10px] font-semibold leading-tight text-white sm:text-xs" data-inbox-ai-mode>{{ ! empty($contact['ai_enabled']) ? 'AI' : 'Human' }}</span>
+      <div class="flex shrink-0 items-center gap-1.5 rounded-lg bg-white/10 px-2 py-1.5 xl:gap-2.5 xl:px-3 xl:py-2">
+        <div class="hidden min-w-0 flex-col xl:flex">
+          <span class="text-xs font-semibold leading-tight text-white" data-inbox-ai-mode>{{ ! empty($contact['ai_enabled']) ? 'AI' : 'Human' }}</span>
           <span class="text-[10px] leading-tight text-white/75" data-inbox-ai-status>
             {{ ! empty($contact['ai_enabled']) ? 'AI reply' : 'Human reply' }}
           </span>
@@ -92,20 +92,21 @@
       <a
         href="{{ route('inbox.api.export', $conversation) }}"
         data-inbox-export-chat
-        class="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-white/10 px-2 py-1.5 text-xs font-medium text-white transition hover:bg-white/20 sm:px-3 sm:py-2"
+        class="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-white/10 px-2 py-1.5 text-xs font-medium text-white transition hover:bg-white/20 xl:px-3 xl:py-2"
+        title="Export Chat"
       >
         <x-icons.nav-icon name="document-text" class="size-3.5" />
-        <span class="hidden sm:inline">Export Chat</span>
+        <span class="hidden 2xl:inline">Export Chat</span>
       </a>
       <button
         type="button"
         data-inbox-delete-chat
         data-delete-url="{{ route('inbox.api.destroy', $conversation) }}"
-        class="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-white/10 px-2 py-1.5 text-xs font-medium text-white transition hover:bg-red-500/80 sm:px-3 sm:py-2"
+        class="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-white/10 px-2 py-1.5 text-xs font-medium text-white transition hover:bg-red-500/80 xl:px-3 xl:py-2"
         title="Delete this chat"
       >
         <x-icons.nav-icon name="trash" class="size-3.5 brightness-0 invert" />
-        <span class="hidden sm:inline">Delete</span>
+        <span class="hidden 2xl:inline">Delete</span>
       </button>
     @endif
     @if ($conversation && $assignableAgents->isNotEmpty())
@@ -115,7 +116,7 @@
         <select
           data-inbox-assignee
           data-native-select="true"
-          class="max-w-[110px] rounded bg-green-600 px-2 py-1 text-xs text-white focus:outline-none sm:max-w-[160px]"
+          class="max-w-[96px] rounded bg-green-600 px-2 py-1 text-xs text-white focus:outline-none xl:max-w-[140px] 2xl:max-w-[160px]"
           title="Assign agent"
         >
           <option value="unassigned" @selected(empty($contact['assignee']))>Unassigned</option>
@@ -193,7 +194,7 @@
         @if ($dateLabel) data-date-label="{{ $dateLabel }}" @endif
       >
         <div @class([
-          'max-w-[640px] rounded-bl-[12px] rounded-br-[12px] rounded-tr-[12px] p-4 text-xs leading-[1.8] text-text-body',
+          'max-w-[min(640px,100%)] break-words rounded-bl-[12px] rounded-br-[12px] rounded-tr-[12px] p-3 text-xs leading-[1.8] text-text-body xl:p-4',
           'bg-green-100 rounded-tl-[12px]' => $isOutbound,
           'bg-muted-surface' => ! $isOutbound,
         ]) style="font-family: 'Poppins', var(--font-sans)">

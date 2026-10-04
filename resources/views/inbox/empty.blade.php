@@ -40,9 +40,9 @@
     </div>
 
     <div class="relative min-h-0 flex-1">
-      <div class="flex h-full min-h-0 flex-col gap-4 overflow-hidden bg-surface px-4 pb-4 lg:flex-row" data-inbox-workspace>
+      <div class="flex h-full min-h-0 min-w-0 flex-col gap-3 overflow-hidden bg-surface px-3 pb-3 lg:flex-row xl:gap-4 xl:px-4 xl:pb-4" data-inbox-workspace>
       <div
-        class="flex min-h-0 w-full shrink-0 flex-col gap-4 lg:w-[405px]"
+        class="flex min-h-0 w-full shrink-0 flex-col gap-4 lg:w-[300px] xl:w-[360px] 2xl:w-[405px]"
         data-inbox-thread-panel
         data-threads-cursor="{{ $threadsCursor ?? '' }}"
         data-threads-has-more="{{ ! empty($threadsHasMore) ? '1' : '0' }}"

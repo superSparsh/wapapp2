@@ -41,7 +41,7 @@
     </div>
 
     <div class="relative min-h-0 flex-1">
-      <div class="flex h-full min-h-0 flex-col gap-4 overflow-hidden bg-surface px-4 pb-4 lg:flex-row" data-inbox-workspace>
+      <div class="flex h-full min-h-0 min-w-0 flex-col gap-3 overflow-hidden bg-surface px-3 pb-3 lg:flex-row xl:gap-4 xl:px-4 xl:pb-4" data-inbox-workspace>
         @include('inbox.partials.contact-list', [
           'threads' => $threads ?? [],
           'selectedConversation' => $selectedConversation ?? null,
