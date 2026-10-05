@@ -116,6 +116,10 @@ class ContactService
             $data['send_opt_in_message'] = (($data['send_opt_in_message'] ?? 'no') === 'yes') ? 'yes' : 'no';
         }
 
+        $wasOptInEnabled = ($contact->send_opt_in_message ?? 'no') === 'yes';
+        $willEnableOptIn = array_key_exists('send_opt_in_message', $data)
+            && $data['send_opt_in_message'] === 'yes';
+
         $contact->update($data);
 
         if ($tags !== null) {
@@ -124,7 +128,8 @@ class ContactService
 
         $contact = $contact->fresh()->load('tags');
 
-        if (($contact->send_opt_in_message ?? 'no') === 'yes') {
+        // Only send when opt-in is newly enabled — not on every profile save.
+        if ($willEnableOptIn && ! $wasOptInEnabled) {
             $this->optInMessageService->sendOptInToContact($contact);
         }
 

@@ -28,6 +28,8 @@ return [
         'quick_recharge_amounts' => [10000, 15000, 20000],
         'history_per_page' => 25,
         'history_max_days' => (int) env('WALLET_HISTORY_MAX_DAYS', 365),
+        // Hide opt-in debits from customer Wallet History; admins (impersonation / Admin View) still see them.
+        'hide_opt_in_from_history' => (bool) env('WALLET_HIDE_OPT_IN_FROM_HISTORY', true),
     ],
 
     /*

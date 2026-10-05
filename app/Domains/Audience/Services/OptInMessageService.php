@@ -11,6 +11,7 @@ use App\Domains\Templates\Support\CamsTemplateIdentity;
 use App\Enums\MessageStatus;
 use App\Models\Contact;
 use App\Models\WhatsappLine;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class OptInMessageService
@@ -37,15 +38,12 @@ class OptInMessageService
             return false;
         }
 
-        if (! $force && (bool) $contact->opt_in_message_sent) {
-            return false;
-        }
-
-        if (! $force && $contact->opt_in_message_delivery_status === self::DELIVERY_PENDING) {
-            return false;
-        }
-
         if ($contact->tags()->where('name', NonWhatsAppNumberService::TAG)->exists()) {
+            return false;
+        }
+
+        $contact = $this->claimOptInSendSlot($contact, $force);
+        if ($contact === null) {
             return false;
         }
 
@@ -118,14 +116,6 @@ class OptInMessageService
                 return false;
             }
 
-            $contact->forceFill([
-                'send_opt_in_message' => 'yes',
-                'opt_in_message_sent' => true,
-                'opt_in_message_sent_at' => now(),
-                'opt_in_message_delivery_status' => self::DELIVERY_PENDING,
-                'opt_in_message_delivery_error' => null,
-            ])->save();
-
             $meta = is_array($message->metadata) ? $message->metadata : [];
             $meta['opt_in_contact_id'] = $contact->id;
             $message->forceFill(['metadata' => $meta])->save();
@@ -147,5 +137,41 @@ class OptInMessageService
 
             return false;
         }
+    }
+
+    /**
+     * Reserve this contact so import retries / parallel workers cannot double-send.
+     */
+    private function claimOptInSendSlot(Contact $contact, bool $force): ?Contact
+    {
+        return DB::transaction(function () use ($contact, $force): ?Contact {
+            $locked = Contact::query()->whereKey($contact->id)->lockForUpdate()->first();
+
+            if ($locked === null) {
+                return null;
+            }
+
+            if (! $force && ($locked->send_opt_in_message ?? 'no') !== 'yes') {
+                return null;
+            }
+
+            if (! $force && (bool) $locked->opt_in_message_sent) {
+                return null;
+            }
+
+            if (! $force && $locked->opt_in_message_delivery_status === self::DELIVERY_PENDING) {
+                return null;
+            }
+
+            $locked->forceFill([
+                'send_opt_in_message' => 'yes',
+                'opt_in_message_sent' => true,
+                'opt_in_message_sent_at' => now(),
+                'opt_in_message_delivery_status' => self::DELIVERY_PENDING,
+                'opt_in_message_delivery_error' => null,
+            ])->save();
+
+            return $locked->fresh();
+        });
     }
 }

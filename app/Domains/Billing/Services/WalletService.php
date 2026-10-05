@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Domains\Billing\Services;
 
+use App\Domains\Admin\Support\AdminSession;
+use App\Domains\Admin\Support\AdminViewAccess;
 use App\Domains\Billing\Jobs\ProcessWalletRazorpayZohoInvoiceJob;
 use App\Domains\Dashboard\Services\DashboardService;
 use App\Enums\RazorpayOrderPurpose;
@@ -83,6 +85,7 @@ class WalletService
                 });
             })
             ->when($categoryKey !== null, fn ($query) => $this->applyHistoryCategoryFilter($query, $categoryKey))
+            ->tap(fn ($query) => $this->applyVisibleHistoryScope($query))
             ->latest('id')
             ->paginate($perPage)
             ->withQueryString();
@@ -135,6 +138,7 @@ class WalletService
                     });
                 })
                 ->when($categoryKey !== null, fn ($q) => $this->applyHistoryCategoryFilter($q, $categoryKey))
+                ->tap(fn ($q) => $this->applyVisibleHistoryScope($q))
                 ->latest('id');
 
             $liveBalance = $this->balance();
@@ -181,6 +185,35 @@ class WalletService
             'authentication' => 'Auth',
             'service' => 'Service',
         ];
+    }
+
+    /**
+     * @param  \Illuminate\Database\Eloquent\Builder<\App\Models\WalletTransaction>  $query
+     */
+    private function applyVisibleHistoryScope($query): void
+    {
+        if (! $this->shouldHideOptInFromWalletHistory()) {
+            return;
+        }
+
+        $query->whereNot(function ($nested): void {
+            $nested->where('metadata->wallet_source', 'opt_in')
+                ->orWhere('description', 'like', 'Opt-in message%')
+                ->orWhere('metadata->legacy_category', 'Opt-in messages');
+        });
+    }
+
+    private function shouldHideOptInFromWalletHistory(): bool
+    {
+        if (! (bool) config('billing.wallet.hide_opt_in_from_history', true)) {
+            return false;
+        }
+
+        if (AdminSession::isImpersonating() || AdminViewAccess::canAccess()) {
+            return false;
+        }
+
+        return true;
     }
 
     private function normalizeHistoryCategory(?string $category): ?string

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Dashboard;
 
 use App\Domains\Account\Services\NotificationService;
+use App\Domains\Admin\Support\AdminSession;
 use App\Domains\Audience\Enums\ContactStatus;
 use App\Domains\Billing\Services\WalletService;
 use App\Enums\CampaignRecipientStatus;
@@ -234,6 +235,65 @@ class DashboardTest extends TestCase
             ->assertSee('Withdrawal')
             ->assertSee('Campaign send deduction')
             ->assertSee('Sort by : All time');
+    }
+
+    public function test_wallet_history_hides_opt_in_debits_when_config_enabled(): void
+    {
+        config(['billing.wallet.hide_opt_in_from_history' => true]);
+
+        WalletTransaction::query()->create([
+            'type' => WalletTransactionType::Debit,
+            'amount' => 1.5,
+            'currency' => 'INR',
+            'balance_after' => 98.5,
+            'description' => 'Opt-in message (marketing template, delivered) · 919999999999',
+            'metadata' => ['wallet_source' => 'opt_in'],
+            'created_at' => now(),
+        ]);
+        WalletTransaction::query()->create([
+            'type' => WalletTransactionType::Debit,
+            'amount' => 12.5,
+            'currency' => 'INR',
+            'balance_after' => 87,
+            'description' => 'Campaign send deduction',
+            'created_at' => now(),
+        ]);
+
+        $this->actingAsTenantUser()
+            ->get(route('dashboard.wallet', ['period' => 'all']))
+            ->assertOk()
+            ->assertSee('Campaign send deduction')
+            ->assertDontSee('Opt-in message', false);
+    }
+
+    public function test_wallet_history_shows_opt_in_for_admin_impersonation(): void
+    {
+        config(['billing.wallet.hide_opt_in_from_history' => true]);
+
+        WalletTransaction::query()->create([
+            'type' => WalletTransactionType::Debit,
+            'amount' => 1.5,
+            'currency' => 'INR',
+            'balance_after' => 98.5,
+            'description' => 'Opt-in message (marketing template, delivered) · 919999999999',
+            'metadata' => ['wallet_source' => 'opt_in'],
+            'created_at' => now(),
+        ]);
+
+        $this->withSession([
+            AdminSession::IMPERSONATION => [
+                'admin_id' => 1,
+                'tenant_id' => (string) $this->testTenant->id,
+                'tenant_name' => (string) $this->testTenant->name,
+                'admin_name' => 'Ops Admin',
+                'admin_email' => 'ops@example.com',
+            ],
+        ]);
+
+        $this->actingAsTenantUser()
+            ->get(route('dashboard.wallet', ['period' => 'all']))
+            ->assertOk()
+            ->assertSee('Opt-in message', false);
     }
 
     public function test_wallet_history_balance_after_walks_back_from_live_balance(): void
