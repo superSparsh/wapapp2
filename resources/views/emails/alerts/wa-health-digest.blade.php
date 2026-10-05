@@ -71,7 +71,11 @@
       <p style="margin:0 0 8px 0;font-size:15px;">{{ $greeting }} {{ $recipientName }},</p>
       <p style="margin:0;font-size:15px;line-height:22px;">
         <strong>{{ $headline }}</strong>
-        @if ($headlineDetail !== '')
+        @if (! empty($email['headline_failed_count']))
+          The biggest one:
+          <strong>{{ number_format((int) $email['headline_failed_count']) }} messages</strong>
+          were not delivered this week.
+        @elseif ($headlineDetail !== '')
           {{ $headlineDetail }}
         @endif
       </p>
@@ -172,10 +176,15 @@
                 <p style="margin:0;font-size:12px;color:#7b8794;text-transform:uppercase;letter-spacing:0.5px;">Unsubscribes</p>
                 @if (! empty($score['unsubscribes_tracked']))
                   <p style="margin:6px 0 2px 0;font-size:26px;font-weight:bold;">{{ number_format((float) ($score['unsubscribe_rate'] ?? 0), 1) }}%</p>
-                  <p style="margin:0;font-size:12px;color:#52606d;">{{ number_format((int) ($score['unsubscribed'] ?? 0)) }} of {{ number_format((int) ($score['subscribers_total'] ?? 0)) }}</p>
+                  <p style="margin:0;font-size:12px;color:#52606d;">
+                    {{ number_format((int) ($score['unsubscribed'] ?? 0)) }} of {{ number_format((int) ($score['subscribers_total'] ?? 0)) }} contacts
+                    @if ((int) ($score['unsubscribed_period'] ?? 0) > 0)
+                      &middot; {{ number_format((int) $score['unsubscribed_period']) }} this week
+                    @endif
+                  </p>
                 @else
-                  <p style="margin:6px 0 2px 0;font-size:20px;font-weight:bold;color:#7b8794;">Not tracked</p>
-                  <p style="margin:0;font-size:12px;color:#52606d;">Opt out capture not yet enabled</p>
+                  <p style="margin:6px 0 2px 0;font-size:20px;font-weight:bold;color:#7b8794;">No contacts yet</p>
+                  <p style="margin:0;font-size:12px;color:#52606d;">Audience opt-outs will show here once contacts exist</p>
                 @endif
               </td></tr>
             </table>
@@ -219,44 +228,79 @@
     <td style="padding:28px 28px 0 28px;">
       <p style="margin:0 0 12px 0;font-size:16px;font-weight:bold;color:#07594f;">Customer activity</p>
 
+      @php
+        $activitySections = [
+          [
+            'key' => 'active',
+            'title' => 'Active in last 24 hours',
+            'border' => '#1f9d55',
+            'bg' => '#f3faf6',
+            'titleColor' => '#1f9d55',
+            'note' => null,
+          ],
+          [
+            'key' => 'quiet',
+            'title' => 'Quiet for 2 to 7 days',
+            'border' => '#e0a100',
+            'bg' => '#fffaf0',
+            'titleColor' => '#b07d00',
+            'note' => null,
+          ],
+          [
+            'key' => 'inactive',
+            'title' => 'No activity in 7+ days',
+            'border' => '#d64545',
+            'bg' => '#fdf3f3',
+            'titleColor' => '#d64545',
+            'note' => 'Worth a check-in call: these accounts are paying but not sending.',
+          ],
+        ];
+      @endphp
+
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="font-size:13px;">
-        <tr>
-          <td style="padding:0 0 12px 0;">
-            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-left:4px solid #1f9d55;background:#f3faf6;border-radius:6px;">
-              <tr><td style="padding:12px 14px;">
-                <p style="margin:0 0 6px 0;font-weight:bold;color:#1f9d55;">Active in last 24 hours &middot; {{ number_format((int) data_get($activity, 'active.count', 0)) }}</p>
-                <p style="margin:0;line-height:20px;color:#3e4c59;">
-                  {{ count(data_get($activity, 'active.names', [])) > 0 ? implode(' · ', data_get($activity, 'active.names', [])) : 'None in the sample window.' }}
-                </p>
-              </td></tr>
-            </table>
-          </td>
-        </tr>
-        <tr>
-          <td style="padding:0 0 12px 0;">
-            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-left:4px solid #e0a100;background:#fffaf0;border-radius:6px;">
-              <tr><td style="padding:12px 14px;">
-                <p style="margin:0 0 6px 0;font-weight:bold;color:#b07d00;">Quiet for 2 to 7 days &middot; {{ number_format((int) data_get($activity, 'quiet.count', 0)) }}</p>
-                <p style="margin:0;line-height:20px;color:#3e4c59;">
-                  {{ count(data_get($activity, 'quiet.names', [])) > 0 ? implode(' · ', data_get($activity, 'quiet.names', [])) : 'None in the sample window.' }}
-                </p>
-              </td></tr>
-            </table>
-          </td>
-        </tr>
-        <tr>
-          <td>
-            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-left:4px solid #d64545;background:#fdf3f3;border-radius:6px;">
-              <tr><td style="padding:12px 14px;">
-                <p style="margin:0 0 6px 0;font-weight:bold;color:#d64545;">No activity in 7+ days &middot; {{ number_format((int) data_get($activity, 'inactive.count', 0)) }}</p>
-                <p style="margin:0;line-height:20px;color:#3e4c59;">
-                  {{ count(data_get($activity, 'inactive.names', [])) > 0 ? implode(' · ', data_get($activity, 'inactive.names', [])) : 'None in the sample window.' }}
-                </p>
-                <p style="margin:6px 0 0 0;font-size:12px;color:#7b8794;">Worth a check in call: these accounts are paying but not sending.</p>
-              </td></tr>
-            </table>
-          </td>
-        </tr>
+        @foreach ($activitySections as $sectionIndex => $section)
+          @php
+            $sectionCount = (int) data_get($activity, $section['key'].'.count', 0);
+            $sectionNames = data_get($activity, $section['key'].'.names', []);
+            $sectionNames = is_array($sectionNames) ? $sectionNames : [];
+            $isLastSection = $sectionIndex === count($activitySections) - 1;
+          @endphp
+          <tr>
+            <td style="padding:{{ $isLastSection ? '0' : '0 0 12px 0' }};">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-left:4px solid {{ $section['border'] }};background:{{ $section['bg'] }};border-radius:6px;">
+                <tr>
+                  <td style="padding:12px 14px;">
+                    <p style="margin:0 0 10px 0;font-weight:bold;color:{{ $section['titleColor'] }};">
+                      {{ $section['title'] }} &middot; {{ number_format($sectionCount) }}
+                    </p>
+                    @if (count($sectionNames) > 0)
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                        @foreach ($sectionNames as $nameIndex => $businessName)
+                          <tr>
+                            <td width="16" valign="top" style="padding:{{ $nameIndex === 0 ? '0' : '6px' }} 0 0 0;color:#7b8794;font-size:12px;line-height:18px;">{{ $nameIndex + 1 }}.</td>
+                            <td valign="top" style="padding:{{ $nameIndex === 0 ? '0' : '6px' }} 0 0 0;color:#3e4c59;font-size:13px;line-height:18px;">
+                              {{ $businessName }}
+                            </td>
+                          </tr>
+                        @endforeach
+                      </table>
+                      @if ($sectionCount > count($sectionNames))
+                        <p style="margin:8px 0 0 0;font-size:12px;color:#7b8794;">
+                          +{{ number_format($sectionCount - count($sectionNames)) }} more
+                        </p>
+                      @endif
+                    @else
+                      <p style="margin:0;color:#7b8794;font-size:13px;line-height:18px;">None in this window.</p>
+                    @endif
+                    @if (! empty($section['note']))
+                      <p style="margin:8px 0 0 0;font-size:12px;color:#7b8794;line-height:17px;">{{ $section['note'] }}</p>
+                    @endif
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        @endforeach
       </table>
     </td>
   </tr>

@@ -7,9 +7,12 @@ namespace App\Domains\Operations\Services;
 use App\Domains\Admin\Services\CrossTenantScanner;
 use App\Domains\Admin\Services\WhatsappHealthAdminService;
 use App\Domains\Alerts\Services\AlertDispatcher;
+use App\Domains\Audience\Enums\ContactStatus;
 use App\Domains\Templates\Enums\TemplateStatus;
+use App\Enums\ContactOptInStatus;
 use App\Enums\RecordStatus;
 use App\Models\Campaign;
+use App\Models\Contact;
 use App\Models\Message;
 use App\Models\Template;
 use App\Models\WaHealthAlert;
@@ -57,7 +60,7 @@ class WhatsAppHealthDigestService
         $usageToday = $this->usageRankingToday($lineRows);
         $messaging = $this->messagingOverall($lineRows);
         $customerActivity = $this->customerActivity(10);
-        $activityBuckets = $this->customerActivityBuckets(8);
+        $activityBuckets = $this->customerActivityBuckets(15);
         $operationalMeta = $this->operationalMeta($lineRows);
         $connection = $this->lineConnectionStats();
         $rejectedByCustomer = $this->rejectedTemplatesByCustomer($templateErrors, 8);
@@ -221,16 +224,19 @@ class WhatsAppHealthDigestService
         $greeting = $hour < 12 ? 'Good morning' : ($hour < 17 ? 'Good afternoon' : 'Good evening');
 
         $actionCount = count($actionItems);
-        $biggest = $actionItems[0]['title'] ?? null;
         $headline = $actionCount > 0
             ? ($actionCount === 1
                 ? '1 item needs action today.'
                 : "{$actionCount} items need action today.")
             : 'No critical action items today.';
 
-        $headlineDetail = $biggest !== null
-            ? 'The biggest one: '.$biggest.'.'
-            : 'Delivery, connectivity, and templates look stable.';
+        // Prefer the undelivered copy from the design: "...messages were not delivered this week."
+        $headlineFailedCount = $failed > 0 ? $failed : null;
+        $headlineDetail = $headlineFailedCount !== null
+            ? null
+            : (($actionItems[0]['title'] ?? null) !== null
+                ? 'The biggest one: '.(string) $actionItems[0]['title'].'.'
+                : 'Delivery, connectivity, and templates look stable.');
 
         $failedCompact = $this->compactNumber($failed);
         $subjectParts = array_values(array_filter([
@@ -269,6 +275,7 @@ class WhatsAppHealthDigestService
             'greeting' => $greeting,
             'headline' => $headline,
             'headline_detail' => $headlineDetail,
+            'headline_failed_count' => $headlineFailedCount,
             'date_label' => $generatedAt->format('D, j M Y'),
             'date_short' => $dateShort,
             'period_label' => $dateFrom->timezone('Asia/Kolkata')->format('j M')
@@ -293,6 +300,7 @@ class WhatsAppHealthDigestService
                 'unsubscribe_rate' => (float) ($messaging['unsubscribe_rate'] ?? 0),
                 'unsubscribed' => (int) ($messaging['subscribers_unsub'] ?? 0),
                 'subscribers_total' => (int) ($messaging['subscribers_total'] ?? 0),
+                'unsubscribed_period' => (int) ($messaging['unsubscribed_period'] ?? 0),
             ],
             'rejected_by_customer' => $rejectedByCustomer,
             'rejected_total' => $rejected,
@@ -609,11 +617,27 @@ class WhatsAppHealthDigestService
                 ->where('created_at', '>=', $since)
                 ->count();
 
+            $subscribersTotal = Contact::query()->count();
+            $subscribersUnsub = Contact::query()
+                ->where(function ($q): void {
+                    $q->where('status', ContactStatus::Unsubscribed)
+                        ->orWhere('opt_in_status', ContactOptInStatus::OptedOut);
+                })
+                ->count();
+            // New opt-outs in the digest window (STOP / unsubscribe).
+            $unsubscribedPeriod = Contact::query()
+                ->whereNotNull('opted_out_at')
+                ->where('opted_out_at', '>=', $since)
+                ->count();
+
             return [[
                 'sent' => $sent,
                 'delivered' => $deliveredOk,
                 'failed' => $failed,
                 'replied' => $replied,
+                'subscribers_total' => $subscribersTotal,
+                'subscribers_unsub' => $subscribersUnsub,
+                'unsubscribed_period' => $unsubscribedPeriod,
             ]];
         });
 
@@ -621,6 +645,9 @@ class WhatsAppHealthDigestService
         $deliveredOk = (int) $totals->sum('delivered');
         $failed = (int) $totals->sum('failed');
         $replied = (int) $totals->sum('replied');
+        $subscribersTotal = (int) $totals->sum('subscribers_total');
+        $subscribersUnsub = (int) $totals->sum('subscribers_unsub');
+        $unsubscribedPeriod = (int) $totals->sum('unsubscribed_period');
 
         // Fallback to fleet lifetime counters if the 7-day scan is empty.
         if ($sent === 0 && $lineRows->isNotEmpty()) {
@@ -631,18 +658,23 @@ class WhatsAppHealthDigestService
             $deliveredOk = $delivered + $read;
         }
 
+        $unsubscribeRate = $subscribersTotal > 0
+            ? round(($subscribersUnsub / $subscribersTotal) * 100, 1)
+            : 0.0;
+
         return [
             'outbound' => $sent,
             'sent' => $sent,
             'delivered' => $deliveredOk,
             'failed' => $failed,
             'replied' => $replied,
-            'subscribers_unsub' => 0,
-            'subscribers_total' => 0,
+            'subscribers_unsub' => $subscribersUnsub,
+            'subscribers_total' => $subscribersTotal,
+            'unsubscribed_period' => $unsubscribedPeriod,
             'send_rate' => $sent > 0 ? 100.0 : 0.0,
             'delivery_rate' => $sent > 0 ? round(($deliveredOk / $sent) * 100, 1) : 0.0,
             'response_rate' => $deliveredOk > 0 ? round(($replied / $deliveredOk) * 100, 1) : 0.0,
-            'unsubscribe_rate' => 0.0,
+            'unsubscribe_rate' => $unsubscribeRate,
         ];
     }
 
