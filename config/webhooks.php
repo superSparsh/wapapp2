@@ -15,4 +15,22 @@ return [
     'queue' => env('INBOUND_WEBHOOK_QUEUE', 'messages'),
 
     'max_retries' => (int) env('INBOUND_WEBHOOK_MAX_RETRIES', 3),
+
+    /*
+    | Automated inbound_webhook_events hygiene (webhooks:maintain-inbound).
+    | - Replay stuck status rows inside the keep window onto the status queue
+    | - Delete every status older than keep_days (nightly full run)
+    */
+    'inbound_maintenance' => [
+        'enabled' => (bool) env('INBOUND_WEBHOOK_MAINTENANCE_ENABLED', true),
+        'keep_days' => (int) env('INBOUND_WEBHOOK_KEEP_DAYS', 2),
+        'replay_batch' => (int) env('INBOUND_WEBHOOK_REPLAY_BATCH', 500),
+        'replay_max' => (int) env('INBOUND_WEBHOOK_REPLAY_MAX', 10000),
+        'replay_max_batches' => (int) env('INBOUND_WEBHOOK_REPLAY_MAX_BATCHES', 4),
+        'replay_grace_minutes' => (int) env('INBOUND_WEBHOOK_REPLAY_GRACE_MINUTES', 10),
+        'prune_batch' => (int) env('INBOUND_WEBHOOK_PRUNE_BATCH', 5000),
+        'prune_max_rounds' => (int) env('INBOUND_WEBHOOK_PRUNE_MAX_ROUNDS', 50),
+        // Full replay + prune older than keep_days
+        'nightly_at' => env('INBOUND_WEBHOOK_MAINTENANCE_AT', '02:30'),
+    ],
 ];

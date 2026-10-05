@@ -24,6 +24,7 @@ use App\Domains\Templates\Console\Commands\DeleteSoftDeletedTemplates;
 use App\Domains\Templates\Console\Commands\SubmitPendingTemplates;
 use App\Domains\Templates\Console\Commands\SyncTemplateStatuses;
 use App\Domains\Webhooks\Commands\RetryFailedDeliveriesCommand;
+use App\Domains\Webhooks\Console\Commands\MaintainInboundWebhookEventsCommand;
 use App\Domains\ThirdParty\Console\Commands\ProcessShopifyWebhooksCommand;
 use App\Domains\WhatsappFlow\Console\Commands\CleanOldFlowSubmissions;
 use Illuminate\Foundation\Inspiring;
@@ -76,6 +77,19 @@ Schedule::command(VerifyListContactsCommand::class)->dailyAt('04:00');
 Schedule::command(PurgeSoftDeletedContactsCommand::class)->dailyAt('04:15');
 Schedule::command(CleanOldFlowSubmissions::class)->daily();
 Schedule::command(RetryFailedDeliveriesCommand::class)->everyFifteenMinutes();
+
+// Inbound webhook hygiene: drain recent stuck status; nightly prune older than keep_days (default 2)
+if ((bool) config('webhooks.inbound_maintenance.enabled', true)) {
+    Schedule::command(MaintainInboundWebhookEventsCommand::class, ['--skip-prune' => true])
+        ->everyFifteenMinutes()
+        ->withoutOverlapping(10)
+        ->onOneServer();
+
+    Schedule::command(MaintainInboundWebhookEventsCommand::class)
+        ->dailyAt((string) config('webhooks.inbound_maintenance.nightly_at', '02:30'))
+        ->withoutOverlapping(60)
+        ->onOneServer();
+}
 
 // Legacy nightly all-customers sync DISABLED - use only per-customer:
 //   php artisan legacy:migrate-customer {uid} --force --since=3months
