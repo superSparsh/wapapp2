@@ -16,20 +16,8 @@
     data-unread-total="{{ (int) ($unreadTotal ?? 0) }}"
     data-templates-url="{{ route('inbox.api.templates', array_filter(['line' => $activeLine?->uuid])) }}"
   >
-    <div class="flex shrink-0 flex-col gap-3 p-4 pb-2">
-      <x-ui.page-header title="Inbox" size="sm">
-        <x-slot:actions>
-          <button
-            type="button"
-            data-open-modal="add-contact"
-            class="fd-btn inline-flex items-center gap-2 whitespace-nowrap rounded-lg bg-green-500 px-3 py-2 text-sm font-medium text-primary-2 transition hover:opacity-90"
-          >
-            <x-icons.nav-icon name="add" class="size-5" />
-            Add New Contact
-          </button>
-        </x-slot:actions>
-      </x-ui.page-header>
-
+    <div class="flex shrink-0 flex-col gap-2 px-4 pb-1.5 pt-3">
+      <h1 class="fd-page-title text-xl">Inbox</h1>
       @include('inbox.partials.toolbar', [
         'filters' => $filters ?? [],
         'filterOptions' => $filterOptions ?? [],
@@ -37,6 +25,7 @@
         'availableLines' => $availableLines ?? [],
         'activeLine' => $activeLine ?? null,
         'aiForAll' => $aiForAll ?? false,
+        'showAddContact' => true,
       ])
     </div>
 

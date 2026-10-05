@@ -8,6 +8,7 @@ $iconMap = [
     'clipboard-text' => 'icons/clipboard-text.svg',
     'profile-2user' => 'icons/profile-2user.svg',
     'document-text' => 'icons/document-text.svg',
+    'filter' => 'icons/filter.svg',
     'data' => 'icons/data.svg',
     'shopping-cart' => 'icons/shopping-cart.svg',
     'logout' => 'icons/logout.svg',

@@ -826,6 +826,15 @@ body.builder-fullscreen > .flex > div > .min-h-0 > main > .flex > .flex-col:firs
     color: var(--color-text-body);
 }
 
+[data-inbox-filter-menu] .fd-select__trigger--filter {
+    border-color: var(--color-border);
+}
+
+[data-inbox-filter-menu] .fd-select__trigger--filter:hover,
+[data-inbox-filter-menu] .fd-select__trigger--filter:focus-visible {
+    border-color: var(--color-green-500);
+}
+
 .fd-select__trigger--compact {
     border-radius: 0.5rem;
     padding: 0.5rem 2rem 0.5rem 0.75rem;

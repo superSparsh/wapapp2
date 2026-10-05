@@ -4722,35 +4722,81 @@ function initGlobalSearch() {
 }
 
 function initInboxFilters() {
-    const button = document.querySelector('[data-inbox-mark-all-read]');
-    if (!button) return;
+    const markAllButton = document.querySelector('[data-inbox-mark-all-read]');
+    if (markAllButton) {
+        const csrf = document.querySelector('meta[name="csrf-token"]')?.content;
+        const url = markAllButton.dataset.markAllUrl;
 
-    const csrf = document.querySelector('meta[name="csrf-token"]')?.content;
-    const url = button.dataset.markAllUrl;
+        if (csrf && url) {
+            markAllButton.addEventListener('click', async () => {
+                markAllButton.setAttribute('disabled', 'disabled');
 
-    if (!csrf || !url) return;
+                try {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: {
+                            Accept: 'application/json',
+                            'X-CSRF-TOKEN': csrf,
+                        },
+                        credentials: 'same-origin',
+                    });
 
-    button.addEventListener('click', async () => {
-        button.setAttribute('disabled', 'disabled');
-
-        try {
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: {
-                    Accept: 'application/json',
-                    'X-CSRF-TOKEN': csrf,
-                },
-                credentials: 'same-origin',
-            });
-
-            if (response.ok) {
-                if (typeof setInboxNavBadge === 'function') {
-                    setInboxNavBadge(0);
+                    if (response.ok) {
+                        if (typeof setInboxNavBadge === 'function') {
+                            setInboxNavBadge(0);
+                        }
+                        window.location.reload();
+                    }
+                } finally {
+                    markAllButton.removeAttribute('disabled');
                 }
-                window.location.reload();
-            }
-        } finally {
-            button.removeAttribute('disabled');
+            });
+        }
+    }
+
+    const dropdown = document.querySelector('[data-inbox-filter-dropdown]');
+    if (!dropdown) {
+        return;
+    }
+
+    const toggle = dropdown.querySelector('[data-inbox-filter-toggle]');
+    const menu = dropdown.querySelector('[data-inbox-filter-menu]');
+    if (!toggle || !menu) {
+        return;
+    }
+
+    const setOpen = (open) => {
+        menu.classList.toggle('hidden', !open);
+        toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    };
+
+    toggle.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        setOpen(menu.classList.contains('hidden'));
+    });
+
+    document.addEventListener('click', (event) => {
+        const target = event.target;
+        if (!(target instanceof Element)) {
+            return;
+        }
+
+        // Themed select menus portal to document.body — keep Filters open while using them.
+        if (
+            dropdown.contains(target)
+            || target.closest('.fd-select__menu')
+            || target.closest('.fd-select')
+        ) {
+            return;
+        }
+
+        setOpen(false);
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+            setOpen(false);
         }
     });
 }

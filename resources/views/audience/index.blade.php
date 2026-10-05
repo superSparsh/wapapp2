@@ -57,7 +57,15 @@
                 <a href="{{ route('audience.settings', ['list' => $list->uuid]) }}" class="flex size-5 items-center justify-center" aria-label="Edit">
                   <img src="{{ asset('images/templates/edit.svg') }}" alt="" class="size-5" width="20" height="20">
                 </a>
-                <form method="POST" action="{{ route('audience.lists.destroy', $list) }}" class="inline" onsubmit="return confirm('Delete this list?')">
+                <form
+                  method="POST"
+                  action="{{ route('audience.lists.destroy', $list) }}"
+                  class="inline"
+                  data-confirm="Delete this list? Contacts and related data on this list will also be removed. This cannot be undone."
+                  data-confirm-title="Delete list"
+                  data-confirm-label="Delete"
+                  data-confirm-variant="danger"
+                >
                   @csrf @method('DELETE')
                   <button type="submit" class="flex size-5 items-center justify-center" aria-label="Trash">
                     <img src="{{ asset('images/templates/trash.svg') }}" alt="" class="size-5" width="20" height="20">
