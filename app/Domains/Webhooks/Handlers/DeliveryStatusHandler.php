@@ -412,6 +412,16 @@ class DeliveryStatusHandler
 
         $message = Message::query()->where('external_message_id', $messageId)->first();
         if ($message !== null) {
+            // Preferred: outbound campaign send stores recipient id on the inbox message.
+            $meta = is_array($message->metadata) ? $message->metadata : [];
+            $recipientId = (int) ($meta['campaign_recipient_id'] ?? 0);
+            if ($recipientId > 0) {
+                $byMeta = CampaignRecipient::query()->find($recipientId);
+                if ($byMeta !== null) {
+                    return $byMeta;
+                }
+            }
+
             $recipient = CampaignRecipient::query()
                 ->where('message_id', (string) $message->id)
                 ->first();

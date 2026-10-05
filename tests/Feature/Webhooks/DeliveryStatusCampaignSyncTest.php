@@ -190,4 +190,81 @@ class DeliveryStatusCampaignSyncTest extends TestCase
         $campaign->refresh();
         $this->assertSame(1, (int) $campaign->total_delivered);
     }
+
+    public function test_status_webhook_matches_recipient_via_message_metadata_campaign_recipient_id(): void
+    {
+        tenancy()->initialize($this->testTenant);
+
+        $campaign = Campaign::factory()->create([
+            'whatsapp_line_id' => $this->testLine->id,
+            'status' => CampaignStatus::Sending,
+            'total_recipients' => 1,
+            'total_delivered' => 0,
+        ]);
+
+        $contact = Contact::factory()->create(['phone' => '918888880001']);
+        $conversation = Conversation::factory()->create([
+            'whatsapp_line_id' => $this->testLine->id,
+            'contact_id' => $contact->id,
+            'contact_phone' => $contact->phone,
+            'line_phone' => $this->testLine->phone,
+            'last_message_at' => now(),
+        ]);
+
+        $externalId = 'wamid.META-RECIPIENT-001';
+        $recipient = CampaignRecipient::factory()->sent()->create([
+            'campaign_id' => $campaign->id,
+            'contact_id' => $contact->id,
+            'contact_phone' => '918888880001',
+            // Intentionally unmatchable via message_id / phone window alone.
+            'message_id' => 'stale-local-id',
+            'sent_at' => now()->subHours(2),
+        ]);
+
+        $message = Message::query()->create([
+            'conversation_id' => $conversation->id,
+            'body' => 'Campaign template',
+            'direction' => 'outbound',
+            'message_type' => 'template',
+            'status' => MessageStatus::Sent,
+            'external_message_id' => $externalId,
+            'sent_at' => now()->subHours(2),
+            'metadata' => [
+                'campaign_id' => $campaign->id,
+                'campaign_recipient_id' => $recipient->id,
+                'wallet_source' => 'campaign',
+            ],
+        ]);
+
+        app(\App\Domains\Webhooks\Services\WhatsappLineRegistryService::class)
+            ->indexMessage($this->testTenant->id, $externalId, (int) $message->id);
+
+        tenancy()->end();
+
+        $event = InboundWebhookEvent::query()->create([
+            'event_type' => InboundWebhookEventType::Status,
+            'idempotency_key' => $externalId.':Delivered',
+            'payload' => [[
+                'MessageId' => $externalId,
+                'Status' => 'Delivered',
+                'To' => '919999999999',
+                'From' => $this->testLine->phone,
+            ]],
+            'headers' => [],
+            'status' => InboundWebhookStatus::Received,
+            'retry_count' => 0,
+            'created_at' => now(),
+        ]);
+
+        app(DeliveryStatusHandler::class)->handle($event);
+
+        tenancy()->initialize($this->testTenant);
+
+        $recipient->refresh();
+        $this->assertSame(CampaignRecipientStatus::Delivered, $recipient->status);
+        $this->assertSame($externalId, $recipient->message_id);
+
+        $campaign->refresh();
+        $this->assertSame(1, (int) $campaign->total_delivered);
+    }
 }

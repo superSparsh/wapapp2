@@ -22,6 +22,7 @@ use App\Domains\Billing\Console\Commands\ProcessSubscriptionRenewalsCommand;
 use App\Domains\Billing\Console\Commands\ReconcileZohoWalletCommand;
 use App\Domains\Billing\Console\Commands\SyncRazorpaySubscriptionsCommand;
 use App\Domains\Campaigns\Console\Commands\ProcessDueCampaignsCommand;
+use App\Domains\Campaigns\Console\Commands\SyncCampaignDeliveryFromMessagesCommand;
 use App\Domains\Drip\Console\Commands\ProcessDripAutomationsCommand;
 use App\Domains\LegacyMigration\Console\ImportLegacyCountryPricingCommand;
 use App\Domains\LegacyMigration\Console\ImportLegacyPlansCommand;
@@ -179,6 +180,7 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withCommands([
         ProcessDueCampaignsCommand::class,
+        SyncCampaignDeliveryFromMessagesCommand::class,
         \App\Domains\Infrastructure\Oci\Console\Commands\DestroyOciCampaignWorkersCommand::class,
         ProcessDripAutomationsCommand::class,
         ProcessAutomationEventsCommand::class,
