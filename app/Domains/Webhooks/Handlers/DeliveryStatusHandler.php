@@ -262,17 +262,35 @@ class DeliveryStatusHandler
 
         if ($contact === null) {
             $message->loadMissing('conversation');
-            $phone = PhoneNormalizer::normalize((string) ($item['To'] ?? $item['to'] ?? $message->conversation?->contact_phone ?? ''));
-            if ($phone) {
+            $rawPhone = (string) (
+                $item['To']
+                ?? $item['to']
+                ?? $meta['contact_phone']
+                ?? $message->conversation?->contact_phone
+                ?? ''
+            );
+            $variants = PhoneNormalizer::lookupVariants($rawPhone);
+            if ($variants !== []) {
                 $contact = Contact::query()
-                    ->where('phone', $phone)
-                    ->where('send_opt_in_message', 'yes')
+                    ->whereIn('phone', $variants)
+                    ->where(function ($q): void {
+                        $q->where('send_opt_in_message', 'yes')
+                            ->orWhere('opt_in_message_sent', true);
+                    })
                     ->orderByDesc('id')
                     ->first();
             }
         }
 
-        if ($contact === null || ($contact->send_opt_in_message ?? 'no') !== 'yes') {
+        // Prefer explicit opt-in link; otherwise only touch contacts flagged for opt-in.
+        if ($contact === null) {
+            return;
+        }
+
+        $isOptInMessage = strtolower((string) ($meta['wallet_source'] ?? '')) === 'opt_in'
+            || $contactId > 0;
+
+        if (! $isOptInMessage && ($contact->send_opt_in_message ?? 'no') !== 'yes') {
             return;
         }
 
@@ -284,6 +302,7 @@ class DeliveryStatusHandler
                 'opt_in_message_delivery_status' => OptInMessageService::DELIVERY_DELIVERED,
                 'opt_in_message_delivered_at' => $contact->opt_in_message_delivered_at ?? $now,
                 'opt_in_message_delivery_error' => null,
+                'opt_in_message_sent' => true,
             ])->save();
 
             return;
@@ -293,6 +312,7 @@ class DeliveryStatusHandler
             $contact->forceFill([
                 'opt_in_message_delivery_status' => OptInMessageService::DELIVERY_FAILED,
                 'opt_in_message_delivery_error' => $error !== '' ? $error : 'Delivery failed',
+                'opt_in_message_sent' => true,
             ])->save();
 
             $nonWa = app(NonWhatsAppNumberService::class);

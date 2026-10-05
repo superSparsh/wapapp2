@@ -10,6 +10,7 @@ use App\Domains\Alerts\Console\Commands\SyncPhoneQualityAndNotifyCommand;
 use App\Domains\Api\Http\Middleware\AuthenticateApiToken;
 use App\Domains\Audience\Console\Commands\BackfillNonWhatsAppNumbersCommand;
 use App\Domains\Audience\Console\Commands\PurgeSoftDeletedContactsCommand;
+use App\Domains\Audience\Console\Commands\SyncOptInDeliveryFromMessagesCommand;
 use App\Domains\Audience\Console\Commands\VerifyListContactsCommand;
 use App\Domains\Auth\Http\Middleware\EnsureEmailIsVerified;
 use App\Domains\Auth\Http\Middleware\EnsureTwoFactorVerified;
@@ -202,6 +203,7 @@ return Application::configure(basePath: dirname(__DIR__))
         VerifyListContactsCommand::class,
         PurgeSoftDeletedContactsCommand::class,
         BackfillNonWhatsAppNumbersCommand::class,
+        SyncOptInDeliveryFromMessagesCommand::class,
         SubmitPendingTemplates::class,
         SyncTemplateStatuses::class,
         DeleteSoftDeletedTemplates::class,
