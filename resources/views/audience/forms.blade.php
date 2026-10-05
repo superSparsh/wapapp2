@@ -15,7 +15,7 @@
 <x-layouts.app title="Forms & Pages - WapApp" active="audience.index">
   <div class="flex flex-col bg-surface">
     <div class="flex flex-col gap-4 p-4">
-      <x-audience.list-header :title="$mailList?->name ?? 'Forms / pages'" :subscribers="(string) ($subscriberCount ?? 0)" />
+      <x-audience.list-header :title="$mailList?->name ?? 'Forms / pages'" :subscribers="(string) ($subscriberCount ?? 0)" :uid="$mailList?->uuid" />
       <x-audience.sub-nav active="audience.forms" />
     </div>
 

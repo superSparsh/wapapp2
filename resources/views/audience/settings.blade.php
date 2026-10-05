@@ -1,7 +1,7 @@
 <x-layouts.app title="Audience Settings - WapApp" active="audience.settings">
   <div class="flex flex-col bg-surface">
     <div class="flex flex-col gap-4">
-      <x-audience.list-header :title="$mailList?->name ?? 'Settings'" :subscribers="(string) ($mailList?->totalContactsCount() ?? 0)" />
+      <x-audience.list-header :title="$mailList?->name ?? 'Settings'" :subscribers="(string) ($mailList?->totalContactsCount() ?? 0)" :uid="$mailList?->uuid" />
       <x-audience.sub-nav active="audience.settings" />
     </div>
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Domains\AiBot\Http\Controllers\AiInternalUsageController;
 use App\Domains\Api\Http\Controllers\V1\CampaignApiController;
+use App\Domains\Api\Http\Controllers\V1\DirectMessageApiController;
 use App\Domains\Api\Http\Controllers\V1\ListApiController;
 use App\Domains\Api\Http\Controllers\V1\SubscriberApiController;
 use App\Domains\Api\Http\Middleware\AuthenticateApiToken;
@@ -27,6 +28,9 @@ Route::post('/forms/onboarding', [FormsOnboardingController::class, 'store'])
 Route::prefix('v1')
     ->middleware(AuthenticateApiToken::class)
     ->group(function (): void {
+        Route::post('/directmessage', [DirectMessageApiController::class, 'send']);
+        Route::get('/getstatusofmessage', [DirectMessageApiController::class, 'status']);
+
         Route::get('/campaigns', [CampaignApiController::class, 'index']);
         Route::post('/campaigns', [CampaignApiController::class, 'store']);
 

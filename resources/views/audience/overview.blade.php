@@ -4,6 +4,7 @@
       <x-audience.list-header
         :title="$mailList?->name ?? 'All Lists'"
         :subscribers="(string) ($stats['subscriber_count'] ?? 0)"
+        :uid="$mailList?->uuid"
       />
       <x-audience.sub-nav active="audience.overview" />
     </div>

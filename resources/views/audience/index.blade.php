@@ -37,6 +37,11 @@
             <td class="w-[320px] p-2">
               <a href="{{ route('audience.overview', ['list' => $list->uuid]) }}" class="fd-table-name hover:underline">{{ $list->name }}</a>
               <p class="fd-table-cell">Created at: {{ $list->created_at?->format('Y-m-d h:i A') }}</p>
+              @if (filled($list->uuid))
+                <div class="mt-1.5">
+                  <x-ui.copy-uid :value="$list->uuid" label="List UID" :compact="true" />
+                </div>
+              @endif
             </td>
             <td class="p-2">
               <div class="flex flex-wrap items-center justify-center gap-2.5">

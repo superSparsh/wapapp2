@@ -151,6 +151,11 @@
                     <td class="w-[320px] p-2">
                       <p class="fd-table-name">{{ $template['name'] }}</p>
                       <p class="fd-table-cell">Created at: {{ $template['created_at'] }}</p>
+                      @if (! empty($template['uuid']))
+                        <div class="mt-1.5">
+                          <x-ui.copy-uid :value="$template['uuid']" label="Template UID" :compact="true" />
+                        </div>
+                      @endif
                     </td>
                     <td class="fd-table-cell p-2">{{ $template['type'] }}</td>
                     <td class="p-2">
@@ -185,6 +190,11 @@
                     <td class="w-[320px] p-2">
                       <p class="fd-table-name">{{ $template['name'] }}</p>
                       <p class="fd-table-cell">Created at: {{ $template['created_at'] }}</p>
+                      @if (! empty($template['uuid']))
+                        <div class="mt-1.5">
+                          <x-ui.copy-uid :value="$template['uuid']" label="Template UID" :compact="true" />
+                        </div>
+                      @endif
                     </td>
                     <td class="p-2">
                       <x-ui.status-chip

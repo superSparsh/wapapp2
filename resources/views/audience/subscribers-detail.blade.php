@@ -3,7 +3,7 @@
     $listUuid = $mailListId ?? $contact->mailList?->uuid;
   @endphp
   <div class="flex flex-col">
-    <x-audience.list-header :title="$contact->mailList?->name ?? 'Subscriber Detail'" :subscribers="(string) ($contact->mailList?->totalContactsCount() ?? 0)" />
+    <x-audience.list-header :title="$contact->mailList?->name ?? 'Subscriber Detail'" :subscribers="(string) ($contact->mailList?->totalContactsCount() ?? 0)" :uid="$contact->mailList?->uuid" />
     <x-audience.sub-nav active="audience.subscribers" :list-id="$listUuid" />
 
     <div class="p-4">
@@ -18,6 +18,11 @@
           ])>{{ $contact->status?->label() ?? 'Unknown' }}</span>
         </x-slot:actions>
       </x-ui.page-header>
+      @if (filled($contact->uuid))
+        <div class="mt-2">
+          <x-ui.copy-uid :value="$contact->uuid" label="Subscriber UID" />
+        </div>
+      @endif
     </div>
 
     @if (session('status'))

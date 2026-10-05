@@ -325,6 +325,7 @@ class TemplateWalletChargeService
             'drip' => 'Drip campaign template ('.$category.')'.$suffix,
             'form', 'form_builder' => 'Form builder template ('.$category.')'.$suffix,
             'test' => 'Campaign test message ('.$category.')'.$suffix,
+            'api' => 'API Direct Message ('.$category.')'.$suffix,
             default => 'WhatsApp template message ('.$category.', delivered)'.$suffix,
         };
     }

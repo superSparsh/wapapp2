@@ -1,7 +1,7 @@
 <x-layouts.app title="Subscribers - WapApp" active="audience.index">
   <div class="flex flex-col bg-surface">
     <div class="flex flex-col gap-4">
-      <x-audience.list-header :title="$mailList->name" :subscribers="(string) $contacts->total()" />
+      <x-audience.list-header :title="$mailList->name" :subscribers="(string) $contacts->total()" :uid="$mailList->uuid" />
       <x-audience.sub-nav active="audience.subscribers" :list-id="$mailListId" />
     </div>
 
@@ -150,7 +150,14 @@
                 'bg-red-50 text-red-600' => $contact->status?->value === 'blacklisted',
               ])>{{ $contact->status?->label() ?? 'Unknown' }}</span>
             </td>
-            <td class="fd-table-cell p-2">{{ $contact->name ?? '-' }}</td>
+            <td class="fd-table-cell p-2">
+              <div class="flex flex-col gap-1.5">
+                <span>{{ $contact->name ?? '-' }}</span>
+                @if (filled($contact->uuid))
+                  <x-ui.copy-uid :value="$contact->uuid" label="Subscriber UID" :compact="true" />
+                @endif
+              </div>
+            </td>
             <td class="w-[140px] p-2">
               @if($contact->send_opt_in_message === 'yes')
                 @php

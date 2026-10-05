@@ -2,6 +2,8 @@
     'title' => 'Qualified Leads - AI',
     'subscribers' => '1000',
     'showBack' => true,
+    'uid' => null,
+    'uidLabel' => 'List UID',
 ])
 
 <div class="flex flex-col gap-3 p-4 pb-0">
@@ -16,6 +18,9 @@
     <div class="flex flex-wrap items-center gap-3">
       <span class="text-base font-bold text-text-primary/64">Overall Subscribers:</span>
       <span class="rounded-lg border border-green-500 bg-elevated px-3 py-2 text-sm font-bold text-green-500 shadow-[0px_0px_2px_rgba(0,0,0,0.08)]">{{ $subscribers }}</span>
+      @if (filled($uid))
+        <x-ui.copy-uid :value="$uid" :label="$uidLabel" />
+      @endif
     </div>
   </div>
 </div>
