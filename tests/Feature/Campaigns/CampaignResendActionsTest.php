@@ -74,6 +74,73 @@ class CampaignResendActionsTest extends TestCase
             ->assertRedirect(route('campaigns.create.step', 1));
     }
 
+    public function test_create_campaign_from_failed_resolves_template_by_code_when_id_stale(): void
+    {
+        Queue::fake();
+
+        $old = Template::factory()->create(['code' => 'cams_live_code']);
+        $source = Campaign::factory()->create([
+            'status' => CampaignStatus::Completed,
+            'whatsapp_line_id' => $this->testLine->id,
+            'template_id' => $old->id,
+            'template_variables' => ['template_code' => 'cams_live_code', 'language' => 'en_GB'],
+            'total_failed' => 1,
+        ]);
+        CampaignRecipient::factory()->for($source)->failed()->create();
+
+        $old->delete();
+        $replacement = Template::factory()->create(['code' => 'cams_live_code']);
+
+        // Orphan FK like prod import/delete cases (FK checks temporarily off).
+        \Illuminate\Support\Facades\Schema::disableForeignKeyConstraints();
+        \Illuminate\Support\Facades\DB::table('campaigns')
+            ->where('id', $source->id)
+            ->update(['template_id' => 999999]);
+        \Illuminate\Support\Facades\Schema::enableForeignKeyConstraints();
+
+        $this->actingAsTenantUser()
+            ->post(route('campaigns.resend-failed', $source->fresh()), [
+                'list_name' => 'Stale Template List',
+                'campaign_name' => 'Stale Template Resend',
+                'send_option' => 'schedule',
+                'mode' => 'create',
+            ])
+            ->assertRedirect();
+
+        $newCampaign = Campaign::query()->where('name', 'Stale Template Resend')->first();
+        $this->assertNotNull($newCampaign);
+        $this->assertSame($replacement->id, (int) $newCampaign->template_id);
+    }
+
+    public function test_create_campaign_from_failed_schedule_without_resolvable_template(): void
+    {
+        Queue::fake();
+
+        $template = Template::factory()->create(['code' => 'will_be_deleted']);
+        $source = Campaign::factory()->create([
+            'status' => CampaignStatus::Completed,
+            'whatsapp_line_id' => $this->testLine->id,
+            'template_id' => $template->id,
+            'template_variables' => ['template_code' => 'will_be_deleted'],
+            'total_failed' => 1,
+        ]);
+        CampaignRecipient::factory()->for($source)->failed()->create();
+        $template->delete();
+
+        $response = $this->actingAsTenantUser()
+            ->post(route('campaigns.resend-failed', $source->fresh()), [
+                'list_name' => 'No Template List',
+                'campaign_name' => 'No Template Resend',
+                'send_option' => 'schedule',
+                'mode' => 'create',
+            ]);
+
+        $newCampaign = Campaign::query()->where('name', 'No Template Resend')->first();
+        $this->assertNotNull($newCampaign);
+        $this->assertNull($newCampaign->template_id);
+        $response->assertRedirect(route('campaigns.edit', ['bulkCampaign' => $newCampaign, 'step' => 1]));
+    }
+
     public function test_create_campaign_from_failed_send_now_queues_jobs(): void
     {
         Queue::fake();

@@ -61,30 +61,45 @@ class CampaignActionsController extends Controller
             'send_option' => ['required_unless:mode,inplace', 'nullable', 'in:now,schedule'],
         ]);
 
-        // Legacy default: create new list + campaign. Optional inplace requeue.
-        if (($validated['mode'] ?? 'create') === 'inplace') {
-            $count = $this->adapter->resendFailed($bulkCampaign);
+        try {
+            // Legacy default: create new list + campaign. Optional inplace requeue.
+            if (($validated['mode'] ?? 'create') === 'inplace') {
+                $count = $this->adapter->resendFailed($bulkCampaign);
+
+                if ($request->expectsJson()) {
+                    return response()->json([
+                        'success' => true,
+                        'resent' => $count,
+                    ]);
+                }
+
+                return redirect()
+                    ->route('campaigns.statistics', $bulkCampaign)
+                    ->with('status', $count > 0
+                        ? "Requeued {$count} failed recipient(s)."
+                        : 'No failed recipients to resend.');
+            }
+
+            $result = $this->adapter->createCampaignFromFailed(
+                $bulkCampaign,
+                (string) ($validated['list_name'] ?? ''),
+                (string) ($validated['campaign_name'] ?? ''),
+                (string) ($validated['send_option'] ?? 'now'),
+            );
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpExceptionInterface $exception) {
+            $message = $exception->getMessage() !== ''
+                ? $exception->getMessage()
+                : 'Unable to resend failed contacts.';
 
             if ($request->expectsJson()) {
                 return response()->json([
-                    'success' => true,
-                    'resent' => $count,
-                ]);
+                    'success' => false,
+                    'message' => $message,
+                ], $exception->getStatusCode() ?: 422);
             }
 
-            return redirect()
-                ->route('campaigns.statistics', $bulkCampaign)
-                ->with('status', $count > 0
-                    ? "Requeued {$count} failed recipient(s)."
-                    : 'No failed recipients to resend.');
+            return back()->with('error', $message);
         }
-
-        $result = $this->adapter->createCampaignFromFailed(
-            $bulkCampaign,
-            (string) ($validated['list_name'] ?? ''),
-            (string) ($validated['campaign_name'] ?? ''),
-            (string) ($validated['send_option'] ?? 'now'),
-        );
 
         if ($request->expectsJson()) {
             return response()->json([

@@ -16,6 +16,7 @@ use App\Models\Campaign;
 use App\Models\CampaignRecipient;
 use App\Models\Contact;
 use App\Models\MailList;
+use App\Models\Template;
 use App\Support\OciWorkload;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -94,11 +95,19 @@ class CampaignResendService
         abort_if($listName === '', 422, 'List name is required.');
         abort_if($campaignName === '', 422, 'Campaign name is required.');
         abort_if($source->whatsapp_line_id === null, 422, 'Source campaign has no WhatsApp number.');
-        abort_if($source->template_id === null, 422, 'Source campaign has no template.');
 
         $sendNow = $sendOption === 'now';
+        $templateId = $this->resolveTemplateIdForResend($source);
 
-        $result = DB::transaction(function () use ($source, $listName, $campaignName): array {
+        // Send-now needs a live template row. Schedule can open the wizard without one
+        // so the user can pick a replacement on the Template step.
+        abort_if(
+            $sendNow && $templateId === null,
+            422,
+            'The original campaign template no longer exists. Choose “Schedule for Later” and pick a template, or restore the template first.',
+        );
+
+        $result = DB::transaction(function () use ($source, $listName, $campaignName, $templateId): array {
             $list = MailList::query()->create([
                 'name' => $listName,
                 'status' => RecordStatus::Active,
@@ -150,7 +159,7 @@ class CampaignResendService
                 'status' => CampaignStatus::Draft,
                 'audience_id' => $list->id,
                 'whatsapp_line_id' => $source->whatsapp_line_id,
-                'template_id' => $source->template_id,
+                'template_id' => $templateId,
                 'template_variables' => $source->template_variables,
                 'timezone' => $source->timezone,
             ]);
@@ -176,6 +185,58 @@ class CampaignResendService
             'imported' => $result['imported'],
             'launched' => $launched,
         ];
+    }
+
+    /**
+     * Resolve a template id that still exists for the resend campaign.
+     * Source campaigns can keep a stale template_id after deletes/imports.
+     */
+    private function resolveTemplateIdForResend(Campaign $source): ?int
+    {
+        $sourceTemplateId = (int) ($source->template_id ?? 0);
+        if ($sourceTemplateId > 0 && Template::query()->whereKey($sourceTemplateId)->exists()) {
+            return $sourceTemplateId;
+        }
+
+        $vars = is_array($source->template_variables) ? $source->template_variables : [];
+        $codes = array_values(array_filter([
+            trim((string) ($vars['template_code'] ?? '')),
+            trim((string) ($vars['legacy_template_code'] ?? '')),
+        ], static fn (string $code): bool => $code !== ''));
+
+        foreach ($codes as $code) {
+            $match = Template::query()
+                ->where('code', $code)
+                ->when(
+                    $source->whatsapp_line_id !== null,
+                    fn ($q) => $q->where(function ($inner) use ($source): void {
+                        $inner->where('whatsapp_line_id', $source->whatsapp_line_id)
+                            ->orWhereNull('whatsapp_line_id');
+                    }),
+                )
+                ->orderByRaw('CASE WHEN whatsapp_line_id = ? THEN 0 ELSE 1 END', [(int) $source->whatsapp_line_id])
+                ->orderByDesc('id')
+                ->first();
+
+            if ($match instanceof Template) {
+                return (int) $match->id;
+            }
+
+            // Some imports store CAMS code only inside payload.
+            $byPayload = Template::query()
+                ->where(function ($q) use ($code): void {
+                    $q->where('payload->legacy_template_code', $code)
+                        ->orWhere('payload->template_code', $code);
+                })
+                ->orderByDesc('id')
+                ->first();
+
+            if ($byPayload instanceof Template) {
+                return (int) $byPayload->id;
+            }
+        }
+
+        return null;
     }
 
     /**
