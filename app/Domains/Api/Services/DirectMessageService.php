@@ -39,6 +39,7 @@ class DirectMessageService
         private readonly InboxConversationService $conversationService,
         private readonly InboxOutboundService $outboundService,
         private readonly AlibabaCamsClient $camsClient,
+        private readonly ApiDirectMessageStatusFastPath $apiStatusFastPath,
     ) {}
 
     /**
@@ -149,6 +150,21 @@ class DirectMessageService
         if ($message === null) {
             abort(404, 'Message not found.');
         }
+
+        $tenant = tenant();
+
+        // Flush any pending Alibaba status webhooks for this API message before responding.
+        $this->apiStatusFastPath->refreshPendingStatusEventsForMessage($message);
+
+        // Status jobs end tenancy in finally — restore the API request tenant.
+        if ($tenant !== null && (! tenancy()->initialized || (string) tenant()?->getTenantKey() !== (string) $tenant->getTenantKey())) {
+            if (tenancy()->initialized) {
+                tenancy()->end();
+            }
+            tenancy()->initialize($tenant);
+        }
+
+        $message->refresh();
 
         $message->loadMissing('conversation.whatsappLine');
 

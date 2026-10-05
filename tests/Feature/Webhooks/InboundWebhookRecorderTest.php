@@ -186,4 +186,58 @@ class InboundWebhookRecorderTest extends TestCase
             \App\Domains\Webhooks\Jobs\ProcessInboundWebhookJob::class,
         );
     }
+
+    public function test_status_event_syncs_immediately_for_api_direct_messages_even_when_oci_queue_only(): void
+    {
+        config([
+            'oci-workers.enabled' => true,
+            'oci-workers.status_queue_only' => true,
+            'oci-workers.queues.status' => 'status',
+            'whatsapp.outbound_driver' => 'local',
+        ]);
+
+        $contact = \App\Models\Contact::factory()->create(['phone' => '918888810099']);
+        $conversation = \App\Models\Conversation::factory()->create([
+            'whatsapp_line_id' => $this->testLine->id,
+            'contact_id' => $contact->id,
+            'contact_phone' => $contact->phone,
+            'line_phone' => $this->testLine->phone,
+            'last_message_at' => now(),
+        ]);
+
+        $message = \App\Models\Message::query()->create([
+            'conversation_id' => $conversation->id,
+            'body' => 'API status fast path',
+            'direction' => 'outbound',
+            'message_type' => 'template',
+            'status' => \App\Enums\MessageStatus::Sent,
+            'external_message_id' => 'wamid.API-FAST-001',
+            'sent_at' => now(),
+            'metadata' => [
+                'api_send' => true,
+                'wallet_source' => 'api',
+            ],
+        ]);
+
+        app(\App\Domains\Webhooks\Services\WhatsappLineRegistryService::class)
+            ->indexMessage($this->testTenant->id, 'wamid.API-FAST-001', $message->id);
+
+        tenancy()->end();
+
+        $recorder = app(InboundWebhookRecorder::class);
+        $payload = json_encode([[
+            'MessageId' => 'wamid.API-FAST-001',
+            'Status' => 'Delivered',
+            'From' => $this->testLine->phone,
+            'To' => $contact->phone,
+        ]], JSON_THROW_ON_ERROR);
+
+        $event = $recorder->record(InboundWebhookEventType::Status, $payload);
+
+        $this->assertSame(InboundWebhookStatus::Processed, $event->status);
+
+        tenancy()->initialize($this->testTenant);
+        $message->refresh();
+        $this->assertSame(\App\Enums\MessageStatus::Delivered, $message->status);
+    }
 }

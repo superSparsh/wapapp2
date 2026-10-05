@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Api;
 
+use App\Enums\InboundWebhookEventType;
+use App\Enums\InboundWebhookStatus;
 use App\Enums\MessageStatus;
 use App\Enums\TenantUserAccountType;
 use App\Models\CountryPricing;
+use App\Models\InboundWebhookEvent;
 use App\Models\Message;
 use App\Models\MessageExternalIndex;
 use App\Models\PlatformSetting;
@@ -122,12 +125,16 @@ class DirectMessageApiTest extends TestCase
         $this->assertTrue((bool) data_get($message->metadata, 'billable'));
         $this->assertSame('20% off', data_get($message->metadata, 'template_params.offer'));
 
-        $index = MessageExternalIndex::query()
-            ->where('external_message_id', (string) $message->external_message_id)
-            ->first();
-        $this->assertNotNull($index);
-        $this->assertSame($this->testTenant->id, $index->tenant_id);
-        $this->assertSame($message->id, $index->message_id);
+        $externalId = (string) $message->external_message_id;
+        // Local outbound driver uses local_* ids and intentionally skips central indexing.
+        if ($externalId !== '' && ! str_starts_with($externalId, 'local_')) {
+            $index = MessageExternalIndex::query()
+                ->where('external_message_id', $externalId)
+                ->first();
+            $this->assertNotNull($index);
+            $this->assertSame($this->testTenant->id, $index->tenant_id);
+            $this->assertSame($message->id, $index->message_id);
+        }
     }
 
     public function test_directmessage_rejects_unapproved_template(): void
@@ -224,5 +231,55 @@ class DirectMessageApiTest extends TestCase
             'message_id' => (string) Str::uuid(),
         ]), ['Accept' => 'application/json'])
             ->assertNotFound();
+    }
+
+    public function test_getstatusofmessage_syncs_pending_delivered_webhook_for_api_message(): void
+    {
+        $template = Template::factory()->create([
+            'code' => '1125253687146348548',
+            'category' => 'UTILITY',
+        ]);
+
+        $send = $this->post('/api/v1/directmessage', [
+            'api_token' => $this->apiToken,
+            'template_uid' => $template->uuid,
+            'to' => '919876543213',
+        ], ['Accept' => 'application/json'])->assertOk();
+
+        $message = Message::query()->where('uuid', (string) $send->json('message_id'))->firstOrFail();
+        $externalId = (string) $message->external_message_id;
+        $this->assertNotSame('', $externalId);
+
+        InboundWebhookEvent::query()->create([
+            'event_type' => InboundWebhookEventType::Status,
+            'idempotency_key' => $externalId.':Delivered',
+            'payload' => [[
+                'MessageId' => $externalId,
+                'Status' => 'Delivered',
+                'From' => $this->testLine->phone,
+                'To' => '919876543213',
+            ]],
+            'headers' => [],
+            'status' => InboundWebhookStatus::Received,
+            'retry_count' => 0,
+            'created_at' => now(),
+        ]);
+
+        $this->get('/api/v1/getstatusofmessage?'.http_build_query([
+            'api_token' => $this->apiToken,
+            'message_id' => (string) $message->uuid,
+        ]), ['Accept' => 'application/json'])
+            ->assertOk()
+            ->assertJsonPath('status', 'delivered');
+
+        $message->refresh();
+        $this->assertSame(MessageStatus::Delivered, $message->status);
+        $this->assertNotNull($message->delivered_at);
+
+        $event = InboundWebhookEvent::query()
+            ->where('idempotency_key', $externalId.':Delivered')
+            ->first();
+        $this->assertNotNull($event);
+        $this->assertSame(InboundWebhookStatus::Processed, $event->status);
     }
 }

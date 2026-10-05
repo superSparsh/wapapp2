@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Webhooks\Services;
 
+use App\Domains\Api\Services\ApiDirectMessageStatusFastPath;
 use App\Domains\Webhooks\Jobs\ProcessInboundWebhookJob;
 use App\Domains\Webhooks\Parsers\AlibabaWebhookParser;
 use App\Enums\InboundWebhookEventType;
@@ -18,6 +19,7 @@ class InboundWebhookRecorder
 {
     public function __construct(
         private readonly AlibabaWebhookParser $parser,
+        private readonly ApiDirectMessageStatusFastPath $apiStatusFastPath,
     ) {}
 
     public function record(
@@ -61,25 +63,36 @@ class InboundWebhookRecorder
 
             // Still pending/failed: re-queue the original row instead of marking "duplicate"
             // (which would permanently skip ProcessInboundWebhookJob).
-            $this->dispatchProcessing($event, $eventType);
+            $this->dispatchProcessing($event, $eventType, $first);
 
             return $event->refresh();
         }
 
-        $this->dispatchProcessing($event, $eventType);
+        $this->dispatchProcessing($event, $eventType, $first);
 
         return $event->refresh();
     }
 
-    private function dispatchProcessing(InboundWebhookEvent $event, InboundWebhookEventType $eventType): void
-    {
+    /**
+     * @param  array<string, mixed>  $firstItem
+     */
+    private function dispatchProcessing(
+        InboundWebhookEvent $event,
+        InboundWebhookEventType $eventType,
+        array $firstItem = [],
+    ): void {
         if (in_array($event->status, [InboundWebhookStatus::Processed, InboundWebhookStatus::Processing], true)) {
             return;
         }
 
         $queue = OciWorkload::queueForInboundEvent($eventType);
+        $preferApiSync = $eventType === InboundWebhookEventType::Status
+            && $firstItem !== []
+            && $this->apiStatusFastPath->shouldSyncStatusWebhook($firstItem);
+
         $skipSync = $eventType === InboundWebhookEventType::Status
-            && OciWorkload::statusShouldSkipSync();
+            && OciWorkload::statusShouldSkipSync()
+            && ! $preferApiSync;
 
         if (! $skipSync) {
             try {
@@ -87,6 +100,7 @@ class InboundWebhookRecorder
             } catch (\Throwable $exception) {
                 Log::warning('Inbound webhook sync processing failed; queued retry remains', [
                     'event_id' => $event->id,
+                    'api_fast_path' => $preferApiSync,
                     'error' => $exception->getMessage(),
                 ]);
             }
