@@ -47,6 +47,7 @@ class CampaignStatisticsController extends Controller
             'campaign' => $bulkCampaign,
             'recipients' => $recipients,
             'currentStatus' => $request->query('status', ''),
+            'metrics' => $this->adapter->getGaugeMetrics($bulkCampaign),
         ]);
     }
 

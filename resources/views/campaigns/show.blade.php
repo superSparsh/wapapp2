@@ -1,5 +1,5 @@
 <x-layouts.app title="{{ $campaign->name }} - WapApp" active="campaigns.index">
-  <x-campaigns.campaign-header :campaign="$campaign" activeTab="overview">
+  <x-campaigns.campaign-header :campaign="$campaign" activeTab="overview" :metrics="$metrics">
     <div class="flex flex-col gap-4 bg-surface px-4 pb-4">
       @php
         $detailRoute = fn (?string $status = null) => route('campaigns.statistics.detail', array_filter([

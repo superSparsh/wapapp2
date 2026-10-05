@@ -1,6 +1,7 @@
 @props([
     'campaign',
     'activeTab' => 'overview',
+    'metrics' => null,
 ])
 
 @php
@@ -77,6 +78,8 @@ $statusColor = match ($campaign->status) {
       </a>
     @endforeach
   </nav>
+
+  <x-campaigns.delivery-status-notice :campaign="$campaign" :metrics="$metrics" />
 
   {{ $slot }}
 </div>

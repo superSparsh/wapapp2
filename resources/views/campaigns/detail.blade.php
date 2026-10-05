@@ -1,5 +1,5 @@
 <x-layouts.app title="{{ $campaign->name }} Recipients - WapApp" active="campaigns.index">
-  <x-campaigns.campaign-header :campaign="$campaign" activeTab="recipients">
+  <x-campaigns.campaign-header :campaign="$campaign" activeTab="recipients" :metrics="$metrics">
     <div class="flex flex-col gap-4 bg-surface px-4 pb-4">
       <div class="flex w-full flex-col gap-2">
         <h2 class="text-2xl font-bold leading-[1.5] text-text-primary">
