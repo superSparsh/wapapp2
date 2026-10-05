@@ -68,7 +68,10 @@ return [
             'driver' => 'redis',
             'connection' => env('REDIS_QUEUE_CONNECTION', 'default'),
             'queue' => env('REDIS_QUEUE', 'default'),
-            'retry_after' => (int) env('REDIS_QUEUE_RETRY_AFTER', 90),
+            // Must exceed the longest Horizon job timeout (import = 7200s).
+            // If retry_after < job timeout, Redis re-releases a still-running job
+            // and Horizon fails it with MaxAttemptsExceededException.
+            'retry_after' => (int) env('REDIS_QUEUE_RETRY_AFTER', 7300),
             'block_for' => null,
             'after_commit' => false,
         ],
