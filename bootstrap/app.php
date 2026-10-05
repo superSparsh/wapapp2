@@ -51,6 +51,7 @@ use App\Domains\Templates\Console\Commands\SubmitPendingTemplates;
 use App\Domains\Templates\Console\Commands\SyncTemplateStatuses;
 use App\Domains\ThirdParty\Console\Commands\ProcessShopifyWebhooksCommand;
 use App\Domains\Webhooks\Commands\RetryFailedDeliveriesCommand;
+use App\Domains\Webhooks\Console\Commands\ReplayInboundWebhookEventsCommand;
 use App\Domains\WhatsappFlow\Console\Commands\CleanOldFlowSubmissions;
 use Illuminate\Contracts\Session\Middleware\AuthenticatesSessions;
 use Illuminate\Foundation\Application;
@@ -201,6 +202,7 @@ return Application::configure(basePath: dirname(__DIR__))
         SyncTemplateStatuses::class,
         DeleteSoftDeletedTemplates::class,
         RetryFailedDeliveriesCommand::class,
+        ReplayInboundWebhookEventsCommand::class,
         CleanOldFlowSubmissions::class,
         ProcessShopifyWebhooksCommand::class,
         MigrateLegacyCustomerCommand::class,

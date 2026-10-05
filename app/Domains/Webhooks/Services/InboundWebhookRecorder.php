@@ -54,11 +54,27 @@ class InboundWebhookRecorder
                 ->where('idempotency_key', Str::limit($idempotencyKey, 191, ''))
                 ->firstOrFail();
 
-            if ($event->status !== InboundWebhookStatus::Processed) {
-                $event->forceFill(['status' => InboundWebhookStatus::Duplicate])->save();
+            // Already handled — Alibaba retry is a true duplicate.
+            if ($event->status === InboundWebhookStatus::Processed) {
+                return $event;
             }
 
-            return $event;
+            // Still pending/failed: re-queue the original row instead of marking "duplicate"
+            // (which would permanently skip ProcessInboundWebhookJob).
+            $this->dispatchProcessing($event, $eventType);
+
+            return $event->refresh();
+        }
+
+        $this->dispatchProcessing($event, $eventType);
+
+        return $event->refresh();
+    }
+
+    private function dispatchProcessing(InboundWebhookEvent $event, InboundWebhookEventType $eventType): void
+    {
+        if (in_array($event->status, [InboundWebhookStatus::Processed, InboundWebhookStatus::Processing], true)) {
+            return;
         }
 
         $queue = OciWorkload::queueForInboundEvent($eventType);
@@ -76,7 +92,7 @@ class InboundWebhookRecorder
             }
         }
 
-        $event = $event->refresh();
+        $event->refresh();
 
         if (! in_array($event->status, [InboundWebhookStatus::Processed, InboundWebhookStatus::Duplicate], true)) {
             try {
@@ -89,8 +105,6 @@ class InboundWebhookRecorder
                 ]);
             }
         }
-
-        return $event;
     }
 
     private function decodePayload(string $rawBody): mixed
