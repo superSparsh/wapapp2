@@ -239,14 +239,41 @@ class SyncCampaignDeliveryFromMessagesCommand extends Command
         $skipped = 0;
 
         foreach ($query->cursor() as $recipient) {
+            $providerOrLocalId = trim((string) $recipient->message_id);
+            if ($providerOrLocalId === '') {
+                $skipped++;
+
+                continue;
+            }
+
             $message = Message::query()
-                ->where('external_message_id', (string) $recipient->message_id)
+                ->where(function ($q) use ($providerOrLocalId): void {
+                    $q->where('external_message_id', $providerOrLocalId);
+                    if (ctype_digit($providerOrLocalId)) {
+                        $q->orWhere('id', (int) $providerOrLocalId);
+                    }
+                })
                 ->whereIn('status', [
                     MessageStatus::Delivered->value,
                     MessageStatus::Read->value,
                     MessageStatus::Failed->value,
                 ])
+                ->orderByDesc('id')
                 ->first();
+
+            // Fallback: campaign message row via metadata even when recipient.message_id is stale.
+            if ($message === null && $campaignFilter !== null) {
+                $message = Message::query()
+                    ->where('direction', 'outbound')
+                    ->whereIn('status', [
+                        MessageStatus::Delivered->value,
+                        MessageStatus::Read->value,
+                        MessageStatus::Failed->value,
+                    ])
+                    ->where('metadata->campaign_recipient_id', $recipient->id)
+                    ->orderByDesc('id')
+                    ->first();
+            }
 
             if ($message === null) {
                 $skipped++;
