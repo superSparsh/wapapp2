@@ -296,13 +296,19 @@ class AlertDispatcher
 
     /**
      * @param  array<string, mixed>  $digest  Legacy-shaped summary from WhatsAppHealthDigestService::buildSummary()
+     * @param  list<string>|null  $overrideEmails
      */
-    public function whatsappHealthDigest(array $digest): void
+    public function whatsappHealthDigest(array $digest, ?array $overrideEmails = null): void
     {
-        $emails = array_values(array_filter(array_map(
-            'trim',
-            explode(',', (string) config('services.wa_health.digest_emails', ''))
-        )));
+        $emails = $overrideEmails;
+        if ($emails === null) {
+            $emails = array_values(array_filter(array_map(
+                'trim',
+                explode(',', (string) config('services.wa_health.digest_emails', ''))
+            )));
+        } else {
+            $emails = array_values(array_filter(array_map('trim', $emails)));
+        }
 
         $generatedAt = $digest['generatedAt'] ?? now();
         $dateLabel = $generatedAt instanceof \DateTimeInterface

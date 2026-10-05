@@ -13,6 +13,7 @@ class WhatsAppHealthDigestCommand extends Command
     protected $signature = 'operations:whatsapp-health-digest
         {--force : Send even if digest already sent today}
         {--dry-run : Build and preview the digest without sending email}
+        {--to= : Comma-separated test recipient emails (implies --force)}
         {--output= : Write dry-run HTML to this path (default: storage/app/wa-health-digest-preview.html)}';
 
     protected $description = 'Email WhatsApp Health daily digest to admins (legacy parity).';
@@ -23,15 +24,22 @@ class WhatsAppHealthDigestCommand extends Command
             return $this->runDryRun($digest);
         }
 
-        $sent = $digest->sendDailyDigest((bool) $this->option('force'));
+        $to = $this->parseEmails((string) $this->option('to'));
+        $force = (bool) $this->option('force') || $to !== [];
+
+        $sent = $digest->sendDailyDigest($force, $to !== [] ? $to : null);
 
         if ($sent === 0) {
-            $this->info('Digest already sent today - skipped. Use --force to resend, or --dry-run to preview.');
+            $this->info('Digest already sent today - skipped. Use --force to resend, --to=you@email.com for a test send, or --dry-run to preview.');
 
             return self::SUCCESS;
         }
 
-        $this->info('WhatsApp Health digest sent.');
+        if ($to !== []) {
+            $this->info('WhatsApp Health digest test email sent to: '.implode(', ', $to));
+        } else {
+            $this->info('WhatsApp Health digest sent.');
+        }
 
         return self::SUCCESS;
     }
@@ -70,5 +78,20 @@ class WhatsAppHealthDigestCommand extends Command
         $this->info('Dry-run complete. Open the HTML file in a browser to review the email.');
 
         return self::SUCCESS;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function parseEmails(string $raw): array
+    {
+        if (trim($raw) === '') {
+            return [];
+        }
+
+        return array_values(array_filter(array_map(
+            static fn (string $email): string => strtolower(trim($email)),
+            explode(',', $raw),
+        ), static fn (string $email): bool => filter_var($email, FILTER_VALIDATE_EMAIL) !== false));
     }
 }

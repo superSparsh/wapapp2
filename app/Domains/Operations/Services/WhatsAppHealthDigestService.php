@@ -175,14 +175,14 @@ class WhatsAppHealthDigestService
         ])->render();
     }
 
-    public function sendDailyDigest(bool $force = false): int
+    public function sendDailyDigest(bool $force = false, ?array $overrideEmails = null): int
     {
         $dayKey = 'wa_health_digest_sent:'.now()->toDateString();
         if (! $force && ! Cache::add($dayKey, 1, now()->endOfDay())) {
             return 0;
         }
 
-        $this->alerts->whatsappHealthDigest($this->buildSummary());
+        $this->alerts->whatsappHealthDigest($this->buildSummary(), $overrideEmails);
 
         return 1;
     }
