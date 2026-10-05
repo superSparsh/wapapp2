@@ -39,7 +39,8 @@ class CampaignStatisticsTest extends TestCase
             ->assertOk()
             ->assertViewIs('campaigns.statistics')
             ->assertViewHas('campaign')
-            ->assertViewHas('metrics');
+            ->assertViewHas('metrics')
+            ->assertDontSee('Delivery statuses are being updated', false);
     }
 
     public function test_statistics_overview_has_correct_metrics(): void

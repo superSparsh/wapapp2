@@ -7,6 +7,7 @@ namespace Tests\Unit\Campaigns;
 use App\Domains\Campaigns\Support\CampaignDeliveryStatusNotice;
 use App\Enums\CampaignStatus;
 use App\Models\Campaign;
+use App\Models\CampaignRecipient;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\InteractsWithTenants;
 use Tests\TestCase;
@@ -46,6 +47,7 @@ class CampaignDeliveryStatusNoticeTest extends TestCase
             'status' => CampaignStatus::Completed,
             'started_at' => now()->subHours(2),
         ]);
+        CampaignRecipient::factory()->for($campaign)->sent()->create();
 
         $this->assertTrue($this->notice->shouldShow($campaign, [
             'pending' => 0,
@@ -62,6 +64,8 @@ class CampaignDeliveryStatusNoticeTest extends TestCase
             'status' => CampaignStatus::Completed,
             'started_at' => now()->subHours(2),
         ]);
+        CampaignRecipient::factory()->for($campaign)->delivered()->create();
+        CampaignRecipient::factory()->for($campaign)->failed()->create();
 
         $this->assertFalse($this->notice->shouldShow($campaign, [
             'pending' => 0,
@@ -78,11 +82,42 @@ class CampaignDeliveryStatusNoticeTest extends TestCase
             'status' => CampaignStatus::Completed,
             'started_at' => now()->subHours(25),
         ]);
+        CampaignRecipient::factory()->for($campaign)->sent()->count(2)->create();
 
         $this->assertFalse($this->notice->shouldShow($campaign, [
             'pending' => 0,
             'sent' => 50,
             'total' => 100,
+        ]));
+    }
+
+    public function test_hidden_when_no_recipient_rows_even_if_aggregate_metrics_suggest_pending(): void
+    {
+        $campaign = Campaign::factory()->create([
+            'status' => CampaignStatus::Completed,
+            'started_at' => now()->subHours(1),
+            'total_recipients' => 5000,
+        ]);
+
+        $this->assertFalse($this->notice->shouldShow($campaign, [
+            'pending' => 5000,
+            'sent' => 0,
+            'total' => 5000,
+        ]));
+    }
+
+    public function test_hidden_for_sending_campaign_with_no_awaiting_recipients(): void
+    {
+        $campaign = Campaign::factory()->sending()->create([
+            'started_at' => now()->subMinutes(30),
+        ]);
+        CampaignRecipient::factory()->for($campaign)->delivered()->count(3)->create();
+
+        $this->assertFalse($this->notice->shouldShow($campaign, [
+            'pending' => 0,
+            'sent' => 0,
+            'delivered' => 3,
+            'total' => 3,
         ]));
     }
 }

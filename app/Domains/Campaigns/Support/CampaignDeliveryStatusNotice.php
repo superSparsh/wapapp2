@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domains\Campaigns\Support;
 
 use App\Models\Campaign;
+use App\Models\CampaignRecipient;
 use Illuminate\Support\Carbon;
 
 /**
@@ -27,37 +28,32 @@ final class CampaignDeliveryStatusNotice
             return false;
         }
 
-        if ($this->pastAutoHideWindow($campaign)) {
-            return false;
-        }
-
         if ($metrics === null) {
             return false;
         }
 
-        $pending = (int) ($metrics['pending'] ?? 0);
-        $sent = (int) ($metrics['sent'] ?? 0);
-
-        // Still sending, or waiting on delivery/failed confirmations from WhatsApp.
-        if ($pending > 0 || $sent > 0) {
-            return true;
+        // Stats fall back to campaign aggregate columns when there are no recipient rows;
+        // those numbers are often stale and would show this banner on every old campaign.
+        if (! CampaignRecipient::query()->where('campaign_id', $campaign->id)->exists()) {
+            return false;
         }
 
-        if ($campaign->isSending() || $campaign->isPaused()) {
-            return true;
+        if ($this->pastAutoHideWindow($campaign)) {
+            return false;
         }
 
-        return false;
+        $awaiting = (int) ($metrics['pending'] ?? 0) + (int) ($metrics['sent'] ?? 0);
+
+        return $awaiting > 0;
     }
 
     private function pastAutoHideWindow(Campaign $campaign): bool
     {
-        $anchor = $campaign->started_at
-            ?? $campaign->completed_at
-            ?? $campaign->updated_at;
+        $anchor = $campaign->started_at ?? $campaign->completed_at;
 
+        // No send timestamp → treat as settled (do not show on legacy rows).
         if (! $anchor instanceof Carbon) {
-            return false;
+            return true;
         }
 
         return $anchor->lt(now()->subHours(self::AUTO_HIDE_AFTER_HOURS));
