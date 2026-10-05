@@ -26,11 +26,7 @@ class MessageObserver
         $externalId = $message->external_message_id;
         $tenantId = tenant('id');
 
-        if (! is_string($tenantId) || $tenantId === '' || ! is_string($externalId) || $externalId === '') {
-            return;
-        }
-
-        $this->registryService->indexMessage($tenantId, $externalId, (int) $message->id);
+        $this->indexProviderMessageId($message, $externalId, $tenantId);
     }
 
     /**
@@ -41,11 +37,21 @@ class MessageObserver
     public function updated(Message $message): void
     {
         if (! tenancy()->initialized) {
-            Log::warning('MessageObserver wallet charge skipped: tenancy not initialized', [
-                'message_id' => $message->id,
-            ]);
+            if ($message->wasChanged('status')) {
+                Log::warning('MessageObserver wallet charge skipped: tenancy not initialized', [
+                    'message_id' => $message->id,
+                ]);
+            }
 
             return;
+        }
+
+        if ($message->wasChanged('external_message_id')) {
+            $this->indexProviderMessageId(
+                $message,
+                $message->external_message_id,
+                tenant('id'),
+            );
         }
 
         if (! $message->wasChanged('status')) {
@@ -78,5 +84,18 @@ class MessageObserver
                 'error' => $e->getMessage(),
             ]);
         }
+    }
+
+    private function indexProviderMessageId(Message $message, mixed $externalId, mixed $tenantId): void
+    {
+        if (! is_string($externalId) || $externalId === '' || str_starts_with($externalId, 'local_')) {
+            return;
+        }
+
+        if ($tenantId === null || $tenantId === '') {
+            return;
+        }
+
+        $this->registryService->indexMessage((string) $tenantId, $externalId, (int) $message->id);
     }
 }

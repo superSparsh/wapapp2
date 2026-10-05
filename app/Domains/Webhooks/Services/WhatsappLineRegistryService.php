@@ -78,7 +78,10 @@ class WhatsappLineRegistryService
 
     public function indexMessage(string $tenantId, string $externalMessageId, ?int $messageId = null): void
     {
-        if ($externalMessageId === '') {
+        $tenantId = trim($tenantId);
+        $externalMessageId = trim($externalMessageId);
+
+        if ($tenantId === '' || $externalMessageId === '') {
             return;
         }
 

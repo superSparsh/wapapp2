@@ -9,6 +9,7 @@ use App\Domains\Audience\Services\OptInMessageService;
 use App\Domains\Billing\Services\TemplateWalletChargeService;
 use App\Domains\FormBuilder\Services\FormSubmissionService;
 use App\Domains\Webhooks\Parsers\AlibabaWebhookParser;
+use App\Domains\Webhooks\Services\WebhookTenantResolver;
 use App\Domains\Webhooks\Services\WhatsappLineRegistryService;
 use App\Enums\CampaignRecipientStatus;
 use App\Enums\MessageStatus;
@@ -27,6 +28,7 @@ class DeliveryStatusHandler
     public function __construct(
         private readonly AlibabaWebhookParser $parser,
         private readonly WhatsappLineRegistryService $registryService,
+        private readonly WebhookTenantResolver $tenantResolver,
         private readonly TemplateWalletChargeService $templateWalletChargeService,
     ) {}
 
@@ -53,20 +55,7 @@ class DeliveryStatusHandler
             throw new \RuntimeException('Status payload is missing MessageId or Status.');
         }
 
-        $tenant = $this->registryService->resolveTenantByExternalMessageId($messageId);
-
-        if ($tenant === null) {
-            $groupId = (string) ($item['GroupId'] ?? $item['groupId'] ?? $item['TaskId'] ?? '');
-            if ($groupId !== '') {
-                $tenant = $this->registryService->resolveTenantByExternalMessageId($groupId);
-            }
-        }
-
-        if ($tenant === null) {
-            $from = (string) ($item['From'] ?? $item['from'] ?? '');
-            $resolved = $this->registryService->resolveByBusinessPhone($from);
-            $tenant = $resolved['tenant'] ?? null;
-        }
+        $tenant = $this->tenantResolver->resolveForStatusCallback($messageId, $item);
 
         if ($tenant === null) {
             throw new \RuntimeException('No tenant index found for message '.$messageId);

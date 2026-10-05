@@ -8,6 +8,7 @@ use App\Enums\MessageStatus;
 use App\Enums\TenantUserAccountType;
 use App\Models\CountryPricing;
 use App\Models\Message;
+use App\Models\MessageExternalIndex;
 use App\Models\PlatformSetting;
 use App\Models\Template;
 use App\Models\TenantUserAccess;
@@ -120,6 +121,13 @@ class DirectMessageApiTest extends TestCase
         $this->assertSame('API Direct Message', data_get($message->metadata, 'wallet_source_label'));
         $this->assertTrue((bool) data_get($message->metadata, 'billable'));
         $this->assertSame('20% off', data_get($message->metadata, 'template_params.offer'));
+
+        $index = MessageExternalIndex::query()
+            ->where('external_message_id', (string) $message->external_message_id)
+            ->first();
+        $this->assertNotNull($index);
+        $this->assertSame($this->testTenant->id, $index->tenant_id);
+        $this->assertSame($message->id, $index->message_id);
     }
 
     public function test_directmessage_rejects_unapproved_template(): void

@@ -110,16 +110,9 @@ class AlibabaOutboundMessageGateway implements \App\Domains\Inbox\Contracts\Outb
             }
 
             if ($externalId !== '') {
-                $tenantId = tenancy()->initialized ? tenant('id') : null;
-                if (! is_string($tenantId) || $tenantId === '') {
-                    // Fallback: resolve tenant from the WhatsApp line phone registry.
-                    $message->loadMissing('conversation.whatsappLine');
-                    $linePhone = (string) ($message->conversation?->whatsappLine?->phone ?? '');
-                    $resolved = $this->registryService->resolveByBusinessPhone($linePhone);
-                    $tenantId = $resolved['tenant']->id ?? null;
-                }
+                $tenantId = $this->resolveTenantIdForIndexing($message);
 
-                if (is_string($tenantId) && $tenantId !== '') {
+                if ($tenantId !== null && $tenantId !== '') {
                     $this->registryService->indexMessage($tenantId, $externalId, (int) $message->id);
                 } else {
                     Log::warning('CAMS outbound MessageId not indexed: tenant unresolved', [
@@ -316,6 +309,27 @@ class AlibabaOutboundMessageGateway implements \App\Domains\Inbox\Contracts\Outb
     /**
      * @param  array<string, mixed>  $payload
      */
+    private function resolveTenantIdForIndexing(Message $message): ?string
+    {
+        if (tenancy()->initialized) {
+            $tenantId = tenant('id');
+            if ($tenantId !== null && $tenantId !== '') {
+                return (string) $tenantId;
+            }
+        }
+
+        $message->loadMissing('conversation.whatsappLine');
+        $linePhone = (string) ($message->conversation?->whatsappLine?->phone ?? '');
+        $resolved = $this->registryService->resolveByBusinessPhone($linePhone);
+        $tenantId = $resolved['tenant']->id ?? null;
+
+        if ($tenantId === null || $tenantId === '') {
+            return null;
+        }
+
+        return (string) $tenantId;
+    }
+
     private function payloadDebugSuffix(array $payload): string
     {
         return sprintf(
