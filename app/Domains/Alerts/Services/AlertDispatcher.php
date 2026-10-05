@@ -330,6 +330,8 @@ class AlertDispatcher
                 'messagePerformanceUrl' => route('admin.message-performance.index'),
             ],
             $emails !== [] ? $emails : null,
+            // Test / override recipients send immediately so queued workers with stale code cannot deliver the old template.
+            sync: $overrideEmails !== null,
         );
     }
 
