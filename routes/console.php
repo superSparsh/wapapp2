@@ -19,6 +19,7 @@ use App\Domains\Operations\Console\Commands\ScheduleIntegrationSyncCommand;
 use App\Domains\Operations\Console\Commands\SyncFreeUicQuotaCommand;
 use App\Domains\Operations\Console\Commands\SyncMetaPricingCommand;
 use App\Domains\Operations\Console\Commands\WhatsAppHealthDigestCommand;
+use App\Domains\Operations\Console\Commands\WhatsAppHealthSnapshotCommand;
 use App\Domains\Templates\Console\Commands\DeleteSoftDeletedTemplates;
 use App\Domains\Templates\Console\Commands\SubmitPendingTemplates;
 use App\Domains\Templates\Console\Commands\SyncTemplateStatuses;
@@ -63,9 +64,7 @@ Schedule::command(ReconcileZohoWalletCommand::class)->everyThirtyMinutes();
 Schedule::command(ScheduleIntegrationSyncCommand::class)->everyFiveMinutes();
 
 // Platform maintenance
-// Disabled: automated WhatsApp line sync was flooding activity with "WhatsApp business data - synced".
-// Manual sync remains available from Profile → Integration.
-// Schedule::command(WhatsAppHealthSnapshotCommand::class)->dailyAt('01:00');
+Schedule::command(WhatsAppHealthSnapshotCommand::class)->dailyAt('01:00');
 // Schedule::command(SyncPhoneQualityAndNotifyCommand::class)->dailyAt('00:30');
 Schedule::command(WhatsAppHealthDigestCommand::class)->dailyAt('07:30');
 Schedule::command(SendPlanExpirationAlertsCommand::class)->dailyAt('00:30');
