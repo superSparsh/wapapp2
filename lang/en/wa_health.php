@@ -31,7 +31,7 @@ return [
     'last_snapshot_never' => 'No snapshot run recorded yet.',
     'lines_without_quality' => 'WhatsApp numbers missing quality rating',
 
-    'digest_subject' => 'WhatsApp Health summary - :date',
+    'digest_subject' => 'Tittu Health :date',
     'digest_preheader' => ':unread unread alerts · :lines WhatsApp numbers · :red need urgent quality review.',
     'digest_daily_report' => 'Daily summary · :date',
     'digest_greeting' => 'Hi :name,',

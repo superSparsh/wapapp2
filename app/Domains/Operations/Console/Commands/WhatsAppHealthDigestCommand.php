@@ -6,24 +6,68 @@ namespace App\Domains\Operations\Console\Commands;
 
 use App\Domains\Operations\Services\WhatsAppHealthDigestService;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\File;
 
 class WhatsAppHealthDigestCommand extends Command
 {
-    protected $signature = 'operations:whatsapp-health-digest {--force : Send even if digest already sent today}';
+    protected $signature = 'operations:whatsapp-health-digest
+        {--force : Send even if digest already sent today}
+        {--dry-run : Build and preview the digest without sending email}
+        {--output= : Write dry-run HTML to this path (default: storage/app/wa-health-digest-preview.html)}';
 
     protected $description = 'Email WhatsApp Health daily digest to admins (legacy parity).';
 
     public function handle(WhatsAppHealthDigestService $digest): int
     {
+        if ($this->option('dry-run')) {
+            return $this->runDryRun($digest);
+        }
+
         $sent = $digest->sendDailyDigest((bool) $this->option('force'));
 
         if ($sent === 0) {
-            $this->info('Digest already sent today - skipped.');
+            $this->info('Digest already sent today - skipped. Use --force to resend, or --dry-run to preview.');
 
             return self::SUCCESS;
         }
 
         $this->info('WhatsApp Health digest sent.');
+
+        return self::SUCCESS;
+    }
+
+    private function runDryRun(WhatsAppHealthDigestService $digest): int
+    {
+        $this->info('Building WhatsApp Health digest (dry-run, no email)...');
+
+        $summary = $digest->buildSummary();
+        $html = $digest->renderHtml($summary);
+
+        $output = (string) ($this->option('output') ?: storage_path('app/wa-health-digest-preview.html'));
+        $directory = dirname($output);
+        if (! File::isDirectory($directory)) {
+            File::makeDirectory($directory, 0755, true);
+        }
+        File::put($output, $html);
+
+        $email = is_array($summary['email'] ?? null) ? $summary['email'] : [];
+        $actionCount = count($email['action_items'] ?? $summary['actionItems'] ?? []);
+
+        $this->table(
+            ['Field', 'Value'],
+            [
+                ['Subject', (string) ($email['subject'] ?? '-')],
+                ['Preheader', (string) ($email['preheader'] ?? '-')],
+                ['Action items', (string) $actionCount],
+                ['Delivery rate', number_format((float) data_get($email, 'scorecard.delivery_rate', 0), 1).'%'],
+                ['Connected', (string) data_get($email, 'scorecard.connected', 0).' / '.(string) data_get($email, 'scorecard.lines_total', 0)],
+                ['Rejected templates', (string) data_get($email, 'rejected_total', data_get($summary, 'overview.templates.rejected', 0))],
+                ['HTML preview', $output],
+                ['HTML bytes', (string) strlen($html)],
+            ],
+        );
+
+        $this->info('Dry-run complete. Open the HTML file in a browser to review the email.');
 
         return self::SUCCESS;
     }

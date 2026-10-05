@@ -306,12 +306,16 @@ class AlertDispatcher
 
         $generatedAt = $digest['generatedAt'] ?? now();
         $dateLabel = $generatedAt instanceof \DateTimeInterface
-            ? $generatedAt->format('M j, Y')
-            : now()->format('M j, Y');
+            ? $generatedAt->format('j M Y')
+            : now()->format('j M Y');
+
+        $subject = is_string($digest['email']['subject'] ?? null) && $digest['email']['subject'] !== ''
+            ? (string) $digest['email']['subject']
+            : __('wa_health.digest_subject', ['date' => $dateLabel]);
 
         $this->platform->notifyAdmins(
             OperationalAlertType::WhatsappHealthDigest,
-            __('wa_health.digest_subject', ['date' => $dateLabel]),
+            $subject,
             'emails.alerts.wa-health-digest',
             [
                 'summary' => $digest,
