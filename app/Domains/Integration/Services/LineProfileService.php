@@ -160,6 +160,40 @@ class LineProfileService
     }
 
     /**
+     * Light sync for scheduled health jobs: refresh quality/tier only.
+     * Skips business-info, webhook re-registration, WABA re-bind, and activity logs
+     * to avoid CAMS Throttling.User and log spam.
+     *
+     * @throws RuntimeException when CAMS is not configured or the sync fails
+     */
+    public function syncQualityFromProvider(WhatsappLine $line): WhatsappLine
+    {
+        if (! $this->camsClient->isConfigured()) {
+            throw new RuntimeException('WhatsApp provider (Alibaba CAMS) is not configured.');
+        }
+
+        $wabaId = $this->resolveWabaId($line);
+        $custSpaceId = $this->resolveCustSpaceId($line);
+
+        if ($custSpaceId === '') {
+            throw new RuntimeException('No customer space on the WhatsApp Phone Number. Connect WhatsApp Business first.');
+        }
+
+        $phoneNumbers = $this->fetchSyncedPhoneNumbers($custSpaceId);
+
+        if ($wabaId === '') {
+            $wabaId = $this->wabaIdFromPhoneNumbers($phoneNumbers);
+            if ($wabaId !== '') {
+                $line->forceFill(['waba_id' => $wabaId])->save();
+            }
+        }
+
+        $this->upsertLinesFromPhoneNumbers($phoneNumbers, $wabaId, $custSpaceId);
+
+        return $line->fresh() ?? $line;
+    }
+
+    /**
      * Register an additional Chatapp phone number via CAMS and upsert local WhatsappLine.
      *
      * @param  array{country_code: string, phone_number: string, verified_name: string}  $data

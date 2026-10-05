@@ -34,7 +34,7 @@ class SyncPhoneQualityAndNotifyCommand extends Command
                 $oldTier = $line->messaging_limit_tier;
 
                 try {
-                    $lineProfile->syncFromProvider($line);
+                    $lineProfile->syncQualityFromProvider($line);
                     $line->refresh();
                 } catch (\Throwable $e) {
                     Log::warning('Phone quality sync failed', [
