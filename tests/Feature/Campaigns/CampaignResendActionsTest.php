@@ -48,14 +48,13 @@ class CampaignResendActionsTest extends TestCase
 
         CampaignRecipient::factory()->for($source)->failed()->count(2)->create();
 
-        $this->actingAsTenantUser()
+        $response = $this->actingAsTenantUser()
             ->post(route('campaigns.resend-failed', $source), [
                 'list_name' => 'Failed List',
                 'campaign_name' => 'Failed Resend Campaign',
                 'send_option' => 'schedule',
                 'mode' => 'create',
-            ])
-            ->assertRedirect();
+            ]);
 
         $list = MailList::query()->where('name', 'Failed List')->first();
         $this->assertNotNull($list);
@@ -67,6 +66,12 @@ class CampaignResendActionsTest extends TestCase
         $this->assertSame($list->id, $newCampaign->audience_id);
         $this->assertSame(2, (int) $newCampaign->total_recipients);
         Queue::assertNothingPushed();
+
+        $response->assertRedirect(route('campaigns.edit', ['bulkCampaign' => $newCampaign, 'step' => 1]));
+
+        $this->actingAsTenantUser()
+            ->get(route('campaigns.edit', ['bulkCampaign' => $newCampaign, 'step' => 1]))
+            ->assertRedirect(route('campaigns.create.step', 1));
     }
 
     public function test_create_campaign_from_failed_send_now_queues_jobs(): void

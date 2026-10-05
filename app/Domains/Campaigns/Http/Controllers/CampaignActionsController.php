@@ -95,7 +95,7 @@ class CampaignActionsController extends Controller
                 'list_uuid' => $result['list']->uuid,
                 'redirect' => $result['launched']
                     ? route('campaigns.statistics', $result['campaign'])
-                    : route('campaigns.edit', $result['campaign']),
+                    : route('campaigns.edit', ['bulkCampaign' => $result['campaign'], 'step' => 1]),
             ]);
         }
 
@@ -105,8 +105,10 @@ class CampaignActionsController extends Controller
                 ->with('status', "Created \"{$result['campaign']->name}\" with {$result['imported']} failed contact(s) and started sending.");
         }
 
+        // Open the wizard on Info & Recipients (step 1) so the user can review
+        // the copied audience/line before scheduling — do not jump via resumeStep.
         return redirect()
-            ->route('campaigns.edit', $result['campaign'])
+            ->route('campaigns.edit', ['bulkCampaign' => $result['campaign'], 'step' => 1])
             ->with('status', "Created \"{$result['campaign']->name}\" with {$result['imported']} failed contact(s). Schedule or send when ready.");
     }
 
