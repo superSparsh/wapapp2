@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Domains\Api\Http\Controllers\AutologinController;
 use App\Domains\Auth\Http\Controllers\EmailVerificationController;
 use App\Domains\Auth\Http\Controllers\LoginController;
 use App\Domains\Auth\Http\Controllers\OtpLoginController;
@@ -19,6 +20,9 @@ Route::middleware(RedirectIfAuthenticated::class)->group(function () {
     Route::post('/login', [LoginController::class, 'store'])->name('login.store');
     Route::post('/login/otp/send', [OtpLoginController::class, 'send'])->name('login.otp.send');
     Route::post('/login/otp/verify', [OtpLoginController::class, 'verify'])->name('login.otp.verify');
+    Route::get('/autologin/{token}', AutologinController::class)
+        ->where('token', '[A-Za-z0-9]+')
+        ->name('autologin');
 
     Route::get('/auth/google', [\App\Domains\Auth\Http\Controllers\SocialAuthController::class, 'redirectGoogle'])->name('auth.google');
     Route::get('/auth/google/callback', [\App\Domains\Auth\Http\Controllers\SocialAuthController::class, 'callbackGoogle'])->name('auth.google.callback');
