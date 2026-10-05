@@ -1,0 +1,38 @@
+# Upload directory only — serve flow JSON / assets, never execute scripts.
+# Covers legacy public/flows (mirrored from storage/app/public/flows).
+
+Options -ExecCGI -Indexes
+
+<IfModule mod_php.c>
+    php_flag engine off
+</IfModule>
+<IfModule mod_php7.c>
+    php_flag engine off
+</IfModule>
+<IfModule mod_php8.c>
+    php_flag engine off
+</IfModule>
+
+RemoveHandler .cgi .fcgi .fpl .pl .py .pyc .pyo .php .php3 .php4 .php5 .php7 .php8 .phtml .phar .asp .aspx .shtml .jsp .sh .bash .exe
+RemoveType .cgi .fcgi .fpl .pl .py .pyc .pyo .php .php3 .php4 .php5 .php7 .php8 .phtml .phar .asp .aspx .shtml .jsp .sh .bash .exe
+
+<FilesMatch "(?i)\.(cgi|fcgi|fpl|pl|py|pyc|pyo|php|php[3-8]?|phtml|phar|asp|aspx|shtml|jsp|sh|bash|exe)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# Block HTTP access to dotfiles (including uploaded .htaccess overrides)
+<FilesMatch "^\.">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
