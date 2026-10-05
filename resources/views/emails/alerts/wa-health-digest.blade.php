@@ -117,6 +117,19 @@
               @if (! empty($item['body']))
                 <p style="margin:4px 0 0 0;font-size:13px;color:#52606d;line-height:19px;">{{ $item['body'] }}</p>
               @endif
+              @php
+                $itemBusinesses = is_array($item['businesses'] ?? null) ? $item['businesses'] : [];
+              @endphp
+              @if (count($itemBusinesses) > 0)
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:8px;">
+                  @foreach ($itemBusinesses as $bizIndex => $businessName)
+                    <tr>
+                      <td width="16" valign="top" style="padding:{{ $bizIndex === 0 ? '0' : '5px' }} 0 0 0;color:#7b8794;font-size:12px;line-height:18px;">{{ $bizIndex + 1 }}.</td>
+                      <td valign="top" style="padding:{{ $bizIndex === 0 ? '0' : '5px' }} 0 0 0;color:#3e4c59;font-size:13px;line-height:18px;">{{ $businessName }}</td>
+                    </tr>
+                  @endforeach
+                </table>
+              @endif
               @if (! empty($item['href']) && ! empty($item['cta']))
                 <a href="{{ $item['href'] }}" style="display:inline-block;margin-top:6px;font-size:13px;color:#07594f;font-weight:bold;text-decoration:none;">{{ $item['cta'] }} &rarr;</a>
               @endif
@@ -175,11 +188,11 @@
               <tr><td style="padding:14px 16px;">
                 <p style="margin:0;font-size:12px;color:#7b8794;text-transform:uppercase;letter-spacing:0.5px;">Unsubscribes</p>
                 @if (! empty($score['unsubscribes_tracked']))
-                  <p style="margin:6px 0 2px 0;font-size:26px;font-weight:bold;">{{ number_format((float) ($score['unsubscribe_rate'] ?? 0), 1) }}%</p>
+                  <p style="margin:6px 0 2px 0;font-size:26px;font-weight:bold;">{{ number_format((int) ($score['unsubscribed'] ?? 0)) }}</p>
                   <p style="margin:0;font-size:12px;color:#52606d;">
-                    {{ number_format((int) ($score['unsubscribed'] ?? 0)) }} of {{ number_format((int) ($score['subscribers_total'] ?? 0)) }} contacts
-                    @if ((int) ($score['unsubscribed_period'] ?? 0) > 0)
-                      &middot; {{ number_format((int) $score['unsubscribed_period']) }} this week
+                    opted out this week
+                    @if ((float) ($score['unsubscribe_rate'] ?? 0) > 0)
+                      &middot; {{ number_format((float) $score['unsubscribe_rate'], 1) }}% of delivered
                     @endif
                   </p>
                 @else
@@ -229,6 +242,7 @@
       <p style="margin:0 0 12px 0;font-size:16px;font-weight:bold;color:#07594f;">Customer activity</p>
 
       @php
+        $activityMoreUrl = (string) ($email['activity_more_url'] ?? $healthLink);
         $activitySections = [
           [
             'key' => 'active',
@@ -264,6 +278,7 @@
             $sectionNames = data_get($activity, $section['key'].'.names', []);
             $sectionNames = is_array($sectionNames) ? $sectionNames : [];
             $isLastSection = $sectionIndex === count($activitySections) - 1;
+            $moreCount = max(0, $sectionCount - count($sectionNames));
           @endphp
           <tr>
             <td style="padding:{{ $isLastSection ? '0' : '0 0 12px 0' }};">
@@ -284,9 +299,11 @@
                           </tr>
                         @endforeach
                       </table>
-                      @if ($sectionCount > count($sectionNames))
-                        <p style="margin:8px 0 0 0;font-size:12px;color:#7b8794;">
-                          +{{ number_format($sectionCount - count($sectionNames)) }} more
+                      @if ($moreCount > 0)
+                        <p style="margin:8px 0 0 0;font-size:12px;">
+                          <a href="{{ $activityMoreUrl }}" style="color:#07594f;font-weight:bold;text-decoration:none;">
+                            +{{ number_format($moreCount) }} more &rarr;
+                          </a>
                         </p>
                       @endif
                     @else

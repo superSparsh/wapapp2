@@ -95,7 +95,7 @@ class WhatsAppHealthDigestService
             disconnected: $disconnected,
             linesTotal: $linesTotal,
             qualityNeedWork: $linesRed + $linesYellow,
-            qualityNames: $this->qualityProblemNames($lineRows, 6),
+            qualityNames: $this->qualityProblemNames($lineRows, 12),
             rejected: $rejected,
             rejectedThisWeek: $rejectedThisWeek,
             pending: $pending,
@@ -298,13 +298,17 @@ class WhatsAppHealthDigestService
                 'unrated' => $unrated,
                 'unsubscribes_tracked' => ((int) ($messaging['subscribers_total'] ?? 0)) > 0,
                 'unsubscribe_rate' => (float) ($messaging['unsubscribe_rate'] ?? 0),
-                'unsubscribed' => (int) ($messaging['subscribers_unsub'] ?? 0),
+                'unsubscribed' => (int) ($messaging['unsubscribed_period'] ?? 0),
                 'subscribers_total' => (int) ($messaging['subscribers_total'] ?? 0),
-                'unsubscribed_period' => (int) ($messaging['unsubscribed_period'] ?? 0),
+                'unsubscribed_lifetime' => (int) ($messaging['subscribers_unsub'] ?? 0),
             ],
             'rejected_by_customer' => $rejectedByCustomer,
             'rejected_total' => $rejected,
             'activity' => $activityBuckets,
+            'activity_more_url' => route('admin.message-performance.index', [
+                'sort' => 'sent',
+                'direction' => 'asc',
+            ]),
             'footer_stamp' => $generatedAt->format('j M Y, H:i').' IST',
             'snapshot_label' => $snapshotAt,
         ];
@@ -312,7 +316,7 @@ class WhatsAppHealthDigestService
 
     /**
      * @param  list<string>  $qualityNames
-     * @return list<array{severity: string, title: string, body: string, href: string|null, cta: string|null}>
+     * @return list<array{severity: string, title: string, body: string, businesses?: list<string>, href: string|null, cta: string|null}>
      */
     private function buildActionItems(
         int $failed,
@@ -349,13 +353,11 @@ class WhatsAppHealthDigestService
         }
 
         if ($qualityNeedWork > 0) {
-            $nameSuffix = $qualityNames !== []
-                ? ' '.implode(', ', array_slice($qualityNames, 0, 4)).(count($qualityNames) > 4 ? '…' : '')
-                : '';
             $items[] = [
                 'severity' => 'warning',
                 'title' => $qualityNeedWork.' number'.($qualityNeedWork === 1 ? '' : 's').' need quality work',
-                'body' => 'Low quality ratings risk Meta limiting their messaging.'.$nameSuffix,
+                'body' => 'Low quality ratings risk Meta limiting their messaging.',
+                'businesses' => array_values($qualityNames),
                 'href' => $healthUrl.(str_contains($healthUrl, '?') ? '&' : '?').'quality=RED',
                 'cta' => 'View numbers',
             ];
@@ -658,9 +660,11 @@ class WhatsAppHealthDigestService
             $deliveredOk = $delivered + $read;
         }
 
-        $unsubscribeRate = $subscribersTotal > 0
-            ? round(($subscribersUnsub / $subscribersTotal) * 100, 1)
-            : 0.0;
+        $unsubscribeRate = $deliveredOk > 0
+            ? round(($unsubscribedPeriod / $deliveredOk) * 100, 1)
+            : ($subscribersTotal > 0
+                ? round(($unsubscribedPeriod / $subscribersTotal) * 100, 1)
+                : 0.0);
 
         return [
             'outbound' => $sent,
