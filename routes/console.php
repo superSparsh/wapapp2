@@ -80,7 +80,7 @@ Schedule::command(RetryFailedDeliveriesCommand::class)->everyFifteenMinutes();
 
 // Inbound webhook hygiene: drain recent stuck status; nightly prune older than keep_days (default 2)
 if ((bool) config('webhooks.inbound_maintenance.enabled', true)) {
-    Schedule::command(MaintainInboundWebhookEventsCommand::class, ['--skip-prune' => true])
+    Schedule::command(MaintainInboundWebhookEventsCommand::class, ['--skip-prune'])
         ->everyFifteenMinutes()
         ->withoutOverlapping(10)
         ->onOneServer();
