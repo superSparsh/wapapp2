@@ -8,6 +8,7 @@ use App\Models\Variable;
 use App\Models\WhatsappFlow;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Http;
 use Tests\Concerns\InteractsWithTenants;
 use Tests\TestCase;
 
@@ -387,9 +388,25 @@ class TemplateBuilderTest extends TestCase
     public function test_owner_can_submit_template_for_review(): void
     {
         Bus::fake();
+        Http::fake([
+            'cams.ap-southeast-1.aliyuncs.com/*' => Http::sequence()
+                ->push(['Code' => 'OK', 'List' => []], 200)
+                ->push(['Code' => 'OK', 'Data' => ['TemplateCode' => '1257583503568572001']], 200),
+        ]);
+
+        $this->testLine->forceFill(['alibaba_cust_space_id' => '100000430113'])->save();
+
+        config([
+            'whatsapp.alibaba.access_key_id' => 'test_key',
+            'whatsapp.alibaba.access_key_secret' => 'test_secret',
+            'whatsapp.alibaba.endpoint' => 'cams.ap-southeast-1.aliyuncs.com',
+        ]);
 
         $template = Template::factory()->draft()->create([
             'whatsapp_line_id' => $this->testLine->id,
+            'name' => 'submit_test',
+            'category' => 'MARKETING',
+            'language' => 'en_GB',
             'payload' => array_merge(Template::defaultPayload(), [
                 'meta' => [
                     'name' => 'submit_test',
@@ -398,7 +415,9 @@ class TemplateBuilderTest extends TestCase
                     'template_type' => 'regular',
                     'setup_completed' => true,
                 ],
+                'body' => ['text' => 'Hello submit test', 'samples' => []],
             ]),
+            'body_preview' => 'Hello submit test',
         ]);
 
         $this->actingAsTenantUser()
@@ -414,7 +433,8 @@ class TemplateBuilderTest extends TestCase
             'status' => 'pending_review',
         ]);
 
-        Bus::assertDispatched(SubmitTemplateJob::class, fn (SubmitTemplateJob $job) => $job->templateId === $template->id);
+        // Immediate CAMS push succeeded - queue retry is only for failed handoff.
+        Bus::assertNotDispatched(SubmitTemplateJob::class);
     }
 
     public function test_whatsapp_flow_button_resolves_meta_flow_id_and_screen(): void

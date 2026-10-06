@@ -75,7 +75,18 @@
       }
     });
 
-    form.querySelectorAll('input[required], select[required], textarea[required]').forEach((input) => {
+    const requiredSelector = 'input[required], select[required], textarea[required]';
+    const requiredFields = [
+      ...form.querySelectorAll(requiredSelector),
+      // Fields outside the <form> linked via the HTML form="" attribute (template builder identity).
+      ...(form.id
+        ? Array.from(document.querySelectorAll(requiredSelector)).filter(
+            (input) => input.getAttribute('form') === form.id && !form.contains(input),
+          )
+        : []),
+    ];
+
+    requiredFields.forEach((input) => {
       if (input.closest('[hidden]') || input.closest('.hidden')) {
         return;
       }
@@ -89,6 +100,19 @@
         valid = false;
         showFieldError(input, input.dataset.validateMessage || 'This field is required.');
         return;
+      }
+
+      if (input.pattern) {
+        try {
+          const pattern = new RegExp(`^(?:${input.pattern})$`);
+          if (!pattern.test(value)) {
+            valid = false;
+            showFieldError(input, input.dataset.validateMessage || 'Enter a valid value.');
+            return;
+          }
+        } catch {
+          // Ignore invalid pattern attributes.
+        }
       }
 
       if (input.type === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {

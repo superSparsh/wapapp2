@@ -76,7 +76,9 @@ class Template extends TenantModel
 
     /**
      * Name / category / language stay editable until WhatsApp has a provider template code
-     * (or the template is already pending/approved). Draft & failed submissions can rename.
+     * (or the template is already pending/approved). Draft can still rename.
+     * Rejected templates with identity already set stay locked so Edit & resubmit
+     * is not blocked by the category/language/type fields on Next.
      */
     public function canEditIdentity(): bool
     {
@@ -84,7 +86,20 @@ class Template extends TenantModel
             return false;
         }
 
-        return ! filled($this->whatsappCode());
+        if (filled($this->whatsappCode())) {
+            return false;
+        }
+
+        if (
+            $this->status === TemplateStatus::Rejected
+            && filled($this->name)
+            && filled($this->category)
+            && filled($this->language)
+        ) {
+            return false;
+        }
+
+        return true;
     }
 
     public function whatsappCode(): ?string
