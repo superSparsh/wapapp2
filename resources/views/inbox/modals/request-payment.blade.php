@@ -1,7 +1,7 @@
 @php $modal = config('inbox-modals.request-payment'); @endphp
 <x-inbox.modal id="request-payment" :title="$modal['title']" :subtitle="$modal['subtitle']" :open="$open ?? false">
     <x-inbox.modal-form>
-$form <form class="flex flex-col gap-6" data-inbox-payment-form data-no-loader>
+ <form class="flex flex-col gap-6" data-inbox-payment-form data-no-loader>
             <x-form.input id="payment_amount" name="amount" type="number" min="1" step="0.01" placeholder="1000.00" required>
                 <x-slot:label>Amount <span class="text-red-500">*</span></x-slot:label>
             </x-form.input>
