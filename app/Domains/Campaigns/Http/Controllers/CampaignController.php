@@ -82,9 +82,35 @@ class CampaignController extends Controller
         abort_if($line === null, 422, 'Please choose a From Number before sending.');
         $data['whatsapp_line_id'] = $line->id;
 
-        $audience = PublicId::find(MailList::class, (string) ($data['audience_id'] ?? ''));
-        abort_if($audience === null, 422, 'Please select an audience list before sending.');
-        $data['audience_id'] = $audience->id;
+        $resolvedAudienceIds = [];
+        if (! empty($data['audience_ids']) && is_array($data['audience_ids'])) {
+            foreach ($data['audience_ids'] as $uuidOrId) {
+                if (is_numeric($uuidOrId)) {
+                    $resolvedAudienceIds[] = (int) $uuidOrId;
+                } else {
+                    $m = PublicId::find(MailList::class, (string) $uuidOrId);
+                    if ($m) {
+                        $resolvedAudienceIds[] = $m->id;
+                    }
+                }
+            }
+        } elseif (! empty($data['audience_id'])) {
+            $val = (string) $data['audience_id'];
+            if (is_numeric($val)) {
+                $resolvedAudienceIds[] = (int) $val;
+            } else {
+                $m = PublicId::find(MailList::class, $val);
+                if ($m) {
+                    $resolvedAudienceIds[] = $m->id;
+                }
+            }
+        }
+
+        $resolvedAudienceIds = array_values(array_unique(array_filter($resolvedAudienceIds)));
+        abort_if($resolvedAudienceIds === [], 422, 'Please select an audience list before sending.');
+
+        $data['audience_id'] = $resolvedAudienceIds[0];
+        $data['audience_ids'] = $resolvedAudienceIds;
 
         $template = PublicId::find(Template::class, (string) ($data['template_id'] ?? ''));
         abort_if($template === null, 422, 'Please select a template before sending.');

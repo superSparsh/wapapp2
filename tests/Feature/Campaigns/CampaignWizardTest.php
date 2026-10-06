@@ -123,6 +123,24 @@ class CampaignWizardTest extends TestCase
         $this->assertSame('1', $wizard['policy_confirmed'] ?? null);
     }
 
+    public function test_save_step_2_stores_multiple_audiences(): void
+    {
+        $list1 = MailList::factory()->create(['name' => 'VIP Customers']);
+        $list2 = MailList::factory()->create(['name' => 'Newsletter Leads']);
+
+        $this->actingAsTenantUser()
+            ->post(route('campaigns.create.save', 2), [
+                'audience_ids' => [$list1->uuid, $list2->uuid],
+                'policy_confirmed' => '1',
+            ])
+            ->assertRedirect(route('campaigns.create.step', 3));
+
+        $wizard = session('campaign_wizard', []);
+        $this->assertSame([$list1->id, $list2->id], $wizard['audience_ids'] ?? null);
+        $this->assertSame($list1->id, $wizard['audience_id'] ?? null);
+        $this->assertSame('1', $wizard['policy_confirmed'] ?? null);
+    }
+
     public function test_save_step_2_requires_policy_confirmation(): void
     {
         $audience = MailList::factory()->create();
@@ -634,5 +652,94 @@ class CampaignWizardTest extends TestCase
         $this->assertSame(1, Campaign::query()->where('name', 'Single Campaign')->count());
         $this->assertSame($draftId, Campaign::query()->where('name', 'Single Campaign')->value('id'));
         $this->assertSame(CampaignStatus::Scheduled, Campaign::query()->find($draftId)?->status);
+    }
+
+    public function test_populate_recipients_with_multiple_audiences_deduplicates_by_phone(): void
+    {
+        $list1 = MailList::factory()->create(['name' => 'List Alpha']);
+        $list2 = MailList::factory()->create(['name' => 'List Beta']);
+
+        // List 1 contacts
+        \App\Models\Contact::factory()->create([
+            'mail_list_id' => $list1->id,
+            'name' => 'User One',
+            'phone' => '919876543210',
+            'status' => \App\Domains\Audience\Enums\ContactStatus::Subscribed,
+        ]);
+        \App\Models\Contact::factory()->create([
+            'mail_list_id' => $list1->id,
+            'name' => 'User Two',
+            'phone' => '919876543211',
+            'status' => \App\Domains\Audience\Enums\ContactStatus::Subscribed,
+        ]);
+
+        // List 2 contacts: duplicate phone '919876543210' + unique phone '919876543212'
+        \App\Models\Contact::factory()->create([
+            'mail_list_id' => $list2->id,
+            'name' => 'User One Duplicate',
+            'phone' => '919876543210',
+            'status' => \App\Domains\Audience\Enums\ContactStatus::Subscribed,
+        ]);
+        \App\Models\Contact::factory()->create([
+            'mail_list_id' => $list2->id,
+            'name' => 'User Three',
+            'phone' => '919876543212',
+            'status' => \App\Domains\Audience\Enums\ContactStatus::Subscribed,
+        ]);
+
+        $campaign = Campaign::factory()->create([
+            'audience_id' => $list1->id,
+            'audience_ids' => [$list1->id, $list2->id],
+            'total_recipients' => 0,
+        ]);
+
+        $count = app(\App\Domains\Campaigns\Services\CampaignService::class)->populateRecipients($campaign);
+
+        // 4 contacts across both lists, but only 3 unique phones
+        $this->assertSame(3, $count);
+        $this->assertSame(3, (int) $campaign->fresh()->total_recipients);
+        $this->assertSame(3, $campaign->recipients()->count());
+
+        $phones = $campaign->recipients()->pluck('contact_phone')->sort()->values()->all();
+        $this->assertSame(['919876543210', '919876543211', '919876543212'], $phones);
+    }
+
+    public function test_store_campaign_with_multiple_audiences_saves_and_populates(): void
+    {
+        $list1 = MailList::factory()->create(['name' => 'VIP Customers']);
+        $list2 = MailList::factory()->create(['name' => 'Newsletter Leads']);
+
+        \App\Models\Contact::factory()->create([
+            'mail_list_id' => $list1->id,
+            'phone' => '919000000001',
+            'status' => \App\Domains\Audience\Enums\ContactStatus::Subscribed,
+        ]);
+        \App\Models\Contact::factory()->create([
+            'mail_list_id' => $list2->id,
+            'phone' => '919000000002',
+            'status' => \App\Domains\Audience\Enums\ContactStatus::Subscribed,
+        ]);
+
+        $template = Template::factory()->create();
+
+        $response = $this->actingAsTenantUser()
+            ->post(route('campaigns.store'), [
+                'name' => 'Multi Audience Campaign',
+                'whatsapp_line_id' => $this->testLine->uuid,
+                'audience_id' => $list1->uuid,
+                'audience_ids' => [$list1->uuid, $list2->uuid],
+                'template_id' => $template->uuid,
+                'send_mode' => 'schedule',
+                'scheduled_at' => now()->addDay()->toDateTimeString(),
+                'policy_confirmed' => '1',
+            ]);
+
+        $response->assertRedirect();
+
+        $campaign = Campaign::query()->where('name', 'Multi Audience Campaign')->firstOrFail();
+        $this->assertSame($list1->id, $campaign->audience_id);
+        $this->assertSame([$list1->id, $list2->id], $campaign->audience_ids);
+        $this->assertSame(2, (int) $campaign->total_recipients);
+        $this->assertSame('VIP Customers + 1 more (2 lists)', $campaign->audienceName());
     }
 }

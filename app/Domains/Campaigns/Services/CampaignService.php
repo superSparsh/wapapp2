@@ -23,15 +23,19 @@ class CampaignService
     /**
      * Create a new campaign with all wizard data.
      *
-     * @param  array{name: string, audience_id?: int|null, whatsapp_line_id?: int|null, template_id?: int|null, template_variables?: array|null, scheduled_at?: string|null}  $data
+     * @param  array{name: string, audience_id?: int|null, audience_ids?: array|null, whatsapp_line_id?: int|null, template_id?: int|null, template_variables?: array|null, scheduled_at?: string|null}  $data
      */
     public function create(array $data): Campaign
     {
         return DB::transaction(function () use ($data): Campaign {
+            $audienceIds = $this->resolveAudienceIds($data);
+            $primaryAudienceId = $audienceIds[0] ?? ($data['audience_id'] ?? null);
+
             $campaign = Campaign::query()->create([
                 'name' => $data['name'],
                 'status' => CampaignStatus::Draft,
-                'audience_id' => $data['audience_id'] ?? null,
+                'audience_id' => $primaryAudienceId,
+                'audience_ids' => $audienceIds !== [] ? $audienceIds : null,
                 'whatsapp_line_id' => $data['whatsapp_line_id'] ?? null,
                 'template_id' => $data['template_id'] ?? null,
                 'template_variables' => $data['template_variables'] ?? null,
@@ -44,7 +48,7 @@ class CampaignService
             }
 
             // Populate recipients from audience
-            if ($campaign->audience_id) {
+            if ($campaign->getEffectiveAudienceIds() !== []) {
                 $this->populateRecipients($campaign);
             }
 
@@ -65,12 +69,12 @@ class CampaignService
     /**
      * Update a draft/scheduled campaign.
      *
-     * @param  array{name?: string, audience_id?: int|null, whatsapp_line_id?: int|null, template_id?: int|null, template_variables?: array|null, scheduled_at?: string|null}  $data
+     * @param  array{name?: string, audience_id?: int|null, audience_ids?: array|null, whatsapp_line_id?: int|null, template_id?: int|null, template_variables?: array|null, scheduled_at?: string|null}  $data
      */
     public function update(Campaign $campaign, array $data): Campaign
     {
         return DB::transaction(function () use ($campaign, $data): Campaign {
-            $previousAudienceId = $campaign->audience_id;
+            $previousAudienceIds = $campaign->getEffectiveAudienceIds();
             $previousRecipientCount = (int) $campaign->total_recipients;
             $fillable = [];
 
@@ -80,10 +84,19 @@ class CampaignService
                 }
             }
 
-            foreach (['audience_id', 'whatsapp_line_id', 'template_id'] as $fk) {
+            foreach (['whatsapp_line_id', 'template_id'] as $fk) {
                 if (array_key_exists($fk, $data)) {
                     $fillable[$fk] = $data[$fk];
                 }
+            }
+
+            if (array_key_exists('audience_ids', $data)) {
+                $resolved = $this->resolveAudienceIds($data);
+                $fillable['audience_ids'] = $resolved !== [] ? $resolved : null;
+                $fillable['audience_id'] = $resolved[0] ?? null;
+            } elseif (array_key_exists('audience_id', $data)) {
+                $fillable['audience_id'] = $data['audience_id'];
+                $fillable['audience_ids'] = $data['audience_id'] ? [(int) $data['audience_id']] : null;
             }
 
             if (array_key_exists('template_variables', $data)) {
@@ -103,9 +116,9 @@ class CampaignService
 
             $campaign = $campaign->refresh();
 
-            $audienceId = $campaign->audience_id;
-            if ($audienceId && (
-                (int) $previousAudienceId !== (int) $audienceId
+            $newAudienceIds = $campaign->getEffectiveAudienceIds();
+            if ($newAudienceIds !== [] && (
+                $newAudienceIds !== $previousAudienceIds
                 || $previousRecipientCount === 0
             )) {
                 $this->populateRecipients($campaign);
@@ -221,12 +234,14 @@ class CampaignService
     }
 
     /**
-     * Populate recipients from the campaign's audience (MailList contacts).
-     * Uses chunked insert for memory efficiency with large audiences.
+     * Populate recipients from the campaign's audience(s) (MailList contacts).
+     * Deduplicates contacts by phone number across all selected lists.
+     * Uses cursor and batch insert for optimal memory and throughput.
      */
     public function populateRecipients(Campaign $campaign): int
     {
-        if (! $campaign->audience_id) {
+        $audienceIds = $campaign->getEffectiveAudienceIds();
+        if ($audienceIds === []) {
             return 0;
         }
 
@@ -234,30 +249,61 @@ class CampaignService
         $campaign->recipients()->delete();
 
         $count = 0;
-        $chunkSize = 500;
+        $batch = [];
+        $now = now();
 
-        Contact::query()
-            ->where('mail_list_id', $campaign->audience_id)
+        $contacts = Contact::query()
+            ->whereIn('mail_list_id', $audienceIds)
             ->where('status', ContactStatus::Subscribed)
-            ->select(['id', 'phone'])
-            ->chunk($chunkSize, function ($contacts) use ($campaign, &$count): void {
-                $rows = $contacts->map(fn (Contact $contact) => [
-                    'campaign_id' => $campaign->id,
-                    'contact_id' => $contact->id,
-                    'contact_phone' => $contact->phone,
-                    'status' => 'pending',
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ])->toArray();
+            ->selectRaw('MIN(id) as id, phone')
+            ->groupBy('phone')
+            ->cursor();
 
-                CampaignRecipient::query()->insert($rows);
-                $count += count($rows);
-            });
+        foreach ($contacts as $contact) {
+            $batch[] = [
+                'campaign_id' => $campaign->id,
+                'contact_id' => $contact->id,
+                'contact_phone' => $contact->phone,
+                'status' => 'pending',
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
+
+            if (count($batch) >= 500) {
+                CampaignRecipient::query()->insert($batch);
+                $count += count($batch);
+                $batch = [];
+            }
+        }
+
+        if ($batch !== []) {
+            CampaignRecipient::query()->insert($batch);
+            $count += count($batch);
+        }
 
         // Update denormalized counter
         $campaign->update(['total_recipients' => $count]);
 
         return $count;
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return list<int>
+     */
+    private function resolveAudienceIds(array $data): array
+    {
+        if (isset($data['audience_ids']) && is_array($data['audience_ids'])) {
+            return array_values(array_filter(array_map('intval', $data['audience_ids']), fn (int $id) => $id > 0));
+        }
+
+        if (! empty($data['audience_id'])) {
+            $id = (int) $data['audience_id'];
+
+            return $id > 0 ? [$id] : [];
+        }
+
+        return [];
     }
 
     /**

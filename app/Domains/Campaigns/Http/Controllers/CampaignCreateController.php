@@ -68,6 +68,7 @@ class CampaignCreateController extends Controller
             'name' => $bulkCampaign->name,
             'whatsapp_line_id' => $bulkCampaign->whatsapp_line_id,
             'audience_id' => $bulkCampaign->audience_id,
+            'audience_ids' => $bulkCampaign->getEffectiveAudienceIds(),
             'template_id' => $bulkCampaign->template_id,
             'template_variables' => is_array($bulkCampaign->template_variables)
                 ? $bulkCampaign->template_variables
@@ -322,9 +323,29 @@ class CampaignCreateController extends Controller
             $wizardData['whatsapp_line_id'] = $line?->id;
         }
 
-        if ($step === 2 && isset($wizardData['audience_id'])) {
-            $audience = PublicId::find(MailList::class, (string) $wizardData['audience_id']);
-            $wizardData['audience_id'] = $audience?->id;
+        if ($step === 2) {
+            $audienceUuids = [];
+            if ($request->has('audience_ids')) {
+                $audienceUuids = (array) $request->input('audience_ids', []);
+            } elseif ($request->filled('audience_id')) {
+                $audienceUuids = [(string) $request->input('audience_id')];
+            }
+
+            $resolvedIds = [];
+            foreach ($audienceUuids as $uuidOrId) {
+                if (is_numeric($uuidOrId)) {
+                    $resolvedIds[] = (int) $uuidOrId;
+                } else {
+                    $audience = PublicId::find(MailList::class, (string) $uuidOrId);
+                    if ($audience) {
+                        $resolvedIds[] = $audience->id;
+                    }
+                }
+            }
+
+            $resolvedIds = array_values(array_unique(array_filter($resolvedIds)));
+            $wizardData['audience_ids'] = $resolvedIds;
+            $wizardData['audience_id'] = $resolvedIds[0] ?? null;
             $wizardData['policy_confirmed'] = $request->boolean('policy_confirmed') ? '1' : null;
         }
 
@@ -354,7 +375,7 @@ class CampaignCreateController extends Controller
     {
         return match ($step) {
             1 => ['name', 'whatsapp_line_id'],
-            2 => ['audience_id', 'policy_confirmed'],
+            2 => ['audience_id', 'audience_ids', 'policy_confirmed'],
             3 => ['template_id'],
             4 => [],
             5 => [],
@@ -405,10 +426,19 @@ class CampaignCreateController extends Controller
             return null;
         }
 
+        $audienceIds = ! empty($wizardData['audience_ids']) && is_array($wizardData['audience_ids'])
+            ? array_values(array_filter(array_map('intval', $wizardData['audience_ids']), fn (int $id) => $id > 0))
+            : [];
+        $primaryAudienceId = $this->nullableId($wizardData['audience_id'] ?? null) ?? ($audienceIds[0] ?? null);
+        if ($audienceIds === [] && $primaryAudienceId !== null) {
+            $audienceIds = [$primaryAudienceId];
+        }
+
         $payload = [
             'name' => $name,
             'whatsapp_line_id' => $this->nullableId($wizardData['whatsapp_line_id'] ?? null),
-            'audience_id' => $this->nullableId($wizardData['audience_id'] ?? null),
+            'audience_id' => $primaryAudienceId,
+            'audience_ids' => $audienceIds !== [] ? $audienceIds : null,
             'template_id' => $this->nullableId($wizardData['template_id'] ?? null),
             'template_variables' => is_array($wizardData['template_variables'] ?? null)
                 ? $wizardData['template_variables']
@@ -449,7 +479,7 @@ class CampaignCreateController extends Controller
         }
 
         $draft = $this->draftFromWizard($wizardData);
-        if ($draft instanceof Campaign && $draft->audience_id && (int) $draft->total_recipients === 0) {
+        if ($draft instanceof Campaign && $draft->getEffectiveAudienceIds() !== [] && (int) $draft->total_recipients === 0) {
             $this->campaignService->populateRecipients($draft);
         }
 
@@ -521,7 +551,10 @@ class CampaignCreateController extends Controller
             return 1;
         }
 
-        if ($this->nullableId($wizardData['audience_id'] ?? null) === null) {
+        $hasAudience = ! empty($wizardData['audience_ids']) && is_array($wizardData['audience_ids']) && count($wizardData['audience_ids']) > 0
+            || $this->nullableId($wizardData['audience_id'] ?? null) !== null;
+
+        if (! $hasAudience) {
             return 2;
         }
 

@@ -46,7 +46,7 @@ class CampaignSendService
             Log::warning('Low wallet alert at campaign start failed', ['error' => $e->getMessage()]);
         }
 
-        if ($campaign->total_recipients === 0 && $campaign->audience_id) {
+        if ($campaign->total_recipients === 0 && $campaign->getEffectiveAudienceIds() !== []) {
             app(CampaignService::class)->populateRecipients($campaign);
             $campaign->refresh();
         }

@@ -18,6 +18,7 @@ class Campaign extends TenantModel
         'name',
         'status',
         'audience_id',
+        'audience_ids',
         'whatsapp_line_id',
         'template_id',
         'template_variables',
@@ -39,6 +40,7 @@ class Campaign extends TenantModel
     {
         return [
             'status' => CampaignStatus::class,
+            'audience_ids' => 'array',
             'template_variables' => 'array',
             'scheduled_at' => 'datetime',
             'started_at' => 'datetime',
@@ -72,6 +74,59 @@ class Campaign extends TenantModel
     public function audience(): BelongsTo
     {
         return $this->belongsTo(MailList::class, 'audience_id');
+    }
+
+    /**
+     * Return list of effective mail_list integer IDs.
+     *
+     * @return list<int>
+     */
+    public function getEffectiveAudienceIds(): array
+    {
+        if (is_array($this->audience_ids) && count($this->audience_ids) > 0) {
+            return array_values(array_filter(array_map('intval', $this->audience_ids), fn (int $id) => $id > 0));
+        }
+
+        if ($this->audience_id) {
+            return [(int) $this->audience_id];
+        }
+
+        return [];
+    }
+
+    /**
+     * Return Eloquent Collection of selected audience MailLists.
+     *
+     * @return \Illuminate\Database\Eloquent\Collection<int, MailList>
+     */
+    public function audiences(): \Illuminate\Database\Eloquent\Collection
+    {
+        $ids = $this->getEffectiveAudienceIds();
+        if ($ids === []) {
+            return new \Illuminate\Database\Eloquent\Collection();
+        }
+
+        return MailList::query()->whereIn('id', $ids)->get();
+    }
+
+    /**
+     * Human-friendly name representing the audience(s) for this campaign.
+     */
+    public function audienceName(): string
+    {
+        $ids = $this->getEffectiveAudienceIds();
+        if (count($ids) > 1) {
+            $audiences = $this->audiences();
+            $count = $audiences->count();
+            if ($count === 0) {
+                return 'No audience';
+            }
+            $firstName = $audiences->first()?->name ?? 'Audience';
+
+            return $firstName . ' + ' . ($count - 1) . ' more (' . $count . ' lists)';
+        }
+
+        return $this->audience?->name ?? 'No audience';
     }
 
     public function whatsappLine(): BelongsTo

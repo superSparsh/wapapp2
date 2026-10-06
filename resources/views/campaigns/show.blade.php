@@ -58,7 +58,7 @@
         <div class="grid gap-3 sm:grid-cols-2">
           <div>
             <p class="text-xs text-text-subtle">Audience</p>
-            <p class="text-sm font-medium text-text-primary">{{ $campaign->audience?->name ?? 'Not set' }}</p>
+            <p class="text-sm font-medium text-text-primary">{{ $campaign->audienceName() }}</p>
           </div>
           <div>
             <p class="text-xs text-text-subtle">WhatsApp Phone Number</p>

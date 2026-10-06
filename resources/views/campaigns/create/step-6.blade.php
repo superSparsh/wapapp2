@@ -27,16 +27,27 @@
       $lineUuid = filled($wizardData['whatsapp_line_id'] ?? null)
         ? (\App\Models\WhatsappLine::query()->find($wizardData['whatsapp_line_id'])?->uuid ?? '')
         : '';
-      $audienceUuid = filled($wizardData['audience_id'] ?? null)
-        ? (\App\Models\MailList::query()->find($wizardData['audience_id'])?->uuid ?? '')
-        : '';
+      $audienceIds = ! empty($wizardData['audience_ids']) && is_array($wizardData['audience_ids'])
+        ? array_values(array_filter(array_map('intval', $wizardData['audience_ids']), fn (int $id) => $id > 0))
+        : (filled($wizardData['audience_id'] ?? null) ? [(int) $wizardData['audience_id']] : []);
+      $selectedAudiences = \App\Models\MailList::query()->whereIn('id', $audienceIds)->get();
+      $primaryAudienceUuid = $selectedAudiences->first()?->uuid ?? '';
+      $audienceCount = $selectedAudiences->count();
+      $audienceSummary = match (true) {
+          $audienceCount === 0 => 'Selected in step 2',
+          $audienceCount === 1 => $selectedAudiences->first()->name,
+          default => $selectedAudiences->first()->name . ' + ' . ($audienceCount - 1) . ' more (' . $audienceCount . ' lists)',
+      };
       $templateUuid = filled($wizardData['template_id'] ?? null)
         ? (\App\Models\Template::query()->find($wizardData['template_id'])?->uuid ?? '')
         : '';
     @endphp
     <input type="hidden" name="name" value="{{ $wizardData['name'] ?? '' }}">
     <input type="hidden" name="whatsapp_line_id" value="{{ $lineUuid }}">
-    <input type="hidden" name="audience_id" value="{{ $audienceUuid }}">
+    <input type="hidden" name="audience_id" value="{{ $primaryAudienceUuid }}">
+    @foreach ($selectedAudiences as $selAudience)
+      <input type="hidden" name="audience_ids[]" value="{{ $selAudience->uuid }}">
+    @endforeach
     <input type="hidden" name="template_id" value="{{ $templateUuid }}">
     @if (! empty($wizardData['template_variables']))
       @foreach ((array) $wizardData['template_variables'] as $key => $val)
@@ -95,7 +106,7 @@
         <div class="flex flex-col gap-3">
           @foreach ([
             ['status-up.svg', 'Campaign Name', $wizardData['name'] ?? 'N/A', route('campaigns.create.step', 1)],
-            ['task.svg', 'Audience', 'Selected in step 2', route('campaigns.create.step', 2)],
+            ['task.svg', 'Audience', $audienceSummary, route('campaigns.create.step', 2)],
             ['element-4.svg', 'Template', 'Selected in step 3', route('campaigns.create.step', 3)],
           ] as [$icon, $title, $value, $editRoute])
             <div class="flex items-center gap-4">

@@ -24,7 +24,12 @@ final class CampaignWizardValidation
                 'whatsapp_line_id' => PublicId::uuidExistsRules(WhatsappLine::class, nullable: false),
             ],
             2 => [
-                'audience_id' => PublicId::uuidExistsRules(MailList::class, nullable: false),
+                'audience_id' => [
+                    'required_without:audience_ids',
+                    'nullable',
+                    self::mailListExistsRule(),
+                ],
+                'audience_ids' => ['nullable', 'array', self::mailListsExistRule()],
                 'policy_confirmed' => ['accepted'],
             ],
             3 => [
@@ -59,8 +64,10 @@ final class CampaignWizardValidation
             'whatsapp_line_id.exists' => 'The selected From Number is invalid.',
             'whatsapp_line_id.uuid' => 'Please choose a From Number.',
             'audience_id.required' => 'Please select an audience list.',
+            'audience_id.required_without' => 'Please select an audience list.',
             'audience_id.exists' => 'The selected audience is invalid.',
             'audience_id.uuid' => 'Please select an audience list.',
+            'audience_ids.required_without' => 'Please select an audience list.',
             'template_id.required' => 'Please select a template.',
             'template_id.exists' => 'The selected template is invalid.',
             'template_id.uuid' => 'Please select a template.',
@@ -79,7 +86,12 @@ final class CampaignWizardValidation
     {
         return [
             'name' => ['required', 'string', 'min:2', 'max:255'],
-            'audience_id' => PublicId::uuidExistsRules(MailList::class, nullable: false),
+            'audience_id' => [
+                'required_without:audience_ids',
+                'nullable',
+                self::mailListExistsRule(),
+            ],
+            'audience_ids' => ['nullable', 'array', self::mailListsExistRule()],
             'whatsapp_line_id' => PublicId::uuidExistsRules(WhatsappLine::class, nullable: false),
             'template_id' => array_merge(
                 PublicId::uuidExistsRules(Template::class, nullable: false),
@@ -91,6 +103,47 @@ final class CampaignWizardValidation
             'send_mode' => ['required', 'in:now,schedule'],
             'policy_confirmed' => ['accepted'],
         ];
+    }
+
+    private static function mailListExistsRule(): \Closure
+    {
+        return function (string $attribute, mixed $value, \Closure $fail): void {
+            if ($value === null || $value === '') {
+                return;
+            }
+
+            $exists = is_numeric($value)
+                ? MailList::query()->where('id', (int) $value)->exists()
+                : MailList::query()->where('uuid', (string) $value)->exists();
+
+            if (! $exists) {
+                $fail('The selected audience is invalid.');
+            }
+        };
+    }
+
+    private static function mailListsExistRule(): \Closure
+    {
+        return function (string $attribute, mixed $value, \Closure $fail): void {
+            if (! is_array($value) || $value === []) {
+                return;
+            }
+
+            foreach ($value as $item) {
+                if ($item === null || $item === '') {
+                    continue;
+                }
+                $exists = is_numeric($item)
+                    ? MailList::query()->where('id', (int) $item)->exists()
+                    : MailList::query()->where('uuid', (string) $item)->exists();
+
+                if (! $exists) {
+                    $fail('One or more selected audience lists are invalid.');
+
+                    return;
+                }
+            }
+        };
     }
 
     private static function approvedTemplateRule(): \Illuminate\Validation\Rules\Exists

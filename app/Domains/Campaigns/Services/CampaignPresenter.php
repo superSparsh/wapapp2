@@ -73,7 +73,7 @@ class CampaignPresenter
 
         return [
             'name' => $campaign->name,
-            'audience' => $campaign->audience?->name ?? 'No audience',
+            'audience' => $campaign->audienceName(),
             'whatsapp_line' => $campaign->whatsappLine?->displayLabel() ?? 'N/A',
             'status_label' => $campaign->status?->label() ?? 'Unknown',
             'status_variant' => $statusVariant,
@@ -99,7 +99,7 @@ class CampaignPresenter
         return [
             'campaign_name' => $campaign->name,
             'recipients_count' => $campaign->total_recipients,
-            'audience_name' => $campaign->audience?->name ?? 'Not selected',
+            'audience_name' => $campaign->audienceName(),
             'template_name' => $campaign->template?->name ?? 'Not selected',
             'whatsapp_line' => $campaign->whatsappLine?->displayLabel() ?? 'Not selected',
         ];
@@ -175,7 +175,7 @@ class CampaignPresenter
             }
         }
 
-        $recipients = $this->subscribedRecipientCount($wizardData['audience_id'] ?? null);
+        $recipients = $this->subscribedRecipientCount($wizardData);
         $category = $selectedTemplate instanceof Template
             ? strtoupper((string) $selectedTemplate->category)
             : TemplateCategoryCatalog::MARKETING;
@@ -200,16 +200,38 @@ class CampaignPresenter
         ];
     }
 
-    private function subscribedRecipientCount(mixed $audienceId): int
+    /**
+     * @param  array<string, mixed>  $wizardData
+     */
+    private function subscribedRecipientCount(array $wizardData): int
     {
-        $id = is_numeric($audienceId) ? (int) $audienceId : 0;
-        if ($id <= 0) {
+        $draftId = (int) ($wizardData['draft_id'] ?? 0);
+        if ($draftId > 0) {
+            $draft = Campaign::query()->find($draftId);
+            if ($draft instanceof Campaign && (int) $draft->total_recipients > 0) {
+                return (int) $draft->total_recipients;
+            }
+        }
+
+        $audienceIds = [];
+        if (! empty($wizardData['audience_ids']) && is_array($wizardData['audience_ids'])) {
+            $audienceIds = array_values(array_filter(array_map('intval', $wizardData['audience_ids']), fn (int $id) => $id > 0));
+        } elseif (! empty($wizardData['audience_id'])) {
+            $id = (int) $wizardData['audience_id'];
+            if ($id > 0) {
+                $audienceIds = [$id];
+            }
+        }
+
+        if ($audienceIds === []) {
             return 0;
         }
 
-        $list = MailList::query()->find($id);
-
-        return $list instanceof MailList ? $list->subscribedCount() : 0;
+        return (int) \App\Models\Contact::query()
+            ->whereIn('mail_list_id', $audienceIds)
+            ->where('status', ContactStatus::Subscribed)
+            ->distinct('phone')
+            ->count('phone');
     }
 
     /**
