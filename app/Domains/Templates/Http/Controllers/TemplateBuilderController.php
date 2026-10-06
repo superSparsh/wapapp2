@@ -13,7 +13,6 @@ use App\Domains\Templates\Http\Requests\SaveFooterRequest;
 use App\Domains\Templates\Http\Requests\SaveHeaderRequest;
 use App\Domains\Templates\Http\Requests\SaveLtoRequest;
 use App\Domains\Templates\Http\Requests\SaveSubmitRequest;
-use App\Domains\Templates\Services\BuiltinVariableCatalog;
 use App\Domains\Templates\Services\TemplateBuilderService;
 use App\Domains\Templates\Services\TemplateMediaService;
 use App\Domains\Templates\Services\TemplatePreviewService;
@@ -183,11 +182,11 @@ class TemplateBuilderController extends Controller
         Template $template,
         TemplatePreviewService $previewService,
         TemplateVariableQueryService $variableQueryService,
-        BuiltinVariableCatalog $builtinVariableCatalog,
     ): View|RedirectResponse {
         return $this->stepView($template, 'body', $previewService, [
             'variables' => collect($variableQueryService->paginate(perPage: 100)->items()),
-            'builtinVariables' => $builtinVariableCatalog->all(),
+            // Template builder: only user-created variables (no built-ins).
+            'builtinVariables' => [],
             'utilityPresets' => config('template-presets.utility', []),
             'canUseCarousel' => $this->builderFlow->canUseCarousel(),
             'aiSuggestUrl' => route('templates.ai.suggest'),

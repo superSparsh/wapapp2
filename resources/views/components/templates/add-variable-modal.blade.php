@@ -71,7 +71,7 @@
       </div>
 
       <p class="text-sm font-normal leading-[1.4] text-text-subtle opacity-50">
-        Custom variables are created by you. Built-in variables come from message and subscriber context.
+        Only variables you created are listed here. Create a new one if you need another field.
       </p>
     </div>
 

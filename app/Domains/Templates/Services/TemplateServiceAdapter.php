@@ -17,7 +17,6 @@ class TemplateServiceAdapter
         private readonly TemplatePreviewService $localPreviewService,
         private readonly TemplateVariableService $localVariableService,
         private readonly TemplateVariableQueryService $localVariableQueryService,
-        private readonly BuiltinVariableCatalog $localBuiltinCatalog,
     ) {}
 
     /**
@@ -148,7 +147,8 @@ class TemplateServiceAdapter
 
         return [
             'custom' => $custom,
-            'builtin' => $this->localBuiltinCatalog->all(),
+            // Template picker shows only variables the tenant created.
+            'builtin' => [],
         ];
     }
 }
