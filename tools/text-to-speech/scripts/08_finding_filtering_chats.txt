@@ -1,0 +1,13 @@
+Welcome to the WapApp Inbox. In this video, you will learn how to find and open the right chats quickly.
+
+From the left sidebar, open Inbox. You will see three areas: the top toolbar, the conversation list on the left, and the chat window on the right.
+
+The conversation list shows each contact with initials, name, phone when available, a short message preview, and the time of the last activity. Unread chats show a green badge with the count. If a contact marked STOP, you will see a red STOP label.
+
+To find someone, use Search by name or number above the list. Type a few letters or digits and the list narrows to matching conversations.
+
+Scroll the list to browse recent chats. Click any row to open that conversation in the chat window. Selected chats highlight in green so you always know which thread is active.
+
+If the list looks empty, check that you are on the correct WhatsApp number and that your date range includes recent activity. We will cover filters in more detail in a later video.
+
+That is how you find and open chats in Inbox — search, scan the list, and select the conversation you need.

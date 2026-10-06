@@ -1,0 +1,11 @@
+In this video, you will share products and request payment directly from an Inbox conversation.
+
+First, open a chat where the session allows interactive messages. Tap the plus icon, then open Buttons and Lists. From there you can choose Share One Product or Share Many Products.
+
+For one product, enter the catalog ID and product retailer ID, add an optional body message, and send. For many products, add a header, body, catalog ID, section title, and up to ten retailer IDs — one SKU per line — then tap Send Products.
+
+To collect money, open Request Payment from the plus menu, or tap Send Payment Link under the composer when session actions are shown. Enter the Amount and a clear Description such as an order number.
+
+Tap Send Payment Link. WapApp creates a Razorpay payment link and sends it on WhatsApp using your Commerce payment template. The customer can pay without leaving WhatsApp.
+
+Use products to help customers browse, and payment links to close the sale in the same chat. Keep catalog IDs and amounts accurate before you send.

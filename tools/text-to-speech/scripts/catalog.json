@@ -1,0 +1,333 @@
+[
+  {
+    "id": "01_dashboard_overview",
+    "title": "Dashboard Overview",
+    "module": "Module 1: Dashboard",
+    "video_no": 1,
+    "route": "dashboard",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "script_file": "01_dashboard_overview.txt",
+    "screen_cues": [
+      "0:00 – Open Dashboard home",
+      "0:10 – Greeting / welcome",
+      "0:20 – Credits Used cards",
+      "0:40 – Account Validity + Wallet",
+      "0:55 – Recent Campaigns review",
+      "1:05 – List Growth + chart",
+      "1:15 – End"
+    ],
+    "voice": "en-IN-NeerjaNeural"
+  },
+  {
+    "id": "02_understanding_credits_usage",
+    "title": "Understanding Credits Usage",
+    "module": "Module 1: Dashboard",
+    "video_no": 2,
+    "route": "dashboard",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "script_file": "02_understanding_credits_usage.txt",
+    "screen_cues": [
+      "0:00 – Dashboard → Credits Used",
+      "0:15 – Point Sent / Marketing / Utility / Service",
+      "0:40 – Change Sort by period",
+      "0:55 – Tap Refresh",
+      "1:05 – Service free remaining (if shown)",
+      "1:15 – End"
+    ],
+    "voice": "en-IN-NeerjaNeural"
+  },
+  {
+    "id": "03_campaign_analytics_deep_dive",
+    "title": "Campaign Analytics Deep Dive",
+    "module": "Module 1: Dashboard",
+    "video_no": 3,
+    "route": "dashboard",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "script_file": "03_campaign_analytics_deep_dive.txt",
+    "screen_cues": [
+      "0:00 – Scroll to Recent Campaigns",
+      "0:15 – Select a campaign",
+      "0:30 – Scroll recipient table",
+      "0:50 – Show metric cards",
+      "1:05 – Tap More / a metric",
+      "1:15 – End"
+    ],
+    "voice": "en-IN-NeerjaNeural"
+  },
+  {
+    "id": "04_tracking_list_growth",
+    "title": "Tracking List Growth",
+    "module": "Module 1: Dashboard",
+    "video_no": 4,
+    "route": "dashboard",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "script_file": "04_tracking_list_growth.txt",
+    "screen_cues": [
+      "0:00 – Scroll to List Growth",
+      "0:15 – Point four metric cards",
+      "0:40 – Open Subscribers chart",
+      "1:00 – Hover / zoom trend if available",
+      "1:15 – End"
+    ],
+    "voice": "en-IN-NeerjaNeural"
+  },
+  {
+    "id": "05_managing_your_wallet",
+    "title": "Managing Your Wallet",
+    "module": "Module 1: Dashboard",
+    "video_no": 5,
+    "route": "dashboard.wallet",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "script_file": "05_managing_your_wallet.txt",
+    "screen_cues": [
+      "0:00 – Wallet Balance card",
+      "0:20 – Tap Wallet History",
+      "0:40 – Search / period / category filters",
+      "0:55 – Back → Account Validity",
+      "1:10 – Mention Add Credits (next video)",
+      "1:15 – End"
+    ],
+    "voice": "en-IN-NeerjaNeural"
+  },
+  {
+    "id": "06_using_the_refresh_button",
+    "title": "Using the Refresh Button",
+    "module": "Module 1: Dashboard",
+    "video_no": 6,
+    "route": "dashboard",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "script_file": "06_using_the_refresh_button.txt",
+    "screen_cues": [
+      "0:00 – Credits Used → Refresh",
+      "0:25 – Campaign review → Refresh",
+      "0:50 – Metrics row → Refresh",
+      "1:05 – Show numbers update",
+      "1:15 – End"
+    ],
+    "voice": "en-IN-NeerjaNeural"
+  },
+  {
+    "id": "07_recharge_wallet_from_dashboard",
+    "title": "Recharge Wallet from Dashboard",
+    "module": "Module 1: Dashboard",
+    "video_no": 7,
+    "status": "New",
+    "route": "dashboard",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "script_file": "07_recharge_wallet_from_dashboard.txt",
+    "screen_cues": [
+      "0:00 – Wallet card → Add Credits",
+      "0:15 – Recharge modal opens",
+      "0:30 – Enter amount / quick amounts",
+      "0:50 – Show GST payable note",
+      "1:00 – Pay Securely (stop before real payment if demo)",
+      "1:10 – Cancel / close option",
+      "1:15 – End"
+    ],
+    "voice": "en-IN-NeerjaNeural"
+  },
+  {
+    "id": "08_finding_filtering_chats",
+    "title": "Finding & Filtering Chats",
+    "module": "Module 2: Inbox",
+    "video_no": 1,
+    "status": "Old",
+    "route": "inbox.index",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "voice": "en-IN-NeerjaNeural",
+    "script_file": "08_finding_filtering_chats.txt",
+    "screen_cues": [
+      "0:00 – Open Inbox",
+      "0:10 – Show list / toolbar / chat areas",
+      "0:25 – Point unread badge + STOP label",
+      "0:40 – Search by name or number",
+      "0:55 – Click a chat to open",
+      "1:10 – End"
+    ]
+  },
+  {
+    "id": "09_understanding_the_chat_window",
+    "title": "Understanding the Chat Window",
+    "module": "Module 2: Inbox",
+    "video_no": 2,
+    "status": "Old",
+    "route": "inbox.index",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "voice": "en-IN-NeerjaNeural",
+    "script_file": "09_understanding_the_chat_window.txt",
+    "screen_cues": [
+      "0:00 – Open a conversation",
+      "0:15 – Header: name, AI toggle, export, assign",
+      "0:35 – Scroll message timeline",
+      "0:55 – Composer + plus menu",
+      "1:05 – Session expired banner if shown",
+      "1:15 – End"
+    ]
+  },
+  {
+    "id": "10_sending_messages_replies",
+    "title": "Sending Messages & Replies",
+    "module": "Module 2: Inbox",
+    "video_no": 3,
+    "status": "Old",
+    "route": "inbox.index",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "voice": "en-IN-NeerjaNeural",
+    "script_file": "10_sending_messages_replies.txt",
+    "screen_cues": [
+      "0:00 – Open chat with active session",
+      "0:15 – Type + Send text reply",
+      "0:30 – Show delivery status",
+      "0:45 – Open plus menu (media etc.)",
+      "1:00 – Show expired → template actions",
+      "1:15 – End"
+    ]
+  },
+  {
+    "id": "11_adding_new_contacts",
+    "title": "Adding New Contacts",
+    "module": "Module 2: Inbox",
+    "video_no": 4,
+    "status": "Old",
+    "route": "inbox.index",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "voice": "en-IN-NeerjaNeural",
+    "script_file": "11_adding_new_contacts.txt",
+    "screen_cues": [
+      "0:00 – Tap Add New Contact",
+      "0:15 – Fill name, country code, phone",
+      "0:40 – Choose Human / AI response",
+      "0:55 – Save Contact",
+      "1:05 – Open new thread + mention template",
+      "1:15 – End"
+    ]
+  },
+  {
+    "id": "12_using_filters_and_search",
+    "title": "Using Filters & Search",
+    "module": "Module 2: Inbox",
+    "video_no": 5,
+    "status": "Old",
+    "route": "inbox.index",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "voice": "en-IN-NeerjaNeural",
+    "script_file": "12_using_filters_and_search.txt",
+    "screen_cues": [
+      "0:00 – Search box",
+      "0:15 – Open Filters dropdown",
+      "0:30 – WhatsApp number / Scope / Assignee",
+      "0:50 – Date range",
+      "1:00 – Mark all read + Notifications",
+      "1:15 – End"
+    ]
+  },
+  {
+    "id": "13_exporting_chat_history",
+    "title": "Exporting Chat History",
+    "module": "Module 2: Inbox",
+    "video_no": 6,
+    "status": "Old",
+    "route": "inbox.index",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "voice": "en-IN-NeerjaNeural",
+    "script_file": "13_exporting_chat_history.txt",
+    "screen_cues": [
+      "0:00 – Export Chat in header",
+      "0:25 – Export by date on toolbar",
+      "0:40 – Presets / From-To dates",
+      "0:55 – All chats vs open chat",
+      "1:05 – Download CSV",
+      "1:15 – End"
+    ]
+  },
+  {
+    "id": "14_send_template_from_inbox",
+    "title": "Send Template from Inbox",
+    "module": "Module 2: Inbox",
+    "video_no": 7,
+    "status": "New",
+    "route": "inbox.index",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "voice": "en-IN-NeerjaNeural",
+    "script_file": "14_send_template_from_inbox.txt",
+    "screen_cues": [
+      "0:00 – Show session expired banner",
+      "0:15 – Send Template Message",
+      "0:30 – Select template + params",
+      "0:50 – Phone preview",
+      "1:00 – Send Template",
+      "1:10 – Note: customer must reply",
+      "1:15 – End"
+    ]
+  },
+  {
+    "id": "15_share_products_request_payment",
+    "title": "Share Products / Request Payment from Inbox",
+    "module": "Module 2: Inbox",
+    "video_no": 8,
+    "status": "New",
+    "route": "inbox.index",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "voice": "en-IN-NeerjaNeural",
+    "script_file": "15_share_products_request_payment.txt",
+    "screen_cues": [
+      "0:00 – Plus → Buttons & Lists",
+      "0:20 – Share One / Many Products",
+      "0:45 – Fill catalog + retailer IDs",
+      "1:00 – Request Payment / Send Payment Link",
+      "1:10 – Amount + description → send",
+      "1:15 – End"
+    ]
+  },
+  {
+    "id": "16_assign_conversations_to_team",
+    "title": "Assign Conversations to Team",
+    "module": "Module 2: Inbox",
+    "video_no": 9,
+    "status": "New",
+    "route": "inbox.index",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "voice": "en-IN-NeerjaNeural",
+    "script_file": "16_assign_conversations_to_team.txt",
+    "screen_cues": [
+      "0:00 – Open chat → Assign agent dropdown",
+      "0:20 – Assign a teammate",
+      "0:40 – Show assignee on thread list",
+      "0:55 – Filters → Assignee",
+      "1:10 – Unassigned hygiene tip",
+      "1:15 – End"
+    ]
+  }
+]

@@ -1,0 +1,13 @@
+This video covers Filters and Search so you can focus Inbox on the chats that matter.
+
+Start with Search by name or number above the conversation list. Combine search with filters when you need a tighter view.
+
+Open the Filters button on the toolbar. If you have more than one WhatsApp number, choose the line first — changing the line leaves the open chat because conversations belong to one number.
+
+Next set Scope — for example all chats or unread only, depending on the options in your account. Use Assignee to show chats for a specific teammate or only unassigned conversations.
+
+Set Date range to control how far back the list loads — last day, last seven days, and longer ranges for older history. A badge on Filters shows how many filters are active.
+
+Use Mark all read to clear unread badges for the current filtered view. Turn on Notifications if you want browser alerts for new WhatsApp messages.
+
+Clear or reset filters when you want the full list again. That is Filters and Search — find the right chats without scrolling forever.

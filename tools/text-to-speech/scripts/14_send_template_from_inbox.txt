@@ -1,0 +1,13 @@
+This video shows how to send a WhatsApp template from Inbox — essential when the twenty-four hour session has expired.
+
+Open the conversation you want to reach. If the amber session banner appears, free-form messages are blocked until the customer replies again.
+
+Tap Send Template Message under the composer, or open the plus menu and choose Send Templates. The Send Templates modal opens with a list of approved templates for the active WhatsApp line.
+
+Select a template. If it has variables, fill each parameter carefully so the preview looks correct. The phone preview on the side shows how the message will appear to the customer.
+
+Tap Send Template. Only templates approved on WhatsApp with a valid template code can be sent. If the list is empty, sync templates from the Templates page first.
+
+Sending a template does not by itself open the free-form window. The customer still needs to reply once. After they reply, you can continue with normal messages, media, and other session actions.
+
+Use templates for re-engagement, reminders, and first outreach from Inbox.

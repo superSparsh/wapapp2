@@ -1,0 +1,13 @@
+Welcome to WapApp. This is your Dashboard Overview — the home screen you see right after login.
+
+At the top, you get a personal greeting and a short welcome note. This confirms you are in the correct workspace and ready to review performance.
+
+Next is Credits Used. Here you track messages Sent, Marketing Conversations, Utility Conversations, and Service messages. Use the period filter for daily, weekly, monthly, yearly, or all-time views, and tap Refresh whenever you need the latest numbers.
+
+Below that, Account Validity shows your active plan and how many days remain. Beside it, Wallet Balance shows available credits. If the balance looks low, tap Add Credits to recharge without leaving the Dashboard.
+
+Then open Review Your Recently Sent Campaigns. Select a campaign to see recipient results — delivered, failed, read, responses, and unsubscribes — so you know what is working.
+
+Finally, List Growth summarizes subscribers, unsubscribes, and blacklisted contacts, with a subscribers chart for trends over time.
+
+That is your Dashboard Overview — one place to check credits, wallet, campaigns, and list health before you continue.

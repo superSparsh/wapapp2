@@ -1,0 +1,11 @@
+This video shows how to add a new contact so you can start a WhatsApp conversation from Inbox.
+
+On the Inbox toolbar, tap Add New Contact. A modal opens asking for the details you need.
+
+Enter the contact Name. Choose the Country Code, then type the Phone Number carefully with the correct digits. Pick Response Type — Human Response if your team will reply, or AI Response if the bot should handle the chat.
+
+Tap Save Contact. WapApp creates the contact and opens the conversation in your list. If that number already exists, you will see an error so you do not create a duplicate.
+
+New contacts often start outside the twenty-four hour window. Send an approved template or opt-in first. When the customer replies, you can continue with normal messages.
+
+Use Add New Contact whenever someone reaches you offline — phone, form, or store — and you want the thread ready in Inbox.

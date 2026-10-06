@@ -1,0 +1,11 @@
+In this video, we will recharge the wallet from the Dashboard in a few clear steps.
+
+Open the Dashboard and go to the Wallet Balance card. Tap Add Credits. The Recharge Your Wallet modal opens on top of the Dashboard.
+
+Enter an amount in rupees, or tap a quick amount such as ten thousand, fifteen thousand, or twenty thousand. The payable total updates automatically and includes GST in the final amount.
+
+Review the amount carefully, then tap Pay Securely to continue with Razorpay. Complete payment in the checkout window. After success, you return to the Dashboard with an updated balance. If Zoho invoicing is enabled for your account, an invoice is created automatically.
+
+If you change your mind, tap Cancel or close the modal — nothing is charged until payment succeeds. Open Wallet History anytime to confirm the new credit entry.
+
+That is how you recharge from the Dashboard — keep credits topped up so campaigns and inbox messaging keep running.

@@ -1,0 +1,11 @@
+This video shows how to use the Refresh buttons on the Dashboard so you always trust the numbers on screen.
+
+Dashboard metrics are live, but they may not update the exact second a message sends or a payment completes. Refresh pulls the latest data without leaving the page or reloading the whole app.
+
+In Credits Used, tap Refresh after a campaign or inbox activity. Sent, Marketing, Utility, and Service counts update for the period you selected in Sort by.
+
+In Review Your Recently Sent Campaigns, use Refresh near the campaign list, then again near the metric cards. That keeps the recipient table and totals aligned after new deliveries, reads, or failures.
+
+Refresh again after you recharge the wallet or change filters. You do not need to reload the whole browser page — one tap is enough.
+
+Make it a habit: open the section, tap Refresh, confirm the numbers moved, then decide your next action with current data.

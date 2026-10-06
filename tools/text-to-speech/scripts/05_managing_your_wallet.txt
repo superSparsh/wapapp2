@@ -1,0 +1,11 @@
+This video covers managing your Wallet from the Dashboard — balance, history, and subscription validity together.
+
+On the Dashboard, find the Wallet Balance card next to Account Validity. The large amount is your current balance. When it is low, the card highlights so you know to recharge soon.
+
+Tap Wallet History to open the full history page. Search by description or payment ID, filter by period and category, and export when you need records. You can also open By campaign to see spend against specific sends.
+
+Return to the Dashboard and check Account Validity. Here you see plan name, days remaining, and expiry date. Tap Manage if you need to review or update your subscription.
+
+Keep wallet balance and validity in view before large campaigns so sends do not pause for insufficient credits or an expired plan.
+
+In the next video, we will recharge the wallet directly from the Dashboard using Add Credits.

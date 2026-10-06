@@ -83,15 +83,42 @@ class PartnerApiParityTest extends TestCase
         $template = Template::factory()->create([
             'code' => '1125253687146348599',
             'name' => 'Partner Welcome',
+            'payload' => array_replace_recursive(Template::defaultPayload(), [
+                'body' => ['text' => 'Hello {{name}}'],
+                'header' => ['type' => 'text', 'text' => 'Welcome'],
+                'footer' => ['text' => 'Thanks'],
+                'buttons' => [
+                    ['text' => 'Shop', 'type' => 'url', 'url' => 'https://example.com'],
+                    ['text' => 'Call us', 'type' => 'phone', 'url' => '919999999999'],
+                ],
+            ]),
         ]);
 
-        $this->get('/api/v1/templates?api_token='.$this->apiToken, ['Accept' => 'application/json'])
+        $list = $this->get('/api/v1/templates?api_token='.$this->apiToken, ['Accept' => 'application/json'])
             ->assertOk()
-            ->assertJsonFragment(['uid' => $template->uuid]);
+            ->assertJsonFragment([
+                'uid' => $template->uuid,
+                'name' => 'Partner Welcome',
+                'template_category' => 'Marketing',
+                'body' => 'Hello {{name}}',
+                'header_type' => 'text',
+                'header_description' => 'Welcome',
+                'footer_description' => 'Thanks',
+                'button_description' => 'Shop',
+                'button_link' => 'https://example.com',
+                'phone_button_description' => 'Call us',
+                'phone_button_link' => '919999999999',
+                'status' => 'Approved',
+            ]);
+
+        $this->assertIsArray($list->json());
+        $this->assertArrayNotHasKey('data', $list->json());
+        $this->assertArrayNotHasKey('meta', $list->json());
 
         $this->get('/api/v1/templates/'.$template->uuid.'?api_token='.$this->apiToken, ['Accept' => 'application/json'])
             ->assertOk()
-            ->assertJsonPath('data.uid', $template->uuid);
+            ->assertJsonPath('template.uid', $template->uuid)
+            ->assertJsonMissingPath('data.uid');
 
         $this->post('/api/v1/variables', [
             'api_token' => $this->apiToken,

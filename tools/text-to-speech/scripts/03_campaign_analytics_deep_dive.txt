@@ -1,0 +1,11 @@
+This video is a deep dive into Campaign Analytics on the Dashboard — reviewing recently sent campaigns in detail.
+
+Scroll to Review Your Recently Sent Campaigns. Open the dropdown and select the campaign you want to inspect. If nothing is listed yet, send a test campaign first, then return here.
+
+The recipient table shows name, WhatsApp number, campaign name, sent time, status, and a reason when delivery failed. Scroll through the rows to spot patterns such as repeated failures on one number or template.
+
+Below the table, metric cards summarize Total Recipients, Delivered, Failed, Read, Response, and Unsubscribed, each with a percentage. High failed or unsubscribe rates are early warning signs.
+
+Use Refresh so the table and cards stay in sync after new deliveries. Tap More for full campaign statistics, or open a metric card for a filtered recipient list.
+
+Make this review part of every send — confirm delivery health before you launch the next campaign.

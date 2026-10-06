@@ -1,0 +1,11 @@
+In this video, you will learn how to send messages and replies from Inbox.
+
+Open a conversation. If the twenty-four hour window is active, click the message box, type your reply, and tap Send. Your message appears on the right. Watch the status change from sent to delivered or read.
+
+Need more than text? Tap the plus icon next to the composer. From the menu you can send media, location, contact cards, stickers, buttons and lists, and other interactive options when the session allows them.
+
+If the session expired, free-form typing is blocked. Use Send Template Message or Resend opt-in from the actions under the composer. After the customer replies once, normal messaging unlocks again.
+
+If a message fails, the bubble shows Failed. Hover or check the reason, fix the issue, and try again. Keep replies clear and timely so customers stay engaged.
+
+That is sending from Inbox — text when the window is open, templates when it is closed, and rich options from the plus menu.

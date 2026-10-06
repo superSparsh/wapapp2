@@ -1,0 +1,13 @@
+This video shows how to track List Growth from the Dashboard and keep your audience healthy.
+
+Scroll to the List Growth section near the bottom of the Dashboard. You will see cards for average subscribe rate, average unsubscribe rate, total unsubscribers, and total blacklisted contacts.
+
+Subscribe rate tells you how well new contacts are joining. Unsubscribe rate and total unsubscribers show who is leaving. Blacklisted contacts are numbers you should not message again.
+
+Below the cards, open the Subscribers chart. It shows how subscriptions move over time — useful after a campaign, import, or promo when you expect a spike.
+
+Review List Growth at least weekly. Rising unsubscribes or blacklist counts may mean targeting is too broad or messages are too frequent.
+
+If a campaign just finished, refresh the Dashboard first, then compare List Growth with campaign response metrics. Together they show whether people engaged and whether they stayed subscribed.
+
+Use these insights before building the next audience list so growth stays steady and quality stays high.

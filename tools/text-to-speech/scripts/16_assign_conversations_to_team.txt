@@ -1,0 +1,11 @@
+This video shows how to assign Inbox conversations to your team so the right person replies every time.
+
+Open a conversation. In the green chat header, find the Assign agent dropdown. Choose Unassigned, or pick a teammate from the list of assignable agents.
+
+After you assign, the conversation list can show the assignee name on the thread row. That helps everyone see who owns the chat without opening it.
+
+To focus your own queue, open Filters and set Assignee to yourself, another teammate, or only unassigned chats. Combine this with Scope and Date range when the inbox is busy.
+
+Team members typically see chats assigned to them and lines they are allowed to access. Owners and admins can reassign when workload needs balancing.
+
+Assign new leads quickly, reassign when someone is away, and keep Unassigned low so no customer waits without an owner. That is conversation assignment in Inbox — clear ownership, faster replies, happier customers.

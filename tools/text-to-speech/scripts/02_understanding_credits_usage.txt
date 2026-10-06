@@ -1,0 +1,11 @@
+In this video, we will understand Credits Used on the Dashboard so you always know your messaging capacity.
+
+Open the Dashboard and look at the Credits Used section. You will see four cards: Sent, Marketing Conversations, Utility Conversations, and Service messages.
+
+Sent shows how many messages went out in the selected period against your limit. Marketing and Utility track conversation categories that affect WhatsApp billing. Service messages cover support-style traffic, including free allowance when your account shows it.
+
+Use Sort by to switch between Daily, Weekly, Monthly, Yearly, or All time. Watch the cards update so you can compare busy days with quieter periods.
+
+Tap Refresh after a campaign or inbox activity to pull the newest counts. If you see free service remaining, remember free messages are counted per WhatsApp number and are not shared across numbers.
+
+Check these cards before large sends. If you are close to a limit, pause and plan the next batch carefully.

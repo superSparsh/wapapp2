@@ -1,0 +1,11 @@
+In this video, you will learn how to export chat history from Inbox.
+
+There are two export paths. First, open a conversation and tap Export Chat in the green header. That downloads a CSV for the open chat — useful when you need one customer’s full thread.
+
+Second, use Export by date on the Inbox toolbar. A modal asks for the date range. Pick a quick preset such as Today, Last seven days, Last thirty days, or This month, or set From and To dates yourself.
+
+Choose what to export: all chats in that date range, or only the open chat if one is selected. Optionally skip specific phone numbers by pasting them one per line.
+
+Tap Download CSV. Open the file in Excel or Google Sheets for support reviews, audits, or offline follow-up.
+
+Export regularly for important accounts, and always respect privacy rules for your team. That is how you export chat history from Inbox.

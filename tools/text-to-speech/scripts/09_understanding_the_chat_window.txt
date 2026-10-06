@@ -1,0 +1,11 @@
+This video explains the Chat Window — the right side of Inbox where you read and manage one conversation.
+
+Open any chat from the list. The green header shows the contact name, phone number, and a STOP badge if they unsubscribed. On the right of the header you can toggle AI or Human reply, export the chat, delete the conversation, and assign an agent when your team is set up.
+
+Below the header is the message timeline. Incoming messages appear on the left. Your outbound messages appear on the right in green. Messages are grouped by date, and each bubble shows the time. Outbound status icons show sent, delivered, read, or failed.
+
+At the bottom is the composer. Type a message and tap Send when the twenty-four hour session is open. The plus button opens extra actions such as templates, media, and payments.
+
+If the session expired, an amber banner explains that you must send an approved template first. After the customer replies, the free-form window opens again.
+
+Use Maximize if you want more space for a busy conversation. That is the Chat Window — header controls, message history, and composer in one place.
