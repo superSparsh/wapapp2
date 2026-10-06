@@ -14,7 +14,6 @@ final class HorizonRole
     public const LIGHT = [
         'critical',
         'messages',
-        'status',
         'automation',
         'default',
         'low',
