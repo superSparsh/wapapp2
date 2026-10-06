@@ -81,7 +81,7 @@ class OptInTemplateService
             'category' => $desired['category'],
             'language' => 'en_GB',
         ];
-        $payload['body'] = ['text' => $bodyText, 'samples' => []];
+        $payload['body'] = ['text' => $bodyText, 'samples' => ['John Doe']];
         $payload['footer'] = ['text' => ''];
         $payload['button_mode'] = 'quick_reply';
         $payload['is_opt_out'] = false;

@@ -651,7 +651,19 @@ class TemplateWhatsAppService
     private function buildExample(Template $template): array
     {
         $payload = $template->wizardPayload();
-        $samples = $payload['body']['samples'] ?? [];
+        $samples = is_array($payload['body']['samples'] ?? null)
+            ? array_values(array_filter($payload['body']['samples'], fn ($s) => filled($s)))
+            : [];
+
+        // If template body has variables but samples are empty, auto-generate fallback samples
+        // so Meta never rejects with INVALID_FORMAT(Duplicate content or missing examples.)
+        if (empty($samples)) {
+            $bodyText = (string) ($payload['body']['text'] ?? $template->body_preview ?? '');
+            $varCount = preg_match_all('/\{\{(\d+|[a-zA-Z0-9_]+)\}\}/', $bodyText, $matches);
+            if ($varCount > 0) {
+                $samples = array_fill(0, $varCount, 'John');
+            }
+        }
 
         if (empty($samples)) {
             return [];
