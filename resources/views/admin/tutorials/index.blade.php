@@ -48,8 +48,15 @@
             <span class="line-clamp-1 font-mono text-xs" title="{{ $row->youtube_id }}">{{ $row->youtube_id }}</span>
           </td>
           <td class="fd-table-cell p-2 align-middle">
-            @if ($fileStatus[$row->id] ?? false)
-              <span class="rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-semibold text-green-700">On disk</span>
+            @php $status = $fileStatus[$row->id] ?? ['has_file' => false, 'is_updated' => false, 'using_fallback' => false]; @endphp
+            @if ($status['has_file'] ?? false)
+              @if ($status['is_updated'] ?? false)
+                <span class="rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-semibold text-green-700">Updated</span>
+              @elseif ($status['using_fallback'] ?? false)
+                <span class="rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-semibold text-blue-700">Old file</span>
+              @else
+                <span class="rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-semibold text-green-700">On disk</span>
+              @endif
             @else
               <span class="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700">Missing</span>
             @endif

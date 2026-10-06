@@ -141,7 +141,7 @@ class AdminTutorialVideoUploadTest extends TestCase
         ], config('tenancy.database.central_connection'));
     }
 
-    public function test_replace_with_new_filename_deletes_previous_file(): void
+    public function test_replace_with_new_filename_keeps_previous_file_as_fallback(): void
     {
         $oldPath = $this->videoDir.'/old_name.mp4';
         File::put($oldPath, 'old');
@@ -163,11 +163,103 @@ class AdminTutorialVideoUploadTest extends TestCase
             ])
             ->assertRedirect(route('admin.tutorials.index'));
 
-        $this->assertFalse(File::isFile($oldPath));
+        $this->assertTrue(File::isFile($oldPath));
         $this->assertTrue(File::isFile($this->videoDir.'/new_name.mp4'));
         $this->assertDatabaseHas('tutorial_videos', [
             'id' => $tutorial->id,
             'youtube_id' => 'new_name.mp4',
+            'previous_youtube_id' => 'old_name.mp4',
         ], config('tenancy.database.central_connection'));
+    }
+
+    public function test_frontend_falls_back_to_previous_file_when_new_missing(): void
+    {
+        File::put($this->videoDir.'/old_name.mp4', 'old-bytes');
+
+        $tutorial = TutorialVideo::factory()->create([
+            'title' => 'Fallback Tutorial',
+            'module_name' => 'Module 1: Dashboard',
+            'youtube_id' => 'new_missing.mp4',
+            'previous_youtube_id' => 'old_name.mp4',
+            'video_updated_at' => now(),
+            'is_active' => true,
+        ]);
+
+        $tree = app(\App\Domains\HelpCenter\Support\TutorialModuleTree::class);
+        $row = $tree->videoRow($tutorial, $tutorial->id);
+
+        $this->assertTrue($row['has_file']);
+        $this->assertTrue($row['using_fallback']);
+        $this->assertFalse($row['is_updated']);
+        $this->assertSame('old_name.mp4', $row['playback_filename']);
+    }
+
+    public function test_can_upload_replacement_after_deleting_old_file(): void
+    {
+        $path = $this->videoDir.'/Video_1_Dashboard_Overview.mp4';
+        File::put($path, 'old');
+
+        $tutorial = TutorialVideo::factory()->create([
+            'youtube_id' => 'Video_1_Dashboard_Overview.mp4',
+            'title' => 'Dashboard Overview',
+            'module_name' => 'Module 1: Dashboard',
+        ]);
+
+        $this->actingAs($this->admin, 'admin')
+            ->delete(route('admin.tutorials.destroy-video', $tutorial))
+            ->assertRedirect();
+
+        $this->assertFalse(File::isFile($path));
+
+        $replacement = UploadedFile::fake()->create('Dashboard_Overview.mp4', 2048, 'video/mp4');
+
+        $this->actingAs($this->admin, 'admin')
+            ->put(route('admin.tutorials.update', $tutorial), [
+                'title' => 'Dashboard Overview',
+                'module_name' => 'Module 1: Dashboard',
+                'youtube_id' => 'Video_1_Dashboard_Overview.mp4',
+                'sort_order' => 1,
+                'is_active' => '1',
+                'video' => $replacement,
+            ])
+            ->assertRedirect(route('admin.tutorials.index'))
+            ->assertSessionHas('status', 'Tutorial updated and video replaced.');
+
+        $this->assertTrue(File::isFile($path));
+        $this->actingAs($this->admin, 'admin')
+            ->get(route('admin.tutorials.index'))
+            ->assertOk()
+            ->assertSee('Updated');
+    }
+
+    public function test_pointing_filename_at_existing_disk_file_clears_missing(): void
+    {
+        File::put($this->videoDir.'/fresh_upload.mp4', 'bytes');
+
+        $tutorial = TutorialVideo::factory()->create([
+            'youtube_id' => 'old_deleted.mp4',
+            'title' => 'Fresh',
+            'module_name' => 'Module 1: Dashboard',
+        ]);
+
+        $this->actingAs($this->admin, 'admin')
+            ->put(route('admin.tutorials.update', $tutorial), [
+                'title' => 'Fresh',
+                'module_name' => 'Module 1: Dashboard',
+                'youtube_id' => 'fresh_upload.mp4',
+                'sort_order' => 0,
+                'is_active' => '1',
+            ])
+            ->assertRedirect(route('admin.tutorials.index'));
+
+        $this->assertDatabaseHas('tutorial_videos', [
+            'id' => $tutorial->id,
+            'youtube_id' => 'fresh_upload.mp4',
+        ], config('tenancy.database.central_connection'));
+
+        $this->actingAs($this->admin, 'admin')
+            ->get(route('admin.tutorials.index'))
+            ->assertOk()
+            ->assertSee('Updated');
     }
 }

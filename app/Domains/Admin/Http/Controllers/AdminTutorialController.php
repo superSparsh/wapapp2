@@ -51,7 +51,13 @@ class AdminTutorialController extends Controller
 
         $fileStatus = [];
         foreach ($rows as $row) {
-            $fileStatus[$row->id] = $row->isLocalFile() && $this->videoStorage->exists((string) $row->youtube_id);
+            $playback = $this->moduleTree->resolvePlayback($row);
+            $fileStatus[$row->id] = [
+                'has_file' => $playback['path'] !== null,
+                'is_updated' => $row->video_updated_at !== null && ! $playback['using_fallback'],
+                'using_fallback' => $playback['using_fallback'],
+                'playback_filename' => $playback['filename'],
+            ];
         }
 
         return view('admin.tutorials.index', [
@@ -85,6 +91,7 @@ class AdminTutorialController extends Controller
                 $data['youtube_id'] ?: null,
                 $previousFilename,
             );
+            $data['video_updated_at'] = now();
         }
 
         TutorialVideo::query()->create($data);
@@ -95,13 +102,16 @@ class AdminTutorialController extends Controller
 
     public function edit(TutorialVideo $tutorial): View
     {
-        $hasVideoFile = $tutorial->isLocalFile() && $this->videoStorage->exists((string) $tutorial->youtube_id);
+        $playback = $this->moduleTree->resolvePlayback($tutorial);
+        $hasVideoFile = $playback['path'] !== null;
 
         return view('admin.tutorials.form', [
             'row' => $tutorial,
             'hasVideoFile' => $hasVideoFile,
-            'playbackUrl' => $hasVideoFile
-                ? $this->moduleTree->localPlaybackUrl((string) $tutorial->youtube_id)
+            'usingFallback' => $playback['using_fallback'],
+            'playbackFilename' => $playback['filename'],
+            'playbackUrl' => $hasVideoFile && $playback['filename'] !== null
+                ? $this->moduleTree->localPlaybackUrl($playback['filename'])
                 : null,
         ]);
     }
@@ -109,33 +119,75 @@ class AdminTutorialController extends Controller
     public function update(Request $request, TutorialVideo $tutorial): RedirectResponse
     {
         $data = $this->validated($request, requireVideo: false);
-        $previousFilename = (string) $tutorial->youtube_id;
+        $previousFilename = trim((string) $tutorial->youtube_id);
 
         if ($request->hasFile('video')) {
-            $data['youtube_id'] = $this->videoStorage->store(
+            // Prefer the form filename, else keep the previous DB name so replace stays stable.
+            $preferred = $data['youtube_id'] !== '' ? $data['youtube_id'] : $previousFilename;
+            $stored = $this->videoStorage->store(
                 $request->file('video'),
-                $data['youtube_id'] ?: $previousFilename,
-                $previousFilename,
+                $preferred !== '' ? $preferred : null,
+                $previousFilename !== '' ? $previousFilename : null,
             );
-        } elseif (
-            $data['youtube_id'] !== $previousFilename
-            && $tutorial->isLocalFile()
-            && $this->videoStorage->exists($previousFilename)
-        ) {
-            // Filename renamed in the form without a new upload — move/rename on disk.
-            $oldPath = $this->videoStorage->pathFor($previousFilename);
+            $data['youtube_id'] = $stored;
+
+            if (
+                $previousFilename !== ''
+                && strcasecmp($previousFilename, $stored) !== 0
+            ) {
+                // Keep old filename as fallback so front can still play it
+                // until the new file is confirmed, or for other tutorials.
+                $data['previous_youtube_id'] = $previousFilename;
+            }
+
+            $data['video_updated_at'] = now();
+        } elseif ($data['youtube_id'] !== '' && $data['youtube_id'] !== $previousFilename) {
             $newPath = $this->videoStorage->pathFor($data['youtube_id']);
-            if (is_file($oldPath) && $oldPath !== $newPath) {
-                @rename($oldPath, $newPath);
+            $oldResolved = $previousFilename !== '' ? $this->videoStorage->resolvePath($previousFilename) : null;
+
+            if ($oldResolved !== null && ! is_file($newPath)) {
+                // Rename on disk when the old file still exists.
+                @rename($oldResolved, $newPath);
+            } elseif (
+                $previousFilename !== ''
+                && $this->videoStorage->exists($previousFilename)
+            ) {
+                // Pointing at a new file that already exists — keep old as fallback.
+                $data['previous_youtube_id'] = $previousFilename;
+            }
+
+            if ($this->videoStorage->exists($data['youtube_id'])) {
+                $data['video_updated_at'] = now();
+            }
+        } elseif ($data['youtube_id'] === '' && $previousFilename !== '') {
+            // Keep previous local filename when the field is left blank.
+            $data['youtube_id'] = $previousFilename;
+        }
+
+        // Normalize casing to the real on-disk basename when a match exists.
+        if ($data['youtube_id'] !== '') {
+            $canonical = $this->videoStorage->canonicalFilename($data['youtube_id']);
+            if ($canonical !== null) {
+                $data['youtube_id'] = $canonical;
             }
         }
 
         $tutorial->update($data);
         HelpCenterCache::flush();
+        $tutorial->refresh();
+
+        $playback = $this->moduleTree->resolvePlayback($tutorial);
 
         $message = $request->hasFile('video')
             ? 'Tutorial updated and video replaced.'
             : 'Tutorial updated.';
+
+        if ($playback['path'] === null) {
+            $message .= ' Warning: no playable file on disk yet for '.$tutorial->youtube_id
+                .' — upload the MP4 or keep the previous filename available as fallback.';
+        } elseif ($playback['using_fallback']) {
+            $message .= ' Playing previous file ('.$playback['filename'].') until the new filename is on disk.';
+        }
 
         return redirect()->route('admin.tutorials.index')->with('status', $message);
     }

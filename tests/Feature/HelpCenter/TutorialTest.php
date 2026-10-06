@@ -50,7 +50,7 @@ class TutorialTest extends TestCase
             ->assertOk()
             ->assertSee('Dashboard Overview')
             ->assertSee('Module 1: Dashboard')
-            ->assertSee('Note: These are tutorials from the previous WapApp design.')
+            ->assertSee('Note: This tutorial still uses the previous WapApp design video.')
             ->assertDontSee('Inbox Basics')
             ->assertDontSee('Hidden Tutorial');
     }

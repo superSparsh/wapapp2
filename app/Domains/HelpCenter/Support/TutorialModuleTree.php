@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Domains\HelpCenter\Support;
 
+use App\Domains\HelpCenter\Services\TutorialVideoStorage;
 use App\Models\TutorialVideo;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\File;
 
 class TutorialModuleTree
 {
@@ -141,13 +141,29 @@ class TutorialModuleTree
     }
 
     /**
-     * @return array{id: int, title: string, module_name: string, description: string|null, duration: string|null, active: bool, url: string, embed_url: null, stream_url: string|null, is_local: bool, has_file: bool}
+     * @return array{
+     *     id: int,
+     *     title: string,
+     *     module_name: string,
+     *     description: string|null,
+     *     duration: string|null,
+     *     active: bool,
+     *     url: string,
+     *     embed_url: null,
+     *     stream_url: string|null,
+     *     is_local: bool,
+     *     has_file: bool,
+     *     is_updated: bool,
+     *     using_fallback: bool,
+     *     playback_filename: string|null,
+     *     cache_buster: string
+     * }
      */
     public function videoRow(TutorialVideo $video, ?int $activeVideoId): array
     {
-        $isLocal = $video->isLocalFile();
-        $localPath = $isLocal ? $this->resolveLocalVideoPath((string) $video->youtube_id) : null;
-        $hasLocalFile = $localPath !== null;
+        $playback = $this->resolvePlayback($video);
+        $hasLocalFile = $playback['path'] !== null;
+        $isUpdated = $video->video_updated_at !== null && ! $playback['using_fallback'];
 
         return [
             'id' => (int) $video->id,
@@ -158,9 +174,50 @@ class TutorialModuleTree
             'active' => $activeVideoId !== null && (int) $activeVideoId === (int) $video->id,
             'url' => route('tutorials.index', ['video_id' => (int) $video->id]),
             'embed_url' => null,
-            'stream_url' => $hasLocalFile ? $this->localPlaybackUrl((string) $video->youtube_id) : null,
-            'is_local' => $isLocal,
+            'stream_url' => $hasLocalFile && $playback['filename'] !== null
+                ? $this->localPlaybackUrl($playback['filename'])
+                : null,
+            'is_local' => $video->isLocalFile(),
             'has_file' => $hasLocalFile,
+            'is_updated' => $isUpdated,
+            'using_fallback' => $playback['using_fallback'],
+            'playback_filename' => $playback['filename'],
+            'cache_buster' => $playback['cache_buster'],
+        ];
+    }
+
+    /**
+     * Prefer current (updated) file; fall back to previous/legacy file if new one is missing.
+     *
+     * @return array{filename: string|null, path: string|null, using_fallback: bool, cache_buster: string}
+     */
+    public function resolvePlayback(TutorialVideo $video): array
+    {
+        $storage = app(TutorialVideoStorage::class);
+        $candidates = $video->candidateFilenames();
+        $primary = $candidates[0] ?? null;
+
+        foreach ($candidates as $index => $filename) {
+            $path = $storage->resolvePath($filename);
+            if ($path === null) {
+                continue;
+            }
+
+            $mtime = @filemtime($path);
+
+            return [
+                'filename' => basename($path),
+                'path' => $path,
+                'using_fallback' => $primary !== null && strcasecmp($filename, $primary) !== 0,
+                'cache_buster' => (string) ($mtime !== false ? $mtime : $video->id),
+            ];
+        }
+
+        return [
+            'filename' => $primary,
+            'path' => null,
+            'using_fallback' => false,
+            'cache_buster' => (string) ($video->updated_at?->timestamp ?? $video->id),
         ];
     }
 
@@ -181,25 +238,7 @@ class TutorialModuleTree
 
     public function resolveLocalVideoPath(string $filename): ?string
     {
-        $filename = basename($filename);
-        $directory = (string) config('help-center.video_path');
-        $path = $directory.DIRECTORY_SEPARATOR.$filename;
-
-        if (File::isFile($path)) {
-            return $path;
-        }
-
-        if (! File::isDirectory($directory)) {
-            return null;
-        }
-
-        foreach (File::files($directory) as $file) {
-            if (strcasecmp($file->getFilename(), $filename) === 0) {
-                return $file->getPathname();
-            }
-        }
-
-        return null;
+        return app(TutorialVideoStorage::class)->resolvePath($filename);
     }
 
     private function encodePathSegment(string $filename): string

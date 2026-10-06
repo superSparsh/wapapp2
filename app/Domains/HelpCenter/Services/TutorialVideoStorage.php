@@ -25,15 +25,51 @@ class TutorialVideoStorage
         return $this->directory().DIRECTORY_SEPARATOR.basename($filename);
     }
 
-    public function exists(string $filename): bool
+    /**
+     * Resolve an on-disk path for a tutorial filename (case-insensitive on Linux).
+     */
+    public function resolvePath(string $filename): ?string
     {
-        $filename = trim($filename);
+        $filename = basename(trim($filename));
 
         if ($filename === '') {
-            return false;
+            return null;
         }
 
-        return File::isFile($this->pathFor($filename));
+        $path = $this->pathFor($filename);
+
+        if (File::isFile($path)) {
+            return $path;
+        }
+
+        $directory = $this->directory();
+
+        if (! File::isDirectory($directory)) {
+            return null;
+        }
+
+        foreach (File::files($directory) as $file) {
+            if (strcasecmp($file->getFilename(), $filename) === 0) {
+                return $file->getPathname();
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Actual on-disk basename when a case-insensitive match exists.
+     */
+    public function canonicalFilename(string $filename): ?string
+    {
+        $resolved = $this->resolvePath($filename);
+
+        return $resolved !== null ? basename($resolved) : null;
+    }
+
+    public function exists(string $filename): bool
+    {
+        return $this->resolvePath($filename) !== null;
     }
 
     /**
@@ -49,17 +85,16 @@ class TutorialVideoStorage
             File::delete($destination);
         }
 
+        // Case-only rename clash (Video.mp4 vs video.mp4) on case-sensitive disks.
+        $existing = $this->resolvePath($filename);
+        if ($existing !== null && realpath($existing) !== realpath($destination)) {
+            File::delete($existing);
+        }
+
         $file->move($this->directory(), $filename);
 
-        $previousFilename = $previousFilename !== null ? basename(trim($previousFilename)) : null;
-        if (
-            $previousFilename !== null
-            && $previousFilename !== ''
-            && strcasecmp($previousFilename, $filename) !== 0
-            && $this->exists($previousFilename)
-        ) {
-            $this->delete($previousFilename);
-        }
+        // Keep the previous file on disk as a frontend fallback until it is
+        // explicitly deleted. Progressive tutorial updates rely on this.
 
         return $filename;
     }
@@ -68,11 +103,17 @@ class TutorialVideoStorage
     {
         $filename = basename(trim($filename));
 
-        if ($filename === '' || ! $this->exists($filename)) {
+        if ($filename === '') {
             return false;
         }
 
-        return File::delete($this->pathFor($filename));
+        $path = $this->resolvePath($filename);
+
+        if ($path === null) {
+            return false;
+        }
+
+        return File::delete($path);
     }
 
     private function resolveFilename(UploadedFile $file, ?string $preferredFilename): string

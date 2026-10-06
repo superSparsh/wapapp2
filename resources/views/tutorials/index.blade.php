@@ -5,15 +5,17 @@
     </div>
 
     <section class="flex-1 p-4">
-      <div
-        role="status"
-        class="mb-4 rounded-xl border border-green-500 bg-green-50 px-4 py-3 text-sm leading-[1.5] text-text-primary"
-      >
-        <p class="font-semibold text-green-700">Note: These are tutorials from the previous WapApp design.</p>
-        <p class="mt-1 text-text-subtle">
-          We will upload updated videos for the new UI soon. The steps are mostly the same - only the look has changed.
-        </p>
-      </div>
+      @if (! ($current['is_updated'] ?? false))
+        <div
+          role="status"
+          class="mb-4 rounded-xl border border-green-500 bg-green-50 px-4 py-3 text-sm leading-[1.5] text-text-primary"
+        >
+          <p class="font-semibold text-green-700">Note: This tutorial still uses the previous WapApp design video.</p>
+          <p class="mt-1 text-text-subtle">
+            Updated videos for the new UI are being rolled out. Steps are mostly the same - only the look has changed.
+          </p>
+        </div>
+      @endif
 
       <div class="flex h-full flex-col gap-4 rounded-lg bg-elevated p-3 lg:min-h-[calc(100vh-8rem)] lg:flex-row lg:items-start">
         <x-tutorials.sidebar :categories="$categories" :search="$search" />
@@ -43,7 +45,7 @@
                   playsinline
                   preload="metadata"
                   class="absolute inset-0 size-full object-contain"
-                  src="{{ $current['stream_url'] }}{{ str_contains($current['stream_url'], '?') ? '&' : '?' }}v={{ $current['id'] }}"
+                  src="{{ $current['stream_url'] }}{{ str_contains($current['stream_url'], '?') ? '&' : '?' }}v={{ $current['cache_buster'] ?? $current['id'] }}"
                 >
                   Your browser does not support the video tag.
                 </video>

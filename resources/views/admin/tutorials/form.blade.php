@@ -3,6 +3,8 @@
   $action = $isEdit ? route('admin.tutorials.update', $row) : route('admin.tutorials.store');
   $hasVideoFile = $hasVideoFile ?? false;
   $playbackUrl = $playbackUrl ?? null;
+  $usingFallback = $usingFallback ?? false;
+  $playbackFilename = $playbackFilename ?? null;
 @endphp
 
 <x-admin.layout :title="($isEdit ? 'Edit tutorial' : 'Add tutorial').' - Admin'" active="admin.tutorials.index">
@@ -41,12 +43,30 @@
           </div>
           @if ($isEdit)
             @if ($hasVideoFile)
-              <span class="rounded-full bg-green-100 px-2.5 py-1 text-xs font-semibold text-green-700">File on disk</span>
+              @if ($usingFallback)
+                <span class="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-semibold text-blue-700">Playing old file</span>
+              @else
+                <span class="rounded-full bg-green-100 px-2.5 py-1 text-xs font-semibold text-green-700">File on disk</span>
+              @endif
             @else
               <span class="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700">Missing file</span>
             @endif
           @endif
         </div>
+
+        @if ($isEdit && $usingFallback && filled($playbackFilename))
+          <p class="mb-3 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800">
+            New filename is not on disk yet, so the front will keep playing the previous file:
+            <code class="font-mono">{{ $playbackFilename }}</code>.
+            Upload the new MP4 (or match the filename field) to switch customers to the updated video.
+          </p>
+        @elseif ($isEdit && ! $hasVideoFile && filled($row->youtube_id ?? null))
+          <p class="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+            Expected file not found:
+            <code class="font-mono">public/assets/videos/tutorials/{{ $row->youtube_id }}</code>.
+            Upload below with this same filename, or change the filename field to match the MP4 already on the server.
+          </p>
+        @endif
 
         @if ($isEdit && $hasVideoFile && $playbackUrl)
           <div class="mb-3 overflow-hidden rounded-lg bg-black">
