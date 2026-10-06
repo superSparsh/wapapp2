@@ -329,7 +329,9 @@ class OptInTemplateService
             || str_contains($haystack, 'invalid_format')
             || str_contains($haystack, 'duplicate content')
             || str_contains($haystack, 'invalidparameter')
-            || str_contains($haystack, 'message must not be null');
+            || str_contains($haystack, 'message must not be null')
+            || str_contains($haystack, 'custspaceid')
+            || str_contains($haystack, 'not connected');
     }
 
     private function contentVariantFor(?Template $template): int

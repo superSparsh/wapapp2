@@ -32,13 +32,21 @@ class TemplateWhatsAppService
     {
         if (! $this->camsClient->isConfigured()) {
             Log::warning('Cams client not configured; skipping template submission.', ['template_id' => $template->id]);
+            $this->handleSubmissionError(
+                $template,
+                'WhatsApp / Alibaba CAMS is not configured on this server (missing access keys).',
+            );
 
             return false;
         }
 
-        $line = $template->whatsappLine;
-        if (! $line instanceof WhatsappLine || blank($line->alibaba_cust_space_id)) {
+        $line = $this->resolveLineForSubmit($template);
+        if (! $line instanceof WhatsappLine) {
             Log::warning('No WhatsApp line configured for template submission.', ['template_id' => $template->id]);
+            $this->handleSubmissionError(
+                $template,
+                'WhatsApp Phone Number is not connected (missing Alibaba CustSpaceId). Connect the number in Integration, then resubmit.',
+            );
 
             return false;
         }
@@ -133,13 +141,21 @@ class TemplateWhatsAppService
 
         if (! $this->camsClient->isConfigured()) {
             Log::warning('Cams client not configured; skipping template modify.', ['template_id' => $template->id]);
+            $this->handleSubmissionError(
+                $template,
+                'WhatsApp / Alibaba CAMS is not configured on this server (missing access keys).',
+            );
 
             return false;
         }
 
-        $line = $template->whatsappLine;
-        if (! $line instanceof WhatsappLine || blank($line->alibaba_cust_space_id)) {
+        $line = $this->resolveLineForSubmit($template);
+        if (! $line instanceof WhatsappLine) {
             Log::warning('No WhatsApp line configured for template modify.', ['template_id' => $template->id]);
+            $this->handleSubmissionError(
+                $template,
+                'WhatsApp Phone Number is not connected (missing Alibaba CustSpaceId). Connect the number in Integration, then resubmit.',
+            );
 
             return false;
         }
@@ -765,6 +781,37 @@ class TemplateWhatsAppService
     private function normalizeName(string $name): string
     {
         return str_replace(' ', '_', strtolower(trim($name)));
+    }
+
+    /**
+     * Prefer the template's line; if CustSpaceId is missing, attach the default connected line.
+     */
+    private function resolveLineForSubmit(Template $template): ?WhatsappLine
+    {
+        $template->loadMissing('whatsappLine');
+        $line = $template->whatsappLine;
+
+        if ($line instanceof WhatsappLine && filled($line->alibaba_cust_space_id)) {
+            return $line;
+        }
+
+        $fallback = WhatsappLine::query()
+            ->whereNotNull('alibaba_cust_space_id')
+            ->where('alibaba_cust_space_id', '!=', '')
+            ->orderByDesc('is_default')
+            ->orderBy('id')
+            ->first();
+
+        if (! $fallback instanceof WhatsappLine) {
+            return null;
+        }
+
+        if ((int) ($template->whatsapp_line_id ?? 0) !== (int) $fallback->id) {
+            $template->forceFill(['whatsapp_line_id' => $fallback->id])->saveQuietly();
+            $template->setRelation('whatsappLine', $fallback);
+        }
+
+        return $fallback;
     }
 
     /**
