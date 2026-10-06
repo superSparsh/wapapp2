@@ -157,6 +157,7 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::post('/tutorials/import-legacy', [AdminTutorialController::class, 'importLegacy'])->name('tutorials.import-legacy');
         Route::get('/tutorials/{tutorial}/edit', [AdminTutorialController::class, 'edit'])->name('tutorials.edit');
         Route::put('/tutorials/{tutorial}', [AdminTutorialController::class, 'update'])->name('tutorials.update');
+        Route::delete('/tutorials/{tutorial}/video', [AdminTutorialController::class, 'destroyVideo'])->name('tutorials.destroy-video');
         Route::post('/tutorials/{tutorial}/toggle', [AdminTutorialController::class, 'toggle'])->name('tutorials.toggle');
         Route::delete('/tutorials/{tutorial}', [AdminTutorialController::class, 'destroy'])->name('tutorials.destroy');
 

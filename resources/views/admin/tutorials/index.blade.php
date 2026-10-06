@@ -2,8 +2,8 @@
   <div class="flex flex-wrap items-start justify-between gap-3 p-4">
     <div>
       <h1 class="text-2xl font-bold text-text-primary">Tutorials</h1>
-      <p class="text-sm text-text-subtle opacity-70">Help center videos shown to customers (same as legacy Admin tutorials).</p>
-      <p class="mt-1 text-xs text-text-subtle">Local MP4 files go in: <code class="rounded bg-muted-surface px-1.5 py-0.5">public/assets/videos/tutorials/</code> (filename must match the Video ID field).</p>
+      <p class="text-sm text-text-subtle opacity-70">Help center videos shown to customers. Upload or replace MP4s from Edit.</p>
+      <p class="mt-1 text-xs text-text-subtle">Files live in: <code class="rounded bg-muted-surface px-1.5 py-0.5">public/assets/videos/tutorials/</code></p>
     </div>
     <div class="flex flex-wrap gap-2">
       <form method="POST" action="{{ route('admin.tutorials.import-legacy') }}" onsubmit="return confirm('Import tutorials from the legacy database? Existing title+module rows will be updated.')">
@@ -16,6 +16,13 @@
     </div>
   </div>
 
+  @if (session('status'))
+    <div class="mx-4 mb-2 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">{{ session('status') }}</div>
+  @endif
+  @if (session('error'))
+    <div class="mx-4 mb-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">{{ session('error') }}</div>
+  @endif
+
   <x-admin.filter-bar
     :action="route('admin.tutorials.index')"
     :search="$filters['q'] ?? ''"
@@ -27,7 +34,7 @@
   />
 
   <div class="p-4 pt-0">
-    <x-ui.data-table :headers="['Title', 'Module', 'Video', 'Order', 'Active', 'Actions']" :paginator="$rows">
+    <x-ui.data-table :headers="['Title', 'Module', 'Video', 'File', 'Order', 'Active', 'Actions']" :paginator="$rows">
       @forelse ($rows as $row)
         <tr class="bg-elevated">
           <td class="fd-table-cell p-2 align-middle">
@@ -40,6 +47,13 @@
           <td class="fd-table-cell p-2 align-middle text-sm">
             <span class="line-clamp-1 font-mono text-xs" title="{{ $row->youtube_id }}">{{ $row->youtube_id }}</span>
           </td>
+          <td class="fd-table-cell p-2 align-middle">
+            @if ($fileStatus[$row->id] ?? false)
+              <span class="rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-semibold text-green-700">On disk</span>
+            @else
+              <span class="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700">Missing</span>
+            @endif
+          </td>
           <td class="fd-table-cell p-2 align-middle text-sm">{{ $row->sort_order }}</td>
           <td class="fd-table-cell p-2 align-middle"><x-admin.status-badge :status="$row->is_active" /></td>
           <td class="w-[160px] p-2 align-middle">
@@ -51,14 +65,14 @@
                 'trash' => route('admin.tutorials.destroy', $row),
               ]"
               :methods="['toggle' => 'POST', 'trash' => 'DELETE']"
-              confirm="Delete this tutorial? This action cannot be undone."
+              confirm="Delete this tutorial and its video file? This action cannot be undone."
               confirm-title="Delete tutorial"
               confirm-label="Delete"
             />
           </td>
         </tr>
       @empty
-        <tr><td colspan="6" class="p-6 text-center text-sm text-text-subtle">No tutorials yet. Import from legacy or add one.</td></tr>
+        <tr><td colspan="7" class="p-6 text-center text-sm text-text-subtle">No tutorials yet. Import from legacy or add one.</td></tr>
       @endforelse
     </x-ui.data-table>
   </div>
