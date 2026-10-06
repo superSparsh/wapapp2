@@ -203,6 +203,43 @@ class InboxOutboundTest extends TestCase
         ]);
     }
 
+    public function test_template_send_auto_fills_unsub_from_unsubscribe_button_url(): void
+    {
+        Template::factory()->create([
+            'name' => 'Promo With Unsub',
+            'code' => '1265608514506162176',
+            'whatsapp_line_id' => $this->testLine->id,
+            'payload' => array_merge(Template::defaultPayload(), [
+                'body' => ['text' => 'Hello $(name), check this offer.'],
+                'is_opt_out' => true,
+                'buttons' => [[
+                    'text' => 'Stop promotions',
+                    'type' => 'unsubscribe',
+                    'url' => 'https://example.com/unsubscribe-list/$(unsub)',
+                ]],
+            ]),
+        ]);
+
+        $conversation = $this->createConversation();
+
+        $this->actingAsTenantUser()
+            ->postJson(route('inbox.api.send-template', $conversation), [
+                'template_code' => '1265608514506162176',
+                'template_params' => ['name' => 'Sparsh'],
+            ])
+            ->assertCreated();
+
+        $message = Message::query()
+            ->where('conversation_id', $conversation->id)
+            ->where('message_type', MessageType::Template->value)
+            ->latest('id')
+            ->first();
+
+        $this->assertNotNull($message);
+        $this->assertSame((string) $conversation->contact->id, $message->metadata['template_params']['unsub'] ?? null);
+        $this->assertSame('Sparsh', $message->metadata['template_params']['name'] ?? null);
+    }
+
     public function test_templates_api_lists_only_sendable_provider_templates(): void
     {
         Template::factory()->create([

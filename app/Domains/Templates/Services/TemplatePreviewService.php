@@ -228,7 +228,10 @@ class TemplatePreviewService
     }
 
     /**
-     * Variables for campaign mapping: body/header placeholders + linked pivot rows.
+     * Variables for campaign mapping: body/header/footer/button URL placeholders + linked pivot rows.
+     *
+     * Button URLs (e.g. unsubscribe `/unsubscribe-list/$(unsub)`) are included so CAMS
+     * TemplateParams stay complete for inbox / campaigns / forms.
      *
      * @return list<array{id: int|null, name: string, type: string, type_label: string}>
      */
@@ -237,12 +240,36 @@ class TemplatePreviewService
         $template->loadMissing('variables');
 
         $payload = $template->wizardPayload();
-        $text = implode("\n", array_filter([
+        $chunks = [
             (string) ($payload['header']['text'] ?? ''),
+            (string) ($payload['header']['media_url'] ?? ''),
             (string) ($payload['body']['text'] ?? $template->body_preview ?? ''),
             (string) ($payload['footer']['text'] ?? ''),
-        ]));
+        ];
 
+        foreach (is_array($payload['buttons'] ?? null) ? $payload['buttons'] : [] as $button) {
+            if (! is_array($button)) {
+                continue;
+            }
+            $chunks[] = (string) ($button['url'] ?? '');
+            $chunks[] = (string) ($button['text'] ?? '');
+        }
+
+        foreach (is_array($payload['carousel']['cards'] ?? null) ? $payload['carousel']['cards'] : [] as $card) {
+            if (! is_array($card)) {
+                continue;
+            }
+            $chunks[] = (string) ($card['body'] ?? $card['text'] ?? '');
+            foreach (is_array($card['buttons'] ?? null) ? $card['buttons'] : [] as $button) {
+                if (! is_array($button)) {
+                    continue;
+                }
+                $chunks[] = (string) ($button['url'] ?? '');
+                $chunks[] = (string) ($button['text'] ?? '');
+            }
+        }
+
+        $text = implode("\n", array_filter($chunks, static fn (string $chunk): bool => trim($chunk) !== ''));
         $namesFromText = TemplateVariableSyntax::extractVariableNames($text);
         $linked = $template->variables->keyBy('name');
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Templates\Services;
 
+use App\Domains\Campaigns\Services\CampaignTemplateParamsResolver;
 use App\Domains\Inbox\Services\InboxOutboundService;
 use App\Domains\Templates\Enums\TemplateSource;
 use App\Domains\Templates\Enums\TemplateStatus;
@@ -70,9 +71,17 @@ class TemplateRegistryService
 
         return $templates
             ->map(function (Template $template) use ($previewService): array {
-                $variables = array_values(array_map(
-                    static fn (array $variable): array => ['name' => (string) $variable['name']],
-                    $previewService->variablesForTemplate($template),
+                $variables = array_values(array_filter(
+                    array_map(
+                        static fn (array $variable): array => ['name' => (string) $variable['name']],
+                        $previewService->variablesForTemplate($template),
+                    ),
+                    // Hidden system placeholders are auto-filled on send (campaigns parity).
+                    static fn (array $variable): bool => ! in_array(
+                        (string) ($variable['name'] ?? ''),
+                        CampaignTemplateParamsResolver::HIDDEN_GRID_VARS,
+                        true,
+                    ),
                 ));
                 $preview = $previewService->forTemplate($template, [], true);
                 $providerCode = $template->whatsappCode();

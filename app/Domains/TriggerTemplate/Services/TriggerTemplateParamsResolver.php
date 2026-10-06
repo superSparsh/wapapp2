@@ -123,6 +123,7 @@ class TriggerTemplateParamsResolver
             'user_phone' => $phone !== '' ? $phone : null,
             'mobile' => $phone !== '' ? $phone : null,
             'email' => filled($contact?->email) ? (string) $contact->email : null,
+            'unsub' => (string) ($contact?->id ?? 'unsub'),
         ], static fn ($value) => $value !== null && $value !== '');
 
         $customFields = is_array($contact?->custom_fields) ? $contact->custom_fields : [];
@@ -157,6 +158,7 @@ class TriggerTemplateParamsResolver
                 'phone_number', 'phone', 'user_phone', 'mobile',
             ],
             'email' => ['email'],
+            'unsub' => ['unsub'],
             default => [$name],
         };
 
@@ -175,6 +177,10 @@ class TriggerTemplateParamsResolver
      */
     private function fallback(string $name, array $context): string
     {
+        if ($name === 'unsub') {
+            return (string) ($context['unsub'] ?? 'unsub');
+        }
+
         $phone = trim((string) ($context['phone_number'] ?? $context['phone'] ?? ''));
         $fullName = trim((string) ($context['full_name'] ?? $context['name'] ?? ''));
 

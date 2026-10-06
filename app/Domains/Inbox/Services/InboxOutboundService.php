@@ -9,6 +9,7 @@ use App\Domains\Inbox\Jobs\SendOutboundMessageJob;
 use App\Domains\Templates\Services\TemplatePreviewService;
 use App\Domains\Templates\Services\TemplateRegistryService;
 use App\Domains\Templates\Support\CamsTemplateIdentity;
+use App\Domains\Templates\Support\TemplateVariableSyntax;
 use App\Domains\WhatsApp\Services\AlibabaCamsClient;
 use App\Enums\MessageDirection;
 use App\Enums\MessageStatus;
@@ -206,6 +207,7 @@ class InboxOutboundService
         );
 
         $templateParams = $this->flattenTemplateParams($templateParams);
+        $templateParams = $this->mergeAutoTemplateParams($conversation, $template, $templateParams);
         $resolvedLanguage = CamsTemplateIdentity::language(
             $language ?? $template?->language ?? config('whatsapp.alibaba.default_language', 'en_GB'),
         );
@@ -567,6 +569,93 @@ class InboxOutboundService
             'document' => MessageType::Document,
             default => MessageType::Image,
         };
+    }
+
+    /**
+     * Fill missing CAMS placeholders (especially button URL `unsub`) from contact context.
+     * Explicit inbox form values still win when non-empty.
+     *
+     * @param  array<string, string>  $templateParams
+     * @return array<string, string>
+     */
+    private function mergeAutoTemplateParams(
+        Conversation $conversation,
+        ?Template $template,
+        array $templateParams,
+    ): array {
+        $conversation->loadMissing('contact');
+        $contact = $conversation->contact;
+        $phone = trim((string) ($conversation->contact_phone ?? $contact?->phone ?? ''));
+        $fullName = trim((string) ($contact?->name ?? $conversation->contact_name ?? ''));
+        $parts = preg_split('/\s+/', $fullName, 2) ?: [];
+
+        $defaults = array_filter([
+            'full_name' => $fullName !== '' ? $fullName : null,
+            'name' => $fullName !== '' ? $fullName : null,
+            'first_name' => trim((string) ($parts[0] ?? '')) ?: null,
+            'last_name' => trim((string) ($parts[1] ?? '')) ?: null,
+            'phone' => $phone !== '' ? $phone : null,
+            'unsub' => (string) ($contact?->id ?? 'unsub'),
+        ], static fn ($value) => $value !== null && $value !== '');
+
+        $needed = $template !== null
+            ? $this->placeholderNamesFromTemplate($template)
+            : array_keys($templateParams);
+
+        // Unsubscribe button templates always need `unsub`, even when body has no vars.
+        if ($template !== null && $this->templateMentionsUnsub($template) && ! in_array('unsub', $needed, true)) {
+            $needed[] = 'unsub';
+        }
+
+        $merged = $templateParams;
+        foreach ($needed as $name) {
+            $current = trim((string) ($merged[$name] ?? ''));
+            if ($current !== '') {
+                continue;
+            }
+            if (array_key_exists($name, $defaults)) {
+                $merged[$name] = $defaults[$name];
+            }
+        }
+
+        return $merged;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function placeholderNamesFromTemplate(Template $template): array
+    {
+        $payload = $template->wizardPayload();
+        $chunks = [
+            (string) ($payload['header']['text'] ?? ''),
+            (string) ($payload['header']['media_url'] ?? ''),
+            (string) ($payload['body']['text'] ?? $template->body_preview ?? ''),
+            (string) ($payload['footer']['text'] ?? ''),
+        ];
+
+        foreach (is_array($payload['buttons'] ?? null) ? $payload['buttons'] : [] as $button) {
+            if (! is_array($button)) {
+                continue;
+            }
+            $chunks[] = (string) ($button['url'] ?? '');
+            $chunks[] = (string) ($button['text'] ?? '');
+        }
+
+        return TemplateVariableSyntax::extractVariableNames(implode("\n", $chunks));
+    }
+
+    private function templateMentionsUnsub(Template $template): bool
+    {
+        $encoded = json_encode($template->wizardPayload(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+        if (! is_string($encoded)) {
+            return false;
+        }
+
+        return str_contains($encoded, '$(unsub)')
+            || str_contains($encoded, '{{unsub}}')
+            || str_contains(strtolower($encoded), '"type":"unsubscribe"');
     }
 
     /**
