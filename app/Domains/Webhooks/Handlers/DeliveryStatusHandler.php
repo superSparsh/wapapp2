@@ -111,7 +111,7 @@ class DeliveryStatusHandler
                 $this->syncOptInContactDelivery($message, $status, $item, $now);
             }
 
-            $this->syncCampaignRecipient($item, $messageId, $status, $now);
+            $recipient = $this->syncCampaignRecipient($item, $messageId, $status, $now);
             $this->syncFormSubmission(
                 $message !== null ? $message->fresh(['conversation']) : null,
                 $messageId,
@@ -123,7 +123,7 @@ class DeliveryStatusHandler
             $message ??= $this->findOutboundMessage($messageId, $item);
 
             if ($message !== null) {
-                $recipient = CampaignRecipient::query()->where('message_id', $messageId)->first()
+                $recipient ??= CampaignRecipient::query()->where('message_id', $messageId)->first()
                     ?? CampaignRecipient::query()->where('message_id', (string) $message->id)->first();
 
                 try {
@@ -197,6 +197,11 @@ class DeliveryStatusHandler
 
                 return $message;
             }
+        }
+
+        $hasGroupOrTask = ! empty($item['GroupId']) || ! empty($item['groupId']) || ! empty($item['TaskId']) || ! empty($item['taskId']);
+        if ($hasGroupOrTask) {
+            return null;
         }
 
         $to = PhoneNormalizer::normalize((string) ($item['To'] ?? $item['to'] ?? ''));
@@ -325,7 +330,7 @@ class DeliveryStatusHandler
     /**
      * @param  array<string, mixed>  $item
      */
-    private function syncCampaignRecipient(array $item, string $messageId, string $status, \Illuminate\Support\Carbon $now): void
+    private function syncCampaignRecipient(array $item, string $messageId, string $status, \Illuminate\Support\Carbon $now): ?CampaignRecipient
     {
         $recipientStatus = match ($status) {
             'Sent' => CampaignRecipientStatus::Sent,
@@ -336,14 +341,14 @@ class DeliveryStatusHandler
         };
 
         if ($recipientStatus === null) {
-            return;
+            return null;
         }
 
         $recipient = $this->findCampaignRecipient($item, $messageId);
 
         if ($recipient === null) {
             // Form / inbox / opt-in templates are not campaign recipients - don't alarm.
-            return;
+            return null;
         }
 
         $previousStatus = $recipient->status;
@@ -412,6 +417,8 @@ class DeliveryStatusHandler
         }
 
         $recipient->update($updates);
+
+        return $recipient;
     }
 
     /**

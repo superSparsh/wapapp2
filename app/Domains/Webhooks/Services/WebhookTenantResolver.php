@@ -46,12 +46,19 @@ class WebhookTenantResolver
             }
         }
 
+        $cacheKey = 'webhook_tenant_unresolvable:'.$providerMessageId;
+        if (\Illuminate\Support\Facades\Cache::has($cacheKey)) {
+            return null;
+        }
+
         $tenant = $this->resolveByScanningTenantDatabases($providerMessageId);
         if ($tenant !== null) {
             Log::info('Status webhook tenant resolved by scanning tenant databases (index was missing)', [
                 'provider_message_id' => $providerMessageId,
                 'tenant_id' => $tenant->id,
             ]);
+        } else {
+            \Illuminate\Support\Facades\Cache::put($cacheKey, true, 300);
         }
 
         return $tenant;

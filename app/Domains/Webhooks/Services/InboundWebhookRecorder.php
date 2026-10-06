@@ -86,7 +86,9 @@ class InboundWebhookRecorder
         }
 
         $queue = OciWorkload::queueForInboundEvent($eventType);
+        $hasGroupOrTask = ! empty($firstItem['GroupId']) || ! empty($firstItem['groupId']) || ! empty($firstItem['TaskId']) || ! empty($firstItem['taskId']);
         $preferApiSync = $eventType === InboundWebhookEventType::Status
+            && ! $hasGroupOrTask
             && $firstItem !== []
             && $this->apiStatusFastPath->shouldSyncStatusWebhook($firstItem);
 

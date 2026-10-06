@@ -103,7 +103,7 @@ $horizon = [
             'queue' => ['status'],
             'balance' => 'auto',
             'autoScalingStrategy' => 'time',
-            'maxProcesses' => 3,
+            'maxProcesses' => (int) env('HORIZON_STATUS_MAX_PROCESSES', 5),
             'memory' => 128,
             'tries' => 3,
             'timeout' => 30,
@@ -211,7 +211,7 @@ $horizon = [
                 'balanceCooldown' => 3,
             ],
             'status' => [
-                'maxProcesses' => 6,
+                'maxProcesses' => (int) env('HORIZON_STATUS_MAX_PROCESSES', 10),
                 'balanceMaxShift' => 2,
                 'balanceCooldown' => 3,
             ],
