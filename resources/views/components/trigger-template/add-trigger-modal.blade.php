@@ -213,7 +213,9 @@
                 data-preview-header-image
                 src=""
                 alt=""
-                class="hidden aspect-[1600/800] h-full w-full rounded object-cover"
+                class="hidden h-full w-full rounded object-cover"
+                width="100%"
+                height="300px"
               >
               <video
                 data-preview-header-video

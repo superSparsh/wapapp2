@@ -47,9 +47,11 @@
       src="{{ $showHeaderImage ? $headerImage : '' }}"
       alt=""
       @class([
-        'aspect-[1600/800] w-full rounded object-cover h-full',
+        'h-full w-full rounded object-cover',
         'hidden' => ! $showHeaderImage || $isCarousel,
       ])
+      width="100%"
+      height="300px"
     >
     <video
       data-preview-header-video
