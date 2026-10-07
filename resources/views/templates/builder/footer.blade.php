@@ -25,11 +25,12 @@
           data-footer-limit="{{ $footerLimit }}"
           class="min-w-0 flex-1 resize-none border-0 bg-transparent text-sm font-normal leading-[1.4] text-text-body focus:outline-none @error('footer_text') outline outline-1 outline-red-500 @enderror"
           placeholder="Optional footer (max {{ $footerLimit }} characters)"
+          oninput="(function(el){var lim=Number(el.getAttribute('data-footer-limit')||el.getAttribute('maxlength')||60);if(el.value.length>lim){el.value=el.value.slice(0,lim);}var c=el.closest('form')&&el.closest('form').querySelector('[data-footer-char-count]');if(c){c.textContent=el.value.length+' / '+lim;}})(this)"
         >{{ $footerText }}</textarea>
       </div>
       <div class="mt-1 flex items-center justify-between gap-2">
         <p class="text-xs text-text-subtle">Maximum {{ $footerLimit }} characters (WhatsApp limit).</p>
-        <span data-footer-char-count class="text-xs text-text-subtle">{{ mb_strlen($footerText) }} / {{ $footerLimit }}</span>
+        <span data-footer-char-count class="text-xs text-text-subtle tabular-nums">{{ mb_strlen($footerText) }} / {{ $footerLimit }}</span>
       </div>
       <x-ui.field-error field="footer_text" />
     </div>

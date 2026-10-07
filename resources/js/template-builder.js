@@ -2696,7 +2696,85 @@ function initAuthApps() {
     paint();
 }
 
+function footerLimitFor(input) {
+    const fromData = Number(input?.dataset?.footerLimit || 0);
+    if (fromData > 0) {
+        return fromData;
+    }
+
+    const fromAttr = Number(input?.getAttribute?.('maxlength') || 0);
+    if (fromAttr > 0) {
+        return fromAttr;
+    }
+
+    // HTML maxLength is -1 when unset; ignore that.
+    const fromProp = Number(input?.maxLength || 0);
+    return fromProp > 0 ? fromProp : 60;
+}
+
+function syncFooterCharCount(input) {
+    if (!(input instanceof HTMLTextAreaElement) && !(input instanceof HTMLInputElement)) {
+        return;
+    }
+
+    const limit = footerLimitFor(input);
+    if (input.value.length > limit) {
+        input.value = input.value.slice(0, limit);
+    }
+
+    const scope = input.closest('form') || input.closest('[data-template-builder]') || document;
+    const counter = scope.querySelector('[data-footer-char-count]');
+    if (counter) {
+        counter.textContent = `${input.value.length} / ${limit}`;
+    }
+}
+
+/**
+ * Footer 0/60 counter - independent of live preview so it always works on the footer step.
+ */
+export function initFooterCharCount() {
+    const bind = (input) => {
+        if (!(input instanceof HTMLTextAreaElement) && !(input instanceof HTMLInputElement)) {
+            return;
+        }
+        if (input.dataset.footerCountBound === '1') {
+            return;
+        }
+        input.dataset.footerCountBound = '1';
+        input.addEventListener('input', () => syncFooterCharCount(input));
+        input.addEventListener('keyup', () => syncFooterCharCount(input));
+        input.addEventListener('change', () => syncFooterCharCount(input));
+        syncFooterCharCount(input);
+    };
+
+    document
+        .querySelectorAll('#footer_text, textarea[name="footer_text"], textarea[name="footer"][data-footer-limit]')
+        .forEach(bind);
+
+    // Cover late-rendered fields without depending on preview init.
+    document.addEventListener(
+        'input',
+        (event) => {
+            const target = event.target;
+            if (!(target instanceof HTMLTextAreaElement) && !(target instanceof HTMLInputElement)) {
+                return;
+            }
+            if (
+                target.id === 'footer_text' ||
+                target.name === 'footer_text' ||
+                (target.name === 'footer' && target.dataset.footerLimit)
+            ) {
+                syncFooterCharCount(target);
+            }
+        },
+        true,
+    );
+}
+
 export function initTemplateBuilder() {
+    // Always wire the footer counter, even if preview markup is missing.
+    initFooterCharCount();
+
     const root = document.querySelector('[data-template-builder]');
     const previewRoot = document.getElementById('template-live-preview');
 
@@ -2726,25 +2804,7 @@ export function initTemplateBuilder() {
 
     const footerInput =
         document.getElementById('footer_text') || document.querySelector('textarea[name="footer_text"]');
-    const footerCounter = document.querySelector('[data-footer-char-count]');
-    const syncFooterCount = () => {
-        if (!(footerInput instanceof HTMLTextAreaElement) && !(footerInput instanceof HTMLInputElement)) {
-            return;
-        }
-
-        const limit = Number(footerInput.dataset.footerLimit || footerInput.maxLength || 60);
-        if (footerInput.value.length > limit) {
-            footerInput.value = footerInput.value.slice(0, limit);
-        }
-        if (footerCounter) {
-            footerCounter.textContent = `${footerInput.value.length} / ${limit}`;
-        }
-    };
-    footerInput?.addEventListener('input', () => {
-        syncFooterCount();
-        scheduleUpdate();
-    });
-    syncFooterCount();
+    footerInput?.addEventListener('input', scheduleUpdate);
 
     document.getElementById('header_text')?.addEventListener('input', scheduleUpdate);
     document.getElementById('free_header_type')?.addEventListener('change', scheduleUpdate);
