@@ -134,8 +134,8 @@
       'block w-full',
       'hidden' => count($buttons) === 0 || $isCarousel,
     ])
-    width="100%"
-    height="1px"
+    width="338"
+    height="1"
   >
   <div data-preview-buttons @class(['flex w-full flex-col', 'hidden' => $isCarousel])>
     @foreach ($buttons as $button)
