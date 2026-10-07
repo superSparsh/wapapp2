@@ -10,6 +10,7 @@ use App\Domains\Webhooks\Http\Requests\UpdateWebhookSubscriptionRequest;
 use App\Domains\Webhooks\Services\WebhookSubscriptionService;
 use App\Models\MailList;
 use App\Models\WebhookSubscription;
+use App\Support\BulkDestroy;
 use App\Support\ListingSort;
 use App\Support\PublicId;
 use Illuminate\Http\JsonResponse;
@@ -105,6 +106,19 @@ class WebhookSubscriptionController extends Controller
 
         return redirect()->route('webhooks.index')
             ->with('status', 'Webhook deleted successfully.');
+    }
+
+    /**
+     * Bulk-delete subscriptions by UUID.
+     */
+    public function bulkDestroy(Request $request): JsonResponse
+    {
+        return BulkDestroy::byUuids(
+            $request,
+            WebhookSubscription::class,
+            'webhook(s)',
+            fn (WebhookSubscription $subscription) => $this->service->destroy($subscription),
+        );
     }
 
     /**

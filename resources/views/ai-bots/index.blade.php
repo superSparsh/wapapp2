@@ -1,5 +1,12 @@
 <x-layouts.app title="AI Bots - WapApp" active="ai-bots">
-  <div class="flex flex-col bg-surface">
+  <div
+    class="flex flex-col bg-surface"
+    data-bulk-selection
+    data-bulk-destroy-url="{{ route('ai-bots.bulk-destroy') }}"
+    data-bulk-confirm-title="Delete bots"
+    data-bulk-confirm-message="Delete {count} selected bot(s)? This cannot be undone."
+    data-bulk-success-message="Selected bots deleted."
+  >
     <div class="flex flex-col gap-4 p-4">
       <div class="flex flex-col gap-1">
         <h1 class="text-2xl font-bold leading-[1.5] text-text-primary">AI Bots</h1>
@@ -21,6 +28,7 @@
         :sort-options="\App\Support\ListingSort::defaultOptions()"
       >
         <x-slot:actions>
+          <x-ui.bulk-actions-bar />
           <a href="{{ route('ai-bots.provider-keys.index') }}" class="inline-flex items-center justify-center gap-3 rounded-lg border border-solid border-green-500 bg-green-50 px-4 py-3 text-sm font-semibold leading-[1.5] text-green-500">API Keys</a>
           <a href="{{ route('ai-bots.create') }}" class="inline-flex items-center justify-center gap-2 rounded bg-green-500 px-4 py-3 text-sm font-semibold leading-[1.5] text-primary-2 transition-opacity hover:opacity-90">
             <img src="{{ asset('images/automation/add.svg') }}" alt="" class="size-5" width="20" height="20">
@@ -36,6 +44,9 @@
           <table class="w-full min-w-[800px] text-left">
             <thead>
               <tr class="bg-elevated">
+                <th class="w-10 p-2">
+                  <input type="checkbox" data-bulk-select-all class="size-4 rounded border-border" aria-label="Select all">
+                </th>
                 <th class="p-2 text-[13px] font-medium leading-[1.5] text-text-body">Name</th>
                 <th class="p-2 text-[13px] font-medium leading-[1.5] text-text-body">Provider</th>
                 <th class="p-2 text-[13px] font-medium leading-[1.5] text-text-body">Model</th>
@@ -47,6 +58,9 @@
             <tbody>
               @forelse ($bots as $bot)
                 <tr class="border-t border-divider bg-elevated">
+                  <td class="w-10 p-2">
+                    <input type="checkbox" data-bulk-row-checkbox value="{{ $bot->uuid }}" class="size-4 rounded border-border" aria-label="Select bot">
+                  </td>
                   <td class="p-2">
                     <a href="{{ route('ai-bots.show', $bot) }}" class="text-[13px] font-semibold leading-[1.5] text-text-subtle hover:text-green-500">{{ $bot->name }}</a>
                   </td>
@@ -88,7 +102,7 @@
                 </tr>
               @empty
                 <tr class="border-t border-divider bg-elevated">
-                  <td colspan="6" class="p-8 text-center text-sm text-text-muted">
+                  <td colspan="7" class="p-8 text-center text-sm text-text-muted">
                     No AI bots found. <a href="{{ route('ai-bots.create') }}" class="text-green-500 underline">Create one now</a>.
                   </td>
                 </tr>

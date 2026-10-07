@@ -7,7 +7,9 @@ namespace App\Domains\Audience\Http\Controllers;
 use App\Domains\Audience\Http\Requests\Blacklist\StoreBlacklistRequest;
 use App\Domains\Audience\Models\Blacklist;
 use App\Domains\Audience\Services\BlacklistService;
+use App\Support\BulkDestroy;
 use App\Support\ListingSort;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
@@ -55,6 +57,19 @@ class BlacklistController extends Controller
 
         return redirect()->route('audience.blacklist')
             ->with('status', 'Entry removed from blacklist.');
+    }
+
+    /**
+     * Bulk-remove blacklist entries by UUID.
+     */
+    public function bulkDestroy(Request $request): JsonResponse
+    {
+        return BulkDestroy::byUuids(
+            $request,
+            Blacklist::class,
+            'blacklist entries',
+            fn (Blacklist $entry) => $this->service->destroy($entry),
+        );
     }
 
     /**

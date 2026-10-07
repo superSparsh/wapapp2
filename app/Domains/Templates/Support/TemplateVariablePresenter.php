@@ -27,6 +27,7 @@ class TemplateVariablePresenter
     {
         return [
             'serial' => str_pad((string) ($startIndex + $offset), 2, '0', STR_PAD_LEFT),
+            'uuid' => $variable->uuid,
             'name' => $variable->name,
             'created_at' => $variable->created_at?->format('d-m-Y / h:i A') ?? '-',
             'data_type_label' => $variable->data_type->label(),

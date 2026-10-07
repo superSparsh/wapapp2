@@ -1,5 +1,12 @@
 <x-layouts.app title="WhatsApp Flows - WapApp" active="automation.whatsapp-flows">
-  <div class="flex flex-col bg-surface">
+  <div
+    class="flex flex-col bg-surface"
+    data-bulk-selection
+    data-bulk-destroy-url="{{ route('whatsapp-flows.bulk-destroy') }}"
+    data-bulk-confirm-title="Delete flows"
+    data-bulk-confirm-message="Delete {count} selected flow(s)? This cannot be undone."
+    data-bulk-success-message="Selected flows deleted."
+  >
     <div class="flex flex-col gap-4 p-4">
       <div class="flex flex-col gap-1">
         <h1 class="text-2xl font-bold leading-[1.5] text-text-primary">WhatsApp Flows</h1>
@@ -42,6 +49,7 @@
           </x-ui.select>
         </x-slot:filters>
         <x-slot:actions>
+          <x-ui.bulk-actions-bar />
           <a
             href="{{ route('whatsapp-flows.index') }}"
             class="fd-btn inline-flex items-center justify-center gap-3 rounded-lg border border-solid border-green-500 bg-green-50 px-4 py-3 text-sm font-semibold leading-[1.5] text-green-500 transition-colors hover:bg-green-50"
@@ -67,6 +75,9 @@
           <table class="w-full min-w-[800px] text-left">
             <thead>
               <tr class="bg-elevated">
+                <th class="w-10 p-2">
+                  <input type="checkbox" data-bulk-select-all class="size-4 rounded border-border" aria-label="Select all">
+                </th>
                 <th class="w-[54px] p-2 text-[13px] font-medium leading-[1.5] whitespace-nowrap text-text-body">SI. No</th>
                 <th class="w-[280px] p-2 text-[13px] font-medium leading-[1.5] text-text-body">Flow Name</th>
                 <th class="p-2 text-[13px] font-medium leading-[1.5] text-text-body">Status</th>
@@ -77,6 +88,9 @@
             <tbody>
               @forelse ($flows as $flow)
                 <tr class="border-t border-divider bg-elevated">
+                  <td class="w-10 p-2">
+                    <input type="checkbox" data-bulk-row-checkbox value="{{ $flow['uuid'] }}" class="size-4 rounded border-border" aria-label="Select flow">
+                  </td>
                   <td class="w-[54px] p-2 text-[13px] font-normal leading-[1.5] text-text-body">{{ $flow['serial'] }}</td>
                   <td class="w-[280px] p-2">
                     <a href="{{ $flow['show_url'] }}" class="text-[13px] font-semibold leading-[1.5] text-text-subtle hover:text-green-500">{{ $flow['name'] }}</a>
@@ -139,7 +153,7 @@
                 </tr>
               @empty
                 <tr class="border-t border-divider bg-elevated">
-                  <td colspan="5" class="p-8 text-center text-sm text-text-muted">
+                  <td colspan="6" class="p-8 text-center text-sm text-text-muted">
                     No WhatsApp Flows found. Click <strong>Create Flow</strong> to build one.
                   </td>
                 </tr>

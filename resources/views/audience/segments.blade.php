@@ -1,5 +1,12 @@
 <x-layouts.app title="Segments - WapApp" active="audience.segments">
-  <div class="flex flex-col bg-surface">
+  <div
+    class="flex flex-col bg-surface"
+    data-bulk-selection
+    data-bulk-destroy-url="{{ route('audience.segments.bulk-destroy') }}"
+    data-bulk-confirm-title="Delete segments"
+    data-bulk-confirm-message="Delete {count} selected segment(s)? This cannot be undone."
+    data-bulk-success-message="Selected segments deleted."
+  >
     <div class="flex flex-col gap-4 p-4">
       <x-audience.list-header title="Segments" :subscribers="(string) $segments->total()" />
       <x-audience.sub-nav active="audience.segments" />
@@ -23,6 +30,7 @@
           @if($mailListId)<input type="hidden" name="list" value="{{ $mailListId }}">@endif
         </x-slot:hidden>
         <x-slot:actions>
+          <x-ui.bulk-actions-bar />
           <button type="button" data-open-modal="create-segment" class="fd-btn inline-flex items-center justify-center gap-2 rounded bg-green-500 px-4 py-3 text-sm font-semibold text-primary-2 transition-colors hover:opacity-90">
             <img src="{{ asset('images/icons/sidebar/dbfd6f4cd73e6e1ecbcca79a8be160d3f18f5172.svg') }}" alt="" class="size-5" width="20" height="20">
             Create Segments
@@ -30,13 +38,16 @@
         </x-slot:actions>
       </x-ui.listing-toolbar>
 
-      <x-ui.data-table :headers="['SI. No', 'Segment Name', 'Subscribers', 'Actions']" :paginator="$segments">
+      <x-ui.data-table :headers="['SI. No', 'Segment Name', 'Subscribers', 'Actions']" :paginator="$segments" :bulk-select="true">
         @forelse ($segments as $i => $segment)
           @php
             [$segmentMatch, $segmentRules] = app(\App\Domains\Audience\Services\SegmentService::class)
               ->extractMatchAndRules($segment->conditions ?? []);
           @endphp
           <tr class="bg-elevated">
+            <td class="w-10 p-2">
+              <input type="checkbox" data-bulk-row-checkbox value="{{ $segment->uuid }}" class="size-4 rounded border-border" aria-label="Select segment">
+            </td>
             <td class="fd-table-cell w-[54px] p-2">{{ $segments->firstItem() + $i }}</td>
             <td class="w-[420px] p-2">
               <p class="fd-table-name">{{ $segment->name }}</p>
@@ -75,7 +86,7 @@
           </tr>
         @empty
           <tr class="bg-elevated">
-            <td colspan="4" class="p-8 text-center text-sm text-text-body/70">No segments found.</td>
+            <td colspan="5" class="p-8 text-center text-sm text-text-body/70">No segments found.</td>
           </tr>
         @endforelse
       </x-ui.data-table>

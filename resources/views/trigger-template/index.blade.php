@@ -1,5 +1,12 @@
 <x-layouts.app title="Trigger Template - WapApp" active="trigger-template.index">
-  <div class="flex flex-col bg-surface">
+  <div
+    class="flex flex-col bg-surface"
+    data-bulk-selection
+    data-bulk-destroy-url="{{ route('trigger-template.bulk-destroy') }}"
+    data-bulk-confirm-title="Delete triggers"
+    data-bulk-confirm-message="Delete {count} selected trigger(s)? This cannot be undone."
+    data-bulk-success-message="Selected triggers deleted."
+  >
     <div class="flex flex-col gap-4 p-4">
       @if (session('status'))
         <div class="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
@@ -31,6 +38,7 @@
         ]"
       >
         <x-slot:actions>
+          <x-ui.bulk-actions-bar />
           <a
             href="{{ route('trigger-template.index', ['modal' => 'add-trigger']) }}"
             class="fd-btn inline-flex items-center justify-center gap-2 rounded bg-green-500 px-4 py-3 text-sm font-semibold leading-[1.5] text-primary-2 transition-opacity hover:opacity-90"
@@ -48,6 +56,9 @@
           <table class="w-full min-w-[800px] text-left">
             <thead>
               <tr class="bg-elevated">
+                <th class="w-10 p-2">
+                  <input type="checkbox" data-bulk-select-all class="size-4 rounded border-border" aria-label="Select all">
+                </th>
                 <th class="w-[54px] p-2 text-[13px] font-medium leading-[1.5] whitespace-nowrap text-text-body">SI. No</th>
                 <th class="p-2 text-[13px] font-medium leading-[1.5] text-text-body">Trigger Name</th>
                 <th class="p-2 text-[13px] font-medium leading-[1.5] text-text-body">Trigger Template</th>
@@ -58,6 +69,9 @@
             <tbody>
               @forelse ($triggers as $trigger)
                 <tr class="border-t border-divider bg-elevated">
+                  <td class="w-10 p-2">
+                    <input type="checkbox" data-bulk-row-checkbox value="{{ $trigger['uuid'] }}" class="size-4 rounded border-border" aria-label="Select trigger">
+                  </td>
                   <td class="w-[54px] p-2 text-[13px] font-normal leading-[1.5] text-text-body">{{ str_pad((string) $trigger['serial'], 2, '0', STR_PAD_LEFT) }}</td>
                   <td class="p-2 text-[13px] font-semibold leading-[1.5] text-text-subtle">{{ $trigger['variable_name'] }}</td>
                   <td class="p-2 text-[13px] font-normal leading-[1.5] text-text-body">{{ $trigger['template_name'] }}</td>
@@ -78,7 +92,7 @@
                 </tr>
               @empty
                 <tr class="border-t border-divider bg-elevated">
-                  <td colspan="5" class="p-6 text-center text-sm text-text-muted">
+                  <td colspan="6" class="p-6 text-center text-sm text-text-muted">
                     No triggers yet. Click <strong>Add New</strong> to create your first keyword trigger.
                   </td>
                 </tr>

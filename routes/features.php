@@ -24,6 +24,7 @@ Route::middleware('team.permission:campaign_read')->prefix('campaigns')->name('c
     Route::get('/scheduled', [CampaignListController::class, 'scheduled'])->name('scheduled');
     Route::get('/detail', fn () => view('campaigns.detail'))->name('detail');
     Route::post('/', [CampaignController::class, 'store'])->middleware('team.permission:campaign_write')->name('store');
+    Route::post('/bulk-destroy', [CampaignController::class, 'bulkDestroy'])->middleware('team.permission:campaign_write')->name('bulk-destroy');
 
     Route::prefix('create')->name('create.')->group(function () {
         Route::get('/', [CampaignCreateController::class, 'start'])
@@ -87,6 +88,7 @@ Route::middleware('team.permission:audience_read')->prefix('audience')->name('au
     Route::get('/settings', [MailListController::class, 'settings'])->name('settings');
 
     Route::post('/lists', [MailListController::class, 'store'])->middleware('team.permission:audience_write')->name('lists.store');
+    Route::post('/lists/bulk-destroy', [MailListController::class, 'bulkDestroy'])->middleware('team.permission:audience_write')->name('lists.bulk-destroy');
     Route::put('/lists/{mailList}', [MailListController::class, 'update'])->middleware('team.permission:audience_write')->name('lists.update');
     Route::delete('/lists/{mailList}', [MailListController::class, 'destroy'])->middleware('team.permission:audience_write')->name('lists.destroy');
     Route::get('/lists/{mailList}/growth-chart', [MailListController::class, 'growthChart'])->name('lists.growth-chart');
@@ -111,6 +113,7 @@ Route::middleware('team.permission:audience_read')->prefix('audience')->name('au
 
     Route::get('/segments', [SegmentController::class, 'index'])->name('segments');
     Route::post('/segments', [SegmentController::class, 'store'])->middleware('team.permission:audience_write')->name('segments.store');
+    Route::post('/segments/bulk-destroy', [SegmentController::class, 'bulkDestroy'])->middleware('team.permission:audience_write')->name('segments.bulk-destroy');
     Route::put('/segments/{segment}', [SegmentController::class, 'update'])->middleware('team.permission:audience_write')->name('segments.update');
     Route::delete('/segments/{segment}', [SegmentController::class, 'destroy'])->middleware('team.permission:audience_write')->name('segments.destroy');
 
@@ -123,6 +126,7 @@ Route::middleware('team.permission:audience_read')->prefix('audience')->name('au
 
     Route::get('/blacklist', [BlacklistController::class, 'index'])->name('blacklist');
     Route::post('/blacklist', [BlacklistController::class, 'store'])->middleware('team.permission:audience_write')->name('blacklist.store');
+    Route::post('/blacklist/bulk-destroy', [BlacklistController::class, 'bulkDestroy'])->middleware('team.permission:audience_write')->name('blacklist.bulk-destroy');
     Route::delete('/blacklist/{blacklist}', [BlacklistController::class, 'destroy'])->middleware('team.permission:audience_write')->name('blacklist.destroy');
     Route::post('/blacklist/import', [BlacklistController::class, 'import'])->middleware('team.permission:audience_write')->name('blacklist.import');
 });

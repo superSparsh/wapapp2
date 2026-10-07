@@ -40,7 +40,14 @@
         </button>
       </form>
 
-      <div class="rounded-xl border border-border bg-elevated p-5">
+      <div
+        class="rounded-xl border border-border bg-elevated p-5"
+        data-bulk-selection
+        data-bulk-destroy-url="{{ route('automation.events.bulk-destroy') }}"
+        data-bulk-confirm-title="Delete events"
+        data-bulk-confirm-message="Delete {count} selected event(s)? This cannot be undone."
+        data-bulk-success-message="Selected events deleted."
+      >
         <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h2 class="fd-card-title">Scheduled Events</h2>
           <x-ui.listing-toolbar
@@ -56,7 +63,11 @@
               ['value' => 'status', 'label' => 'Status', 'direction' => 'asc'],
               ['value' => 'scheduled_at', 'label' => 'Scheduled date', 'direction' => 'desc'],
             ]"
-          />
+          >
+            <x-slot:actions>
+              <x-ui.bulk-actions-bar />
+            </x-slot:actions>
+          </x-ui.listing-toolbar>
         </div>
 
         @if ($events->isEmpty())
@@ -65,9 +76,13 @@
           <x-ui.data-table
             :headers="['Name', 'Type', 'Status', 'Scheduled', 'Actions']"
             :paginator="$events"
+            :bulk-select="true"
           >
             @foreach ($events as $event)
               <tr class="bg-elevated">
+                <td class="w-10 p-2 align-middle">
+                  <input type="checkbox" data-bulk-row-checkbox value="{{ $event->uuid }}" class="size-4 rounded border-border" aria-label="Select event">
+                </td>
                 <td class="fd-table-cell p-2 align-middle">{{ $event->name }}</td>
                 <td class="fd-table-cell p-2 align-middle">{{ $event->event_type }}</td>
                 <td class="fd-table-cell p-2 align-middle">{{ $event->status }}</td>

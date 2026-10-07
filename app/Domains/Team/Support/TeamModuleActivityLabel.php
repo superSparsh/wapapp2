@@ -84,6 +84,7 @@ final class TeamModuleActivityLabel
             // Campaigns
             'campaigns.store' => ['POST' => 'Created a campaign'],
             'campaigns.destroy' => ['DELETE' => 'Deleted a campaign'],
+            'campaigns.bulk-destroy' => ['POST' => 'Deleted multiple campaigns'],
             'campaigns.duplicate' => ['POST' => 'Duplicated a campaign'],
             'campaigns.toggle' => ['PATCH' => 'Paused or resumed a campaign', 'POST' => 'Paused or resumed a campaign'],
             'campaigns.test-message' => ['POST' => 'Sent a campaign test message'],
@@ -118,6 +119,7 @@ final class TeamModuleActivityLabel
             'templates.variables.store' => ['POST' => 'Created a template variable'],
             'templates.variables.update' => ['PUT' => 'Updated a template variable', 'PATCH' => 'Updated a template variable'],
             'templates.variables.destroy' => ['DELETE' => 'Deleted a template variable'],
+            'templates.variables.bulk-destroy' => ['POST' => 'Deleted multiple template variables'],
             'templates.api.refresh' => ['POST' => 'Refreshed template statuses'],
             'templates.ai.suggest' => ['POST' => 'Generated AI template suggestions'],
 
@@ -125,6 +127,7 @@ final class TeamModuleActivityLabel
             'chatbot.store' => ['POST' => 'Created a chatbot'],
             'chatbot.update' => ['PUT' => 'Updated a chatbot', 'PATCH' => 'Updated a chatbot'],
             'chatbot.destroy' => ['DELETE' => 'Deleted a chatbot'],
+            'chatbot.bulk-destroy' => ['POST' => 'Deleted multiple chatbots'],
             'chatbot.toggle' => ['PATCH' => 'Turned a chatbot on or off', 'POST' => 'Turned a chatbot on or off'],
             'chatbot.publish' => ['POST' => 'Published a chatbot'],
             'chatbot.duplicate' => ['POST' => 'Duplicated a chatbot'],
@@ -135,6 +138,7 @@ final class TeamModuleActivityLabel
             'chatbot.clear-cache' => ['POST' => 'Cleared chatbot cache'],
             'automation.drip.store' => ['POST' => 'Created a drip campaign'],
             'automation.drip.destroy' => ['DELETE' => 'Deleted a drip campaign'],
+            'automation.drip.bulk-destroy' => ['POST' => 'Deleted multiple drip campaigns'],
             'automation.drip.duplicate' => ['POST' => 'Duplicated a drip campaign'],
             'automation.drip.toggle' => ['PATCH' => 'Turned a drip campaign on or off', 'POST' => 'Turned a drip campaign on or off'],
             'automation.drip.flow.save' => ['POST' => 'Saved drip campaign flow'],
@@ -144,11 +148,13 @@ final class TeamModuleActivityLabel
             'automation.events.destroy' => ['DELETE' => 'Deleted an automation event'],
             'trigger-template.store' => ['POST' => 'Created a trigger template'],
             'trigger-template.destroy' => ['DELETE' => 'Deleted a trigger template'],
+            'trigger-template.bulk-destroy' => ['POST' => 'Deleted multiple trigger templates'],
 
             // Audience
             'audience.lists.store' => ['POST' => 'Created an audience list'],
             'audience.lists.update' => ['PUT' => 'Updated an audience list', 'PATCH' => 'Updated an audience list'],
             'audience.lists.destroy' => ['DELETE' => 'Deleted an audience list'],
+            'audience.lists.bulk-destroy' => ['POST' => 'Deleted multiple audience lists'],
             'audience.subscribers.store' => ['POST' => 'Added a contact'],
             'audience.subscribers.update' => ['PUT' => 'Updated a contact', 'PATCH' => 'Updated a contact'],
             'audience.subscribers.destroy' => ['DELETE' => 'Deleted a contact'],
@@ -163,6 +169,7 @@ final class TeamModuleActivityLabel
             'audience.segments.store' => ['POST' => 'Created a segment'],
             'audience.segments.update' => ['PUT' => 'Updated a segment', 'PATCH' => 'Updated a segment'],
             'audience.segments.destroy' => ['DELETE' => 'Deleted a segment'],
+            'audience.segments.bulk-destroy' => ['POST' => 'Deleted multiple segments'],
             'audience.blacklist.store' => ['POST' => 'Added a number to blacklist'],
             'audience.blacklist.destroy' => ['DELETE' => 'Removed a number from blacklist'],
             'audience.blacklist.import' => ['POST' => 'Imported blacklist numbers'],

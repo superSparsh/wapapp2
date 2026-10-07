@@ -1,5 +1,12 @@
 <x-layouts.app title="Chatbot - WapApp" active="automation.chatbot">
-  <div class="flex flex-col bg-surface">
+  <div
+    class="flex flex-col bg-surface"
+    data-bulk-selection
+    data-bulk-destroy-url="{{ route('chatbot.bulk-destroy') }}"
+    data-bulk-confirm-title="Delete chatbots"
+    data-bulk-confirm-message="Delete {count} selected chatbot(s)? This cannot be undone."
+    data-bulk-success-message="Selected chatbots deleted."
+  >
     <div class="flex flex-col gap-4 p-4">
       <div class="flex flex-col gap-1">
         <h1 class="text-2xl font-bold leading-[1.5] text-text-primary">Chatbot</h1>
@@ -34,6 +41,7 @@
         ]"
       >
         <x-slot:actions>
+          <x-ui.bulk-actions-bar />
           <a
             href="{{ route('chatbot.index') }}"
             class="fd-btn inline-flex items-center justify-center gap-3 rounded-lg border border-solid border-green-500 bg-green-50 px-4 py-3 text-sm font-semibold leading-[1.5] text-green-500 transition-colors hover:bg-green-50"
@@ -59,6 +67,9 @@
           <table class="w-full min-w-[800px] text-left">
             <thead>
               <tr class="">
+                <th class="w-10 p-2">
+                  <input type="checkbox" data-bulk-select-all class="size-4 rounded border-border" aria-label="Select all">
+                </th>
                 <th class="w-[54px] p-2 text-[13px]  leading-[1.5] whitespace-nowrap">SI. No</th>
                 <th class="w-[320px] p-2 text-[13px]  leading-[1.5] ">Chatbot Name</th>
                 <th class="p-2 text-[13px]  leading-[1.5] ">Published</th>
@@ -69,6 +80,9 @@
             <tbody>
               @forelse ($chatbots as $chatbot)
                 <tr class="border-t border-divider bg-elevated">
+                  <td class="w-10 p-2">
+                    <input type="checkbox" data-bulk-row-checkbox value="{{ $chatbot['uuid'] }}" class="size-4 rounded border-border" aria-label="Select chatbot">
+                  </td>
                   <td class="w-[54px] p-2 text-[13px] font-normal leading-[1.5] text-text-body">{{ $chatbot['serial'] }}</td>
                   <td class="w-[320px] p-2">
                     <p class="text-[13px] font-semibold leading-[1.5] text-text-subtle">{{ $chatbot['name'] }}</p>
@@ -107,7 +121,7 @@
                 </tr>
               @empty
                 <tr class="border-t border-divider bg-elevated">
-                  <td colspan="5" class="p-8 text-center text-sm text-text-muted">
+                  <td colspan="6" class="p-8 text-center text-sm text-text-muted">
                     No chatbot flows found. Click <strong>Create</strong> to build one.
                   </td>
                 </tr>

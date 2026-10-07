@@ -181,6 +181,7 @@ Route::middleware(['tenancy.session', 'auth:web,team', '2fa', 'team.redirect-das
             Route::get('/', [ChatbotFlowController::class, 'index'])->name('index');
             Route::get('/create', [ChatbotFlowController::class, 'create'])->name('create');
             Route::post('/', [ChatbotFlowController::class, 'store'])->name('store');
+            Route::post('/bulk-destroy', [ChatbotFlowController::class, 'bulkDestroy'])->name('bulk-destroy');
             Route::post('/import', [ChatbotFlowBuilderController::class, 'import'])->name('import');
             Route::get('/media/{path}', [ChatbotBuilderSupportController::class, 'showMedia'])
                 ->where('path', '.*')
@@ -230,6 +231,7 @@ Route::middleware(['tenancy.session', 'auth:web,team', '2fa', 'team.redirect-das
                 Route::get('/', [DripCampaignController::class, 'index'])->name('index');
                 Route::get('/create', [DripCampaignController::class, 'create'])->name('create');
                 Route::post('/', [DripCampaignController::class, 'store'])->name('store');
+                Route::post('/bulk-destroy', [DripCampaignController::class, 'bulkDestroy'])->name('bulk-destroy');
                 Route::get('/{campaign}', [DripCampaignController::class, 'show'])->name('show');
                 Route::delete('/{campaign}', [DripCampaignController::class, 'destroy'])->name('destroy');
                 Route::patch('/{campaign}/toggle', [DripCampaignController::class, 'toggle'])->name('toggle');
@@ -255,6 +257,7 @@ Route::middleware(['tenancy.session', 'auth:web,team', '2fa', 'team.redirect-das
             Route::prefix('events')->name('events.')->group(function () {
                 Route::get('/', [AutomationEventController::class, 'index'])->name('index');
                 Route::post('/', [AutomationEventController::class, 'store'])->name('store');
+                Route::post('/bulk-destroy', [AutomationEventController::class, 'bulkDestroy'])->name('bulk-destroy');
                 Route::delete('/{automationEvent}', [AutomationEventController::class, 'destroy'])->name('destroy');
             });
 
@@ -266,6 +269,7 @@ Route::middleware(['tenancy.session', 'auth:web,team', '2fa', 'team.redirect-das
         Route::prefix('trigger-template')->name('trigger-template.')->group(function () {
             Route::get('/', [TriggerTemplateController::class, 'index'])->name('index');
             Route::post('/', [TriggerTemplateController::class, 'store'])->name('store');
+            Route::post('/bulk-destroy', [TriggerTemplateController::class, 'bulkDestroy'])->name('bulk-destroy');
             Route::delete('/{triggerVariable}', [TriggerTemplateController::class, 'destroy'])->name('destroy');
         });
 
@@ -319,6 +323,7 @@ Route::middleware(['tenancy.session', 'auth:web,team', '2fa', 'team.redirect-das
             Route::get('/', [AiBotController::class, 'index'])->name('index');
             Route::get('/create', [AiBotController::class, 'create'])->name('create');
             Route::post('/', [AiBotController::class, 'store'])->name('store');
+            Route::post('/bulk-destroy', [AiBotController::class, 'bulkDestroy'])->name('bulk-destroy');
 
             Route::prefix('provider-keys')->name('provider-keys.')->group(function () {
                 Route::get('/', [AiProviderKeyController::class, 'index'])->name('index');
@@ -347,6 +352,7 @@ Route::middleware(['tenancy.session', 'auth:web,team', '2fa', 'team.redirect-das
         Route::prefix('webhooks')->name('webhooks.')->group(function () {
             Route::get('/', [WebhookSubscriptionController::class, 'index'])->name('index');
             Route::post('/', [WebhookSubscriptionController::class, 'store'])->name('store');
+            Route::post('/bulk-destroy', [WebhookSubscriptionController::class, 'bulkDestroy'])->name('bulk-destroy');
             Route::post('/test-url', [WebhookSubscriptionController::class, 'testUrl'])->name('test-url');
             Route::put('/{webhookSubscription}', [WebhookSubscriptionController::class, 'update'])->name('update');
             Route::delete('/{webhookSubscription}', [WebhookSubscriptionController::class, 'destroy'])->name('destroy');
@@ -508,6 +514,7 @@ Route::middleware(['tenancy.session', 'auth:web,team', '2fa', 'team.redirect-das
         Route::post('/variables', [TemplateVariableController::class, 'store'])->middleware('team.permission:template_write')->name('variables.store');
         Route::get('/variables/{variable}/edit', [TemplateVariableController::class, 'edit'])->middleware('team.permission:template_write')->name('variables.edit');
         Route::put('/variables/{variable}', [TemplateVariableController::class, 'update'])->middleware('team.permission:template_write')->name('variables.update');
+        Route::post('/variables/bulk-destroy', [TemplateVariableController::class, 'bulkDestroy'])->middleware('team.permission:template_write')->name('variables.bulk-destroy');
         Route::delete('/variables/{variable}', [TemplateVariableController::class, 'destroy'])->middleware('team.permission:template_write')->name('variables.destroy');
         Route::get('/variables/samples', fn () => view('templates.variables-samples'))->name('variables.samples');
 

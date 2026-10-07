@@ -13,6 +13,7 @@ use App\Domains\Chatbot\Services\ChatbotFlowStatService;
 use App\Http\Controllers\Controller;
 use App\Models\ChatbotFlow;
 use App\Models\WhatsappLine;
+use App\Support\BulkDestroy;
 use App\Support\PublicId;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -141,6 +142,16 @@ class ChatbotFlowController extends Controller
         return redirect()
             ->route('chatbot.index')
             ->with('status', 'Chatbot flow deleted successfully.');
+    }
+
+    public function bulkDestroy(Request $request): JsonResponse
+    {
+        return BulkDestroy::byUuids(
+            $request,
+            ChatbotFlow::class,
+            'chatbot(s)',
+            fn (ChatbotFlow $flow) => $this->flowService->delete($flow),
+        );
     }
 
     public function toggle(ChatbotFlow $chatbotFlow): RedirectResponse|JsonResponse

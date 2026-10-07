@@ -24,6 +24,7 @@ class WhatsappFlowPresenter
             /** @var WhatsappFlow $flow */
             $rows[] = [
                 'serial' => $serial++,
+                'uuid' => $flow->uuid,
                 'name' => $flow->name,
                 'status' => $flow->status->value,
                 'status_label' => $flow->status->label(),

@@ -11,7 +11,9 @@ use App\Domains\TriggerTemplate\Services\TriggerVariableService;
 use App\Domains\TriggerTemplate\Support\TriggerPresenter;
 use App\Http\Controllers\Controller;
 use App\Models\TriggerVariable;
+use App\Support\BulkDestroy;
 use App\Support\ListingSort;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -85,5 +87,17 @@ class TriggerTemplateController extends Controller
         return redirect()
             ->route('trigger-template.index')
             ->with('status', 'Trigger deleted successfully.');
+    }
+
+    public function bulkDestroy(
+        Request $request,
+        TriggerVariableService $variableService,
+    ): JsonResponse {
+        return BulkDestroy::byUuids(
+            $request,
+            TriggerVariable::class,
+            'trigger(s)',
+            fn (TriggerVariable $trigger) => $variableService->delete($trigger),
+        );
     }
 }

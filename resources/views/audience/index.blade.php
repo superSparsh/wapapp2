@@ -1,5 +1,12 @@
 <x-layouts.app title="Audience - WapApp" active="audience.index">
-  <div class="flex flex-col bg-surface">
+  <div
+    class="flex flex-col bg-surface"
+    data-bulk-selection
+    data-bulk-destroy-url="{{ route('audience.lists.bulk-destroy') }}"
+    data-bulk-confirm-title="Delete lists"
+    data-bulk-confirm-message="Delete {count} selected list(s)? Contacts and related data on these lists will also be removed. This cannot be undone."
+    data-bulk-success-message="Selected lists deleted."
+  >
     <div class="flex flex-col gap-4 p-4">
       <div class="flex flex-col gap-1">
         <h1 class="fd-page-title text-2xl">My lists</h1>
@@ -14,6 +21,7 @@
         :sort-options="\App\Support\ListingSort::defaultOptions()"
       >
         <x-slot:actions>
+          <x-ui.bulk-actions-bar />
           <a href="{{ route('audience.index') }}" class="fd-btn inline-flex items-center justify-center gap-3 rounded border border-border-light bg-elevated px-4 py-3 text-sm font-semibold text-green-500 transition-colors hover:bg-surface">
             <img src="{{ asset('images/automation/refresh.svg') }}" alt="" class="size-4" width="16" height="16">
             Refresh
@@ -30,9 +38,12 @@
       @php
         $lists = $lists ?? new \Illuminate\Pagination\LengthAwarePaginator([], 0, 15);
       @endphp
-      <x-ui.data-table :headers="['SI. No', 'My lists', 'Subscriber\'s', 'Actions']" :paginator="$lists">
+      <x-ui.data-table :headers="['SI. No', 'My lists', 'Subscriber\'s', 'Actions']" :paginator="$lists" :bulk-select="true">
         @foreach ($lists as $i => $list)
           <tr class="bg-elevated">
+            <td class="w-10 p-2">
+              <input type="checkbox" data-bulk-row-checkbox value="{{ $list->uuid }}" class="size-4 rounded border-border" aria-label="Select list">
+            </td>
             <td class="fd-table-cell w-[54px] p-2">{{ $lists->firstItem() + $i }}</td>
             <td class="w-[320px] p-2">
               <a href="{{ route('audience.overview', ['list' => $list->uuid]) }}" class="fd-table-name hover:underline">{{ $list->name }}</a>

@@ -10,6 +10,7 @@ use App\Domains\Drip\Services\DripCampaignService;
 use App\Http\Controllers\Controller;
 use App\Models\DripCampaign;
 use App\Models\MailList;
+use App\Support\BulkDestroy;
 use App\Support\PublicId;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -92,6 +93,19 @@ class DripCampaignController extends Controller
         return redirect()
             ->route('automation.drip.index')
             ->with('status', 'Automation deleted successfully.');
+    }
+
+    /**
+     * Bulk-delete drip campaigns by UUID.
+     */
+    public function bulkDestroy(Request $request): JsonResponse
+    {
+        return BulkDestroy::byUuids(
+            $request,
+            DripCampaign::class,
+            'automation(s)',
+            fn (DripCampaign $campaign) => $this->campaignService->delete($campaign),
+        );
     }
 
     /**

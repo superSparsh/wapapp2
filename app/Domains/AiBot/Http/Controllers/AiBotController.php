@@ -11,7 +11,9 @@ use App\Domains\AiBot\Services\AiBotService;
 use App\Domains\AiBot\Services\AiTokenUsageService;
 use App\Http\Controllers\Controller;
 use App\Models\AiBot;
+use App\Support\BulkDestroy;
 use App\Support\ListingSort;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -87,6 +89,16 @@ class AiBotController extends Controller
         return redirect()
             ->route('ai-bots.index')
             ->with('status', 'AI bot deleted successfully.');
+    }
+
+    public function bulkDestroy(Request $request): JsonResponse
+    {
+        return BulkDestroy::byUuids(
+            $request,
+            AiBot::class,
+            'bot(s)',
+            fn (AiBot $bot) => $this->botService->delete($bot),
+        );
     }
 
     public function toggleDefault(AiBot $aiBot): RedirectResponse

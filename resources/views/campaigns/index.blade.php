@@ -12,7 +12,14 @@
 @endphp
 
 <x-layouts.app title="Campaigns - WapApp" active="campaigns.index">
-  <div class="flex flex-col bg-surface">
+  <div
+    class="flex flex-col bg-surface"
+    data-bulk-selection
+    data-bulk-destroy-url="{{ route('campaigns.bulk-destroy') }}"
+    data-bulk-confirm-title="Delete campaigns"
+    data-bulk-confirm-message="Delete {count} selected campaign(s)? This cannot be undone."
+    data-bulk-success-message="Selected campaigns deleted."
+  >
     <div class="flex flex-col gap-4 p-4">
       <div class="flex flex-col gap-1">
         <h1 class="fd-page-title text-2xl">Campaigns</h1>
@@ -52,6 +59,7 @@
             </x-ui.select>
           </x-slot:filters>
           <x-slot:actions>
+            <x-ui.bulk-actions-bar />
             <a href="{{ route('campaigns.index') }}" class="fd-btn inline-flex items-center justify-center gap-3 rounded border border-border-light bg-elevated px-4 py-3 text-sm font-semibold text-green-500 transition-colors hover:bg-surface">
               <img src="{{ asset('images/campaigns/refresh.svg') }}" alt="" class="size-4" width="16" height="16">
               Refresh
@@ -71,10 +79,13 @@
           <a href="{{ route('campaigns.create.start') }}" class="mt-3 text-sm font-semibold text-green-500 hover:underline">Create your first campaign</a>
         </div>
       @else
-        <x-ui.data-table :headers="['SI. No', 'Campaign Name', 'Audience Name', 'Communication Status', 'Status', 'Actions']" :paginator="$paginator" :column-widths="['w-[54px]', 'w-[320px]', 'w-[220px]', 'w-[220px]', '', 'w-[200px]']">
+        <x-ui.data-table :headers="['SI. No', 'Campaign Name', 'Audience Name', 'Communication Status', 'Status', 'Actions']" :paginator="$paginator" :column-widths="['w-[54px]', 'w-[320px]', 'w-[220px]', 'w-[220px]', '', 'w-[200px]']" :bulk-select="true">
           @foreach ($campaigns as $index => $campaign)
             @php $card = app(\App\Domains\Campaigns\Services\CampaignPresenter::class)->indexCard($campaign); @endphp
             <tr class="bg-elevated" data-campaign-row>
+              <td class="w-10 p-2 align-middle">
+                <input type="checkbox" data-bulk-row-checkbox value="{{ $campaign->uuid }}" class="size-4 rounded border-border" aria-label="Select campaign">
+              </td>
               <td class="fd-table-cell w-[54px] p-2 align-middle">{{ str_pad((string) ($paginator->firstItem() + $index), 2, '0', STR_PAD_LEFT) }}</td>
               <td class="w-[320px] p-2 align-middle">
                 <a href="{{ route('campaigns.show', $campaign) }}" class="fd-table-name hover:text-green-500">{{ $card['name'] }}</a>

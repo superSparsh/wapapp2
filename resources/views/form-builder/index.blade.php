@@ -8,7 +8,14 @@
 @endphp
 
 <x-layouts.app title="Form Builder - WapApp" active="form-builder.index">
-  <div class="flex flex-col bg-surface">
+  <div
+    class="flex flex-col bg-surface"
+    data-bulk-selection
+    data-bulk-destroy-url="{{ route('form-builder.api.bulk-destroy') }}"
+    data-bulk-confirm-title="Delete forms"
+    data-bulk-confirm-message="Delete {count} selected form(s)? This cannot be undone."
+    data-bulk-success-message="Selected forms deleted."
+  >
     <div class="flex flex-col gap-4 p-4">
       <div class="flex flex-col gap-1">
         <h1 class="fd-page-title text-2xl">Form Builder</h1>
@@ -31,6 +38,7 @@
         ]"
       >
         <x-slot:actions>
+          <x-ui.bulk-actions-bar />
           <a
             href="{{ route('form-builder.index', array_filter(['q' => $search ?? '', 'sort' => $currentSort ?? null, 'direction' => $currentDirection ?? null, 'page' => 1])) }}"
             class="fd-btn inline-flex items-center justify-center gap-3 rounded border border-border-light bg-elevated px-4 py-3 text-sm font-semibold leading-[1.5] text-green-500 transition-colors hover:bg-surface"
@@ -80,6 +88,7 @@
           :per-page="$pagination['per_page']"
           :pages="$pagination['pages']"
           :current="$pagination['current']"
+          :bulk-select="true"
         >
           @foreach ($rows as $row)
             @php
@@ -91,6 +100,9 @@
                 ];
             @endphp
             <tr class="bg-elevated">
+              <td class="w-10 p-2 align-middle">
+                <input type="checkbox" data-bulk-row-checkbox value="{{ $row['uuid'] }}" class="size-4 rounded border-border" aria-label="Select form">
+              </td>
               <td class="fd-table-cell w-[54px] p-2 align-middle">{{ $row['serial'] }}</td>
               <td class="w-[240px] p-2 align-middle">
                 <p class="text-[13px] font-semibold leading-[1.5] text-text-subtle">{{ $row['name'] }}</p>

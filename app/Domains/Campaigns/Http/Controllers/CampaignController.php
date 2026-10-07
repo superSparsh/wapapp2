@@ -13,6 +13,7 @@ use App\Models\Campaign;
 use App\Models\MailList;
 use App\Models\Template;
 use App\Models\WhatsappLine;
+use App\Support\BulkDestroy;
 use App\Support\PublicId;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -208,6 +209,19 @@ class CampaignController extends Controller
         return redirect()
             ->route('campaigns.index')
             ->with('status', 'Campaign deleted successfully.');
+    }
+
+    /**
+     * Bulk-delete campaigns by UUID.
+     */
+    public function bulkDestroy(Request $request): JsonResponse
+    {
+        return BulkDestroy::byUuids(
+            $request,
+            Campaign::class,
+            'campaign(s)',
+            fn (Campaign $campaign) => $this->adapter->delete($campaign),
+        );
     }
 
     /**

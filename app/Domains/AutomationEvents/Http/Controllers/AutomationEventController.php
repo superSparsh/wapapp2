@@ -7,6 +7,7 @@ namespace App\Domains\AutomationEvents\Http\Controllers;
 use App\Domains\AutomationEvents\Services\AutomationEventService;
 use App\Http\Controllers\Controller;
 use App\Models\AutomationEvent;
+use App\Support\BulkDestroy;
 use App\Support\ListingSort;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -68,5 +69,15 @@ class AutomationEventController extends Controller
         }
 
         return back()->with('status', 'Automation event deleted.');
+    }
+
+    public function bulkDestroy(Request $request): JsonResponse
+    {
+        return BulkDestroy::byUuids(
+            $request,
+            AutomationEvent::class,
+            'event(s)',
+            fn (AutomationEvent $event) => $this->service->destroy($event),
+        );
     }
 }

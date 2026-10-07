@@ -12,6 +12,7 @@ use App\Domains\WhatsappFlow\Services\WhatsappFlowQueryService;
 use App\Domains\WhatsappFlow\Services\WhatsappFlowService;
 use App\Http\Controllers\Controller;
 use App\Models\WhatsappFlow;
+use App\Support\BulkDestroy;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -111,6 +112,16 @@ class WhatsappFlowController extends Controller
         return redirect()
             ->route('whatsapp-flows.index')
             ->with('status', 'WhatsApp Flow deleted.');
+    }
+
+    public function bulkDestroy(Request $request): JsonResponse
+    {
+        return BulkDestroy::byUuids(
+            $request,
+            WhatsappFlow::class,
+            'flow(s)',
+            fn (WhatsappFlow $flow) => $this->flowService->delete($flow),
+        );
     }
 
     public function publish(WhatsappFlow $whatsappFlow): RedirectResponse|JsonResponse

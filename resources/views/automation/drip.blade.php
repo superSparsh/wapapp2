@@ -1,5 +1,12 @@
 <x-layouts.app title="Drip Marketing - WapApp" active="automation.drip.index">
-  <div class="flex flex-col bg-surface">
+  <div
+    class="flex flex-col bg-surface"
+    data-bulk-selection
+    data-bulk-destroy-url="{{ route('automation.drip.bulk-destroy') }}"
+    data-bulk-confirm-title="Delete automations"
+    data-bulk-confirm-message="Delete {count} selected automation(s)? This cannot be undone."
+    data-bulk-success-message="Selected automations deleted."
+  >
     <div class="flex flex-col gap-4 p-4">
       <div class="flex flex-col gap-1">
         <h1 class="text-2xl font-bold leading-[1.5] text-text-primary">Drip Marketing</h1>
@@ -22,6 +29,7 @@
         ]"
       >
         <x-slot:actions>
+          <x-ui.bulk-actions-bar />
           <a
             href="{{ route('automation.drip.create') }}"
             class="fd-btn inline-flex shrink-0 items-center justify-center gap-2 rounded bg-green-500 px-4 py-3 text-sm font-semibold leading-[1.5] text-primary-2 transition-opacity hover:opacity-90"
@@ -39,6 +47,9 @@
           <table class="w-full min-w-[1100px] text-left">
             <thead>
               <tr class="">
+                <th class="w-10 p-2">
+                  <input type="checkbox" data-bulk-select-all class="size-4 rounded border-border" aria-label="Select all">
+                </th>
                 <th class="w-[54px] p-2 text-[13px]  leading-[1.5] whitespace-nowrap">SI. No</th>
                 <th class="w-[320px] p-2 text-[13px]  leading-[1.5] ">Automation Name</th>
                 <th class="p-2 text-[13px]  leading-[1.5] ">Contacts</th>
@@ -54,6 +65,9 @@
               @forelse ($campaigns as $index => $campaign)
                 @php $serial = ($paginator->currentPage() - 1) * $paginator->perPage() + $index + 1; @endphp
                 <tr class="border-t border-divider bg-elevated">
+                  <td class="w-10 p-2">
+                    <input type="checkbox" data-bulk-row-checkbox value="{{ $campaign->uuid }}" class="size-4 rounded border-border" aria-label="Select automation">
+                  </td>
                   <td class="w-[54px] p-2 text-[13px] font-normal leading-[1.5] text-text-body">{{ $serial }}</td>
                   <td class="w-[320px] p-2">
                     <div class="flex items-start gap-3">
@@ -112,7 +126,7 @@
                 </tr>
               @empty
                 <tr class="border-t border-divider bg-elevated">
-                  <td colspan="9" class="p-8 text-center text-sm text-text-body">
+                  <td colspan="10" class="p-8 text-center text-sm text-text-body">
                     No automations yet. Click "Add New" to create your first automation.
                   </td>
                 </tr>

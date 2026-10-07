@@ -10,6 +10,7 @@ Route::prefix('whatsapp-flows')->name('whatsapp-flows.')->group(function () {
     Route::get('/', [WhatsappFlowController::class, 'index'])->name('index');
     Route::get('/create', [WhatsappFlowController::class, 'create'])->name('create');
     Route::post('/', [WhatsappFlowController::class, 'store'])->name('store');
+    Route::post('/bulk-destroy', [WhatsappFlowController::class, 'bulkDestroy'])->name('bulk-destroy');
     Route::post('/import', [WhatsappFlowBuilderController::class, 'import'])->name('import');
     Route::post('/check-name', [WhatsappFlowController::class, 'checkName'])->name('check-name');
 

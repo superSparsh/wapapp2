@@ -13,6 +13,7 @@ use App\Domains\Templates\Support\TemplateVariablePresenter;
 use App\Domains\Templates\Enums\VariableDataType;
 use App\Http\Controllers\Controller;
 use App\Models\Variable;
+use App\Support\BulkDestroy;
 use App\Support\ListingSort;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -100,6 +101,18 @@ class TemplateVariableController extends Controller
         return redirect()
             ->route('templates.variables')
             ->with('status', 'Variable deleted successfully.');
+    }
+
+    public function bulkDestroy(
+        Request $request,
+        TemplateVariableService $service,
+    ): JsonResponse {
+        return BulkDestroy::byUuids(
+            $request,
+            Variable::class,
+            'variable(s)',
+            fn (Variable $variable) => $service->delete($variable),
+        );
     }
 
     public function chatbot(BuiltinVariableCatalog $catalog): JsonResponse

@@ -1,5 +1,12 @@
 <x-layouts.app title="Variables - WapApp" active="templates.variables">
-  <div class="flex flex-col bg-surface">
+  <div
+    class="flex flex-col bg-surface"
+    data-bulk-selection
+    data-bulk-destroy-url="{{ route('templates.variables.bulk-destroy') }}"
+    data-bulk-confirm-title="Delete variables"
+    data-bulk-confirm-message="Delete {count} selected variable(s)? This cannot be undone."
+    data-bulk-success-message="Selected variables deleted."
+  >
     <div class="flex flex-col gap-4 p-4">
       @if (session('status'))
         <div class="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
@@ -30,6 +37,7 @@
         ]"
       >
         <x-slot:actions>
+          <x-ui.bulk-actions-bar />
           <a
             href="{{ route('templates.variables', array_filter(['q' => $search !== '' ? $search : null, 'sort' => $currentSort ?? null, 'direction' => $currentDirection ?? null])) }}"
             class="fd-btn inline-flex shrink-0 items-center justify-center gap-3 rounded border border-border-light bg-elevated px-4 py-3 text-green-500"
@@ -54,6 +62,9 @@
           <table class="w-full min-w-[1100px] text-left">
             <thead>
               <tr class="bg-elevated">
+                <th class="fd-table-head w-10 p-2">
+                  <input type="checkbox" data-bulk-select-all class="size-4 rounded border-border" aria-label="Select all">
+                </th>
                 <th class="fd-table-head w-[54px] p-2">SI. No</th>
                 <th class="fd-table-head w-[320px] p-2">Variable Name</th>
                 <th class="fd-table-head p-2">Created On / Time</th>
@@ -65,6 +76,9 @@
             <tbody>
               @forelse ($variables as $variable)
                 <tr class="border-t border-divider bg-elevated">
+                  <td class="w-10 p-2">
+                    <input type="checkbox" data-bulk-row-checkbox value="{{ $variable['uuid'] }}" class="size-4 rounded border-border" aria-label="Select variable">
+                  </td>
                   <td class="fd-table-cell p-2">{{ $variable['serial'] }}</td>
                   <td class="w-[320px] p-2">
                     <p class="fd-table-name">{{ $variable['name'] }}</p>
@@ -90,7 +104,7 @@
                 </tr>
               @empty
                 <tr class="border-t border-divider bg-elevated">
-                  <td colspan="6" class="p-8 text-center text-sm text-text-muted">
+                  <td colspan="7" class="p-8 text-center text-sm text-text-muted">
                     No variables found. Create your first variable to get started.
                   </td>
                 </tr>

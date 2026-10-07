@@ -9,7 +9,9 @@ use App\Domains\Audience\Http\Requests\Segment\UpdateSegmentRequest;
 use App\Domains\Audience\Models\Segment;
 use App\Domains\Audience\Services\SegmentService;
 use App\Models\MailList;
+use App\Support\BulkDestroy;
 use App\Support\PublicId;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
@@ -99,5 +101,18 @@ class SegmentController extends Controller
 
         return redirect()->route('audience.segments', array_filter(['list' => $listUuid]))
             ->with('status', 'Segment deleted successfully.');
+    }
+
+    /**
+     * Bulk-delete segments by UUID.
+     */
+    public function bulkDestroy(Request $request): JsonResponse
+    {
+        return BulkDestroy::byUuids(
+            $request,
+            Segment::class,
+            'segment(s)',
+            fn (Segment $segment) => $this->service->destroy($segment),
+        );
     }
 }

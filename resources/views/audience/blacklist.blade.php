@@ -1,5 +1,12 @@
 <x-layouts.app title="Blacklist - WapApp" active="audience.blacklist">
-  <div class="flex flex-col bg-surface">
+  <div
+    class="flex flex-col bg-surface"
+    data-bulk-selection
+    data-bulk-destroy-url="{{ route('audience.blacklist.bulk-destroy') }}"
+    data-bulk-confirm-title="Remove blacklist entries"
+    data-bulk-confirm-message="Remove {count} selected blacklist entries? This cannot be undone."
+    data-bulk-success-message="Selected blacklist entries removed."
+  >
     <div class="flex flex-col gap-4 p-4">
       <div class="flex flex-col gap-1">
         <h1 class="fd-page-title text-2xl">Blacklist</h1>
@@ -21,6 +28,7 @@
         ]"
       >
         <x-slot:actions>
+          <x-ui.bulk-actions-bar label="Remove selected" />
           <button type="button" data-open-modal="add-blacklist" class="fd-btn inline-flex items-center justify-center gap-2 rounded bg-green-500 px-4 py-3 text-sm font-semibold text-primary-2 transition-colors hover:opacity-90">
             Add entry
           </button>
@@ -32,9 +40,12 @@
     </div>
 
     <section class="p-4 pt-0">
-      <x-ui.data-table :headers="['SI. No', 'Phone', 'Email', 'Reason', 'Added', 'Actions']" :paginator="$entries">
+      <x-ui.data-table :headers="['SI. No', 'Phone', 'Email', 'Reason', 'Added', 'Actions']" :paginator="$entries" :bulk-select="true">
         @forelse ($entries as $i => $entry)
           <tr class="bg-elevated">
+            <td class="w-10 p-2">
+              <input type="checkbox" data-bulk-row-checkbox value="{{ $entry->uuid }}" class="size-4 rounded border-border" aria-label="Select entry">
+            </td>
             <td class="fd-table-cell w-[54px] p-2">{{ $entries->firstItem() + $i }}</td>
             <td class="fd-table-cell p-2">{{ $entry->phone ?: '-' }}</td>
             <td class="fd-table-cell p-2">{{ $entry->email ?: '-' }}</td>
@@ -52,7 +63,7 @@
           </tr>
         @empty
           <tr class="bg-elevated">
-            <td colspan="6" class="p-8 text-center text-sm text-text-body/70">No blacklist entries yet.</td>
+            <td colspan="7" class="p-8 text-center text-sm text-text-body/70">No blacklist entries yet.</td>
           </tr>
         @endforelse
       </x-ui.data-table>

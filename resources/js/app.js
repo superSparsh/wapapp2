@@ -6,6 +6,7 @@ import { initToast } from './toast.js';
 import { initTemplateBuilder } from './template-builder.js';
 import { initTemplatesIndex } from './templates-index.js';
 import { initFreeTemplateBuilder } from './free-template-builder.js';
+import { initBulkSelection } from './bulk-selection.js';
 import { initListingFilters, applyServerFieldErrors } from './listing-filters.js';
 import { initBuilderSectionMaximize, initDripCanvasMaximize, initInboxMaximize } from './builder-maximize.js';
 import { initChatbotListingToggle } from './chatbot-listing.js';
@@ -65,6 +66,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initTemplateBuilder();
     initTemplatesIndex();
     initFreeTemplateBuilder();
+    initBulkSelection();
     initListingFilters();
     initChatbotListingToggle();
 

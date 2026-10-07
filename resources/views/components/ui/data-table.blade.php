@@ -8,6 +8,7 @@
     'current' => null,
     'pageName' => 'page',
     'columnWidths' => [],
+    'bulkSelect' => false,
 ])
 
 @php
@@ -16,6 +17,10 @@
       || $pagination === true
       || $pages !== null
       || $current !== null;
+  $widths = $columnWidths;
+  if ($bulkSelect) {
+      array_unshift($widths, 'w-10');
+  }
 @endphp
 
 <div {{ $attributes->class('overflow-hidden rounded-xl bg-elevated shadow-[0px_4px_6px_rgba(0,0,0,0.04)]') }}>
@@ -23,8 +28,13 @@
     <table class="w-full min-w-[900px] text-left">
       <thead>
         <tr class="bg-elevated">
+          @if ($bulkSelect)
+            <th class="fd-table-head w-10 p-2">
+              <input type="checkbox" data-bulk-select-all class="size-4 rounded border-border" aria-label="Select all">
+            </th>
+          @endif
           @foreach ($headers as $i => $header)
-            <th class="fd-table-head p-2 {{ $columnWidths[$i] ?? '' }}">{{ $header }}</th>
+            <th class="fd-table-head p-2 {{ $widths[$bulkSelect ? $i + 1 : $i] ?? '' }}">{{ $header }}</th>
           @endforeach
         </tr>
       </thead>

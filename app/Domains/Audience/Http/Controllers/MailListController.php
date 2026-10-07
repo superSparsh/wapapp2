@@ -8,6 +8,7 @@ use App\Domains\Audience\Http\Requests\MailList\StoreMailListRequest;
 use App\Domains\Audience\Http\Requests\MailList\UpdateMailListRequest;
 use App\Domains\Audience\Services\MailListService;
 use App\Models\MailList;
+use App\Support\BulkDestroy;
 use App\Support\ListingSort;
 use App\Support\PublicId;
 use Illuminate\Http\JsonResponse;
@@ -99,6 +100,19 @@ class MailListController extends Controller
 
         return redirect()->route('audience.index')
             ->with('status', 'List deleted successfully.');
+    }
+
+    /**
+     * Bulk-delete mail lists by UUID.
+     */
+    public function bulkDestroy(Request $request): JsonResponse
+    {
+        return BulkDestroy::byUuids(
+            $request,
+            MailList::class,
+            'list(s)',
+            fn (MailList $mailList) => $this->service->destroy($mailList),
+        );
     }
 
     /**

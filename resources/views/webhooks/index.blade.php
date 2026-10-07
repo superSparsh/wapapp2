@@ -291,7 +291,14 @@ TXT;
       </div>
 
       {{-- Your Webhooks Table --}}
-      <div class="flex flex-col gap-4 rounded-xl bg-elevated p-5">
+      <div
+        class="flex flex-col gap-4 rounded-xl bg-elevated p-5"
+        data-bulk-selection
+        data-bulk-destroy-url="{{ route('webhooks.bulk-destroy') }}"
+        data-bulk-confirm-title="Delete webhooks"
+        data-bulk-confirm-message="Delete {count} selected webhook(s)? This cannot be undone."
+        data-bulk-success-message="Selected webhooks deleted."
+      >
         <h2 class="text-2xl font-bold leading-[1.5] text-text-primary">Your Webhooks</h2>
 
         <x-ui.listing-toolbar
@@ -307,7 +314,11 @@ TXT;
             ['value' => 'status', 'label' => 'Status', 'direction' => 'asc'],
             ['value' => 'last_triggered_at', 'label' => 'Last triggered', 'direction' => 'desc'],
           ]"
-        />
+        >
+          <x-slot:actions>
+            <x-ui.bulk-actions-bar />
+          </x-slot:actions>
+        </x-ui.listing-toolbar>
 
         @if ($subscriptions->isEmpty())
           <div class="flex flex-col items-center justify-center gap-2 py-12 text-center">
@@ -320,6 +331,9 @@ TXT;
               <table class="w-full min-w-[1240px] text-left">
                 <thead>
                   <tr class="bg-elevated">
+                    <th class="w-10 p-2">
+                      <input type="checkbox" data-bulk-select-all class="size-4 rounded border-border" aria-label="Select all">
+                    </th>
                     <th class="w-[160px] p-2 text-[13px] font-medium leading-[1.5] text-text-body">Description</th>
                     <th class="w-[140px] p-2 text-[13px] font-medium leading-[1.5] text-text-body">Phone</th>
                     <th class="w-[320px] p-2 text-[13px] font-medium leading-[1.5] text-text-body">URL</th>
@@ -333,6 +347,9 @@ TXT;
                 <tbody>
                   @foreach ($subscriptions as $sub)
                     <tr class="border-t border-divider bg-elevated" data-sub-id="{{ $sub->id }}">
+                      <td class="w-10 p-2">
+                        <input type="checkbox" data-bulk-row-checkbox value="{{ $sub->uuid }}" class="size-4 rounded border-border" aria-label="Select webhook">
+                      </td>
                       <td class="w-[160px] p-2 text-[13px] font-semibold leading-[1.5] text-text-subtle">
                         {{ $sub->description }}
                       </td>
