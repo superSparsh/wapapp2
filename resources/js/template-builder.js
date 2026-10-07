@@ -2724,7 +2724,28 @@ export function initTemplateBuilder() {
     initCarouselBuilder(scheduleUpdate);
     initAuthApps();
 
-    (document.getElementById('footer_text') || document.querySelector('textarea[name="footer_text"]'))?.addEventListener('input', scheduleUpdate);
+    const footerInput =
+        document.getElementById('footer_text') || document.querySelector('textarea[name="footer_text"]');
+    const footerCounter = document.querySelector('[data-footer-char-count]');
+    const syncFooterCount = () => {
+        if (!(footerInput instanceof HTMLTextAreaElement) && !(footerInput instanceof HTMLInputElement)) {
+            return;
+        }
+
+        const limit = Number(footerInput.dataset.footerLimit || footerInput.maxLength || 60);
+        if (footerInput.value.length > limit) {
+            footerInput.value = footerInput.value.slice(0, limit);
+        }
+        if (footerCounter) {
+            footerCounter.textContent = `${footerInput.value.length} / ${limit}`;
+        }
+    };
+    footerInput?.addEventListener('input', () => {
+        syncFooterCount();
+        scheduleUpdate();
+    });
+    syncFooterCount();
+
     document.getElementById('header_text')?.addEventListener('input', scheduleUpdate);
     document.getElementById('free_header_type')?.addEventListener('change', scheduleUpdate);
 

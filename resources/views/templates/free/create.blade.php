@@ -55,7 +55,16 @@
 
         <div class="flex flex-col gap-3">
           <label for="footer_text" class="fd-label">Footer</label>
-          <textarea id="footer_text" name="footer" rows="2" class="fd-input w-full rounded-xl border border-border p-3.5">{{ old('footer', $content['footer'] ?? '') }}</textarea>
+          <textarea
+            id="footer_text"
+            name="footer"
+            rows="2"
+            maxlength="60"
+            data-footer-limit="60"
+            class="fd-input w-full rounded-xl border border-border p-3.5"
+            placeholder="Optional footer (max 60 characters)"
+          >{{ old('footer', $content['footer'] ?? '') }}</textarea>
+          <p class="text-xs text-text-subtle">Maximum 60 characters.</p>
         </div>
 
         <div id="free-type-sections" class="flex flex-col gap-4">
