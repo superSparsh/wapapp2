@@ -131,9 +131,11 @@
     src="{{ asset('images/templates/message-divider.svg') }}"
     alt=""
     @class([
-      'block h-full w-full',
+      'block w-full',
       'hidden' => count($buttons) === 0 || $isCarousel,
     ])
+    width="100%"
+    height="1px"
   >
   <div data-preview-buttons @class(['flex w-full flex-col', 'hidden' => $isCarousel])>
     @foreach ($buttons as $button)
