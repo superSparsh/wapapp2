@@ -13,7 +13,8 @@ class PruneInboundWebhookEventsCommand extends Command
 {
     protected $signature = 'webhooks:prune-inbound
                             {--status=* : Statuses to delete (default: duplicate,processed)}
-                            {--older-than=7 : Delete rows older than N days}
+                            {--older-than=7 : Delete rows older than N days (ignored when --older-than-hours is set)}
+                            {--older-than-hours= : Delete rows older than N hours (preferred for short windows)}
                             {--event-type= : Optional message|status filter}
                             {--tenant-null : Only rows where tenant_id IS NULL}
                             {--received-too : Also prune very old received (use carefully)}
@@ -26,8 +27,16 @@ class PruneInboundWebhookEventsCommand extends Command
 
     public function handle(): int
     {
-        $days = max(1, (int) $this->option('older-than'));
-        $cutoff = Carbon::now()->subDays($days);
+        $hoursOption = $this->option('older-than-hours');
+        if ($hoursOption !== null && $hoursOption !== '') {
+            $hours = max(1, (int) $hoursOption);
+            $cutoff = Carbon::now()->subHours($hours);
+            $windowLabel = "{$hours} hour(s)";
+        } else {
+            $days = max(1, (int) $this->option('older-than'));
+            $cutoff = Carbon::now()->subDays($days);
+            $windowLabel = "{$days} day(s)";
+        }
         $limit = max(1, (int) $this->option('limit'));
 
         $statuses = array_values(array_filter(array_map(
@@ -75,7 +84,7 @@ class PruneInboundWebhookEventsCommand extends Command
         }
 
         $matched = (clone $query)->count();
-        $this->info("Matched {$matched} row(s) older than {$days} day(s) (before {$cutoff->toDateTimeString()}).");
+        $this->info("Matched {$matched} row(s) older than {$windowLabel} (before {$cutoff->toDateTimeString()}).");
         $this->line('Statuses: '.implode(', ', $statuses));
 
         if ($matched === 0) {

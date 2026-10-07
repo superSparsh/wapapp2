@@ -78,9 +78,11 @@ Schedule::command(PurgeSoftDeletedContactsCommand::class)->dailyAt('04:15');
 Schedule::command(CleanOldFlowSubmissions::class)->daily();
 Schedule::command(RetryFailedDeliveriesCommand::class)->everyFifteenMinutes();
 
-// Inbound webhook hygiene: drain recent stuck status; nightly prune older than keep_days (default 2)
+// Inbound webhook hygiene:
+// - every 15m: replay stuck status + delete processed/duplicate older than keep_hours (default 12)
+// - nightly: full prune of every status past the keep window
 if ((bool) config('webhooks.inbound_maintenance.enabled', true)) {
-    Schedule::command(MaintainInboundWebhookEventsCommand::class, ['--skip-prune'])
+    Schedule::command(MaintainInboundWebhookEventsCommand::class, ['--safe-prune'])
         ->everyFifteenMinutes()
         ->withoutOverlapping(10)
         ->onOneServer();

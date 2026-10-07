@@ -21,38 +21,57 @@ use Illuminate\Support\Facades\Artisan;
 class MaintainInboundWebhookEventsCommand extends Command
 {
     protected $signature = 'webhooks:maintain-inbound
-                            {--keep-days= : Days of inbound_webhook_events to retain}
+                            {--keep-hours= : Hours of inbound_webhook_events to retain (preferred)}
+                            {--keep-days= : Legacy days retain window (converted to hours when keep-hours unset)}
                             {--replay-batch= : Stuck rows to dispatch per batch}
                             {--replay-max= : Max stuck rows to dispatch in this run}
                             {--prune-batch= : Rows to delete per prune batch}
                             {--skip-replay : Only prune}
                             {--skip-prune : Only replay stuck}
+                            {--safe-prune : Prune only processed+duplicate (for frequent runs)}
                             {--dry-run : Report actions without changing data}';
 
     protected $description = 'Replay recent stuck inbound status webhooks, then prune older rows';
 
     public function handle(): int
     {
-        $keepDays = max(1, (int) ($this->option('keep-days') ?: config('webhooks.inbound_maintenance.keep_days', 2)));
+        $keepHours = $this->resolveKeepHours();
         $replayBatch = max(1, (int) ($this->option('replay-batch') ?: config('webhooks.inbound_maintenance.replay_batch', 500)));
         $replayMax = max(1, (int) ($this->option('replay-max') ?: config('webhooks.inbound_maintenance.replay_max', 10000)));
         $pruneBatch = max(1, (int) ($this->option('prune-batch') ?: config('webhooks.inbound_maintenance.prune_batch', 5000)));
         $dryRun = (bool) $this->option('dry-run');
-        $since = Carbon::now()->subDays($keepDays);
+        $safePrune = (bool) $this->option('safe-prune');
+        $since = Carbon::now()->subHours($keepHours);
 
-        $this->info("Inbound maintain: keep_days={$keepDays} since={$since->toDateTimeString()} dry_run=".($dryRun ? 'yes' : 'no'));
+        $this->info("Inbound maintain: keep_hours={$keepHours} since={$since->toDateTimeString()} dry_run=".($dryRun ? 'yes' : 'no'));
 
         if (! (bool) $this->option('skip-replay')) {
             $this->replayStuckStatus($since, $replayBatch, $replayMax, $dryRun);
         }
 
-        if (! (bool) $this->option('skip-prune')) {
-            $this->pruneOlderThan($keepDays, $pruneBatch, $dryRun);
+        // Frequent runs: delete processed/duplicate only. Nightly: every status past keep window.
+        if ($safePrune) {
+            $this->pruneOlderThan($keepHours, $pruneBatch, $dryRun, allStatuses: false);
+        } elseif (! (bool) $this->option('skip-prune')) {
+            $this->pruneOlderThan($keepHours, $pruneBatch, $dryRun, allStatuses: true);
         }
 
         $this->info('Inbound maintain finished.');
 
         return self::SUCCESS;
+    }
+
+    private function resolveKeepHours(): int
+    {
+        if ($this->option('keep-hours') !== null && $this->option('keep-hours') !== '') {
+            return max(1, (int) $this->option('keep-hours'));
+        }
+
+        if ($this->option('keep-days') !== null && $this->option('keep-days') !== '') {
+            return max(1, (int) $this->option('keep-days') * 24);
+        }
+
+        return max(1, (int) config('webhooks.inbound_maintenance.keep_hours', 12));
     }
 
     private function replayStuckStatus(Carbon $since, int $batch, int $max, bool $dryRun): void
@@ -125,14 +144,23 @@ class MaintainInboundWebhookEventsCommand extends Command
         $this->info("Replay dispatched {$dispatched} stuck status job(s).");
     }
 
-    private function pruneOlderThan(int $keepDays, int $batch, bool $dryRun): void
+    private function pruneOlderThan(int $keepHours, int $batch, bool $dryRun, bool $allStatuses = true): void
     {
         $args = [
-            '--all-statuses' => true,
-            '--older-than' => $keepDays,
+            '--older-than-hours' => $keepHours,
             '--limit' => $batch,
             '--force' => true,
         ];
+
+        if ($allStatuses) {
+            $args['--all-statuses'] = true;
+        } else {
+            // Default prune statuses are processed + duplicate (safe for frequent runs).
+            $args['--status'] = [
+                InboundWebhookStatus::Processed->value,
+                InboundWebhookStatus::Duplicate->value,
+            ];
+        }
 
         if ($dryRun) {
             $args['--dry-run'] = true;
@@ -145,6 +173,7 @@ class MaintainInboundWebhookEventsCommand extends Command
         $rounds = 0;
         $deletedTotal = 0;
         $maxRounds = (int) config('webhooks.inbound_maintenance.prune_max_rounds', 50);
+        $mode = $allStatuses ? 'all-statuses' : 'processed+duplicate';
 
         while ($rounds < $maxRounds) {
             Artisan::call('webhooks:prune-inbound', $args);
@@ -166,6 +195,6 @@ class MaintainInboundWebhookEventsCommand extends Command
             usleep(200_000);
         }
 
-        $this->info("Prune removed {$deletedTotal} row(s) across {$rounds} round(s).");
+        $this->info("Prune ({$mode}) removed {$deletedTotal} row(s) across {$rounds} round(s).");
     }
 }
