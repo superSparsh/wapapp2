@@ -46,7 +46,6 @@
                                 src=""
                                 alt=""
                                 class="hidden aspect-[1600/800] h-full w-full rounded object-cover"
-                                width="338"
                             >
                             <video
                                 data-preview-header-video
@@ -73,9 +72,7 @@
                                 data-preview-divider
                                 src="{{ asset('images/inbox/modals/vector-divider.svg') }}"
                                 alt=""
-                                class="my-3 hidden w-full"
-                                width="338"
-                                height="1"
+                                class="my-3 hidden h-full w-full"
                             >
                             <div data-preview-buttons class="flex w-full flex-col"></div>
                         </div>
@@ -84,9 +81,8 @@
                             <img
                                 src="{{ asset('images/inbox/modals/template-header-image.png') }}"
                                 alt=""
-                                class="aspect-[1600/800] w-full rounded object-cover"
-                                width="338"
-                                height="169"
+                                class="aspect-[1600/800] h-full w-full rounded object-cover"
+                              
                             >
                             <p class="mt-3 whitespace-pre-wrap text-base font-normal leading-[1.4] text-text-body" style="font-family: var(--font-display)">Hello Name (text) {(1)}
 

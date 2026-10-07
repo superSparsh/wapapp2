@@ -214,7 +214,6 @@
                 src=""
                 alt=""
                 class="hidden aspect-[1600/800] h-full w-full rounded object-cover"
-                width="338"
               >
               <video
                 data-preview-header-video

@@ -50,7 +50,6 @@
         'aspect-[1600/800] w-full rounded object-cover h-full',
         'hidden' => ! $showHeaderImage || $isCarousel,
       ])
-      width="338"
     >
     <video
       data-preview-header-video
@@ -130,11 +129,9 @@
     src="{{ asset('images/templates/message-divider.svg') }}"
     alt=""
     @class([
-      'block w-full',
+      'block h-full w-full',
       'hidden' => count($buttons) === 0 || $isCarousel,
     ])
-    width="338"
-    height="1"
   >
   <div data-preview-buttons @class(['flex w-full flex-col', 'hidden' => $isCarousel])>
     @foreach ($buttons as $button)
