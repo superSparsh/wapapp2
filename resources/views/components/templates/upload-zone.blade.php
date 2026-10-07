@@ -39,6 +39,7 @@
   >
   <div
     data-header-media-preview
+    @if (filled($previewUrl)) data-preview-url="{{ $previewUrl }}" @endif
     @class([
       'flex items-start gap-3 rounded-lg border border-border bg-muted-surface p-3',
       'hidden' => ! $hasPreview,
@@ -58,21 +59,41 @@
         alt=""
         class="max-h-28 w-full rounded-md object-cover"
         data-header-media-image
+        @if ($kind === 'image' && filled($previewUrl)) data-preview-url="{{ $previewUrl }}" @endif
         @if ($kind !== 'image' || blank($previewUrl)) hidden @endif
       >
       <video
         @class(['max-h-28 w-full rounded-md', 'hidden' => $kind !== 'video' || blank($previewUrl)])
-        @if ($kind === 'video' && filled($previewUrl)) src="{{ $previewUrl }}" @endif
+        @if ($kind === 'video' && filled($previewUrl))
+          src="{{ $previewUrl }}"
+          data-preview-url="{{ $previewUrl }}"
+        @endif
         controls
         muted
         playsinline
         preload="metadata"
         data-header-media-video
       ></video>
-      @if ($kind === 'document' || $kind === 'audio')
-        <div class="flex h-16 items-center justify-center rounded-md border border-dashed border-divider bg-elevated text-xs text-text-subtle" data-header-media-file-badge>
-          {{ $kind === 'audio' ? 'Audio' : 'Document' }}
-        </div>
+      <audio
+        @class(['w-full', 'hidden' => $kind !== 'audio' || blank($previewUrl)])
+        @if ($kind === 'audio' && filled($previewUrl))
+          src="{{ $previewUrl }}"
+          data-preview-url="{{ $previewUrl }}"
+        @endif
+        controls
+        preload="metadata"
+        data-header-media-audio
+      ></audio>
+      @if ($kind === 'document')
+        <a
+          href="{{ filled($previewUrl) ? $previewUrl : '#' }}"
+          @if (filled($previewUrl)) target="_blank" rel="noopener noreferrer" @endif
+          class="flex h-16 items-center justify-center rounded-md border border-dashed border-divider bg-elevated px-2 text-center text-xs font-medium text-link-green hover:border-green-500"
+          data-header-media-document
+          @if (filled($previewUrl)) data-preview-url="{{ $previewUrl }}" @endif
+        >
+          {{ filled($fileName) ? $fileName : 'Document' }}
+        </a>
       @endif
     </div>
   </div>

@@ -48,8 +48,10 @@ class OptInTemplateService
     /**
      * Ensure the opt-in template exists for the current tenant.
      * On Rejected / broken payload / missing CAMS handoff, auto-repair and resubmit.
+     *
+     * @param  bool  $forceResubmit  Bypass cooldown and treat any Rejected as repairable (ops / artisan).
      */
-    public function ensureTemplate(?WhatsappLine $line = null): Template
+    public function ensureTemplate(?WhatsappLine $line = null, bool $forceResubmit = false): Template
     {
         $useV3 = $this->usesV3();
         $name = $useV3 ? self::TEMPLATE_NAME_V3 : self::TEMPLATE_NAME;
@@ -70,13 +72,26 @@ class OptInTemplateService
             static fn (Template $row): bool => $row->status === TemplateStatus::Approved
                 && $row->whatsappCode() !== null,
         );
-        if ($approvedProvider instanceof Template) {
+        if ($approvedProvider instanceof Template && ! $forceResubmit) {
             return $approvedProvider;
         }
 
         $template = $candidates->first(
             static fn (Template $row): bool => $lineId === null || (int) $row->whatsapp_line_id === (int) $lineId,
         ) ?? $candidates->first();
+
+        // Ops force: always work the failed/rejected (or wrong-variable) row, not a stray approved clone.
+        if ($forceResubmit && $candidates->isNotEmpty()) {
+            $failed = $candidates->first(
+                static fn (Template $row): bool => $row->status === TemplateStatus::Rejected
+                    || $row->status === TemplateStatus::Draft
+                    || ($row->status === TemplateStatus::PendingReview && $row->synced_at === null)
+                    || ! str_contains((string) data_get($row->payload, 'body.text'), '$(full_name)'),
+            );
+            if ($failed instanceof Template) {
+                $template = $failed;
+            }
+        }
 
         $variant = $this->contentVariantFor($template);
         $desired = $this->desiredContent($useV3, $variant);
@@ -101,13 +116,26 @@ class OptInTemplateService
             ]);
             $repaired = true;
         } else {
-            $repaired = $this->repairTemplate($template, $name, $desired, $payload, $bodyText, $lineId);
+            $repaired = $this->repairTemplate(
+                $template,
+                $name,
+                $desired,
+                $payload,
+                $bodyText,
+                $lineId,
+                forceRecoverable: $forceResubmit,
+            );
         }
 
         $this->ensureFullNameVariable($template);
 
-        if ($this->shouldAutoSubmit($template->fresh() ?? $template, $repaired)) {
-            $this->autoSubmit($template->fresh() ?? $template);
+        $fresh = $template->fresh() ?? $template;
+        $alreadyApproved = $fresh->status === TemplateStatus::Approved && $fresh->whatsappCode() !== null;
+        if (! $alreadyApproved && ($forceResubmit || $this->shouldAutoSubmit($fresh, $repaired))) {
+            if ($forceResubmit) {
+                $this->prepareForcedResubmit($fresh);
+            }
+            $this->autoSubmit($fresh->fresh() ?? $fresh);
         }
 
         return $template->fresh() ?? $template;
@@ -147,6 +175,7 @@ class OptInTemplateService
         array $desiredPayload,
         string $bodyText,
         ?int $lineId,
+        bool $forceRecoverable = false,
     ): bool {
         $current = $template->wizardPayload();
         $rawBody = (string) ($current['body']['text'] ?? '');
@@ -157,7 +186,11 @@ class OptInTemplateService
         $needsUpdate = false;
 
         // Normalize {{full_name}} → $(full_name) and keep desired marketing copy in sync.
-        if (str_contains($rawBody, '{{') || trim($currentBody) !== trim($bodyText)) {
+        if (
+            str_contains($rawBody, '{{')
+            || ! str_contains($rawBody, '$(full_name)')
+            || trim($currentBody) !== trim($bodyText)
+        ) {
             $needsUpdate = true;
         }
 
@@ -186,9 +219,9 @@ class OptInTemplateService
         }
 
         $recoverableReject = $template->status === TemplateStatus::Rejected
-            && $this->isRecoverableRejection($template->rejection_reason);
+            && ($forceRecoverable || $this->isRecoverableRejection($template->rejection_reason));
 
-        if ($recoverableReject) {
+        if ($recoverableReject || $forceRecoverable) {
             $needsUpdate = true;
         }
 
@@ -208,8 +241,10 @@ class OptInTemplateService
                 $merged['meta'][$keep] = $current['meta'][$keep];
             }
         }
-        if (! $recoverableReject && isset($current['meta']['opt_in_auto_submit_at'])) {
+        if (! $recoverableReject && ! $forceRecoverable && isset($current['meta']['opt_in_auto_submit_at'])) {
             $merged['meta']['opt_in_auto_submit_at'] = $current['meta']['opt_in_auto_submit_at'];
+        } else {
+            unset($merged['meta']['opt_in_auto_submit_at']);
         }
         $merged['meta']['opt_in_content_variant'] = $this->contentVariantFor($template);
 
@@ -217,10 +252,14 @@ class OptInTemplateService
         $template->body_preview = $bodyText;
         $template->language = $template->language ?: 'en_GB';
 
-        if ($recoverableReject || $template->status === TemplateStatus::Draft) {
+        if ($recoverableReject || $forceRecoverable || $template->status === TemplateStatus::Draft) {
             $template->status = TemplateStatus::PendingReview;
             $template->synced_at = null;
             $template->rejection_reason = null;
+            // Drop fake / stale provider codes so CreateChatappTemplate is used after repair.
+            if (! filled($template->whatsappCode())) {
+                $template->code = null;
+            }
         }
 
         $template->save();
@@ -230,9 +269,32 @@ class OptInTemplateService
             'name' => $name,
             'status' => $template->status->value,
             'variant' => $merged['meta']['opt_in_content_variant'] ?? 0,
+            'force' => $forceRecoverable,
         ]);
 
         return true;
+    }
+
+    /**
+     * Clear cooldown / reject state so autoSubmit always runs for ops force-resubmit.
+     */
+    private function prepareForcedResubmit(Template $template): void
+    {
+        if ($template->status === TemplateStatus::Approved && $template->whatsappCode() !== null) {
+            return;
+        }
+
+        $payload = $template->wizardPayload();
+        $payload['meta'] = is_array($payload['meta'] ?? null) ? $payload['meta'] : [];
+        unset($payload['meta']['opt_in_auto_submit_at']);
+
+        $template->forceFill([
+            'status' => TemplateStatus::PendingReview,
+            'synced_at' => null,
+            'rejection_reason' => null,
+            'payload' => $payload,
+            'code' => filled($template->whatsappCode()) ? $template->code : null,
+        ])->saveQuietly();
     }
 
     private function ensureFullNameVariable(Template $template): void

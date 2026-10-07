@@ -60,20 +60,23 @@
       {{ $contact['initials'] }}
     </div>
     <div class="min-w-0 flex-1 basis-[8rem]">
-      <div class="flex flex-wrap items-center gap-2">
+      <div class="flex flex-wrap items-center gap-2" data-inbox-contact-title>
         <p class="fd-card-title truncate text-sm text-text-subtle xl:text-base">{{ $contact['name'] }}</p>
-        @if (! empty($contact['stopped']))
-          <span class="rounded bg-red-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-red-700" title="{{ $contact['stop_label'] ?? 'Marked STOP' }}">
-            STOP
-          </span>
-        @endif
+        <span
+          data-inbox-stop-badge
+          class="rounded bg-red-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-red-700 {{ empty($contact['stopped']) ? 'hidden' : '' }}"
+          title="{{ $contact['stop_label'] ?? 'Marked STOP' }}"
+        >
+          STOP
+        </span>
       </div>
       @if (! empty($contact['phone']) && $contact['phone'] !== $contact['name'])
         <p class="fd-table-cell truncate text-xs text-white xl:text-sm">{{ $contact['phone'] }}</p>
       @endif
-      @if (! empty($contact['stopped']))
-        <p class="mt-0.5 truncate text-[11px] font-medium text-white/90">{{ $contact['stop_label'] ?? 'This contact marked STOP and is unsubscribed' }}</p>
-      @endif
+      <p
+        data-inbox-stop-subtitle
+        class="mt-0.5 truncate text-[11px] font-medium text-white/90 {{ empty($contact['stopped']) ? 'hidden' : '' }}"
+      >{{ $contact['stop_label'] ?? 'This contact marked STOP and is unsubscribed' }}</p>
     </div>
     @if ($conversation)
       <div class="flex shrink-0 items-center gap-1.5 rounded-lg bg-white/10 px-2 py-1.5 xl:gap-2.5 xl:px-3 xl:py-2">

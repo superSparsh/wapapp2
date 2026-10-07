@@ -26,7 +26,7 @@
       <form
         method="post"
         action="{{ $isEdit ? route('templates.free.update', $message) : route('templates.free.store') }}"
-        class="min-w-0 w-full max-w-[725px] flex flex-col gap-4 rounded-lg bg-elevated p-4"
+        class="min-w-0 w-full max-w-[725px] flex flex-col gap-4 rounded-lg bg-elevated p-4 lg:sticky lg:top-4 lg:self-start"
         id="free-template-form"
       >
         @csrf
@@ -141,7 +141,7 @@
 
       <div class="w-full shrink-0 lg:w-[425px]">
         <x-templates.phone-preview>
-          <x-templates.message-preview-bubble :preview-data="$previewDefaults" live />
+          <x-templates.message-preview-bubble :preview-data="$previewDefaults" live :scroll-body="false" />
         </x-templates.phone-preview>
       </div>
     </div>

@@ -6,6 +6,7 @@ namespace Tests\Feature\Audience;
 
 use App\Domains\Audience\Enums\ContactStatus;
 use App\Domains\Audience\Models\ContactTag;
+use App\Domains\Audience\Models\ListField;
 use App\Enums\ContactOptInStatus;
 use App\Models\Contact;
 use App\Models\MailList;
@@ -84,6 +85,47 @@ class ContactTest extends TestCase
             ->assertViewHas('contacts', function ($contacts) {
                 return $contacts->total() === 5;
             });
+    }
+
+    public function test_subscribers_index_shows_visible_custom_list_fields(): void
+    {
+        $list = MailList::factory()->create();
+
+        ListField::query()->create([
+            'mail_list_id' => $list->id,
+            'label' => 'City',
+            'type' => ListField::TYPE_TEXT,
+            'tag' => 'CITY',
+            'required' => false,
+            'visible' => true,
+            'sort_order' => 10,
+        ]);
+        ListField::query()->create([
+            'mail_list_id' => $list->id,
+            'label' => 'Hidden Notes',
+            'type' => ListField::TYPE_TEXT,
+            'tag' => 'NOTES',
+            'required' => false,
+            'visible' => false,
+            'sort_order' => 11,
+        ]);
+
+        Contact::factory()->create([
+            'mail_list_id' => $list->id,
+            'name' => 'Ada',
+            'custom_fields' => [
+                'CITY' => 'Delhi',
+                'NOTES' => 'private',
+            ],
+        ]);
+
+        $this->actingAsTenantUser()
+            ->get(route('audience.subscribers', ['list' => $list->uuid]))
+            ->assertOk()
+            ->assertSee('City')
+            ->assertSee('Delhi')
+            ->assertDontSee('Hidden Notes')
+            ->assertDontSee('private');
     }
 
     public function test_subscribers_index_filters_by_mail_list(): void

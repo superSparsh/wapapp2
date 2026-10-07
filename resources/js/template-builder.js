@@ -116,16 +116,34 @@ function readSamples(container) {
     }));
 }
 
+function activeHeaderSection() {
+    const selected = document.querySelector('input[name="header_type"]:checked')?.value;
+    if (!selected || selected === 'none') {
+        return null;
+    }
+
+    return document.querySelector(`[data-header-section="${selected}"]`);
+}
+
 function readHeaderMediaFromUpload() {
-    const zone = document.querySelector('[data-header-upload]');
+    const empty = {
+        image: null,
+        video: null,
+        document: null,
+        audio: null,
+        fileName: null,
+    };
+
+    const section = activeHeaderSection();
+    const zone = section?.querySelector('[data-header-upload]');
     if (!zone) {
-        return { image: null, video: null };
+        return empty;
     }
 
     const previewWrap = zone.querySelector('[data-header-media-preview]');
-    if (previewWrap?.classList.contains('hidden')) {
-        return { image: null, video: null };
-    }
+    const urlInput = section.querySelector('[data-header-url-input]');
+    const useUrl = Boolean(section.querySelector('[data-header-use-url]')?.checked);
+    const kind = section.dataset.headerSection || '';
 
     const readSrc = (element) => {
         if (!element || element.classList.contains('hidden')) {
@@ -135,9 +153,61 @@ function readHeaderMediaFromUpload() {
         return element.dataset.previewUrl || element.getAttribute('src') || null;
     };
 
+    let image = null;
+    let video = null;
+    let documentUrl = null;
+    let audio = null;
+    let fileName = zone.querySelector('[data-header-media-name]')?.textContent?.trim() || null;
+
+    if (useUrl && urlInput?.value?.trim()) {
+        const url = urlInput.value.trim();
+        if (kind === 'image') {
+            image = url;
+        } else if (kind === 'video') {
+            video = url;
+        } else if (kind === 'document') {
+            documentUrl = url;
+        } else if (kind === 'audio') {
+            audio = url;
+        }
+    } else if (!previewWrap?.classList.contains('hidden')) {
+        image = readSrc(zone.querySelector('[data-header-media-image]'));
+        video = readSrc(zone.querySelector('[data-header-media-video]'));
+        audio = readSrc(zone.querySelector('[data-header-media-audio]'));
+        documentUrl =
+            previewWrap?.dataset.previewUrl ||
+            zone.dataset.previewUrl ||
+            readSrc(zone.querySelector('[data-header-media-document]')) ||
+            null;
+
+        if (kind === 'document' && !documentUrl) {
+            documentUrl = previewWrap?.dataset.previewUrl || zone.dataset.previewUrl || null;
+        }
+        if (kind === 'audio' && !audio) {
+            audio = previewWrap?.dataset.previewUrl || zone.dataset.previewUrl || null;
+        }
+        if (kind === 'video' && !video) {
+            video = previewWrap?.dataset.previewUrl || zone.dataset.previewUrl || null;
+        }
+        if (kind === 'image' && !image) {
+            image = previewWrap?.dataset.previewUrl || zone.dataset.previewUrl || null;
+        }
+    }
+
+    if (kind === 'document') {
+        const docNameInput = section.querySelector('input[name="doc_name"]');
+        const typedName = docNameInput?.value?.trim();
+        if (typedName) {
+            fileName = typedName;
+        }
+    }
+
     return {
-        image: readSrc(zone.querySelector('[data-header-media-image]')),
-        video: readSrc(zone.querySelector('[data-header-media-video]')),
+        image,
+        video,
+        document: kind === 'document' ? documentUrl : null,
+        audio: kind === 'audio' ? audio : null,
+        fileName,
     };
 }
 
@@ -224,6 +294,9 @@ class TemplateLivePreview {
         this.root = root;
         this.headerImage = root.querySelector('[data-preview-header-image]');
         this.headerVideo = root.querySelector('[data-preview-header-video]');
+        this.headerDocument = root.querySelector('[data-preview-header-document]');
+        this.headerDocumentName = root.querySelector('[data-preview-header-document-name]');
+        this.headerAudio = root.querySelector('[data-preview-header-audio]');
         this.headerText = root.querySelector('[data-preview-header-text]');
         this.body = root.querySelector('[data-preview-body]');
         this.footer = root.querySelector('[data-preview-footer]');
@@ -239,6 +312,10 @@ class TemplateLivePreview {
         const headerType = isCarousel ? 'none' : state.headerType || 'none';
         const showImage = headerType === 'image' && Boolean(state.headerImage);
         const showVideo = headerType === 'video' && Boolean(state.headerVideo);
+        const showDocument =
+            headerType === 'document' &&
+            (Boolean(state.headerDocument) || Boolean(state.headerDocumentName));
+        const showAudio = headerType === 'audio' && Boolean(state.headerAudio);
         const showHeaderText =
             (headerType === 'text' || headerType === 'location') &&
             (Boolean(state.headerText) || headerType === 'location');
@@ -258,6 +335,39 @@ class TemplateLivePreview {
             this.headerVideo.classList.toggle('hidden', !showVideo);
             if (state.headerVideo && showVideo) {
                 this.headerVideo.src = state.headerVideo;
+            }
+        }
+
+        if (this.headerDocument) {
+            this.headerDocument.classList.toggle('hidden', !showDocument);
+            const docUrl = state.headerDocument || '';
+            if (docUrl) {
+                this.headerDocument.href = docUrl;
+                this.headerDocument.target = '_blank';
+                this.headerDocument.rel = 'noopener noreferrer';
+                this.headerDocument.removeAttribute('aria-disabled');
+                this.headerDocument.classList.remove('pointer-events-none', 'opacity-70');
+                this.headerDocument.classList.add('hover:border-green-500');
+            } else {
+                this.headerDocument.href = '#';
+                this.headerDocument.removeAttribute('target');
+                this.headerDocument.removeAttribute('rel');
+                this.headerDocument.setAttribute('aria-disabled', 'true');
+                this.headerDocument.classList.add('pointer-events-none', 'opacity-70');
+                this.headerDocument.classList.remove('hover:border-green-500');
+            }
+            if (this.headerDocumentName) {
+                this.headerDocumentName.textContent =
+                    state.headerDocumentName ||
+                    (docUrl ? docUrl.split('/').pop()?.split('?')[0] : '') ||
+                    'Document';
+            }
+        }
+
+        if (this.headerAudio) {
+            this.headerAudio.classList.toggle('hidden', !showAudio);
+            if (state.headerAudio && showAudio) {
+                this.headerAudio.src = state.headerAudio;
             }
         }
 
@@ -424,6 +534,9 @@ function collectPreviewState(root) {
         headerText: defaults.header_text || '',
         headerImage: defaults.header_image || null,
         headerVideo: defaults.header_video || '',
+        headerDocument: defaults.header_document || null,
+        headerAudio: defaults.header_audio || null,
+        headerDocumentName: defaults.header_document_name || defaults.doc_name || '',
         body: defaults.body || '',
         footer: defaults.footer || '',
         samples: (defaults.body_samples || []).map((value) => ({
@@ -452,14 +565,34 @@ function collectPreviewState(root) {
     if (state.headerType === 'none') {
         state.headerImage = null;
         state.headerVideo = '';
+        state.headerDocument = null;
+        state.headerAudio = null;
+        state.headerDocumentName = '';
         state.headerText = '';
     } else {
         const mediaPreview = readHeaderMediaFromUpload();
-        if (mediaPreview.image) {
-            state.headerImage = mediaPreview.image;
-        }
-        if (mediaPreview.video) {
-            state.headerVideo = mediaPreview.video;
+        if (state.headerType === 'image') {
+            state.headerImage = mediaPreview.image || state.headerImage;
+            state.headerVideo = '';
+            state.headerDocument = null;
+            state.headerAudio = null;
+        } else if (state.headerType === 'video') {
+            state.headerVideo = mediaPreview.video || state.headerVideo;
+            state.headerImage = null;
+            state.headerDocument = null;
+            state.headerAudio = null;
+        } else if (state.headerType === 'document') {
+            state.headerDocument = mediaPreview.document || state.headerDocument;
+            state.headerDocumentName =
+                mediaPreview.fileName || state.headerDocumentName || '';
+            state.headerImage = null;
+            state.headerVideo = '';
+            state.headerAudio = null;
+        } else if (state.headerType === 'audio') {
+            state.headerAudio = mediaPreview.audio || state.headerAudio;
+            state.headerImage = null;
+            state.headerVideo = '';
+            state.headerDocument = null;
         }
     }
 
@@ -491,6 +624,9 @@ function collectPreviewState(root) {
         state.headerType = 'none';
         state.headerImage = null;
         state.headerVideo = '';
+        state.headerDocument = null;
+        state.headerAudio = null;
+        state.headerDocumentName = '';
         state.headerText = '';
         state.footer = '';
         state.buttons = [];
@@ -969,26 +1105,47 @@ function initHeaderSections(scheduleUpdate) {
                     urlInput.addEventListener('input', () => {
                         const value = urlInput.value.trim();
                         scheduleUpdate?.();
-                        if (!value.startsWith('https://')) {
+                        if (!value.startsWith('https://') && !value.startsWith('http://') && !value.startsWith('blob:')) {
                             return;
                         }
                         const previewRoot = section.querySelector('[data-header-media-preview]');
                         const imageEl = section.querySelector('[data-header-media-image]');
                         const videoEl = section.querySelector('[data-header-media-video]');
+                        const audioEl = section.querySelector('[data-header-media-audio]');
+                        const nameEl = section.querySelector('[data-header-media-name]');
                         const kind = section.dataset.headerSection;
-                        if (previewRoot && kind === 'image' && imageEl) {
-                            previewRoot.classList.remove('hidden');
+                        if (!previewRoot) {
+                            return;
+                        }
+
+                        previewRoot.classList.remove('hidden');
+                        previewRoot.dataset.previewUrl = value;
+
+                        if (kind === 'image' && imageEl) {
                             imageEl.classList.remove('hidden');
                             imageEl.src = value;
                             imageEl.dataset.previewUrl = value;
                             videoEl?.classList.add('hidden');
-                        }
-                        if (previewRoot && kind === 'video' && videoEl) {
-                            previewRoot.classList.remove('hidden');
+                            audioEl?.classList.add('hidden');
+                        } else if (kind === 'video' && videoEl) {
                             videoEl.classList.remove('hidden');
                             videoEl.src = value;
                             videoEl.dataset.previewUrl = value;
                             imageEl?.classList.add('hidden');
+                            audioEl?.classList.add('hidden');
+                        } else if (kind === 'audio' && audioEl) {
+                            audioEl.classList.remove('hidden');
+                            audioEl.src = value;
+                            audioEl.dataset.previewUrl = value;
+                            imageEl?.classList.add('hidden');
+                            videoEl?.classList.add('hidden');
+                        } else if (kind === 'document') {
+                            imageEl?.classList.add('hidden');
+                            videoEl?.classList.add('hidden');
+                            audioEl?.classList.add('hidden');
+                            if (nameEl && !nameEl.textContent.trim()) {
+                                nameEl.textContent = value.split('/').pop()?.split('?')[0] || 'Document';
+                            }
                         }
                     });
                 }
@@ -996,6 +1153,10 @@ function initHeaderSections(scheduleUpdate) {
 
             if (docName) {
                 docName.disabled = !isActive;
+                if (isActive && !docName.dataset.previewBound) {
+                    docName.dataset.previewBound = '1';
+                    docName.addEventListener('input', () => scheduleUpdate?.());
+                }
             }
         });
     };
@@ -1102,17 +1263,31 @@ function initHeaderMedia(scheduleUpdate) {
             const objectUrl = URL.createObjectURL(file);
             const isVideo = file.type.startsWith('video/');
             const isImage = file.type.startsWith('image/');
+            const isAudio = file.type.startsWith('audio/');
+            const audioEl = zone.querySelector('[data-header-media-audio]');
+            const section = zone.closest('[data-header-section]');
+            const kind = section?.dataset.headerSection || '';
+            const docNameInput = section?.querySelector('input[name="doc_name"]');
 
             previewWrap?.classList.remove('hidden');
+            if (previewWrap) {
+                previewWrap.dataset.previewUrl = objectUrl;
+            }
+            zone.dataset.previewUrl = objectUrl;
+
             if (nameEl) {
                 nameEl.textContent = file.name;
             }
             if (statusEl) {
                 statusEl.textContent = 'Uploaded';
             }
+            if (kind === 'document' && docNameInput && !docNameInput.value.trim()) {
+                docNameInput.value = file.name;
+            }
 
             if (isVideo) {
                 imageEl?.classList.add('hidden');
+                audioEl?.classList.add('hidden');
                 if (videoEl) {
                     videoEl.classList.remove('hidden');
                     videoEl.src = objectUrl;
@@ -1120,6 +1295,7 @@ function initHeaderMedia(scheduleUpdate) {
                 }
             } else if (isImage) {
                 videoEl?.classList.add('hidden');
+                audioEl?.classList.add('hidden');
                 if (videoEl) {
                     videoEl.removeAttribute('src');
                 }
@@ -1128,9 +1304,18 @@ function initHeaderMedia(scheduleUpdate) {
                     imageEl.src = objectUrl;
                     imageEl.dataset.previewUrl = objectUrl;
                 }
+            } else if (isAudio) {
+                videoEl?.classList.add('hidden');
+                imageEl?.classList.add('hidden');
+                if (audioEl) {
+                    audioEl.classList.remove('hidden');
+                    audioEl.src = objectUrl;
+                    audioEl.dataset.previewUrl = objectUrl;
+                }
             } else {
                 videoEl?.classList.add('hidden');
                 imageEl?.classList.add('hidden');
+                audioEl?.classList.add('hidden');
             }
 
             scheduleUpdate();
@@ -1200,21 +1385,37 @@ function initHeaderMedia(scheduleUpdate) {
 
                 // Prefer server URL for preview; if it 403/fails, keep local blob preview.
                 if (remoteUrl) {
+                    const audioEl = zone.querySelector('[data-header-media-audio]');
                     const applyRemote = (ok) => {
                         if (!ok) {
-                    return;
-                }
-                if (data.type === 'video' && videoEl) {
-                    videoEl.src = remoteUrl;
-                    videoEl.dataset.previewUrl = remoteUrl;
-                    videoEl.classList.remove('hidden');
-                    imageEl?.classList.add('hidden');
-                        } else if (imageEl && (data.type === 'image' || isImage)) {
-                    imageEl.src = remoteUrl;
-                    imageEl.dataset.previewUrl = remoteUrl;
-                    imageEl.classList.remove('hidden');
-                    videoEl?.classList.add('hidden');
+                            return;
                         }
+
+                        if (previewWrap) {
+                            previewWrap.dataset.previewUrl = remoteUrl;
+                        }
+                        zone.dataset.previewUrl = remoteUrl;
+
+                        if ((data.type === 'video' || isVideo) && videoEl) {
+                            videoEl.src = remoteUrl;
+                            videoEl.dataset.previewUrl = remoteUrl;
+                            videoEl.classList.remove('hidden');
+                            imageEl?.classList.add('hidden');
+                            audioEl?.classList.add('hidden');
+                        } else if (imageEl && (data.type === 'image' || isImage)) {
+                            imageEl.src = remoteUrl;
+                            imageEl.dataset.previewUrl = remoteUrl;
+                            imageEl.classList.remove('hidden');
+                            videoEl?.classList.add('hidden');
+                            audioEl?.classList.add('hidden');
+                        } else if ((data.type === 'audio' || isAudio) && audioEl) {
+                            audioEl.src = remoteUrl;
+                            audioEl.dataset.previewUrl = remoteUrl;
+                            audioEl.classList.remove('hidden');
+                            imageEl?.classList.add('hidden');
+                            videoEl?.classList.add('hidden');
+                        }
+
                         scheduleUpdate();
                     };
 
@@ -1224,6 +1425,14 @@ function initHeaderMedia(scheduleUpdate) {
                         probe.onloadeddata = () => applyRemote(true);
                         probe.onerror = () => applyRemote(false);
                         probe.src = remoteUrl;
+                    } else if (data.type === 'audio' || isAudio) {
+                        const probe = document.createElement('audio');
+                        probe.preload = 'metadata';
+                        probe.onloadeddata = () => applyRemote(true);
+                        probe.onerror = () => applyRemote(false);
+                        probe.src = remoteUrl;
+                    } else if (data.type === 'document' || (!isImage && !isVideo && !isAudio)) {
+                        applyRemote(true);
                     } else {
                         const probe = new Image();
                         probe.onload = () => applyRemote(true);
@@ -1274,23 +1483,33 @@ function renderButtonRow(rowData = {}, index = 0, mode = 'call_to_action', whats
         const flowOptions = whatsappFlows
             .map(
                 (flow) =>
-                    `<option value="${escapeHtml(flow.id)}" ${flow.id === flowId || flow.meta_flow_id === flowId ? 'selected' : ''}>${escapeHtml(flow.name)}${flow.is_ready ? '' : ' (draft)'}</option>`,
+                    `<option value="${escapeHtml(flow.id)}" ${
+                        String(flow.id) === flowId || String(flow.meta_flow_id || '') === flowId
+                            ? 'selected'
+                            : ''
+                    }>${escapeHtml(flow.name)}${flow.is_ready ? '' : ' (draft)'}</option>`,
             )
             .join('');
 
+        // Standalone themed select (no nested bordered box) - matches Button Group select.
         extraField = `
             <div class="flex min-w-0 flex-1 flex-col gap-1">
-              <label class="text-sm font-semibold leading-[1.4] text-text-primary">Flow</label>
-              <div class="flex w-full items-center gap-3 rounded-xl border border-solid border-border bg-elevated p-3.5">
-                <select
-                  name="buttons[${index}][flow_id]"
-                  data-button-flow-id
-                  class="fd-input min-w-0 flex-1 bg-transparent text-text-muted focus:outline-none"
-                >
-                  <option value="">Select a flow</option>
-                  ${flowOptions}
-                </select>
-              </div>
+              <label class="text-sm font-semibold leading-[1.4] text-text-primary">Select flow</label>
+              <select
+                name="buttons[${index}][flow_id]"
+                data-button-flow-id
+                data-select-variant="default"
+                class="w-full min-w-0"
+                ${whatsappFlows.length === 0 ? 'disabled' : ''}
+              >
+                <option value="">${whatsappFlows.length === 0 ? 'No flows available' : 'Select a flow'}</option>
+                ${flowOptions}
+              </select>
+              ${
+                  whatsappFlows.length === 0
+                      ? '<p class="text-xs text-text-subtle">Create and publish a flow in Flow Builder first.</p>'
+                      : ''
+              }
             </div>`;
     } else if (!isQuickReply) {
         extraField = `

@@ -35,6 +35,8 @@ class InboxBroadcastService
             return;
         }
 
+        // Always reload contact so STOP/START changes are not stuck on a stale relation.
+        $conversation->unsetRelation('contact');
         $conversation->loadMissing([
             'latestMessage' => fn ($query) => $query->select(
                 'messages.id',
@@ -97,6 +99,8 @@ class InboxBroadcastService
             return;
         }
 
+        // Always reload contact so STOP/START changes are not stuck on a stale relation.
+        $conversation->unsetRelation('contact');
         $conversation->loadMissing([
             'latestMessage' => fn ($query) => $query->select(
                 'messages.id',

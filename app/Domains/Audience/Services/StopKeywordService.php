@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domains\Audience\Services;
 
 use App\Domains\Audience\Enums\ContactStatus;
+use App\Domains\Inbox\Services\InboxBroadcastService;
 use App\Domains\Inbox\Services\InboxOutboundService;
 use App\Enums\CampaignRecipientStatus;
 use App\Enums\ContactOptInStatus;
@@ -129,6 +130,10 @@ class StopKeywordService
 
             $this->markCampaignRecipientsUnsubscribed($contact->phone);
 
+            // Drop stale contact so inbox broadcasts pick up STOP immediately.
+            $conversation->unsetRelation('contact');
+            $this->broadcastThreadUpdated($conversation);
+
             if (! $alreadyStopped) {
                 $this->sendConfirmation(
                     $conversation,
@@ -170,6 +175,10 @@ class StopKeywordService
         $metadata['restarted_message_id'] = $inboundMessage->id;
         $contact->forceFill(['metadata' => $metadata])->save();
 
+        // Drop stale contact so inbox broadcasts pick up START immediately.
+        $conversation->unsetRelation('contact');
+        $this->broadcastThreadUpdated($conversation);
+
         $this->sendConfirmation(
             $conversation,
             (string) config(
@@ -177,6 +186,18 @@ class StopKeywordService
                 'Welcome back! You have been re-subscribed and can receive messages again.'
             ),
         );
+    }
+
+    private function broadcastThreadUpdated(Conversation $conversation): void
+    {
+        try {
+            app(InboxBroadcastService::class)->threadUpdated($conversation->refresh());
+        } catch (\Throwable $e) {
+            Log::warning('Failed broadcasting STOP/START thread update', [
+                'conversation_id' => $conversation->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     private function resolveContact(Conversation $conversation): ?Contact

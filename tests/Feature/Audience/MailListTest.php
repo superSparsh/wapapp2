@@ -384,4 +384,87 @@ class MailListTest extends TestCase
             ->assertSee('Manage list fields')
             ->assertSee('City');
     }
+
+    public function test_creating_mail_list_seeds_default_list_fields(): void
+    {
+        $this->actingAsTenantUser()
+            ->post(route('audience.lists.store'), [
+                'name' => 'Seeded List',
+            ])
+            ->assertRedirect(route('audience.index'));
+
+        $list = MailList::query()->where('name', 'Seeded List')->first();
+        $this->assertNotNull($list);
+
+        $tags = ListField::query()
+            ->where('mail_list_id', $list->id)
+            ->pluck('tag')
+            ->all();
+
+        foreach (ListField::PROTECTED_TAGS as $tag) {
+            $this->assertContains($tag, $tags);
+        }
+    }
+
+    public function test_list_fields_page_backfills_default_system_fields(): void
+    {
+        $list = MailList::factory()->create();
+
+        $this->actingAsTenantUser()
+            ->get(route('audience.list-fields', ['list' => $list->uuid]))
+            ->assertOk()
+            ->assertSee('Country Code')
+            ->assertSee('WhatsApp Number')
+            ->assertSee('First name')
+            ->assertSee('Last name');
+
+        $this->assertSame(
+            count(ListField::PROTECTED_TAGS),
+            ListField::query()->where('mail_list_id', $list->id)->whereIn('tag', ListField::PROTECTED_TAGS)->count()
+        );
+    }
+
+    public function test_list_field_store_auto_generates_tag_and_update_saves_options(): void
+    {
+        $list = MailList::factory()->create();
+
+        $this->actingAsTenantUser()
+            ->post(route('audience.list-fields.store'), [
+                'mail_list_id' => $list->uuid,
+                'label' => 'City',
+                'type' => ListField::TYPE_DROPDOWN,
+            ])
+            ->assertRedirect(route('audience.list-fields', ['list' => $list->uuid]));
+
+        $field = ListField::query()
+            ->where('mail_list_id', $list->id)
+            ->where('label', 'City')
+            ->first();
+
+        $this->assertNotNull($field);
+        $this->assertSame('CITY', $field->tag);
+
+        $this->actingAsTenantUser()
+            ->put(route('audience.list-fields.update'), [
+                'mail_list_id' => $list->uuid,
+                'fields' => [[
+                    'id' => $field->uuid,
+                    'label' => 'City',
+                    'type' => ListField::TYPE_DROPDOWN,
+                    'tag' => 'CITY',
+                    'default_value' => '',
+                    'required' => '0',
+                    'visible' => '1',
+                    'options_text' => "Delhi\nMumbai|BOM",
+                ]],
+            ])
+            ->assertRedirect(route('audience.list-fields', ['list' => $list->uuid]));
+
+        $field->refresh()->load('options');
+        $this->assertCount(2, $field->options);
+        $this->assertSame('Delhi', $field->options[0]->label);
+        $this->assertSame('Delhi', $field->options[0]->value);
+        $this->assertSame('Mumbai', $field->options[1]->label);
+        $this->assertSame('BOM', $field->options[1]->value);
+    }
 }

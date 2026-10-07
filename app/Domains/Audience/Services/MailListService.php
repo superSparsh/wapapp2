@@ -44,7 +44,12 @@ class MailListService
      */
     public function store(array $data): MailList
     {
-        return MailList::query()->create($data);
+        $mailList = MailList::query()->create($data);
+
+        // Legacy parity: every list gets default protected system fields.
+        app(ListFieldService::class)->ensureDefaultFields($mailList);
+
+        return $mailList;
     }
 
     /**

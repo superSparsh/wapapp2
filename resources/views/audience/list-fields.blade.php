@@ -103,6 +103,9 @@
                   <div class="flex flex-1 flex-col gap-2">
                     <div class="text-[13px] font-semibold leading-[1.4] text-text-primary/60">
                       {{ ucfirst($field->type) }}
+                      @if ($field->isProtected())
+                        <span class="ml-1 text-[11px] font-medium text-text-body/40">(system)</span>
+                      @endif
                     </div>
                     <input
                       type="text"
@@ -112,6 +115,28 @@
                       class="w-full rounded-[12px] border border-border bg-elevated px-4 py-3 text-[14px] font-medium leading-[1.4] text-text-muted placeholder:text-text-muted focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
                     >
                     <input type="hidden" name="fields[{{ $index }}][type]" value="{{ $field->type }}">
+                    @if ($field->hasOptions() && ! $field->isProtected())
+                      @php
+                        $optionsText = old(
+                          "fields.{$index}.options_text",
+                          $field->options->map(function ($option) {
+                            return $option->label === $option->value
+                              ? $option->label
+                              : $option->label.'|'.$option->value;
+                          })->implode("\n")
+                        );
+                      @endphp
+                      <div class="flex flex-col gap-1">
+                        <label class="text-[12px] font-semibold text-text-primary/60">Options (one per line)</label>
+                        <textarea
+                          name="fields[{{ $index }}][options_text]"
+                          rows="3"
+                          placeholder="Option A&#10;Option B&#10;Label|value"
+                          class="w-full rounded-[12px] border border-border bg-elevated px-4 py-3 text-[13px] font-medium leading-[1.4] text-text-muted placeholder:text-text-muted focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
+                        >{{ $optionsText }}</textarea>
+                        <p class="text-[11px] text-text-body/50">Use <code class="text-[11px]">Label|value</code> when the stored value should differ from the label.</p>
+                      </div>
+                    @endif
                   </div>
                 </div>
 

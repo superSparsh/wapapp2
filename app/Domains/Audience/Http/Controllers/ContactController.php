@@ -8,6 +8,7 @@ use App\Domains\Audience\Http\Requests\Contact\BulkContactRequest;
 use App\Domains\Audience\Http\Requests\Contact\StoreContactRequest;
 use App\Domains\Audience\Http\Requests\Contact\UpdateContactRequest;
 use App\Domains\Audience\Services\ContactService;
+use App\Domains\Audience\Services\ListFieldService;
 use App\Models\Contact;
 use App\Models\MailList;
 use App\Support\ListingSort;
@@ -22,6 +23,7 @@ class ContactController extends Controller
 {
     public function __construct(
         private readonly ContactService $service,
+        private readonly ListFieldService $listFieldService,
     ) {}
 
     /**
@@ -58,11 +60,14 @@ class ContactController extends Controller
             sortDir: $parsed['direction'],
         );
 
+        $visibleListFields = $this->listFieldService->visibleListingFields($mailList);
+
         return view('audience.subscribers', [
             'contacts' => $contacts,
             'mailListId' => $mailList->uuid,
             'mailList' => $mailList,
             'mailLists' => MailList::query()->orderBy('name')->get(['id', 'uuid', 'name']),
+            'visibleListFields' => $visibleListFields,
             'search' => $request->get('search', ''),
             'dateFrom' => is_string($dateFrom) ? $dateFrom : '',
             'dateTo' => is_string($dateTo) ? $dateTo : '',

@@ -645,12 +645,88 @@ function formatWindowExpiry(isoString) {
     return `${minutes}m`;
 }
 
+function syncChatHeaderStopped(chat, isStopped) {
+    const badge = chat.querySelector('[data-inbox-stop-badge]');
+    const subtitle = chat.querySelector('[data-inbox-stop-subtitle]');
+    const title = chat.querySelector('[data-inbox-contact-title]');
+
+    if (badge) {
+        badge.classList.toggle('hidden', !isStopped);
+    } else if (isStopped && title) {
+        const created = document.createElement('span');
+        created.dataset.inboxStopBadge = '';
+        created.className =
+            'rounded bg-red-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-red-700';
+        created.title = 'Marked STOP';
+        created.textContent = 'STOP';
+        title.appendChild(created);
+    }
+
+    if (subtitle) {
+        subtitle.classList.toggle('hidden', !isStopped);
+        if (isStopped && !subtitle.textContent.trim()) {
+            subtitle.textContent = 'This contact marked STOP and is unsubscribed';
+        }
+    }
+}
+
+function syncThreadRowStopBadge(row, isStopped) {
+    if (!row) {
+        return;
+    }
+
+    let badge = row.querySelector('[data-thread-stop-badge]');
+    const time = row.querySelector('[data-thread-time]');
+    const wrap = time?.parentElement;
+
+    if (isStopped) {
+        if (!badge && wrap) {
+            badge = document.createElement('span');
+            badge.dataset.threadStopBadge = '';
+            badge.className =
+                'rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-700';
+            badge.title = 'This contact marked STOP and is unsubscribed';
+            badge.textContent = 'STOP';
+            wrap.insertBefore(badge, time);
+        }
+    } else if (badge) {
+        badge.remove();
+    }
+}
+
+function syncOpenChatStoppedState(thread) {
+    if (!thread?.uuid || thread.stopped === undefined) {
+        return;
+    }
+
+    const chat = document.querySelector('[data-inbox-chat]');
+    if (!chat || chat.dataset.conversationUuid !== thread.uuid) {
+        return;
+    }
+
+    const isStopped = Boolean(thread.stopped);
+    const next = isStopped ? '1' : '0';
+    const changed = chat.dataset.stopped !== next;
+    chat.dataset.stopped = next;
+    syncChatHeaderStopped(chat, isStopped);
+
+    if (changed && typeof window.__inboxSetStopped === 'function') {
+        window.__inboxSetStopped(isStopped);
+    } else if (changed && typeof window.__inboxRefreshServiceWindow === 'function') {
+        window.__inboxRefreshServiceWindow();
+    }
+}
+
 function initInboxServiceWindow(chat) {
     const windowUrl = chat.dataset.windowUrl;
 
     if (!windowUrl) {
         return {
             refresh: async () => {},
+            setStopped: (isStopped) => {
+                chat.dataset.stopped = isStopped ? '1' : '0';
+                syncChatHeaderStopped(chat, Boolean(isStopped));
+            },
             isWithinWindow: () => true,
             canSendFreeForm: () => chat.dataset.walletBlocked !== '1' && chat.dataset.stopped !== '1',
         };
@@ -770,6 +846,11 @@ function initInboxServiceWindow(chat) {
 
     return {
         refresh,
+        setStopped: (isStopped) => {
+            chat.dataset.stopped = isStopped ? '1' : '0';
+            syncChatHeaderStopped(chat, Boolean(isStopped));
+            applyWindowState({ within_window: withinWindow });
+        },
         isWithinWindow: () => withinWindow,
         canSendFreeForm: () => withinWindow && !walletBlocked() && !stopped(),
     };
@@ -1123,6 +1204,8 @@ function maybeRefreshOpenChat(thread) {
         return;
     }
 
+    syncOpenChatStoppedState(thread);
+
     if (typeof window.__inboxRefreshMessages === 'function') {
         window.__inboxRefreshMessages();
     }
@@ -1189,7 +1272,7 @@ function buildThreadRowHtml(thread, selectedUuid = null) {
     const query = params.toString();
     const href = `${inboxBaseUrl()}/${encodeURIComponent(thread.uuid)}${query ? `?${query}` : ''}`;
     const stopBadge = thread.stopped
-        ? '<span class="rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-700" title="This contact marked STOP and is unsubscribed">STOP</span>'
+        ? '<span data-thread-stop-badge class="rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-700" title="This contact marked STOP and is unsubscribed">STOP</span>'
         : '';
     const phone = threadPhoneSubtitle(thread);
     const phoneClass = phone ? '' : 'hidden';
@@ -1324,6 +1407,10 @@ function upsertThreadRow(thread, { notify = true, bump = false } = {}) {
             } else if (assigneeEl) {
                 assigneeEl.remove();
             }
+        }
+
+        if (thread.stopped !== undefined) {
+            syncThreadRowStopBadge(row, Boolean(thread.stopped));
         }
 
         // Only bump on real activity (new message) - not on mark-read / poll merges.
@@ -2142,6 +2229,13 @@ function initInboxChat() {
     const conversationUuid = chat.dataset.conversationUuid;
     const pollInterval = 3000;
     let loadingOlderMessages = false;
+
+    window.__inboxSetStopped = (isStopped) => {
+        serviceWindow.setStopped?.(Boolean(isStopped));
+    };
+    window.__inboxRefreshServiceWindow = () => {
+        serviceWindow.refresh?.();
+    };
 
     // Seed uuids already rendered by Blade so Echo/poll don't duplicate them.
     messagesEl?.querySelectorAll('[data-message-uuid]').forEach((el) => {

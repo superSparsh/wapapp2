@@ -31,6 +31,8 @@ class TemplatePreviewService
                 'header_text' => '',
                 'header_video' => null,
                 'header_document' => null,
+                'header_audio' => null,
+                'header_document_name' => null,
                 'body_samples' => [],
                 'buttons' => [],
                 'button_mode' => 'call_to_action',
@@ -75,6 +77,8 @@ class TemplatePreviewService
         $headerImage = null;
         $headerVideo = null;
         $headerDocument = null;
+        $headerAudio = null;
+        $headerDocumentName = null;
         $headerType = (string) ($payload['header']['type'] ?? 'none');
         $mediaPath = $payload['header']['media_path'] ?? null;
         $mediaUrl = $this->resolveMediaUrl(
@@ -95,6 +99,19 @@ class TemplatePreviewService
         }
         if ($headerType === 'document' && (filled($mediaPath) || filled($mediaUrl))) {
             $headerDocument = filled($mediaPath)
+                ? $this->mediaService->previewUrl((string) $mediaPath)
+                : $mediaUrl;
+            $headerDocumentName = trim((string) (
+                $payload['header']['doc_name']
+                ?? $payload['header']['media_name']
+                ?? ''
+            ));
+            if ($headerDocumentName === '' && filled($mediaPath)) {
+                $headerDocumentName = basename((string) $mediaPath);
+            }
+        }
+        if ($headerType === 'audio' && (filled($mediaPath) || filled($mediaUrl))) {
+            $headerAudio = filled($mediaPath)
                 ? $this->mediaService->previewUrl((string) $mediaPath)
                 : $mediaUrl;
         }
@@ -124,6 +141,8 @@ class TemplatePreviewService
             $headerImage = null;
             $headerVideo = null;
             $headerDocument = null;
+            $headerAudio = null;
+            $headerDocumentName = null;
             $footerText = '';
             $buttons = [];
 
@@ -205,6 +224,8 @@ class TemplatePreviewService
             'header_text' => $headerText,
             'header_video' => $headerVideo,
             'header_document' => $headerDocument,
+            'header_audio' => $headerAudio,
+            'header_document_name' => $headerDocumentName,
             'body_samples' => $samples,
             'buttons' => $buttons,
             'button_mode' => $buttonMode,

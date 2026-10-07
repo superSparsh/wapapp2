@@ -27,7 +27,7 @@
           height="550"
         >
         <x-ui.phone-preview-header-name size="compact" />
-        <div class="relative z-10 flex min-h-full w-full flex-col overflow-hidden p-2">
+        <div class="relative z-10 flex h-full min-h-0 w-full flex-col overflow-x-hidden overflow-y-auto overscroll-contain p-2">
           {{ $slot }}
         </div>
       </div>
@@ -53,7 +53,7 @@
           height="854"
         >
         <x-ui.phone-preview-header-name size="default" />
-        <div class="relative z-10 min-h-full w-full overflow-hidden p-2">
+        <div class="relative z-10 h-full min-h-0 w-full overflow-x-hidden overflow-y-auto overscroll-contain p-2">
           {{ $slot }}
         </div>
       </div>

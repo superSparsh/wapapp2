@@ -32,6 +32,8 @@
     'header_image' => null,
     'header_video' => null,
     'header_document' => null,
+    'header_audio' => null,
+    'header_document_name' => $payload['header']['doc_name'] ?? $payload['header']['media_name'] ?? null,
     'body' => $payload['body']['text'] ?? '',
     'footer' => $payload['footer']['text'] ?? '',
     'body_samples' => $payload['body']['samples'] ?? [],
@@ -178,7 +180,11 @@
     </div>
 
     <div class="flex flex-col gap-6 px-4 pb-4 lg:flex-row lg:items-start lg:justify-between">
-      <div @class(['min-w-0 w-full max-w-[725px]', 'rounded-lg bg-elevated p-2' => $card])>
+      {{-- Left editor stays put; taller preview scrolls independently on the page. --}}
+      <div @class([
+        'min-w-0 w-full max-w-[725px] lg:sticky lg:top-4 lg:self-start',
+        'rounded-lg bg-elevated p-2' => $card,
+      ])>
         {{ $slot }}
       </div>
 
@@ -187,7 +193,7 @@
           {{ $preview }}
         @else
           <x-templates.phone-preview>
-            <x-templates.message-preview-bubble :preview-data="$previewDefaults" live />
+            <x-templates.message-preview-bubble :preview-data="$previewDefaults" live :scroll-body="false" />
           </x-templates.phone-preview>
         @endif
       </div>

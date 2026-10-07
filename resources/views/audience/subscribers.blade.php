@@ -124,7 +124,16 @@
         </x-ui.listing-toolbar>
       </div>
 
-      <x-ui.data-table :headers="['SI. No', 'Whatsapp Number', 'Status', 'Name', 'Opt-in Message', 'Created At', 'Updated At', 'Un/Subscribe', 'Actions']" :paginator="$contacts">
+      @php
+        $visibleListFields = $visibleListFields ?? collect();
+        $subscriberHeaders = array_merge(
+          ['SI. No', 'Whatsapp Number', 'Status', 'Name'],
+          $visibleListFields->pluck('label')->all(),
+          ['Opt-in Message', 'Created At', 'Updated At', 'Un/Subscribe', 'Actions'],
+        );
+        $subscriberColspan = count($subscriberHeaders);
+      @endphp
+      <x-ui.data-table :headers="$subscriberHeaders" :paginator="$contacts">
         @forelse ($contacts as $i => $contact)
           <tr class="bg-elevated">
             <td class="fd-table-cell w-[54px] p-2">{{ $contacts->firstItem() + $i }}</td>
@@ -158,6 +167,25 @@
                 @endif
               </div>
             </td>
+            @foreach ($visibleListFields as $listField)
+              @php
+                $fieldRaw = data_get($contact->custom_fields, $listField->tag);
+                if (is_array($fieldRaw)) {
+                  $fieldValue = collect($fieldRaw)
+                    ->map(fn ($item) => is_scalar($item) ? trim((string) $item) : '')
+                    ->filter()
+                    ->implode(', ');
+                } elseif (is_bool($fieldRaw)) {
+                  $fieldValue = $fieldRaw ? 'Yes' : 'No';
+                } else {
+                  $fieldValue = trim((string) ($fieldRaw ?? ''));
+                }
+                $fieldValue = $fieldValue !== '' ? $fieldValue : '—';
+              @endphp
+              <td class="fd-table-cell max-w-[180px] truncate p-2" title="{{ $fieldValue }}">
+                {{ $fieldValue }}
+              </td>
+            @endforeach
             <td class="w-[140px] p-2">
               @if($contact->send_opt_in_message === 'yes')
                 @php
@@ -219,7 +247,7 @@
           </tr>
         @empty
           <tr class="bg-elevated">
-            <td colspan="9" class="p-8 text-center text-sm text-text-body/70">
+            <td colspan="{{ $subscriberColspan }}" class="p-8 text-center text-sm text-text-body/70">
               No subscribers yet. Use <span class="font-semibold text-text-primary">Add New Subscribers</span> to add one.
             </td>
           </tr>

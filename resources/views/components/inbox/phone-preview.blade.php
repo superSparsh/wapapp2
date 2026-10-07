@@ -45,9 +45,8 @@
                                 data-preview-header-image
                                 src=""
                                 alt=""
-                                class="hidden aspect-[1600/800] w-full rounded object-cover"
+                                class="hidden aspect-[1600/800] h-full w-full rounded object-cover"
                                 width="338"
-                                height="169"
                             >
                             <video
                                 data-preview-header-video

@@ -49,6 +49,7 @@ use App\Domains\Team\Http\Middleware\EnsureTeamPermission;
 use App\Domains\Team\Http\Middleware\LogTeamMemberMutations;
 use App\Domains\Team\Http\Middleware\RedirectTeamMemberDashboard;
 use App\Domains\Templates\Console\Commands\DeleteSoftDeletedTemplates;
+use App\Domains\Templates\Console\Commands\ResubmitFailedOptInTemplatesCommand;
 use App\Domains\Templates\Console\Commands\SubmitPendingTemplates;
 use App\Domains\Templates\Console\Commands\SyncTemplateStatuses;
 use App\Domains\ThirdParty\Console\Commands\ProcessShopifyWebhooksCommand;
@@ -205,6 +206,7 @@ return Application::configure(basePath: dirname(__DIR__))
         BackfillNonWhatsAppNumbersCommand::class,
         SyncOptInDeliveryFromMessagesCommand::class,
         SubmitPendingTemplates::class,
+        ResubmitFailedOptInTemplatesCommand::class,
         SyncTemplateStatuses::class,
         DeleteSoftDeletedTemplates::class,
         RetryFailedDeliveriesCommand::class,

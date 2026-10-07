@@ -16,8 +16,17 @@
   $headerText = $previewData['header_text'] ?? '';
   $buttons = $previewData['buttons'] ?? [];
   $headerImage = $previewData['header_image'] ?? null;
+  $headerVideo = $previewData['header_video'] ?? $headerImage;
+  $headerDocument = $previewData['header_document'] ?? null;
+  $headerAudio = $previewData['header_audio'] ?? null;
+  $headerDocumentName = trim((string) ($previewData['header_document_name'] ?? $previewData['doc_name'] ?? ''));
+  if ($headerDocumentName === '' && filled($headerDocument)) {
+      $headerDocumentName = basename(parse_url((string) $headerDocument, PHP_URL_PATH) ?: '') ?: 'Document';
+  }
   $showHeaderImage = $headerType === 'image' && filled($headerImage);
-  $showHeaderVideo = $headerType === 'video' && filled($previewData['header_video'] ?? $headerImage);
+  $showHeaderVideo = $headerType === 'video' && filled($headerVideo);
+  $showHeaderDocument = $headerType === 'document' && (filled($headerDocument) || $headerDocumentName !== '');
+  $showHeaderAudio = $headerType === 'audio' && filled($headerAudio);
   $showHeaderText = in_array($headerType, ['text', 'location'], true) && $headerText !== '';
   $carouselCards = is_array($previewData['carousel_cards'] ?? null) ? $previewData['carousel_cards'] : [];
   $isCarousel = (bool) ($previewData['is_carousel'] ?? false) || $carouselCards !== [];
@@ -38,15 +47,14 @@
       src="{{ $showHeaderImage ? $headerImage : '' }}"
       alt=""
       @class([
-        'aspect-[1600/800] w-full rounded object-cover',
+        'aspect-[1600/800] w-full rounded object-cover h-full',
         'hidden' => ! $showHeaderImage || $isCarousel,
       ])
       width="338"
-      height="169"
     >
     <video
       data-preview-header-video
-      src="{{ $showHeaderVideo ? ($previewData['header_video'] ?? $headerImage) : '' }}"
+      src="{{ $showHeaderVideo ? $headerVideo : '' }}"
       @class([
         'max-h-40 w-full rounded object-cover',
         'hidden' => ! $showHeaderVideo || $isCarousel,
@@ -54,6 +62,40 @@
       controls
       playsinline
     ></video>
+    <a
+      data-preview-header-document
+      href="{{ $showHeaderDocument && filled($headerDocument) ? $headerDocument : '#' }}"
+      @if ($showHeaderDocument && filled($headerDocument))
+        target="_blank"
+        rel="noopener noreferrer"
+      @else
+        aria-disabled="true"
+      @endif
+      @class([
+        'flex w-full items-center gap-3 rounded-lg border border-border bg-muted-surface px-3 py-2.5 no-underline',
+        'pointer-events-none opacity-70' => ! filled($headerDocument),
+        'hover:border-green-500' => filled($headerDocument),
+        'hidden' => ! $showHeaderDocument || $isCarousel,
+      ])
+    >
+      <span class="flex size-10 shrink-0 items-center justify-center rounded-md bg-elevated text-xs font-semibold text-green-600">PDF</span>
+      <span class="min-w-0 flex-1">
+        <span data-preview-header-document-name class="block truncate text-sm font-medium text-link-green">
+          {{ $headerDocumentName !== '' ? $headerDocumentName : 'Document' }}
+        </span>
+        <span class="block text-[11px] text-text-subtle">Tap to open</span>
+      </span>
+    </a>
+    <audio
+      data-preview-header-audio
+      src="{{ $showHeaderAudio ? $headerAudio : '' }}"
+      @class([
+        'w-full',
+        'hidden' => ! $showHeaderAudio || $isCarousel,
+      ])
+      controls
+      preload="metadata"
+    ></audio>
     <p
       data-preview-header-text
       @class([
