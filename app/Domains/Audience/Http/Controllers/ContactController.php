@@ -61,6 +61,7 @@ class ContactController extends Controller
         );
 
         $visibleListFields = $this->listFieldService->visibleListingFields($mailList);
+        $formListFields = $this->listFieldService->editableFormFields($mailList);
 
         return view('audience.subscribers', [
             'contacts' => $contacts,
@@ -68,6 +69,7 @@ class ContactController extends Controller
             'mailList' => $mailList,
             'mailLists' => MailList::query()->orderBy('name')->get(['id', 'uuid', 'name']),
             'visibleListFields' => $visibleListFields,
+            'formListFields' => $formListFields,
             'search' => $request->get('search', ''),
             'dateFrom' => is_string($dateFrom) ? $dateFrom : '',
             'dateTo' => is_string($dateTo) ? $dateTo : '',
@@ -105,9 +107,14 @@ class ContactController extends Controller
             ? (string) $request->input('list')
             : $contact->mailList?->uuid;
 
+        $formListFields = $contact->mailList
+            ? $this->listFieldService->editableFormFields($contact->mailList)
+            : collect();
+
         return view('audience.subscribers-detail', [
             'contact' => $contact,
             'mailListId' => $listUuid,
+            'formListFields' => $formListFields,
         ]);
     }
 
@@ -122,6 +129,15 @@ class ContactController extends Controller
 
         $mailList = PublicId::find(MailList::class, $data['mail_list_id'] ?? null);
         $data['mail_list_id'] = $mailList?->id;
+
+        if ($mailList !== null) {
+            $data['custom_fields'] = $this->listFieldService->sanitizeCustomFields(
+                $mailList,
+                is_array($data['custom_fields'] ?? null) ? $data['custom_fields'] : [],
+            );
+        } else {
+            unset($data['custom_fields']);
+        }
 
         $this->service->store($data, $tags);
 
@@ -147,6 +163,27 @@ class ContactController extends Controller
         if (array_key_exists('mail_list_id', $data)) {
             $mailList = PublicId::find(MailList::class, $data['mail_list_id'] ?? null);
             $data['mail_list_id'] = $mailList?->id;
+        }
+
+        $listForFields = $contact->mailList
+            ?? (isset($data['mail_list_id']) ? MailList::query()->find($data['mail_list_id']) : null);
+
+        if ($listForFields !== null && array_key_exists('custom_fields', $data)) {
+            $sanitized = $this->listFieldService->sanitizeCustomFields(
+                $listForFields,
+                is_array($data['custom_fields'] ?? null) ? $data['custom_fields'] : [],
+            );
+
+            // Preserve values for tags not shown on this form (e.g. system/import-only).
+            $existing = is_array($contact->custom_fields) ? $contact->custom_fields : [];
+            $editableTags = $this->listFieldService->editableFormFields($listForFields)
+                ->pluck('tag')
+                ->filter()
+                ->all();
+            foreach ($editableTags as $tag) {
+                unset($existing[$tag]);
+            }
+            $data['custom_fields'] = array_merge($existing, $sanitized);
         }
 
         $this->service->update($contact, $data, $tags);

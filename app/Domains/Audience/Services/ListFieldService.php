@@ -103,6 +103,80 @@ class ListFieldService
             ->get(['id', 'uuid', 'label', 'tag', 'type']);
     }
 
+    /**
+     * Custom fields shown on Add/Edit subscriber forms (non-system tags only).
+     *
+     * @return Collection<int, ListField>
+     */
+    public function editableFormFields(MailList $mailList): Collection
+    {
+        return ListField::query()
+            ->with(['options' => fn ($q) => $q->orderBy('sort_order')->orderBy('id')])
+            ->where('mail_list_id', $mailList->id)
+            ->whereNotNull('tag')
+            ->where('tag', '!=', '')
+            ->whereNotIn('tag', ListField::PROTECTED_TAGS)
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get();
+    }
+
+    /**
+     * Keep only known list-field tags and normalize values for storage.
+     *
+     * @param  array<string, mixed>|null  $input
+     * @return array<string, mixed>
+     */
+    public function sanitizeCustomFields(MailList $mailList, ?array $input): array
+    {
+        if ($input === null || $input === []) {
+            return [];
+        }
+
+        $fields = $this->editableFormFields($mailList)->keyBy('tag');
+        $clean = [];
+
+        foreach ($input as $tag => $value) {
+            $tag = trim((string) $tag);
+            if ($tag === '' || ! $fields->has($tag)) {
+                continue;
+            }
+
+            /** @var ListField $field */
+            $field = $fields->get($tag);
+
+            if (is_array($value)) {
+                $parts = array_values(array_filter(array_map(
+                    static fn ($item): string => trim(is_scalar($item) ? (string) $item : ''),
+                    $value,
+                ), static fn (string $item): bool => $item !== ''));
+
+                if ($parts === []) {
+                    continue;
+                }
+
+                $clean[$tag] = in_array($field->type, [ListField::TYPE_MULTISELECT, ListField::TYPE_CHECKBOX], true)
+                    ? $parts
+                    : implode(', ', $parts);
+                continue;
+            }
+
+            if (is_bool($value)) {
+                $clean[$tag] = $value ? '1' : '0';
+                continue;
+            }
+
+            $string = trim((string) $value);
+            if ($string === '') {
+                continue;
+            }
+
+            $clean[$tag] = $string;
+        }
+
+        return $clean;
+    }
+
     public function generateUniqueTag(int $mailListId, string $label, ?int $ignoreFieldId = null): string
     {
         $base = Str::upper(Str::slug(trim($label) !== '' ? trim($label) : 'FIELD', '_'));

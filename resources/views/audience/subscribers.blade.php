@@ -257,8 +257,8 @@
   </div>
 
   <div id="modal-new-subscriber" data-modal="new-subscriber" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60 p-4" role="dialog" aria-modal="true" aria-labelledby="modal-title-new-subscriber">
-    <div class="flex w-full max-w-[597px] flex-col gap-4 rounded-[20px] bg-elevated p-5 shadow-[0px_4px_6px_rgba(0,0,0,0.1)]">
-      <div class="flex items-start justify-end gap-4">
+    <div class="flex max-h-[90vh] w-full max-w-[597px] flex-col gap-4 overflow-hidden rounded-[20px] bg-elevated p-5 shadow-[0px_4px_6px_rgba(0,0,0,0.1)]">
+      <div class="flex shrink-0 items-start justify-end gap-4">
         <div class="min-w-0 flex-1">
           <h2 id="modal-title-new-subscriber" class="text-2xl font-bold leading-[1.5] text-text-primary">New subscriber</h2>
           <p class="mt-1 text-sm font-normal leading-[1.4] text-text-subtle opacity-50">Adding new subscriber</p>
@@ -268,10 +268,10 @@
         </button>
       </div>
 
-      <form method="POST" action="{{ route('audience.subscribers.store') }}" class="space-y-4">
+      <form method="POST" action="{{ route('audience.subscribers.store') }}" class="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
         @csrf
         <input type="hidden" name="mail_list_id" value="{{ $mailListId }}">
-        <div class="rounded-[12px] border border-border-light bg-muted-surface p-4">
+        <div class="min-h-0 flex-1 overflow-y-auto rounded-[12px] border border-border-light bg-muted-surface p-4">
           <div class="flex flex-col gap-8">
             <div class="flex flex-col gap-4 sm:flex-row">
               <div class="w-full sm:w-[160px]">
@@ -300,6 +300,8 @@
               </div>
             </div>
 
+            <x-audience.list-field-inputs :fields="$formListFields ?? []" />
+
             <label class="flex items-center gap-2 text-sm font-medium text-text-body">
               <input type="hidden" name="send_opt_in_message" value="no">
               <input type="checkbox" name="send_opt_in_message" value="yes" class="size-4 rounded border-border">
@@ -308,7 +310,7 @@
           </div>
         </div>
 
-        <div class="flex items-center justify-between">
+        <div class="flex shrink-0 items-center justify-between">
           <button type="button" data-modal-close class="fd-btn rounded border border-green-500 px-4 py-3 text-sm font-semibold text-green-500 transition-colors hover:bg-green-50">Cancel</button>
           <button type="submit" class="fd-btn rounded bg-green-500 px-4 py-3 text-sm font-semibold text-primary-2 transition-colors hover:opacity-90">Create</button>
         </div>

@@ -124,8 +124,47 @@ class ContactTest extends TestCase
             ->assertOk()
             ->assertSee('City')
             ->assertSee('Delhi')
-            ->assertDontSee('Hidden Notes')
-            ->assertDontSee('private');
+            ->assertViewHas('visibleListFields', function ($fields) {
+                return $fields->pluck('tag')->all() === ['CITY'];
+            });
+    }
+
+    public function test_add_subscriber_modal_shows_custom_list_fields_and_stores_them(): void
+    {
+        $list = MailList::factory()->create();
+
+        ListField::query()->create([
+            'mail_list_id' => $list->id,
+            'label' => 'City',
+            'type' => ListField::TYPE_TEXT,
+            'tag' => 'CITY',
+            'required' => false,
+            'visible' => true,
+            'sort_order' => 10,
+        ]);
+
+        $this->actingAsTenantUser()
+            ->get(route('audience.subscribers', ['list' => $list->uuid]))
+            ->assertOk()
+            ->assertSee('Custom fields')
+            ->assertSee('name="custom_fields[CITY]"', false);
+
+        $this->actingAsTenantUser()
+            ->post(route('audience.subscribers.store'), [
+                'mail_list_id' => $list->uuid,
+                'phone' => '919876543210',
+                'name' => 'City User',
+                'custom_fields' => [
+                    'CITY' => 'Mumbai',
+                    'UNKNOWN' => 'ignored',
+                ],
+            ])
+            ->assertRedirect(route('audience.subscribers', ['list' => $list->uuid]));
+
+        $contact = Contact::query()->where('phone', '919876543210')->first();
+        $this->assertNotNull($contact);
+        $this->assertSame('Mumbai', $contact->custom_fields['CITY'] ?? null);
+        $this->assertArrayNotHasKey('UNKNOWN', $contact->custom_fields ?? []);
     }
 
     public function test_subscribers_index_filters_by_mail_list(): void

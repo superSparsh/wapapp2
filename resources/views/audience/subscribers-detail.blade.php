@@ -66,6 +66,12 @@
             <label class="mb-1 block text-sm font-semibold text-text-primary">Tags (comma separated)</label>
             <input name="tags_raw" type="text" value="{{ old('tags_raw', $contact->tags->pluck('name')->implode(', ')) }}" class="w-full rounded-xl border border-border bg-elevated px-3 py-3 text-sm" placeholder="vip, lead">
           </div>
+
+          <x-audience.list-field-inputs
+            :fields="$formListFields ?? []"
+            :values="$contact->custom_fields ?? []"
+          />
+
           <label class="flex items-center gap-2 text-sm font-medium text-text-body">
             <input type="hidden" name="send_opt_in_message" value="no">
             <input
