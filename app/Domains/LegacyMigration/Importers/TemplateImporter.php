@@ -177,20 +177,31 @@ final class TemplateImporter implements LegacyImporter
         );
         $footer = (string) ($row->footer_desc ?? $row->footer ?? '');
 
+        $isLto = TemplateCategoryCatalog::isLto($category);
+
         $buttons = [];
         if (filled($row->button_desc ?? null)) {
             $hasLink = filled($row->button_link ?? null);
-            $buttons[] = [
-                'text' => (string) $row->button_desc,
-                'type' => $hasLink ? 'url' : 'quick_reply',
-                'url' => $hasLink ? (string) $row->button_link : '',
-                'flow_id' => '',
-            ];
+            if ($isLto && $hasLink) {
+                $buttons[] = [
+                    'text' => (string) $row->button_desc,
+                    'type' => 'copy_code',
+                    'url' => (string) $row->button_link,
+                    'flow_id' => '',
+                ];
+            } else {
+                $buttons[] = [
+                    'text' => (string) $row->button_desc,
+                    'type' => $hasLink ? 'url' : 'quick_reply',
+                    'url' => $hasLink ? (string) $row->button_link : '',
+                    'flow_id' => '',
+                ];
+            }
         }
         if (filled($row->phone_desc ?? null)) {
             $buttons[] = [
                 'text' => (string) $row->phone_desc,
-                'type' => 'phone',
+                'type' => $isLto ? 'url' : 'phone',
                 'url' => (string) ($row->phone_link ?? ''),
                 'flow_id' => '',
             ];
@@ -198,9 +209,11 @@ final class TemplateImporter implements LegacyImporter
 
         $buttonMode = $buttons === []
             ? ''
-            : (collect($buttons)->contains(fn (array $b) => in_array($b['type'], ['url', 'phone'], true))
-                ? 'call_to_action'
-                : 'quick_reply');
+            : ($isLto && collect($buttons)->contains(fn (array $b) => $b['type'] === 'copy_code')
+                ? 'lto'
+                : (collect($buttons)->contains(fn (array $b) => in_array($b['type'], ['url', 'phone', 'copy_code'], true))
+                    ? 'call_to_action'
+                    : 'quick_reply'));
 
         $defaults = Template::defaultPayload();
 
@@ -241,6 +254,21 @@ final class TemplateImporter implements LegacyImporter
             $payload['carousel'] = array_replace_recursive(
                 is_array($payload['carousel'] ?? null) ? $payload['carousel'] : [],
                 ['enabled' => true],
+            );
+        }
+
+        if ($isLto) {
+            $couponRow = collect($buttons)->firstWhere('type', 'copy_code');
+            $couponCode = is_array($couponRow) ? (string) ($couponRow['url'] ?? '') : '';
+            $payload['lto'] = array_replace_recursive(
+                is_array($payload['lto'] ?? null) ? $payload['lto'] : [],
+                [
+                    'enabled' => true,
+                    'discount_introduction' => (string) ($row->discount_introduction ?? ''),
+                    'expiration_time' => (int) ($row->expiration_time ?? 0) === 1,
+                    'time_variable' => filled($row->time_variable ?? null) ? (int) $row->time_variable : null,
+                    'coupon_code' => (string) $couponCode,
+                ],
             );
         }
 

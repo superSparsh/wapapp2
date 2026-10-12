@@ -182,17 +182,14 @@ class AlibabaCamsClient
     /**
      * Delete a template from WhatsApp.
      *
-     * Legacy SDK uses POST RPC (DeleteChatappTemplate). When Language is sent,
-     * Alibaba requires TemplateType (WHATSAPP | VIBER) or returns
-     * ERR-OPERATION-CONFIG-419 / "不支持的模板类型".
+     * Legacy Alibaba SDK: POST with signed query params (not form body).
      *
      * @param  array<string, string|null>  $params
      */
     public function deleteChatappTemplate(array $params): Response
     {
-        return $this->signedFormPost(array_merge([
+        return $this->signedRpcPost(array_merge([
             'Action' => 'DeleteChatappTemplate',
-            'TemplateType' => 'WHATSAPP',
         ], $params));
     }
 
@@ -433,13 +430,23 @@ class AlibabaCamsClient
      */
     private function signedFormPost(array $params): Response
     {
-        return $this->sendSigned('POST', $params);
+        return $this->sendSigned('POST', $params, postQueryInUrl: false);
+    }
+
+    /**
+     * DeleteChatappTemplate and similar RPC calls: POST with query string (Alibaba SDK default).
+     *
+     * @param  array<string, mixed>  $params
+     */
+    private function signedRpcPost(array $params): Response
+    {
+        return $this->sendSigned('POST', $params, postQueryInUrl: true);
     }
 
     /**
      * @param  array<string, mixed>  $params
      */
-    private function sendSigned(string $method, array $params): Response
+    private function sendSigned(string $method, array $params, bool $postQueryInUrl = false): Response
     {
         $accessKeyId = (string) config('whatsapp.alibaba.access_key_id');
         $accessKeySecret = (string) config('whatsapp.alibaba.access_key_secret');
@@ -468,9 +475,13 @@ class AlibabaCamsClient
         $query['Signature'] = $signature;
 
         $url = "https://{$endpoint}/";
-        $response = $method === 'POST'
-            ? Http::asForm()->timeout(30)->post($url, $query)
-            : Http::timeout(20)->get($url, $query);
+        if ($method === 'POST' && $postQueryInUrl) {
+            $response = Http::timeout(30)->withQueryParameters($query)->post($url);
+        } elseif ($method === 'POST') {
+            $response = Http::asForm()->timeout(30)->post($url, $query);
+        } else {
+            $response = Http::timeout(20)->get($url, $query);
+        }
 
         $this->recordApiFailureIfNeeded($params['Action'] ?? null, $response);
 

@@ -1599,6 +1599,8 @@ function initButtonsEditor(root, preview, scheduleUpdate) {
     const addWebsite = document.getElementById('add-cta-website');
     const addPhone = document.getElementById('add-cta-phone');
     const addUnsubscribe = document.getElementById('add-cta-unsubscribe');
+    const ltoActions = document.querySelector('[data-lto-actions]');
+    const addLtoWebsite = document.getElementById('add-lto-website');
     const errorBox = document.getElementById('button-validation-errors');
     const limitSummary = document.querySelector('[data-button-limit-summary]');
 
@@ -1613,6 +1615,7 @@ function initButtonsEditor(root, preview, scheduleUpdate) {
 
     const whatsappFlows = JSON.parse(container.dataset.whatsappFlows || '[]');
     const savedButtons = JSON.parse(container.dataset.savedButtons || '[]');
+    const ltoCouponDefault = String(container.dataset.ltoCoupon || '');
     let rows = savedButtons.length ? savedButtons : [];
 
     const currentMode = () => modeSelect?.value || '';
@@ -1688,14 +1691,26 @@ function initButtonsEditor(root, preview, scheduleUpdate) {
         element.classList.toggle(displayClass, visible);
     };
 
+    const ltoRowsForPaint = () => {
+        const copyRow =
+            rows.find((row) => row.type === 'copy_code') ||
+            { text: 'Copy offer code', type: 'copy_code', url: ltoCouponDefault };
+        const urlRows = rows.filter((row) => row.type === 'url');
+
+        return [copyRow, ...urlRows];
+    };
+
     const syncModeUi = () => {
         const mode = currentMode();
         const hasMode = mode !== '' && mode !== 'none';
         const showCtaActions = hasMode && (isCtaMode() || isMixedMode());
         const showQuickReplyAdd = hasMode && (isQuickReplyMode() || isMixedMode());
         const showFlow = hasMode && isFlowMode();
+        const showLtoWebsiteAdd =
+            hasMode && isLtoMode() && !rows.some((row) => row.type === 'url');
 
         setVisible(ctaActions, showCtaActions, 'flex');
+        setVisible(ltoActions, showLtoWebsiteAdd, 'flex');
         setVisible(addQuickReply, showQuickReplyAdd, 'inline-flex');
         setVisible(flowSection, showFlow, 'flex');
         rowsHost.classList.toggle('hidden', !hasMode);
@@ -1706,7 +1721,7 @@ function initButtonsEditor(root, preview, scheduleUpdate) {
             return;
         }
 
-        const count = isFlowMode() || isLtoMode() ? (rows.length ? 1 : 0) : rows.length;
+        const count = isFlowMode() ? (rows.length ? 1 : 0) : isLtoMode() ? ltoRowsForPaint().length : rows.length;
         limitSummary.textContent = `${count} / ${buttonLimitMax} buttons (max ${urlButtonLimitMax} URL, ${phoneButtonLimitMax} phone)`;
     };
 
@@ -1719,8 +1734,9 @@ function initButtonsEditor(root, preview, scheduleUpdate) {
             const flowRow = rows.find((row) => row.type === 'flow') || { text: '', type: 'flow', url: '', flow_id: '' };
             rowsHost.innerHTML = renderButtonRow(flowRow, 0, 'whatsapp_flows', whatsappFlows, buttonTextLimit);
         } else if (mode === 'lto') {
-            const ltoRow = rows.find((row) => row.type === 'copy_code') || { text: 'Copy offer code', type: 'copy_code', url: '' };
-            rowsHost.innerHTML = renderButtonRow(ltoRow, 0, 'lto', whatsappFlows, buttonTextLimit);
+            rowsHost.innerHTML = ltoRowsForPaint()
+                .map((row, index) => renderButtonRow(row, index, 'lto', whatsappFlows, buttonTextLimit))
+                .join('');
         } else {
             rowsHost.innerHTML = rows.map((row, index) => renderButtonRow(row, index, mode, whatsappFlows, buttonTextLimit)).join('');
         }
@@ -1787,6 +1803,10 @@ function initButtonsEditor(root, preview, scheduleUpdate) {
             return ctaTypes.includes(type) || type === 'quick_reply';
         }
 
+        if (isLtoMode()) {
+            return type === 'url' && countByType('url') < 1;
+        }
+
         return false;
     };
 
@@ -1810,6 +1830,7 @@ function initButtonsEditor(root, preview, scheduleUpdate) {
 
     addWebsite?.addEventListener('click', () => addRow('url'));
     addPhone?.addEventListener('click', () => addRow('phone'));
+    addLtoWebsite?.addEventListener('click', () => addRow('url'));
     addUnsubscribe?.addEventListener('click', () => addRow('unsubscribe'));
     addQuickReply?.addEventListener('click', () => addRow('quick_reply'));
 
@@ -1875,7 +1896,16 @@ function initButtonsEditor(root, preview, scheduleUpdate) {
         if (newMode === '' || newMode === 'none') {
             rows = [];
         } else if (newMode === 'lto') {
-            rows = [{ text: 'Copy offer code', type: 'copy_code', url: '' }];
+            const existingCopy = rows.find((row) => row.type === 'copy_code');
+            const existingUrls = rows.filter((row) => row.type === 'url');
+            rows = [
+                existingCopy || {
+                    text: 'Copy offer code',
+                    type: 'copy_code',
+                    url: ltoCouponDefault,
+                },
+                ...existingUrls,
+            ];
         } else if (newMode === 'whatsapp_flows') {
             const existingFlow = rows.find((row) => row.type === 'flow');
             rows = existingFlow ? [existingFlow] : [{ text: '', type: 'flow', url: '', flow_id: '' }];

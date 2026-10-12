@@ -46,7 +46,7 @@
 
       <div class="flex flex-col gap-2">
         <label for="expiration_minutes" class="fd-label">Code expiration (minutes)</label>
-        <input id="expiration_minutes" name="expiration_minutes" type="number" min="1" max="90" value="{{ old('expiration_minutes', $auth['expiration_minutes'] ?? 10) }}" class="fd-input w-full rounded-xl border border-border p-3.5">
+        <input id="expiration_minutes" name="expiration_minutes" type="number" min="1" max="90" value="{{ old('expiration_minutes', $auth['expiration_minutes'] ?? 120) }}" class="fd-input w-full rounded-xl border border-border p-3.5">
       </div>
 
       <label class="flex items-center gap-2">

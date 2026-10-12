@@ -246,18 +246,20 @@ class TemplateBuilderController extends Controller
             ->values()
             ->all();
 
+        $autoFill = $request->boolean('auto_fill');
+
         $builderService->saveStep($template, 'auth', [
             'enabled' => true,
             'copy_button_text' => (string) $request->input('copy_button_text', 'Copy Code'),
-            'auto_fill' => $request->boolean('auto_fill'),
-            'zero_tap' => $request->boolean('zero_tap'),
+            'auto_fill' => $autoFill,
+            'zero_tap' => $autoFill && $request->boolean('zero_tap'),
             'fill_button_text' => (string) $request->input('fill_button_text', 'Autofill'),
             'message_validity' => $request->boolean('message_validity'),
             'validity_seconds' => (int) $request->input('validity_seconds', 120),
             'expiration_time' => $request->boolean('expiration_time'),
             'expiration_minutes' => (int) $request->input('expiration_minutes', 120),
             'add_secret_recommendation' => $request->boolean('add_secret_recommendation'),
-            'supported_apps' => $apps,
+            'supported_apps' => $autoFill ? $apps : [],
         ]);
 
         return redirect()->route($this->builderFlow->nextRouteAfterAuth(), $template);
@@ -447,13 +449,25 @@ class TemplateBuilderController extends Controller
 
         if ($mode === 'lto') {
             $payload = $template->wizardPayload();
-            $coupon = (string) ($payload['lto']['coupon_code'] ?? '');
+            $couponFromStep = trim((string) ($request->input('buttons.0.url') ?? ''));
+            $coupon = $couponFromStep !== ''
+                ? $couponFromStep
+                : (string) ($payload['lto']['coupon_code'] ?? '');
 
             $buttons = [[
                 'text' => (string) $request->input('buttons.0.text', 'Copy offer code'),
                 'type' => 'copy_code',
                 'url' => $coupon,
             ]];
+
+            $secondText = trim((string) ($request->input('buttons.1.text') ?? ''));
+            if ($secondText !== '') {
+                $buttons[] = [
+                    'text' => $secondText,
+                    'type' => 'url',
+                    'url' => (string) ($request->input('buttons.1.url', '')),
+                ];
+            }
         } elseif ($mode === 'none') {
             $buttons = [];
         } else {

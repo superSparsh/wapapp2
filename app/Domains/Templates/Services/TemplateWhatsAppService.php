@@ -229,18 +229,7 @@ class TemplateWhatsAppService
         }
 
         try {
-            $response = $this->camsClient->deleteChatappTemplate([
-                'TemplateCode' => $code,
-                'CustSpaceId' => $line->alibaba_cust_space_id,
-                'Language' => CamsTemplateIdentity::language($template->language),
-                'TemplateType' => 'WHATSAPP',
-            ]);
-
-            $body = $response->json() ?? [];
-            $codeOk = ! is_array($body)
-                || strtoupper((string) ($body['Code'] ?? $body['code'] ?? 'OK')) === 'OK';
-
-            return $response->successful() && $codeOk;
+            return $this->deleteFromCamsWithFallbacks($template, $line, $code);
         } catch (\Throwable $e) {
             Log::error('Failed to delete template from WhatsApp', [
                 'template_id' => $template->id,
@@ -248,6 +237,100 @@ class TemplateWhatsAppService
             ]);
 
             return false;
+        }
+    }
+
+    private function deleteFromCamsWithFallbacks(Template $template, WhatsappLine $line, string $code): bool
+    {
+        $custSpaceId = (string) $line->alibaba_cust_space_id;
+        $language = $this->resolveDeleteLanguage($template, $line, $code);
+        $templateName = $this->normalizeName((string) $template->name);
+
+        /** @var list<array<string, string>> $attempts */
+        $attempts = [
+            // Legacy production: TemplateCode + CustSpaceId only.
+            [
+                'TemplateCode' => $code,
+                'CustSpaceId' => $custSpaceId,
+            ],
+            // Name + language (Alibaba docs: TemplateType required when Language is set).
+            [
+                'TemplateName' => $templateName,
+                'Language' => $language,
+                'TemplateType' => 'WHATSAPP',
+                'CustSpaceId' => $custSpaceId,
+            ],
+            [
+                'TemplateCode' => $code,
+                'Language' => $language,
+                'TemplateType' => 'WHATSAPP',
+                'CustSpaceId' => $custSpaceId,
+            ],
+        ];
+
+        $lastBody = [];
+        foreach ($attempts as $index => $params) {
+            $response = $this->camsClient->deleteChatappTemplate($params);
+            $body = $response->json() ?? [];
+            $lastBody = is_array($body) ? $body : [];
+
+            if ($this->isCamsSuccess($response->successful(), $lastBody)) {
+                Log::info('WhatsApp template deleted from CAMS', [
+                    'template_id' => $template->id,
+                    'attempt' => $index + 1,
+                    'params' => array_keys($params),
+                ]);
+
+                return true;
+            }
+
+            Log::info('WhatsApp template delete attempt failed', [
+                'template_id' => $template->id,
+                'attempt' => $index + 1,
+                'params' => array_keys($params),
+                'response' => $response->body(),
+            ]);
+        }
+
+        Log::warning('WhatsApp template deletion failed after all attempts', [
+            'template_id' => $template->id,
+            'template_code' => $code,
+            'last_response' => $lastBody,
+        ]);
+
+        return false;
+    }
+
+    private function resolveDeleteLanguage(Template $template, WhatsappLine $line, string $code): string
+    {
+        $fallback = CamsTemplateIdentity::language($template->language);
+
+        try {
+            $response = $this->camsClient->getChatappTemplateDetail([
+                'TemplateCode' => $code,
+                'CustSpaceId' => $line->alibaba_cust_space_id,
+                'Language' => $fallback,
+            ]);
+
+            if (! $response->successful()) {
+                return $fallback;
+            }
+
+            $body = $response->json() ?? [];
+            if (! is_array($body)) {
+                return $fallback;
+            }
+
+            $data = $body['Data'] ?? $body['data'] ?? $body;
+            if (! is_array($data)) {
+                return $fallback;
+            }
+
+            $remote = $data['Language'] ?? $data['language'] ?? null;
+
+            return is_string($remote) && $remote !== '' ? $remote : $fallback;
+        } catch (\Throwable) {
+            return $fallback;
         }
     }
 
@@ -392,7 +475,9 @@ class TemplateWhatsAppService
         }
 
         // BUTTONS
-        $buttons = $this->buildButtons($payload);
+        $isLto = TemplateCategoryCatalog::isLto((string) $template->category)
+            || (bool) ($lto['enabled'] ?? false);
+        $buttons = $this->buildButtons($payload, $isLto);
         if (! empty($buttons)) {
             $components[] = [
                 'type' => 'BUTTONS',
@@ -410,27 +495,28 @@ class TemplateWhatsAppService
     private function buildAuthenticationComponents(array $payload): array
     {
         $auth = $payload['auth'] ?? [];
+        $autoFill = (bool) ($auth['auto_fill'] ?? false);
+        $zeroTap = (bool) ($auth['zero_tap'] ?? false);
 
         $buttonType = 'COPY_CODE';
-        if ($auth['auto_fill'] ?? false) {
-            $buttonType = ($auth['zero_tap'] ?? false) ? 'ZERO_TAP' : 'ONE_TAP';
+        if ($autoFill) {
+            $buttonType = $zeroTap ? 'ZERO_TAP' : 'ONE_TAP';
         }
 
         $button = [
             'type' => $buttonType,
-            'text' => $auth['auto_fill'] ? 'Copy Code' : ($auth['copy_button_text'] ?? 'Copy Code'),
+            'text' => $autoFill
+                ? 'Copy Code'
+                : $this->normalizeAuthButtonLabel((string) ($auth['copy_button_text'] ?? 'Copy Code')),
+            'autofillText' => $this->normalizeAuthButtonLabel((string) ($auth['fill_button_text'] ?? 'Autofill')),
         ];
 
-        if ($auth['auto_fill'] ?? false) {
-            $button['autofillText'] = $auth['fill_button_text'] ?? 'Autofill';
-        }
-
-        if ($auth['zero_tap'] ?? false) {
+        if ($zeroTap) {
             $button['zeroTapTermsAccepted'] = true;
         }
 
         $supportedApps = $auth['supported_apps'] ?? [];
-        if (! empty($supportedApps)) {
+        if ($autoFill && ! empty($supportedApps)) {
             $button['supportedApps'] = collect($supportedApps)
                 ->filter(fn ($app) => ! empty($app['package_name']) && ! empty($app['signature_hash']))
                 ->map(fn ($app) => [
@@ -607,14 +693,28 @@ class TemplateWhatsAppService
     }
 
     /**
+     * Legacy parity: light normalization for auth OTP button labels.
+     */
+    private function normalizeAuthButtonLabel(string $text): string
+    {
+        $text = strtolower(trim($text));
+        $text = preg_replace('/[^\p{L}\p{N}\s]+/u', ' ', $text) ?? $text;
+        $text = preg_replace('/\s+/u', ' ', $text) ?? $text;
+
+        $normalized = trim($text);
+
+        return $normalized !== '' ? $normalized : 'copy code';
+    }
+
+    /**
      * @param  array<string, mixed>  $payload
      * @return array<int, array<string, mixed>>
      */
-    private function buildButtons(array $payload): array
+    private function buildButtons(array $payload, bool $isLto = false): array
     {
         $buttons = collect($payload['buttons'] ?? [])
             ->filter(fn ($btn) => is_array($btn) && filled($btn['text'] ?? null))
-            ->map(function (array $btn): array {
+            ->map(function (array $btn) use ($isLto, $payload): array {
                 $type = (string) ($btn['type'] ?? 'url');
 
                 return match ($type) {
@@ -623,7 +723,11 @@ class TemplateWhatsAppService
                         'text' => $btn['text'],
                         'url' => $btn['url'] ?? '',
                     ],
-                    'phone' => [
+                    'phone' => $isLto ? [
+                        'type' => 'URL',
+                        'text' => $btn['text'],
+                        'url' => $btn['url'] ?? '',
+                    ] : [
                         'type' => 'PHONE_NUMBER',
                         'text' => $btn['text'],
                         'phoneNumber' => $btn['url'] ?? '',

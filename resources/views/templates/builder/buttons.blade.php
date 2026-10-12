@@ -11,6 +11,7 @@
       'first_screen' => (string) ($flow['first_screen'] ?? ''),
       'is_ready' => (bool) ($flow['is_ready'] ?? false),
   ])->values();
+  $ltoCoupon = (string) ($payload['lto']['coupon_code'] ?? '');
   $buttonTextLimit = (int) config('templates.button_text_limit', 20);
   $maxButtons = (int) config('templates.max_buttons', 10);
   $maxUrlButtons = (int) config('templates.max_url_buttons', 2);
@@ -29,6 +30,7 @@
       data-max-buttons="{{ $maxButtons }}"
       data-max-url-buttons="{{ $maxUrlButtons }}"
       data-max-phone-buttons="{{ $maxPhoneButtons }}"
+      data-lto-coupon="{{ $ltoCoupon }}"
       class="flex flex-col gap-4"
     >
       <div class="flex w-full max-w-[320px] flex-col gap-2">
@@ -51,6 +53,10 @@
         <button type="button" id="add-cta-website" class="fd-btn-sm rounded border border-green-500 px-3 py-2 text-sm text-green-500">+ Website</button>
         <button type="button" id="add-cta-phone" class="fd-btn-sm rounded border border-green-500 px-3 py-2 text-sm text-green-500">+ Call</button>
         <button type="button" id="add-cta-unsubscribe" class="fd-btn-sm rounded border border-green-500 px-3 py-2 text-sm text-green-500">+ Unsubscribe</button>
+      </div>
+
+      <div data-lto-actions class="hidden flex-wrap gap-2">
+        <button type="button" id="add-lto-website" class="fd-btn-sm rounded border border-green-500 px-3 py-2 text-sm text-green-500">+ Website</button>
       </div>
 
       {{-- Opt-out footer - disabled for now
