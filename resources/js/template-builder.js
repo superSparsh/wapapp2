@@ -326,15 +326,12 @@ function authenticationButtonLabel(auth) {
     const autoFill = Boolean(auth.auto_fill);
     const zeroTap = Boolean(auth.zero_tap);
 
+    // Legacy: autofill ON + zero-tap OFF → show Autofill label; otherwise Copy code.
     if (autoFill && !zeroTap) {
         return auth.fill_button_text || 'Autofill';
     }
 
-    if (autoFill) {
-        return 'Copy Code';
-    }
-
-    return auth.copy_button_text || 'Copy Code';
+    return 'Copy code';
 }
 
 function applySpecialPreviewState(state) {
@@ -348,21 +345,11 @@ function applySpecialPreviewState(state) {
         state.previewKind = 'authentication';
         state.auth = auth;
 
-        const bodyInput = document.getElementById('body_text');
-        let body = bodyInput?.value?.trim() || (state.body || '').trim();
-        if (!body || body.includes('Write your message')) {
-            body = '$(verificationCode) is your verification code.';
-        }
-
+        // Legacy preview keeps the $(verificationCode) placeholder (does not sample-substitute).
+        let body = '$(verificationCode) is your verification code.';
         if (auth.add_secret_recommendation) {
-            const base = body.replace(/\.\s*For your security, do not share this code\.?$/, '').replace(/\.$/, '');
-            body = `${base}. For your security, do not share this code.`;
+            body = '$(verificationCode) is your verification code. For your security, do not share this code.';
         }
-
-        body = applyVariableSubstitution(body, [
-            ...(state.samples || []),
-            { name: 'verificationCode', value: '123456' },
-        ]);
         state.body = body;
 
         state.footer = auth.expiration_time
@@ -519,7 +506,12 @@ class TemplateLivePreview {
         }
 
         if (this.body) {
-            const formatted = applyWhatsAppFormatting(applyVariableSubstitution(state.body || '', state.samples || []));
+            // Auth templates keep $(verificationCode) visible like legacy preview.
+            const rawBody =
+                state.previewKind === 'authentication'
+                    ? state.body || ''
+                    : applyVariableSubstitution(state.body || '', state.samples || []);
+            const formatted = applyWhatsAppFormatting(rawBody);
             this.body.innerHTML = formatted || '&nbsp;';
         }
 
@@ -2837,10 +2829,21 @@ function initCarouselBuilder(scheduleUpdate) {
 
 function syncAuthFormVisibility(form) {
     const autoFill = Boolean(form.querySelector('[name="auto_fill"]')?.checked);
+    const zeroTap = Boolean(form.querySelector('[name="zero_tap"]')?.checked);
+
     form.querySelector('[data-auth-copy-row]')?.classList.toggle('hidden', autoFill);
     form.querySelector('[data-auth-autofill-fields]')?.classList.toggle('hidden', !autoFill);
-    form.querySelector('[data-auth-zero-tap-row]')?.classList.toggle('hidden', !autoFill);
-    form.querySelector('[data-auth-android-apps]')?.classList.toggle('hidden', !autoFill);
+    form.querySelector('[data-auth-android-section]')?.classList.toggle('hidden', !autoFill);
+    form.querySelector('[data-auth-zero-tap-terms]')?.classList.toggle('hidden', !autoFill || !zeroTap);
+    form.querySelector('[data-auth-fill-text-row]')?.classList.toggle('hidden', !autoFill || zeroTap);
+
+    const terms = form.querySelector('[name="zero_tap_accepted"]');
+    if (terms) {
+        terms.required = autoFill && zeroTap;
+        if (!zeroTap) {
+            terms.checked = false;
+        }
+    }
 
     const expirationOn = Boolean(form.querySelector('[name="expiration_time"]')?.checked);
     form.querySelector('[data-auth-expiration-fields]')?.classList.toggle('hidden', !expirationOn);
@@ -2890,8 +2893,9 @@ function initAuthApps() {
         return;
     }
 
+    const maxApps = Number(root.dataset.authAppsMax || 5);
     let apps = JSON.parse(root.dataset.authApps || '[]');
-    if (!apps.length) {
+    if (!Array.isArray(apps) || !apps.length) {
         apps = [{ package_name: '', signature_hash: '' }];
     }
 
@@ -2899,20 +2903,71 @@ function initAuthApps() {
         list.innerHTML = apps
             .map(
                 (app, index) => `
-          <div class="grid grid-cols-1 gap-2 md:grid-cols-2" data-auth-app-row>
-            <input name="supported_apps[${index}][package_name]" value="${escapeHtml(app.package_name || '')}" placeholder="Package name" class="fd-input rounded-xl border border-border p-3">
-            <input name="supported_apps[${index}][signature_hash]" value="${escapeHtml(app.signature_hash || '')}" placeholder="Signature hash" class="fd-input rounded-xl border border-border p-3">
+          <div class="rounded-lg border border-border bg-surface p-3" data-auth-app-row>
+            <div class="mb-2 flex items-center justify-between">
+              <span class="text-sm font-semibold text-text-body">App ${index + 1}</span>
+              ${
+                  index > 0
+                      ? `<button type="button" data-auth-remove-app="${index}" class="text-sm text-red-500 hover:underline">Remove</button>`
+                      : ''
+              }
+            </div>
+            <div class="grid grid-cols-1 gap-2 md:grid-cols-2">
+              <div class="flex flex-col gap-1">
+                <label class="text-xs font-medium text-text-subtle">Package Name</label>
+                <input name="supported_apps[${index}][package_name]" value="${escapeHtml(app.package_name || '')}" placeholder="com.example.app" class="fd-input rounded-xl border border-border p-3">
+              </div>
+              <div class="flex flex-col gap-1">
+                <label class="text-xs font-medium text-text-subtle">Signature Hash</label>
+                <input name="supported_apps[${index}][signature_hash]" value="${escapeHtml(app.signature_hash || '')}" placeholder="ABCD1234567" maxlength="11" class="fd-input rounded-xl border border-border p-3">
+              </div>
+            </div>
           </div>`,
             )
             .join('');
+
+        const addBtn = root.querySelector('[data-auth-add-app]');
+        if (addBtn) {
+            addBtn.classList.toggle('hidden', apps.length >= maxApps);
+        }
     };
 
     root.querySelector('[data-auth-add-app]')?.addEventListener('click', () => {
-        if (apps.length >= 55) {
+        if (apps.length >= maxApps) {
             return;
         }
         apps.push({ package_name: '', signature_hash: '' });
         paint();
+    });
+
+    list.addEventListener('click', (event) => {
+        const button = event.target.closest('[data-auth-remove-app]');
+        if (!button) {
+            return;
+        }
+        const index = Number(button.dataset.authRemoveApp);
+        if (!Number.isFinite(index) || index <= 0) {
+            return;
+        }
+        apps.splice(index, 1);
+        paint();
+    });
+
+    list.addEventListener('input', (event) => {
+        const row = event.target.closest('[data-auth-app-row]');
+        if (!row) {
+            return;
+        }
+        const index = Array.from(list.children).indexOf(row);
+        if (index < 0 || !apps[index]) {
+            return;
+        }
+        if (event.target.name?.includes('[package_name]')) {
+            apps[index].package_name = event.target.value;
+        }
+        if (event.target.name?.includes('[signature_hash]')) {
+            apps[index].signature_hash = event.target.value;
+        }
     });
 
     paint();

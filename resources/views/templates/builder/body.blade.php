@@ -1,9 +1,17 @@
 @php
+  use App\Domains\Templates\Support\TemplateCategoryCatalog;
+
   $openModal = request('modal') === 'add-variable';
-  $bodyText = old('body_text', $payload['body']['text'] ?? '');
-  $samples = old('samples', $payload['body']['samples'] ?? []);
   $meta = $payload['meta'] ?? [];
   $setupComplete = $setupComplete ?? ($meta['setup_completed'] ?? false);
+  $categoryForBody = strtoupper((string) old('category', $template->category ?? ($meta['category'] ?? '')));
+  $isAuthBody = TemplateCategoryCatalog::isAuthentication($categoryForBody);
+  $defaultAuthBody = '$(verificationCode) is your verification code.';
+  $bodyText = old('body_text', $payload['body']['text'] ?? '');
+  if ($isAuthBody && trim((string) $bodyText) === '') {
+      $bodyText = $defaultAuthBody;
+  }
+  $samples = old('samples', $payload['body']['samples'] ?? []);
 @endphp
 
 @php
@@ -41,19 +49,25 @@
   >
     @csrf
 
-    <x-templates.utility-presets :presets="$utilityPresets ?? []" />
+    @unless ($isAuthBody)
+      <x-templates.utility-presets :presets="$utilityPresets ?? []" />
+    @endunless
 
     <div class="rounded-lg bg-elevated p-2">
       <div class="relative flex w-full flex-col gap-3 rounded-xl border border-solid border-border bg-elevated p-3" data-validate-field>
         <label for="body_text" class="fd-label">Body<span class="text-[red]">*</span></label>
+        @if ($isAuthBody)
+          <p class="text-sm text-text-subtle">Authentication templates use a fixed OTP body. Configure security and button options on the next step.</p>
+        @endif
         <textarea
           id="body_text"
           name="body_text"
           rows="6"
           required
           maxlength="{{ $bodyLimit }}"
-          class="min-h-[150px] w-full resize-y border-0 bg-transparent text-sm font-normal leading-[1.4] text-text-body focus:outline-none @error('body_text') border border-red-500 @enderror"
-          placeholder="Write your message body..."
+          @if ($isAuthBody) readonly @endif
+          class="min-h-[150px] w-full resize-y border-0 bg-transparent text-sm font-normal leading-[1.4] text-text-body focus:outline-none @error('body_text') border border-red-500 @enderror {{ $isAuthBody ? 'text-text-muted' : '' }}"
+          placeholder="{{ $isAuthBody ? $defaultAuthBody : 'Write your message body...' }}"
         >{{ $bodyText }}</textarea>
         <x-ui.field-error field="body_text" />
         {{-- <p class="text-xs text-text-subtle">Use <code>$(variable_name)</code> for dynamic variables. Pick from + Variable.</p> --}}

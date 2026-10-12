@@ -247,19 +247,31 @@ class TemplateBuilderController extends Controller
             ->all();
 
         $autoFill = $request->boolean('auto_fill');
+        $zeroTap = $autoFill && $request->boolean('zero_tap');
+        $addSecret = $request->boolean('add_secret_recommendation');
 
         $builderService->saveStep($template, 'auth', [
             'enabled' => true,
-            'copy_button_text' => (string) $request->input('copy_button_text', 'Copy Code'),
+            'copy_button_text' => 'Copy code',
             'auto_fill' => $autoFill,
-            'zero_tap' => $autoFill && $request->boolean('zero_tap'),
+            'zero_tap' => $zeroTap,
             'fill_button_text' => (string) $request->input('fill_button_text', 'Autofill'),
             'message_validity' => $request->boolean('message_validity'),
-            'validity_seconds' => (int) $request->input('validity_seconds', 120),
+            'validity_seconds' => max(30, (int) $request->input('validity_seconds', 30)),
             'expiration_time' => $request->boolean('expiration_time'),
-            'expiration_minutes' => (int) $request->input('expiration_minutes', 120),
-            'add_secret_recommendation' => $request->boolean('add_secret_recommendation'),
-            'supported_apps' => $autoFill ? $apps : [],
+            'expiration_minutes' => (int) $request->input('expiration_minutes', 10),
+            'add_secret_recommendation' => $addSecret,
+            'supported_apps' => $autoFill ? array_slice($apps, 0, 5) : [],
+        ]);
+
+        // Legacy parity: auth body is fixed OTP copy (+ optional security line).
+        $bodyText = '$(verificationCode) is your verification code.';
+        if ($addSecret) {
+            $bodyText = '$(verificationCode) is your verification code. For your security, do not share this code.';
+        }
+        $builderService->saveStep($template, 'body', [
+            'text' => $bodyText,
+            'samples' => ['123456'],
         ]);
 
         return redirect()->route($this->builderFlow->nextRouteAfterAuth(), $template);

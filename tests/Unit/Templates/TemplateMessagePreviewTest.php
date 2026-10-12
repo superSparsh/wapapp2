@@ -26,7 +26,7 @@ final class TemplateMessagePreviewTest extends TestCase
                     'expiration_time' => true,
                     'expiration_minutes' => 15,
                     'auto_fill' => false,
-                    'copy_button_text' => 'Copy code',
+                    'copy_button_text' => 'ignored',
                 ],
             ],
             $rawBody,
@@ -35,7 +35,7 @@ final class TemplateMessagePreviewTest extends TestCase
             $headerType,
         );
 
-        $this->assertStringContainsString('verificationCode', $rawBody);
+        $this->assertStringContainsString('$(verificationCode)', $rawBody);
         $this->assertStringContainsString('For your security', $rawBody);
         $this->assertSame('This code expires in 15 minutes.', $footer);
         $this->assertSame('none', $headerType);

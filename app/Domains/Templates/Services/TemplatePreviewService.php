@@ -229,16 +229,20 @@ class TemplatePreviewService
             $footer = TemplateVariableSyntax::previewText($footerText);
             $headerText = TemplateVariableSyntax::previewText($rawHeaderText);
         } else {
-            $resolvedValues = array_merge(
-                TemplateVariableSyntax::mapSamplesToNames($names, $samples),
-                $this->normalizeVariableValues($variableValues, $variables),
-            );
-            if ($previewKind === 'authentication' && ! isset($resolvedValues['verificationCode'])) {
-                $resolvedValues['verificationCode'] = '123456';
+            // Auth builder preview keeps $(verificationCode) like legacy (no sample substitution).
+            if ($previewKind === 'authentication') {
+                $body = TemplateVariableSyntax::previewText($rawBody);
+                $footer = TemplateVariableSyntax::previewText($footerText);
+                $headerText = TemplateVariableSyntax::previewText($rawHeaderText);
+            } else {
+                $resolvedValues = array_merge(
+                    TemplateVariableSyntax::mapSamplesToNames($names, $samples),
+                    $this->normalizeVariableValues($variableValues, $variables),
+                );
+                $body = TemplateVariableSyntax::substitute($rawBody, $resolvedValues);
+                $footer = TemplateVariableSyntax::substitute($footerText, $resolvedValues);
+                $headerText = TemplateVariableSyntax::substitute($rawHeaderText, $resolvedValues);
             }
-            $body = TemplateVariableSyntax::substitute($rawBody, $resolvedValues);
-            $footer = TemplateVariableSyntax::substitute($footerText, $resolvedValues);
-            $headerText = TemplateVariableSyntax::substitute($rawHeaderText, $resolvedValues);
         }
 
         return [

@@ -75,15 +75,12 @@ final class TemplateMessagePreview
         $autoFill = (bool) ($auth['auto_fill'] ?? false);
         $zeroTap = (bool) ($auth['zero_tap'] ?? false);
 
+        // Legacy: autofill + not zero-tap → Autofill label; otherwise fixed "Copy code".
         if ($autoFill && ! $zeroTap) {
             return (string) ($auth['fill_button_text'] ?? 'Autofill');
         }
 
-        if ($autoFill) {
-            return 'Copy Code';
-        }
-
-        return (string) ($auth['copy_button_text'] ?? 'Copy Code');
+        return 'Copy code';
     }
 
     /**
