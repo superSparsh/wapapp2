@@ -19,7 +19,7 @@ class SaveLtoRequest extends FormRequest
     public function rules(): array
     {
         return array_merge($this->editableNameRules(), [
-            'discount_introduction' => ['required', 'string', 'max:60'],
+            'discount_introduction' => ['required', 'string', 'max:16'],
             'expiration_time' => ['nullable', 'boolean'],
             'time_variable' => ['nullable', 'integer', 'min:1', 'max:10080'],
             'coupon_code' => ['nullable', 'string', 'max:15'],

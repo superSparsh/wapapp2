@@ -278,7 +278,7 @@ function buttonIcon(type) {
         return '/images/templates/flow.svg';
     }
 
-    if (normalized === 'quick_reply') {
+    if (normalized === 'quick_reply' || normalized === 'copy_code') {
         return '/images/templates/quick-reply.svg';
     }
 
@@ -287,6 +287,126 @@ function buttonIcon(type) {
     }
 
     return '/images/templates/export.svg';
+}
+
+function readAuthFormState() {
+    const form = document.getElementById('builder-auth-form');
+    if (!form) {
+        return null;
+    }
+
+    return {
+        copy_button_text: form.querySelector('[name="copy_button_text"]')?.value?.trim() || 'Copy Code',
+        auto_fill: Boolean(form.querySelector('[name="auto_fill"]')?.checked),
+        zero_tap: Boolean(form.querySelector('[name="zero_tap"]')?.checked),
+        fill_button_text: form.querySelector('[name="fill_button_text"]')?.value?.trim() || 'Autofill',
+        message_validity: Boolean(form.querySelector('[name="message_validity"]')?.checked),
+        validity_seconds: Number(form.querySelector('[name="validity_seconds"]')?.value || 120),
+        expiration_time: Boolean(form.querySelector('[name="expiration_time"]')?.checked),
+        expiration_minutes: Number(form.querySelector('[name="expiration_minutes"]')?.value || 10),
+        add_secret_recommendation: Boolean(form.querySelector('[name="add_secret_recommendation"]')?.checked),
+    };
+}
+
+function readLtoFormState() {
+    const form = document.getElementById('builder-lto-form');
+    if (!form) {
+        return null;
+    }
+
+    return {
+        discount_introduction: form.querySelector('[name="discount_introduction"]')?.value?.trim() || '',
+        coupon_code: form.querySelector('[name="coupon_code"]')?.value?.trim() || '',
+        expiration_time: Boolean(form.querySelector('[name="expiration_time"]')?.checked),
+        time_variable: Number(form.querySelector('[name="time_variable"]')?.value || 60),
+    };
+}
+
+function authenticationButtonLabel(auth) {
+    const autoFill = Boolean(auth.auto_fill);
+    const zeroTap = Boolean(auth.zero_tap);
+
+    if (autoFill && !zeroTap) {
+        return auth.fill_button_text || 'Autofill';
+    }
+
+    if (autoFill) {
+        return 'Copy Code';
+    }
+
+    return auth.copy_button_text || 'Copy Code';
+}
+
+function applySpecialPreviewState(state) {
+    const category = String(state.category || '').toUpperCase();
+    const previewKind = state.previewKind || state.preview_kind || 'standard';
+    const isAuth = category === 'AUTHENTICATION' || previewKind === 'authentication';
+    const isLto = category === 'LIMITED_TIME_OFFER' || previewKind === 'lto' || Boolean(state.lto?.enabled);
+
+    if (isAuth && !state.isCarousel) {
+        const auth = { ...(state.auth || {}), ...(readAuthFormState() || {}) };
+        state.previewKind = 'authentication';
+        state.auth = auth;
+
+        const bodyInput = document.getElementById('body_text');
+        let body = bodyInput?.value?.trim() || (state.body || '').trim();
+        if (!body || body.includes('Write your message')) {
+            body = '$(verificationCode) is your verification code.';
+        }
+
+        if (auth.add_secret_recommendation) {
+            const base = body.replace(/\.\s*For your security, do not share this code\.?$/, '').replace(/\.$/, '');
+            body = `${base}. For your security, do not share this code.`;
+        }
+
+        body = applyVariableSubstitution(body, [
+            ...(state.samples || []),
+            { name: 'verificationCode', value: '123456' },
+        ]);
+        state.body = body;
+
+        state.footer = auth.expiration_time
+            ? `This code expires in ${auth.expiration_minutes || 10} minutes.`
+            : '';
+        state.headerType = 'none';
+        state.headerImage = null;
+        state.headerVideo = '';
+        state.headerDocument = null;
+        state.headerAudio = null;
+        state.headerText = '';
+        state.buttons = [
+            {
+                text: authenticationButtonLabel(auth),
+                type: 'copy_code',
+                url: '',
+            },
+        ];
+        state.ltoOffer = null;
+
+        return state;
+    }
+
+    if (isLto && !state.isCarousel) {
+        const lto = { ...(state.lto || {}), ...(readLtoFormState() || {}) };
+        state.previewKind = 'lto';
+        state.lto = lto;
+
+        const couponFromButtons = (state.buttons || []).find((btn) => btn.type === 'copy_code')?.url || '';
+        const coupon = (lto.coupon_code || couponFromButtons || '').trim();
+
+        state.ltoOffer = {
+            introduction: lto.discount_introduction || 'Get 20% off',
+            coupon_code: coupon !== '' ? coupon : '$(offer_code)',
+            show_expiration: Boolean(lto.expiration_time),
+            expiration_label: '$(offerExpirationTimeMs) End',
+        };
+
+        return state;
+    }
+
+    state.ltoOffer = state.ltoOffer || null;
+
+    return state;
 }
 
 class TemplateLivePreview {
@@ -305,6 +425,10 @@ class TemplateLivePreview {
         this.carousel = root.querySelector('[data-preview-carousel]');
         this.carouselTrack = root.querySelector('[data-preview-carousel-track]');
         this.standard = root.querySelector('[data-preview-standard]');
+        this.ltoOffer = root.querySelector('[data-preview-lto]');
+        this.ltoIntro = root.querySelector('[data-preview-lto-intro]');
+        this.ltoCode = root.querySelector('[data-preview-lto-code]');
+        this.ltoExpiration = root.querySelector('[data-preview-lto-expiration]');
     }
 
     render(state) {
@@ -377,6 +501,20 @@ class TemplateLivePreview {
                 this.headerText.textContent = state.headerText || '$(locationName)';
             } else {
                 this.headerText.textContent = state.headerText || '';
+            }
+        }
+
+        const ltoOffer = state.ltoOffer || null;
+        const showLto = Boolean(ltoOffer?.introduction) && !isCarousel;
+        if (this.ltoOffer) {
+            this.ltoOffer.classList.toggle('hidden', !showLto);
+        }
+        if (showLto) {
+            this.ltoIntro && (this.ltoIntro.textContent = ltoOffer.introduction || '');
+            this.ltoCode && (this.ltoCode.textContent = `Code : ${ltoOffer.coupon_code || '$(offer_code)'}`);
+            if (this.ltoExpiration) {
+                this.ltoExpiration.classList.toggle('hidden', !ltoOffer.show_expiration);
+                this.ltoExpiration.textContent = ltoOffer.expiration_label || '$(offerExpirationTimeMs) End';
             }
         }
 
@@ -547,6 +685,12 @@ function collectPreviewState(root) {
         isOptOut: defaults.is_opt_out || false,
         isCarousel: Boolean(defaults.is_carousel),
         carouselCards: defaults.carousel_cards || [],
+        category: defaults.category || '',
+        previewKind: defaults.preview_kind || 'standard',
+        auth: defaults.auth || {},
+        lto: defaults.lto || {},
+        ltoOffer: defaults.lto_offer || null,
+        buttonMode: defaults.button_mode || 'call_to_action',
     };
 
     const headerTypeInput = document.querySelector('input[name="header_type"]:checked');
@@ -632,7 +776,7 @@ function collectPreviewState(root) {
         state.buttons = [];
     }
 
-    return state;
+    return applySpecialPreviewState(state);
 }
 
 function collectButtonsState(root) {
@@ -2691,6 +2835,54 @@ function initCarouselBuilder(scheduleUpdate) {
     paint();
 }
 
+function syncAuthFormVisibility(form) {
+    const autoFill = Boolean(form.querySelector('[name="auto_fill"]')?.checked);
+    form.querySelector('[data-auth-copy-row]')?.classList.toggle('hidden', autoFill);
+    form.querySelector('[data-auth-autofill-fields]')?.classList.toggle('hidden', !autoFill);
+    form.querySelector('[data-auth-zero-tap-row]')?.classList.toggle('hidden', !autoFill);
+    form.querySelector('[data-auth-android-apps]')?.classList.toggle('hidden', !autoFill);
+
+    const expirationOn = Boolean(form.querySelector('[name="expiration_time"]')?.checked);
+    form.querySelector('[data-auth-expiration-fields]')?.classList.toggle('hidden', !expirationOn);
+
+    const validityOn = Boolean(form.querySelector('[name="message_validity"]')?.checked);
+    form.querySelector('[data-auth-validity-fields]')?.classList.toggle('hidden', !validityOn);
+}
+
+function initAuthPreviewForm(scheduleUpdate) {
+    const form = document.getElementById('builder-auth-form');
+    if (!form) {
+        return;
+    }
+
+    syncAuthFormVisibility(form);
+    form.addEventListener('input', scheduleUpdate);
+    form.addEventListener('change', () => {
+        syncAuthFormVisibility(form);
+        scheduleUpdate();
+    });
+}
+
+function initLtoPreviewForm(scheduleUpdate) {
+    const form = document.getElementById('builder-lto-form');
+    if (!form) {
+        return;
+    }
+
+    const syncExpiration = () => {
+        const on = Boolean(form.querySelector('[name="expiration_time"]')?.checked);
+        form.querySelector('[data-lto-expiration-fields]')?.classList.toggle('hidden', !on);
+        form.querySelector('[data-lto-expiration-variable]')?.classList.toggle('hidden', !on);
+    };
+
+    syncExpiration();
+    form.addEventListener('input', scheduleUpdate);
+    form.addEventListener('change', () => {
+        syncExpiration();
+        scheduleUpdate();
+    });
+}
+
 function initAuthApps() {
     const root = document.getElementById('auth-android-apps');
     const list = root?.querySelector('[data-auth-apps-list]');
@@ -2831,6 +3023,8 @@ export function initTemplateBuilder() {
     initAiSuggestions(root);
     initCarouselBuilder(scheduleUpdate);
     initAuthApps();
+    initAuthPreviewForm(scheduleUpdate);
+    initLtoPreviewForm(scheduleUpdate);
 
     const footerInput =
         document.getElementById('footer_text') || document.querySelector('textarea[name="footer_text"]');

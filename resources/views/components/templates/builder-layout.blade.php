@@ -26,7 +26,7 @@
   $language = $template?->language ?: ($meta['language'] ?? 'en_GB');
   $templateType = $meta['template_type'] ?? 'regular';
   $headerType = $payload['header']['type'] ?? 'none';
-  $previewDefaults = $previewData ?? [
+  $previewDefaults = array_replace([
     'header_type' => $headerType,
     'header_text' => $payload['header']['text'] ?? '',
     'header_image' => null,
@@ -45,7 +45,12 @@
     'carousel_cards' => $payload['carousel']['cards'] ?? [],
     'lto' => $payload['lto'] ?? [],
     'auth' => $payload['auth'] ?? [],
-  ];
+    'category' => $storedCategory,
+    'preview_kind' => TemplateCategoryCatalog::isAuthentication($storedCategory)
+        ? 'authentication'
+        : (TemplateCategoryCatalog::isLto($storedCategory) ? 'lto' : 'standard'),
+    'lto_offer' => null,
+  ], is_array($previewData) ? $previewData : []);
   if (! empty($previewDefaults['is_carousel']) && filled($payload['carousel']['body'] ?? null)) {
       $previewDefaults['body'] = $payload['carousel']['body'];
   }

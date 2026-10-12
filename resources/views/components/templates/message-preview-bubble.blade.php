@@ -31,6 +31,8 @@
   $carouselCards = is_array($previewData['carousel_cards'] ?? null) ? $previewData['carousel_cards'] : [];
   $isCarousel = (bool) ($previewData['is_carousel'] ?? false) || $carouselCards !== [];
   $bodyScrollable = $scrollBody && ! $isCarousel;
+  $ltoOffer = is_array($previewData['lto_offer'] ?? null) ? $previewData['lto_offer'] : null;
+  $showLtoOffer = is_array($ltoOffer) && filled($ltoOffer['introduction'] ?? null);
 @endphp
 
 <div
@@ -107,6 +109,24 @@
   </div>
 
   <div
+    data-preview-lto
+    @class([
+      'flex w-full items-stretch gap-2 rounded-md bg-[#f2f2f2] px-2 py-1.5',
+      'hidden' => ! $showLtoOffer || $isCarousel,
+    ])
+  >
+    <div class="flex w-[20%] shrink-0 items-center justify-center text-lg text-text-body" aria-hidden="true">🎁</div>
+    <div class="flex min-w-0 flex-1 flex-col items-start justify-center text-[11px] leading-snug text-text-body">
+      <span data-preview-lto-intro class="font-medium">{{ $showLtoOffer ? ($ltoOffer['introduction'] ?? '') : '' }}</span>
+      <span data-preview-lto-code class="mt-0.5">Code : {{ $showLtoOffer ? ($ltoOffer['coupon_code'] ?? '$(offer_code)') : '$(offer_code)' }}</span>
+      <span
+        data-preview-lto-expiration
+        @class(['mt-0.5', 'hidden' => ! ($showLtoOffer && ($ltoOffer['show_expiration'] ?? false))])
+      >{{ $ltoOffer['expiration_label'] ?? '$(offerExpirationTimeMs) End' }}</span>
+    </div>
+  </div>
+
+  <div
     data-preview-body
     @class([
       'wa-preview-body w-full font-normal leading-[1.4] text-text-body break-words',
@@ -145,6 +165,7 @@
           'phone', 'phone_number' => 'call.svg',
           'quick_reply' => 'quick-reply.svg',
           'flow' => 'flow.svg',
+          'copy_code' => 'quick-reply.svg',
           default => 'export.svg',
         };
       @endphp

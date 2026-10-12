@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domains\Templates\Services;
 
 use App\Domains\Templates\Support\TemplateCategoryCatalog;
+use App\Domains\Templates\Support\TemplateMessagePreview;
 use App\Domains\Templates\Support\TemplateVariableSyntax;
 use App\Models\Template;
 
@@ -201,6 +202,28 @@ class TemplatePreviewService
         $variables = $this->variablesForTemplate($template);
         $names = array_column($variables, 'name');
 
+        $previewKind = 'standard';
+        $ltoOffer = null;
+
+        if (! $isCarousel && TemplateMessagePreview::isAuthentication($template, $payload)) {
+            $previewKind = 'authentication';
+            TemplateMessagePreview::applyAuthentication(
+                $payload,
+                $rawBody,
+                $footerText,
+                $buttons,
+                $headerType,
+            );
+            $headerImage = null;
+            $headerVideo = null;
+            $headerDocument = null;
+            $headerAudio = null;
+            $headerDocumentName = null;
+        } elseif (! $isCarousel && TemplateMessagePreview::isLto($template, $payload)) {
+            $previewKind = 'lto';
+            $ltoOffer = TemplateMessagePreview::ltoOfferFromPayload($payload, $buttons);
+        }
+
         if ($keepPlaceholders) {
             $body = TemplateVariableSyntax::previewText($rawBody);
             $footer = TemplateVariableSyntax::previewText($footerText);
@@ -210,6 +233,9 @@ class TemplatePreviewService
                 TemplateVariableSyntax::mapSamplesToNames($names, $samples),
                 $this->normalizeVariableValues($variableValues, $variables),
             );
+            if ($previewKind === 'authentication' && ! isset($resolvedValues['verificationCode'])) {
+                $resolvedValues['verificationCode'] = '123456';
+            }
             $body = TemplateVariableSyntax::substitute($rawBody, $resolvedValues);
             $footer = TemplateVariableSyntax::substitute($footerText, $resolvedValues);
             $headerText = TemplateVariableSyntax::substitute($rawHeaderText, $resolvedValues);
@@ -237,6 +263,9 @@ class TemplatePreviewService
             'lto' => $lto,
             'auth' => $auth,
             'variables' => $variables,
+            'category' => (string) $template->category,
+            'preview_kind' => $previewKind,
+            'lto_offer' => $ltoOffer,
         ];
     }
 
