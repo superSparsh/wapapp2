@@ -405,6 +405,8 @@ class TemplateLivePreview {
         this.headerDocumentName = root.querySelector('[data-preview-header-document-name]');
         this.headerAudio = root.querySelector('[data-preview-header-audio]');
         this.headerText = root.querySelector('[data-preview-header-text]');
+        this.headerVariable = root.querySelector('[data-preview-header-variable]');
+        this.headerVariableLabel = root.querySelector('[data-preview-header-variable-label]');
         this.body = root.querySelector('[data-preview-body]');
         this.footer = root.querySelector('[data-preview-footer]');
         this.buttons = root.querySelector('[data-preview-buttons]');
@@ -421,18 +423,31 @@ class TemplateLivePreview {
     render(state) {
         const isCarousel = Boolean(state.isCarousel) || (state.carouselCards || []).length > 0;
         const headerType = isCarousel ? 'none' : state.headerType || 'none';
-        const showImage = headerType === 'image' && Boolean(state.headerImage);
-        const showVideo = headerType === 'video' && Boolean(state.headerVideo);
+        const headerVariable = String(state.headerMediaVariable || '').trim();
+        const showVariable =
+            !isCarousel &&
+            headerVariable !== '' &&
+            ['image', 'video', 'document', 'audio'].includes(headerType);
+        const showImage = headerType === 'image' && Boolean(state.headerImage) && !showVariable;
+        const showVideo = headerType === 'video' && Boolean(state.headerVideo) && !showVariable;
         const showDocument =
             headerType === 'document' &&
+            !showVariable &&
             (Boolean(state.headerDocument) || Boolean(state.headerDocumentName));
-        const showAudio = headerType === 'audio' && Boolean(state.headerAudio);
+        const showAudio = headerType === 'audio' && Boolean(state.headerAudio) && !showVariable;
         const showHeaderText =
             (headerType === 'text' || headerType === 'location') &&
             (Boolean(state.headerText) || headerType === 'location');
 
         if (this.standard) {
             this.standard.classList.toggle('hidden', isCarousel);
+        }
+
+        if (this.headerVariable) {
+            this.headerVariable.classList.toggle('hidden', !showVariable);
+            if (this.headerVariableLabel) {
+                this.headerVariableLabel.textContent = headerVariable;
+            }
         }
 
         if (this.headerImage) {
@@ -667,6 +682,7 @@ function collectPreviewState(root) {
         headerDocument: defaults.header_document || null,
         headerAudio: defaults.header_audio || null,
         headerDocumentName: defaults.header_document_name || defaults.doc_name || '',
+        headerMediaVariable: defaults.header_media_variable || '',
         body: defaults.body || '',
         footer: defaults.footer || '',
         samples: (defaults.body_samples || []).map((value) => ({
@@ -705,30 +721,49 @@ function collectPreviewState(root) {
         state.headerAudio = null;
         state.headerDocumentName = '';
         state.headerText = '';
+        state.headerMediaVariable = '';
     } else {
-        const mediaPreview = readHeaderMediaFromUpload();
-        if (state.headerType === 'image') {
-            state.headerImage = mediaPreview.image || state.headerImage;
-            state.headerVideo = '';
-            state.headerDocument = null;
-            state.headerAudio = null;
-        } else if (state.headerType === 'video') {
-            state.headerVideo = mediaPreview.video || state.headerVideo;
-            state.headerImage = null;
-            state.headerDocument = null;
-            state.headerAudio = null;
-        } else if (state.headerType === 'document') {
-            state.headerDocument = mediaPreview.document || state.headerDocument;
-            state.headerDocumentName =
-                mediaPreview.fileName || state.headerDocumentName || '';
-            state.headerImage = null;
-            state.headerVideo = '';
-            state.headerAudio = null;
-        } else if (state.headerType === 'audio') {
-            state.headerAudio = mediaPreview.audio || state.headerAudio;
+        const useUrl = Boolean(document.querySelector('[data-header-use-url]:checked'));
+        const activeSection = document.querySelector(`[data-header-section="${state.headerType}"]`);
+        const urlInput = activeSection?.querySelector('[data-header-url-input]');
+        const mediaUrlValue = String(urlInput?.value || '').trim();
+        const isDynamicMedia =
+            useUrl &&
+            (mediaUrlValue.includes('$(') || /\{\{[a-zA-Z0-9_]+\}\}/.test(mediaUrlValue));
+
+        if (isDynamicMedia) {
+            state.headerMediaVariable = mediaUrlValue;
             state.headerImage = null;
             state.headerVideo = '';
             state.headerDocument = null;
+            state.headerAudio = null;
+        } else {
+            state.headerMediaVariable = '';
+            const mediaPreview = readHeaderMediaFromUpload();
+            if (state.headerType === 'image') {
+                state.headerImage = useUrl && mediaUrlValue ? mediaUrlValue : mediaPreview.image || state.headerImage;
+                state.headerVideo = '';
+                state.headerDocument = null;
+                state.headerAudio = null;
+            } else if (state.headerType === 'video') {
+                state.headerVideo = useUrl && mediaUrlValue ? mediaUrlValue : mediaPreview.video || state.headerVideo;
+                state.headerImage = null;
+                state.headerDocument = null;
+                state.headerAudio = null;
+            } else if (state.headerType === 'document') {
+                state.headerDocument =
+                    useUrl && mediaUrlValue ? mediaUrlValue : mediaPreview.document || state.headerDocument;
+                state.headerDocumentName =
+                    mediaPreview.fileName || state.headerDocumentName || '';
+                state.headerImage = null;
+                state.headerVideo = '';
+                state.headerAudio = null;
+            } else if (state.headerType === 'audio') {
+                state.headerAudio = useUrl && mediaUrlValue ? mediaUrlValue : mediaPreview.audio || state.headerAudio;
+                state.headerImage = null;
+                state.headerVideo = '';
+                state.headerDocument = null;
+            }
         }
     }
 
@@ -1035,21 +1070,48 @@ function renderVariableGroups(customItems, builtinItems, createUrl) {
     return sections.join('');
 }
 
+function insertVariableSyntax(target, syntax) {
+    if (!target || !syntax) {
+        return;
+    }
+
+    if (target instanceof HTMLTextAreaElement || (target instanceof HTMLInputElement && target.type !== 'checkbox')) {
+        if (typeof target.setRangeText === 'function' && target.type !== 'checkbox') {
+            const start = target.selectionStart ?? target.value.length;
+            const end = target.selectionEnd ?? start;
+            // For media_url dynamic header, replace entire value with the variable (legacy behavior).
+            if (target.matches('[data-header-url-input]')) {
+                target.value = syntax;
+            } else {
+                target.setRangeText(syntax, start, end, 'end');
+            }
+        } else {
+            target.value = `${target.value || ''}${syntax}`;
+        }
+        target.dispatchEvent(new Event('input', { bubbles: true }));
+        target.dispatchEvent(new Event('change', { bubbles: true }));
+        target.focus();
+    }
+}
+
 function initVariableModal(root) {
     const modal = document.getElementById('modal-add-variable');
-    const textarea = document.getElementById('body_text');
     const samplesContainer = document.getElementById('variable-samples');
     const searchInput = document.getElementById('variable-search');
     const optionsHost = document.getElementById('variable-options');
-    const variablesUrl = modal?.dataset.variablesUrl || document.getElementById('builder-body-form')?.dataset.variablesUrl;
+    const variablesUrl =
+        modal?.dataset.variablesUrl ||
+        document.getElementById('builder-body-form')?.dataset.variablesUrl ||
+        document.getElementById('builder-header-form')?.dataset.variablesUrl;
     const createUrl = modal?.dataset.createVariableUrl || '/templates/variables/create';
 
-    if (!modal || !textarea || !optionsHost) {
+    if (!modal || !optionsHost) {
         return;
     }
 
     let customItems = [];
     let builtinItems = [];
+    let insertTarget = document.getElementById('body_text');
 
     try {
         const initial = JSON.parse(modal.dataset.initialVariables || '{"custom":[],"builtin":[]}');
@@ -1074,10 +1136,11 @@ function initVariableModal(root) {
                     return;
                 }
 
-                const start = textarea.selectionStart ?? textarea.value.length;
-                textarea.setRangeText(syntax, start, start, 'end');
-                textarea.dispatchEvent(new Event('input', { bubbles: true }));
-                syncSampleRows(samplesContainer, textarea.value);
+                const target = insertTarget || document.getElementById('body_text');
+                insertVariableSyntax(target, syntax);
+                if (target?.id === 'body_text') {
+                    syncSampleRows(samplesContainer, target.value);
+                }
                 closeVariableModal();
             });
         });
@@ -1153,7 +1216,9 @@ function initVariableModal(root) {
         }
     };
 
-    const openWithLoad = async () => {
+    const openWithLoad = async (target = null) => {
+        insertTarget = target || document.getElementById('body_text') || document.getElementById('header_text');
+
         if (searchInput) {
             searchInput.value = '';
         }
@@ -1176,6 +1241,20 @@ function initVariableModal(root) {
     });
 
     window.__openVariableModalWithLoad = openWithLoad;
+
+    document.querySelectorAll('[data-header-insert-variable]').forEach((button) => {
+        button.addEventListener('click', () => {
+            const field = button.dataset.headerInsertVariable;
+            const section = button.closest('[data-header-section]');
+            let target = null;
+            if (field === 'header_text') {
+                target = document.getElementById('header_text');
+            } else if (field === 'media_url') {
+                target = section?.querySelector('[data-header-url-input]') || null;
+            }
+            openWithLoad(target);
+        });
+    });
 
     searchInput?.addEventListener('input', () => {
         filterVariableOptions(searchInput.value);
@@ -1241,6 +1320,12 @@ function initHeaderSections(scheduleUpdate) {
                     urlInput.addEventListener('input', () => {
                         const value = urlInput.value.trim();
                         scheduleUpdate?.();
+                        // Legacy: hide Select Variable once a $(var) is present.
+                        const insertBtn = section.querySelector('[data-header-insert-variable="media_url"]');
+                        if (insertBtn) {
+                            const hasVar = value.includes('$(') || /\{\{[a-zA-Z0-9_]+\}\}/.test(value);
+                            insertBtn.classList.toggle('hidden', hasVar);
+                        }
                         if (!value.startsWith('https://') && !value.startsWith('http://') && !value.startsWith('blob:')) {
                             return;
                         }
@@ -1286,6 +1371,14 @@ function initHeaderSections(scheduleUpdate) {
                     });
                 }
             }
+
+            section.querySelectorAll('[data-header-insert-variable="media_url"]').forEach((button) => {
+                const enableUrl = isActive && useUrl;
+                button.disabled = !enableUrl;
+                const urlValue = String(section.querySelector('[data-header-url-input]')?.value || '').trim();
+                const hasVar = urlValue.includes('$(') || /\{\{[a-zA-Z0-9_]+\}\}/.test(urlValue);
+                button.classList.toggle('hidden', enableUrl && hasVar);
+            });
 
             if (docName) {
                 docName.disabled = !isActive;

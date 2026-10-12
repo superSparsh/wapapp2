@@ -23,10 +23,12 @@
   if ($headerDocumentName === '' && filled($headerDocument)) {
       $headerDocumentName = basename(parse_url((string) $headerDocument, PHP_URL_PATH) ?: '') ?: 'Document';
   }
-  $showHeaderImage = $headerType === 'image' && filled($headerImage);
-  $showHeaderVideo = $headerType === 'video' && filled($headerVideo);
-  $showHeaderDocument = $headerType === 'document' && (filled($headerDocument) || $headerDocumentName !== '');
-  $showHeaderAudio = $headerType === 'audio' && filled($headerAudio);
+  $headerMediaVariable = trim((string) ($previewData['header_media_variable'] ?? ''));
+  $showHeaderVariable = $headerMediaVariable !== '' && in_array($headerType, ['image', 'video', 'document', 'audio'], true);
+  $showHeaderImage = $headerType === 'image' && filled($headerImage) && ! $showHeaderVariable;
+  $showHeaderVideo = $headerType === 'video' && filled($headerVideo) && ! $showHeaderVariable;
+  $showHeaderDocument = $headerType === 'document' && ! $showHeaderVariable && (filled($headerDocument) || $headerDocumentName !== '');
+  $showHeaderAudio = $headerType === 'audio' && filled($headerAudio) && ! $showHeaderVariable;
   $showHeaderText = in_array($headerType, ['text', 'location'], true) && $headerText !== '';
   $carouselCards = is_array($previewData['carousel_cards'] ?? null) ? $previewData['carousel_cards'] : [];
   $isCarousel = (bool) ($previewData['is_carousel'] ?? false) || $carouselCards !== [];
@@ -44,6 +46,16 @@
   ])
 >
   <div data-preview-standard @class(['contents' => ! $isCarousel, 'hidden' => $isCarousel])>
+    <div
+      data-preview-header-variable
+      @class([
+        'flex min-h-[80px] w-full flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-border bg-muted-surface px-3 py-4 text-center',
+        'hidden' => ! $showHeaderVariable || $isCarousel,
+      ])
+    >
+      <span class="text-xs font-semibold uppercase tracking-wide text-text-subtle">{{ ucfirst($headerType) }} variable</span>
+      <span data-preview-header-variable-label class="break-all text-sm font-medium text-text-body">{{ $showHeaderVariable ? $headerMediaVariable : '' }}</span>
+    </div>
     <img
       data-preview-header-image
       src="{{ $showHeaderImage ? $headerImage : '' }}"

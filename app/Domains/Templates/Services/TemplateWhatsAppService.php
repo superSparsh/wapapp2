@@ -866,6 +866,11 @@ class TemplateWhatsAppService
             return $mediaUrl;
         }
 
+        // Dynamic header media ($(variable_name)) - pass through to CAMS like legacy.
+        if ($mediaUrl !== null && (str_starts_with($mediaUrl, '$(') || str_contains($mediaUrl, '$('))) {
+            return $mediaUrl;
+        }
+
         return $mediaUrl;
     }
 

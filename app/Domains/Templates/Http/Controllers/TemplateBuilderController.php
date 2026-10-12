@@ -46,9 +46,15 @@ class TemplateBuilderController extends Controller
         return redirect()->route('templates.builder.body', $template);
     }
 
-    public function header(Template $template, TemplatePreviewService $previewService): View|RedirectResponse
-    {
-        return $this->stepView($template, 'header', $previewService);
+    public function header(
+        Template $template,
+        TemplatePreviewService $previewService,
+        TemplateVariableQueryService $variableQueryService,
+    ): View|RedirectResponse {
+        return $this->stepView($template, 'header', $previewService, [
+            'variables' => collect($variableQueryService->paginate(perPage: 100)->items()),
+            'builtinVariables' => [],
+        ]);
     }
 
     public function saveHeader(SaveHeaderRequest $request, Template $template, TemplateBuilderService $builderService): RedirectResponse
@@ -87,6 +93,9 @@ class TemplateBuilderController extends Controller
             'use_url' => $headerType === 'none' ? false : $request->boolean('use_url'),
             'doc_name' => (string) $request->input('doc_name', ''),
         ]);
+
+        $template->refresh();
+        $builderService->syncHeaderVariables($template);
 
         return redirect()->route('templates.builder.footer', $template);
     }

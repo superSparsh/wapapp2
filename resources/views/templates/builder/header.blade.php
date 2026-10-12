@@ -36,6 +36,7 @@
     enctype="multipart/form-data"
     class="flex flex-col gap-4"
     data-header-upload-url="{{ route('templates.builder.header.media', $template) }}"
+    data-variables-url="{{ route('templates.api.variables') }}"
     data-validate-form
   >
     @csrf
@@ -76,17 +77,24 @@
       <x-ui.field-error field="header_type" />
     </div>
 
+    @php
+      $isDynamicMedia = filled($mediaUrl) && (str_contains((string) $mediaUrl, '$(') || str_contains((string) $mediaUrl, '{{'));
+      $mediaUrlPlaceholder = 'https://example.com/file.jpg or $(variable_name)';
+    @endphp
+
     <div data-header-section="text" @class(['flex w-full max-w-[420px] flex-col gap-3', 'hidden' => $headerType !== 'text'])>
       <label for="header_text" class="fd-label">Header Text</label>
-      <div data-validate-field>
+      <div data-validate-field class="flex flex-col gap-2">
         <input
           id="header_text"
           name="header_text"
           type="text"
           value="{{ old('header_text', $payload['header']['text'] ?? '') }}"
-          placeholder="Write headline"
+          placeholder="Write headline or $(variable_name)"
+          maxlength="{{ (int) config('templates.header_text_limit', 60) }}"
           class="fd-input w-full rounded-xl border border-solid border-border bg-elevated p-3.5 text-text-muted focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500 @error('header_text') border-red-500 @enderror"
         >
+        <button type="button" data-header-insert-variable="header_text" class="fd-btn-sm w-fit rounded border border-green-500 px-3 py-2 text-sm text-green-500">+ Variable</button>
         <x-ui.field-error field="header_text" />
       </div>
     </div>
@@ -94,9 +102,10 @@
     <div data-header-section="image" @class(['flex w-full flex-col gap-3', 'hidden' => $headerType !== 'image'])>
       <label class="fd-label">Image</label>
       <div data-header-url-wrap @class(['hidden' => ! $useUrl])>
-        <div data-validate-field>
-          <input type="url" name="media_url" value="{{ old('media_url', $mediaUrl ?? '') }}" placeholder="https://example.com/image.png" class="fd-input w-full rounded-xl border border-solid border-border bg-elevated p-3.5 text-text-muted focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500 @error('media_url') border-red-500 @enderror" data-header-url-input @disabled(! $useUrl || $headerType !== 'image')>
-          <p class="mt-1 text-xs text-text-subtle">Use a public HTTPS image URL (JPEG/PNG).</p>
+        <div data-validate-field class="flex flex-col gap-2">
+          <input type="text" name="media_url" value="{{ old('media_url', $mediaUrl ?? '') }}" placeholder="{{ $mediaUrlPlaceholder }}" class="fd-input w-full rounded-xl border border-solid border-border bg-elevated p-3.5 text-text-muted focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500 @error('media_url') border-red-500 @enderror" data-header-url-input @disabled(! $useUrl || $headerType !== 'image')>
+          <button type="button" data-header-insert-variable="media_url" class="fd-btn-sm w-fit rounded border border-green-500 px-3 py-2 text-sm text-green-500" @disabled(! $useUrl || $headerType !== 'image')>Select Variable</button>
+          <p class="text-xs text-text-subtle">Public HTTPS URL, or a dynamic variable like <code>$(product_image)</code> (legacy parity).</p>
           <x-ui.field-error field="media_url" />
         </div>
       </div>
@@ -106,7 +115,7 @@
           accept="{{ WhatsappMediaRules::accept('image') }}"
           :hint="WhatsappMediaRules::hint('image')"
           preview-kind="image"
-          :preview-url="$headerType === 'image' ? $previewUrl : null"
+          :preview-url="$headerType === 'image' && ! $isDynamicMedia ? $previewUrl : null"
           :file-name="$headerType === 'image' ? $mediaName : null"
           :enabled="$headerType === 'image' && ! $useUrl"
           :max-bytes="$imageMaxBytes"
@@ -116,16 +125,17 @@
       </div>
       <label class="flex items-center gap-2 text-sm text-text-muted">
         <input type="checkbox" name="use_url" value="1" data-header-use-url @checked($useUrl && $headerType === 'image') @disabled($headerType !== 'image')>
-        Use URL instead of uploading a file
+        Use variable / URL instead of file upload
       </label>
     </div>
 
     <div data-header-section="video" @class(['flex w-full flex-col gap-3', 'hidden' => $headerType !== 'video'])>
       <label class="fd-label">Video</label>
       <div data-header-url-wrap @class(['hidden' => ! $useUrl])>
-        <div data-validate-field>
-          <input type="url" name="media_url" value="{{ old('media_url', $mediaUrl ?? '') }}" placeholder="https://example.com/video.mp4" class="fd-input w-full rounded-xl border border-solid border-border bg-elevated p-3.5 text-text-muted focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500 @error('media_url') border-red-500 @enderror" data-header-url-input @disabled(! $useUrl || $headerType !== 'video')>
-          <p class="mt-1 text-xs text-text-subtle">Use a public HTTPS video URL (MP4/3GP).</p>
+        <div data-validate-field class="flex flex-col gap-2">
+          <input type="text" name="media_url" value="{{ old('media_url', $mediaUrl ?? '') }}" placeholder="{{ $mediaUrlPlaceholder }}" class="fd-input w-full rounded-xl border border-solid border-border bg-elevated p-3.5 text-text-muted focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500 @error('media_url') border-red-500 @enderror" data-header-url-input @disabled(! $useUrl || $headerType !== 'video')>
+          <button type="button" data-header-insert-variable="media_url" class="fd-btn-sm w-fit rounded border border-green-500 px-3 py-2 text-sm text-green-500" @disabled(! $useUrl || $headerType !== 'video')>Select Variable</button>
+          <p class="text-xs text-text-subtle">Public HTTPS video URL, or <code>$(variable_name)</code>.</p>
           <x-ui.field-error field="media_url" />
         </div>
       </div>
@@ -135,7 +145,7 @@
           accept="{{ WhatsappMediaRules::accept('video') }}"
           :hint="WhatsappMediaRules::hint('video')"
           preview-kind="video"
-          :preview-url="$headerType === 'video' ? $previewUrl : null"
+          :preview-url="$headerType === 'video' && ! $isDynamicMedia ? $previewUrl : null"
           :file-name="$headerType === 'video' ? $mediaName : null"
           :enabled="$headerType === 'video' && ! $useUrl"
           :max-bytes="$videoMaxBytes"
@@ -145,15 +155,16 @@
       </div>
       <label class="flex items-center gap-2 text-sm text-text-muted">
         <input type="checkbox" name="use_url" value="1" data-header-use-url @checked($useUrl && $headerType === 'video') @disabled($headerType !== 'video')>
-        Use URL instead of uploading a file
+        Use variable / URL instead of file upload
       </label>
     </div>
 
     <div data-header-section="document" @class(['flex w-full flex-col gap-3', 'hidden' => $headerType !== 'document'])>
       <label class="fd-label">Document</label>
       <div data-header-url-wrap @class(['hidden' => ! $useUrl])>
-        <div data-validate-field>
-          <input type="url" name="media_url" value="{{ old('media_url', $mediaUrl ?? '') }}" placeholder="https://example.com/doc.pdf" class="fd-input w-full rounded-xl border border-solid border-border bg-elevated p-3.5 text-text-muted focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500 @error('media_url') border-red-500 @enderror" data-header-url-input @disabled(! $useUrl || $headerType !== 'document')>
+        <div data-validate-field class="flex flex-col gap-2">
+          <input type="text" name="media_url" value="{{ old('media_url', $mediaUrl ?? '') }}" placeholder="{{ $mediaUrlPlaceholder }}" class="fd-input w-full rounded-xl border border-solid border-border bg-elevated p-3.5 text-text-muted focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500 @error('media_url') border-red-500 @enderror" data-header-url-input @disabled(! $useUrl || $headerType !== 'document')>
+          <button type="button" data-header-insert-variable="media_url" class="fd-btn-sm w-fit rounded border border-green-500 px-3 py-2 text-sm text-green-500" @disabled(! $useUrl || $headerType !== 'document')>Select Variable</button>
           <x-ui.field-error field="media_url" />
         </div>
       </div>
@@ -163,7 +174,7 @@
           accept="application/pdf,.pdf"
           :hint="'PDF - max '.WhatsappMediaRules::maxMbLabel('document')"
           preview-kind="document"
-          :preview-url="$headerType === 'document' ? $previewUrl : null"
+          :preview-url="$headerType === 'document' && ! $isDynamicMedia ? $previewUrl : null"
           :file-name="$headerType === 'document' ? $mediaName : null"
           :enabled="$headerType === 'document' && ! $useUrl"
           :max-bytes="$documentMaxBytes"
@@ -173,7 +184,7 @@
       </div>
       <label class="flex items-center gap-2 text-sm text-text-muted">
         <input type="checkbox" name="use_url" value="1" data-header-use-url @checked($useUrl && $headerType === 'document') @disabled($headerType !== 'document')>
-        Use URL instead of uploading a file
+        Use variable / URL instead of file upload
       </label>
       <input type="text" name="doc_name" value="{{ old('doc_name', $payload['header']['doc_name'] ?? '') }}" placeholder="Document file name" class="fd-input w-full rounded-xl border border-solid border-border bg-elevated p-3.5 text-text-muted focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500" @disabled($headerType !== 'document')>
     </div>
@@ -181,8 +192,9 @@
     <div data-header-section="audio" @class(['flex w-full flex-col gap-3', 'hidden' => $headerType !== 'audio'])>
       <label class="fd-label">Audio</label>
       <div data-header-url-wrap @class(['hidden' => ! $useUrl])>
-        <div data-validate-field>
-          <input type="url" name="media_url" value="{{ old('media_url', $mediaUrl ?? '') }}" placeholder="https://example.com/audio.mp3" class="fd-input w-full rounded-xl border border-solid border-border bg-elevated p-3.5 text-text-muted focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500 @error('media_url') border-red-500 @enderror" data-header-url-input @disabled(! $useUrl || $headerType !== 'audio')>
+        <div data-validate-field class="flex flex-col gap-2">
+          <input type="text" name="media_url" value="{{ old('media_url', $mediaUrl ?? '') }}" placeholder="{{ $mediaUrlPlaceholder }}" class="fd-input w-full rounded-xl border border-solid border-border bg-elevated p-3.5 text-text-muted focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500 @error('media_url') border-red-500 @enderror" data-header-url-input @disabled(! $useUrl || $headerType !== 'audio')>
+          <button type="button" data-header-insert-variable="media_url" class="fd-btn-sm w-fit rounded border border-green-500 px-3 py-2 text-sm text-green-500" @disabled(! $useUrl || $headerType !== 'audio')>Select Variable</button>
           <x-ui.field-error field="media_url" />
         </div>
       </div>
@@ -192,7 +204,7 @@
           accept="{{ WhatsappMediaRules::accept('audio') }}"
           :hint="WhatsappMediaRules::hint('audio')"
           preview-kind="audio"
-          :preview-url="$headerType === 'audio' ? $previewUrl : null"
+          :preview-url="$headerType === 'audio' && ! $isDynamicMedia ? $previewUrl : null"
           :file-name="$headerType === 'audio' ? $mediaName : null"
           :enabled="$headerType === 'audio' && ! $useUrl"
           :max-bytes="$audioMaxBytes"
@@ -202,7 +214,7 @@
       </div>
       <label class="flex items-center gap-2 text-sm text-text-muted">
         <input type="checkbox" name="use_url" value="1" data-header-use-url @checked($useUrl && $headerType === 'audio') @disabled($headerType !== 'audio')>
-        Use URL instead of uploading a file
+        Use variable / URL instead of file upload
       </label>
     </div>
 
@@ -212,4 +224,9 @@
 
     <x-templates.builder-actions :back-url="$previousStepUrl" />
   </form>
+
+  <x-templates.add-variable-modal
+    :variables="$variables ?? collect()"
+    :builtin-variables="$builtinVariables ?? []"
+  />
 </x-templates.builder-layout>

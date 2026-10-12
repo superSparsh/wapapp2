@@ -86,22 +86,34 @@ class TemplatePreviewService
             isset($payload['header']['media_url']) ? (string) $payload['header']['media_url'] : null,
         );
 
+        $dynamicHeaderMedia = filled($mediaUrl) && (
+            str_contains((string) $mediaUrl, '$(')
+            || preg_match('/\{\{[a-zA-Z0-9_]+\}\}/', (string) $mediaUrl) === 1
+        );
+
         // Prefer local media_path (auth preview route) over remote media_url so edit
         // previews stay reliable when OSS/public URLs are unavailable in-browser.
+        // Dynamic $(variable) media URLs stay as placeholders (legacy parity).
         if ($headerType === 'image' && (filled($mediaPath) || filled($mediaUrl))) {
-            $headerImage = filled($mediaPath)
-                ? $this->mediaService->previewUrl((string) $mediaPath)
-                : $mediaUrl;
+            $headerImage = $dynamicHeaderMedia
+                ? null
+                : (filled($mediaPath)
+                    ? $this->mediaService->previewUrl((string) $mediaPath)
+                    : $mediaUrl);
         }
         if ($headerType === 'video' && (filled($mediaPath) || filled($mediaUrl))) {
-            $headerVideo = filled($mediaPath)
-                ? $this->mediaService->previewUrl((string) $mediaPath)
-                : $mediaUrl;
+            $headerVideo = $dynamicHeaderMedia
+                ? null
+                : (filled($mediaPath)
+                    ? $this->mediaService->previewUrl((string) $mediaPath)
+                    : $mediaUrl);
         }
         if ($headerType === 'document' && (filled($mediaPath) || filled($mediaUrl))) {
-            $headerDocument = filled($mediaPath)
-                ? $this->mediaService->previewUrl((string) $mediaPath)
-                : $mediaUrl;
+            $headerDocument = $dynamicHeaderMedia
+                ? null
+                : (filled($mediaPath)
+                    ? $this->mediaService->previewUrl((string) $mediaPath)
+                    : $mediaUrl);
             $headerDocumentName = trim((string) (
                 $payload['header']['doc_name']
                 ?? $payload['header']['media_name']
@@ -112,9 +124,11 @@ class TemplatePreviewService
             }
         }
         if ($headerType === 'audio' && (filled($mediaPath) || filled($mediaUrl))) {
-            $headerAudio = filled($mediaPath)
-                ? $this->mediaService->previewUrl((string) $mediaPath)
-                : $mediaUrl;
+            $headerAudio = $dynamicHeaderMedia
+                ? null
+                : (filled($mediaPath)
+                    ? $this->mediaService->previewUrl((string) $mediaPath)
+                    : $mediaUrl);
         }
 
         // Authentication template preview data
@@ -261,6 +275,7 @@ class TemplatePreviewService
             'button_mode' => $buttonMode,
             'is_opt_out' => $isOptOut,
             'header_image' => $headerImage,
+            'header_media_variable' => $dynamicHeaderMedia ? (string) $mediaUrl : null,
             'rejection_reason' => $template->rejection_reason,
             'is_carousel' => $isCarousel,
             'carousel_cards' => $carouselCards,

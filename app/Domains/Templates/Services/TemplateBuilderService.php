@@ -379,11 +379,42 @@ class TemplateBuilderService
      */
     private function syncBodyVariables(Template $template, string $body): void
     {
-        $names = collect(TemplateVariableSyntax::extractVariableNames($body))->values();
+        $this->syncPlacementVariables($template, 'body', TemplateVariableSyntax::extractVariableNames($body));
+    }
+
+    /**
+     * Legacy parity: header text + dynamic media URL ($(var)) linked as header variables.
+     */
+    public function syncHeaderVariables(Template $template): void
+    {
+        $payload = $template->wizardPayload();
+        $header = is_array($payload['header'] ?? null) ? $payload['header'] : [];
+        $chunks = [
+            (string) ($header['text'] ?? ''),
+            (string) ($header['media_url'] ?? ''),
+        ];
+
+        $names = collect($chunks)
+            ->flatMap(fn (string $chunk) => TemplateVariableSyntax::extractVariableNames($chunk))
+            ->unique()
+            ->values()
+            ->all();
+
+        $this->syncPlacementVariables($template, 'header', $names);
+    }
+
+    /**
+     * @param  list<string>  $names
+     */
+    private function syncPlacementVariables(Template $template, string $placement, array $names): void
+    {
+        $names = collect($names)
+            ->filter(fn ($name) => is_string($name) && $name !== '')
+            ->values();
 
         DB::table('template_variables')
             ->where('template_id', $template->id)
-            ->where('placement', 'body')
+            ->where('placement', $placement)
             ->delete();
 
         if ($names->isEmpty()) {
@@ -406,7 +437,7 @@ class TemplateBuilderService
             );
 
             $template->variables()->attach($variable->id, [
-                'placement' => 'body',
+                'placement' => $placement,
                 'position' => $index,
             ]);
         }
