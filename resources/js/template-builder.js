@@ -677,7 +677,7 @@ function collectPreviewState(root) {
         isOptOut: defaults.is_opt_out || false,
         isCarousel: Boolean(defaults.is_carousel),
         carouselCards: defaults.carousel_cards || [],
-        category: defaults.category || '',
+        category: document.getElementById('template_category')?.value || defaults.category || '',
         previewKind: defaults.preview_kind || 'standard',
         auth: defaults.auth || {},
         lto: defaults.lto || {},
@@ -2082,6 +2082,108 @@ function initButtonsEditor(root, preview, scheduleUpdate) {
     paint();
 }
 
+const AUTH_DEFAULT_BODY = '$(verificationCode) is your verification code.';
+
+function flowForCategory(category) {
+    const value = String(category || '').toUpperCase();
+    if (value === 'AUTHENTICATION') {
+        return 'auth';
+    }
+    if (value === 'LIMITED_TIME_OFFER') {
+        return 'lto';
+    }
+    if (value === 'CAROUSEL') {
+        return 'carousel';
+    }
+
+    return 'standard';
+}
+
+function syncBuilderNavForFlow(flow) {
+    const nav = document.querySelector('[data-builder-nav]');
+    if (!nav) {
+        return;
+    }
+
+    nav.dataset.builderFlow = flow;
+    nav.querySelectorAll('[data-nav-key]').forEach((link) => {
+        const flows = String(link.dataset.navFlows || '')
+            .split(',')
+            .map((item) => item.trim())
+            .filter(Boolean);
+        const visible = flows.includes(flow);
+        link.classList.toggle('hidden', !visible);
+    });
+}
+
+function syncBodyEditorForCategory(category, scheduleUpdate) {
+    const body = document.getElementById('body_text');
+    const note = document.querySelector('[data-auth-body-note]');
+    const toolbar = document.querySelector('[data-body-toolbar]');
+    const presetsWrap = document.querySelector('[data-utility-presets-wrap]');
+    const isAuth = String(category || '').toUpperCase() === 'AUTHENTICATION';
+    const authBody = body?.dataset.authDefaultBody || AUTH_DEFAULT_BODY;
+
+    if (body) {
+        if (isAuth) {
+            if (!body.dataset.preAuthBody) {
+                body.dataset.preAuthBody = body.value;
+            }
+            body.value = authBody;
+            body.readOnly = true;
+            body.classList.add('text-text-muted');
+            body.placeholder = authBody;
+        } else {
+            if (body.readOnly && body.dataset.preAuthBody !== undefined) {
+                body.value = body.dataset.preAuthBody;
+                delete body.dataset.preAuthBody;
+            }
+            body.readOnly = false;
+            body.classList.remove('text-text-muted');
+            body.placeholder = 'Write your message body...';
+        }
+        body.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+
+    note?.classList.toggle('hidden', !isAuth);
+    if (toolbar) {
+        toolbar.classList.toggle('pointer-events-none', isAuth);
+        toolbar.classList.toggle('opacity-40', isAuth);
+    }
+    presetsWrap?.classList.toggle('hidden', isAuth);
+    presetsWrap?.classList.toggle('contents', !isAuth);
+
+    scheduleUpdate?.();
+}
+
+function initCategoryMode(scheduleUpdate) {
+    const categorySelect = document.getElementById('template_category');
+    const defaults = (() => {
+        try {
+            return JSON.parse(
+                document.querySelector('[data-template-builder]')?.dataset.previewDefaults || '{}',
+            );
+        } catch {
+            return {};
+        }
+    })();
+
+    const apply = (category) => {
+        const value = category || '';
+        syncBuilderNavForFlow(flowForCategory(value));
+        syncBodyEditorForCategory(value, scheduleUpdate);
+    };
+
+    if (!categorySelect) {
+        apply(defaults.category || '');
+
+        return;
+    }
+
+    categorySelect.addEventListener('change', () => apply(categorySelect.value || ''));
+    apply(categorySelect.value || defaults.category || '');
+}
+
 function initUtilityPresets() {
     const presetsRoot = document.querySelector('[data-utility-presets]');
     const categorySelect = document.getElementById('template_category');
@@ -3075,6 +3177,7 @@ export function initTemplateBuilder() {
     initButtonsEditor(root, preview, scheduleUpdate);
     initVariableModal(root);
     initUtilityPresets();
+    initCategoryMode(scheduleUpdate);
     initAiSuggestions(root);
     initCarouselBuilder(scheduleUpdate);
     initAuthApps();

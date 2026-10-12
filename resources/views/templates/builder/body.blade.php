@@ -49,30 +49,30 @@
   >
     @csrf
 
-    @unless ($isAuthBody)
+    <div data-utility-presets-wrap @class(['contents' => ! $isAuthBody, 'hidden' => $isAuthBody])>
       <x-templates.utility-presets :presets="$utilityPresets ?? []" />
-    @endunless
+    </div>
 
-    <div class="rounded-lg bg-elevated p-2">
+    <div class="rounded-lg bg-elevated p-2" data-body-editor-panel>
       <div class="relative flex w-full flex-col gap-3 rounded-xl border border-solid border-border bg-elevated p-3" data-validate-field>
         <label for="body_text" class="fd-label">Body<span class="text-[red]">*</span></label>
-        @if ($isAuthBody)
-          <p class="text-sm text-text-subtle">Authentication templates use a fixed OTP body. Configure security and button options on the next step.</p>
-        @endif
+        <p data-auth-body-note @class(['text-sm text-text-subtle', 'hidden' => ! $isAuthBody])>
+          Authentication templates use a fixed OTP body. Click Next to configure security and button options (legacy Authentication settings).
+        </p>
         <textarea
           id="body_text"
           name="body_text"
           rows="6"
           required
           maxlength="{{ $bodyLimit }}"
+          data-auth-default-body="{{ $defaultAuthBody }}"
           @if ($isAuthBody) readonly @endif
           class="min-h-[150px] w-full resize-y border-0 bg-transparent text-sm font-normal leading-[1.4] text-text-body focus:outline-none @error('body_text') border border-red-500 @enderror {{ $isAuthBody ? 'text-text-muted' : '' }}"
           placeholder="{{ $isAuthBody ? $defaultAuthBody : 'Write your message body...' }}"
         >{{ $bodyText }}</textarea>
         <x-ui.field-error field="body_text" />
-        {{-- <p class="text-xs text-text-subtle">Use <code>$(variable_name)</code> for dynamic variables. Pick from + Variable.</p> --}}
 
-        <div class="flex flex-wrap items-center gap-2 border-t border-divider pt-2">
+        <div data-body-toolbar class="flex flex-wrap items-center gap-2 border-t border-divider pt-2 {{ $isAuthBody ? 'pointer-events-none opacity-40' : '' }}">
           <button type="button" data-editor-action="bold" class="template-editor-btn" title="Bold (*text*)">Bold</button>
           <button type="button" data-editor-action="italic" class="template-editor-btn" title="Italic (_text_)">Italic</button>
           <button type="button" data-editor-action="strike" class="template-editor-btn" title="Strikethrough (~text~)">Strike</button>
