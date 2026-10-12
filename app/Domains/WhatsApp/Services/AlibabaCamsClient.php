@@ -182,12 +182,17 @@ class AlibabaCamsClient
     /**
      * Delete a template from WhatsApp.
      *
+     * Legacy SDK uses POST RPC (DeleteChatappTemplate). When Language is sent,
+     * Alibaba requires TemplateType (WHATSAPP | VIBER) or returns
+     * ERR-OPERATION-CONFIG-419 / "不支持的模板类型".
+     *
      * @param  array<string, string|null>  $params
      */
     public function deleteChatappTemplate(array $params): Response
     {
-        return $this->signedRequest(array_merge([
+        return $this->signedFormPost(array_merge([
             'Action' => 'DeleteChatappTemplate',
+            'TemplateType' => 'WHATSAPP',
         ], $params));
     }
 

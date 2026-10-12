@@ -124,9 +124,15 @@ class TemplateSyncService
             $response = $this->camsClient->deleteChatappTemplate([
                 'TemplateCode' => $code,
                 'CustSpaceId' => $line->alibaba_cust_space_id,
+                'Language' => CamsTemplateIdentity::language($template->language),
+                'TemplateType' => 'WHATSAPP',
             ]);
 
-            if ($response->successful()) {
+            $body = $response->json() ?? [];
+            $codeOk = ! is_array($body)
+                || strtoupper((string) ($body['Code'] ?? $body['code'] ?? 'OK')) === 'OK';
+
+            if ($response->successful() && $codeOk) {
                 $template->forceDelete();
             } else {
                 Log::warning('WhatsApp template deletion failed', [
