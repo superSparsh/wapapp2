@@ -6,8 +6,10 @@ namespace App\Domains\Templates\Services;
 
 use App\Domains\Templates\Enums\TemplateStatus;
 use App\Domains\Templates\Enums\TemplateSource;
+use App\Domains\Templates\Enums\VariableDataType;
 use App\Domains\Templates\Support\CamsTemplateIdentity;
 use App\Domains\Templates\Support\TemplateCategoryCatalog;
+use App\Domains\Templates\Support\TemplateVariableSyntax;
 use App\Domains\Templates\Support\WhatsAppTextFormatter;
 use App\Domains\WhatsApp\Services\AlibabaCamsClient;
 use App\Domains\WhatsApp\Services\CamsTemplateMediaUploader;
@@ -15,6 +17,7 @@ use App\Domains\WhatsApp\Support\CamsComponentEncoder;
 use App\Domains\WhatsApp\Support\CamsErrorPresenter;
 use App\Models\Template;
 use App\Models\TemplateStatusLog;
+use App\Models\Variable;
 use App\Models\WhatsappLine;
 use Illuminate\Support\Facades\Log;
 
@@ -68,10 +71,9 @@ class TemplateWhatsAppService
         $name = $this->normalizeName($template->name);
         $extra = ['CustSpaceId' => $line->alibaba_cust_space_id];
 
-        // Add example data if body has variables
+        // Legacy parity: named variable samples for body/header/buttons ($(var) → Example map).
         $example = $this->buildExample($template);
         if (! empty($example)) {
-            // Nested map → Example.body_text.1=… (do not JSON-encode)
             $extra['Example'] = $example;
         }
 
@@ -93,6 +95,7 @@ class TemplateWhatsAppService
             Log::info('Submitting CreateChatappTemplate', [
                 'template_id' => $template->id,
                 'header_url' => collect($components)->firstWhere('type', 'HEADER')['url'] ?? null,
+                'example_keys' => array_keys($example),
             ]);
             $response = $this->camsClient->createChatappTemplate(
                 $name,
@@ -163,6 +166,20 @@ class TemplateWhatsAppService
         $name = $this->normalizeName($template->name);
         $extra = ['CustSpaceId' => $line->alibaba_cust_space_id];
 
+        // Legacy parity: named variable samples (body + header + buttons). Required when
+        // HEADER text/media contains $(var) — Meta rejects with "HEADER missing example".
+        $example = $this->buildExample($template);
+        if (! empty($example)) {
+            $extra['Example'] = $example;
+        }
+
+        // Authentication template TTL
+        $payload = $template->wizardPayload();
+        $auth = $payload['auth'] ?? [];
+        if ($template->category === 'AUTHENTICATION' && ($auth['message_validity'] ?? false)) {
+            $extra['MessageSendTtlSeconds'] = (string) ($auth['validity_seconds'] ?? 120);
+        }
+
         try {
             $this->ensureProviderMediaUrls($template, (string) $line->alibaba_cust_space_id);
             $components = $this->buildComponents($template);
@@ -174,6 +191,7 @@ class TemplateWhatsAppService
             Log::info('Submitting ModifyChatappTemplate', [
                 'template_id' => $template->id,
                 'header_url' => collect($components)->firstWhere('type', 'HEADER')['url'] ?? null,
+                'example_keys' => array_keys($example),
             ]);
             $response = $this->camsClient->modifyChatappTemplate(
                 $providerCode,
@@ -770,32 +788,110 @@ class TemplateWhatsAppService
     }
 
     /**
-     * Build example data for template body variables.
+     * Build CAMS Example map: {variable_name: sample_value}.
      *
-     * @return array<string, mixed>
+     * Legacy / Alibaba expect named samples for every $(var) in body, header text,
+     * dynamic header media URL, footer, and button URLs. Meta rejects HEADER with
+     * variables when the matching example is missing.
+     *
+     * @return array<string, string>
      */
     private function buildExample(Template $template): array
     {
         $payload = $template->wizardPayload();
-        $samples = is_array($payload['body']['samples'] ?? null)
-            ? array_values(array_filter($payload['body']['samples'], fn ($s) => filled($s)))
-            : [];
+        $template->loadMissing('variables');
 
-        // If template body has variables but samples are empty, auto-generate fallback samples
-        // so Meta never rejects with INVALID_FORMAT(Duplicate content or missing examples.)
-        if (empty($samples)) {
-            $bodyText = (string) ($payload['body']['text'] ?? $template->body_preview ?? '');
-            $varCount = preg_match_all('/\{\{(\d+|[a-zA-Z0-9_]+)\}\}/', $bodyText, $matches);
-            if ($varCount > 0) {
-                $samples = array_fill(0, $varCount, 'John');
+        $headerText = (string) ($payload['header']['text'] ?? '');
+        $headerMediaUrl = (string) ($payload['header']['media_url'] ?? '');
+        $bodyText = (string) ($payload['body']['text'] ?? $template->body_preview ?? '');
+        $footerText = (string) ($payload['footer']['text'] ?? '');
+
+        $chunks = [$headerText, $headerMediaUrl, $bodyText, $footerText];
+        foreach (is_array($payload['buttons'] ?? null) ? $payload['buttons'] : [] as $button) {
+            if (! is_array($button)) {
+                continue;
             }
+            $chunks[] = (string) ($button['url'] ?? '');
+            $chunks[] = (string) ($button['text'] ?? '');
         }
 
-        if (empty($samples)) {
+        $names = collect($chunks)
+            ->flatMap(fn (string $chunk) => TemplateVariableSyntax::extractVariableNames($chunk))
+            ->merge($template->variables->pluck('name'))
+            ->filter(fn ($name) => is_string($name) && $name !== '')
+            ->unique()
+            ->values();
+
+        if ($names->isEmpty()) {
             return [];
         }
 
-        return ['body_text' => $samples];
+        $bodyNames = TemplateVariableSyntax::extractVariableNames($bodyText);
+        $bodySamples = is_array($payload['body']['samples'] ?? null)
+            ? array_values($payload['body']['samples'])
+            : [];
+        $bodySampleMap = TemplateVariableSyntax::mapSamplesToNames($bodyNames, $bodySamples);
+
+        $headerMediaNames = TemplateVariableSyntax::extractVariableNames($headerMediaUrl);
+        $linked = $template->variables->keyBy('name');
+
+        $examples = [];
+        foreach ($names as $name) {
+            /** @var Variable|null $variable */
+            $variable = $linked->get($name);
+            $stored = filled($variable?->value) ? trim((string) $variable->value) : '';
+            if ($stored !== '') {
+                $examples[$name] = $stored;
+
+                continue;
+            }
+
+            $bodySample = trim((string) ($bodySampleMap[$name] ?? ''));
+            if ($bodySample !== '') {
+                $examples[$name] = $bodySample;
+
+                continue;
+            }
+
+            $dataType = $variable?->data_type;
+            $isHeaderMedia = in_array($name, $headerMediaNames, true);
+            $examples[$name] = $this->sampleValueForVariable($name, $dataType, $isHeaderMedia);
+        }
+
+        return $examples;
+    }
+
+    /**
+     * Legacy-style fallback sample for a named variable.
+     */
+    private function sampleValueForVariable(string $name, ?VariableDataType $dataType, bool $isHeaderMedia): string
+    {
+        if ($dataType instanceof VariableDataType) {
+            return match ($dataType) {
+                VariableDataType::Number => (string) random_int(1000, 9999),
+                VariableDataType::Url => 'https://example.com',
+                VariableDataType::Image => 'https://whatsapp-prod-oss-bucket.oss-ap-southeast-1.aliyuncs.com/5131327716897960/rc-upload-1716962644738-2.jpg',
+                VariableDataType::Video => 'https://wapapp.tittu.in/upload/videos/1756437199_68b11acf3ee96.mp4',
+                VariableDataType::Pdf => 'https://wapapp.tittu.in/upload/docs/1756129645.pdf',
+                VariableDataType::String => 'Sample',
+            };
+        }
+
+        $lower = strtolower($name);
+        if ($isHeaderMedia || str_contains($lower, 'image') || str_contains($lower, 'img') || str_contains($lower, 'photo')) {
+            return 'https://whatsapp-prod-oss-bucket.oss-ap-southeast-1.aliyuncs.com/5131327716897960/rc-upload-1716962644738-2.jpg';
+        }
+        if (str_contains($lower, 'video')) {
+            return 'https://wapapp.tittu.in/upload/videos/1756437199_68b11acf3ee96.mp4';
+        }
+        if (str_contains($lower, 'doc') || str_contains($lower, 'pdf')) {
+            return 'https://wapapp.tittu.in/upload/docs/1756129645.pdf';
+        }
+        if (str_contains($lower, 'url') || str_contains($lower, 'link')) {
+            return 'https://example.com';
+        }
+
+        return 'Sample';
     }
 
     /**

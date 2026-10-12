@@ -7,10 +7,66 @@ namespace Tests\Unit\Templates;
 use App\Domains\Templates\Services\TemplateWhatsAppService;
 use App\Models\Template;
 use PHPUnit\Framework\Attributes\Test;
+use ReflectionMethod;
 use Tests\TestCase;
 
 final class TemplateWhatsAppLegacyParityTest extends TestCase
 {
+    #[Test]
+    public function example_map_includes_named_header_media_variables(): void
+    {
+        $template = new Template([
+            'category' => 'MARKETING',
+            'payload' => array_replace_recursive(Template::defaultPayload(), [
+                'header' => [
+                    'type' => 'image',
+                    'media_url' => '$(product_image)',
+                    'use_url' => true,
+                ],
+                'body' => [
+                    'text' => 'Hello $(first_name), check this out',
+                    'samples' => ['Ada'],
+                ],
+            ]),
+        ]);
+        $template->setRelation('variables', collect());
+
+        $method = new ReflectionMethod(TemplateWhatsAppService::class, 'buildExample');
+        $method->setAccessible(true);
+        $example = $method->invoke(app(TemplateWhatsAppService::class), $template);
+
+        $this->assertArrayHasKey('first_name', $example);
+        $this->assertSame('Ada', $example['first_name']);
+        $this->assertArrayHasKey('product_image', $example);
+        $this->assertStringStartsWith('https://', $example['product_image']);
+        $this->assertArrayNotHasKey('body_text', $example);
+    }
+
+    #[Test]
+    public function example_map_includes_header_text_variables(): void
+    {
+        $template = new Template([
+            'category' => 'UTILITY',
+            'payload' => array_replace_recursive(Template::defaultPayload(), [
+                'header' => [
+                    'type' => 'text',
+                    'text' => 'Hi $(customer_name)',
+                ],
+                'body' => [
+                    'text' => 'Your order is ready.',
+                ],
+            ]),
+        ]);
+        $template->setRelation('variables', collect());
+
+        $method = new ReflectionMethod(TemplateWhatsAppService::class, 'buildExample');
+        $method->setAccessible(true);
+        $example = $method->invoke(app(TemplateWhatsAppService::class), $template);
+
+        $this->assertArrayHasKey('customer_name', $example);
+        $this->assertNotSame('', $example['customer_name']);
+    }
+
     #[Test]
     public function lto_templates_map_phone_buttons_to_url_for_cams(): void
     {
