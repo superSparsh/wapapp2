@@ -34,7 +34,8 @@
   data-create-variable-url="{{ route('templates.variables.create') }}"
   data-initial-variables='@json(['custom' => $initialCustom, 'builtin' => $initialBuiltin])'
   @class([
-    'fixed inset-0 z-50 items-center justify-center bg-[rgba(0,0,0,0.6)] p-4',
+    // z-[100]: above sticky builder preview / app chrome (modal is portaled to body in JS).
+    'fixed inset-0 z-[100] items-center justify-center bg-[rgba(0,0,0,0.6)] p-4',
     'flex' => $open,
     'hidden' => ! $open,
   ])

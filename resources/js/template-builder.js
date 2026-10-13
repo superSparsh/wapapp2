@@ -936,6 +936,12 @@ function openVariableModal() {
         return;
     }
 
+    // Sticky builder column traps fixed stacking — keep modal on document.body
+    // so the phone preview cannot paint above the overlay.
+    if (modal.parentElement !== document.body) {
+        document.body.appendChild(modal);
+    }
+
     modal.classList.remove('hidden');
     modal.classList.add('flex');
 }
@@ -2327,6 +2333,9 @@ function initAiSuggestions(root) {
     const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
 
     const openModal = () => {
+        if (modal.parentElement !== document.body) {
+            document.body.appendChild(modal);
+        }
         modal.classList.remove('hidden');
         modal.classList.add('flex');
         errorEl?.classList.add('hidden');

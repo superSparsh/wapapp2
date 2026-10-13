@@ -1,6 +1,6 @@
 <div
   id="ai-suggestions-modal"
-  class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 p-4"
+  class="fixed inset-0 z-[100] hidden items-center justify-center bg-black/40 p-4"
   data-ai-suggestions-modal
   role="dialog"
   aria-modal="true"
