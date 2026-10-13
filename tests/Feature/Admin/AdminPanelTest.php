@@ -174,6 +174,35 @@ class AdminPanelTest extends TestCase
         $this->assertSame($plan->id, $this->testTenant->plan_id);
     }
 
+    public function test_admin_can_assign_plan_from_customer_show(): void
+    {
+        $plan = Plan::query()->create([
+            'name' => 'Assign Me',
+            'slug' => 'assign-me-'.uniqid(),
+            'price' => 799,
+            'currency' => 'INR',
+            'billing_cycle' => 'monthly',
+            'is_active' => true,
+            'sort_order' => 2,
+        ]);
+
+        $this->actingAs($this->admin, 'admin')
+            ->get(route('admin.customers.show', $this->testTenant))
+            ->assertOk()
+            ->assertSee('name="plan"', false)
+            ->assertSee('value="'.$plan->uuid.'"', false);
+
+        $this->actingAs($this->admin, 'admin')
+            ->from(route('admin.customers.show', $this->testTenant))
+            ->post(route('admin.customers.assign-plan', $this->testTenant), [
+                'plan' => $plan->uuid,
+            ])
+            ->assertRedirect(route('admin.customers.show', $this->testTenant))
+            ->assertSessionHas('status', 'Plan assigned.');
+
+        $this->assertSame($plan->id, $this->testTenant->fresh()->plan_id);
+    }
+
     public function test_admin_can_wipe_customer_account_data_keeping_profile_and_subscription(): void
     {
         $plan = Plan::query()->create([

@@ -164,7 +164,11 @@ class CustomerAdminService
             'lines' => $ops['lines'],
             'usage' => $ops['usage'],
             'recent_wallet' => $ops['recent_wallet'],
-            'plans' => Plan::query()->where('is_active', true)->orderBy('sort_order')->get(['id', 'name', 'price', 'currency']),
+            // uuid is required — assign-plan / edit forms submit plan by public uuid.
+            'plans' => Plan::query()
+                ->where('is_active', true)
+                ->orderBy('sort_order')
+                ->get(['id', 'uuid', 'name', 'price', 'currency']),
         ];
     }
 
@@ -358,6 +362,35 @@ class CustomerAdminService
 
         $tenant->plan_id = $planId;
         $tenant->save();
+
+        // Keep tenant-DB subscription.plan_id in sync (profile / billing read both).
+        $wasInitialized = tenancy()->initialized;
+        $previous = $wasInitialized ? tenant() : null;
+
+        try {
+            if ($wasInitialized) {
+                tenancy()->end();
+            }
+            tenancy()->initialize($tenant);
+
+            $subscription = Subscription::query()
+                ->where('status', SubscriptionStatus::Active)
+                ->latest('id')
+                ->first();
+
+            if ($subscription !== null) {
+                $subscription->forceFill(['plan_id' => $planId])->save();
+            }
+        } catch (\Throwable) {
+            // Tenant DB may be missing during wipe / provisioning — central plan_id is enough.
+        } finally {
+            if (tenancy()->initialized) {
+                tenancy()->end();
+            }
+            if ($wasInitialized && $previous) {
+                tenancy()->initialize($previous);
+            }
+        }
 
         return $tenant->fresh(['plan']) ?? $tenant;
     }
