@@ -1,0 +1,9 @@
+This video covers Limited Time Offer Submission — sending your LTO template to WhatsApp for approval.
+
+After Body, Header, Footer, Buttons, and LTO settings, open Submit For Approval. Review the full phone preview carefully: offer strip, discount line, body, media header, and copy-code or website buttons.
+
+Confirm the checkbox that the template is ready for WhatsApp approval, then tap Yes, Submit for approval. Limited Time Offer content is reviewed as marketing, so expect the usual approval timeline of up to twenty-four hours.
+
+Watch status on the Templates list and tap Refresh as needed. If rejected, fix offer wording, media, coupon details, or buttons, then resubmit. Only use an approved LTO template in campaigns.
+
+That completes the Limited Time Offer flow — from category selection through WhatsApp submission. Take your time on this screen during recording so viewers can follow each click clearly.

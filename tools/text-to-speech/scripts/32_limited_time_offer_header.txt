@@ -1,0 +1,7 @@
+This video covers the Limited Time Offer Header — the optional media or text above your LTO body.
+
+Open the Header step for your Limited Time Offer template. Choose None, Header text, or media such as Image or Video to showcase the deal visually. Product or store imagery often performs well for limited discounts.
+
+Upload media within WhatsApp size limits and confirm the preview shows the creative clearly. Keep the header relevant to the discount so customers understand the offer before they read the body and see the offer strip.
+
+When the header looks right, continue to Footer if needed, then Buttons and LTO settings. A strong visual header plus a clear offer strip and body creates a complete limited-time message ready for approval. Take your time on this screen during recording so viewers can follow each click clearly.

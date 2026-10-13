@@ -1,0 +1,9 @@
+This video shows Limited Time Offer Buttons — the actions customers tap after they see your deal.
+
+Open the Buttons step. For LTO templates you can use standard button groups, and you will also see Limited Time Offer Copy Code as a dedicated button option for coupons.
+
+Add a copy-code style action so customers can copy the coupon in one tap. You may also add a Website button to send them to the landing page or cart. Keep button labels short and within the character limit shown in the builder.
+
+If you set a coupon on the LTO settings step, it can feed the copy-code button automatically. Confirm the phone preview shows both the offer strip and the buttons correctly before you leave this step.
+
+Save when actions match your campaign goal — copy the code, visit the site, or both. Take your time on this screen during recording so viewers can follow each click clearly.

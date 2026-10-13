@@ -1,0 +1,11 @@
+Welcome to the Templates module in WapApp. This overview shows where approved WhatsApp templates and free session messages live, and how to choose the right type for each job.
+
+From the sidebar, open Templates. You will see two tabs: Free Templates for interactive session messages, and Regular Templates for Meta-approved message templates used in campaigns and first outreach.
+
+On Regular Templates, search by name, filter by type or category, and sort by updated date or status. The table shows template name, type, category, WhatsApp approval status, and actions such as preview, edit, duplicate, or delete. Use Refresh to pull the latest approval statuses.
+
+Tap Create New Template to start the builder. Note that approval may take up to twenty-four hours after you submit to WhatsApp.
+
+Use Regular Templates for marketing, utility, authentication, limited time offers, and carousel. Use Free Templates for buttons, lists, products, and flows inside an open twenty-four hour chat session.
+
+That is the Templates module — find, filter, create, and track approval in one place.

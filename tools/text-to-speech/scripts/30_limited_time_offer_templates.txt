@@ -1,0 +1,9 @@
+This video introduces Limited Time Offer templates — marketing messages with a special offer strip and optional copy-code button for coupons.
+
+Create a new template and select Category Limited Time Offer. The builder adds an LTO settings step along with Body, Header, Footer, Buttons, and Submit For Approval.
+
+LTO templates highlight a short discount introduction above the body, such as Get twenty percent off. You can add a coupon code and an offer expiration so urgency is clear at send time. The offer strip appears in the phone preview once settings are filled.
+
+These templates still submit to WhatsApp as marketing content, so follow promotional guidelines and avoid misleading claims. Plan your body, media header, and buttons around the limited deal.
+
+The next videos cover LTO body, header, buttons, settings, and submission in order so you can record each screen cleanly. Take your time on this screen during recording so viewers can follow each click clearly.

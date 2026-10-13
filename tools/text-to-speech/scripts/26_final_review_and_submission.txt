@@ -1,0 +1,11 @@
+This video covers Final Review and Submission — the last step before WhatsApp reviews your template.
+
+After Body, Header, Footer, and Buttons, open Submit For Approval. Review the phone preview one last time. Confirm the template name, category, language, body text, media, and buttons all look correct and match your campaign plan.
+
+Check the box that says you confirm the template is ready for WhatsApp approval. Then tap Yes, Submit for approval.
+
+You return to the Templates list where status moves to pending or similar while Meta reviews. Approval can take up to twenty-four hours. Use Refresh on the list to watch status updates without leaving the page.
+
+If WhatsApp rejects the template, read the reason carefully, edit the draft, and submit again. Never submit unfinished copy or broken media.
+
+That is final review — confirm, submit, and wait for approval before using the template in campaigns or inbox outreach. Take your time on this screen during recording so viewers can follow each click clearly.

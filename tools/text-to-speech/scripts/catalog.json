@@ -329,5 +329,417 @@
       "1:10 – Unassigned hygiene tip",
       "1:15 – End"
     ]
+  },
+  {
+    "id": "20_templates_module_overview",
+    "title": "Templates Module Overview",
+    "module": "Module 4: Templates Design - Sub-module 2: Templates",
+    "video_no": 1,
+    "status": "Old",
+    "route": "templates.index",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "voice": "en-IN-NeerjaNeural",
+    "script_file": "20_templates_module_overview.txt",
+    "screen_cues": [
+      "0:00 – Open Templates",
+      "0:15 – Free vs Regular tabs",
+      "0:35 – Search/filter/table",
+      "0:55 – Create New Template",
+      "1:10 – End"
+    ]
+  },
+  {
+    "id": "21_creating_a_marketing_template",
+    "title": "Creating a Marketing Template",
+    "module": "Module 4: Templates Design - Sub-module 2: Templates",
+    "video_no": 2,
+    "status": "Old",
+    "route": "templates.builder.create",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "voice": "en-IN-NeerjaNeural",
+    "script_file": "21_creating_a_marketing_template.txt",
+    "screen_cues": [
+      "0:00 – Create New Template",
+      "0:15 – Name / Category Marketing / Language",
+      "0:40 – Body step intro",
+      "1:00 – Preview note",
+      "1:15 – End"
+    ]
+  },
+  {
+    "id": "22_designing_template_body",
+    "title": "Designing Template Body",
+    "module": "Module 4: Templates Design - Sub-module 2: Templates",
+    "video_no": 3,
+    "status": "Old",
+    "route": "templates.builder.body",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "voice": "en-IN-NeerjaNeural",
+    "script_file": "22_designing_template_body.txt",
+    "screen_cues": [
+      "0:00 – Body step",
+      "0:15 – Write text + formatting",
+      "0:40 – + Variable / samples",
+      "1:00 – Preview → Next",
+      "1:15 – End"
+    ]
+  },
+  {
+    "id": "23_designing_template_header",
+    "title": "Designing Template Header",
+    "module": "Module 4: Templates Design - Sub-module 2: Templates",
+    "video_no": 4,
+    "status": "Old",
+    "route": "templates.builder.header",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "voice": "en-IN-NeerjaNeural",
+    "script_file": "23_designing_template_header.txt",
+    "screen_cues": [
+      "0:00 – Header step",
+      "0:15 – Choose type",
+      "0:40 – Text or upload media",
+      "1:00 – Preview → Next",
+      "1:15 – End"
+    ]
+  },
+  {
+    "id": "24_designing_template_footer",
+    "title": "Designing Template Footer",
+    "module": "Module 4: Templates Design - Sub-module 2: Templates",
+    "video_no": 5,
+    "status": "Old",
+    "route": "templates.builder.footer",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "voice": "en-IN-NeerjaNeural",
+    "script_file": "24_designing_template_footer.txt",
+    "screen_cues": [
+      "0:00 – Footer step",
+      "0:20 – Enter text / 60 char limit",
+      "0:50 – Empty is OK",
+      "1:05 – Next to Buttons",
+      "1:15 – End"
+    ]
+  },
+  {
+    "id": "25_configuring_template_buttons",
+    "title": "Configuring Template Buttons",
+    "module": "Module 4: Templates Design - Sub-module 2: Templates",
+    "video_no": 6,
+    "status": "Old",
+    "route": "templates.builder.buttons",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "voice": "en-IN-NeerjaNeural",
+    "script_file": "25_configuring_template_buttons.txt",
+    "screen_cues": [
+      "0:00 – Buttons step",
+      "0:15 – Button group",
+      "0:40 – Add CTA / Quick Reply / Flow",
+      "1:00 – Preview limits",
+      "1:15 – End"
+    ]
+  },
+  {
+    "id": "26_final_review_and_submission",
+    "title": "Final Review and Submission",
+    "module": "Module 4: Templates Design - Sub-module 2: Templates",
+    "video_no": 7,
+    "status": "Old",
+    "route": "templates.builder.submit",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "voice": "en-IN-NeerjaNeural",
+    "script_file": "26_final_review_and_submission.txt",
+    "screen_cues": [
+      "0:00 – Submit step",
+      "0:20 – Review preview",
+      "0:40 – Confirm checkbox",
+      "0:55 – Submit for approval",
+      "1:10 – Status on list",
+      "1:15 – End"
+    ]
+  },
+  {
+    "id": "27_utility_templates",
+    "title": "Utility Templates",
+    "module": "Module 4: Templates Design - Sub-module 2: Templates",
+    "video_no": 8,
+    "status": "Old",
+    "route": "templates.builder.create",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "voice": "en-IN-NeerjaNeural",
+    "script_file": "27_utility_templates.txt",
+    "screen_cues": [
+      "0:00 – Category Utility",
+      "0:20 – Presets on Body",
+      "0:45 – Variables / transactional tone",
+      "1:05 – Submit path",
+      "1:15 – End"
+    ]
+  },
+  {
+    "id": "28_authentication_templates",
+    "title": "Authentication Templates",
+    "module": "Module 4: Templates Design - Sub-module 2: Templates",
+    "video_no": 9,
+    "status": "Old",
+    "route": "templates.builder.create",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "voice": "en-IN-NeerjaNeural",
+    "script_file": "28_authentication_templates.txt",
+    "screen_cues": [
+      "0:00 – Category Authentication",
+      "0:20 – Short flow overview",
+      "0:45 – Auth settings preview",
+      "1:05 – Use for OTP only",
+      "1:15 – End"
+    ]
+  },
+  {
+    "id": "29_authentication_template_body",
+    "title": "Authentication Template Body",
+    "module": "Module 4: Templates Design - Sub-module 2: Templates",
+    "video_no": 10,
+    "status": "Old",
+    "route": "templates.builder.body",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "voice": "en-IN-NeerjaNeural",
+    "script_file": "29_authentication_template_body.txt",
+    "screen_cues": [
+      "0:00 – Auth body read-only",
+      "0:25 – OTP variable preview",
+      "0:50 – Next → Auth settings",
+      "1:10 – End"
+    ]
+  },
+  {
+    "id": "30_limited_time_offer_templates",
+    "title": "Limited Time Offer Templates",
+    "module": "Module 4: Templates Design - Sub-module 2: Templates",
+    "video_no": 11,
+    "status": "Old",
+    "route": "templates.builder.create",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "voice": "en-IN-NeerjaNeural",
+    "script_file": "30_limited_time_offer_templates.txt",
+    "screen_cues": [
+      "0:00 – Category LTO",
+      "0:25 – Steps overview",
+      "0:50 – Offer strip concept",
+      "1:10 – End"
+    ]
+  },
+  {
+    "id": "31_limited_time_offer_body",
+    "title": "Limited Time Offer Body",
+    "module": "Module 4: Templates Design - Sub-module 2: Templates",
+    "video_no": 12,
+    "status": "Old",
+    "route": "templates.builder.body",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "voice": "en-IN-NeerjaNeural",
+    "script_file": "31_limited_time_offer_body.txt",
+    "screen_cues": [
+      "0:00 – LTO Body",
+      "0:25 – Write offer message",
+      "0:50 – Variables + preview",
+      "1:10 – End"
+    ]
+  },
+  {
+    "id": "32_limited_time_offer_header",
+    "title": "Limited Time Offer Header",
+    "module": "Module 4: Templates Design - Sub-module 2: Templates",
+    "video_no": 13,
+    "status": "Old",
+    "route": "templates.builder.header",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "voice": "en-IN-NeerjaNeural",
+    "script_file": "32_limited_time_offer_header.txt",
+    "screen_cues": [
+      "0:00 – LTO Header",
+      "0:25 – Media for offer",
+      "0:55 – Preview → continue",
+      "1:15 – End"
+    ]
+  },
+  {
+    "id": "33_limited_time_offer_buttons",
+    "title": "Limited Time Offer Buttons",
+    "module": "Module 4: Templates Design - Sub-module 2: Templates",
+    "video_no": 14,
+    "status": "Old",
+    "route": "templates.builder.buttons",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "voice": "en-IN-NeerjaNeural",
+    "script_file": "33_limited_time_offer_buttons.txt",
+    "screen_cues": [
+      "0:00 – LTO Buttons",
+      "0:25 – Copy Code option",
+      "0:50 – Website button",
+      "1:10 – End"
+    ]
+  },
+  {
+    "id": "34_limited_time_offer_settings",
+    "title": "Limited Time Offer Settings",
+    "module": "Module 4: Templates Design - Sub-module 2: Templates",
+    "video_no": 15,
+    "status": "Old",
+    "route": "templates.builder.lto",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "voice": "en-IN-NeerjaNeural",
+    "script_file": "34_limited_time_offer_settings.txt",
+    "screen_cues": [
+      "0:00 – LTO settings",
+      "0:20 – Discount intro",
+      "0:40 – Coupon",
+      "0:55 – Expiration",
+      "1:15 – End"
+    ]
+  },
+  {
+    "id": "35_limited_time_offer_submission",
+    "title": "Limited Time Offer Submission",
+    "module": "Module 4: Templates Design - Sub-module 2: Templates",
+    "video_no": 16,
+    "status": "Old",
+    "route": "templates.builder.submit",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "voice": "en-IN-NeerjaNeural",
+    "script_file": "35_limited_time_offer_submission.txt",
+    "screen_cues": [
+      "0:00 – Review LTO preview",
+      "0:30 – Confirm + submit",
+      "0:55 – Track status",
+      "1:15 – End"
+    ]
+  },
+  {
+    "id": "36_carousel_templates",
+    "title": "Carousel Templates",
+    "module": "Module 4: Templates Design - Sub-module 2: Templates",
+    "video_no": 17,
+    "status": "Old",
+    "route": "templates.builder.create",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "voice": "en-IN-NeerjaNeural",
+    "script_file": "36_carousel_templates.txt",
+    "screen_cues": [
+      "0:00 – Category Carousel",
+      "0:20 – Advance plan note",
+      "0:45 – Flow overview",
+      "1:10 – End"
+    ]
+  },
+  {
+    "id": "37_carousel_template_body",
+    "title": "Carousel Template Body",
+    "module": "Module 4: Templates Design - Sub-module 2: Templates",
+    "video_no": 18,
+    "status": "Old",
+    "route": "templates.builder.body",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "voice": "en-IN-NeerjaNeural",
+    "script_file": "37_carousel_template_body.txt",
+    "screen_cues": [
+      "0:00 – Intro body",
+      "0:30 – Keep short",
+      "0:55 – Next to Carousel",
+      "1:15 – End"
+    ]
+  },
+  {
+    "id": "38_carousel_template_design",
+    "title": "Carousel Template Design",
+    "module": "Module 4: Templates Design - Sub-module 2: Templates",
+    "video_no": 19,
+    "status": "Old",
+    "route": "templates.builder.carousel",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "voice": "en-IN-NeerjaNeural",
+    "script_file": "38_carousel_template_design.txt",
+    "screen_cues": [
+      "0:00 – Carousel step",
+      "0:20 – Add cards 2–10",
+      "0:45 – Media/body/buttons match",
+      "1:05 – Guidelines",
+      "1:15 – End"
+    ]
+  },
+  {
+    "id": "39_carousel_final_step",
+    "title": "Carousel Final Step",
+    "module": "Module 4: Templates Design - Sub-module 2: Templates",
+    "video_no": 20,
+    "status": "Old",
+    "route": "templates.builder.submit",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "voice": "en-IN-NeerjaNeural",
+    "script_file": "39_carousel_final_step.txt",
+    "screen_cues": [
+      "0:00 – Final review cards",
+      "0:30 – Submit",
+      "0:55 – Status / fix rejects",
+      "1:15 – End"
+    ]
+  },
+  {
+    "id": "40_free_form_session_interactive_messages",
+    "title": "Free-form / Session Interactive Messages",
+    "module": "Module 4: Templates Design - Sub-module 2: Templates",
+    "video_no": 21,
+    "status": "New",
+    "route": "templates.index",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "voice": "en-IN-NeerjaNeural",
+    "script_file": "40_free_form_session_interactive_messages.txt",
+    "screen_cues": [
+      "0:00 – Free Templates tab",
+      "0:20 – Create New",
+      "0:40 – Type button/list/product/flow",
+      "1:00 – Save + use in session",
+      "1:15 – End"
+    ]
   }
 ]

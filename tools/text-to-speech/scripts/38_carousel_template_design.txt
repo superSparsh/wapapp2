@@ -1,0 +1,9 @@
+This video covers Carousel Template Design — building the swipeable cards themselves.
+
+Open the Carousel step. Review or edit the carousel intro, then build each card. Add between the minimum and maximum card count shown on screen — typically two to ten cards.
+
+Each card needs media such as an image or video upload, a short card body within the character limit, and one or two buttons. Button types and order must match across all cards or WhatsApp will reject the template.
+
+Use Add card for more items, and open Guidelines if you need a reminder of carousel rules. Check the preview as you go so media quality and button labels stay consistent from card to card.
+
+When every card is complete and matching, save and continue to the final submit step. Take your time on this screen during recording so viewers can follow each click clearly.

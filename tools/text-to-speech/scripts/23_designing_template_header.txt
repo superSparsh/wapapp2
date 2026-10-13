@@ -1,0 +1,9 @@
+This video shows how to design the Template Header — an optional top section that appears above the body on the customer's phone.
+
+Open the Header step in the builder. Choose a header type: None, Header text, Image, Video, Document, Audio, or Location. Pick None if you do not need a header and want to skip this step quickly.
+
+For Header text, enter a short title. You can include a variable when the format allows it. For media types, upload a file that meets WhatsApp size limits, or paste a media URL when your account supports URL headers. The preview updates so you can confirm layout and cropping.
+
+Header media makes offers and product messages more visual and memorable. Keep files optimized so uploads succeed and approval stays smooth.
+
+When finished, save and move to Footer. Use None whenever the body alone tells the story clearly. Take your time on this screen during recording so viewers can follow each click clearly.

@@ -1,0 +1,9 @@
+This video covers Free-form and Session Interactive Messages — shown in WapApp as Free Templates.
+
+Open Templates and switch to the Free Templates tab. These messages are for inbox and chatbot sessions inside the twenty-four hour customer care window. They are not for marketing campaign blasts that need Meta template approval.
+
+Tap Create New. Choose a type: Button, List, Product, or Flow. Enter a Template Name, Message Body, and optional Footer up to sixty characters. Then configure type-specific fields such as reply buttons, list sections and rows, product catalog details, or a WhatsApp flow link.
+
+Save the free template and use it from Inbox or chatbot flows when the customer session is open. Preview or edit anytime from the Free Templates list.
+
+Use Free Templates for quick replies and interactive choices in live chats. Use Regular Templates when you need approved outreach outside the session window. Take your time on this screen during recording so viewers can follow each click clearly.

@@ -1,0 +1,9 @@
+In this video, you will configure Template Buttons so customers can take action in one tap without typing a reply.
+
+Open the Buttons step and choose a Button Group: None, Call To Action, Quick Reply, WhatsApp Flows, or Mixed for CTA plus Quick Reply together.
+
+For Call To Action, add Website, Call, or Unsubscribe style actions — respect limits such as maximum URL buttons and phone buttons shown under the selector. For Quick Reply, add short reply labels customers can tap. For WhatsApp Flows, select a flow you already created in Flow Builder.
+
+Button text has a short character limit, so keep labels clear and action-oriented. Watch the phone preview as you add each button so the layout stays tidy.
+
+Choose None if the template is text only. Save and continue to Final Review when the actions match your goal — visit a site, call support, start a flow, or reply quickly.

@@ -1,4 +1,4 @@
-<header class="relative z-30 flex h-[84px] shrink-0 items-center justify-between border-b border-border-sidebar bg-elevated px-4">
+<header class="relative flex h-[84px] shrink-0 items-center justify-between border-b border-border-sidebar bg-elevated px-4">
   <div class="flex min-w-0 flex-1 items-center gap-4">
     <button type="button" data-mobile-menu class="flex size-10 items-center justify-center rounded-md border border-border-sidebar lg:hidden" aria-label="Open menu">
       <img src="{{ asset('images/icons/chevron-right-fd.svg') }}" alt="" class="size-3.5 rotate-180" width="14" height="14">

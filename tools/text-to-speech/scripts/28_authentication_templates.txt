@@ -1,0 +1,9 @@
+This video introduces Authentication Templates for one-time passwords and secure login verification on WhatsApp.
+
+Create a new template and choose Category Authentication. The builder flow is shorter than marketing: Body, then Authentication settings, then Submit For Approval. You will not walk through a full header and footer path.
+
+Authentication templates use a fixed OTP-style body with a verification code variable. You cannot freely rewrite the body like a marketing message — WhatsApp expects a standard verification format for safety and consistency.
+
+On the Authentication step you configure security options such as code expiration, message validity, copy code or autofill buttons, zero-tap where allowed, and Android app package details when autofill is enabled.
+
+Use Authentication only for login and verification. Keep settings aligned with your mobile or web app so codes expire safely and autofill works for your users. Take your time on this screen during recording so viewers can follow each click clearly.

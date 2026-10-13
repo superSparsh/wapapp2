@@ -1,0 +1,9 @@
+This video covers the Template Footer — a short optional line under the body on WhatsApp.
+
+Open the Footer step. Enter footer text if you want a disclaimer, brand line, support note, or legal reminder. WhatsApp limits the footer to sixty characters, and the on-screen counter shows how many you have used as you type.
+
+Leave the footer empty if you do not need it — empty is valid and often cleaner for short promotional messages. Avoid stuffing long legal paragraphs or many variables here; keep the footer brief and readable in the phone preview.
+
+Tap Next to continue to Buttons. A clean footer supports trust without crowding the main message customers came to read.
+
+That is Designing Template Footer — optional, short, and always within the sixty character WhatsApp limit. Take your time on this screen during recording so viewers can follow each click clearly.
