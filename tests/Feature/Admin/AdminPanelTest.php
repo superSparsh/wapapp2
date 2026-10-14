@@ -187,9 +187,15 @@ class AdminPanelTest extends TestCase
             'sort_order' => 2,
         ]);
 
+        $createdAt = now()->subDays(14);
         $this->testTenant->forceFill([
+            'created_at' => $createdAt,
+            'provisioned_at' => $createdAt,
             'settings' => ['valid_until' => now()->subDays(10)->toDateString()],
         ])->save();
+
+        $expectedStart = $createdAt->copy()->startOfDay();
+        $expectedEnd = $expectedStart->copy()->addDays(45)->endOfDay();
 
         $this->actingAs($this->admin, 'admin')
             ->get(route('admin.customers.show', $this->testTenant))
@@ -207,7 +213,7 @@ class AdminPanelTest extends TestCase
 
         $tenant = $this->testTenant->fresh();
         $this->assertSame($plan->id, $tenant->plan_id);
-        $this->assertSame(now()->addDays(45)->toDateString(), $tenant->settings['valid_until'] ?? null);
+        $this->assertSame($expectedEnd->toDateString(), $tenant->settings['valid_until'] ?? null);
 
         tenancy()->initialize($tenant);
         try {
@@ -218,7 +224,8 @@ class AdminPanelTest extends TestCase
 
             $this->assertNotNull($subscription);
             $this->assertSame($plan->id, $subscription->plan_id);
-            $this->assertSame(now()->addDays(45)->toDateString(), $subscription->ends_at?->toDateString());
+            $this->assertSame($expectedStart->toDateString(), $subscription->starts_at?->toDateString());
+            $this->assertSame($expectedEnd->toDateString(), $subscription->ends_at?->toDateString());
         } finally {
             tenancy()->end();
         }

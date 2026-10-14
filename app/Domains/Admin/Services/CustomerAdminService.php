@@ -375,11 +375,14 @@ class CustomerAdminService
 
         $tenant->plan_id = $planId;
 
-        // Reset account validity from assignment time using the plan's duration
-        // (same rule as Razorpay subscription completion).
+        // Count validity from account create/provision date (not from assign-plan click).
+        $startsAt = null;
         $endsAt = null;
         if ($plan !== null) {
-            $endsAt = now()->addDays($plan->resolvedValidityDays())->endOfDay();
+            $startsAt = Carbon::parse(
+                $tenant->provisioned_at ?? $tenant->created_at ?? now(),
+            )->startOfDay();
+            $endsAt = $startsAt->copy()->addDays($plan->resolvedValidityDays())->endOfDay();
             $settings = is_array($tenant->settings) ? $tenant->settings : [];
             $settings['valid_until'] = $endsAt->toDateString();
             $tenant->settings = $settings;
@@ -387,7 +390,7 @@ class CustomerAdminService
 
         $tenant->save();
 
-        // Keep tenant-DB subscription plan + ends_at in sync (profile / billing read both).
+        // Keep tenant-DB subscription plan + dates in sync (profile / billing read both).
         $wasInitialized = tenancy()->initialized;
         $previous = $wasInitialized ? tenant() : null;
 
@@ -411,7 +414,7 @@ class CustomerAdminService
                     'plan_id' => $plan->id,
                     'amount' => $plan->price,
                     'currency' => $plan->currency,
-                    'starts_at' => now(),
+                    'starts_at' => $startsAt,
                     'ends_at' => $endsAt,
                 ])->save();
             } else {
@@ -420,7 +423,7 @@ class CustomerAdminService
                     'status' => SubscriptionStatus::Active,
                     'amount' => $plan->price,
                     'currency' => $plan->currency,
-                    'starts_at' => now(),
+                    'starts_at' => $startsAt,
                     'ends_at' => $endsAt,
                 ]);
             }
