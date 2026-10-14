@@ -326,12 +326,16 @@ class CustomerAdminService
     public function update(Tenant $tenant, array $data): Tenant
     {
         $status = Arr::get($data, 'status');
+        $nextPlanId = array_key_exists('plan_id', $data)
+            ? ($data['plan_id'] !== null && $data['plan_id'] !== '' ? (int) $data['plan_id'] : null)
+            : $tenant->plan_id;
+        $planChanged = array_key_exists('plan_id', $data) && (int) ($tenant->plan_id ?? 0) !== (int) ($nextPlanId ?? 0);
+
         $attributes = [
             'name' => Arr::get($data, 'name', $tenant->name),
             'company_name' => Arr::get($data, 'company_name', $tenant->company_name),
             'email' => Arr::get($data, 'email', $tenant->email),
             'phone' => Arr::get($data, 'phone', $tenant->phone),
-            'plan_id' => Arr::get($data, 'plan_id', $tenant->plan_id),
             'timezone' => Arr::get($data, 'timezone', $tenant->timezone),
         ];
 
@@ -341,6 +345,11 @@ class CustomerAdminService
         }
 
         $tenant->fill($attributes)->save();
+
+        // Plan change on edit should refresh validity the same way as Assign Plan.
+        if ($planChanged) {
+            return $this->assignPlan($tenant, $nextPlanId);
+        }
 
         return $tenant->fresh(['plan']) ?? $tenant;
     }
@@ -356,14 +365,29 @@ class CustomerAdminService
 
     public function assignPlan(Tenant $tenant, ?int $planId): Tenant
     {
-        if ($planId !== null && Plan::query()->whereKey($planId)->doesntExist()) {
-            throw new \InvalidArgumentException('Plan not found.');
+        $plan = null;
+        if ($planId !== null) {
+            $plan = Plan::query()->whereKey($planId)->first();
+            if ($plan === null) {
+                throw new \InvalidArgumentException('Plan not found.');
+            }
         }
 
         $tenant->plan_id = $planId;
+
+        // Reset account validity from assignment time using the plan's duration
+        // (same rule as Razorpay subscription completion).
+        $endsAt = null;
+        if ($plan !== null) {
+            $endsAt = now()->addDays($plan->resolvedValidityDays())->endOfDay();
+            $settings = is_array($tenant->settings) ? $tenant->settings : [];
+            $settings['valid_until'] = $endsAt->toDateString();
+            $tenant->settings = $settings;
+        }
+
         $tenant->save();
 
-        // Keep tenant-DB subscription.plan_id in sync (profile / billing read both).
+        // Keep tenant-DB subscription plan + ends_at in sync (profile / billing read both).
         $wasInitialized = tenancy()->initialized;
         $previous = $wasInitialized ? tenant() : null;
 
@@ -378,11 +402,30 @@ class CustomerAdminService
                 ->latest('id')
                 ->first();
 
-            if ($subscription !== null) {
-                $subscription->forceFill(['plan_id' => $planId])->save();
+            if ($plan === null) {
+                if ($subscription !== null) {
+                    $subscription->forceFill(['plan_id' => null])->save();
+                }
+            } elseif ($subscription !== null) {
+                $subscription->forceFill([
+                    'plan_id' => $plan->id,
+                    'amount' => $plan->price,
+                    'currency' => $plan->currency,
+                    'starts_at' => now(),
+                    'ends_at' => $endsAt,
+                ])->save();
+            } else {
+                Subscription::query()->create([
+                    'plan_id' => $plan->id,
+                    'status' => SubscriptionStatus::Active,
+                    'amount' => $plan->price,
+                    'currency' => $plan->currency,
+                    'starts_at' => now(),
+                    'ends_at' => $endsAt,
+                ]);
             }
         } catch (\Throwable) {
-            // Tenant DB may be missing during wipe / provisioning — central plan_id is enough.
+            // Tenant DB may be missing during wipe / provisioning — central plan_id / valid_until is enough.
         } finally {
             if (tenancy()->initialized) {
                 tenancy()->end();

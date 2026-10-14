@@ -182,9 +182,14 @@ class AdminPanelTest extends TestCase
             'price' => 799,
             'currency' => 'INR',
             'billing_cycle' => 'monthly',
+            'validity_days' => 45,
             'is_active' => true,
             'sort_order' => 2,
         ]);
+
+        $this->testTenant->forceFill([
+            'settings' => ['valid_until' => now()->subDays(10)->toDateString()],
+        ])->save();
 
         $this->actingAs($this->admin, 'admin')
             ->get(route('admin.customers.show', $this->testTenant))
@@ -200,7 +205,23 @@ class AdminPanelTest extends TestCase
             ->assertRedirect(route('admin.customers.show', $this->testTenant))
             ->assertSessionHas('status', 'Plan assigned.');
 
-        $this->assertSame($plan->id, $this->testTenant->fresh()->plan_id);
+        $tenant = $this->testTenant->fresh();
+        $this->assertSame($plan->id, $tenant->plan_id);
+        $this->assertSame(now()->addDays(45)->toDateString(), $tenant->settings['valid_until'] ?? null);
+
+        tenancy()->initialize($tenant);
+        try {
+            $subscription = \App\Models\Subscription::query()
+                ->where('status', \App\Enums\SubscriptionStatus::Active)
+                ->latest('id')
+                ->first();
+
+            $this->assertNotNull($subscription);
+            $this->assertSame($plan->id, $subscription->plan_id);
+            $this->assertSame(now()->addDays(45)->toDateString(), $subscription->ends_at?->toDateString());
+        } finally {
+            tenancy()->end();
+        }
     }
 
     public function test_admin_can_wipe_customer_account_data_keeping_profile_and_subscription(): void
