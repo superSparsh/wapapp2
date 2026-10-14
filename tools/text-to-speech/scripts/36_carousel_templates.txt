@@ -1,9 +1,0 @@
-This video introduces Carousel Templates — swipeable cards that show multiple products or offers inside one WhatsApp message.
-
-Create a new template and choose Category Carousel. Carousel may require an Advance plan — if the option is disabled or labeled as Advance required, upgrade your plan or ask your admin before continuing.
-
-Carousel is stored as marketing with carousel enabled. The builder flow is Body, Carousel design, then Submit For Approval. You will not use the same long header, footer, and buttons path as a regular marketing template.
-
-Each carousel needs an intro body and between two and ten cards. Cards must share matching button types and order. Use carousel when one message should showcase several items customers can swipe through.
-
-Next we will write the carousel intro body and design the cards in detail. Take your time on this screen during recording so viewers can follow each click clearly.

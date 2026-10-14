@@ -1,0 +1,7 @@
+In this video, you will create List Messages for chatbot menus.
+
+Add an Interactive Message and choose List Message. Open List Message Configuration. A list is ideal when you need more than three choices. Create sections and rows for each option customers can pick, such as product categories or support topics. Set Button Text for the list open button customers tap on WhatsApp to see the rows.
+
+Keep row titles short and unique so the chat stays easy to scan. Save Configuration when the sections look complete. On the canvas, connect each list option handle to the correct next node, just like button branches. Group related rows into sections so long lists stay easy to scan.
+
+Use lists for catalogs, FAQ topics, or city selection. Use buttons when you only need two or three primary actions. After connections are set, Save Flow and test the list on a phone. Next we cover Single and Multi Product messages for commerce catalogs.

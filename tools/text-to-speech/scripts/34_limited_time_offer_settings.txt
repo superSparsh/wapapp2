@@ -1,9 +1,0 @@
-This video covers Limited Time Offer Settings — the dedicated LTO step that builds the offer strip above your message.
-
-Open Limited Time Offer settings. Enter Discount introduction — a short line up to sixteen characters, for example Get twenty percent off. Optionally enter a Coupon code that can power the copy-code button on the Buttons step.
-
-Enable Offer expiration if the deal should expire. When enabled, you will see the offer expiration variable used in the strip, and you can set template expiration in minutes so the offer timing stays controlled.
-
-These settings control the offer strip customers notice first. Keep the introduction short, the coupon accurate, and expiration realistic for your campaign calendar.
-
-Save and continue to final submission when body, header, buttons, and LTO settings are all complete. Take your time on this screen during recording so viewers can follow each click clearly.

@@ -1,0 +1,7 @@
+This video covers Advanced Features with Media Messages in chatbots.
+
+From the Messages toolbar, add a Media Message node and open Configure Media Message. Provide a Media URL that WhatsApp can fetch. Choose Media Type: Image, Video, Document, or Audio. Add an optional Caption so customers understand what they are viewing.
+
+Save the media configuration, then connect this node where the conversation should show rich content — after a welcome, after a button tap, or before a product question. Images work well for catalogs and how-to steps. Documents suit price lists or PDFs. Short videos can demonstrate a product. Prefer compressed images so media loads quickly on slower mobile networks.
+
+Always test the URL on a real chat so the media loads on mobile. If the file fails, check the link and media type match. Media Messages make bots feel more visual without forcing customers to leave WhatsApp. Next we review how node connections control every branch.

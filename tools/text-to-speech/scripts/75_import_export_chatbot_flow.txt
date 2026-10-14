@@ -1,0 +1,7 @@
+This video shows how to Import and Export a Chatbot Flow.
+
+Open any chatbot in the builder. In the header, tap Export to download a JSON file named like chatbot-flow with a timestamp. Keep that file as a backup before major edits, or share it with a teammate who needs the same structure.
+
+To bring a flow in, tap Import and choose a valid JSON chatbot file. On success you should see Flow imported successfully. An invalid file shows an error so you can pick the correct export. Import replaces the canvas design with the file contents, so export first if you might need to undo. Store exports in a shared folder with dates so you can roll back when needed.
+
+After import, review nodes and connections, then tap Save Flow to persist changes on the server. Enable the bot only after you confirm keywords and WhatsApp number settings still match this account. Import and export help you clone flows across environments and recover quickly after mistakes.

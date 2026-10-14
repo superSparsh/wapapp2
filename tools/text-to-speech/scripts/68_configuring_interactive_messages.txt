@@ -1,0 +1,7 @@
+This video covers Configuring Interactive Messages in the chatbot builder.
+
+Add an Interactive Message node from the Messages toolbar, then click it to open the drawer. Under Interactive Message Type, open Select interactive message type. Common choices include List Message, Buttons Message, Single Product, and Multi-Product. Pick the type that matches how you want customers to choose an option.
+
+Fill the message body and any header or footer fields the type requires. For buttons or list rows, you will define labels customers tap on WhatsApp. Tap Save Configuration when the content looks correct. Preview the wording carefully so button and list labels match what your team promises.
+
+Connect the Interactive Message after your Welcome Message so the chat offers clear choices after the greeting. Interactive nodes turn free-text chat into guided menus, which reduces confusion and keeps replies on track. The next video focuses on button responses and finishing the bot.

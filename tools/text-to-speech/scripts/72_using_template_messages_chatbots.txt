@@ -1,0 +1,7 @@
+This video covers Using Template Messages in Chatbots.
+
+Add a Template Message node from Messages, or set Message Type to Template Message on a Welcome node. Open Template Message Configuration and use Select Template to pick an approved WhatsApp template. Review Template Information such as Name, Category, Language, and Status so you only use templates that are ready to send.
+
+If the template has variables, fill the values or map them to chatbot context so the message personalizes correctly. Templates are useful when you need a branded layout, buttons already approved by Meta, or a message that must follow template rules outside the free-form session window. Replace paused or rejected templates immediately so the bot never sends a broken step.
+
+Save the configuration and connect the template node into your flow path. Pair templates with interactive follow-ups when you need both compliance and menu choices. Always confirm the template is approved before enabling the bot. Next we build list messages for longer menus.

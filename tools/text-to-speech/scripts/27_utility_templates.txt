@@ -1,9 +1,0 @@
-This video introduces Utility Templates — messages that follow up on user actions rather than pushing promotions.
-
-From Create Template, set Category to Utility. Utility is ideal for order updates, account alerts, appointment reminders, delivery notices, and opt-in confirmations.
-
-On the Body step you may see utility presets that fill a starter template name and body. Customize the text for your brand, add variables such as order ID or appointment time, then continue through Header, Footer, and Buttons only if you need them.
-
-Utility templates usually feel more expected to customers because they are transactional. Keep wording factual and avoid sales language that could cause Meta to treat the message as marketing and reject or reclassify it.
-
-Submit for approval the same way as marketing templates. Use Utility when the message is about something the customer already did, ordered, or requested. Take your time on this screen during recording so viewers can follow each click clearly.

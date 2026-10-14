@@ -1,0 +1,7 @@
+This video covers Configuring the Wait Action.
+
+Insert a Wait step where the journey should pause. Open configuration and set Wait Duration. Presets typically include short times such as one minute up through longer gaps like one day, one week, or one month. Choose Custom duration when you need a specific delay that is not in the list.
+
+Waits prevent back-to-back messages and give customers time to read or act. A common pattern is send a welcome template, wait one day, then send a tip or offer. Place Wait between Send a template steps, not at the very end unless you have a reason. Shorter waits suit transactional tips; longer waits suit nurture and education sequences.
+
+Save the node, then Save Flow. On Audience later, contacts may show as Waiting while a delay runs. You can use Trigger Now carefully for testing, which we cover in a later video. Next we configure Evaluate a Condition for yes and no branches.

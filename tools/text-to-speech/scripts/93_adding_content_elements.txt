@@ -1,0 +1,7 @@
+This video shows Adding Content Elements to Your Flow.
+
+Select a screen from the left, or create one if the canvas is empty. From Basic Input, add fields customers will fill, such as Text Input for a name, Email, Phone Number, or Date Picker for an appointment. From Display, add a Large Heading or Text Body so the screen explains what to do.
+
+Click each field to open Field settings. Set labels, placeholders, and required options so the form collects clean data. Keep the first screen short — one heading, a short body, and a few inputs — so mobile users finish quickly. Required fields should only be used when you truly need that answer to continue. Match field types to the data you need so later submissions stay easy to process.
+
+Save Draft after you add the first set of fields. Reorder or remove elements if the screen feels crowded. Content elements are the building blocks of every Flow. Next we add Selection controls and media.

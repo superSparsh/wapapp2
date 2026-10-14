@@ -1,0 +1,7 @@
+This video covers Activating and Managing Your Automation.
+
+On the design page, use Toggle automation in the header to turn the journey on or off. On the Drip Marketing list, the En/Disable control and Status column show Running or Paused. Only enable after Save Flow and Settings dates look correct.
+
+Use Copy on the list to duplicate an automation when you need a similar journey with small changes. Use Edit to reopen design. Delete removes an automation after you confirm Delete automation — this cannot be undone, so export or copy first if unsure. After enabling, send a test contact through the path before a large list starts entering.
+
+In Settings, update Automation name, trigger, Audience, timezone, Start Date, and End Date, then Save. Keep names clear so Running automations are easy to audit. Management is ongoing: pause when offers end, and re-enable when a new campaign period starts. Next we review the Insight tab.

@@ -1,0 +1,7 @@
+This video covers Single and Multi Product Messages in chatbots.
+
+In an Interactive Message, choose Single Product to showcase one catalog item, or Multi-Product to show a set of products from your WhatsApp catalog. Open the product configuration and select the catalog and product or products you want to feature. The list view often shows catalog name and product count so you can confirm the selection.
+
+Save the configuration, then connect the product node after a welcome or menu choice such as Shop or View deals. Customers can browse product details inside WhatsApp without leaving the chat. Use Single Product for a featured item and Multi-Product for a small collection or category highlight. Update catalog items in Meta when prices change so product cards stay accurate.
+
+Make sure your Meta catalog is linked and products are available before you enable the bot. After Save Flow, send a test chat and open a product card to verify images and prices load. Product messages turn your chatbot into a simple storefront assistant.

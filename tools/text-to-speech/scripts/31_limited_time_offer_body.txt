@@ -1,9 +1,0 @@
-This video covers the Limited Time Offer Body — the main promotional text under the offer strip.
-
-With Category Limited Time Offer selected, open the Body step and write the main message. Explain what the customer gets, any conditions in plain language, and a clear call to act before the offer ends. Add variables if you personalize the message.
-
-Use the toolbar for formatting and plus Variable for placeholders. Check the phone preview often — you will also see the LTO offer strip once discount introduction and related settings are configured on the LTO step.
-
-Do not put the entire coupon story only in the body if you plan to use the copy-code button and discount introduction. Keep the body focused on value and urgency, and let LTO settings handle the short offer line and code.
-
-Save and continue. Header, LTO settings, and buttons come next in the flow. Take your time on this screen during recording so viewers can follow each click clearly.

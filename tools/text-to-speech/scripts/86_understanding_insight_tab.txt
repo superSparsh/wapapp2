@@ -1,0 +1,7 @@
+This video covers Understanding the Insight Tab.
+
+Open an automation and select the Insights tab. At the top you see Your automation stats overview, when the automation Started, and summary cards for Contacts, Involved, and percent complete. This is a quick health check for the journey.
+
+Below, review insight for each step — how many times it triggered and when it was Last updated, plus rates where shown. Use this to find steps that rarely fire or complete slowly. If you see No performance data yet, the automation still needs contacts to enter and move through steps. Low trigger counts on an early step often mean the audience or trigger setup needs review. Check Insights after the first day of Running status to catch early drop-offs.
+
+Insights help you improve waits and message order without guessing. Compare early template steps with later ones to see where people drop. Pair Insights with Statistics for deeper totals. Next we cover Statistics, Audience view, and Trigger Now.

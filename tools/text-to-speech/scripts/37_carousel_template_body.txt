@@ -1,9 +1,0 @@
-This video covers the Carousel Template Body — the intro text that appears above the swipeable cards.
-
-On the Body step, write the message customers see before they browse the cards. Greet them, explain what they are looking at, and add variables such as name if you personalize the intro.
-
-You can refine this same intro again on the Carousel step where it is labeled Carousel intro. Keep it short so attention moves to the cards quickly instead of reading a long paragraph first.
-
-Tap Next to open Carousel design. Do not stuff every product detail into the intro — each card has its own media, short body, and buttons for that item.
-
-A clear intro sets context; the cards present the options and drive the tap. Take your time on this screen during recording so viewers can follow each click clearly.

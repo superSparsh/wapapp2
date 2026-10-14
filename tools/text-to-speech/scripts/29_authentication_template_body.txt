@@ -1,9 +1,0 @@
-This video focuses on the Authentication Template Body — what customers see when they receive an OTP on WhatsApp.
-
-When Category is Authentication, the Body step shows a fixed OTP message, typically including the verification code variable. The field is read-only because WhatsApp requires a standard authentication format and will not approve free-form marketing wording here.
-
-Read the on-screen note that explains you will configure security and button options on the next step. Confirm the phone preview shows the code placeholder correctly, then tap Next to open Authentication settings.
-
-Do not try to turn this into a promotional message — that will fail approval. After the body, configure expiration, validity, copy or autofill buttons, and supported Android apps if you use autofill or zero-tap. Then submit for approval.
-
-That is the Authentication body — fixed OTP text first, then security options on the Authentication step. Take your time on this screen during recording so viewers can follow each click clearly.

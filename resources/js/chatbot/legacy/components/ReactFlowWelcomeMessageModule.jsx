@@ -323,25 +323,6 @@ const ReactFlowWelcomeMessageModule = ({
           </Form.Item>
         </Card>
 
-        <Card title="Trigger" size="small" style={{ marginBottom: 16 }}>
-          <Form.Item
-            name="triggerKeyword"
-            label="Trigger Keyword"
-            rules={[
-              {
-                required: true,
-                message: "Please enter a trigger keyword",
-              },
-            ]}
-            help="Any word or phrase works. Customer must send this to start the bot."
-          >
-            <Input
-              placeholder="e.g., hello, start, offer, menu"
-              maxLength={100}
-            />
-          </Form.Item>
-        </Card>
-
         <Form.Item
           noStyle
           shouldUpdate={(prevValues, currentValues) =>
@@ -358,6 +339,23 @@ const ReactFlowWelcomeMessageModule = ({
                   size="small"
                   style={{ marginBottom: 16 }}
                 >
+                  <Form.Item
+                    name="triggerKeyword"
+                    label="Trigger Keyword"
+                    rules={[
+                      {
+                        required: true,
+                        message: "Please enter a trigger keyword",
+                      },
+                    ]}
+                    help="Any word or phrase works. Customer must send this to start the bot."
+                  >
+                    <Input
+                      placeholder="e.g., hello, start, offer, menu"
+                      maxLength={100}
+                    />
+                  </Form.Item>
+
                   <Form.Item
                     name="welcomeMessage"
                     label="Welcome Message"
@@ -467,6 +465,11 @@ const ReactFlowWelcomeMessageModule = ({
                   size="small"
                   style={{ marginBottom: 16 }}
                 >
+                  {/* Legacy: no Trigger Keyword UI for template. Keep any prior
+                      form value so existing flows still match on save. */}
+                  <Form.Item name="triggerKeyword" hidden>
+                    <Input />
+                  </Form.Item>
                   <Form.Item
                     name="templateId"
                     label="Select Template"

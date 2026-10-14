@@ -1,0 +1,7 @@
+This video covers Configuring Evaluate a Condition Action.
+
+Add Evaluate a condition when the next step should depend on customer behavior. Open the panel and choose a Condition Criterion such as WhatsApp Message Read. Select the Target Template that should be evaluated, and set an Evaluation Window Timeout so the automation does not wait forever.
+
+The action creates Branches labeled Y path for Yes and N path for No. Connect or configure what happens on each path — for example send a follow-up if the message was read, or wait and remind if it was not. Clear yes and no paths keep contacts moving. Keep the evaluation window realistic for your audience time zone and work hours.
+
+Save the configuration and Save Flow. Conditions make journeys smarter without building separate automations for every case. Always test both branches with sample contacts before a large audience goes live. Next we configure Operation actions for tags and list updates.

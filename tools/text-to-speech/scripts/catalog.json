@@ -10,13 +10,13 @@
     "lang": "en",
     "script_file": "01_dashboard_overview.txt",
     "screen_cues": [
-      "0:00 – Open Dashboard home",
-      "0:10 – Greeting / welcome",
-      "0:20 – Credits Used cards",
-      "0:40 – Account Validity + Wallet",
-      "0:55 – Recent Campaigns review",
-      "1:05 – List Growth + chart",
-      "1:15 – End"
+      "0:00 \u2013 Open Dashboard home",
+      "0:10 \u2013 Greeting / welcome",
+      "0:20 \u2013 Credits Used cards",
+      "0:40 \u2013 Account Validity + Wallet",
+      "0:55 \u2013 Recent Campaigns review",
+      "1:05 \u2013 List Growth + chart",
+      "1:15 \u2013 End"
     ],
     "voice": "en-IN-NeerjaNeural"
   },
@@ -31,12 +31,12 @@
     "lang": "en",
     "script_file": "02_understanding_credits_usage.txt",
     "screen_cues": [
-      "0:00 – Dashboard → Credits Used",
-      "0:15 – Point Sent / Marketing / Utility / Service",
-      "0:40 – Change Sort by period",
-      "0:55 – Tap Refresh",
-      "1:05 – Service free remaining (if shown)",
-      "1:15 – End"
+      "0:00 \u2013 Dashboard \u2192 Credits Used",
+      "0:15 \u2013 Point Sent / Marketing / Utility / Service",
+      "0:40 \u2013 Change Sort by period",
+      "0:55 \u2013 Tap Refresh",
+      "1:05 \u2013 Service free remaining (if shown)",
+      "1:15 \u2013 End"
     ],
     "voice": "en-IN-NeerjaNeural"
   },
@@ -51,12 +51,12 @@
     "lang": "en",
     "script_file": "03_campaign_analytics_deep_dive.txt",
     "screen_cues": [
-      "0:00 – Scroll to Recent Campaigns",
-      "0:15 – Select a campaign",
-      "0:30 – Scroll recipient table",
-      "0:50 – Show metric cards",
-      "1:05 – Tap More / a metric",
-      "1:15 – End"
+      "0:00 \u2013 Scroll to Recent Campaigns",
+      "0:15 \u2013 Select a campaign",
+      "0:30 \u2013 Scroll recipient table",
+      "0:50 \u2013 Show metric cards",
+      "1:05 \u2013 Tap More / a metric",
+      "1:15 \u2013 End"
     ],
     "voice": "en-IN-NeerjaNeural"
   },
@@ -71,11 +71,11 @@
     "lang": "en",
     "script_file": "04_tracking_list_growth.txt",
     "screen_cues": [
-      "0:00 – Scroll to List Growth",
-      "0:15 – Point four metric cards",
-      "0:40 – Open Subscribers chart",
-      "1:00 – Hover / zoom trend if available",
-      "1:15 – End"
+      "0:00 \u2013 Scroll to List Growth",
+      "0:15 \u2013 Point four metric cards",
+      "0:40 \u2013 Open Subscribers chart",
+      "1:00 \u2013 Hover / zoom trend if available",
+      "1:15 \u2013 End"
     ],
     "voice": "en-IN-NeerjaNeural"
   },
@@ -90,12 +90,12 @@
     "lang": "en",
     "script_file": "05_managing_your_wallet.txt",
     "screen_cues": [
-      "0:00 – Wallet Balance card",
-      "0:20 – Tap Wallet History",
-      "0:40 – Search / period / category filters",
-      "0:55 – Back → Account Validity",
-      "1:10 – Mention Add Credits (next video)",
-      "1:15 – End"
+      "0:00 \u2013 Wallet Balance card",
+      "0:20 \u2013 Tap Wallet History",
+      "0:40 \u2013 Search / period / category filters",
+      "0:55 \u2013 Back \u2192 Account Validity",
+      "1:10 \u2013 Mention Add Credits (next video)",
+      "1:15 \u2013 End"
     ],
     "voice": "en-IN-NeerjaNeural"
   },
@@ -110,11 +110,11 @@
     "lang": "en",
     "script_file": "06_using_the_refresh_button.txt",
     "screen_cues": [
-      "0:00 – Credits Used → Refresh",
-      "0:25 – Campaign review → Refresh",
-      "0:50 – Metrics row → Refresh",
-      "1:05 – Show numbers update",
-      "1:15 – End"
+      "0:00 \u2013 Credits Used \u2192 Refresh",
+      "0:25 \u2013 Campaign review \u2192 Refresh",
+      "0:50 \u2013 Metrics row \u2192 Refresh",
+      "1:05 \u2013 Show numbers update",
+      "1:15 \u2013 End"
     ],
     "voice": "en-IN-NeerjaNeural"
   },
@@ -130,13 +130,13 @@
     "lang": "en",
     "script_file": "07_recharge_wallet_from_dashboard.txt",
     "screen_cues": [
-      "0:00 – Wallet card → Add Credits",
-      "0:15 – Recharge modal opens",
-      "0:30 – Enter amount / quick amounts",
-      "0:50 – Show GST payable note",
-      "1:00 – Pay Securely (stop before real payment if demo)",
-      "1:10 – Cancel / close option",
-      "1:15 – End"
+      "0:00 \u2013 Wallet card \u2192 Add Credits",
+      "0:15 \u2013 Recharge modal opens",
+      "0:30 \u2013 Enter amount / quick amounts",
+      "0:50 \u2013 Show GST payable note",
+      "1:00 \u2013 Pay Securely (stop before real payment if demo)",
+      "1:10 \u2013 Cancel / close option",
+      "1:15 \u2013 End"
     ],
     "voice": "en-IN-NeerjaNeural"
   },
@@ -153,12 +153,12 @@
     "voice": "en-IN-NeerjaNeural",
     "script_file": "08_finding_filtering_chats.txt",
     "screen_cues": [
-      "0:00 – Open Inbox",
-      "0:10 – Show list / toolbar / chat areas",
-      "0:25 – Point unread badge + STOP label",
-      "0:40 – Search by name or number",
-      "0:55 – Click a chat to open",
-      "1:10 – End"
+      "0:00 \u2013 Open Inbox",
+      "0:10 \u2013 Show list / toolbar / chat areas",
+      "0:25 \u2013 Point unread badge + STOP label",
+      "0:40 \u2013 Search by name or number",
+      "0:55 \u2013 Click a chat to open",
+      "1:10 \u2013 End"
     ]
   },
   {
@@ -174,12 +174,12 @@
     "voice": "en-IN-NeerjaNeural",
     "script_file": "09_understanding_the_chat_window.txt",
     "screen_cues": [
-      "0:00 – Open a conversation",
-      "0:15 – Header: name, AI toggle, export, assign",
-      "0:35 – Scroll message timeline",
-      "0:55 – Composer + plus menu",
-      "1:05 – Session expired banner if shown",
-      "1:15 – End"
+      "0:00 \u2013 Open a conversation",
+      "0:15 \u2013 Header: name, AI toggle, export, assign",
+      "0:35 \u2013 Scroll message timeline",
+      "0:55 \u2013 Composer + plus menu",
+      "1:05 \u2013 Session expired banner if shown",
+      "1:15 \u2013 End"
     ]
   },
   {
@@ -195,12 +195,12 @@
     "voice": "en-IN-NeerjaNeural",
     "script_file": "10_sending_messages_replies.txt",
     "screen_cues": [
-      "0:00 – Open chat with active session",
-      "0:15 – Type + Send text reply",
-      "0:30 – Show delivery status",
-      "0:45 – Open plus menu (media etc.)",
-      "1:00 – Show expired → template actions",
-      "1:15 – End"
+      "0:00 \u2013 Open chat with active session",
+      "0:15 \u2013 Type + Send text reply",
+      "0:30 \u2013 Show delivery status",
+      "0:45 \u2013 Open plus menu (media etc.)",
+      "1:00 \u2013 Show expired \u2192 template actions",
+      "1:15 \u2013 End"
     ]
   },
   {
@@ -216,12 +216,12 @@
     "voice": "en-IN-NeerjaNeural",
     "script_file": "11_adding_new_contacts.txt",
     "screen_cues": [
-      "0:00 – Tap Add New Contact",
-      "0:15 – Fill name, country code, phone",
-      "0:40 – Choose Human / AI response",
-      "0:55 – Save Contact",
-      "1:05 – Open new thread + mention template",
-      "1:15 – End"
+      "0:00 \u2013 Tap Add New Contact",
+      "0:15 \u2013 Fill name, country code, phone",
+      "0:40 \u2013 Choose Human / AI response",
+      "0:55 \u2013 Save Contact",
+      "1:05 \u2013 Open new thread + mention template",
+      "1:15 \u2013 End"
     ]
   },
   {
@@ -237,12 +237,12 @@
     "voice": "en-IN-NeerjaNeural",
     "script_file": "12_using_filters_and_search.txt",
     "screen_cues": [
-      "0:00 – Search box",
-      "0:15 – Open Filters dropdown",
-      "0:30 – WhatsApp number / Scope / Assignee",
-      "0:50 – Date range",
-      "1:00 – Mark all read + Notifications",
-      "1:15 – End"
+      "0:00 \u2013 Search box",
+      "0:15 \u2013 Open Filters dropdown",
+      "0:30 \u2013 WhatsApp number / Scope / Assignee",
+      "0:50 \u2013 Date range",
+      "1:00 \u2013 Mark all read + Notifications",
+      "1:15 \u2013 End"
     ]
   },
   {
@@ -258,12 +258,12 @@
     "voice": "en-IN-NeerjaNeural",
     "script_file": "13_exporting_chat_history.txt",
     "screen_cues": [
-      "0:00 – Export Chat in header",
-      "0:25 – Export by date on toolbar",
-      "0:40 – Presets / From-To dates",
-      "0:55 – All chats vs open chat",
-      "1:05 – Download CSV",
-      "1:15 – End"
+      "0:00 \u2013 Export Chat in header",
+      "0:25 \u2013 Export by date on toolbar",
+      "0:40 \u2013 Presets / From-To dates",
+      "0:55 \u2013 All chats vs open chat",
+      "1:05 \u2013 Download CSV",
+      "1:15 \u2013 End"
     ]
   },
   {
@@ -279,13 +279,13 @@
     "voice": "en-IN-NeerjaNeural",
     "script_file": "14_send_template_from_inbox.txt",
     "screen_cues": [
-      "0:00 – Show session expired banner",
-      "0:15 – Send Template Message",
-      "0:30 – Select template + params",
-      "0:50 – Phone preview",
-      "1:00 – Send Template",
-      "1:10 – Note: customer must reply",
-      "1:15 – End"
+      "0:00 \u2013 Show session expired banner",
+      "0:15 \u2013 Send Template Message",
+      "0:30 \u2013 Select template + params",
+      "0:50 \u2013 Phone preview",
+      "1:00 \u2013 Send Template",
+      "1:10 \u2013 Note: customer must reply",
+      "1:15 \u2013 End"
     ]
   },
   {
@@ -301,12 +301,12 @@
     "voice": "en-IN-NeerjaNeural",
     "script_file": "15_share_products_request_payment.txt",
     "screen_cues": [
-      "0:00 – Plus → Buttons & Lists",
-      "0:20 – Share One / Many Products",
-      "0:45 – Fill catalog + retailer IDs",
-      "1:00 – Request Payment / Send Payment Link",
-      "1:10 – Amount + description → send",
-      "1:15 – End"
+      "0:00 \u2013 Plus \u2192 Buttons & Lists",
+      "0:20 \u2013 Share One / Many Products",
+      "0:45 \u2013 Fill catalog + retailer IDs",
+      "1:00 \u2013 Request Payment / Send Payment Link",
+      "1:10 \u2013 Amount + description \u2192 send",
+      "1:15 \u2013 End"
     ]
   },
   {
@@ -322,12 +322,12 @@
     "voice": "en-IN-NeerjaNeural",
     "script_file": "16_assign_conversations_to_team.txt",
     "screen_cues": [
-      "0:00 – Open chat → Assign agent dropdown",
-      "0:20 – Assign a teammate",
-      "0:40 – Show assignee on thread list",
-      "0:55 – Filters → Assignee",
-      "1:10 – Unassigned hygiene tip",
-      "1:15 – End"
+      "0:00 \u2013 Open chat \u2192 Assign agent dropdown",
+      "0:20 \u2013 Assign a teammate",
+      "0:40 \u2013 Show assignee on thread list",
+      "0:55 \u2013 Filters \u2192 Assignee",
+      "1:10 \u2013 Unassigned hygiene tip",
+      "1:15 \u2013 End"
     ]
   },
   {
@@ -343,11 +343,11 @@
     "voice": "en-IN-NeerjaNeural",
     "script_file": "20_templates_module_overview.txt",
     "screen_cues": [
-      "0:00 – Open Templates",
-      "0:15 – Free vs Regular tabs",
-      "0:35 – Search/filter/table",
-      "0:55 – Create New Template",
-      "1:10 – End"
+      "0:00 \u2013 Open Templates",
+      "0:15 \u2013 Free vs Regular tabs",
+      "0:35 \u2013 Search/filter/table",
+      "0:55 \u2013 Create New Template",
+      "1:10 \u2013 End"
     ]
   },
   {
@@ -363,11 +363,11 @@
     "voice": "en-IN-NeerjaNeural",
     "script_file": "21_creating_a_marketing_template.txt",
     "screen_cues": [
-      "0:00 – Create New Template",
-      "0:15 – Name / Category Marketing / Language",
-      "0:40 – Body step intro",
-      "1:00 – Preview note",
-      "1:15 – End"
+      "0:00 \u2013 Create New Template",
+      "0:15 \u2013 Name / Category Marketing / Language",
+      "0:40 \u2013 Body step intro",
+      "1:00 \u2013 Preview note",
+      "1:15 \u2013 End"
     ]
   },
   {
@@ -383,11 +383,11 @@
     "voice": "en-IN-NeerjaNeural",
     "script_file": "22_designing_template_body.txt",
     "screen_cues": [
-      "0:00 – Body step",
-      "0:15 – Write text + formatting",
-      "0:40 – + Variable / samples",
-      "1:00 – Preview → Next",
-      "1:15 – End"
+      "0:00 \u2013 Body step",
+      "0:15 \u2013 Write text + formatting",
+      "0:40 \u2013 + Variable / samples",
+      "1:00 \u2013 Preview \u2192 Next",
+      "1:15 \u2013 End"
     ]
   },
   {
@@ -403,11 +403,11 @@
     "voice": "en-IN-NeerjaNeural",
     "script_file": "23_designing_template_header.txt",
     "screen_cues": [
-      "0:00 – Header step",
-      "0:15 – Choose type",
-      "0:40 – Text or upload media",
-      "1:00 – Preview → Next",
-      "1:15 – End"
+      "0:00 \u2013 Header step",
+      "0:15 \u2013 Choose type",
+      "0:40 \u2013 Text or upload media",
+      "1:00 \u2013 Preview \u2192 Next",
+      "1:15 \u2013 End"
     ]
   },
   {
@@ -423,11 +423,11 @@
     "voice": "en-IN-NeerjaNeural",
     "script_file": "24_designing_template_footer.txt",
     "screen_cues": [
-      "0:00 – Footer step",
-      "0:20 – Enter text / 60 char limit",
-      "0:50 – Empty is OK",
-      "1:05 – Next to Buttons",
-      "1:15 – End"
+      "0:00 \u2013 Footer step",
+      "0:20 \u2013 Enter text / 60 char limit",
+      "0:50 \u2013 Empty is OK",
+      "1:05 \u2013 Next to Buttons",
+      "1:15 \u2013 End"
     ]
   },
   {
@@ -443,11 +443,11 @@
     "voice": "en-IN-NeerjaNeural",
     "script_file": "25_configuring_template_buttons.txt",
     "screen_cues": [
-      "0:00 – Buttons step",
-      "0:15 – Button group",
-      "0:40 – Add CTA / Quick Reply / Flow",
-      "1:00 – Preview limits",
-      "1:15 – End"
+      "0:00 \u2013 Buttons step",
+      "0:15 \u2013 Button group",
+      "0:40 \u2013 Add CTA / Quick Reply / Flow",
+      "1:00 \u2013 Preview limits",
+      "1:15 \u2013 End"
     ]
   },
   {
@@ -463,12 +463,12 @@
     "voice": "en-IN-NeerjaNeural",
     "script_file": "26_final_review_and_submission.txt",
     "screen_cues": [
-      "0:00 – Submit step",
-      "0:20 – Review preview",
-      "0:40 – Confirm checkbox",
-      "0:55 – Submit for approval",
-      "1:10 – Status on list",
-      "1:15 – End"
+      "0:00 \u2013 Submit step",
+      "0:20 \u2013 Review preview",
+      "0:40 \u2013 Confirm checkbox",
+      "0:55 \u2013 Submit for approval",
+      "1:10 \u2013 Status on list",
+      "1:15 \u2013 End"
     ]
   },
   {
@@ -484,11 +484,11 @@
     "voice": "en-IN-NeerjaNeural",
     "script_file": "27_utility_templates.txt",
     "screen_cues": [
-      "0:00 – Category Utility",
-      "0:20 – Presets on Body",
-      "0:45 – Variables / transactional tone",
-      "1:05 – Submit path",
-      "1:15 – End"
+      "0:00 \u2013 Category Utility",
+      "0:20 \u2013 Presets on Body",
+      "0:45 \u2013 Variables / transactional tone",
+      "1:05 \u2013 Submit path",
+      "1:15 \u2013 End"
     ]
   },
   {
@@ -504,11 +504,11 @@
     "voice": "en-IN-NeerjaNeural",
     "script_file": "28_authentication_templates.txt",
     "screen_cues": [
-      "0:00 – Category Authentication",
-      "0:20 – Short flow overview",
-      "0:45 – Auth settings preview",
-      "1:05 – Use for OTP only",
-      "1:15 – End"
+      "0:00 \u2013 Category Authentication",
+      "0:20 \u2013 Short flow overview",
+      "0:45 \u2013 Auth settings preview",
+      "1:05 \u2013 Use for OTP only",
+      "1:15 \u2013 End"
     ]
   },
   {
@@ -524,10 +524,10 @@
     "voice": "en-IN-NeerjaNeural",
     "script_file": "29_authentication_template_body.txt",
     "screen_cues": [
-      "0:00 – Auth body read-only",
-      "0:25 – OTP variable preview",
-      "0:50 – Next → Auth settings",
-      "1:10 – End"
+      "0:00 \u2013 Auth body read-only",
+      "0:25 \u2013 OTP variable preview",
+      "0:50 \u2013 Next \u2192 Auth settings",
+      "1:10 \u2013 End"
     ]
   },
   {
@@ -543,10 +543,10 @@
     "voice": "en-IN-NeerjaNeural",
     "script_file": "30_limited_time_offer_templates.txt",
     "screen_cues": [
-      "0:00 – Category LTO",
-      "0:25 – Steps overview",
-      "0:50 – Offer strip concept",
-      "1:10 – End"
+      "0:00 \u2013 Category LTO",
+      "0:25 \u2013 Steps overview",
+      "0:50 \u2013 Offer strip concept",
+      "1:10 \u2013 End"
     ]
   },
   {
@@ -562,10 +562,10 @@
     "voice": "en-IN-NeerjaNeural",
     "script_file": "31_limited_time_offer_body.txt",
     "screen_cues": [
-      "0:00 – LTO Body",
-      "0:25 – Write offer message",
-      "0:50 – Variables + preview",
-      "1:10 – End"
+      "0:00 \u2013 LTO Body",
+      "0:25 \u2013 Write offer message",
+      "0:50 \u2013 Variables + preview",
+      "1:10 \u2013 End"
     ]
   },
   {
@@ -581,10 +581,10 @@
     "voice": "en-IN-NeerjaNeural",
     "script_file": "32_limited_time_offer_header.txt",
     "screen_cues": [
-      "0:00 – LTO Header",
-      "0:25 – Media for offer",
-      "0:55 – Preview → continue",
-      "1:15 – End"
+      "0:00 \u2013 LTO Header",
+      "0:25 \u2013 Media for offer",
+      "0:55 \u2013 Preview \u2192 continue",
+      "1:15 \u2013 End"
     ]
   },
   {
@@ -600,10 +600,10 @@
     "voice": "en-IN-NeerjaNeural",
     "script_file": "33_limited_time_offer_buttons.txt",
     "screen_cues": [
-      "0:00 – LTO Buttons",
-      "0:25 – Copy Code option",
-      "0:50 – Website button",
-      "1:10 – End"
+      "0:00 \u2013 LTO Buttons",
+      "0:25 \u2013 Copy Code option",
+      "0:50 \u2013 Website button",
+      "1:10 \u2013 End"
     ]
   },
   {
@@ -619,11 +619,11 @@
     "voice": "en-IN-NeerjaNeural",
     "script_file": "34_limited_time_offer_settings.txt",
     "screen_cues": [
-      "0:00 – LTO settings",
-      "0:20 – Discount intro",
-      "0:40 – Coupon",
-      "0:55 – Expiration",
-      "1:15 – End"
+      "0:00 \u2013 LTO settings",
+      "0:20 \u2013 Discount intro",
+      "0:40 \u2013 Coupon",
+      "0:55 \u2013 Expiration",
+      "1:15 \u2013 End"
     ]
   },
   {
@@ -639,10 +639,10 @@
     "voice": "en-IN-NeerjaNeural",
     "script_file": "35_limited_time_offer_submission.txt",
     "screen_cues": [
-      "0:00 – Review LTO preview",
-      "0:30 – Confirm + submit",
-      "0:55 – Track status",
-      "1:15 – End"
+      "0:00 \u2013 Review LTO preview",
+      "0:30 \u2013 Confirm + submit",
+      "0:55 \u2013 Track status",
+      "1:15 \u2013 End"
     ]
   },
   {
@@ -658,10 +658,10 @@
     "voice": "en-IN-NeerjaNeural",
     "script_file": "36_carousel_templates.txt",
     "screen_cues": [
-      "0:00 – Category Carousel",
-      "0:20 – Advance plan note",
-      "0:45 – Flow overview",
-      "1:10 – End"
+      "0:00 \u2013 Category Carousel",
+      "0:20 \u2013 Advance plan note",
+      "0:45 \u2013 Flow overview",
+      "1:10 \u2013 End"
     ]
   },
   {
@@ -677,10 +677,10 @@
     "voice": "en-IN-NeerjaNeural",
     "script_file": "37_carousel_template_body.txt",
     "screen_cues": [
-      "0:00 – Intro body",
-      "0:30 – Keep short",
-      "0:55 – Next to Carousel",
-      "1:15 – End"
+      "0:00 \u2013 Intro body",
+      "0:30 \u2013 Keep short",
+      "0:55 \u2013 Next to Carousel",
+      "1:15 \u2013 End"
     ]
   },
   {
@@ -696,11 +696,11 @@
     "voice": "en-IN-NeerjaNeural",
     "script_file": "38_carousel_template_design.txt",
     "screen_cues": [
-      "0:00 – Carousel step",
-      "0:20 – Add cards 2–10",
-      "0:45 – Media/body/buttons match",
-      "1:05 – Guidelines",
-      "1:15 – End"
+      "0:00 \u2013 Carousel step",
+      "0:20 \u2013 Add cards 2\u201310",
+      "0:45 \u2013 Media/body/buttons match",
+      "1:05 \u2013 Guidelines",
+      "1:15 \u2013 End"
     ]
   },
   {
@@ -716,10 +716,10 @@
     "voice": "en-IN-NeerjaNeural",
     "script_file": "39_carousel_final_step.txt",
     "screen_cues": [
-      "0:00 – Final review cards",
-      "0:30 – Submit",
-      "0:55 – Status / fix rejects",
-      "1:15 – End"
+      "0:00 \u2013 Final review cards",
+      "0:30 \u2013 Submit",
+      "0:55 \u2013 Status / fix rejects",
+      "1:15 \u2013 End"
     ]
   },
   {
@@ -735,11 +735,638 @@
     "voice": "en-IN-NeerjaNeural",
     "script_file": "40_free_form_session_interactive_messages.txt",
     "screen_cues": [
-      "0:00 – Free Templates tab",
-      "0:20 – Create New",
-      "0:40 – Type button/list/product/flow",
-      "1:00 – Save + use in session",
-      "1:15 – End"
+      "0:00 \u2013 Free Templates tab",
+      "0:20 \u2013 Create New",
+      "0:40 \u2013 Type button/list/product/flow",
+      "1:00 \u2013 Save + use in session",
+      "1:15 \u2013 End"
     ]
+  },
+  {
+    "id": "65_understanding_chatbot_interface",
+    "title": "Understanding the Chatbot Interface",
+    "module": "Module 3: Automation \u2014 Chatbot",
+    "video_no": 1,
+    "route": "chatbot.index",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "script_file": "65_understanding_chatbot_interface.txt",
+    "screen_cues": [
+      "0:00 \u2013 Automation \u2192 Chat bot",
+      "0:15 \u2013 List / search / sort",
+      "0:40 \u2013 Columns & En/Disable",
+      "1:00 \u2013 Create button",
+      "1:15 \u2013 End"
+    ],
+    "voice": "en-IN-NeerjaNeural"
+  },
+  {
+    "id": "66_creating_first_chatbot_part1",
+    "title": "Creating Your First Chatbot - Part 1",
+    "module": "Module 3: Automation \u2014 Chatbot",
+    "video_no": 2,
+    "route": "chatbot.create",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "script_file": "66_creating_first_chatbot_part1.txt",
+    "screen_cues": [
+      "0:00 \u2013 Create",
+      "0:20 \u2013 Name + WhatsApp Number",
+      "0:50 \u2013 Create & Open Builder",
+      "1:10 \u2013 Builder loads",
+      "1:15 \u2013 End"
+    ],
+    "voice": "en-IN-NeerjaNeural"
+  },
+  {
+    "id": "67_building_first_flow_nodes",
+    "title": "Building Your First Flow - Nodes and Connections",
+    "module": "Module 3: Automation \u2014 Chatbot",
+    "video_no": 3,
+    "route": "chatbot.edit",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "script_file": "67_building_first_flow_nodes.txt",
+    "screen_cues": [
+      "0:00 \u2013 Toolbar categories",
+      "0:25 \u2013 Drag Welcome Message",
+      "0:50 \u2013 Connect handles",
+      "1:05 \u2013 Save Flow",
+      "1:15 \u2013 End"
+    ],
+    "voice": "en-IN-NeerjaNeural"
+  },
+  {
+    "id": "68_configuring_interactive_messages",
+    "title": "Configuring Interactive Messages",
+    "module": "Module 3: Automation \u2014 Chatbot",
+    "video_no": 4,
+    "route": "chatbot.edit",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "script_file": "68_configuring_interactive_messages.txt",
+    "screen_cues": [
+      "0:00 \u2013 Add Interactive Message",
+      "0:25 \u2013 Select type",
+      "0:55 \u2013 Configure & Save",
+      "1:10 \u2013 Connect",
+      "1:15 \u2013 End"
+    ],
+    "voice": "en-IN-NeerjaNeural"
+  },
+  {
+    "id": "69_adding_button_responses",
+    "title": "Adding Button Responses and Completing Your Chatbot",
+    "module": "Module 3: Automation \u2014 Chatbot",
+    "video_no": 5,
+    "route": "chatbot.edit",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "script_file": "69_adding_button_responses.txt",
+    "screen_cues": [
+      "0:00 \u2013 Buttons Message",
+      "0:30 \u2013 Add 1-3 buttons",
+      "0:55 \u2013 Connect branches",
+      "1:05 \u2013 Save & Enable",
+      "1:15 \u2013 End"
+    ],
+    "voice": "en-IN-NeerjaNeural"
+  },
+  {
+    "id": "70_advanced_media_messages",
+    "title": "Advanced Features - Media Messages",
+    "module": "Module 3: Automation \u2014 Chatbot",
+    "video_no": 6,
+    "route": "chatbot.edit",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "script_file": "70_advanced_media_messages.txt",
+    "screen_cues": [
+      "0:00 \u2013 Media Message node",
+      "0:25 \u2013 URL / type / caption",
+      "0:55 \u2013 Save & connect",
+      "1:10 \u2013 Use cases",
+      "1:15 \u2013 End"
+    ],
+    "voice": "en-IN-NeerjaNeural"
+  },
+  {
+    "id": "71_understanding_node_connections",
+    "title": "Understanding Node Connections",
+    "module": "Module 3: Automation \u2014 Chatbot",
+    "video_no": 7,
+    "route": "chatbot.edit",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "script_file": "71_understanding_node_connections.txt",
+    "screen_cues": [
+      "0:00 \u2013 Drag handles",
+      "0:30 \u2013 Quick reply vs default",
+      "0:55 \u2013 Delete Connection",
+      "1:10 \u2013 Validate paths",
+      "1:15 \u2013 End"
+    ],
+    "voice": "en-IN-NeerjaNeural"
+  },
+  {
+    "id": "72_using_template_messages_chatbots",
+    "title": "Using Template Messages in Chatbots",
+    "module": "Module 3: Automation \u2014 Chatbot",
+    "video_no": 8,
+    "route": "chatbot.edit",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "script_file": "72_using_template_messages_chatbots.txt",
+    "screen_cues": [
+      "0:00 \u2013 Template Message node",
+      "0:30 \u2013 Select Template",
+      "0:55 \u2013 Variables",
+      "1:05 \u2013 Save & connect",
+      "1:15 \u2013 End"
+    ],
+    "voice": "en-IN-NeerjaNeural"
+  },
+  {
+    "id": "73_creating_list_messages",
+    "title": "Creating List Messages",
+    "module": "Module 3: Automation \u2014 Chatbot",
+    "video_no": 9,
+    "route": "chatbot.edit",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "script_file": "73_creating_list_messages.txt",
+    "screen_cues": [
+      "0:00 \u2013 List Message type",
+      "0:25 \u2013 Sections & rows",
+      "0:55 \u2013 Button Text",
+      "1:05 \u2013 Connect options",
+      "1:15 \u2013 End"
+    ],
+    "voice": "en-IN-NeerjaNeural"
+  },
+  {
+    "id": "74_single_multi_product_messages",
+    "title": "Single & Multi Product Messages",
+    "module": "Module 3: Automation \u2014 Chatbot",
+    "video_no": 10,
+    "route": "chatbot.edit",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "script_file": "74_single_multi_product_messages.txt",
+    "screen_cues": [
+      "0:00 \u2013 Single vs Multi-Product",
+      "0:30 \u2013 Catalog / products",
+      "0:55 \u2013 Save & connect",
+      "1:10 \u2013 Commerce tip",
+      "1:15 \u2013 End"
+    ],
+    "voice": "en-IN-NeerjaNeural"
+  },
+  {
+    "id": "75_import_export_chatbot_flow",
+    "title": "Import / Export Chatbot Flow",
+    "module": "Module 3: Automation \u2014 Chatbot",
+    "video_no": 11,
+    "route": "chatbot.edit",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "script_file": "75_import_export_chatbot_flow.txt",
+    "screen_cues": [
+      "0:00 \u2013 Export JSON",
+      "0:30 \u2013 Import JSON",
+      "0:55 \u2013 Save Flow",
+      "1:05 \u2013 Backup tip",
+      "1:15 \u2013 End"
+    ],
+    "voice": "en-IN-NeerjaNeural"
+  },
+  {
+    "id": "76_understanding_automation_dashboard",
+    "title": "Understanding the Automation Dashboard",
+    "module": "Module 3: Automation \u2014 Drip Marketing",
+    "video_no": 1,
+    "route": "automation.drip.index",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "script_file": "76_understanding_automation_dashboard.txt",
+    "screen_cues": [
+      "0:00 \u2013 Drip Marketing list",
+      "0:25 \u2013 Columns",
+      "0:50 \u2013 Status / actions",
+      "1:05 \u2013 Add New",
+      "1:15 \u2013 End"
+    ],
+    "voice": "en-IN-NeerjaNeural"
+  },
+  {
+    "id": "77_choosing_automation_trigger",
+    "title": "Choosing an Automation Trigger",
+    "module": "Module 3: Automation \u2014 Drip Marketing",
+    "video_no": 2,
+    "route": "automation.drip.create",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "script_file": "77_choosing_automation_trigger.txt",
+    "screen_cues": [
+      "0:00 \u2013 Add New",
+      "0:20 \u2013 Trigger dropdown",
+      "0:50 \u2013 Audience vs Scheduled",
+      "1:05 \u2013 Detail fields",
+      "1:15 \u2013 End"
+    ],
+    "voice": "en-IN-NeerjaNeural"
+  },
+  {
+    "id": "78_welcome_new_subscribers_automation",
+    "title": "Setting Up Welcome New Subscribers Automation",
+    "module": "Module 3: Automation \u2014 Drip Marketing",
+    "video_no": 3,
+    "route": "automation.drip.create",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "script_file": "78_welcome_new_subscribers_automation.txt",
+    "screen_cues": [
+      "0:00 \u2013 Name + Welcome trigger",
+      "0:30 \u2013 Audience optional",
+      "0:50 \u2013 Create & Design Flow",
+      "1:05 \u2013 Canvas trigger chip",
+      "1:15 \u2013 End"
+    ],
+    "voice": "en-IN-NeerjaNeural"
+  },
+  {
+    "id": "79_understanding_automation_actions",
+    "title": "Understanding Automation Actions",
+    "module": "Module 3: Automation \u2014 Drip Marketing",
+    "video_no": 4,
+    "route": "automation.drip.design",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "script_file": "79_understanding_automation_actions.txt",
+    "screen_cues": [
+      "0:00 \u2013 Add step",
+      "0:20 \u2013 Add an Action modal",
+      "0:45 \u2013 Four actions",
+      "1:05 \u2013 When to use each",
+      "1:15 \u2013 End"
+    ],
+    "voice": "en-IN-NeerjaNeural"
+  },
+  {
+    "id": "80_building_automation_workflow",
+    "title": "Building Your Automation Workflow",
+    "module": "Module 3: Automation \u2014 Drip Marketing",
+    "video_no": 5,
+    "route": "automation.drip.design",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "script_file": "80_building_automation_workflow.txt",
+    "screen_cues": [
+      "0:00 \u2013 Insert steps",
+      "0:30 \u2013 Configure node",
+      "0:55 \u2013 Save Flow",
+      "1:05 \u2013 Settings Save",
+      "1:15 \u2013 End"
+    ],
+    "voice": "en-IN-NeerjaNeural"
+  },
+  {
+    "id": "81_configuring_send_template_action",
+    "title": "Configuring Send Template Action",
+    "module": "Module 3: Automation \u2014 Drip Marketing",
+    "video_no": 6,
+    "route": "automation.drip.design",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "script_file": "81_configuring_send_template_action.txt",
+    "screen_cues": [
+      "0:00 \u2013 Send a template",
+      "0:25 \u2013 Select template",
+      "0:50 \u2013 Variables / keywords",
+      "1:05 \u2013 Save Flow",
+      "1:15 \u2013 End"
+    ],
+    "voice": "en-IN-NeerjaNeural"
+  },
+  {
+    "id": "82_configuring_wait_action",
+    "title": "Configuring Wait Action",
+    "module": "Module 3: Automation \u2014 Drip Marketing",
+    "video_no": 7,
+    "route": "automation.drip.design",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "script_file": "82_configuring_wait_action.txt",
+    "screen_cues": [
+      "0:00 \u2013 Wait action",
+      "0:25 \u2013 Wait Duration",
+      "0:55 \u2013 Custom duration",
+      "1:05 \u2013 Save Flow",
+      "1:15 \u2013 End"
+    ],
+    "voice": "en-IN-NeerjaNeural"
+  },
+  {
+    "id": "83_configuring_evaluate_condition",
+    "title": "Configuring Evaluate a Condition Action",
+    "module": "Module 3: Automation \u2014 Drip Marketing",
+    "video_no": 8,
+    "route": "automation.drip.design",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "script_file": "83_configuring_evaluate_condition.txt",
+    "screen_cues": [
+      "0:00 \u2013 Evaluate a condition",
+      "0:30 \u2013 Criterion / template / window",
+      "0:55 \u2013 Y / N branches",
+      "1:10 \u2013 Save Flow",
+      "1:15 \u2013 End"
+    ],
+    "voice": "en-IN-NeerjaNeural"
+  },
+  {
+    "id": "84_configuring_operation_action",
+    "title": "Configuring Operation Action",
+    "module": "Module 3: Automation \u2014 Drip Marketing",
+    "video_no": 9,
+    "route": "automation.drip.design",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "script_file": "84_configuring_operation_action.txt",
+    "screen_cues": [
+      "0:00 \u2013 Operation action",
+      "0:25 \u2013 Operation Type",
+      "0:55 \u2013 Tags / lists / fields",
+      "1:05 \u2013 Save Flow",
+      "1:15 \u2013 End"
+    ],
+    "voice": "en-IN-NeerjaNeural"
+  },
+  {
+    "id": "85_activating_managing_automation",
+    "title": "Activating and Managing Your Automation",
+    "module": "Module 3: Automation \u2014 Drip Marketing",
+    "video_no": 10,
+    "route": "automation.drip.design",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "script_file": "85_activating_managing_automation.txt",
+    "screen_cues": [
+      "0:00 \u2013 Toggle automation",
+      "0:30 \u2013 Running vs Paused",
+      "0:55 \u2013 Copy / delete",
+      "1:05 \u2013 Settings Save",
+      "1:15 \u2013 End"
+    ],
+    "voice": "en-IN-NeerjaNeural"
+  },
+  {
+    "id": "86_understanding_insight_tab",
+    "title": "Understanding the Insight Tab",
+    "module": "Module 3: Automation \u2014 Drip Marketing",
+    "video_no": 11,
+    "route": "automation.drip.insights",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "script_file": "86_understanding_insight_tab.txt",
+    "screen_cues": [
+      "0:00 \u2013 Insights tab",
+      "0:25 \u2013 Overview cards",
+      "0:55 \u2013 Per-step insight",
+      "1:10 \u2013 Empty state",
+      "1:15 \u2013 End"
+    ],
+    "voice": "en-IN-NeerjaNeural"
+  },
+  {
+    "id": "87_statistics_audience_trigger_now",
+    "title": "Statistics Tab - Audience View and Trigger Now",
+    "module": "Module 3: Automation \u2014 Drip Marketing",
+    "video_no": 12,
+    "route": "automation.drip.statistics",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "script_file": "87_statistics_audience_trigger_now.txt",
+    "screen_cues": [
+      "0:00 \u2013 Statistics metrics",
+      "0:30 \u2013 Audience tab",
+      "0:55 \u2013 Trigger Now",
+      "1:10 \u2013 Timeline",
+      "1:15 \u2013 End"
+    ],
+    "voice": "en-IN-NeerjaNeural"
+  },
+  {
+    "id": "88_advanced_specific_date_trigger",
+    "title": "Advanced Automation - Specific Date Trigger",
+    "module": "Module 3: Automation \u2014 Drip Marketing",
+    "video_no": 13,
+    "route": "automation.drip.create",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "script_file": "88_advanced_specific_date_trigger.txt",
+    "screen_cues": [
+      "0:00 \u2013 Specific date trigger",
+      "0:30 \u2013 Date + Time",
+      "0:55 \u2013 Start / End dates",
+      "1:05 \u2013 Build steps",
+      "1:15 \u2013 End"
+    ],
+    "voice": "en-IN-NeerjaNeural"
+  },
+  {
+    "id": "89_recurring_weekly_monthly",
+    "title": "Recurring Automations - Weekly and Monthly",
+    "module": "Module 3: Automation \u2014 Drip Marketing",
+    "video_no": 14,
+    "route": "automation.drip.create",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "script_file": "89_recurring_weekly_monthly.txt",
+    "screen_cues": [
+      "0:00 \u2013 Weekly recurring",
+      "0:30 \u2013 Days of week + Time",
+      "0:55 \u2013 Monthly recurring",
+      "1:10 \u2013 Enable & monitor",
+      "1:15 \u2013 End"
+    ],
+    "voice": "en-IN-NeerjaNeural"
+  },
+  {
+    "id": "90_understanding_flows_dashboard",
+    "title": "Understanding the Flows Dashboard",
+    "module": "Module 3: Automation \u2014 Flows",
+    "video_no": 1,
+    "route": "whatsapp-flows.index",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "script_file": "90_understanding_flows_dashboard.txt",
+    "screen_cues": [
+      "0:00 \u2013 WhatsApp Flows list",
+      "0:25 \u2013 Search / status filter",
+      "0:55 \u2013 Actions",
+      "1:05 \u2013 Create Flow",
+      "1:15 \u2013 End"
+    ],
+    "voice": "en-IN-NeerjaNeural"
+  },
+  {
+    "id": "91_creating_first_whatsapp_flow",
+    "title": "Creating Your First WhatsApp Flow",
+    "module": "Module 3: Automation \u2014 Flows",
+    "video_no": 2,
+    "route": "whatsapp-flows.create",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "script_file": "91_creating_first_whatsapp_flow.txt",
+    "screen_cues": [
+      "0:00 \u2013 Create Flow",
+      "0:25 \u2013 Name + Categories",
+      "0:55 \u2013 Create & Open Builder",
+      "1:10 \u2013 Builder opens",
+      "1:15 \u2013 End"
+    ],
+    "voice": "en-IN-NeerjaNeural"
+  },
+  {
+    "id": "92_designing_flow_builder_interface",
+    "title": "Designing Your Flow - The Flow Builder Interface",
+    "module": "Module 3: Automation \u2014 Flows",
+    "video_no": 3,
+    "route": "whatsapp-flows.edit",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "script_file": "92_designing_flow_builder_interface.txt",
+    "screen_cues": [
+      "0:00 \u2013 Palette tabs",
+      "0:30 \u2013 Screens list",
+      "0:55 \u2013 Canvas + settings",
+      "1:05 \u2013 Save Draft",
+      "1:15 \u2013 End"
+    ],
+    "voice": "en-IN-NeerjaNeural"
+  },
+  {
+    "id": "93_adding_content_elements",
+    "title": "Adding Content Elements to Your Flow",
+    "module": "Module 3: Automation \u2014 Flows",
+    "video_no": 4,
+    "route": "whatsapp-flows.edit",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "script_file": "93_adding_content_elements.txt",
+    "screen_cues": [
+      "0:00 \u2013 Select screen",
+      "0:25 \u2013 Add Basic Input",
+      "0:50 \u2013 Display text",
+      "1:05 \u2013 Field settings",
+      "1:15 \u2013 End"
+    ],
+    "voice": "en-IN-NeerjaNeural"
+  },
+  {
+    "id": "94_selection_media_nodes",
+    "title": "Selection & Media Nodes",
+    "module": "Module 3: Automation \u2014 Flows",
+    "video_no": 5,
+    "route": "whatsapp-flows.edit",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "script_file": "94_selection_media_nodes.txt",
+    "screen_cues": [
+      "0:00 \u2013 Selection tab",
+      "0:30 \u2013 Radio / checkbox / dropdown",
+      "0:55 \u2013 Image display",
+      "1:05 \u2013 Save Draft",
+      "1:15 \u2013 End"
+    ],
+    "voice": "en-IN-NeerjaNeural"
+  },
+  {
+    "id": "95_multi_screen_flows",
+    "title": "Multi-Screen Flows",
+    "module": "Module 3: Automation \u2014 Flows",
+    "video_no": 6,
+    "route": "whatsapp-flows.edit",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "script_file": "95_multi_screen_flows.txt",
+    "screen_cues": [
+      "0:00 \u2013 Add Screen",
+      "0:30 \u2013 Rename screens",
+      "0:55 \u2013 Next Screen navigation",
+      "1:10 \u2013 Badges update",
+      "1:15 \u2013 End"
+    ],
+    "voice": "en-IN-NeerjaNeural"
+  },
+  {
+    "id": "96_publishing_your_flow",
+    "title": "Publishing Your Flow",
+    "module": "Module 3: Automation \u2014 Flows",
+    "video_no": 7,
+    "route": "whatsapp-flows.edit",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "script_file": "96_publishing_your_flow.txt",
+    "screen_cues": [
+      "0:00 \u2013 Save Draft",
+      "0:25 \u2013 Publish Flow",
+      "0:55 \u2013 Active on dashboard",
+      "1:05 \u2013 Preview",
+      "1:15 \u2013 End"
+    ],
+    "voice": "en-IN-NeerjaNeural"
+  },
+  {
+    "id": "97_flow_statistics_duplicate_archive",
+    "title": "Flow Statistics & Duplicate / Archive",
+    "module": "Module 3: Automation \u2014 Flows",
+    "video_no": 8,
+    "route": "whatsapp-flows.stats",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "script_file": "97_flow_statistics_duplicate_archive.txt",
+    "screen_cues": [
+      "0:00 \u2013 View stats",
+      "0:30 \u2013 Metrics",
+      "0:55 \u2013 Archive",
+      "1:05 \u2013 Duplicate note",
+      "1:15 \u2013 End"
+    ],
+    "voice": "en-IN-NeerjaNeural"
   }
 ]

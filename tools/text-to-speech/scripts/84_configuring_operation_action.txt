@@ -1,0 +1,7 @@
+This video covers Configuring the Operation Action.
+
+Add an Operation step when you need to update contact data as part of the journey. Open Operation Type and choose one of: Tag Contact, Copy Contact to Audience List, Move Contact to Audience List, Update Contact Field, or Unsubscribe / Remove from list.
+
+Depending on the type, fill Tags, Target Audience List, field values, or related inputs. For example, after a welcome series you might Tag Contact as welcomed, or Copy Contact to a nurture list. Use Move when the contact should leave the current list. Use Unsubscribe when they should stop marketing messages. Tag names should match segment and chatbot rules so targeting stays consistent everywhere.
+
+Save the node and Save Flow. Place operations after successful sends or after a Yes condition so data stays accurate. Operations keep Audience and chatbot targeting aligned with drip behavior. Next we activate and manage the automation from the header and list.

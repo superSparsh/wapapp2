@@ -9,6 +9,7 @@ use App\Domains\Inbox\Services\InboxBroadcastService;
 use App\Domains\Inbox\Services\InboxOutboundService;
 use App\Enums\CampaignRecipientStatus;
 use App\Enums\ContactOptInStatus;
+use App\Models\Campaign;
 use App\Models\CampaignRecipient;
 use App\Models\Contact;
 use App\Models\Conversation;
@@ -224,16 +225,30 @@ class StopKeywordService
             $variants = [$phone];
         }
 
-        CampaignRecipient::query()
+        $recipients = CampaignRecipient::query()
             ->whereIn('contact_phone', $variants)
             ->whereIn('status', [
                 CampaignRecipientStatus::Pending->value,
                 CampaignRecipientStatus::Sent->value,
             ])
+            ->get(['id', 'campaign_id']);
+
+        if ($recipients->isEmpty()) {
+            return;
+        }
+
+        CampaignRecipient::query()
+            ->whereIn('id', $recipients->pluck('id'))
             ->update([
                 'status' => CampaignRecipientStatus::Unsubscribed->value,
                 'unsubscribed_at' => now(),
             ]);
+
+        foreach ($recipients->groupBy('campaign_id') as $campaignId => $rows) {
+            Campaign::query()
+                ->whereKey($campaignId)
+                ->increment('total_unsubscribed', $rows->count());
+        }
     }
 
     private function sendConfirmation(Conversation $conversation, string $body): void

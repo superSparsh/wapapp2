@@ -1,0 +1,7 @@
+In this video, you will create your first chatbot and open the flow builder.
+
+On the Chatbot list, tap Create. The Create Chatbot Flow modal opens. Enter a Chatbot Name, for example Customer Support Bot. If your account has numbers linked, choose a WhatsApp Number from the dropdown. The number is where this bot will listen and reply.
+
+Tap Create and Open Builder. WapApp creates the flow and opens the builder at the edit page. You will see Back to list, Maximize, Export, Import, and Save Flow in the header. The canvas is empty until you add nodes from the toolbar. If multiple numbers exist, double-check you picked the business line customers already message. From here, every new node you add becomes part of this same saved flow.
+
+Give every bot a clear name so teammates know which conversation it handles. After create, you are ready to add a Welcome Message and start connecting steps. The next video covers nodes and connections on this canvas.

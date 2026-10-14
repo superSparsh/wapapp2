@@ -252,11 +252,11 @@ const WelcomeMessageNode = ({ data = {}, selected, id }) => {
       </div>
 
       <div className="chatbot-node-card__body">
-        {data.triggerKeyword && (
-          <div>Trigger: {data.triggerKeyword}</div>
-        )}
         {data.messageType === "template" && data.selectedTemplate && (
           <div>Template: {data.selectedTemplate.template_name}</div>
+        )}
+        {data.messageType === "text" && data.triggerKeyword && (
+          <div>Trigger: {data.triggerKeyword}</div>
         )}
         {data.messageType === "text" && data.welcomeMessage && (
           <div>{data.welcomeMessage.substring(0, 80)}{data.welcomeMessage.length > 80 ? "..." : ""}</div>

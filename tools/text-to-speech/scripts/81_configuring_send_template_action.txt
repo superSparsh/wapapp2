@@ -1,0 +1,7 @@
+This video shows Configuring the Send Template Action.
+
+Add or select a Send a template step, then open its configuration panel. Choose a Template from the Select template dropdown. Only approved templates should be used so sends succeed. If the template has variables, fill each variable with fixed text or contact fields so the message personalizes correctly.
+
+Optional Keywords may appear for reply handling depending on your setup. Review the template preview mentally: header, body, and buttons should match what you intend for this moment in the journey. Use the same approved template language your brand already uses in campaigns for consistency.
+
+Save the node settings, then Save Flow. Place send-template steps after the trigger or after a Wait so timing feels natural. If a send fails later in Statistics, check that the template is still approved and variables are complete. Template actions are the core message steps in drip marketing.

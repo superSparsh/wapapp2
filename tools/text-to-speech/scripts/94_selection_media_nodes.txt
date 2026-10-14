@@ -1,0 +1,7 @@
+This video covers Selection and Media Nodes in WhatsApp Flows.
+
+Open the Selection tab. Add Single Choice radio buttons when the user must pick one option. Use Multi Choice checkboxes when more than one answer is allowed. Dropdown packs many options into a compact control. Opt-in Checkbox is ideal for consent such as agreeing to updates.
+
+Open Display and add an Image when a screen should show a product photo, logo, or instruction graphic. Combine an image with a short Text Body so the purpose is clear before inputs appear. Keep option lists short on mobile so customers can tap without scrolling forever.
+
+Configure option labels in Field settings and mark required fields when an answer is mandatory. Save Draft and Preview to confirm selections look correct on a phone-sized layout. Selection and media nodes make Flows interactive and visual, not just text boxes. Next we build multi-screen Flows.
