@@ -1,7 +1,0 @@
-Welcome to WhatsApp Flows. Flows are multi-screen forms inside WhatsApp for surveys, lead capture, bookings, and structured data collection.
-
-Open Automation, then Flows, or go to WhatsApp Flows. The dashboard lists Flow Name, Screens count, Status, Published state, and Actions. Search with Search flows, and filter by All Status, Draft, Active, or Archived. Tap Refresh to reload.
-
-Draft flows show Edit to open the builder. Published flows can offer Preview and Archive. Archiving asks you to confirm Deprecate or archive this published flow on WhatsApp. Empty state says No WhatsApp Flows found until you create one. Archive superseded forms promptly so agents do not share outdated Flow links.
-
-Tap Create Flow to start. Use the dashboard to find drafts, check Active published forms, and archive old flows. Next we create your first WhatsApp Flow and open the builder.

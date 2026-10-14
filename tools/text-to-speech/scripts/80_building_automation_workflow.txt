@@ -1,7 +1,0 @@
-This video covers Building Your Automation Workflow on the drip canvas.
-
-Start from the trigger chip, then tap Add step to insert actions in order. A simple welcome path might be Send a template, Wait one day, then Send another template. Click any step to open Configure Node on the side and fill required fields. Use Maximize if you need a larger canvas while arranging steps.
-
-When the path looks complete, tap Save Flow on the canvas so the sequence is stored. Also open Settings and Save Start Date, End Date, audience, and timezone. Dates control when the automation is allowed to run. Name steps clearly in your notes so teammates understand the journey without opening every node.
-
-Keep the workflow short at first so you can test it. You can insert more waits, conditions, or operations later. Avoid gaps — every contact who enters should reach a clear end. Next we configure the Send Template action in detail.

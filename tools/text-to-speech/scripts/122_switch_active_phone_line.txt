@@ -1,7 +1,0 @@
-This video covers Switch Active Phone Line — working with one WhatsApp number at a time.
-
-For a quick filter while on the main account, open Inbox, open Filters, and under WhatsApp number choose the line you want. Conversations then scope to that number without leaving the main workspace.
-
-To lock the session into a single-number workspace, open Account, Manage Phone Numbers, set the Number Access password if needed, enter the password, and tap Open Dashboard. Success opens the number workspace. An amber banner shows you are using one number only. Exit Number Mode before opening Subscription or other owner-only Account pages. Confirm the banner number matches the line you intended before sending replies.
-
-Tap Exit Number Mode on the banner when you need the full multi-line account again. Operators can also use the shared Open Login Link page to sign into one line. Some Account pages are blocked in number mode until you exit. Use filters for light switching and Open Dashboard when an agent should stay on one line only.

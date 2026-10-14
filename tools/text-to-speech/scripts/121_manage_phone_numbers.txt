@@ -1,7 +1,0 @@
-This video covers Manage Phone Numbers — adding and preparing extra WhatsApp lines.
-
-Open Account, then Manage Phone Numbers. The primary number is managed under Integration; this page is for extra numbers. Tap Add Number when Integration already has a connected WhatsApp line. On Add New Number, enter Country code, Mobile number, and WhatsApp display name, then Save.
-
-Back on the list, each extra line shows Connected or Not connected, and Password set or Set password. Under Set Number Password or Change Number Password, enter a new password of at least eight characters, confirm it, and tap Save Password. Use Open Login Link or Copy link to share the line-login URL with operators. Share number passwords only with trusted operators and change them when staff leave.
-
-After the password is set, you can open that number’s workspace from Open Dashboard, covered in the next video. Do not try to edit the default line here — Integration owns that number.

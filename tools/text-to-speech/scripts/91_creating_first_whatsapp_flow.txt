@@ -1,7 +1,0 @@
-In this video, you will create your first WhatsApp Flow.
-
-On the Flows dashboard, tap Create Flow. The Create WhatsApp Flow form asks for Flow Name and Categories. Meta requires at least one category. Keep the default OTHER if you are unsure, or pick the category that best matches your use case such as lead gen or survey style forms.
-
-Tap Create and Open Builder. WapApp creates the flow and opens the editor. You will see Maximize, Preview, Save Draft, Export, Import, Delete, and Publish Flow in the header. The left side lists Screens, and the palette offers Basic Input, Selection, and Display elements. Align the Flow Name with the campaign or page where customers will open it. You can Export a draft later if you want a JSON backup before big redesigns.
-
-Choose a clear Flow Name so published forms are easy to recognize later. After create, you design screens before publishing. The next video tours the Flow Builder interface in more detail.

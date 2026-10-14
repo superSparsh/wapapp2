@@ -1,7 +1,0 @@
-This video covers API Settings under Account.
-
-Open Account, then API. The page helps you manage your API token and integration endpoints. Review API docs, API Endpoint, and Your API token. If no token exists yet, generate or renew one first.
-
-Copy the guidance that says to add parameter api underscore token equals your token on each API request, and note the example URL on screen. When you need a new secret, tap Renew Token and confirm Renew API token in the dialog. Store the new token securely — old calls fail after renew. Rotate the token if it may have been shared in chat, email, or a public repository.
-
-Open API Documentation from the docs link or Back to API token after reading samples. Use this page for developers and third-party tools that send WhatsApp messages through WapApp. Keep the token private like a password. Next we review Subscription.

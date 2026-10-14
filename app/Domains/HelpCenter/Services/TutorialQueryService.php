@@ -20,8 +20,11 @@ class TutorialQueryService
             fn (): Collection => TutorialVideo::query()
                 ->where('is_active', true)
                 // Hide old placeholder seed groups (INBOX / DASHBOARD / AUTOMATION).
-                // Real legacy rows are always "Module N: …".
-                ->where('module_name', 'like', 'Module %')
+                // Real rows are "Module N: …" or the Product Demo overview.
+                ->where(function ($query): void {
+                    $query->where('module_name', 'like', 'Module %')
+                        ->orWhere('module_name', 'Product Demo');
+                })
                 ->orderBy('sort_order')
                 ->orderBy('id')
                 ->get(),

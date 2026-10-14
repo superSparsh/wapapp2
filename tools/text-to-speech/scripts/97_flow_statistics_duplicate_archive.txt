@@ -1,7 +1,0 @@
-This video covers Flow Statistics, Duplicate, and Archive.
-
-Open a Flow and go to statistics, or use View All Stats from the detail page. Review Total Submissions, Processed, Failed, and Completion Rate, plus Processing Overview and Recent Submissions. These numbers show whether people finish the form and whether processing succeeds.
-
-To retire a published Flow, use Archive and confirm Deprecate or archive this published flow on WhatsApp. Archived flows leave the Active list so customers are not sent outdated forms. Drafts can be deleted from the builder when unused. High failed submissions usually mean a processing or field mapping issue to fix quickly.
-
-Your account may support duplicating a Flow through the duplicate action so you can copy a working design and edit the copy. After changes, publish the new Flow separately. Monitor statistics after launch and archive older versions when a replacement goes Active. That completes the WhatsApp Flows tutorials.

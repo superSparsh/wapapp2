@@ -1,7 +1,0 @@
-This video covers Publishing Your Flow.
-
-When screens, fields, and navigation look complete, tap Save Draft one more time. Then tap Publish Flow in the header. Publishing saves and submits the Flow so it can run on WhatsApp. On the Flow detail page you may also see Publish or Open Flow Preview depending on status.
-
-After a successful publish, the dashboard Status should show Active and Published information updates. Use Preview to walk through the experience customers will see. If publish fails, fix validation issues such as missing categories, empty screens, or incomplete required field settings, then try again. After publish, share a test link with a teammate and walk through every screen once. Once Active, you can use the Flow with templates or chatbot steps that support Flows.
-
-Do not publish half-finished drafts to production numbers. Keep a draft for experiments and publish only the final version. Next we review Flow Statistics, Duplicate, and Archive.

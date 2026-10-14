@@ -1,7 +1,0 @@
-In this video, you will create your first Form Builder signup form.
-
-From the dashboard, tap Create Form. On Create New Form, enter Form Name. Choose Select a Mail List so new leads join the right Audience list. Choose Select a Template — an approved WhatsApp template sent after someone submits.
-
-WhatsApp Number, First Name, and Last Name are added by default. Logo and Header stay at the top when you add them. From Available Fields, click Logo, Header Field, Paragraph Field, Input Field, Dropdown Field, or Checkbox Field to place them on the Form Canvas. Set Field label, Required Field, and dropdown options as needed. Pick a clear Form Name that matches the campaign or landing page where you will share the link. Use Dropdown Field when leads should pick from a fixed set of options.
-
-Watch Form Preview update as you build. Leave Active off until the form is ready, then tap Save Form. Next we edit an existing form in the same three-column builder.

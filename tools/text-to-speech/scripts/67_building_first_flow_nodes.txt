@@ -1,7 +1,0 @@
-This video shows how to build a basic chatbot flow with nodes and connections.
-
-In the builder, open the toolbar categories. Under Messages you will find Welcome Message, Template Message, Interactive Message, Media Message, and more. Logic and Control, Integration, AI, and Timing groups add conditions, HTTP requests, delays, and wait for response.
-
-Drag a Welcome Message onto the canvas. Click the node to open its configuration drawer. Set the greeting text or choose a template message type, and add a Trigger Keyword if customers should start the bot with a word such as hello or help. Start simple with welcome plus one follow-up before you add advanced logic nodes.
-
-Connect nodes by dragging from an output handle to the next node input. Green edges show the conversation path. When the first path looks right, tap Save Flow. Saving stores your design so you can keep editing without losing work. Next we configure interactive messages with buttons and lists.

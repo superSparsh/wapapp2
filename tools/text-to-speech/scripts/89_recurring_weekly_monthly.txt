@@ -1,7 +1,0 @@
-This video covers Recurring Automations for Weekly and Monthly schedules.
-
-Create or edit an automation and choose Weekly recurring. Select Days of week such as Monday or Friday, and set the Time. This pattern suits weekly tips, reminders, or check-in templates. Save Settings, then build your Send a template and Wait steps on the canvas.
-
-For Monthly recurring, choose Days of month from one to thirty-one and set the Time. Use this for monthly invoices reminders, renewal nudges, or newsletter-style WhatsApp updates. Confirm Start Date and End Date so recurrence stops when the campaign period ends. Review recurring copy monthly so repeated messages do not feel stale to loyal contacts.
-
-Save Flow, enable the automation, then monitor Insights and Statistics after the first few runs. Recurring journeys reduce manual sends, but keep templates fresh so repeated messages stay useful. That completes the Drip Marketing tutorial set.

@@ -1,7 +1,0 @@
-This video covers the Integration tab for your WhatsApp Business account connection inside Account.
-
-Open Account, then Integration. The page heading is Integration. Under Business Details, review Business ID, Business Name, and Status such as Verified or Not connected. Tap Sync Data when you need to refresh Meta business information.
-
-Under Channels, each WhatsApp number card shows Connected or Disconnected, Default, Quality, and Limit. Tap Update Profile on a card to edit that line’s WhatsApp Business Profile. If no numbers appear, the empty state says no WhatsApp numbers are connected yet. Tap Sync Data after Meta-side business name or verification changes so WapApp stays current. After connecting a new number in Meta, return here and Sync Data so the Channels list updates.
-
-Read the on-page notes about Meta phone-number limits and Official Business Account rules. This Integration screen is for WABA and channels — Connected Apps such as Shopify or Calendly live under a different menu. Next we cover API Settings.

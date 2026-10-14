@@ -1,7 +1,0 @@
-This video covers the Google Calendar Public Booking Page.
-
-With Google Calendar connected, open the Booking Links tab. Under Create Booking Link, enter a Title customers will recognize, choose Duration such as fifteen, thirty, forty-five, or sixty minutes, then tap Create Link. Give each offer its own booking link title so customers pick the right meeting length. Your Booking Links lists each link with title, duration, and the public URL. Use Remove if a link should be retired.
-
-Open the public URL. Visitors see Book a Meeting with your title and duration. They enter Your Name, WhatsApp Number, optional Email, Select Date, then pick from Available Slots and tap Book Meeting. Slots follow the calendar availability rules configured for booking.
-
-Share booking links on your website, WhatsApp profile, or chat replies. After someone books, check your Google Calendar and notification settings to confirm the meeting and WhatsApp alerts look correct. That completes the Connected Apps tutorials for Calendly, Shopify, and Google Calendar.

@@ -1,7 +1,0 @@
-This video explains Understanding Node Connections in the chatbot canvas.
-
-Every node has handles for incoming and outgoing paths. Drag from an output handle to another node to create a green smooth-step edge. That edge is the path WhatsApp follows when that branch runs. Welcome and interactive nodes often show green handles for quick replies and a yellow handle for the default branch when there is no response.
-
-Button and list options use labeled handles such as Button Option or List Option. Connect each option to its own follow-up so customers never hit a dead end. Click an existing edge to open Selected Connection, then use Delete Connection if the path is wrong. After edits, re-check that no orphan node sits unconnected on the canvas.
-
-Before you enable a bot, trace every branch from the start node to an end. Missing links cause silent stops mid-chat. Clear connections are as important as good message copy. Next we use approved template messages inside chatbot flows.

@@ -1,7 +1,0 @@
-This video covers the Statistics Tab, Audience View, and Trigger Now.
-
-Open Statistics to see Entered, Completed, Dropped, and Errors. Use Refresh, View History, and Export to CSV when you need a report. Automation Performance summarizes totals, Completion Rate, and Top Nodes by Activity so you know which steps are busiest.
-
-Switch to the Audience tab for Contacts in action, Contacts done, Skipped or Pending, and Error. Search and filter with All Contacts as needed. For a contact Waiting in a delay, you may see Trigger Now. Confirm with Are you sure, then Confirm — this manually advances that contact and should be used carefully for testing or support. Export CSV reports after major campaigns so you can compare completion rates over time.
-
-Open the Timeline sub-tab for activity history such as Entered, Completed, Dropped, and Error events. Together, Statistics and Audience tell you volume and individual progress. Next we build a Specific Date trigger automation.

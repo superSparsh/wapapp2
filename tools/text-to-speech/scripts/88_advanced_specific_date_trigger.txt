@@ -1,7 +1,0 @@
-This video covers Advanced Automation with a Specific Date Trigger.
-
-Create a new automation or open Settings and set Automation Trigger to Specific date under Scheduled. Enter the Date and Time when the journey should fire for the scheduled run. This is useful for launch day messages, event reminders, or one-time announcements.
-
-In Settings, also set Start Date and End Date so the automation only runs inside your campaign window, then Save. Build the canvas with Send a template and optional Wait or Operation steps just like other automations. Save Flow when the path is ready. Set a reminder for yourself a day before the date so templates and credits are ready.
-
-Specific date differs from Welcome new subscribers because it is calendar-based, not list-join-based. Double-check timezone so the send happens at the local time you intend. Enable the automation only after the schedule and template are confirmed. Next we cover weekly and monthly recurring automations.

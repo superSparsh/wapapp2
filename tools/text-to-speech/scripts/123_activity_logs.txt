@@ -1,7 +1,0 @@
-This video covers Activity Logs — a history of account, billing, and security actions for your workspace.
-
-Open Account, then Activity Logs. Use the Scope filter to show All, Account, Billing, or Security. The filter applies when you change it so you can focus on one area quickly.
-
-The table lists When, Actor, Action, Description, and IP. Empty state says no activity logged yet. Review Security after enabling two-factor or renewing an API token. Review Billing after plan changes or wallet payments. Review Account for profile or phone-line changes such as a default number update. Export or screenshot important rows when investigating an incident for your records.
-
-Activity Logs help you audit who did what and from which IP when something unexpected happens. Check logs after onboarding new team members or after a payment dispute. Keep the Scope filter on All when you are not sure which category to inspect. Next we cover Billing.

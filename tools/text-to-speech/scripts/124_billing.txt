@@ -1,7 +1,0 @@
-This video covers Billing — the checkout address step used when you buy or change a subscription plan.
-
-From Subscription Plans or Manage Subscription, open View Billing, or go to Billing Information under the subscription flow. The steps are Select Plans, Billing Information, then Payment Method.
-
-Fill GST Treatment, Company or Individual Name, PAN, Email address, Phone, Address, Country, State, City, and Zip or Postal Code. Tap Save. On the side, Your Order shows line items and Estimated Total. Read the payment terms, then tap Check Out. Confirm State and GST treatment before Check Out so tax on the invoice is correct.
-
-On Payment Method, pay securely with Razorpay using netbanking, UPI, or cards. Wallet recharge on the main Subscription page is separate from this Billing Information form — use wallet when you only need credits, and Billing when purchasing a plan. Keep GST and address details accurate for invoices. That completes the Accounts tutorials.

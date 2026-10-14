@@ -1,7 +1,0 @@
-Welcome to Facebook Catalogue in Commerce. This is where WapApp shows the Facebook product catalogues linked to your WhatsApp Business account.
-
-From the left sidebar, open Commerce, then Catalogs. The page title is Facebook Catalogue. Read the note: connect your Facebook product catalogue to WhatsApp, configure Razorpay under Payments, then WhatsApp orders appear with a payment link.
-
-On the Products tab, use Select a Catalog if more than one catalogue is connected. Search products, tap Refresh, and review the table for Image, Retailer ID, Title, Description, Brand, Condition, Availability, and Price. Tap Product Management to open Facebook Commerce in a new tab when you need to edit products on Meta. Search after Refresh if a newly added Meta product does not appear yet.
-
-Open the Catalogues tab to see Catalogue ID, Facebook Business ID, Catalogue Name, Vertical, Products count, and Connected status. If nothing appears, connect a catalogue to your WhatsApp Business account first. Next we review WhatsApp Orders.

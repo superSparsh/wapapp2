@@ -33,12 +33,27 @@ class TutorialModuleTree
 
             // Legacy layout: "Module 3: Automation - Sub-module 1: Chatbot"
             // → parent "Module 3: Automation", child "Chatbot"
-            if (preg_match('/^(.*?)\s-\sSub-module\s.*?:\s*(.*)$/u', $moduleName, $matches) === 1) {
+            if (preg_match('/^(.*?)\s-\sSub-module\s+(\d+):\s*(.*)$/u', $moduleName, $matches) === 1) {
+                $parent = trim($matches[1]);
+                $childOrder = (int) $matches[2];
+                $child = trim($matches[3]);
+
+                $structure[$parent]['type'] = 'parent';
+                $structure[$parent]['items'][$child][] = $video;
+                $structure[$parent]['child_order'][$child] = min(
+                    $structure[$parent]['child_order'][$child] ?? PHP_INT_MAX,
+                    $childOrder,
+                );
+            } elseif (preg_match('/^(.*?)\s-\sSub-module\s.*?:\s*(.*)$/u', $moduleName, $matches) === 1) {
                 $parent = trim($matches[1]);
                 $child = trim($matches[2]);
 
                 $structure[$parent]['type'] = 'parent';
                 $structure[$parent]['items'][$child][] = $video;
+                $structure[$parent]['child_order'][$child] = min(
+                    $structure[$parent]['child_order'][$child] ?? PHP_INT_MAX,
+                    (int) ($video->sort_order ?? PHP_INT_MAX),
+                );
             } else {
                 $structure[$moduleName]['type'] = 'single';
                 $structure[$moduleName]['items'][] = $video;
@@ -50,12 +65,16 @@ class TutorialModuleTree
         foreach ($structure as $label => $data) {
             if (($data['type'] ?? 'single') === 'parent') {
                 $children = [];
+                $childLabels = array_keys($data['items']);
+                usort(
+                    $childLabels,
+                    fn (string $a, string $b): int => ($data['child_order'][$a] ?? PHP_INT_MAX)
+                        <=> ($data['child_order'][$b] ?? PHP_INT_MAX)
+                        ?: strcmp($a, $b),
+                );
 
-                foreach ($data['items'] as $childLabel => $childVideos) {
-                    $mappedVideos = collect($childVideos)
-                        ->map(fn (TutorialVideo $video): array => $this->videoRow($video, $activeVideoId))
-                        ->values()
-                        ->all();
+                foreach ($childLabels as $childLabel) {
+                    $mappedVideos = $this->mapSortedVideos($data['items'][$childLabel], $activeVideoId);
 
                     if ($mappedVideos === []) {
                         continue;
@@ -81,10 +100,7 @@ class TutorialModuleTree
                 continue;
             }
 
-            $mappedVideos = collect($data['items'] ?? [])
-                ->map(fn (TutorialVideo $video): array => $this->videoRow($video, $activeVideoId))
-                ->values()
-                ->all();
+            $mappedVideos = $this->mapSortedVideos($data['items'] ?? [], $activeVideoId);
 
             if ($mappedVideos === [] && $search !== '' && ! str_contains(mb_strtolower($label), $search)) {
                 continue;
@@ -97,6 +113,12 @@ class TutorialModuleTree
                 'videos' => $mappedVideos,
             ];
         }
+
+        usort(
+            $categories,
+            fn (array $a, array $b): int => $this->moduleSortKey((string) $a['label'])
+                <=> $this->moduleSortKey((string) $b['label']),
+        );
 
         if ($categories !== [] && ! collect($categories)->contains(fn (array $category): bool => $category['expanded'])) {
             $categories[0]['expanded'] = true;
@@ -111,10 +133,25 @@ class TutorialModuleTree
      */
     public function flat(Collection $videos): array
     {
-        return $videos
-            ->map(fn (TutorialVideo $video): array => $this->videoRow($video, null))
-            ->values()
-            ->all();
+        $flat = [];
+
+        foreach ($this->build($videos) as $category) {
+            if (is_array($category['children'])) {
+                foreach ($category['children'] as $child) {
+                    foreach ($child['videos'] as $video) {
+                        $flat[] = $video;
+                    }
+                }
+
+                continue;
+            }
+
+            foreach ($category['videos'] ?? [] as $video) {
+                $flat[] = $video;
+            }
+        }
+
+        return $flat;
     }
 
     /**
@@ -251,6 +288,42 @@ class TutorialModuleTree
         return str_contains(mb_strtolower($video->title), $search)
             || str_contains(mb_strtolower($video->module_name), $search)
             || str_contains(mb_strtolower((string) $video->description), $search);
+    }
+
+    /**
+     * Module 1…N first; Product Demo / Demo / Overview last; other labels near the end.
+     *
+     * @return array{0: int, 1: string}
+     */
+    private function moduleSortKey(string $label): array
+    {
+        $trimmed = trim($label);
+
+        if (preg_match('/^(Product Demo|Demo|Overview)$/iu', $trimmed) === 1) {
+            return [PHP_INT_MAX, mb_strtolower($trimmed)];
+        }
+
+        if (preg_match('/^Module\s+(\d+)\b/iu', $trimmed, $matches) === 1) {
+            return [(int) $matches[1], mb_strtolower($trimmed)];
+        }
+
+        return [PHP_INT_MAX - 1, mb_strtolower($trimmed)];
+    }
+
+    /**
+     * @param  list<TutorialVideo>|array<int, TutorialVideo>  $videos
+     * @return list<array<string, mixed>>
+     */
+    private function mapSortedVideos(array $videos, ?int $activeVideoId): array
+    {
+        return collect($videos)
+            ->sortBy([
+                fn (TutorialVideo $video): int => (int) ($video->sort_order ?? 0),
+                fn (TutorialVideo $video): int => (int) $video->id,
+            ])
+            ->values()
+            ->map(fn (TutorialVideo $video): array => $this->videoRow($video, $activeVideoId))
+            ->all();
     }
 
     /**

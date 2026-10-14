@@ -1,7 +1,0 @@
-Welcome to Google Calendar in Connected Apps. Connecting lets WapApp sync calendar events and support Google Meet linked meetings.
-
-Open Connected Apps, then Google Calendar. On the Connect tab, make sure the integration is set to Enable. Tap Connect Google Account and complete the Google sign-in and consent screens. When OAuth succeeds, you return connected — often landing on Notifications — with a Connected badge showing your Google email or name. Use a dedicated business Google account when possible so personal events stay separate.
-
-Later you can tap Re-authorize if permissions need refreshing, or Disconnect to remove the Google account from WapApp. If Connect Google Account is unavailable, your workspace admin must configure Google OAuth credentials for the app first. After a successful connect, glance at Events or Notifications to confirm the account data loaded.
-
-Keep only the calendar account you use for customer meetings connected. After connect, set notification rules and booking links in the other tabs. Next we configure Google Calendar event notifications.

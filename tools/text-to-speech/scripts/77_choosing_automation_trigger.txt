@@ -1,7 +1,0 @@
-This video covers Choosing an Automation Trigger.
-
-Tap Add New to open Create Automation. Enter an Automation name, then open Automation Trigger. Open the info tip About automation triggers if you want a short overview of how triggers start a journey.
-
-Triggers are grouped. Under Audience you will see Welcome new subscribers, Say goodbye to subscriber, Say Happy birthday, Specific date and time for individual user, Subscriber added date, and When tag is added. Under Scheduled you get Specific date, Weekly recurring, and Monthly recurring. Integrations and API options appear when available. Pick one primary trigger per automation so the start condition stays easy to explain.
-
-When you pick a trigger, extra fields may appear such as Date, Time, Days of week, Tag name, or Delay. Match the trigger to the business moment you want to automate. You can change the trigger later in Settings if needed. Next we set up Welcome new subscribers.

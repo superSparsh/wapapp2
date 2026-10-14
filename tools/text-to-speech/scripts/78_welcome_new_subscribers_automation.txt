@@ -1,7 +1,0 @@
-In this video, you will set up a Welcome New Subscribers automation.
-
-On Create Automation, type a clear Automation name such as Welcome Series. For Automation Trigger, choose Welcome new subscribers. Optionally select an Audience list so only contacts who join that list enter the journey. Leave audience blank only if your account rules allow a broader welcome.
-
-Tap Create and Design Flow. The design page opens with a green trigger chip that reads New contact subscribes to list. That chip is the start of every path for this automation. Use Settings on the right to confirm name, trigger, audience, timezone, Start Date, and End Date, then Save. Send the first welcome template soon after subscribe while interest is highest.
-
-Welcome automations are ideal for a first template, a short wait, then a follow-up message. Build those steps on the canvas next. Always verify the correct list is selected before you enable the automation.

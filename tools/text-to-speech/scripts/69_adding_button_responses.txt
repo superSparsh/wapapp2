@@ -1,7 +1,0 @@
-In this video, you will add button responses and complete your chatbot.
-
-Open an Interactive Message and choose Buttons Message. Under Buttons Message Configuration, you can add one to three buttons. For each button, set a Button ID and Button text, up to twenty characters. Use Add Button or Remove Button to adjust the set. Keep labels short and clear, such as Support, Pricing, or Talk to agent.
-
-Each button creates a green quick-reply handle on the node. Connect every handle to the next step for that choice, for example a text reply, template, or another interactive node. Also connect a default branch if the customer does not tap a button. Test each button path on a phone before you announce the bot to customers.
-
-Tap Save Flow. If prompted with Enable chatbot, choose Enable so the bot can go live. On the list page, confirm the En/Disable toggle shows Active. Your first button-driven chatbot is ready to test on WhatsApp.

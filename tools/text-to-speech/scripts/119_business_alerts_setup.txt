@@ -1,7 +1,0 @@
-This video covers Business Alerts Setup — who receives important business notifications.
-
-Open Account, then Business Alerts Setup. The page heading is Manage Notification Contacts. Check Enable Notifications System when alerts should go out.
-
-Under Notification contacts, tap Add New. For each row choose Type as Email or WhatsApp, enter Full Name and Contact such as an email or WhatsApp number, and use Remove to delete a row you do not need. Add both email and WhatsApp contacts if different people should be notified. Use international format for WhatsApp alert numbers so messages deliver reliably. Remove old contacts when people leave so alerts do not go to unused inboxes.
-
-Tap Save. Success confirms notification contacts were saved. Keep at least one reliable admin contact so billing, security, or delivery alerts are not missed. Update the list when team roles change. Next we edit the WhatsApp Business Profile.

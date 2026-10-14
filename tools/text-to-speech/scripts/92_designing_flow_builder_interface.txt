@@ -1,7 +1,0 @@
-This video covers Designing Your Flow and the Flow Builder Interface.
-
-The palette has three tabs: Basic Input, Selection, and Display. Basic Input includes Text Input, Email, Phone Number, Number, Password, Paragraph, and Date Picker. Selection covers Single Choice, Multi Choice, Dropdown, and Opt-in Checkbox. Display adds headings, Text Body, Caption, Image, and Footer Button.
-
-On the left, the Screens list shows each screen with badges for Screens and Fields counts. Select a screen to edit it on the canvas. The right side shows Field settings and Preview. Use Navigation to set Next Screen, including End or Success when the form should finish. Use Preview often while designing so layout issues show up before you publish.
-
-Tap Save Draft anytime while designing. Use Preview to check how the form will feel on WhatsApp. Learn the layout first, then add fields. Next we add content elements to a screen.

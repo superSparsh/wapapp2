@@ -1,7 +1,0 @@
-Welcome to Calendly Integration in Connected Apps. This connects your Calendly account so WapApp can sync bookings and send WhatsApp updates.
-
-From the left sidebar, open Connected Apps, then Calendly. If the plugin is off, tap Enable Plugin at the top. Open the Access Token tab under Connect Calendly. Paste your Calendly personal access token into Access Token. Use the show control if you need to review what you pasted. Tap Test Token to confirm it is valid — you should see Token verified when it works, or an invalid token message if it fails.
-
-Tap Save and Connect. A success message confirms the token is saved and connected. The same page has tabs for Notifications, Your Events, and Message Logs. After connecting, keep Enable Plugin on so webhooks and sync can run.
-
-To stop the integration later, use Uninstall Plugin. That disables Calendly sync and clears synced events. Keep your token private and regenerate it in Calendly if it was ever shared. Next we configure Calendly WhatsApp notifications.

@@ -32,6 +32,13 @@ class TutorialTest extends TestCase
         TutorialVideo::factory()->create([
             'title' => 'Dashboard Overview',
             'module_name' => 'Module 1: Dashboard',
+            'sort_order' => 1,
+        ]);
+
+        TutorialVideo::factory()->create([
+            'title' => 'WapApp Complete Overview',
+            'module_name' => 'Product Demo',
+            'sort_order' => 999,
         ]);
 
         // Old placeholder seed group - must stay hidden.
@@ -50,6 +57,8 @@ class TutorialTest extends TestCase
             ->assertOk()
             ->assertSee('Dashboard Overview')
             ->assertSee('Module 1: Dashboard')
+            ->assertSee('Product Demo')
+            ->assertSee('WapApp Complete Overview')
             ->assertSee('Note: This tutorial still uses the previous WapApp design video.')
             ->assertDontSee('Inbox Basics')
             ->assertDontSee('Hidden Tutorial');

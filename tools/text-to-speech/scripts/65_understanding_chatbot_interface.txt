@@ -1,7 +1,0 @@
-Welcome to Chatbot in WapApp. Chatbots reply to customers on WhatsApp with guided conversation flows you design once and reuse.
-
-From the left sidebar, open Automation, then Chat bot. You land on the Chatbot list. Each row shows the Chatbot Name, how many Nodes it has, Published status, Actions, and an En/Disable toggle. Use search and sort options such as Newest first, Name A to Z, or Recently updated, then tap Refresh to reload.
-
-An Active chip means the bot is live on its WhatsApp number. Use Edit to open the flow builder, or delete a bot you no longer need. Confirm carefully — delete cannot be undone. Keep only the bots you still use enabled so customers always hit the right flow.
-
-The Create button starts a new chatbot. Use this list to find bots quickly, check whether they are enabled, and jump into editing. Next we create your first chatbot and open the builder.

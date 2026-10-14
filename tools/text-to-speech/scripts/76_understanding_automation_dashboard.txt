@@ -1,7 +1,0 @@
-Welcome to Drip Marketing. This is where you build automated WhatsApp sequences that run when contacts subscribe, reach a date, or match other triggers.
-
-Open Automation, then Drip Marketing. The dashboard lists each Automation Name with Contacts, Templates, Complete progress, a Statistics shortcut, Status, Actions, and En/Disable. Status shows Running when the automation is live, or Paused when it is turned off.
-
-Use Edit to open the design workspace, Copy to duplicate an automation, and delete when you no longer need it. The chart icon opens Statistics for that automation. Search and scan the table when you manage many workflows. Pause finished seasonal automations so they do not keep messaging after the offer ends.
-
-Tap Add New to create your first automation. The empty state says No automations yet until you add one. Use this dashboard to monitor which journeys are active and jump quickly into design or reports. Next we choose an automation trigger.

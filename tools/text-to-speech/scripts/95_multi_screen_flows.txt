@@ -1,7 +1,0 @@
-This video covers Multi-Screen Flows.
-
-In the Screens list, tap Add Screen to create another step in the form. Rename each screen so the purpose is clear, for example Contact details, Preferences, then Confirm. Select a screen to edit its fields, then use Navigation and Next Screen to choose what follows — another screen, or End / Success when the Flow should finish.
-
-Split long forms across screens so each step asks only a few questions. Put optional details on later screens. Watch the Screens and Fields badges update as you build. Put consent or confirmation on the last screen before End or Success.
-
-Save Draft after wiring navigation. Preview the full path from first screen to success. Broken Next Screen links confuse users, so verify every screen has a clear destination. Multi-screen design is how Flows handle bookings and longer surveys. Next we publish the Flow to WhatsApp.

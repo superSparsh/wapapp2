@@ -1,7 +1,0 @@
-This video explains Understanding Automation Actions.
-
-On the design canvas, tap an Add step circle. The Add an Action modal opens with four legacy actions you can insert into the flow.
-
-Send a template delivers an approved WhatsApp template to the contact. Wait pauses the journey for a duration you choose. Evaluate a condition branches the path based on a criterion such as whether a message was read. Operation updates contact data, for example tagging, copying or moving to another list, updating a field, or unsubscribing. Avoid stacking many operations before the first message or contacts wait too long to hear from you.
-
-Read each action title and short description before you insert it. Most welcome and nurture journeys start with Send a template, then Wait, then another template. Use conditions when the next step should depend on engagement. Use operations to keep Audience lists and tags in sync. Next we build a full workflow with these steps.
