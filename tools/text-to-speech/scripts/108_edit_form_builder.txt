@@ -1,0 +1,7 @@
+This video covers Edit Form Builder — changing a form after it is created.
+
+On the Form Builder dashboard, tap the Edit icon for a row. The page title shows Edit Form with the form name. Confirm the Public URL at the top — that is the link customers will open.
+
+The layout matches create: Available Fields on the left, Form Canvas in the center, and Form Preview on the right. Update Form Name, Mail List, or Template if targeting changed. Click fields to add more inputs, edit labels and Required Field, upload a Logo, or remove fields you no longer need. Reorder with Move up, Move down, or the drag handle. After big field changes, preview once on a phone-sized layout before you share the Public URL again.
+
+When the canvas and preview look right, tap Save Form. Cancel returns without saving. Statistics live on the dashboard menu, not inside this edit screen. Next we save and activate the form so the public URL works.

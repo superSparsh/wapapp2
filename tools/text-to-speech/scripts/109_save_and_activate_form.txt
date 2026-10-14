@@ -1,0 +1,7 @@
+This video covers Save and Activate Form so leads can submit on the public page.
+
+In create or edit, the Active toggle next to Save Form controls whether the form goes live with this save. If Active is off when you tap Save Form, a dialog asks Activate form? Choose Yes, Activate to save and turn it on, or No, just save to keep a draft.
+
+You can also activate from the dashboard. Use the En/Disable column toggle without opening the editor. Status updates to Active or Inactive. Only Active forms work on the public URL — inactive forms return not found for visitors. If Copy Link fails for visitors, confirm Status shows Active on the dashboard first.
+
+After activate, open Form URL or Copy Link and submit a test lead. You should see You're all set on success, and the contact should appear on the mapped mail list. Pause a form anytime with En/Disable when a campaign ends. Next we map form fields to lists and templates.

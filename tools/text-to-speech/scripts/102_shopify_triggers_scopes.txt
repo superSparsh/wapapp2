@@ -1,0 +1,7 @@
+This video covers Shopify Triggers and Scopes — mapping store webhooks to WhatsApp templates.
+
+From the Shopify Dashboard, tap Add Trigger Scopes. If no domain is set, first use Set domain on Dashboard. On Add Trigger Scope, open Select a webhook scope and pick an event such as Orders Create, Orders Paid, Checkouts Create for abandoned cart, or Products Create. Start with Orders Create or Orders Paid before adding every available scope.
+
+Leave Enabled checked so WhatsApp notifications run for that scope. Under Select Template, choose an approved template. For product scopes, also choose Audience Mail List because those notify everyone on the selected list. Tap Create Webhook.
+
+On the right, Enabled Webhooks lists what you configured. Search scopes, or delete one if notifications should stop — confirm Delete webhook scope carefully. Return to the dashboard to review logs with Event Type, Template, Status, and Sent At. That is how Shopify events become automatic WhatsApp messages.

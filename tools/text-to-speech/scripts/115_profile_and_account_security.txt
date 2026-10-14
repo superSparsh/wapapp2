@@ -1,0 +1,5 @@
+Welcome to Profile and Account Security. Start under Account in the left sidebar.
+
+Open My profile. On My Profile you manage personal information and credentials. Update Profile Photo with Change or Remove, then edit Basic information such as First Name, Last Name, Time zone, Country, and Language. Under Account, update Email or set a New password and Confirm new password. Leave password blank to keep the current one. Tap Save when finished. Revisit Security after any password change so two-factor still matches your authenticator app.
+
+Next open Security. Account security protects the account with two-factor authentication. If two-factor is off, scan the QR code with Google Authenticator or Authy, or use the Manual setup key, then enter a six-digit code and tap Enable two F A. If it is already on, you can Disable two F A with your password and authenticator code, or Regenerate recovery codes. Save recovery codes somewhere safe. Next we open the Integration tab.

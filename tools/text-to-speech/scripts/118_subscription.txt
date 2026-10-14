@@ -1,0 +1,7 @@
+This video covers Subscription — your plan, billing history, and wallet balance.
+
+Open Account, then Subscription. The subtitle notes that payments are processed via Razorpay only. The plan banner shows the plan you are subscribed to, or says no active plan is selected. Expiry copy shows when the subscription ends and how many days remain.
+
+Payment History lists Created at, Purpose, Amount, and Status. Plan details show Plan name and Messaging tier. On the Wallet card, check Balance, enter a Recharge Amount, review GST and Total Payable, then tap Pay Securely with Razorpay. Recharge the wallet before large campaigns so sends are not paused for low balance. Watch days remaining on the plan banner so renewals are not left to the last day.
+
+From Dashboard you can also open Manage on the wallet card to reach this page, or use Wallet History and Add Credits. Upgrade flows under Subscription Plans let you choose a plan before billing. Next we set up Business Alerts.

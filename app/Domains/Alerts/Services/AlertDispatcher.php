@@ -7,10 +7,13 @@ namespace App\Domains\Alerts\Services;
 use App\Domains\Billing\Services\WalletService;
 use App\Enums\OperationalAlertType;
 use App\Enums\SubscriptionStatus;
+use App\Models\NotificationContact;
 use App\Models\Subscription;
+use App\Models\Tenant;
 use App\Models\User;
 use App\Models\WalletAccount;
 use App\Models\WhatsappLine;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
@@ -22,11 +25,25 @@ class AlertDispatcher
         private readonly WalletService $wallet,
     ) {}
 
-    public function planExpiration(Subscription $subscription, int $daysLeft, object $plan, ?User $user = null): void
+    public function planExpiration(?Subscription $subscription, int $daysLeft, object $plan, ?User $user = null, ?Carbon $endsAt = null): void
     {
-        $meta = is_array($subscription->metadata) ? $subscription->metadata : [];
-        $sent = (array) ($meta['plan_expiration_alerts_sent'] ?? []);
+        $endsAt ??= $subscription?->ends_at;
         $dayKey = (string) $daysLeft;
+
+        $meta = is_array($subscription?->metadata) ? $subscription->metadata : [];
+        $sent = (array) ($meta['plan_expiration_alerts_sent'] ?? []);
+
+        // Merge tenant.settings dedupe when subscription row is missing / never tracked.
+        $tenantId = tenant('id');
+        $tenant = $tenantId
+            ? tenancy()->central(fn () => Tenant::query()->find($tenantId))
+            : null;
+        $tenantSettings = is_array($tenant?->settings) ? $tenant->settings : [];
+        $sent = array_values(array_unique(array_merge(
+            $sent,
+            (array) ($tenantSettings['plan_expiration_alerts_sent'] ?? []),
+        )));
+
         if (in_array($dayKey, $sent, true)) {
             return;
         }
@@ -48,26 +65,48 @@ class AlertDispatcher
             'support_whatsapp_url' => $support['whatsapp_url'] ?? '',
             'support_email' => $support['email'] ?? '',
             'days_left' => $daysLeft,
+            'ends_at' => $endsAt?->format('d M Y') ?? '',
         ];
 
         $template = $daysLeft <= 3
             ? (string) config('operational-alerts.plan_expiration.whatsapp_template')
             : (string) config('operational-alerts.plan_expiration.whatsapp_renewal_template');
 
+        $whatsappParams = [
+            'customer_name' => (string) ($user?->name ?? 'Customer'),
+            'plan_name' => (string) ($plan->name ?? 'Plan'),
+            'days_left' => $daysLeft,
+            'ends_at' => $endsAt?->format('d M Y') ?? '',
+        ];
+
+        $emailSubject = "Your plan expires in {$daysLeft} day(s)";
+
+        // Business Alerts contacts (when alerts_enabled + contacts exist).
         $this->alerts->notifyTenantContacts(
             type: OperationalAlertType::PlanExpiration,
-            emailSubject: "Your plan expires in {$daysLeft} day(s)",
+            emailSubject: $emailSubject,
             emailView: 'emails.plan-expiration',
             emailData: $emailData,
             whatsappTemplate: $template,
-            whatsappParams: [
-                'customer_name' => (string) ($user?->name ?? 'Customer'),
-                'plan_name' => (string) ($plan->name ?? 'Plan'),
-                'days_left' => $daysLeft,
-                'ends_at' => $subscription->ends_at?->format('d M Y') ?? '',
-            ],
+            whatsappParams: $whatsappParams,
             owner: $user,
         );
+
+        // Billing-critical fallback (legacy always emailed/WhatsApp'd the owner).
+        if (! $this->alerts->alertsEnabled() || ! $this->tenantHasPlanExpirationContacts($user)) {
+            if (filled($user?->email)) {
+                $this->alerts->notifyEmails(
+                    [(string) $user->email],
+                    OperationalAlertType::PlanExpiration,
+                    $emailSubject,
+                    'emails.plan-expiration',
+                    $emailData,
+                );
+            }
+            if (filled($user?->phone) && $template !== '') {
+                $this->alerts->notifyWhatsAppNumbers([(string) $user->phone], $template, $whatsappParams);
+            }
+        }
 
         $this->platform->notifyAdmins(
             OperationalAlertType::PlanExpiration,
@@ -76,10 +115,40 @@ class AlertDispatcher
             $emailData,
         );
 
+        // Admin WhatsApp (WHATSAPP_TO_NUMBERS_PLAN_EXPIRATION) — was configured but never sent.
+        $adminWa = (array) config('operational-alerts.admin_whatsapp_numbers', []);
+        if ($adminWa !== [] && $template !== '') {
+            $this->alerts->notifyWhatsAppNumbers($adminWa, $template, $whatsappParams);
+        }
+
         $sent[] = $dayKey;
-        $subscription->update([
-            'metadata' => array_merge($meta, ['plan_expiration_alerts_sent' => array_values(array_unique($sent))]),
-        ]);
+        $sent = array_values(array_unique($sent));
+
+        if ($subscription !== null) {
+            $subscription->update([
+                'metadata' => array_merge($meta, ['plan_expiration_alerts_sent' => $sent]),
+            ]);
+        }
+
+        if ($tenant !== null) {
+            tenancy()->central(function () use ($tenant, $sent): void {
+                $fresh = Tenant::query()->find($tenant->id);
+                if ($fresh === null) {
+                    return;
+                }
+                $settings = is_array($fresh->settings) ? $fresh->settings : [];
+                $settings['plan_expiration_alerts_sent'] = $sent;
+                $fresh->settings = $settings;
+                $fresh->save();
+            });
+        }
+    }
+
+    private function tenantHasPlanExpirationContacts(?User $owner): bool
+    {
+        return NotificationContact::query()
+            ->when($owner !== null, fn ($q) => $q->where('user_id', $owner->id))
+            ->exists();
     }
 
     public function inboxNewMessage(string $fromPhone, string $preview, ?string $contactName = null): void

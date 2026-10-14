@@ -1,0 +1,7 @@
+This video covers WhatsApp Business Profile — the public business details customers see on WhatsApp.
+
+Open Account, Integration, then on a channel card tap Update Profile. You land on Modify Phone Business Profile for that WhatsApp line. Update Business Email, Business Logo with upload or Remove logo, Website URL, Address, Description, and About.
+
+Keep About and Description clear and on-brand so customers trust the chat. Logo should meet Meta image rules so it displays correctly. Tap Update to save, or Cancel to leave without changes. Success confirms the business profile updated for that display name. Preview the profile on a phone after Update to confirm logo and About look correct. Match Website URL to the site customers already know so the profile feels consistent.
+
+Return to Integration if you manage multiple lines and update each profile separately. A complete profile improves recognition before you send templates or chatbot messages. Next we manage extra phone numbers.

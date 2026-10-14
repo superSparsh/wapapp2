@@ -1368,5 +1368,514 @@
       "1:15 \u2013 End"
     ],
     "voice": "en-IN-NeerjaNeural"
+  },
+  {
+    "id": "98_calendly_integration",
+    "title": "Calendly Integration",
+    "module": "Module 7: Connected Apps",
+    "video_no": 1,
+    "route": "integration.calendly",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "script_file": "98_calendly_integration.txt",
+    "screen_cues": [
+      "0:00 \u2013 Connected Apps \u2192 Calendly",
+      "0:20 \u2013 Enable Plugin",
+      "0:40 \u2013 Access Token",
+      "1:00 \u2013 Save & Connect",
+      "1:15 \u2013 End"
+    ],
+    "voice": "en-IN-NeerjaNeural"
+  },
+  {
+    "id": "99_calendly_notifications",
+    "title": "Calendly Notifications",
+    "module": "Module 7: Connected Apps",
+    "video_no": 2,
+    "route": "integration.calendly",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "script_file": "99_calendly_notifications.txt",
+    "screen_cues": [
+      "0:00 \u2013 Notifications tab",
+      "0:25 \u2013 WhatsApp Number / Email",
+      "0:50 \u2013 Enable WhatsApp Notifications",
+      "1:05 \u2013 Save Settings",
+      "1:15 \u2013 End"
+    ],
+    "voice": "en-IN-NeerjaNeural"
+  },
+  {
+    "id": "100_calendly_events",
+    "title": "Calendly Events",
+    "module": "Module 7: Connected Apps",
+    "video_no": 3,
+    "route": "integration.calendly",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "script_file": "100_calendly_events.txt",
+    "screen_cues": [
+      "0:00 \u2013 Your Events tab",
+      "0:25 \u2013 Sync Events",
+      "0:50 \u2013 Filters",
+      "1:05 \u2013 Event details",
+      "1:15 \u2013 End"
+    ],
+    "voice": "en-IN-NeerjaNeural"
+  },
+  {
+    "id": "101_connect_shopify_store",
+    "title": "Connect Shopify Store",
+    "module": "Module 7: Connected Apps",
+    "video_no": 4,
+    "route": "integration.index",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "script_file": "101_connect_shopify_store.txt",
+    "screen_cues": [
+      "0:00 \u2013 Connected Apps \u2192 Shopify",
+      "0:25 \u2013 Connect Store",
+      "0:50 \u2013 Save Domain",
+      "1:05 \u2013 Webhooks note",
+      "1:15 \u2013 End"
+    ],
+    "voice": "en-IN-NeerjaNeural"
+  },
+  {
+    "id": "102_shopify_triggers_scopes",
+    "title": "Shopify Triggers & Scopes",
+    "module": "Module 7: Connected Apps",
+    "video_no": 5,
+    "route": "integration.shopify.scopes",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "script_file": "102_shopify_triggers_scopes.txt",
+    "screen_cues": [
+      "0:00 \u2013 Add Trigger Scopes",
+      "0:25 \u2013 Select scope + template",
+      "0:55 \u2013 Create Webhook",
+      "1:05 \u2013 Enabled Webhooks",
+      "1:15 \u2013 End"
+    ],
+    "voice": "en-IN-NeerjaNeural"
+  },
+  {
+    "id": "103_connect_google_calendar",
+    "title": "Connect Google Calendar",
+    "module": "Module 7: Connected Apps",
+    "video_no": 6,
+    "route": "integration.google-calendar",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "script_file": "103_connect_google_calendar.txt",
+    "screen_cues": [
+      "0:00 \u2013 Google Calendar",
+      "0:25 \u2013 Connect tab",
+      "0:45 \u2013 Connect Google Account",
+      "1:05 \u2013 Connected / Disconnect",
+      "1:15 \u2013 End"
+    ],
+    "voice": "en-IN-NeerjaNeural"
+  },
+  {
+    "id": "104_google_calendar_event_notifications",
+    "title": "Google Calendar Event Notifications",
+    "module": "Module 7: Connected Apps",
+    "video_no": 7,
+    "route": "integration.google-calendar",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "script_file": "104_google_calendar_event_notifications.txt",
+    "screen_cues": [
+      "0:00 \u2013 Notifications tab",
+      "0:25 \u2013 Admin WhatsApp + Calendar",
+      "0:50 \u2013 Reminder + toggles",
+      "1:05 \u2013 Save Settings",
+      "1:15 \u2013 End"
+    ],
+    "voice": "en-IN-NeerjaNeural"
+  },
+  {
+    "id": "105_google_calendar_public_booking_page",
+    "title": "Google Calendar Public Booking Page",
+    "module": "Module 7: Connected Apps",
+    "video_no": 8,
+    "route": "integration.google-calendar",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "script_file": "105_google_calendar_public_booking_page.txt",
+    "screen_cues": [
+      "0:00 \u2013 Booking Links tab",
+      "0:25 \u2013 Create Booking Link",
+      "0:55 \u2013 Public book page",
+      "1:10 \u2013 Remove link",
+      "1:15 \u2013 End"
+    ],
+    "voice": "en-IN-NeerjaNeural"
+  },
+  {
+    "id": "106_form_builder_dashboard",
+    "title": "Form Builder Dashboard",
+    "module": "Module 8: Form Builder",
+    "video_no": 1,
+    "route": "form-builder.index",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "script_file": "106_form_builder_dashboard.txt",
+    "screen_cues": [
+      "0:00 \u2013 Form builder sidebar",
+      "0:25 \u2013 Search / sort / Refresh",
+      "0:50 \u2013 Table columns",
+      "1:05 \u2013 Create Form",
+      "1:15 \u2013 End"
+    ],
+    "voice": "en-IN-NeerjaNeural"
+  },
+  {
+    "id": "107_creating_first_form",
+    "title": "Creating First Form",
+    "module": "Module 8: Form Builder",
+    "video_no": 2,
+    "route": "form-builder.create",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "script_file": "107_creating_first_form.txt",
+    "screen_cues": [
+      "0:00 \u2013 Create Form",
+      "0:25 \u2013 Name / list / template",
+      "0:50 \u2013 Available Fields",
+      "1:05 \u2013 Preview",
+      "1:15 \u2013 End"
+    ],
+    "voice": "en-IN-NeerjaNeural"
+  },
+  {
+    "id": "108_edit_form_builder",
+    "title": "Edit Form Builder",
+    "module": "Module 8: Form Builder",
+    "video_no": 3,
+    "route": "form-builder.edit",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "script_file": "108_edit_form_builder.txt",
+    "screen_cues": [
+      "0:00 \u2013 Open Edit",
+      "0:25 \u2013 Public URL",
+      "0:45 \u2013 Reorder fields",
+      "1:05 \u2013 Save Form",
+      "1:15 \u2013 End"
+    ],
+    "voice": "en-IN-NeerjaNeural"
+  },
+  {
+    "id": "109_save_and_activate_form",
+    "title": "Save and Activate Form",
+    "module": "Module 8: Form Builder",
+    "video_no": 4,
+    "route": "form-builder.edit",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "script_file": "109_save_and_activate_form.txt",
+    "screen_cues": [
+      "0:00 \u2013 Active toggle",
+      "0:30 \u2013 Save Form dialog",
+      "0:55 \u2013 Dashboard En/Disable",
+      "1:10 \u2013 Test public URL",
+      "1:15 \u2013 End"
+    ],
+    "voice": "en-IN-NeerjaNeural"
+  },
+  {
+    "id": "110_mapping_form_fields",
+    "title": "Mapping Form Fields",
+    "module": "Module 8: Form Builder",
+    "video_no": 5,
+    "route": "form-builder.edit",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "script_file": "110_mapping_form_fields.txt",
+    "screen_cues": [
+      "0:00 \u2013 Mail List + Template",
+      "0:30 \u2013 Default name/phone fields",
+      "0:55 \u2013 Extra inputs",
+      "1:05 \u2013 Test submit",
+      "1:15 \u2013 End"
+    ],
+    "voice": "en-IN-NeerjaNeural"
+  },
+  {
+    "id": "111_facebook_catalogue",
+    "title": "Facebook Catalogue",
+    "module": "Module 9: Commerce",
+    "video_no": 1,
+    "route": "commerce.index",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "script_file": "111_facebook_catalogue.txt",
+    "screen_cues": [
+      "0:00 \u2013 Commerce \u2192 Catalogs",
+      "0:25 \u2013 Products table",
+      "0:50 \u2013 Catalogues tab",
+      "1:05 \u2013 Product Management",
+      "1:15 \u2013 End"
+    ],
+    "voice": "en-IN-NeerjaNeural"
+  },
+  {
+    "id": "112_whatsapp_orders",
+    "title": "WhatsApp Orders",
+    "module": "Module 9: Commerce",
+    "video_no": 2,
+    "route": "commerce.orders",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "script_file": "112_whatsapp_orders.txt",
+    "screen_cues": [
+      "0:00 \u2013 Orders tab",
+      "0:25 \u2013 Filters / stats",
+      "0:50 \u2013 Orders table",
+      "1:05 \u2013 Order Details",
+      "1:15 \u2013 End"
+    ],
+    "voice": "en-IN-NeerjaNeural"
+  },
+  {
+    "id": "113_payment_dashboard",
+    "title": "Payment Dashboard",
+    "module": "Module 9: Commerce",
+    "video_no": 3,
+    "route": "commerce.settings",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "script_file": "113_payment_dashboard.txt",
+    "screen_cues": [
+      "0:00 \u2013 Payments tab",
+      "0:25 \u2013 Stats + config",
+      "0:55 \u2013 Recent Transactions",
+      "1:10 \u2013 Create / Config buttons",
+      "1:15 \u2013 End"
+    ],
+    "voice": "en-IN-NeerjaNeural"
+  },
+  {
+    "id": "114_razorpay_payment_links_setup",
+    "title": "Razorpay / Payment Links Setup",
+    "module": "Module 9: Commerce",
+    "video_no": 4,
+    "route": "commerce.settings",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "script_file": "114_razorpay_payment_links_setup.txt",
+    "screen_cues": [
+      "0:00 \u2013 Payment Configuration",
+      "0:35 \u2013 Save Configuration",
+      "0:55 \u2013 Create New Payment",
+      "1:10 \u2013 Callback",
+      "1:15 \u2013 End"
+    ],
+    "voice": "en-IN-NeerjaNeural"
+  },
+  {
+    "id": "115_profile_and_account_security",
+    "title": "Profile and Account Security",
+    "module": "Module 10: Accounts",
+    "video_no": 1,
+    "route": "profile.index",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "script_file": "115_profile_and_account_security.txt",
+    "screen_cues": [
+      "0:00 \u2013 Account \u2192 My profile",
+      "0:35 \u2013 Save profile",
+      "0:55 \u2013 Security / 2FA",
+      "1:10 \u2013 End"
+    ],
+    "voice": "en-IN-NeerjaNeural"
+  },
+  {
+    "id": "116_integration_tab",
+    "title": "Integration Tab",
+    "module": "Module 10: Accounts",
+    "video_no": 2,
+    "route": "profile.integration",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "script_file": "116_integration_tab.txt",
+    "screen_cues": [
+      "0:00 \u2013 Account \u2192 Integration",
+      "0:25 \u2013 Business Details / Sync",
+      "0:50 \u2013 Channels cards",
+      "1:05 \u2013 Update Profile",
+      "1:15 \u2013 End"
+    ],
+    "voice": "en-IN-NeerjaNeural"
+  },
+  {
+    "id": "117_api_settings",
+    "title": "API Settings",
+    "module": "Module 10: Accounts",
+    "video_no": 3,
+    "route": "profile.api",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "script_file": "117_api_settings.txt",
+    "screen_cues": [
+      "0:00 \u2013 Account \u2192 API",
+      "0:25 \u2013 Endpoint / token",
+      "0:50 \u2013 Renew Token",
+      "1:05 \u2013 API docs",
+      "1:15 \u2013 End"
+    ],
+    "voice": "en-IN-NeerjaNeural"
+  },
+  {
+    "id": "118_subscription",
+    "title": "Subscription",
+    "module": "Module 10: Accounts",
+    "video_no": 4,
+    "route": "profile.subscription",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "script_file": "118_subscription.txt",
+    "screen_cues": [
+      "0:00 \u2013 Account \u2192 Subscription",
+      "0:30 \u2013 Plan banner",
+      "0:50 \u2013 Payment History",
+      "1:05 \u2013 Wallet recharge",
+      "1:15 \u2013 End"
+    ],
+    "voice": "en-IN-NeerjaNeural"
+  },
+  {
+    "id": "119_business_alerts_setup",
+    "title": "Business Alerts Setup",
+    "module": "Module 10: Accounts",
+    "video_no": 5,
+    "route": "profile.alerts",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "script_file": "119_business_alerts_setup.txt",
+    "screen_cues": [
+      "0:00 \u2013 Business Alerts Setup",
+      "0:25 \u2013 Enable Notifications",
+      "0:50 \u2013 Add contacts",
+      "1:05 \u2013 Save",
+      "1:15 \u2013 End"
+    ],
+    "voice": "en-IN-NeerjaNeural"
+  },
+  {
+    "id": "120_whatsapp_business_profile",
+    "title": "WhatsApp Business Profile",
+    "module": "Module 10: Accounts",
+    "video_no": 6,
+    "route": "profile.integration.connected",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "script_file": "120_whatsapp_business_profile.txt",
+    "screen_cues": [
+      "0:00 \u2013 Integration \u2192 Update Profile",
+      "0:30 \u2013 Profile fields",
+      "0:55 \u2013 Update",
+      "1:10 \u2013 End"
+    ],
+    "voice": "en-IN-NeerjaNeural"
+  },
+  {
+    "id": "121_manage_phone_numbers",
+    "title": "Manage Phone Numbers (Add / Edit Lines)",
+    "module": "Module 10: Accounts",
+    "video_no": 7,
+    "route": "profile.phone-lines.index",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "script_file": "121_manage_phone_numbers.txt",
+    "screen_cues": [
+      "0:00 \u2013 Manage Phone Numbers",
+      "0:30 \u2013 Add Number",
+      "0:55 \u2013 Set password",
+      "1:10 \u2013 End"
+    ],
+    "voice": "en-IN-NeerjaNeural"
+  },
+  {
+    "id": "122_switch_active_phone_line",
+    "title": "Switch Active Phone Line",
+    "module": "Module 10: Accounts",
+    "video_no": 8,
+    "route": "profile.phone-lines.index",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "script_file": "122_switch_active_phone_line.txt",
+    "screen_cues": [
+      "0:00 \u2013 Inbox WhatsApp number filter",
+      "0:40 \u2013 Open Dashboard number mode",
+      "1:00 \u2013 Exit Number Mode",
+      "1:15 \u2013 End"
+    ],
+    "voice": "en-IN-NeerjaNeural"
+  },
+  {
+    "id": "123_activity_logs",
+    "title": "Activity Logs",
+    "module": "Module 10: Accounts",
+    "video_no": 9,
+    "route": "profile.activity-logs",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "script_file": "123_activity_logs.txt",
+    "screen_cues": [
+      "0:00 \u2013 Activity Logs",
+      "0:25 \u2013 Scope filter",
+      "0:50 \u2013 Table columns",
+      "1:05 \u2013 Review tips",
+      "1:15 \u2013 End"
+    ],
+    "voice": "en-IN-NeerjaNeural"
+  },
+  {
+    "id": "124_billing",
+    "title": "Billing",
+    "module": "Module 10: Accounts",
+    "video_no": 10,
+    "route": "profile.subscription.billing",
+    "target_duration": "1:15",
+    "duration_range": "1-1.5 min",
+    "lang": "en",
+    "script_file": "124_billing.txt",
+    "screen_cues": [
+      "0:00 \u2013 Billing Information",
+      "0:30 \u2013 Address fields",
+      "0:55 \u2013 Your Order / Check Out",
+      "1:10 \u2013 Payment",
+      "1:15 \u2013 End"
+    ],
+    "voice": "en-IN-NeerjaNeural"
   }
 ]

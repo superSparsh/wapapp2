@@ -1,0 +1,7 @@
+This video covers WhatsApp Orders — every cart customers place from your WhatsApp catalogue.
+
+Open Commerce, then Orders. Search by name, phone, or catalog ID. Filter by Order Status such as New, Confirmed, Shipped, Delivered, or Cancelled, and by Payment Status such as Pending, Paid, or Failed. Sort by newest, customer name, total, or status. Stats pills show Total, New, Confirmed, Delivered, and Cancelled counts.
+
+The table lists Customer, Phone, Products, Total, Order Status, Payment Status, Payment Link, and Date. Use Copy Link when a payment link exists. Click a row to open Order Details. Update Order Status from the dropdown, check Payment Status and Total Amount, open the payment link if needed, and review Ordered Items with quantities. Clear filters when the list looks empty so you do not miss open New orders.
+
+Keep statuses current so your team knows what to ship. Failed or pending payments often need a resent payment link from Payments. Next we open the Payment Dashboard.

@@ -1,0 +1,7 @@
+In this video, you will connect your Shopify store domain in WapApp.
+
+Open Connected Apps, then Shopify. You land on the Shopify Dashboard. Tap Connect Store. In the Connect Shopify Store modal, enter your Shopify Domain URL, for example your store on myshopify.com with https. Tap Save Domain. When editing later, the same control appears as Edit Domain. Use the exact myshopify domain so webhook signatures and store matching stay reliable.
+
+After the domain is saved, create matching webhooks in Shopify Admin that point to this app’s Shopify webhook URL for each topic you need, such as orders create. WapApp uses the saved domain plus those webhooks to receive store events — there is no separate Shopify login button inside this screen.
+
+Once the domain is connected, use Add Trigger Scopes to map events to WhatsApp templates. Check the dashboard message logs after the first test order so you know events are arriving. Next we configure Shopify triggers and scopes.

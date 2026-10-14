@@ -1,0 +1,7 @@
+This video covers Google Calendar Event Notifications.
+
+Open Google Calendar and select the Notifications tab under Notification Settings. Enter WhatsApp Number for the admin who should receive alerts. Choose Calendar — Primary or another synced calendar. Set Reminder minutes before, such as fifteen minutes, thirty minutes, or up to twenty-four hours, depending on how early you want the WhatsApp reminder. Shorter reminders suit same-day meetings; longer ones suit next-day appointments.
+
+Check Enable WhatsApp Notifications. Optionally enable Google Meet Only so non-Meet events are ignored. Tap Save Settings. Success confirms Notification settings updated successfully. Re-open Notifications anytime you change the admin phone or switch which calendar should send reminders.
+
+These settings control reminder timing and which calendar feeds WhatsApp. After a test meeting is created on the selected calendar, confirm a reminder arrives on the admin number before you rely on it for real bookings. Next we create a public booking page link.

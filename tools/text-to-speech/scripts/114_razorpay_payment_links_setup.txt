@@ -1,0 +1,7 @@
+In this video, you will set up Razorpay and create WhatsApp payment links.
+
+On the Payment Dashboard, tap Payment Configuration. In Setup Payment Configuration, enter Client Name, Razorpay Key, and Razorpay Secret. Select Payment Template for the WhatsApp message that carries the link. Optionally select a Payment Confirmation Template. Tap Save Configuration. Success confirms the payment configuration was saved.
+
+Next, tap Create New Payment. Enter Customer Name, Customer Number, Currency such as INR or USD, and Amount. Tap Create and Send via WhatsApp. WapApp creates the Razorpay link and queues the WhatsApp message. The customer pays through Razorpay and returns to a Payment Successful or Payment Pending page. Use live Razorpay keys only on production; test keys belong in a sandbox account.
+
+You can also request payment from Inbox using Send Payment Link when chatting with a customer. Keep keys secure, and recheck the Selected Template if sends fail. That completes the Commerce tutorials.

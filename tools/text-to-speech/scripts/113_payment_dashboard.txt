@@ -1,0 +1,7 @@
+This video covers the Payment Dashboard where Razorpay payment links and transaction history live.
+
+Open Commerce, then Payments. Search by name, phone, or order reference, and filter by statuses such as Created, Sent, Paid, Failed, Expired, or Cancelled. Stat cards show Total Paid and Total Pending with payment counts.
+
+Under Payment Configuration you see Client Name, Razorpay Key, and Selected Template. If nothing is set, the page says click Payment Configuration to set up Razorpay credentials. Recent Transactions lists Order Ref, Customer Name, Phone, Amount, Currency, Razorpay Ref ID, Status, Payment Link, and Created At. Use Copy Link or Export to Excel for records. Review Failed and Expired rows regularly so unpaid customers get a fresh link.
+
+Use Payment Configuration to save keys and templates, and Create New Payment to send a manual link on WhatsApp. That overview prepares the next video, where we set up Razorpay and create payment links step by step.

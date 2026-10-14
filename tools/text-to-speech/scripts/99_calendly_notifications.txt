@@ -1,0 +1,7 @@
+This video covers Calendly Notifications so admins and invitees get WhatsApp updates about bookings.
+
+Open Connected Apps, Calendly, then the Notifications tab. Under WhatsApp Notifications, enter WhatsApp Number for the admin who should receive booking alerts. Optionally add Calendly Email. Use international format for the phone, for example plus ninety-one followed by your ten-digit number.
+
+Check Enable WhatsApp Notifications. Help text on the page reminds you to collect the customer WhatsApp or phone number through a Calendly custom question so confirmations can reach them. Tap Save Settings. You should see Notification settings updated successfully. If customers do not receive confirmations, verify the Calendly form asks for WhatsApp number as a required question.
+
+Turn notifications off only when you are testing or pausing bookings temporarily. Review Message Logs later to confirm sends show as Sent, Failed, or Skipped. Keep the admin number correct so your team never misses a new or canceled booking. Next we sync and review Calendly events.

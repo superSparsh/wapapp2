@@ -1,0 +1,7 @@
+Welcome to Form Builder. This is where you create and manage signup forms for lead generation on WhatsApp.
+
+From the left sidebar, open Form builder. You land on the Form Builder dashboard. Search forms by name, sort by Newest first, Oldest first, Name A to Z, Name Z to A, or Status, then tap Refresh to reload.
+
+The table shows Form Name, Form URL, Communication Status with Sent, Read, Delivered, and Failed counts, Status as Active or Inactive, En/Disable, and Actions. Use Edit to open the builder. Under the more menu you can open Statistics, Copy Link, or Delete a form. Keep only current campaign forms Active so old links stop collecting leads.
+
+If the list is empty, you will see Create Your First Form. Otherwise tap Create Form to start a new signup form. Use this dashboard to find live forms, copy their public URL, and turn forms on or off without opening the editor. Next we create your first form.

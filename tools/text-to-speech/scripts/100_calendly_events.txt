@@ -1,0 +1,7 @@
+This video covers Calendly Events — viewing and syncing bookings inside WapApp.
+
+Open Calendly and go to the Your Events tab. If the list is empty, tap Sync Events. Sync runs in the background and the list reloads shortly after. Use filters All, Active, or Canceled to focus on the bookings you care about. The Canceled filter helps you spot no-shows and follow up only when needed.
+
+Each card shows a Calendly Event with a status such as active, canceled, or rescheduled. Click a card to open Event details. Review Timing including Start, End, Duration, and Timezone, plus Location and capacity, Invitee, Host, WhatsApp, and Form responses. Tap Close when finished. After a reschedule in Calendly, run Sync Events again so the card status updates in WapApp.
+
+Sync after busy booking days so WapApp stays aligned with Calendly. Use details to confirm the right WhatsApp number was captured before you follow up manually. That completes the Calendly tutorial path.

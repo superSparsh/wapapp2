@@ -1,0 +1,7 @@
+This video covers Mapping Form Fields — how Form Builder connects submissions to Audience and WhatsApp.
+
+There is no separate mapping screen. Mapping starts at the top of create or edit. Select a Mail List to choose where contacts are saved. Select a Template to choose the WhatsApp message sent after submit. Keep the default WhatsApp Number, First Name, and Last Name fields so standard template variables and contact fields fill correctly.
+
+Add Input Field, Dropdown Field, or Checkbox Field for extra data. Template placeholders should match the data you collect — name and phone aliases are filled automatically when those fields are present. Logo, Header, and Paragraph are display only and are not submitted. Change the mail list carefully on a live form so new leads do not land on the wrong audience.
+
+Save, activate, and submit a test. Check Statistics if sends fail — often the template or variable names need a fix. Form Builder is separate from Audience Embedded Form, which uses fixed list fields on a list page. That completes the Form Builder tutorials.
