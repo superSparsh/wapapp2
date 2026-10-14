@@ -144,6 +144,52 @@ class AdminPanelTest extends TestCase
         $this->assertSame(50.0, $balance);
     }
 
+    public function test_admin_can_debit_wallet_and_delete_recent_activity_from_customer_show(): void
+    {
+        $this->actingAs($this->admin, 'admin')
+            ->post(route('admin.customers.extend-validity', $this->testTenant), [
+                'days' => 0,
+                'wallet_amount' => 100,
+            ])
+            ->assertRedirect();
+
+        $this->actingAs($this->admin, 'admin')
+            ->from(route('admin.customers.show', $this->testTenant))
+            ->post(route('admin.customers.wallet-debit', $this->testTenant), [
+                'wallet_amount' => 25,
+                'description' => 'Manual correction',
+            ])
+            ->assertRedirect(route('admin.customers.show', $this->testTenant))
+            ->assertSessionHas('status');
+
+        tenancy()->initialize($this->testTenant);
+        try {
+            $this->assertSame(75.0, (float) \App\Models\WalletAccount::query()->value('balance'));
+            $debit = \App\Models\WalletTransaction::query()
+                ->where('type', \App\Enums\WalletTransactionType::Debit)
+                ->latest('id')
+                ->first();
+            $this->assertNotNull($debit);
+            $uuid = (string) $debit->uuid;
+        } finally {
+            tenancy()->end();
+        }
+
+        $this->actingAs($this->admin, 'admin')
+            ->from(route('admin.customers.show', $this->testTenant))
+            ->delete(route('admin.customers.wallet-transactions.destroy', [$this->testTenant, $uuid]))
+            ->assertRedirect(route('admin.customers.show', $this->testTenant))
+            ->assertSessionHas('status');
+
+        tenancy()->initialize($this->testTenant);
+        try {
+            $this->assertSame(100.0, (float) \App\Models\WalletAccount::query()->value('balance'));
+            $this->assertNull(\App\Models\WalletTransaction::query()->where('uuid', $uuid)->first());
+        } finally {
+            tenancy()->end();
+        }
+    }
+
     public function test_admin_can_update_customer_status_and_plan(): void
     {
         $plan = Plan::query()->create([

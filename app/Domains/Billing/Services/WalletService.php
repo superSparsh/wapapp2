@@ -747,6 +747,87 @@ class WalletService
         return $transaction;
     }
 
+    /**
+     * Debit the current tenant wallet from admin (no payment gateway).
+     *
+     * @param  array{admin_id?: int|null, admin_name?: string|null, admin_email?: string|null}  $actor
+     */
+    public function adminDebit(
+        float $amount,
+        string $description = 'Admin wallet debit',
+        array $actor = [],
+        bool $allowNegative = false,
+    ): WalletTransaction {
+        abort_unless($amount > 0, 422, 'Debit amount must be greater than zero.');
+
+        $amount = round($amount, 2);
+
+        $transaction = $this->debit(
+            amount: $amount,
+            description: $description,
+            metadata: array_filter([
+                'source' => 'admin_debit',
+                'admin_id' => $actor['admin_id'] ?? null,
+                'admin_name' => $actor['admin_name'] ?? null,
+                'admin_email' => $actor['admin_email'] ?? null,
+            ], static fn ($v) => $v !== null && $v !== ''),
+            allowNegative: $allowNegative,
+        );
+
+        try {
+            app(\App\Domains\Account\Services\ActivityLogService::class)->log('billing.wallet.admin_debit', [
+                'description' => sprintf(
+                    'Wallet - admin deducted ₹%s (balance after ₹%s)',
+                    number_format($amount, 2),
+                    number_format((float) $transaction->balance_after, 2),
+                ),
+                'actor_name' => $actor['admin_name'] ?? null,
+                'actor_email' => $actor['admin_email'] ?? null,
+                'metadata' => [
+                    'amount' => $amount,
+                    'balance_after' => (float) $transaction->balance_after,
+                    'admin_id' => $actor['admin_id'] ?? null,
+                    'wallet_transaction_id' => $transaction->id,
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Admin wallet debit activity log failed', [
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        return $transaction;
+    }
+
+    /**
+     * Delete a wallet ledger row and reverse its effect on the current balance.
+     */
+    public function deleteTransaction(WalletTransaction $transaction): void
+    {
+        DB::transaction(function () use ($transaction): void {
+            $locked = WalletTransaction::query()->whereKey($transaction->id)->lockForUpdate()->firstOrFail();
+            $wallet = WalletAccount::query()->lockForUpdate()->first();
+            if ($wallet === null) {
+                $wallet = $this->account();
+                $wallet = WalletAccount::query()->whereKey($wallet->id)->lockForUpdate()->firstOrFail();
+            }
+
+            $amount = round((float) $locked->amount, 2);
+            $current = round((float) $wallet->balance, 2);
+            $type = $locked->type instanceof WalletTransactionType
+                ? $locked->type
+                : WalletTransactionType::tryFrom((string) $locked->type);
+
+            if ($type === WalletTransactionType::Credit) {
+                $wallet->update(['balance' => round($current - $amount, 2)]);
+            } elseif ($type === WalletTransactionType::Debit) {
+                $wallet->update(['balance' => round($current + $amount, 2)]);
+            }
+
+            $locked->delete();
+        });
+    }
+
     public function completeRecharge(RazorpayOrder $order, string $paymentId): WalletTransaction
     {
         $wasAlreadyPaid = $order->status === RazorpayOrderStatus::Paid;

@@ -276,6 +276,7 @@ class CustomerAdminService
                 ->limit(5)
                 ->get()
                 ->map(fn (WalletTransaction $tx): array => [
+                    'uuid' => (string) $tx->uuid,
                     'type' => $tx->type?->value ?? (string) $tx->type,
                     'amount' => number_format((float) $tx->amount, 2),
                     'description' => (string) ($tx->description ?: '-'),
@@ -507,15 +508,7 @@ class CustomerAdminService
             return;
         }
 
-        $wasInitialized = tenancy()->initialized;
-        $previous = $wasInitialized ? tenant() : null;
-
-        if ($wasInitialized) {
-            tenancy()->end();
-        }
-
-        try {
-            tenancy()->initialize($tenant);
+        $this->withTenantWallet($tenant, function () use ($amount, $description, $adminName, $adminEmail, $adminId): void {
             app(\App\Domains\Billing\Services\WalletService::class)->adminCredit(
                 $amount,
                 $description,
@@ -525,6 +518,67 @@ class CustomerAdminService
                     'admin_email' => $adminEmail,
                 ],
             );
+        });
+    }
+
+    /**
+     * Debit tenant wallet from admin (initializes tenancy briefly).
+     */
+    public function debitWallet(
+        Tenant $tenant,
+        float $amount,
+        string $description = 'Admin wallet deduction',
+        ?string $adminName = null,
+        ?string $adminEmail = null,
+        ?int $adminId = null,
+    ): void {
+        if ($amount <= 0) {
+            return;
+        }
+
+        $this->withTenantWallet($tenant, function () use ($amount, $description, $adminName, $adminEmail, $adminId): void {
+            app(\App\Domains\Billing\Services\WalletService::class)->adminDebit(
+                $amount,
+                $description,
+                [
+                    'admin_id' => $adminId,
+                    'admin_name' => $adminName,
+                    'admin_email' => $adminEmail,
+                ],
+                allowNegative: false,
+            );
+        });
+    }
+
+    /**
+     * Delete a wallet ledger row and reverse its balance impact.
+     */
+    public function deleteWalletTransaction(Tenant $tenant, string $transactionUuid): void
+    {
+        $this->withTenantWallet($tenant, function () use ($transactionUuid): void {
+            $transaction = WalletTransaction::query()
+                ->where('uuid', $transactionUuid)
+                ->firstOrFail();
+
+            app(\App\Domains\Billing\Services\WalletService::class)->deleteTransaction($transaction);
+        });
+    }
+
+    /**
+     * @param  callable(): void  $callback
+     */
+    private function withTenantWallet(Tenant $tenant, callable $callback): void
+    {
+        $wasInitialized = tenancy()->initialized;
+        $previous = $wasInitialized ? tenant() : null;
+
+        if ($wasInitialized) {
+            tenancy()->end();
+        }
+
+        try {
+            tenancy()->initialize($tenant);
+            $callback();
         } finally {
             if (tenancy()->initialized) {
                 tenancy()->end();

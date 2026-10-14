@@ -247,7 +247,16 @@
               <p class="truncate text-sm font-semibold text-text-primary">{{ $tx['description'] }}</p>
               <p class="mt-0.5 text-xs text-text-subtle">{{ $tx['type'] }} · {{ $tx['created_at'] ? \Illuminate\Support\Carbon::parse($tx['created_at'])->diffForHumans() : '' }}</p>
             </div>
-            <p class="shrink-0 text-sm font-bold tabular-nums text-text-primary">{{ $tx['amount'] }}</p>
+            <div class="flex shrink-0 items-center gap-2">
+              <p class="text-sm font-bold tabular-nums text-text-primary">{{ $tx['amount'] }}</p>
+              @if (! empty($tx['uuid']))
+                <form method="POST" action="{{ route('admin.customers.wallet-transactions.destroy', [$tenant, $tx['uuid']]) }}" onsubmit="return confirm('Delete this wallet activity and reverse its balance effect?');">
+                  @csrf
+                  @method('DELETE')
+                  <button type="submit" class="rounded-md border border-red-200 px-2 py-1 text-[11px] font-semibold text-red-600 hover:bg-red-50">Delete</button>
+                </form>
+              @endif
+            </div>
           </div>
         @empty
           <p class="py-4 text-sm text-text-subtle">No wallet transactions yet.</p>
@@ -313,7 +322,14 @@
         @csrf
         <input type="number" name="days" min="0" max="3650" value="30" class="rounded-lg border border-border bg-surface px-3 py-2 text-sm" placeholder="Days (0 = no change)">
         <input type="number" name="wallet_amount" min="0" step="0.01" value="0" class="rounded-lg border border-border bg-surface px-3 py-2 text-sm" placeholder="Wallet top-up ₹ (0 = no change)">
-        <button type="submit" class="rounded-lg border border-border px-3 py-2 text-xs font-semibold hover:bg-surface">Apply</button>
+        <button type="submit" class="rounded-lg border border-border px-3 py-2 text-xs font-semibold hover:bg-surface">Apply credit / validity</button>
+      </form>
+      <form method="POST" action="{{ route('admin.customers.wallet-debit', $tenant) }}" class="mt-4 flex flex-col gap-3 border-t border-border pt-4">
+        @csrf
+        <p class="text-xs font-semibold text-text-primary">Deduct wallet</p>
+        <input type="number" name="wallet_amount" min="0.01" step="0.01" required class="rounded-lg border border-border bg-surface px-3 py-2 text-sm" placeholder="Amount to deduct ₹">
+        <input type="text" name="description" maxlength="255" class="rounded-lg border border-border bg-surface px-3 py-2 text-sm" placeholder="Reason (optional)">
+        <button type="submit" class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-100">Deduct from wallet</button>
       </form>
     </div>
 

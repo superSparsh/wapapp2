@@ -201,6 +201,47 @@ class CustomerController extends Controller
         return back()->with('status', 'Wallet display currency set to '.strtoupper($validated['currency']).'.');
     }
 
+    public function debitWallet(Request $request, Tenant $tenant): RedirectResponse
+    {
+        $validated = $request->validate([
+            'wallet_amount' => ['required', 'numeric', 'min:0.01'],
+            'description' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $amount = round((float) $validated['wallet_amount'], 2);
+        $admin = $request->user('admin');
+        $description = trim((string) ($validated['description'] ?? ''));
+        if ($description === '') {
+            $description = 'Admin wallet deduction for '.$tenant->id;
+        }
+
+        try {
+            $this->customers->debitWallet(
+                $tenant,
+                $amount,
+                $description,
+                adminName: $admin?->name,
+                adminEmail: $admin?->email,
+                adminId: $admin !== null ? (int) $admin->id : null,
+            );
+        } catch (\Throwable $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('status', 'Wallet deducted ₹'.number_format($amount, 2).'.');
+    }
+
+    public function deleteWalletTransaction(Request $request, Tenant $tenant, string $transaction): RedirectResponse
+    {
+        try {
+            $this->customers->deleteWalletTransaction($tenant, $transaction);
+        } catch (\Throwable $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('status', 'Wallet activity deleted and balance adjusted.');
+    }
+
     public function loginAs(Tenant $tenant): RedirectResponse
     {
         /** @var Admin $admin */

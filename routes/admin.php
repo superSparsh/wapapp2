@@ -84,6 +84,8 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::post('/customers/{tenant}/extend-validity', [CustomerController::class, 'extendValidity'])->name('customers.extend-validity');
         Route::patch('/customers/{tenant}/settings', [CustomerController::class, 'updateSettings'])->name('customers.settings');
         Route::post('/customers/{tenant}/wallet-display-currency', [CustomerController::class, 'setWalletDisplayCurrency'])->name('customers.wallet-display-currency');
+        Route::post('/customers/{tenant}/wallet-debit', [CustomerController::class, 'debitWallet'])->name('customers.wallet-debit');
+        Route::delete('/customers/{tenant}/wallet-transactions/{transaction}', [CustomerController::class, 'deleteWalletTransaction'])->name('customers.wallet-transactions.destroy');
         Route::post('/customers/{tenant}/login-as', [CustomerController::class, 'loginAs'])->name('customers.login-as');
         Route::post('/customers/{tenant}/wipe-account', [CustomerController::class, 'wipeAccount'])->name('customers.wipe-account');
 
