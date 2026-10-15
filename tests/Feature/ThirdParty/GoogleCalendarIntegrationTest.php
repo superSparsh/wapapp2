@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace Tests\Feature\ThirdParty;
 
+use App\Domains\Alerts\Services\AlertDispatcher;
 use App\Domains\ThirdParty\Enums\IntegrationStatus;
+use App\Domains\ThirdParty\Enums\MessageLogStatus;
 use App\Domains\ThirdParty\Jobs\SyncGoogleCalendarEventsJob;
 use App\Domains\ThirdParty\Models\GoogleCalendarBookingLink;
 use App\Domains\ThirdParty\Models\GoogleCalendarEvent;
 use App\Domains\ThirdParty\Models\GoogleCalendarIntegration;
+use App\Domains\ThirdParty\Models\GoogleCalendarMessageLog;
 use App\Domains\ThirdParty\Models\GoogleCalendarWebhookLog;
 use App\Domains\ThirdParty\Services\GoogleCalendarApiService;
 use App\Domains\ThirdParty\Services\GoogleCalendarBookingAvailabilityService;
@@ -270,6 +273,35 @@ class GoogleCalendarIntegrationTest extends TestCase
             ->assertSessionHas('error');
     }
 
+    public function test_update_booking_availability_saves_weekly_hours(): void
+    {
+        GoogleCalendarIntegration::query()->create([
+            'user_id'  => $this->testUser->id,
+            'status'   => IntegrationStatus::Enabled,
+            'settings' => [],
+        ]);
+
+        $this->actingAsTenantUser()
+            ->put(route('integration.google-calendar.booking-availability'), [
+                'booking_availability' => [
+                    'weekly' => [
+                        '1' => [
+                            'enabled' => '1',
+                            'intervals' => [['start' => '10:00', 'end' => '16:00']],
+                        ],
+                    ],
+                ],
+            ])
+            ->assertRedirect(route('integration.google-calendar', ['tab' => 'booking']))
+            ->assertSessionHas('success');
+
+        $integration = GoogleCalendarIntegration::query()->where('user_id', $this->testUser->id)->first();
+        $weekly = $integration->settings['booking_availability']['weekly'] ?? [];
+        $this->assertTrue((bool) ($weekly[1]['enabled'] ?? false));
+        $this->assertSame('10:00', $weekly[1]['intervals'][0]['start'] ?? null);
+        $this->assertSame('16:00', $weekly[1]['intervals'][0]['end'] ?? null);
+    }
+
     // ─── Webhook ─────────────────────────────────────────────────────────────
 
     public function test_receive_webhook_logs_and_dispatches_sync(): void
@@ -385,6 +417,140 @@ class GoogleCalendarIntegrationTest extends TestCase
 
         $integration->refresh();
         $this->assertSame('NEW-token', $integration->settings['sync_token'] ?? null);
+    }
+
+    public function test_sync_writes_message_logs_when_whatsapp_enabled(): void
+    {
+        $integration = GoogleCalendarIntegration::query()->create([
+            'user_id'         => $this->testUser->id,
+            'status'          => IntegrationStatus::Enabled,
+            'first_synced_at' => now()->subDay(),
+            'settings'        => [
+                'refresh_token'   => 'rt',
+                'enable_whatsapp' => true,
+                'whatsapp_number' => '+911234567890',
+                'calendar_id'     => 'primary',
+            ],
+        ]);
+
+        $dispatcher = $this->createMock(AlertDispatcher::class);
+        $dispatcher->expects($this->exactly(2))
+            ->method('calendarWhatsApp')
+            ->willReturn(true);
+        $this->app->instance(AlertDispatcher::class, $dispatcher);
+
+        $start = now()->addDay()->toIso8601String();
+        $end = now()->addDay()->addHour()->toIso8601String();
+
+        $api = $this->getMockBuilder(GoogleCalendarApiService::class)
+            ->onlyMethods(['listEvents'])
+            ->getMock();
+        $api->method('listEvents')->willReturn([
+            'items' => [[
+                'id' => 'gev-notify-1',
+                'status' => 'confirmed',
+                'summary' => 'Demo Call',
+                'description' => 'Phone: +919876543210',
+                'hangoutLink' => 'https://meet.google.com/abc-defg-hij',
+                'htmlLink' => 'https://calendar.google.com/event?eid=1',
+                'start' => ['dateTime' => $start],
+                'end' => ['dateTime' => $end],
+                'attendees' => [
+                    ['email' => 'guest@example.com', 'displayName' => 'Guest'],
+                ],
+                'organizer' => ['email' => 'host@example.com'],
+            ]],
+            'nextSyncToken' => 'tok',
+        ]);
+
+        (new GoogleCalendarEventSyncService($api))->sync($integration);
+
+        $this->assertDatabaseCount('google_calendar_message_logs', 2);
+        $this->assertTrue(
+            GoogleCalendarMessageLog::query()->where('status', MessageLogStatus::Sent)->where('recipient_type', 'customer')->exists()
+        );
+        $this->assertTrue(
+            GoogleCalendarMessageLog::query()->where('status', MessageLogStatus::Sent)->where('recipient_type', 'admin')->exists()
+        );
+        $event = GoogleCalendarEvent::query()->where('event_id', 'gev-notify-1')->first();
+        $this->assertTrue((bool) $event?->notified_created);
+        $this->assertSame('https://meet.google.com/abc-defg-hij', $event?->meet_link);
+    }
+
+    public function test_sync_skips_whatsapp_when_disabled(): void
+    {
+        $integration = GoogleCalendarIntegration::query()->create([
+            'user_id'         => $this->testUser->id,
+            'status'          => IntegrationStatus::Enabled,
+            'first_synced_at' => now()->subDay(),
+            'settings'        => [
+                'refresh_token'   => 'rt',
+                'enable_whatsapp' => false,
+                'whatsapp_number' => '+911234567890',
+                'calendar_id'     => 'primary',
+            ],
+        ]);
+
+        $dispatcher = $this->createMock(AlertDispatcher::class);
+        $dispatcher->expects($this->never())->method('calendarWhatsApp');
+        $this->app->instance(AlertDispatcher::class, $dispatcher);
+
+        $start = now()->addDay()->toIso8601String();
+        $end = now()->addDay()->addHour()->toIso8601String();
+
+        $api = $this->getMockBuilder(GoogleCalendarApiService::class)
+            ->onlyMethods(['listEvents'])
+            ->getMock();
+        $api->method('listEvents')->willReturn([
+            'items' => [[
+                'id' => 'gev-notify-2',
+                'status' => 'confirmed',
+                'summary' => 'Silent Call',
+                'description' => 'Phone: +919876543210',
+                'start' => ['dateTime' => $start],
+                'end' => ['dateTime' => $end],
+            ]],
+        ]);
+
+        (new GoogleCalendarEventSyncService($api))->sync($integration);
+
+        $this->assertDatabaseCount('google_calendar_message_logs', 0);
+        $this->assertFalse((bool) GoogleCalendarEvent::query()->where('event_id', 'gev-notify-2')->value('notified_created'));
+    }
+
+    public function test_public_book_dispatches_sync_job(): void
+    {
+        Queue::fake();
+
+        $integration = GoogleCalendarIntegration::query()->create([
+            'user_id'  => $this->testUser->id,
+            'status'   => IntegrationStatus::Enabled,
+            'settings' => ['refresh_token' => 'rt', 'access_token' => 'at', 'calendar_id' => 'primary'],
+        ]);
+
+        $link = GoogleCalendarBookingLink::query()->create([
+            'user_id'          => $this->testUser->id,
+            'slug'             => 'book-sync-test',
+            'title'            => 'Intro',
+            'duration_minutes' => 30,
+            'status'           => IntegrationStatus::Enabled,
+            'settings'         => [],
+        ]);
+
+        $api = $this->createMock(GoogleCalendarApiService::class);
+        $api->method('hasOverlappingEvent')->willReturn(false);
+        $api->method('createEventWithMeet')->willReturn(['id' => 'created-1']);
+        $this->app->instance(GoogleCalendarApiService::class, $api);
+
+        $this->post(route('google-calendar.booking.book', $link->slug), [
+            'name' => 'Alex',
+            'email' => 'alex@example.com',
+            'phone' => '+911234567890',
+            'start_at' => now()->addDay()->toDateTimeString(),
+        ])->assertRedirect();
+
+        Queue::assertPushed(SyncGoogleCalendarEventsJob::class);
+        $this->assertSame($integration->id, $integration->fresh()->id);
     }
 
     // ─── API service helpers ──────────────────────────────────────────────────

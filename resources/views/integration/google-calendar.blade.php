@@ -70,7 +70,8 @@
               </a>
             @else
               <div class="rounded-lg bg-yellow-50 px-4 py-3 text-sm text-yellow-700">
-                Google OAuth is not configured. Set <code>GOOGLE_CLIENT_ID</code> and <code>GOOGLE_CLIENT_SECRET</code> in your <code>.env</code>.
+                Google OAuth is not configured. Set <code>GOOGLE_OAUTH_CLIENT_ID</code> and <code>GOOGLE_OAUTH_CLIENT_SECRET</code> in your <code>.env</code>
+                (optional: <code>GOOGLE_REDIRECT_URI</code>).
               </div>
             @endif
           @endif
@@ -114,13 +115,17 @@
                   @endforeach
                 </select>
               </div>
-              <div class="flex flex-col gap-3 pt-5">
+              <div class="flex flex-col gap-3 pt-5 md:col-span-2">
                 <label class="flex items-center gap-2 text-sm font-medium text-text-primary">
                   <input type="checkbox" name="settings[enable_whatsapp]" value="on"
                     {{ ($integration->settings['enable_whatsapp'] ?? false) ? 'checked' : '' }}
                     class="size-4 rounded border-border text-green-500" />
                   Enable WhatsApp Notifications
                 </label>
+                <p class="text-xs leading-relaxed text-text-muted pl-6">
+                  When enabled, customers and the admin number above receive booking / cancel / reminder WhatsApp alerts.
+                  Include a phone in the event description (or booking form) so invitees get confirmations. Message delivery appears under Message Logs.
+                </p>
                 <label class="flex items-center gap-2 text-sm font-medium text-text-primary">
                   <input type="checkbox" name="settings[meet_only]" value="on"
                     {{ ($integration->settings['meet_only'] ?? false) ? 'checked' : '' }}
@@ -147,10 +152,14 @@
               </a>
             @endforeach
           </div>
-          <form method="POST" action="{{ route('integration.google-calendar.sync') }}">
-            @csrf
-            <button type="submit" class="rounded border border-border bg-elevated px-4 py-2 text-sm font-medium text-text-primary hover:bg-surface transition-colors">Sync</button>
-          </form>
+          <button type="button" id="sync-events-btn"
+            class="inline-flex items-center gap-2 rounded border border-border bg-elevated px-4 py-2 text-sm font-medium text-text-primary hover:bg-surface transition-colors disabled:opacity-60">
+            <svg id="sync-spinner" class="hidden size-4 animate-spin text-green-500" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+            </svg>
+            Sync Events
+          </button>
         </div>
 
         @if ($events->isEmpty())
@@ -240,6 +249,45 @@
 
       {{-- Booking Links Tab --}}
       @if ($activeTab === 'booking')
+        @php
+          $dayNames = [0 => 'Sunday', 1 => 'Monday', 2 => 'Tuesday', 3 => 'Wednesday', 4 => 'Thursday', 5 => 'Friday', 6 => 'Saturday'];
+          $weekly = $bookingAvailability['weekly'] ?? [];
+        @endphp
+
+        <div class="rounded-xl border border-border bg-elevated p-6">
+          <h2 class="mb-1 text-base font-semibold text-text-primary">Booking Hours</h2>
+          <p class="mb-4 text-xs text-text-muted">Public booking pages only offer slots inside these hours (busy times from Google Calendar are blocked automatically).</p>
+          <form method="POST" action="{{ route('integration.google-calendar.booking-availability') }}">
+            @csrf @method('PUT')
+            <div class="flex flex-col gap-3">
+              @foreach ($dayNames as $day => $label)
+                @php
+                  $dayData = $weekly[$day] ?? ['enabled' => false, 'intervals' => []];
+                  $interval = $dayData['intervals'][0] ?? ['start' => '09:00', 'end' => '17:00'];
+                @endphp
+                <div class="grid items-center gap-3 rounded-lg border border-border bg-surface p-3 sm:grid-cols-[140px_auto_1fr_1fr]">
+                  <label class="flex items-center gap-2 text-sm font-medium text-text-primary">
+                    <input type="checkbox" name="booking_availability[weekly][{{ $day }}][enabled]" value="1"
+                      {{ ! empty($dayData['enabled']) ? 'checked' : '' }}
+                      class="size-4 rounded border-border text-green-500" />
+                    {{ $label }}
+                  </label>
+                  <span class="hidden text-xs text-text-muted sm:inline">Hours</span>
+                  <input type="time" name="booking_availability[weekly][{{ $day }}][intervals][0][start]"
+                    value="{{ $interval['start'] ?? '09:00' }}"
+                    class="w-full rounded-lg border border-border bg-elevated px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+                  <input type="time" name="booking_availability[weekly][{{ $day }}][intervals][0][end]"
+                    value="{{ $interval['end'] ?? '17:00' }}"
+                    class="w-full rounded-lg border border-border bg-elevated px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+                </div>
+              @endforeach
+            </div>
+            <div class="mt-4 flex justify-end">
+              <button type="submit" class="fd-btn rounded bg-green-500 px-5 py-2 text-sm font-semibold text-primary-2 hover:opacity-90">Save Booking Hours</button>
+            </div>
+          </form>
+        </div>
+
         <div class="grid gap-6 lg:grid-cols-2">
           <div class="rounded-xl border border-border bg-elevated p-6">
             <h2 class="mb-4 text-base font-semibold text-text-primary">Create Booking Link</h2>
@@ -291,7 +339,7 @@
       {{-- Logs Tab --}}
       @if ($activeTab === 'logs')
         <div class="flex gap-2">
-          @foreach (['all' => 'All', 'sent' => 'Sent', 'failed' => 'Failed'] as $t => $label)
+          @foreach (['all' => 'All', 'sent' => 'Sent', 'failed' => 'Failed', 'skipped' => 'Skipped'] as $t => $label)
             <a href="{{ route('integration.google-calendar', ['tab' => 'logs', 'log_type' => $t === 'all' ? null : $t]) }}"
               class="rounded-lg border px-3 py-1 text-sm transition-colors {{ request('log_type', 'all') === $t ? 'border-green-500 bg-green-500 text-white' : 'border-border bg-elevated text-text-muted hover:bg-surface' }}">
               {{ $label }}
@@ -301,29 +349,38 @@
 
         @if ($messageLogs->isEmpty())
           <div class="flex flex-col items-center justify-center rounded-xl border border-border bg-elevated py-10 text-center">
-            <p class="text-sm text-text-muted">No message logs yet.</p>
+            <p class="text-sm text-text-muted">No message logs yet. Enable WhatsApp notifications and sync events to start logging.</p>
           </div>
         @else
           <div class="overflow-x-auto">
             <table class="w-full text-sm">
               <thead>
                 <tr class="border-b border-border text-left text-xs font-semibold text-text-muted">
+                  <th class="p-2">Type</th>
                   <th class="p-2">Recipient</th>
                   <th class="p-2">Event</th>
                   <th class="p-2">Status</th>
+                  <th class="p-2">Detail</th>
                   <th class="p-2">Sent At</th>
                 </tr>
               </thead>
               <tbody>
                 @foreach ($messageLogs as $log)
                   <tr class="border-b border-border bg-elevated">
-                    <td class="p-2">{{ $log->recipient_number }}</td>
-                    <td class="p-2">{{ $log->event_name }}</td>
+                    <td class="p-2 capitalize">{{ $log->recipient_type }}</td>
+                    <td class="p-2">{{ $log->recipient_number ?? '—' }}</td>
+                    <td class="p-2">{{ $log->event_name }} <span class="text-xs text-text-muted">({{ $log->event_type }})</span></td>
                     <td class="p-2">
-                      <span @class(['inline-flex rounded px-2 py-1 text-[10px] font-medium', 'bg-green-100 text-green-700' => $log->status?->value === 'sent', 'bg-red-100 text-red-600' => $log->status?->value === 'failed'])>
+                      <span @class([
+                        'inline-flex rounded px-2 py-1 text-[10px] font-medium',
+                        'bg-green-100 text-green-700' => $log->status?->value === 'sent',
+                        'bg-red-100 text-red-600' => $log->status?->value === 'failed',
+                        'bg-yellow-100 text-yellow-700' => $log->status?->value === 'skipped',
+                      ])>
                         {{ ucfirst($log->status?->value ?? '') }}
                       </span>
                     </td>
+                    <td class="p-2 text-xs text-text-muted">{{ $log->error_message ?? '—' }}</td>
                     <td class="p-2 whitespace-nowrap">{{ $log->sent_at?->format('M d, Y H:i') ?? '-' }}</td>
                   </tr>
                 @endforeach
@@ -335,4 +392,38 @@
       @endif
     </section>
   </div>
+
+  <script>
+    document.getElementById('sync-events-btn')?.addEventListener('click', function () {
+      const btn = this;
+      const spinner = document.getElementById('sync-spinner');
+      btn.disabled = true;
+      spinner?.classList.remove('hidden');
+
+      fetch('{{ route('integration.google-calendar.sync') }}', {
+        method: 'POST',
+        headers: {
+          'X-CSRF-TOKEN': '{{ csrf_token() }}',
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+      })
+        .then(res => res.json())
+        .then(data => {
+          spinner?.classList.add('hidden');
+          btn.disabled = false;
+          if (data.success) {
+            window.showSuccessToast?.(data.message || 'Sync started in background.');
+            setTimeout(() => location.reload(), 5000);
+          } else {
+            window.showErrorToast?.(data.message || 'Sync failed.');
+          }
+        })
+        .catch(() => {
+          spinner?.classList.add('hidden');
+          btn.disabled = false;
+          window.showWarningToast?.('Sync failed.');
+        });
+    });
+  </script>
 </x-layouts.app>

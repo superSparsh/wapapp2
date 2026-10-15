@@ -135,10 +135,17 @@ class CalendlyEventSyncService
 
         $status = strtolower((string) ($event['status'] ?? 'active'));
         $eventName = (string) ($stored->raw_payload['name'] ?? $stored->event_type ?? 'Meeting');
+        $location = (string) (
+            $stored->raw_payload['location']['join_url']
+            ?? $stored->raw_payload['location']['location']
+            ?? ''
+        );
         $params = [
             'name'  => (string) ($stored->invitee_email ?? 'Guest'),
             'event' => $eventName,
             'start' => $stored->start_time?->format('d M Y h:i A') ?? '',
+            'meet'  => $location,
+            'link'  => $location,
         ];
 
         try {

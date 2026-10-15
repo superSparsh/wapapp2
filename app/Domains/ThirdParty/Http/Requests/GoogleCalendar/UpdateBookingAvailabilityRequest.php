@@ -13,6 +13,28 @@ class UpdateBookingAvailabilityRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        $weekly = $this->input('booking_availability.weekly', []);
+        if (! is_array($weekly)) {
+            return;
+        }
+
+        foreach ($weekly as $day => $data) {
+            if (! is_array($data)) {
+                continue;
+            }
+
+            $weekly[$day]['enabled'] = ! empty($data['enabled'])
+                && $data['enabled'] !== '0'
+                && $data['enabled'] !== 'false';
+        }
+
+        $this->merge([
+            'booking_availability' => ['weekly' => $weekly],
+        ]);
+    }
+
     /** @return array<string, mixed> */
     public function rules(): array
     {

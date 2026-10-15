@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\ThirdParty\Http\Controllers;
 
+use App\Domains\ThirdParty\Jobs\SyncGoogleCalendarEventsJob;
 use App\Domains\ThirdParty\Models\GoogleCalendarBookingLink;
 use App\Domains\ThirdParty\Models\GoogleCalendarIntegration;
 use App\Domains\ThirdParty\Services\GoogleCalendarApiService;
@@ -103,6 +104,9 @@ class GoogleCalendarBookingController extends Controller
         if (! $googleEvent) {
             return back()->with('error', 'Could not create the meeting. Please try again.');
         }
+
+        $tenantId = tenancy()->tenant?->getTenantKey();
+        SyncGoogleCalendarEventsJob::dispatch($integration->id, (string) $tenantId);
 
         return back()->with('success', 'Your meeting has been booked! Check your email for the Google Meet link.');
     }
