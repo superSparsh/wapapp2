@@ -68,10 +68,14 @@
                 class="inline-flex items-center gap-2 rounded bg-green-500 px-5 py-2 text-sm font-semibold text-white hover:opacity-90">
                 Connect Google Account
               </a>
+              <p class="mt-4 text-xs text-text-muted">
+                Google Cloud Console Authorized redirect URI must match:
+                <code class="break-all text-text-primary">{{ $oauthRedirectUri }}</code>
+              </p>
             @else
               <div class="rounded-lg bg-yellow-50 px-4 py-3 text-sm text-yellow-700">
-                Google OAuth is not configured. Set <code>GOOGLE_OAUTH_CLIENT_ID</code> and <code>GOOGLE_OAUTH_CLIENT_SECRET</code> in your <code>.env</code>
-                (optional: <code>GOOGLE_REDIRECT_URI</code>).
+                Google OAuth is not configured. Set <code>GOOGLE_OAUTH_CLIENT_ID</code>, <code>GOOGLE_OAUTH_CLIENT_SECRET</code>,
+                and <code>GOOGLE_REDIRECT_URI</code> in your <code>.env</code>.
               </div>
             @endif
           @endif

@@ -36,7 +36,13 @@ class GoogleCalendarApiService
 
     public function oauthRedirectUrl(): string
     {
-        return rtrim((string) config('app.url'), '/') . '/integration/google-calendar/oauth/callback';
+        $configured = trim((string) config('services.google.redirect', ''));
+        if ($configured !== '') {
+            return $configured;
+        }
+
+        // Prefer named route so APP_URL / reverse-proxy hosts stay correct.
+        return route('integration.google-calendar.oauth.callback', absolute: true);
     }
 
     /**

@@ -407,6 +407,7 @@ Route::middleware(['tenancy.session', 'auth:web,team', '2fa', 'team.redirect-das
             Route::get('/google-calendar/oauth', [GoogleCalendarController::class, 'oauthRedirect'])->name('google-calendar.oauth');
             Route::get('/google-calendar/oauth/callback', [GoogleCalendarController::class, 'oauthCallback'])->name('google-calendar.oauth.callback');
             Route::post('/google-calendar/disconnect', [GoogleCalendarController::class, 'disconnect'])->name('google-calendar.disconnect');
+
             Route::post('/google-calendar/test', [GoogleCalendarController::class, 'test'])->name('google-calendar.test');
             Route::post('/google-calendar/sync', [GoogleCalendarController::class, 'syncEvents'])->name('google-calendar.sync');
             Route::post('/google-calendar/create-meeting', [GoogleCalendarController::class, 'createMeeting'])->name('google-calendar.create-meeting');
@@ -423,6 +424,10 @@ Route::middleware(['tenancy.session', 'auth:web,team', '2fa', 'team.redirect-das
             Route::get('/websites', [WebsiteTrackingController::class, 'index'])->name('websites');
             Route::post('/websites', [WebsiteTrackingController::class, 'store'])->name('websites.store');
         });
+
+        // Legacy Google OAuth redirect URI path (Google Cloud Console)
+        Route::get('/thirdpartyintegration/google-calendar/oauth/callback', [GoogleCalendarController::class, 'oauthCallback'])
+            ->name('google-calendar.oauth.callback.legacy');
 
         Route::prefix('form-builder')->name('form-builder.')->group(function () {
             Route::get('/', [FormBuilderController::class, 'index'])->name('index');
