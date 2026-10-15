@@ -79,9 +79,11 @@ class CampaignCreateController extends Controller
 
         $request->session()->put(self::SESSION_KEY, $wizardData);
 
-        $step = (int) $request->query('step', 0);
+        // Always open edit on Info & Recipients unless an explicit valid step is passed
+        // (e.g. resend/copy flows that jump to schedule with ?step=6).
+        $step = (int) $request->query('step', 1);
         if ($step < 1 || $step > self::MAX_STEPS) {
-            $step = $this->resumeStep($wizardData);
+            $step = 1;
         }
 
         // Step 5 is a legacy review screen - send users to Schedule & Confirm.
@@ -538,35 +540,6 @@ class CampaignCreateController extends Controller
         if ($rows !== []) {
             $this->variableGridService->save($draft, $rows);
         }
-    }
-
-    /**
-     * Pick the first incomplete wizard step for an existing campaign.
-     *
-     * @param  array<string, mixed>  $wizardData
-     */
-    private function resumeStep(array $wizardData): int
-    {
-        if (trim((string) ($wizardData['name'] ?? '')) === '' || $this->nullableId($wizardData['whatsapp_line_id'] ?? null) === null) {
-            return 1;
-        }
-
-        $hasAudience = ! empty($wizardData['audience_ids']) && is_array($wizardData['audience_ids']) && count($wizardData['audience_ids']) > 0
-            || $this->nullableId($wizardData['audience_id'] ?? null) !== null;
-
-        if (! $hasAudience) {
-            return 2;
-        }
-
-        if ($this->nullableId($wizardData['template_id'] ?? null) === null) {
-            return 3;
-        }
-
-        if ($this->templateHasVariables((int) $wizardData['template_id'])) {
-            return 4;
-        }
-
-        return 6;
     }
 
     private function nullableId(mixed $value): ?int

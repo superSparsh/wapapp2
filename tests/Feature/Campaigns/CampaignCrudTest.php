@@ -218,7 +218,7 @@ class CampaignCrudTest extends TestCase
 
     // ─── Show ─────────────────────────────────────────────────────────────
 
-    public function test_edit_draft_loads_wizard_session_and_resumes(): void
+    public function test_edit_draft_loads_wizard_session_and_opens_info_step(): void
     {
         $audience = MailList::factory()->create();
         $template = Template::factory()->create();
@@ -232,7 +232,7 @@ class CampaignCrudTest extends TestCase
 
         $this->actingAsTenantUser()
             ->get(route('campaigns.edit', $campaign))
-            ->assertRedirect(route('campaigns.create.step', 6));
+            ->assertRedirect(route('campaigns.create.step', 1));
 
         $wizard = session('campaign_wizard');
         $this->assertSame($campaign->id, $wizard['draft_id'] ?? null);
