@@ -94,7 +94,22 @@ class GoogleCalendarIntegrationTest extends TestCase
     public function test_oauth_redirect_url_uses_configured_env_uri(): void
     {
         config([
-            'services.google.redirect' => 'https://wapapp.tittu.in/thirdpartyintegration/google-calendar/oauth/callback',
+            'services.google.calendar_redirect' => 'https://wapapp.tittu.in/thirdpartyintegration/google-calendar/oauth/callback',
+        ]);
+
+        $url = (new GoogleCalendarApiService())->oauthRedirectUrl();
+
+        $this->assertSame(
+            'https://wapapp.tittu.in/thirdpartyintegration/google-calendar/oauth/callback',
+            $url
+        );
+    }
+
+    public function test_oauth_redirect_url_defaults_to_legacy_thirdparty_path(): void
+    {
+        config([
+            'app.url' => 'https://wapapp.tittu.in',
+            'services.google.calendar_redirect' => '',
         ]);
 
         $url = (new GoogleCalendarApiService())->oauthRedirectUrl();

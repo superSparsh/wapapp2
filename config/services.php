@@ -44,7 +44,14 @@ return [
     'google' => [
         'client_id' => env('GOOGLE_OAUTH_CLIENT_ID'),
         'client_secret' => env('GOOGLE_OAUTH_CLIENT_SECRET'),
+        // Used by social login (Google Sign-In) — keep separate from Calendar OAuth.
         'redirect' => env('GOOGLE_REDIRECT_URI'),
+        // Google Calendar / Meet OAuth callback (must match Google Cloud Console exactly).
+        'calendar_redirect' => env(
+            'GOOGLE_CALENDAR_REDIRECT_URI',
+            rtrim((string) env('APP_URL', 'http://localhost'), '/')
+                .'/thirdpartyintegration/google-calendar/oauth/callback'
+        ),
     ],
 
     'facebook' => [

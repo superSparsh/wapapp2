@@ -192,7 +192,7 @@ class GoogleCalendarController extends Controller
     {
         if (! GoogleCalendarApiService::isOAuthConfigured()) {
             return redirect()->route('integration.google-calendar', ['tab' => 'connect'])
-                ->with('error', 'Google OAuth is not configured. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in your .env.');
+                ->with('error', 'Google OAuth is not configured. Set GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_CLIENT_SECRET in your .env.');
         }
 
         return $this->api->getOAuthProvider()

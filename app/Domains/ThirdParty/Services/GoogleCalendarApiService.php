@@ -36,13 +36,14 @@ class GoogleCalendarApiService
 
     public function oauthRedirectUrl(): string
     {
-        $configured = trim((string) config('services.google.redirect', ''));
+        $configured = trim((string) config('services.google.calendar_redirect', ''));
         if ($configured !== '') {
-            return $configured;
+            return rtrim($configured, '/');
         }
 
-        // Prefer named route so APP_URL / reverse-proxy hosts stay correct.
-        return route('integration.google-calendar.oauth.callback', absolute: true);
+        // Legacy Google Cloud Console path (must match Authorized redirect URIs exactly).
+        return rtrim((string) config('app.url'), '/')
+            .'/thirdpartyintegration/google-calendar/oauth/callback';
     }
 
     /**
@@ -50,20 +51,24 @@ class GoogleCalendarApiService
      */
     public function getOAuthProvider(): mixed
     {
+        $redirect = $this->oauthRedirectUrl();
+
         return \Laravel\Socialite\Facades\Socialite::buildProvider(
             \Laravel\Socialite\Two\GoogleProvider::class,
             [
                 'client_id'     => config('services.google.client_id'),
                 'client_secret' => config('services.google.client_secret'),
-                'redirect'      => $this->oauthRedirectUrl(),
+                'redirect'      => $redirect,
             ]
-        )->scopes([
-            self::CALENDAR_SCOPE,
-            self::EVENTS_SCOPE,
-            'openid',
-            'email',
-            'profile',
-        ]);
+        )
+            ->redirectUrl($redirect)
+            ->scopes([
+                self::CALENDAR_SCOPE,
+                self::EVENTS_SCOPE,
+                'openid',
+                'email',
+                'profile',
+            ]);
     }
 
     // ──────────────────────────────────────────────────────────────────────────
