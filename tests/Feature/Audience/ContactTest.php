@@ -766,6 +766,56 @@ class ContactTest extends TestCase
         ]);
     }
 
+    public function test_import_surfaces_row_errors_in_session(): void
+    {
+        Storage::fake('local');
+        $list = MailList::factory()->create();
+        $csvContent = "country_code,phone_number,first_name,last_name,existing_customer,send_opt_in_message\n"
+            ."91,919876543210,Good,User,yes,no\n"
+            ."91,,Bad,User,yes,no\n"
+            ."91,not-a-phone,Bad,Phone,yes,no\n";
+        $file = UploadedFile::fake()->createWithContent('contacts.csv', $csvContent, 'text/csv');
+
+        $this->actingAsTenantUser()
+            ->post(route('audience.subscribers.import.store'), [
+                'file' => $file,
+                'mail_list_id' => $list->uuid,
+            ])
+            ->assertRedirect(route('audience.subscribers', ['list' => $list->uuid]))
+            ->assertSessionHas('status')
+            ->assertSessionHas('import_errors')
+            ->assertSessionHas('error');
+
+        $errors = session('import_errors');
+        $this->assertIsArray($errors);
+        $this->assertNotEmpty($errors);
+        $this->assertTrue(
+            collect($errors)->contains(fn (string $e): bool => str_contains($e, 'Invalid or missing phone')),
+        );
+
+        $this->assertDatabaseHas('contacts', [
+            'phone' => '919876543210',
+            'mail_list_id' => $list->id,
+        ]);
+    }
+
+    public function test_import_rejects_missing_headers_with_visible_error(): void
+    {
+        Storage::fake('local');
+        $list = MailList::factory()->create();
+        $csvContent = "name,phone\nTest,919876543210\n";
+        $file = UploadedFile::fake()->createWithContent('contacts.csv', $csvContent, 'text/csv');
+
+        $this->actingAsTenantUser()
+            ->from(route('audience.subscribers.import', ['list' => $list->uuid]))
+            ->post(route('audience.subscribers.import.store'), [
+                'file' => $file,
+                'mail_list_id' => $list->uuid,
+            ])
+            ->assertRedirect(route('audience.subscribers.import', ['list' => $list->uuid]))
+            ->assertSessionHasErrors('file');
+    }
+
     public function test_import_allows_same_phone_on_another_list(): void
     {
         Storage::fake('local');

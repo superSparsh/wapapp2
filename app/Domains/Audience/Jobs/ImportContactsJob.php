@@ -71,14 +71,32 @@ class ImportContactsJob implements ShouldQueue
 
             $imported = true;
 
+            ContactImportService::storeResult($this->tenantId, $this->mailListId, [
+                'imported' => $result['imported'],
+                'skipped' => $result['skipped'],
+                'total' => $result['total'],
+                'errors' => $result['errors'] ?? [],
+                'failed' => false,
+            ]);
+
             Log::info('ImportContactsJob completed', [
                 'tenant_id' => $this->tenantId,
                 'mail_list_id' => $this->mailListId,
                 'imported' => $result['imported'],
                 'skipped' => $result['skipped'],
                 'total' => $result['total'],
+                'errors' => count($result['errors'] ?? []),
             ]);
         } catch (Throwable $e) {
+            ContactImportService::storeResult($this->tenantId, $this->mailListId, [
+                'imported' => 0,
+                'skipped' => 0,
+                'total' => 0,
+                'errors' => ['Import failed: '.$e->getMessage()],
+                'failed' => true,
+                'message' => $e->getMessage(),
+            ]);
+
             Log::error('ImportContactsJob failed', [
                 'tenant_id' => $this->tenantId,
                 'mail_list_id' => $this->mailListId,

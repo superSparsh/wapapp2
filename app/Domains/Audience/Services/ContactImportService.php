@@ -10,6 +10,7 @@ use App\Enums\ContactOptInStatus;
 use App\Models\Contact;
 use App\Support\PhoneNormalizer;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 
 class ContactImportService
@@ -24,10 +25,12 @@ class ContactImportService
         'send_opt_in_message',
     ];
 
+    public const MAX_REPORTED_ERRORS = 100;
+
     /**
      * Import contacts from an uploaded CSV (sync helper / small files / tests).
      *
-     * @return array{imported: int, skipped: int, total: int}
+     * @return array{imported: int, skipped: int, total: int, errors: list<string>}
      */
     public function import(UploadedFile $file, ?int $mailListId = null, bool $forceSendOptIn = false): array
     {
@@ -42,7 +45,7 @@ class ContactImportService
     /**
      * Import contacts from an absolute CSV path (used by queued job).
      *
-     * @return array{imported: int, skipped: int, total: int}
+     * @return array{imported: int, skipped: int, total: int, errors: list<string>}
      */
     public function importFromPath(string $absolutePath, ?int $mailListId = null, bool $forceSendOptIn = false): array
     {
@@ -71,11 +74,15 @@ class ContactImportService
             $imported = 0;
             $skipped = 0;
             $total = 0;
+            $errors = [];
             $batch = [];
             $importedPhones = [];
             $batchSize = 250;
+            $csvRowNumber = 1; // header row
 
             while (($row = fgetcsv($handle)) !== false) {
+                $csvRowNumber++;
+
                 if ($this->rowIsEmpty($row)) {
                     continue;
                 }
@@ -91,12 +98,16 @@ class ContactImportService
                 $data = array_combine($headers, $row);
                 if ($data === false) {
                     $skipped++;
+                    $this->pushError($errors, $csvRowNumber, 'Could not read this row (column count mismatch).');
+
                     continue;
                 }
 
                 $phone = $this->extractPhone($data);
                 if ($phone === null) {
                     $skipped++;
+                    $this->pushError($errors, $csvRowNumber, 'Invalid or missing phone number.');
+
                     continue;
                 }
 
@@ -105,6 +116,8 @@ class ContactImportService
 
                 if (Blacklist::isBlacklisted($phone, $email)) {
                     $skipped++;
+                    $this->pushError($errors, $csvRowNumber, 'Phone/email is blacklisted ('.$phone.').');
+
                     continue;
                 }
 
@@ -154,13 +167,23 @@ class ContactImportService
                 }
 
                 if (count($batch) >= $batchSize) {
-                    $imported += $this->upsertBatch($batch);
+                    try {
+                        $imported += $this->upsertBatch($batch);
+                    } catch (\Throwable $e) {
+                        $skipped += count($batch);
+                        $this->pushError($errors, $csvRowNumber, 'Database save failed: '.$e->getMessage());
+                    }
                     $batch = [];
                 }
             }
 
             if ($batch !== []) {
-                $imported += $this->upsertBatch($batch);
+                try {
+                    $imported += $this->upsertBatch($batch);
+                } catch (\Throwable $e) {
+                    $skipped += count($batch);
+                    $this->pushError($errors, $csvRowNumber, 'Database save failed: '.$e->getMessage());
+                }
             }
         } finally {
             fclose($handle);
@@ -172,7 +195,36 @@ class ContactImportService
             'imported' => $imported,
             'skipped' => $skipped,
             'total' => $total,
+            'errors' => $errors,
         ];
+    }
+
+    public static function resultCacheKey(string $tenantId, int $mailListId): string
+    {
+        return 'contact_import_result:'.$tenantId.':'.$mailListId;
+    }
+
+    /**
+     * @param  array{imported?: int, skipped?: int, total?: int, errors?: list<string>, failed?: bool, message?: string}  $result
+     */
+    public static function storeResult(string $tenantId, int $mailListId, array $result): void
+    {
+        Cache::put(
+            self::resultCacheKey($tenantId, $mailListId),
+            $result,
+            now()->addHours(6),
+        );
+    }
+
+    /**
+     * @return array{imported?: int, skipped?: int, total?: int, errors?: list<string>, failed?: bool, message?: string}|null
+     */
+    public static function pullResult(string $tenantId, int $mailListId): ?array
+    {
+        $key = self::resultCacheKey($tenantId, $mailListId);
+        $result = Cache::pull($key);
+
+        return is_array($result) ? $result : null;
     }
 
     /**
@@ -310,5 +362,21 @@ class ContactImportService
         }
 
         return true;
+    }
+
+    /**
+     * @param  list<string>  $errors
+     */
+    private function pushError(array &$errors, int $rowNumber, string $message): void
+    {
+        if (count($errors) >= self::MAX_REPORTED_ERRORS) {
+            if (count($errors) === self::MAX_REPORTED_ERRORS) {
+                $errors[] = 'Additional row errors were omitted (showing first '.self::MAX_REPORTED_ERRORS.').';
+            }
+
+            return;
+        }
+
+        $errors[] = 'Row '.$rowNumber.': '.$message;
     }
 }

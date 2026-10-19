@@ -81,24 +81,62 @@ class ContactImportController extends Controller
         $estimatedRows = OciWorkload::estimateCsvRows($absolute);
         $queue = OciWorkload::queueForImport($estimatedRows);
 
-        ImportContactsJob::dispatch(
-            $tenantId,
-            $storedPath,
-            (int) $mailList->id,
-            $forceSendOptIn,
-            'local',
-        )->onQueue($queue);
+        try {
+            ImportContactsJob::dispatch(
+                $tenantId,
+                $storedPath,
+                (int) $mailList->id,
+                $forceSendOptIn,
+                'local',
+            )->onQueue($queue);
+        } catch (\Throwable $e) {
+            // Sync queue rethrows job failures; surface them instead of a blank 500.
+            $result = ContactImportService::pullResult($tenantId, (int) $mailList->id);
+            $message = is_array($result) && isset($result['message'])
+                ? (string) $result['message']
+                : $e->getMessage();
+            $errors = is_array($result['errors'] ?? null) ? $result['errors'] : ['Import failed: '.$message];
 
-        // Sync queue (tests / local): job already finished - give accurate counts.
-        if (config('queue.default') === 'sync') {
             return redirect()
+                ->back()
+                ->withInput()
+                ->withErrors(['file' => $message])
+                ->with('error', $message)
+                ->with('import_errors', $errors);
+        }
+
+        // Sync queue (tests / local): job already finished - give accurate counts + errors.
+        if (config('queue.default') === 'sync') {
+            $result = ContactImportService::pullResult($tenantId, (int) $mailList->id) ?? [];
+            $imported = (int) ($result['imported'] ?? 0);
+            $skipped = (int) ($result['skipped'] ?? 0);
+            $errors = is_array($result['errors'] ?? null) ? $result['errors'] : [];
+            $failed = (bool) ($result['failed'] ?? false);
+
+            $status = $failed
+                ? 'Import failed.'.(isset($result['message']) ? ' '.$result['message'] : '')
+                : "Import complete: {$imported} imported, {$skipped} skipped.";
+
+            $redirect = redirect()
                 ->route('audience.subscribers', array_filter(['list' => $mailList->uuid]))
-                ->with('status', 'Import complete.');
+                ->with('status', $status);
+
+            if ($errors !== []) {
+                $redirect->with('import_errors', $errors);
+            }
+
+            if ($failed || $errors !== []) {
+                $redirect->with('error', $failed
+                    ? ($result['message'] ?? 'Import failed.')
+                    : "{$skipped} row(s) could not be imported. See details below.");
+            }
+
+            return $redirect;
         }
 
         return redirect()
             ->route('audience.subscribers', array_filter(['list' => $mailList->uuid]))
-            ->with('status', 'Import queued. Large lists are processed in the background - refresh the subscribers page in a few minutes.');
+            ->with('status', 'Import queued. Large lists are processed in the background - refresh this page in a few minutes to see results and any row errors.');
     }
 
     private function assertCsvHeaders(string $path): void

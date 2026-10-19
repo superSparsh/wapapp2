@@ -9,6 +9,34 @@
       @if (session('status'))
         <p class="rounded-lg bg-green-50 px-4 py-2 text-sm text-green-700">{{ session('status') }}</p>
       @endif
+      @if (session('error') || $errors->any())
+        <div class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+          @if (session('error'))
+            <p>{{ session('error') }}</p>
+          @endif
+          @if ($errors->any())
+            <ul class="mt-1 list-disc space-y-1 pl-5">
+              @foreach ($errors->all() as $error)
+                <li>{{ $error }}</li>
+              @endforeach
+            </ul>
+          @endif
+        </div>
+      @endif
+      @php
+        $importErrors = $importErrors ?? session('import_errors', []);
+        $importErrors = is_array($importErrors) ? $importErrors : [];
+      @endphp
+      @if ($importErrors !== [])
+        <div class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <p class="font-semibold">Import issues ({{ count($importErrors) }})</p>
+          <ul class="mt-2 max-h-48 list-disc space-y-1 overflow-y-auto pl-5">
+            @foreach ($importErrors as $importError)
+              <li>{{ $importError }}</li>
+            @endforeach
+          </ul>
+        </div>
+      @endif
       <div class="flex flex-wrap items-center justify-between gap-3">
         <form id="bulk-subscribers-form" method="POST" class="flex flex-wrap items-center gap-2" data-bulk-form>
           @csrf

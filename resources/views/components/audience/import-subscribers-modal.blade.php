@@ -24,6 +24,20 @@
       @csrf
       <input type="hidden" name="mail_list_id" value="{{ $mailListId ?? '' }}" data-import-list-input required>
 
+      @if ($errors->any())
+        <div class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+          <p class="font-semibold">Import could not start</p>
+          <ul class="mt-2 list-disc space-y-1 pl-5">
+            @foreach ($errors->all() as $error)
+              <li>{{ $error }}</li>
+            @endforeach
+          </ul>
+        </div>
+      @endif
+      @if (session('error'))
+        <div class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">{{ session('error') }}</div>
+      @endif
+
       @if (! $mailListId && $lists->isNotEmpty())
         <div data-import-list-select-wrap>
           <label for="import_mail_list_id" class="mb-2 block text-sm font-semibold leading-[1.4] text-text-primary">

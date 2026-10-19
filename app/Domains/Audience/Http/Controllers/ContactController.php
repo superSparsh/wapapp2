@@ -7,6 +7,7 @@ namespace App\Domains\Audience\Http\Controllers;
 use App\Domains\Audience\Http\Requests\Contact\BulkContactRequest;
 use App\Domains\Audience\Http\Requests\Contact\StoreContactRequest;
 use App\Domains\Audience\Http\Requests\Contact\UpdateContactRequest;
+use App\Domains\Audience\Services\ContactImportService;
 use App\Domains\Audience\Services\ContactService;
 use App\Domains\Audience\Services\ListFieldService;
 use App\Models\Contact;
@@ -63,6 +64,37 @@ class ContactController extends Controller
         $visibleListFields = $this->listFieldService->visibleListingFields($mailList);
         $formListFields = $this->listFieldService->editableFormFields($mailList);
 
+        $importErrors = session('import_errors');
+        $importErrors = is_array($importErrors) ? $importErrors : [];
+
+        $tenantId = tenant('id');
+        if (is_string($tenantId) && $tenantId !== '' && $importErrors === [] && ! session()->has('status')) {
+            $cached = ContactImportService::pullResult($tenantId, (int) $mailList->id);
+            if (is_array($cached)) {
+                $importErrors = is_array($cached['errors'] ?? null) ? $cached['errors'] : [];
+                $imported = (int) ($cached['imported'] ?? 0);
+                $skipped = (int) ($cached['skipped'] ?? 0);
+                $failed = (bool) ($cached['failed'] ?? false);
+
+                session()->flash(
+                    'status',
+                    $failed
+                        ? ('Import failed.'.(isset($cached['message']) ? ' '.$cached['message'] : ''))
+                        : "Import complete: {$imported} imported, {$skipped} skipped.",
+                );
+
+                if ($importErrors !== []) {
+                    session()->flash('import_errors', $importErrors);
+                    session()->flash(
+                        'error',
+                        $failed
+                            ? ($cached['message'] ?? 'Import failed.')
+                            : "{$skipped} row(s) could not be imported. See details below.",
+                    );
+                }
+            }
+        }
+
         return view('audience.subscribers', [
             'contacts' => $contacts,
             'mailListId' => $mailList->uuid,
@@ -76,6 +108,7 @@ class ContactController extends Controller
             'optIn' => is_string($optIn) ? $optIn : '',
             'currentSort' => $parsed['sort'],
             'currentDirection' => $parsed['direction'],
+            'importErrors' => $importErrors,
         ]);
     }
 
