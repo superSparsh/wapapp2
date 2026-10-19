@@ -68,29 +68,30 @@ class ContactController extends Controller
         $importErrors = is_array($importErrors) ? $importErrors : [];
 
         $tenantId = tenant('id');
-        if (is_string($tenantId) && $tenantId !== '' && $importErrors === [] && ! session()->has('status')) {
+        if (
+            is_string($tenantId)
+            && $tenantId !== ''
+            && $importErrors === []
+            && ! session()->has('status')
+            && ! session()->has('error')
+        ) {
             $cached = ContactImportService::pullResult($tenantId, (int) $mailList->id);
             if (is_array($cached)) {
-                $importErrors = is_array($cached['errors'] ?? null) ? $cached['errors'] : [];
                 $imported = (int) ($cached['imported'] ?? 0);
                 $skipped = (int) ($cached['skipped'] ?? 0);
                 $failed = (bool) ($cached['failed'] ?? false);
+                $rowErrors = is_array($cached['errors'] ?? null) ? $cached['errors'] : [];
 
-                session()->flash(
-                    'status',
-                    $failed
-                        ? ('Import failed.'.(isset($cached['message']) ? ' '.$cached['message'] : ''))
-                        : "Import complete: {$imported} imported, {$skipped} skipped.",
-                );
-
-                if ($importErrors !== []) {
-                    session()->flash('import_errors', $importErrors);
-                    session()->flash(
-                        'error',
-                        $failed
-                            ? ($cached['message'] ?? 'Import failed.')
-                            : "{$skipped} row(s) could not be imported. See details below.",
-                    );
+                if ($failed) {
+                    // One error flash only — layout shows toast once.
+                    session()->flash('error', 'Import failed: '.($cached['message'] ?? 'Unknown error.'));
+                } else {
+                    session()->flash('status', "Import complete: {$imported} imported, {$skipped} skipped.");
+                    if ($rowErrors !== []) {
+                        $importErrors = $rowErrors;
+                        session()->flash('import_errors', $rowErrors);
+                        session()->flash('error', "{$skipped} row(s) could not be imported. See details below.");
+                    }
                 }
             }
         }

@@ -121,11 +121,14 @@ class ContactImportService
                     continue;
                 }
 
-                $firstName = trim((string) ($data['first_name'] ?? ''));
-                $lastName = trim((string) ($data['last_name'] ?? ''));
+                $firstName = $this->utf8(trim((string) ($data['first_name'] ?? '')));
+                $lastName = $this->utf8(trim((string) ($data['last_name'] ?? '')));
                 $fullName = trim($firstName.' '.$lastName);
                 if ($fullName === '') {
-                    $fullName = trim((string) ($data['name'] ?? '')) ?: null;
+                    $fullName = $this->utf8(trim((string) ($data['name'] ?? ''))) ?: null;
+                }
+                if ($email !== null) {
+                    $email = $this->utf8($email) ?: null;
                 }
 
                 $existingCustomer = $this->normalizeYesNo($data['existing_customer'] ?? null, default: 'yes');
@@ -156,8 +159,8 @@ class ContactImportService
                     'opt_in_status' => ContactOptInStatus::OptedIn->value,
                     'opted_in_at' => $now,
                     'send_opt_in_message' => $sendOptIn,
-                    'custom_fields' => json_encode($customFields, JSON_THROW_ON_ERROR),
-                    'source' => trim((string) ($data['source'] ?? 'import')) ?: 'import',
+                    'custom_fields' => json_encode($customFields, JSON_THROW_ON_ERROR | JSON_INVALID_UTF8_SUBSTITUTE),
+                    'source' => $this->utf8(trim((string) ($data['source'] ?? 'import'))) ?: 'import',
                     'created_at' => $now,
                     'updated_at' => $now,
                 ];
@@ -378,5 +381,19 @@ class ContactImportService
         }
 
         $errors[] = 'Row '.$rowNumber.': '.$message;
+    }
+
+    /**
+     * Strip / convert invalid bytes so json_encode and MySQL never choke on CSV encoding.
+     */
+    private function utf8(string $value): string
+    {
+        if ($value === '' || mb_check_encoding($value, 'UTF-8')) {
+            return $value;
+        }
+
+        $converted = @mb_convert_encoding($value, 'UTF-8', 'UTF-8, ISO-8859-1, Windows-1252');
+
+        return is_string($converted) ? $converted : preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F]/', '', $value) ?? '';
     }
 }

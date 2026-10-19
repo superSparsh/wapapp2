@@ -90,19 +90,13 @@ class ContactImportController extends Controller
                 'local',
             )->onQueue($queue);
         } catch (\Throwable $e) {
-            // Sync queue rethrows job failures; surface them instead of a blank 500.
-            $result = ContactImportService::pullResult($tenantId, (int) $mailList->id);
-            $message = is_array($result) && isset($result['message'])
-                ? (string) $result['message']
-                : $e->getMessage();
-            $errors = is_array($result['errors'] ?? null) ? $result['errors'] : ['Import failed: '.$message];
+            // Sync queue rethrows job failures — one error flash (banner + toast via layout).
+            ContactImportService::pullResult($tenantId, (int) $mailList->id);
+            $message = 'Import failed: '.$e->getMessage();
 
             return redirect()
-                ->back()
-                ->withInput()
-                ->withErrors(['file' => $message])
-                ->with('error', $message)
-                ->with('import_errors', $errors);
+                ->route('audience.subscribers', array_filter(['list' => $mailList->uuid]))
+                ->with('error', $message);
         }
 
         // Sync queue (tests / local): job already finished - give accurate counts + errors.
@@ -113,22 +107,21 @@ class ContactImportController extends Controller
             $errors = is_array($result['errors'] ?? null) ? $result['errors'] : [];
             $failed = (bool) ($result['failed'] ?? false);
 
-            $status = $failed
-                ? 'Import failed.'.(isset($result['message']) ? ' '.$result['message'] : '')
-                : "Import complete: {$imported} imported, {$skipped} skipped.";
+            if ($failed) {
+                return redirect()
+                    ->route('audience.subscribers', array_filter(['list' => $mailList->uuid]))
+                    ->with('error', 'Import failed: '.($result['message'] ?? 'Unknown error.'));
+            }
 
             $redirect = redirect()
                 ->route('audience.subscribers', array_filter(['list' => $mailList->uuid]))
-                ->with('status', $status);
+                ->with('status', "Import complete: {$imported} imported, {$skipped} skipped.");
 
+            // Partial row skips: keep detail list on page; toast only the summary once.
             if ($errors !== []) {
-                $redirect->with('import_errors', $errors);
-            }
-
-            if ($failed || $errors !== []) {
-                $redirect->with('error', $failed
-                    ? ($result['message'] ?? 'Import failed.')
-                    : "{$skipped} row(s) could not be imported. See details below.");
+                $redirect
+                    ->with('import_errors', $errors)
+                    ->with('error', "{$skipped} row(s) could not be imported. See details below.");
             }
 
             return $redirect;
