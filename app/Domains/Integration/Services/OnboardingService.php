@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Domains\Integration\Services;
 
 use App\Domains\WhatsApp\Services\AlibabaCamsClient;
-use App\Enums\RecordStatus;
 use App\Models\IsvTermsAcceptance;
 use App\Models\User;
 use App\Models\WabaAccount;
@@ -200,8 +199,12 @@ class OnboardingService
                     ->first()
                     ?? $this->lineProfileService->defaultLine();
 
-                if ($line) {
+                if ($line && ! $line->isPlaceholder()) {
                     $this->lineProfileService->syncFromProvider($line);
+                } else {
+                    // No real line yet — sync by CustSpace so CAMS phones become WhatsappLine rows
+                    // without creating a "pending…" placeholder number.
+                    $this->lineProfileService->syncCustSpace($wabaId, $custSpaceId, $phoneNumberId);
                 }
             } catch (Throwable $e) {
                 Log::warning('Onboarding post-bind sync failed', [
@@ -218,33 +221,17 @@ class OnboardingService
     {
         $line = WhatsappLine::query()->orderByDesc('is_default')->first();
 
-        if ($line) {
-            $attributes = ['waba_id' => $wabaId];
-            if ($custSpaceId !== '') {
-                $attributes['alibaba_cust_space_id'] = $custSpaceId;
-            }
-            if ($phoneNumberId) {
-                $attributes['alibaba_phone_number_id'] = $phoneNumberId;
-            }
-            $line->forceFill($attributes)->save();
-
+        if (! $line) {
             return;
         }
 
-        if ($custSpaceId === '') {
-            return;
+        $attributes = ['waba_id' => $wabaId];
+        if ($custSpaceId !== '') {
+            $attributes['alibaba_cust_space_id'] = $custSpaceId;
         }
-
-        // Placeholder until ChatappSyncPhoneNumber fills real numbers.
-        $placeholder = 'pending'.substr(preg_replace('/\D+/', '', $wabaId) ?? $wabaId, 0, 12);
-        WhatsappLine::query()->create([
-            'phone' => $placeholder,
-            'display_name' => 'WhatsApp Business',
-            'waba_id' => $wabaId,
-            'alibaba_cust_space_id' => $custSpaceId,
-            'alibaba_phone_number_id' => $phoneNumberId,
-            'status' => RecordStatus::Active,
-            'is_default' => true,
-        ]);
+        if ($phoneNumberId) {
+            $attributes['alibaba_phone_number_id'] = $phoneNumberId;
+        }
+        $line->forceFill($attributes)->save();
     }
 }

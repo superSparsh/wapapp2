@@ -369,6 +369,18 @@ class PhoneLineTest extends TestCase
         $this->assertSame('+91 98765 43210', $line->displayLabel());
     }
 
+    public function test_placeholder_pending_phone_is_not_shown_as_e164(): void
+    {
+        $line = WhatsappLine::factory()->make([
+            'phone' => 'pending162594606901',
+            'display_name' => 'WhatsApp Business',
+        ]);
+
+        $this->assertTrue($line->isPlaceholder());
+        $this->assertTrue(WhatsappLine::isPlaceholderPhone('+pending162594606901'));
+        $this->assertSame('Number syncing…', $line->displayPhone());
+    }
+
     public function test_whatsapp_line_display_label_includes_name_and_number(): void
     {
         $line = WhatsappLine::factory()->make([

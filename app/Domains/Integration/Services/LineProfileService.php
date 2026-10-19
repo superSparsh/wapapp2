@@ -25,13 +25,61 @@ class LineProfileService
     /** @return Collection<int, WhatsappLine> */
     public function lines(): Collection
     {
+        $this->purgePlaceholderLines();
+
         return WhatsappLine::query()->orderByDesc('is_default')->get();
     }
 
     public function defaultLine(): ?WhatsappLine
     {
+        $this->purgePlaceholderLines();
+
         return WhatsappLine::query()->where('is_default', true)->first()
             ?? WhatsappLine::query()->first();
+    }
+
+    /**
+     * Sync phone numbers for a CustSpace without requiring an existing WhatsappLine.
+     * Used after Embedded Signup when no real number line exists yet.
+     */
+    public function syncCustSpace(string $wabaId, string $custSpaceId, ?string $phoneNumberId = null): void
+    {
+        if (! $this->camsClient->isConfigured()) {
+            throw new RuntimeException('WhatsApp provider (Alibaba CAMS) is not configured.');
+        }
+
+        $custSpaceId = trim($custSpaceId);
+        $wabaId = trim($wabaId);
+
+        if ($custSpaceId === '') {
+            throw new RuntimeException('CustSpaceId is required to sync WhatsApp numbers.');
+        }
+
+        $phoneNumbers = $this->fetchSyncedPhoneNumbers($custSpaceId);
+
+        if ($wabaId === '') {
+            $wabaId = $this->wabaIdFromPhoneNumbers($phoneNumbers);
+        }
+
+        $this->upsertLinesFromPhoneNumbers($phoneNumbers, $wabaId, $custSpaceId, $phoneNumberId);
+        $this->purgePlaceholderLines($wabaId, $custSpaceId);
+
+        $webhookLines = WhatsappLine::query()
+            ->where(function ($query) use ($wabaId, $custSpaceId): void {
+                $query->where('alibaba_cust_space_id', $custSpaceId);
+                if ($wabaId !== '') {
+                    $query->orWhere('waba_id', $wabaId);
+                }
+            })
+            ->get();
+
+        foreach ($webhookLines as $syncedLine) {
+            $this->registerPhoneWebhook($custSpaceId, (string) $syncedLine->phone);
+        }
+
+        if ($wabaId !== '') {
+            $this->applyBusinessInfo($custSpaceId, $wabaId);
+        }
     }
 
     public function businessDetails(): array
@@ -133,6 +181,7 @@ class LineProfileService
         }
 
         $this->upsertLinesFromPhoneNumbers($phoneNumbers, $wabaId, $custSpaceId);
+        $this->purgePlaceholderLines($wabaId, $custSpaceId);
 
         $webhookLines = WhatsappLine::query()
             ->where(function ($query) use ($wabaId, $custSpaceId): void {
@@ -513,15 +562,19 @@ class LineProfileService
     /**
      * @param  list<array<string, mixed>>  $phoneNumbers
      */
-    private function upsertLinesFromPhoneNumbers(array $phoneNumbers, string $wabaId, string $custSpaceId): void
-    {
+    private function upsertLinesFromPhoneNumbers(
+        array $phoneNumbers,
+        string $wabaId,
+        string $custSpaceId,
+        ?string $phoneNumberId = null,
+    ): void {
         foreach ($phoneNumbers as $item) {
             $phone = $this->digitsPhone((string) (
                 Arr::get($item, 'phoneNumber')
                 ?? Arr::get($item, 'PhoneNumber')
                 ?? ''
             ));
-            if ($phone === '') {
+            if ($phone === '' || WhatsappLine::isPlaceholderPhone($phone)) {
                 continue;
             }
 
@@ -531,11 +584,13 @@ class LineProfileService
             $status = Arr::get($item, 'status') ?? Arr::get($item, 'Status');
 
             $line = WhatsappLine::query()->where('phone', $phone)->first()
-                ?? WhatsappLine::query()->where('phone', '+'.$phone)->first();
+                ?? WhatsappLine::query()->where('phone', '+'.$phone)->first()
+                ?? $this->findPlaceholderLineForReuse($wabaId, $custSpaceId);
 
             $oldQuality = $line?->quality_rating;
 
             $attributes = [
+                'phone' => $phone,
                 'alibaba_cust_space_id' => $custSpaceId,
                 'quality_rating' => is_scalar($quality) ? (string) $quality : null,
                 'messaging_limit_tier' => is_scalar($tier) ? (string) $tier : null,
@@ -544,6 +599,10 @@ class LineProfileService
 
             if ($wabaId !== '') {
                 $attributes['waba_id'] = $wabaId;
+            }
+
+            if ($phoneNumberId) {
+                $attributes['alibaba_phone_number_id'] = $phoneNumberId;
             }
 
             if (is_string($verifiedName) && $verifiedName !== '') {
@@ -562,7 +621,6 @@ class LineProfileService
             } else {
                 $hasDefault = WhatsappLine::query()->where('is_default', true)->exists();
                 $line = WhatsappLine::query()->create(array_merge($attributes, [
-                    'phone' => $phone,
                     'display_name' => is_string($verifiedName) && $verifiedName !== '' ? $verifiedName : $phone,
                     'is_default' => ! $hasDefault,
                 ]));
@@ -580,8 +638,76 @@ class LineProfileService
         }
     }
 
+    private function findPlaceholderLineForReuse(string $wabaId, string $custSpaceId): ?WhatsappLine
+    {
+        return WhatsappLine::query()
+            ->withPlaceholders()
+            ->orderByDesc('is_default')
+            ->get()
+            ->first(function (WhatsappLine $line) use ($wabaId, $custSpaceId): bool {
+                if (! $line->isPlaceholder()) {
+                    return false;
+                }
+
+                if ($custSpaceId !== '' && (string) $line->alibaba_cust_space_id === $custSpaceId) {
+                    return true;
+                }
+
+                return $wabaId !== '' && (string) $line->waba_id === $wabaId;
+            });
+    }
+
+    /**
+     * Remove temporary "pending…" WhatsApp lines created during onboarding.
+     */
+    public function purgePlaceholderLines(?string $wabaId = null, ?string $custSpaceId = null): int
+    {
+        $query = WhatsappLine::query()
+            ->withPlaceholders()
+            ->where(function ($builder): void {
+                $builder->where('phone', 'like', 'pending%')
+                    ->orWhere('phone', 'like', '+pending%');
+            });
+
+        $scoped = ($wabaId !== null && $wabaId !== '') || ($custSpaceId !== null && $custSpaceId !== '');
+        if ($scoped) {
+            $query->where(function ($builder) use ($wabaId, $custSpaceId): void {
+                if ($custSpaceId !== null && $custSpaceId !== '') {
+                    $builder->where('alibaba_cust_space_id', $custSpaceId);
+                }
+                if ($wabaId !== null && $wabaId !== '') {
+                    $builder->orWhere('waba_id', $wabaId);
+                }
+            });
+        }
+
+        $deleted = 0;
+        foreach ($query->get() as $line) {
+            if (! $line->isPlaceholder()) {
+                continue;
+            }
+
+            $wasDefault = (bool) $line->is_default;
+            $line->delete();
+            $deleted++;
+
+            if ($wasDefault) {
+                $next = WhatsappLine::query()->orderByDesc('id')->first();
+                if ($next && ! $next->is_default) {
+                    $next->forceFill(['is_default' => true])->save();
+                }
+            }
+        }
+
+        return $deleted;
+    }
+
     private function registerPhoneWebhook(string $custSpaceId, string $phone): void
     {
+        if (WhatsappLine::isPlaceholderPhone($phone)) {
+            return;
+        }
+
         $digits = $this->digitsPhone($phone);
         if ($digits === '') {
             return;

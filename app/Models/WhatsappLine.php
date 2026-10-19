@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\RecordStatus;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Hash;
@@ -40,6 +41,25 @@ class WhatsappLine extends TenantModel
         ];
     }
 
+    protected static function booted(): void
+    {
+        static::addGlobalScope('without_placeholders', function (Builder $builder): void {
+            $builder->where(function (Builder $query): void {
+                $query->where('phone', 'not like', 'pending%')
+                    ->where('phone', 'not like', '+pending%');
+            });
+        });
+    }
+
+    /**
+     * @param  Builder<WhatsappLine>  $query
+     * @return Builder<WhatsappLine>
+     */
+    public function scopeWithPlaceholders(Builder $query): Builder
+    {
+        return $query->withoutGlobalScope('without_placeholders');
+    }
+
     // ─── Helpers ──────────────────────────────────────────────────────────────
 
     /**
@@ -68,11 +88,34 @@ class WhatsappLine extends TenantModel
     }
 
     /**
+     * Temporary onboarding placeholders like "pending162594606901" (not real WhatsApp numbers).
+     */
+    public static function isPlaceholderPhone(?string $phone): bool
+    {
+        $value = strtolower(ltrim(trim((string) $phone), '+'));
+
+        return $value !== '' && str_starts_with($value, 'pending');
+    }
+
+    public function isPlaceholder(): bool
+    {
+        return self::isPlaceholderPhone($this->phone);
+    }
+
+    /**
      * Format the phone number for display (e.g., +91 98765 43210).
      */
     public function displayPhone(): string
     {
+        if ($this->isPlaceholder()) {
+            return 'Number syncing…';
+        }
+
         $digits = preg_replace('/\D/', '', (string) $this->phone) ?? '';
+
+        if ($digits === '') {
+            return '';
+        }
 
         if (strlen($digits) === 12 && str_starts_with($digits, '91')) {
             return '+91 '.substr($digits, 2, 5).' '.substr($digits, 7);
