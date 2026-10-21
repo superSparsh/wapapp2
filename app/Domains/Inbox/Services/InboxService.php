@@ -96,7 +96,7 @@ class InboxService
             'assignableAgents' => $this->assignmentService->assignableAgents(),
             'activeLine' => $line,
             'availableLines' => $this->availableLines(),
-            'unreadTotal' => $this->queryService->totalUnreadCount(),
+            'unreadTotal' => $this->queryService->totalUnreadCount($line, $filters['lookback_days']),
             'inboxPhoneMaskingEnabled' => $this->settingsService->isPhoneMaskingEnabled(),
             'isTeamInbox' => $this->accessService->isTeamMember(),
             'walletBalance' => $walletBalance,

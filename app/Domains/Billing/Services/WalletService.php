@@ -309,7 +309,23 @@ class WalletService
      */
     public function paginateCampaignWalletSummaries(int $perPage = 25): LengthAwarePaginator
     {
-        $rows = WalletTransaction::query()
+        // Aggregate in SQL. Loading every campaign debit (one row per message)
+        // into PHP exhausts memory on large accounts and returns HTTP 500.
+        $connection = WalletTransaction::query()->getConnection();
+        $quotedType = $connection->getPdo()->quote(Campaign::class);
+        $campaignIdSql = $connection->getDriverName() === 'sqlite'
+            ? "CAST(COALESCE(
+                NULLIF(NULLIF(json_extract(metadata, '$.campaign_id'), ''), '0'),
+                NULLIF(NULLIF(json_extract(metadata, '$.legacy_campaign_id'), ''), '0'),
+                CASE WHEN reference_type = {$quotedType} THEN reference_id END
+              ) AS INTEGER)"
+            : "CAST(COALESCE(
+                NULLIF(NULLIF(JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.campaign_id')), ''), '0'),
+                NULLIF(NULLIF(JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.legacy_campaign_id')), ''), '0'),
+                CASE WHEN reference_type = {$quotedType} THEN reference_id END
+              ) AS UNSIGNED)";
+
+        $base = WalletTransaction::query()
             ->where('type', WalletTransactionType::Debit)
             ->where(function ($query): void {
                 $query->where('reference_type', Campaign::class)
@@ -327,56 +343,48 @@ class WalletService
                             ->where('metadata->legacy_campaign_id', '!=', 0);
                     });
             })
-            ->orderByDesc('id')
-            ->get(['id', 'amount', 'reference_type', 'reference_id', 'metadata', 'created_at']);
+            ->selectRaw("{$campaignIdSql} as campaign_id")
+            ->selectRaw('ABS(amount) as abs_amount')
+            ->selectRaw('created_at')
+            ->toBase();
 
-        $grouped = [];
-        foreach ($rows as $transaction) {
-            $meta = is_array($transaction->metadata) ? $transaction->metadata : [];
-            $campaignId = (int) ($meta['campaign_id'] ?? $meta['legacy_campaign_id'] ?? 0);
-            if ($campaignId <= 0 && $transaction->reference_type === Campaign::class) {
-                $campaignId = (int) $transaction->reference_id;
-            }
-            if ($campaignId <= 0) {
-                continue;
-            }
+        $rows = $connection->query()
+            ->fromSub($base, 'charges')
+            ->where('campaign_id', '>', 0)
+            ->groupBy('campaign_id')
+            ->selectRaw('campaign_id, COUNT(*) as charge_count, SUM(abs_amount) as total_amount, MAX(created_at) as last_charged_at')
+            ->orderByDesc('last_charged_at')
+            ->get();
 
-            if (! isset($grouped[$campaignId])) {
-                $grouped[$campaignId] = [
-                    'campaign_id' => $campaignId,
-                    'charge_count' => 0,
-                    'total_amount' => 0.0,
-                    'last_charged_at' => $transaction->created_at,
-                ];
-            }
+        $campaignIds = $rows
+            ->map(fn (object $row): int => (int) $row->campaign_id)
+            ->filter(fn (int $id): bool => $id > 0)
+            ->values()
+            ->all();
 
-            $grouped[$campaignId]['charge_count']++;
-            $grouped[$campaignId]['total_amount'] += abs((float) $transaction->amount);
-            if ($transaction->created_at !== null
-                && ($grouped[$campaignId]['last_charged_at'] === null
-                    || $transaction->created_at->greaterThan($grouped[$campaignId]['last_charged_at']))) {
-                $grouped[$campaignId]['last_charged_at'] = $transaction->created_at;
-            }
-        }
+        $campaigns = $campaignIds === []
+            ? collect()
+            : Campaign::query()
+                ->withTrashed()
+                ->whereIn('id', $campaignIds)
+                ->with(['template:id,name,category', 'audience:id,name'])
+                ->get()
+                ->keyBy('id');
 
-        $campaigns = Campaign::query()
-            ->withTrashed()
-            ->whereIn('id', array_keys($grouped))
-            ->with(['template:id,name,category', 'audience:id,name'])
-            ->get()
-            ->keyBy('id');
+        $summaries = $rows
+            ->map(function (object $row) use ($campaigns): object {
+                $chargedAt = $row->last_charged_at
+                    ? \Illuminate\Support\Carbon::parse($row->last_charged_at)
+                    : null;
 
-        $summaries = collect($grouped)
-            ->map(function (array $row) use ($campaigns): object {
                 return (object) [
-                    'campaign_id' => $row['campaign_id'],
-                    'campaign' => $campaigns->get($row['campaign_id']),
-                    'charge_count' => $row['charge_count'],
-                    'total_amount' => round($row['total_amount'], 2),
-                    'last_charged_at' => $row['last_charged_at'],
+                    'campaign_id' => (int) $row->campaign_id,
+                    'campaign' => $campaigns->get((int) $row->campaign_id),
+                    'charge_count' => (int) $row->charge_count,
+                    'total_amount' => round((float) $row->total_amount, 2),
+                    'last_charged_at' => $chargedAt,
                 ];
             })
-            ->sortByDesc(fn (object $row): int => $row->last_charged_at?->getTimestamp() ?? 0)
             ->values();
 
         $page = max(1, (int) request()->integer('page', 1));

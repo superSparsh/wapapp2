@@ -1180,7 +1180,16 @@ function initInboxNavBadge() {
 
     const refresh = async () => {
         try {
-            const response = await fetch(url, {
+            const params = new URLSearchParams();
+            const root = document.querySelector('[data-inbox-root]');
+            if (root?.dataset.activeLine) {
+                params.set('line', root.dataset.activeLine);
+            }
+            if (root?.dataset.lookbackDays) {
+                params.set('days', root.dataset.lookbackDays);
+            }
+            const requestUrl = params.toString() ? `${url}?${params}` : url;
+            const response = await fetch(requestUrl, {
                 headers: { Accept: 'application/json' },
                 credentials: 'same-origin',
             });

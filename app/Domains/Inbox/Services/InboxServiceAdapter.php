@@ -57,14 +57,31 @@ class InboxServiceAdapter
             scope: $filters['scope'],
             assigneeFilter: $filters['assignee_filter'],
         );
-        $payload['unread_total'] = $this->localQueryService->totalUnreadCount();
+        $payload['unread_total'] = $this->localQueryService->totalUnreadCount(
+            $line,
+            $filters['lookback_days'],
+        );
 
         return $this->json($payload);
     }
 
-    public function unreadCount(): JsonResponse
+    public function unreadCount(Request $request): JsonResponse
     {
-        return $this->json($this->localQueryService->unreadSnapshot());
+        $line = null;
+
+        if ($request->filled('line')) {
+            try {
+                $line = $this->localInboxService->resolveActiveLine($request);
+            } catch (\Throwable) {
+                $line = null;
+            }
+        }
+
+        $lookbackDays = $request->filled('days')
+            ? $request->integer('days')
+            : (int) config('inbox.default_lookback_days', 7);
+
+        return $this->json($this->localQueryService->unreadSnapshot($line, $lookbackDays));
     }
 
     public function messages(Request $request, Conversation $conversation): JsonResponse

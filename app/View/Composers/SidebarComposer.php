@@ -22,7 +22,16 @@ class SidebarComposer
 
         try {
             if (tenancy()->initialized) {
-                $unread = $this->inboxQueryService->totalUnreadCount();
+                $line = null;
+                $lookbackDays = (int) config('inbox.default_lookback_days', 7);
+
+                if (request()->routeIs('inbox.index', 'inbox.show')) {
+                    $inbox = app(\App\Domains\Inbox\Services\InboxService::class);
+                    $line = $inbox->resolveActiveLine(request());
+                    $lookbackDays = (int) $inbox->filtersFromRequest(request())['lookback_days'];
+                }
+
+                $unread = $this->inboxQueryService->totalUnreadCount($line, $lookbackDays);
             }
         } catch (\Throwable) {
             $unread = 0;

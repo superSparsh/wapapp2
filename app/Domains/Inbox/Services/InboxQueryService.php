@@ -100,28 +100,20 @@ class InboxQueryService
         ];
     }
 
-    public function totalUnreadCount(?WhatsappLine $line = null): int
+    public function totalUnreadCount(?WhatsappLine $line = null, ?int $lookbackDays = null): int
     {
-        $query = Conversation::query()->where('unread_count', '>', 0);
-
-        if ($line !== null) {
-            $query->where('whatsapp_line_id', $line->id);
-        }
-
-        $this->applyTeamMemberScope($query);
-
-        // Nav badge = number of chats with unread inbound messages (WhatsApp-style),
-        // not the sum of every unread message across chats.
-        return (int) $query->count();
+        // Nav badge = chats with unread messages that can appear in the inbox list
+        // (this number, this date range, real contact). Not a sum of message counts,
+        // and not old/hidden chats the list does not show.
+        return (int) $this->visibleUnreadQuery($line, $lookbackDays)->count();
     }
 
     /**
      * @return array{unread_total: int, latest: ?array<string, mixed>}
      */
-    public function unreadSnapshot(): array
+    public function unreadSnapshot(?WhatsappLine $line = null, ?int $lookbackDays = null): array
     {
-        $query = Conversation::query()->where('unread_count', '>', 0);
-        $this->applyTeamMemberScope($query);
+        $query = $this->visibleUnreadQuery($line, $lookbackDays);
 
         $latestConversation = (clone $query)
             ->with(['latestMessage' => fn ($builder) => $builder->select(
@@ -174,20 +166,55 @@ class InboxQueryService
     }
 
     /**
-     * IDs for every chat the nav unread badge counts (no lookback / list filters).
+     * IDs for chats the nav unread badge counts (same line and date range as the inbox list).
      * Used by Mark all read so the badge can reset to 0.
      *
      * @return array<int, int>
      */
-    public function unreadConversationIdsForBadge(): array
+    public function unreadConversationIdsForBadge(?WhatsappLine $line = null, ?int $lookbackDays = null): array
     {
-        $query = Conversation::query()->where('unread_count', '>', 0);
-        $this->applyTeamMemberScope($query);
-
-        return $query
+        return $this->visibleUnreadQuery($line, $lookbackDays)
             ->pluck('id')
             ->map(fn ($id) => (int) $id)
             ->all();
+    }
+
+    /**
+     * Unread chats the inbox list can actually show.
+     */
+    private function visibleUnreadQuery(?WhatsappLine $line, ?int $lookbackDays): Builder
+    {
+        $query = Conversation::query()->where('unread_count', '>', 0);
+
+        if ($line !== null) {
+            $query->where('whatsapp_line_id', $line->id);
+        }
+
+        if ($lookbackDays !== null) {
+            $query->where('last_message_at', '>=', now()->subDays($this->normalizeLookbackDays($lookbackDays)));
+        }
+
+        $this->applyVisibleIdentity($query);
+        $this->applyTeamMemberScope($query);
+
+        return $query;
+    }
+
+    private function applyVisibleIdentity(Builder $query): void
+    {
+        $query->where(function (Builder $builder): void {
+            // Drop placeholder / empty-identity chats (show up as "Unknown" in the UI).
+            $builder
+                ->where(function (Builder $phone): void {
+                    $phone->whereNotNull('contact_phone')->where('contact_phone', '!=', '');
+                })
+                ->orWhere(function (Builder $named): void {
+                    $named
+                        ->whereNotNull('contact_name')
+                        ->where('contact_name', '!=', '')
+                        ->whereRaw('LOWER(contact_name) NOT IN (?, ?)', ['unknown', 'unknown user']);
+                });
+        });
     }
 
     public function resolveDefaultLine(): ?WhatsappLine
@@ -331,22 +358,13 @@ class InboxQueryService
         ?string $scope,
         ?array $assigneeFilter,
     ): Builder {
-        return Conversation::query()
+        $query = Conversation::query()
             ->where('whatsapp_line_id', $line->id)
-            ->where('last_message_at', '>=', $since)
-            ->where(function (Builder $builder): void {
-                // Drop placeholder / empty-identity chats (show up as "Unknown" in the UI).
-                $builder
-                    ->where(function (Builder $phone): void {
-                        $phone->whereNotNull('contact_phone')->where('contact_phone', '!=', '');
-                    })
-                    ->orWhere(function (Builder $named): void {
-                        $named
-                            ->whereNotNull('contact_name')
-                            ->where('contact_name', '!=', '')
-                            ->whereRaw('LOWER(contact_name) NOT IN (?, ?)', ['unknown', 'unknown user']);
-                    });
-            })
+            ->where('last_message_at', '>=', $since);
+
+        $this->applyVisibleIdentity($query);
+
+        return $query
             ->when(true, fn (Builder $builder) => $this->applyTeamMemberScope($builder))
             ->when($unreadOnly || $scope === 'unread', fn (Builder $builder) => $builder->where('unread_count', '>', 0))
             ->when($scope === 'mine', fn (Builder $builder) => $this->applyMineScope($builder))

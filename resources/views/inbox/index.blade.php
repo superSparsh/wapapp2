@@ -14,6 +14,8 @@
     data-threads-cursor="{{ $threadsCursor ?? '' }}"
     data-threads-has-more="{{ ! empty($threadsHasMore) ? '1' : '0' }}"
     data-unread-total="{{ (int) ($unreadTotal ?? 0) }}"
+    data-active-line="{{ $activeLine->uuid ?? ($filters['line'] ?? '') }}"
+    data-lookback-days="{{ (int) ($filters['lookback_days'] ?? config('inbox.default_lookback_days', 7)) }}"
     data-templates-url="{{ route('inbox.api.templates', array_filter(['line' => $activeLine?->uuid])) }}"
   >
     <div class="flex shrink-0 flex-col gap-2 px-4 pb-1.5 pt-3">

@@ -143,6 +143,49 @@ class InboxQueryServiceTest extends TestCase
 
         $this->assertSame(3, $conversation->fresh()->unread_count);
         $this->assertSame(1, $this->queryService->totalUnreadCount($this->testLine));
-        $this->assertSame(1, $this->queryService->unreadSnapshot()['unread_total']);
+        $this->assertSame(1, $this->queryService->unreadSnapshot($this->testLine, 7)['unread_total']);
+    }
+
+    public function test_badge_skips_other_lines_old_chats_and_unknown_placeholders(): void
+    {
+        $visible = Conversation::factory()->create([
+            'whatsapp_line_id' => $this->testLine->id,
+            'contact_phone' => '918888888901',
+            'contact_name' => 'Visible',
+            'line_phone' => $this->testLine->phone,
+            'unread_count' => 1,
+            'last_message_at' => now(),
+        ]);
+
+        Conversation::factory()->create([
+            'whatsapp_line_id' => $this->testLine->id,
+            'contact_phone' => '918888888902',
+            'contact_name' => 'Old',
+            'line_phone' => $this->testLine->phone,
+            'unread_count' => 4,
+            'last_message_at' => now()->subDays(40),
+        ]);
+
+        Conversation::factory()->create([
+            'whatsapp_line_id' => $this->testLine->id,
+            'contact_phone' => '',
+            'contact_name' => 'Unknown',
+            'line_phone' => $this->testLine->phone,
+            'unread_count' => 2,
+            'last_message_at' => now(),
+        ]);
+
+        $otherLine = \App\Models\WhatsappLine::factory()->create();
+        Conversation::factory()->create([
+            'whatsapp_line_id' => $otherLine->id,
+            'contact_phone' => '918888888903',
+            'contact_name' => 'Other line',
+            'line_phone' => $otherLine->phone,
+            'unread_count' => 1,
+            'last_message_at' => now(),
+        ]);
+
+        $this->assertSame(1, $this->queryService->totalUnreadCount($this->testLine, 7));
+        $this->assertSame($visible->id, $this->queryService->unreadConversationIdsForBadge($this->testLine, 7)[0]);
     }
 }

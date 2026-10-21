@@ -207,7 +207,7 @@ class InboxPhase2Test extends TestCase
         $this->assertSame(0, $this->queryService->totalUnreadCount($this->testLine));
     }
 
-    public function test_mark_all_read_clears_unread_outside_lookback_so_badge_resets(): void
+    public function test_badge_ignores_unread_outside_the_inbox_date_range(): void
     {
         $contact = Contact::factory()->create();
 
@@ -220,7 +220,8 @@ class InboxPhase2Test extends TestCase
             'unread_count' => 1,
         ]);
 
-        $this->assertSame(1, $this->queryService->totalUnreadCount($this->testLine));
+        $this->assertSame(0, $this->queryService->totalUnreadCount($this->testLine, 7));
+        $this->assertSame(1, $this->queryService->totalUnreadCount($this->testLine, 90));
 
         $updated = $this->messageService->markAllReadForLine(
             line: $this->testLine,
@@ -228,9 +229,9 @@ class InboxPhase2Test extends TestCase
             lookbackDays: 7,
         );
 
-        $this->assertSame(1, $updated);
-        $this->assertSame(0, $conversation->refresh()->unread_count);
-        $this->assertSame(0, $this->queryService->totalUnreadCount($this->testLine));
+        $this->assertSame(0, $updated);
+        $this->assertSame(1, $conversation->refresh()->unread_count);
+        $this->assertSame(0, $this->queryService->totalUnreadCount($this->testLine, 7));
     }
 
     public function test_assign_api_updates_conversation(): void
