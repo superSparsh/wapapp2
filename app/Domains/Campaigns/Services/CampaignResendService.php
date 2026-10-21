@@ -20,6 +20,7 @@ use App\Models\Template;
 use App\Support\OciWorkload;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Throwable;
 
 class CampaignResendService
@@ -99,6 +100,9 @@ class CampaignResendService
         $sendNow = $sendOption === 'now';
         $templateId = $this->resolveTemplateIdForResend($source);
 
+        // 10k+ failed rows used to run one lookup + insert per contact inside the request.
+        set_time_limit(180);
+
         // Send-now needs a live template row. Schedule can open the wizard without one
         // so the user can pick a replacement on the Template step.
         abort_if(
@@ -114,43 +118,7 @@ class CampaignResendService
                 'description' => 'Created from failed recipients of campaign: '.$source->name,
             ]);
 
-            $imported = 0;
-            $seen = [];
-
-            CampaignRecipient::query()
-                ->where('campaign_id', $source->id)
-                ->where('status', CampaignRecipientStatus::Failed)
-                ->orderBy('id')
-                ->chunkById(200, function ($rows) use ($list, &$imported, &$seen): void {
-                    foreach ($rows as $row) {
-                        $phone = trim((string) $row->contact_phone);
-                        if ($phone === '' || isset($seen[$phone])) {
-                            continue;
-                        }
-                        $seen[$phone] = true;
-
-                        $sourceContact = $row->contact_id
-                            ? Contact::query()->find($row->contact_id)
-                            : null;
-
-                        Contact::query()->firstOrCreate(
-                            [
-                                'mail_list_id' => $list->id,
-                                'phone' => $phone,
-                            ],
-                            [
-                                'name' => $sourceContact?->name,
-                                'email' => $sourceContact?->email,
-                                'country_code' => $sourceContact?->country_code,
-                                'status' => ContactStatus::Subscribed,
-                                'opt_in_status' => ContactOptInStatus::OptedIn,
-                                'opted_in_at' => now(),
-                                'source' => 'campaign_failed_resend',
-                            ]
-                        );
-                        $imported++;
-                    }
-                });
+            $imported = $this->copyFailedContactsToList($source, $list);
 
             abort_if($imported === 0, 422, 'No failed contacts found to resend.');
 
@@ -185,6 +153,76 @@ class CampaignResendService
             'imported' => $result['imported'],
             'launched' => $launched,
         ];
+    }
+
+    /**
+     * Copy unique failed phones onto a new list in batches.
+     * One joined read + bulk inserts, instead of a find/insert per row.
+     */
+    private function copyFailedContactsToList(Campaign $source, MailList $list): int
+    {
+        $imported = 0;
+        $seen = [];
+        $batch = [];
+        $now = now();
+
+        $flush = function () use (&$batch, &$imported): void {
+            if ($batch === []) {
+                return;
+            }
+
+            Contact::query()->insert($batch);
+            $imported += count($batch);
+            $batch = [];
+        };
+
+        DB::table('campaign_recipients as r')
+            ->leftJoin('contacts as c', 'c.id', '=', 'r.contact_id')
+            ->where('r.campaign_id', $source->id)
+            ->where('r.status', CampaignRecipientStatus::Failed->value)
+            ->select([
+                'r.id as id',
+                'r.contact_phone',
+                'c.name',
+                'c.email',
+                'c.country_code',
+            ])
+            ->chunkById(1000, function ($rows) use ($list, &$seen, &$batch, $now, $flush): void {
+                foreach ($rows as $row) {
+                    $phone = trim((string) $row->contact_phone);
+                    if ($phone === '' || isset($seen[$phone])) {
+                        continue;
+                    }
+                    $seen[$phone] = true;
+
+                    $country = $row->country_code !== null
+                        ? substr(trim((string) $row->country_code), 0, 3)
+                        : '';
+
+                    $batch[] = [
+                        'uuid' => (string) Str::uuid(),
+                        'phone' => $phone,
+                        'name' => $row->name !== null ? mb_substr((string) $row->name, 0, 150) : null,
+                        'email' => $row->email !== null ? mb_substr((string) $row->email, 0, 191) : null,
+                        'country_code' => $country !== '' ? $country : null,
+                        'mail_list_id' => $list->id,
+                        'status' => ContactStatus::Subscribed->value,
+                        'opt_in_status' => ContactOptInStatus::OptedIn->value,
+                        'opted_in_at' => $now,
+                        'source' => 'campaign_failed_resend',
+                        'created_at' => $now,
+                        'updated_at' => $now,
+                    ];
+
+                    if (count($batch) >= 500) {
+                        $flush();
+                    }
+                }
+            }, 'r.id', 'id');
+
+        $flush();
+
+        return $imported;
     }
 
     /**

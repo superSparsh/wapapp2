@@ -54,7 +54,7 @@
         </div>
 
         @if ($actionUrl)
-          <form method="POST" action="{{ $actionUrl }}" class="flex w-full flex-col gap-4" data-resend-failed-form>
+          <form method="POST" action="{{ $actionUrl }}" class="flex w-full flex-col gap-4" data-resend-failed-form data-no-loader data-failed-count="{{ (int) $failedCount }}">
             @csrf
             <input type="hidden" name="mode" value="create">
 
@@ -141,6 +141,22 @@
     </div>
   </div>
 
+  <div
+    class="fixed inset-0 z-[120] hidden items-center justify-center bg-black/60 p-4"
+    data-resend-loader
+    role="status"
+    aria-live="polite"
+    aria-hidden="true"
+  >
+    <div class="flex w-[min(420px,calc(100vw-2rem))] flex-col items-center gap-4 rounded-[20px] bg-elevated px-6 py-8 text-center shadow-[0px_4px_6px_rgba(0,0,0,0.1)]">
+      <span class="fd-page-loader__spinner" aria-hidden="true"></span>
+      <p class="text-base font-semibold leading-[1.4] text-text-primary" data-resend-loader-title style="font-family: var(--font-display)">
+        Creating campaign…
+      </p>
+      <p class="hidden text-sm font-normal leading-[1.5] text-text-muted" data-resend-loader-note style="font-family: var(--font-display)"></p>
+    </div>
+  </div>
+
   <script>
     (() => {
       document.documentElement.classList.add('overflow-hidden');
@@ -191,6 +207,41 @@
       };
       root.addEventListener('change', sync);
       sync();
+
+      const form = document.querySelector('[data-resend-failed-form]');
+      const loader = document.querySelector('[data-resend-loader]');
+      if (!form || !loader || form.dataset.resendBound === '1') return;
+      form.dataset.resendBound = '1';
+
+      const failedCount = Number(form.dataset.failedCount || '0');
+      let submitted = false;
+
+      form.addEventListener('submit', () => {
+        if (submitted) return;
+        submitted = true;
+
+        const button = form.querySelector('button[type="submit"]');
+        if (button) {
+          button.disabled = true;
+          button.classList.add('opacity-60');
+        }
+
+        const title = loader.querySelector('[data-resend-loader-title]');
+        const note = loader.querySelector('[data-resend-loader-note]');
+        if (failedCount > 10000) {
+          if (title) title.textContent = 'Creating your campaign…';
+          if (note) {
+            note.textContent = `This list has ${failedCount.toLocaleString()} failed contacts, so it may take a little while. Please keep this page open.`;
+            note.classList.remove('hidden');
+          }
+        } else if (title) {
+          title.textContent = 'Creating campaign…';
+        }
+
+        loader.classList.remove('hidden');
+        loader.classList.add('flex');
+        loader.setAttribute('aria-hidden', 'false');
+      });
     })();
   </script>
 @endif

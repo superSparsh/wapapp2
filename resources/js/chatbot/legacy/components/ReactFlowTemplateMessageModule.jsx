@@ -181,6 +181,8 @@ const ReactFlowTemplateMessageModule = ({
                 selectedTemplate?.template_name || "Template"
               }`
             : "Text Message",
+        triggerKeyword: values.triggerKeyword || "",
+        keywords: values.triggerKeyword || "",
       };
 
       console.log("handleSave - final nodeData:", nodeData);
@@ -404,6 +406,28 @@ const ReactFlowTemplateMessageModule = ({
             if (messageType === "template") {
               return (
                 <>
+                  <Card
+                    title="Trigger"
+                    size="small"
+                    style={{ marginBottom: 16 }}
+                  >
+                    <Form.Item
+                      name="triggerKeyword"
+                      label="Trigger Keyword"
+                      rules={[
+                        {
+                          required: true,
+                          message: "Please enter a trigger keyword",
+                        },
+                      ]}
+                      help="Customer must send this word/phrase to start the bot."
+                    >
+                      <Input
+                        placeholder="e.g., hello, start, offer, menu"
+                        maxLength={100}
+                      />
+                    </Form.Item>
+                  </Card>
                   {/* Template Selection */}
                   <Card
                     title="Select Template"
@@ -541,6 +565,22 @@ const ReactFlowTemplateMessageModule = ({
                   size="small"
                   style={{ marginBottom: 16 }}
                 >
+                  <Form.Item
+                    name="triggerKeyword"
+                    label="Trigger Keyword"
+                    rules={[
+                      {
+                        required: true,
+                        message: "Please enter a trigger keyword",
+                      },
+                    ]}
+                    help="Customer must send this word/phrase to start the bot."
+                  >
+                    <Input
+                      placeholder="e.g., hello, start, offer, menu"
+                      maxLength={100}
+                    />
+                  </Form.Item>
                   <Form.Item
                     name="customText"
                     rules={[

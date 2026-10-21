@@ -6092,7 +6092,7 @@ const ChatBotFlowReactFlow = () => {
 
         if (savedTriggers.length === 0) {
           message.warning(
-            "Flow saved, but no trigger keywords were found on welcome/template nodes. WhatsApp will not start this bot."
+            "Flow saved, but no Trigger Keyword is set. Open your welcome/template node, add a keyword (e.g. hello), then save again — WhatsApp needs that to start the bot."
           );
         } else if (becameActive) {
           builderConfig.isActive = true;

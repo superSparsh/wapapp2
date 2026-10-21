@@ -465,10 +465,23 @@ const ReactFlowWelcomeMessageModule = ({
                   size="small"
                   style={{ marginBottom: 16 }}
                 >
-                  {/* Legacy: no Trigger Keyword UI for template. Keep any prior
-                      form value so existing flows still match on save. */}
-                  <Form.Item name="triggerKeyword" hidden>
-                    <Input />
+                  {/* Template = WhatsApp message to send. Keyword = what the
+                      customer must type to start the bot — still required. */}
+                  <Form.Item
+                    name="triggerKeyword"
+                    label="Trigger Keyword"
+                    rules={[
+                      {
+                        required: true,
+                        message: "Please enter a trigger keyword",
+                      },
+                    ]}
+                    help="Any word or phrase works. Customer must send this to start the bot (template is what you reply with)."
+                  >
+                    <Input
+                      placeholder="e.g., hello, start, offer, menu"
+                      maxLength={100}
+                    />
                   </Form.Item>
                   <Form.Item
                     name="templateId"
