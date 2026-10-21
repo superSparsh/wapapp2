@@ -279,6 +279,41 @@ class InboxHttpTest extends TestCase
             ->assertJsonPath('latest.name', 'Unread API');
     }
 
+    public function test_unread_badge_ignores_other_whatsapp_lines(): void
+    {
+        $contact = Contact::factory()->create(['name' => 'This Line', 'phone' => '918888888831']);
+        $conversation = Conversation::factory()->create([
+            'whatsapp_line_id' => $this->testLine->id,
+            'contact_id' => $contact->id,
+            'contact_phone' => $contact->phone,
+            'line_phone' => $this->testLine->phone,
+            'contact_name' => $contact->name,
+            'last_message_at' => now(),
+        ]);
+        $this->messageService->recordInbound($conversation, 'On this number');
+
+        $otherLine = \App\Models\WhatsappLine::factory()->create(['is_default' => false]);
+        Conversation::factory()->count(5)->create([
+            'whatsapp_line_id' => $otherLine->id,
+            'line_phone' => $otherLine->phone,
+            'unread_count' => 3,
+            'last_message_at' => now(),
+        ]);
+
+        $this->actingAsTenantUser()
+            ->getJson(route('inbox.api.unread-count'))
+            ->assertOk()
+            ->assertJsonPath('unread_total', 1);
+
+        $html = $this->actingAsTenantUser()
+            ->get(route('inbox.index', ['scope' => 'unread', 'days' => 365]))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertMatchesRegularExpression('/data-inbox-nav-badge[^>]*>\s*1\s*</', $html);
+        $this->assertStringContainsString('On this number', $html);
+    }
+
     public function test_unread_total_counts_chats_not_messages(): void
     {
         $contactA = Contact::factory()->create(['name' => 'Chat A', 'phone' => '918888888821']);

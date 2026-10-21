@@ -853,9 +853,10 @@ class MobileInboxController extends Controller
             //
         }
 
+        $line ??= $this->queryService->resolveDefaultLine();
         $count = $line !== null
-            ? $this->queryService->totalUnreadCount($line)
-            : (int) ($this->queryService->unreadSnapshot()['unread_total'] ?? 0);
+            ? $this->queryService->totalUnreadCount($line, (int) config('inbox.default_lookback_days', 7))
+            : 0;
 
         return response()->json([
             'success' => true,

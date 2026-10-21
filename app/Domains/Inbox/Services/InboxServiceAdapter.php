@@ -67,14 +67,15 @@ class InboxServiceAdapter
 
     public function unreadCount(Request $request): JsonResponse
     {
-        $line = null;
-
-        if ($request->filled('line')) {
-            try {
-                $line = $this->localInboxService->resolveActiveLine($request);
-            } catch (\Throwable) {
-                $line = null;
-            }
+        try {
+            // Always the line the inbox is showing. Counting every number
+            // made the badge 99+ while one number's unread filter showed ~20.
+            $line = $this->localInboxService->resolveActiveLine($request);
+        } catch (\Throwable) {
+            return $this->json([
+                'unread_total' => 0,
+                'latest' => null,
+            ]);
         }
 
         $lookbackDays = $request->filled('days')

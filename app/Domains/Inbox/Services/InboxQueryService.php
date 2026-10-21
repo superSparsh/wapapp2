@@ -186,9 +186,12 @@ class InboxQueryService
     {
         $query = Conversation::query()->where('unread_count', '>', 0);
 
-        if ($line !== null) {
-            $query->where('whatsapp_line_id', $line->id);
+        if ($line === null) {
+            // A missing line must not count every WhatsApp number on the account.
+            return $query->whereRaw('0 = 1');
         }
+
+        $query->where('whatsapp_line_id', $line->id);
 
         if ($lookbackDays !== null) {
             $query->where('last_message_at', '>=', now()->subDays($this->normalizeLookbackDays($lookbackDays)));
