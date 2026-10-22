@@ -5,17 +5,6 @@
     </div>
 
     <section class="flex-1 p-4">
-      @if (! ($current['is_updated'] ?? false))
-        <div
-          role="status"
-          class="mb-4 rounded-xl border border-green-500 bg-green-50 px-4 py-3 text-sm leading-[1.5] text-text-primary"
-        >
-          <p class="font-semibold text-green-700">Note: This tutorial still uses the previous WapApp design video.</p>
-          <p class="mt-1 text-text-subtle">
-            Updated videos for the new UI are being rolled out. Steps are mostly the same - only the look has changed.
-          </p>
-        </div>
-      @endif
 
       <div class="flex h-full flex-col gap-4 rounded-lg bg-elevated p-3 lg:min-h-[calc(100vh-8rem)] lg:flex-row lg:items-start">
         <x-tutorials.sidebar :categories="$categories" :search="$search" />
