@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Api\Services;
 
+use App\Domains\Billing\Services\WalletService;
 use App\Domains\Inbox\Services\InboxConversationService;
 use App\Domains\Inbox\Services\InboxOutboundService;
 use App\Domains\Templates\Enums\TemplateStatus;
@@ -40,6 +41,7 @@ class DirectMessageService
         private readonly InboxOutboundService $outboundService,
         private readonly AlibabaCamsClient $camsClient,
         private readonly ApiDirectMessageStatusFastPath $apiStatusFastPath,
+        private readonly WalletService $walletService,
     ) {}
 
     /**
@@ -78,6 +80,8 @@ class DirectMessageService
         );
 
         $params = $this->templateParams($input, $to, $contactName);
+
+        $this->assertWalletCanSend();
 
         $message = $this->outboundService->sendTemplate(
             conversation: $conversation,
@@ -192,6 +196,20 @@ class DirectMessageService
                 ? (PhoneNormalizer::normalize((string) $from) ?? (string) $from)
                 : null,
         ];
+    }
+
+    private function assertWalletCanSend(): void
+    {
+        $balance = round($this->walletService->balance(), 2);
+
+        if ($balance <= 0) {
+            throw ValidationException::withMessages([
+                'wallet' => sprintf(
+                    'Insufficient wallet balance (₹%s). Recharge the wallet before sending API messages.',
+                    number_format($balance, 2),
+                ),
+            ]);
+        }
     }
 
     private function resolveLine(?string $from): WhatsappLine

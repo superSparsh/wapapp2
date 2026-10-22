@@ -137,6 +137,48 @@ class DirectMessageApiTest extends TestCase
         }
     }
 
+    public function test_directmessage_rejects_when_wallet_balance_is_zero(): void
+    {
+        WalletAccount::query()->update(['balance' => 0]);
+
+        $template = Template::factory()->create([
+            'code' => '1125253687146348547',
+        ]);
+
+        $this->post('/api/v1/directmessage', [
+            'api_token' => $this->apiToken,
+            'template_uid' => $template->uuid,
+            'to' => '919876543210',
+            'from' => $this->testLine->phone,
+        ], ['Accept' => 'application/json'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['wallet'])
+            ->assertJsonPath('message', 'Insufficient wallet balance (₹0.00). Recharge the wallet before sending API messages.');
+
+        $this->assertSame(0, Message::query()->count());
+        $this->assertSame(0.0, (float) WalletAccount::query()->value('balance'));
+    }
+
+    public function test_directmessage_rejects_when_wallet_balance_is_negative(): void
+    {
+        WalletAccount::query()->update(['balance' => -12.5]);
+
+        $template = Template::factory()->create([
+            'code' => '1125253687146348548',
+        ]);
+
+        $this->post('/api/v1/directmessage', [
+            'api_token' => $this->apiToken,
+            'template_uid' => $template->uuid,
+            'to' => '919876543210',
+        ], ['Accept' => 'application/json'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['wallet']);
+
+        $this->assertSame(0, Message::query()->count());
+        $this->assertSame(-12.5, (float) WalletAccount::query()->value('balance'));
+    }
+
     public function test_directmessage_rejects_unapproved_template(): void
     {
         $template = Template::factory()->draft()->create();

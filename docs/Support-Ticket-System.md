@@ -1,7 +1,10 @@
 # Support Ticket System
 
+The app now lives in its own project: `/Users/sparshthakur/Documents/tittu-support`.
+Build from `docs/ARCHITECTURE.md` in that folder. This file is the earlier scope note.
+
 Document type: Product and architecture scope
-Status: Agreed scope for build
+Status: Moved to tittu-support
 Date: 21 October 2026
 
 This document covers only what we decided to build. Features that were mentioned later as optional ideas are not part of this version.
