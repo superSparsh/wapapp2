@@ -1,7 +1,7 @@
 <x-layouts.app title="Edit {{ $bot->name }} - WapApp" active="ai-bots">
   <div class="flex flex-col bg-surface">
     <div class="flex flex-col gap-4 p-4">
-      <div class="flex items-center gap-2"><a href="{{ route('ai-bots.index') }}" class="text-text-subtle hover:text-text-body">&larr; Back</a></div>
+      <div class="flex items-center gap-2"><a href="{{ route('openai-key.index', ['tab' => 'bot-manager']) }}" class="text-text-subtle hover:text-text-body">&larr; Back</a></div>
       <h1 class="text-2xl font-bold text-text-primary">Edit: {{ $bot->name }}</h1>
       @if ($errors->any())
         <div class="rounded-lg bg-red-50 px-4 py-3 text-sm font-medium text-red-700"><ul class="list-inside list-disc">@foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>
@@ -21,14 +21,14 @@
               <option value="tittu" @selected($bot->provider->value === 'tittu')>Tittu Gateway</option>
             </select>
           </div>
-          <div class="flex flex-col gap-1.5">
+          <div class="flex flex-col gap-1.5" id="chat-model-field">
             <label for="chat_model" class="text-sm font-semibold text-text-body">Chat Model</label>
             <select id="chat_model" name="chat_model" class="w-full rounded-lg border border-divider bg-surface px-4 py-3 text-sm text-text-body focus:border-green-500 focus:outline-none">
               <option value="{{ old('chat_model', $bot->chat_model) }}" selected>{{ old('chat_model', $bot->chat_model) ?: 'Select chat model' }}</option>
             </select>
             <p class="text-xs text-text-muted">Loads from the active API key for this provider.</p>
           </div>
-          <div class="flex flex-col gap-1.5">
+          <div class="flex flex-col gap-1.5" id="embedding-model-field">
             <label for="embedding_model" class="text-sm font-semibold text-text-body">Embedding Model</label>
             <select id="embedding_model" name="embedding_model" class="w-full rounded-lg border border-divider bg-surface px-4 py-3 text-sm text-text-body focus:border-green-500 focus:outline-none">
               <option value="{{ old('embedding_model', $bot->embedding_model) }}" selected>{{ old('embedding_model', $bot->embedding_model) ?: 'Select embedding model' }}</option>
@@ -54,7 +54,7 @@
             </select>
           </div>
           <div class="flex items-center gap-3 pt-2">
-            <a href="{{ route('ai-bots.index') }}" class="rounded-lg border border-divider bg-surface px-5 py-3 text-sm font-semibold text-text-body">Cancel</a>
+            <a href="{{ route('openai-key.index', ['tab' => 'bot-manager']) }}" class="rounded-lg border border-divider bg-surface px-5 py-3 text-sm font-semibold text-text-body">Cancel</a>
             <button type="submit" class="rounded-lg bg-green-500 px-5 py-3 text-sm font-semibold text-primary-2 hover:opacity-90">Save Changes</button>
           </div>
         </div>
@@ -70,6 +70,8 @@
   const providerSel = document.getElementById('provider');
   const chatSel = document.getElementById('chat_model');
   const embedSel = document.getElementById('embedding_model');
+  const chatField = document.getElementById('chat-model-field');
+  const embedField = document.getElementById('embedding-model-field');
   if (!providerSel || !chatSel) return;
 
   function modelId(m) { return (m && (m.id || m.name)) ? String(m.id || m.name) : ''; }
@@ -96,7 +98,17 @@
     }
   }
 
+  function syncProviderFields() {
+    const isTittu = providerSel.value === 'tittu';
+    if (chatField) chatField.hidden = isTittu;
+    if (embedField) embedField.hidden = isTittu;
+    chatSel.disabled = isTittu;
+    if (embedSel) embedSel.disabled = isTittu;
+    if (!isTittu) load();
+  }
+
   async function load() {
+    if (providerSel.value === 'tittu') return;
     const provider = providerSel.value;
     const keepChat = chatSel.value;
     const keepEmbed = embedSel ? embedSel.value : '';
@@ -113,7 +125,7 @@
     } catch (e) { /* keep current option */ }
   }
 
-  providerSel.addEventListener('change', load);
-  load();
+  providerSel.addEventListener('change', syncProviderFields);
+  syncProviderFields();
 })();
 </script>

@@ -80,9 +80,32 @@ class AiBotCrudTest extends TestCase
                 'name' => 'Updated Bot',
                 'temperature' => 0.5,
             ])
-            ->assertRedirect();
+            ->assertRedirect(route('openai-key.index', ['tab' => 'bot-manager']));
 
         $this->assertDatabaseHas('ai_bots', ['id' => $bot->id, 'name' => 'Updated Bot']);
+    }
+
+    public function test_tittu_bot_does_not_keep_openai_models(): void
+    {
+        $bot = AiBot::factory()->create([
+            'provider' => AiProvider::OpenAI,
+            'chat_model' => 'gpt-4o-mini',
+            'embedding_model' => 'text-embedding-3-small',
+        ]);
+
+        $this->actingAsTenantUser()
+            ->put(route('ai-bots.update', $bot), [
+                'name' => $bot->name,
+                'provider' => 'tittu',
+                'chat_model' => 'gpt-4o-mini',
+                'embedding_model' => 'text-embedding-3-small',
+            ])
+            ->assertRedirect(route('openai-key.index', ['tab' => 'bot-manager']));
+
+        $bot->refresh();
+        $this->assertSame(AiProvider::Tittu, $bot->provider);
+        $this->assertSame('auto', $bot->chat_model);
+        $this->assertSame('', $bot->embedding_model);
     }
 
     public function test_toggle_default(): void

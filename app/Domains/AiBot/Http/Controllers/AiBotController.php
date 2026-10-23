@@ -78,7 +78,7 @@ class AiBotController extends Controller
         $this->botService->update($aiBot, $request->validated());
 
         return redirect()
-            ->route('ai-bots.index')
+            ->route('openai-key.index', ['tab' => 'bot-manager'])
             ->with('status', 'AI bot updated successfully.');
     }
 

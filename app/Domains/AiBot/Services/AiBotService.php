@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\AiBot\Services;
 
+use App\Enums\AiProvider;
 use App\Models\AiBot;
 use Illuminate\Support\Facades\DB;
 
@@ -20,13 +21,16 @@ class AiBotService
                 AiBot::query()->where('is_default', true)->update(['is_default' => false]);
             }
 
+            $provider = (string) ($data['provider'] ?? AiProvider::OpenAI->value);
+            $isTittu = $provider === AiProvider::Tittu->value;
+
             return AiBot::query()->create([
                 'name' => $data['name'],
                 'type' => $data['type'] ?? null,
                 'system_prompt' => $data['system_prompt'] ?? null,
-                'provider' => $data['provider'] ?? 'openai',
-                'chat_model' => $data['chat_model'] ?? 'gpt-4o-mini',
-                'embedding_model' => $data['embedding_model'] ?? 'text-embedding-3-small',
+                'provider' => $provider,
+                'chat_model' => $isTittu ? 'auto' : ($data['chat_model'] ?? 'gpt-4o-mini'),
+                'embedding_model' => $isTittu ? '' : ($data['embedding_model'] ?? 'text-embedding-3-small'),
                 'temperature' => $data['temperature'] ?? 0.3,
                 'business_information' => $data['business_information'] ?? null,
                 'status' => $data['status'] ?? 'active',
@@ -48,6 +52,12 @@ class AiBotService
                     ->where('is_default', true)
                     ->where('id', '!=', $bot->id)
                     ->update(['is_default' => false]);
+            }
+
+            $provider = (string) ($data['provider'] ?? $bot->provider?->value ?? $bot->provider);
+            if ($provider === AiProvider::Tittu->value) {
+                $data['chat_model'] = 'auto';
+                $data['embedding_model'] = '';
             }
 
             $bot->forceFill(array_filter($data, fn ($v) => $v !== null))->save();
