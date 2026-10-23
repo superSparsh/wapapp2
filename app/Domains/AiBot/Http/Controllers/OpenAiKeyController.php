@@ -12,6 +12,7 @@ use App\Domains\AiBot\Services\AiProviderKeyService;
 use App\Domains\AiBot\Services\AiTestBotService;
 use App\Domains\AiBot\Services\AiTokenUsageService;
 use App\Domains\AiBot\Services\KnowledgeBaseProxyService;
+use App\Enums\AiProvider;
 use App\Enums\ConversationResponseType;
 use App\Http\Controllers\Controller;
 use App\Models\AiBot;
@@ -135,7 +136,7 @@ class OpenAiKeyController extends Controller
     public function listProviderModels(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'provider' => ['required', 'string', 'in:openai,gemini'],
+            'provider' => ['required', 'string', 'in:'.implode(',', AiProvider::selectable())],
             'api_key' => ['nullable', 'string', 'max:500'],
         ]);
 

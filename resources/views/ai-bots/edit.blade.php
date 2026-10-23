@@ -18,6 +18,7 @@
             <select id="provider" name="provider" class="w-full rounded-lg border border-divider bg-surface px-4 py-3 text-sm text-text-body focus:border-green-500 focus:outline-none">
               <option value="openai" @selected($bot->provider->value === 'openai')>OpenAI</option>
               <option value="gemini" @selected($bot->provider->value === 'gemini')>Google Gemini</option>
+              <option value="tittu" @selected($bot->provider->value === 'tittu')>Tittu Gateway</option>
             </select>
           </div>
           <div class="flex flex-col gap-1.5">

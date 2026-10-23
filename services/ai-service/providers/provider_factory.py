@@ -4,6 +4,7 @@ from typing import Dict
 from providers.base_provider import BaseAIProvider
 from providers.gemini_provider import GeminiProvider
 from providers.openai_provider import OpenAIProvider
+from providers.tittu_provider import TittuGatewayProvider
 
 _cache: Dict[str, BaseAIProvider] = {}
 
@@ -20,6 +21,8 @@ def get_provider(provider: str, api_key: str) -> BaseAIProvider:
             _cache[cache_key] = OpenAIProvider(api_key)
         elif provider == "gemini":
             _cache[cache_key] = GeminiProvider(api_key)
+        elif provider == "tittu":
+            _cache[cache_key] = TittuGatewayProvider(api_key)
         else:
             raise ValueError(f"Unknown provider: {provider}")
     return _cache[cache_key]

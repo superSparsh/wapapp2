@@ -91,6 +91,7 @@
               >
                 <option value="openai" @selected(old('provider', 'openai') === 'openai')>OpenAI</option>
                 <option value="gemini" @selected(old('provider') === 'gemini')>Google Gemini</option>
+                <option value="tittu" @selected(old('provider') === 'tittu')>Tittu Gateway</option>
               </select>
               <img
                 src="{{ asset('images/commerce/arrow-down.svg') }}"

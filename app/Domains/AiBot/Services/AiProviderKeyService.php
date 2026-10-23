@@ -8,6 +8,7 @@ use App\Domains\AiBot\Services\Providers\AiProviderInterface;
 use App\Domains\AiBot\Services\Providers\AzureOpenAiProvider;
 use App\Domains\AiBot\Services\Providers\GeminiProvider;
 use App\Domains\AiBot\Services\Providers\OpenAiProvider;
+use App\Domains\AiBot\Services\Providers\TittuGatewayProvider;
 use App\Enums\AiProvider;
 use App\Models\AiProviderKey;
 use Illuminate\Support\Facades\DB;
@@ -96,6 +97,7 @@ class AiProviderKeyService
             AiProvider::OpenAI => new OpenAiProvider(),
             AiProvider::Gemini => new GeminiProvider(),
             AiProvider::Azure => new AzureOpenAiProvider(),
+            AiProvider::Tittu => new TittuGatewayProvider(),
         };
     }
 }

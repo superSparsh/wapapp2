@@ -86,6 +86,11 @@ return [
         'report_emails' => env('ACCOUNT_EXPIRATION_REPORT_EMAILS'),
     ],
 
+    /** Internal AI gateway (https://gateway.tittu.in). Chat uses POST /v1/generate. */
+    'tittu_gateway' => [
+        'url' => rtrim((string) env('TITTU_GATEWAY_URL', 'https://gateway.tittu.in'), '/'),
+    ],
+
     'whatsapp_meta_pricing' => [
         /** Optional override when Meta CDN URL rotates; leave empty to auto-discover from developers.facebook.com */
         'usd_csv_url' => env('META_USD_PRICING_CSV_URL'),

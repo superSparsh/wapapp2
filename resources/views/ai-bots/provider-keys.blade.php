@@ -5,7 +5,7 @@
       <div class="flex flex-col gap-1">
         <h1 class="text-2xl font-bold leading-[1.5] text-text-primary">API Provider Keys</h1>
         <p class="max-w-[854px] text-sm font-normal leading-[1.4] text-text-subtle opacity-50">
-          Manage your OpenAI and Gemini API keys. Keys are encrypted at rest.
+          Manage your OpenAI, Gemini, and Tittu Gateway API keys. A key is required. Keys are encrypted at rest.
         </p>
       </div>
 
@@ -29,6 +29,7 @@
               <select id="provider" name="provider" required class="w-full rounded-lg border border-divider bg-surface px-4 py-3 text-sm text-text-body focus:border-green-500 focus:outline-none">
                 <option value="openai">OpenAI</option>
                 <option value="gemini">Google Gemini</option>
+                <option value="tittu">Tittu Gateway</option>
               </select>
             </div>
             <div class="flex flex-col gap-1.5">
