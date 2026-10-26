@@ -89,6 +89,7 @@ return [
     /** Internal AI gateway (https://gateway.tittu.in). Chat uses POST /v1/generate. */
     'tittu_gateway' => [
         'url' => rtrim((string) env('TITTU_GATEWAY_URL', 'https://gateway.tittu.in'), '/'),
+        'status_token' => env('TITTU_GATEWAY_STATUS_TOKEN'),
     ],
 
     'whatsapp_meta_pricing' => [

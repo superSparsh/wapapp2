@@ -26,6 +26,7 @@ class PlatformSettingsService
         'oauth.facebook_enabled',
         'oauth.facebook_client_id',
         'oauth.facebook_client_secret',
+        'tittu_gateway.status_token',
         'payment.razorpay_key',
         'payment.razorpay_secret',
         'payment.razorpay_webhook_secret',

@@ -42,6 +42,7 @@ use App\Domains\Admin\Http\Controllers\RenewSubscriptionRequestController;
 use App\Domains\Admin\Http\Controllers\RetentionController;
 use App\Domains\Admin\Http\Controllers\SettingsController;
 use App\Domains\Admin\Http\Controllers\TaxSettingsController;
+use App\Domains\Admin\Http\Controllers\TittuGatewayStatusController;
 use App\Domains\Admin\Http\Controllers\WalletRechargeController;
 use App\Domains\Admin\Http\Controllers\WhatsappHealthController;
 use App\Domains\Admin\Http\Controllers\ZohoRechargeHistoryController;
@@ -237,6 +238,9 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
 
         Route::get('/oauth', [OAuthSettingsController::class, 'edit'])->name('oauth.edit');
         Route::put('/oauth', [OAuthSettingsController::class, 'update'])->name('oauth.update');
+
+        Route::get('/tittu-gateway', [TittuGatewayStatusController::class, 'index'])->name('tittu-gateway.index');
+        Route::put('/tittu-gateway', [TittuGatewayStatusController::class, 'update'])->name('tittu-gateway.update');
 
         Route::get('/platform-templates', [PlatformTemplateController::class, 'index'])->name('platform-templates.index');
         Route::get('/platform-templates/create', [PlatformTemplateController::class, 'create'])->name('platform-templates.create');
