@@ -264,4 +264,103 @@ class TemplateSyncServiceTest extends TestCase
         $this->assertSame(TemplateStatus::Rejected, $template->status);
         $this->assertStringContainsString('being deleted', strtolower((string) $template->rejection_reason));
     }
+
+    public function test_missing_remote_template_is_not_polled_again(): void
+    {
+        $line = WhatsappLine::factory()->create([
+            'alibaba_cust_space_id' => '100000430113',
+        ]);
+
+        $template = Template::factory()->create([
+            'whatsapp_line_id' => $line->id,
+            'code' => '1257583503568572416',
+            'language' => 'en_GB',
+            'status' => TemplateStatus::PendingReview,
+        ]);
+
+        Http::fake([
+            'cams.ap-southeast-1.aliyuncs.com/*' => Http::response([
+                'Code' => 'DetailError.TemplateNotExist',
+                'Message' => 'The template is not exist.',
+            ], 400),
+        ]);
+
+        $first = app(TemplateSyncService::class)->syncBatch(10);
+
+        $this->assertSame(1, $first['processed']);
+        $template->refresh();
+        $this->assertSame(TemplateStatus::Rejected, $template->status);
+        $this->assertSame('This template no longer exists on WhatsApp.', $template->rejection_reason);
+        $this->assertTrue((bool) data_get($template->payload, 'meta.cams_absent'));
+
+        $second = app(TemplateSyncService::class)->syncBatch(10);
+        $coded = app(TemplateSyncService::class)->syncCodedDetailsBatch(10);
+
+        $this->assertSame(0, $second['processed']);
+        $this->assertSame(0, $coded['processed']);
+    }
+
+    public function test_delete_treats_missing_template_as_already_removed(): void
+    {
+        $line = WhatsappLine::factory()->create([
+            'alibaba_cust_space_id' => '100000430113',
+        ]);
+
+        $template = Template::factory()->create([
+            'whatsapp_line_id' => $line->id,
+            'code' => '1257583503568572416',
+            'language' => 'en',
+        ]);
+        $template->delete();
+
+        Http::fake([
+            'cams.ap-southeast-1.aliyuncs.com/*' => Http::response([
+                'Code' => 'DetailError.TemplateNotExist',
+                'Message' => 'The template is not exist.',
+            ], 400),
+        ]);
+
+        $deleted = app(\App\Domains\Templates\Services\TemplateWhatsAppService::class)
+            ->deleteTemplate($template);
+
+        $this->assertTrue($deleted);
+        Http::assertNotSent(fn ($request): bool => str_contains($request->url(), 'GetChatappTemplateDetail'));
+        Http::assertSent(fn ($request): bool => str_contains($request->url(), 'DeleteChatappTemplate')
+            && ! str_contains($request->url(), 'TemplateType'));
+    }
+
+    public function test_unsupported_template_type_stops_delete_retries(): void
+    {
+        $line = WhatsappLine::factory()->create([
+            'alibaba_cust_space_id' => '100000430113',
+        ]);
+
+        $template = Template::factory()->create([
+            'whatsapp_line_id' => $line->id,
+            'code' => '1257583503568572416',
+        ]);
+        $template->delete();
+
+        Http::fake([
+            'cams.ap-southeast-1.aliyuncs.com/*' => Http::response([
+                'Code' => 'ERR-OPERATION-CONFIG-419',
+                'Message' => '{0}不支持的模板类型',
+            ], 400),
+        ]);
+
+        $deleted = app(\App\Domains\Templates\Services\TemplateWhatsAppService::class)
+            ->deleteTemplate($template);
+
+        $this->assertFalse($deleted);
+        $stored = Template::withTrashed()->find($template->id);
+        $this->assertTrue((bool) data_get($stored?->payload, 'meta.cams_delete_blocked'));
+
+        \Illuminate\Support\Facades\Bus::fake();
+
+        $this->artisan(\App\Domains\Templates\Console\Commands\DeleteSoftDeletedTemplates::class, [
+            '--tenants' => [$this->testTenant->id],
+        ])->assertSuccessful();
+
+        \Illuminate\Support\Facades\Bus::assertNotDispatched(\App\Domains\Templates\Jobs\DeleteTemplateJob::class);
+    }
 }

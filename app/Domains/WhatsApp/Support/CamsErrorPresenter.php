@@ -401,6 +401,38 @@ final class CamsErrorPresenter
         return trim($text, " \t\n\r\0\x0B,;|-");
     }
 
+    /**
+     * Alibaba already deleted this template, or the code was never created there.
+     *
+     * @param  array<string, mixed>  $body
+     */
+    public static function isTemplateMissing(array $body): bool
+    {
+        $code = strtolower((string) ($body['Code'] ?? $body['code'] ?? ''));
+        $message = strtolower((string) ($body['Message'] ?? $body['message'] ?? ''));
+
+        return str_contains($code, 'templatenotexist')
+            || str_contains($message, 'template is not exist')
+            || str_contains($message, 'template does not exist')
+            || str_contains($message, 'template not exist');
+    }
+
+    /**
+     * Delete/detail was sent with a template type CAMS will not accept.
+     * Retrying the same call only repeats the error.
+     *
+     * @param  array<string, mixed>  $body
+     */
+    public static function isUnsupportedTemplateType(array $body): bool
+    {
+        $code = strtoupper((string) ($body['Code'] ?? $body['code'] ?? ''));
+        $message = (string) ($body['Message'] ?? $body['message'] ?? '');
+
+        return $code === 'ERR-OPERATION-CONFIG-419'
+            || str_contains($message, '不支持的模板类型')
+            || str_contains(strtolower($message), 'unsupported template type');
+    }
+
     private static function stripStoredFiller(string $text): string
     {
         $patterns = [

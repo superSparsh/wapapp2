@@ -247,7 +247,7 @@ class TemplateWhatsAppService
         }
 
         try {
-            return $this->deleteFromCamsWithFallbacks($template, $line, $code);
+            return $this->deleteFromCams($template, $line, $code);
         } catch (\Throwable $e) {
             Log::error('Failed to delete template from WhatsApp', [
                 'template_id' => $template->id,
@@ -258,98 +258,46 @@ class TemplateWhatsAppService
         }
     }
 
-    private function deleteFromCamsWithFallbacks(Template $template, WhatsappLine $line, string $code): bool
+    private function deleteFromCams(Template $template, WhatsappLine $line, string $code): bool
     {
-        $custSpaceId = (string) $line->alibaba_cust_space_id;
-        $language = $this->resolveDeleteLanguage($template, $line, $code);
-        $templateName = $this->normalizeName((string) $template->name);
+        $response = $this->camsClient->deleteChatappTemplate([
+            'TemplateCode' => $code,
+            'CustSpaceId' => (string) $line->alibaba_cust_space_id,
+        ]);
+        $body = $response->json() ?? [];
+        $body = is_array($body) ? $body : [];
 
-        /** @var list<array<string, string>> $attempts */
-        $attempts = [
-            // Legacy production: TemplateCode + CustSpaceId only.
-            [
-                'TemplateCode' => $code,
-                'CustSpaceId' => $custSpaceId,
-            ],
-            // Name + language (Alibaba docs: TemplateType required when Language is set).
-            [
-                'TemplateName' => $templateName,
-                'Language' => $language,
-                'TemplateType' => 'WHATSAPP',
-                'CustSpaceId' => $custSpaceId,
-            ],
-            [
-                'TemplateCode' => $code,
-                'Language' => $language,
-                'TemplateType' => 'WHATSAPP',
-                'CustSpaceId' => $custSpaceId,
-            ],
-        ];
-
-        $lastBody = [];
-        foreach ($attempts as $index => $params) {
-            $response = $this->camsClient->deleteChatappTemplate($params);
-            $body = $response->json() ?? [];
-            $lastBody = is_array($body) ? $body : [];
-
-            if ($this->isCamsSuccess($response->successful(), $lastBody)) {
-                Log::info('WhatsApp template deleted from CAMS', [
-                    'template_id' => $template->id,
-                    'attempt' => $index + 1,
-                    'params' => array_keys($params),
-                ]);
-
-                return true;
-            }
-
-            Log::info('WhatsApp template delete attempt failed', [
+        if ($this->isCamsSuccess($response->successful(), $body) || CamsErrorPresenter::isTemplateMissing($body)) {
+            Log::info('WhatsApp template removed from CAMS', [
                 'template_id' => $template->id,
-                'attempt' => $index + 1,
-                'params' => array_keys($params),
-                'response' => $response->body(),
+                'already_gone' => CamsErrorPresenter::isTemplateMissing($body),
             ]);
+
+            return true;
         }
 
-        Log::warning('WhatsApp template deletion failed after all attempts', [
+        if (CamsErrorPresenter::isUnsupportedTemplateType($body)) {
+            $payload = $template->payload ?? [];
+            $payload['meta'] = array_merge($payload['meta'] ?? [], [
+                'cams_delete_blocked' => true,
+            ]);
+            $template->forceFill(['payload' => $payload])->save();
+
+            Log::warning('WhatsApp refused to delete this template type; local retries stopped', [
+                'template_id' => $template->id,
+                'template_code' => $code,
+            ]);
+
+            return false;
+        }
+
+        Log::warning('WhatsApp template deletion failed', [
             'template_id' => $template->id,
             'template_code' => $code,
-            'last_response' => $lastBody,
+            'response' => $body,
         ]);
 
         return false;
-    }
-
-    private function resolveDeleteLanguage(Template $template, WhatsappLine $line, string $code): string
-    {
-        $fallback = CamsTemplateIdentity::language($template->language);
-
-        try {
-            $response = $this->camsClient->getChatappTemplateDetail([
-                'TemplateCode' => $code,
-                'CustSpaceId' => $line->alibaba_cust_space_id,
-                'Language' => $fallback,
-            ]);
-
-            if (! $response->successful()) {
-                return $fallback;
-            }
-
-            $body = $response->json() ?? [];
-            if (! is_array($body)) {
-                return $fallback;
-            }
-
-            $data = $body['Data'] ?? $body['data'] ?? $body;
-            if (! is_array($data)) {
-                return $fallback;
-            }
-
-            $remote = $data['Language'] ?? $data['language'] ?? null;
-
-            return is_string($remote) && $remote !== '' ? $remote : $fallback;
-        } catch (\Throwable) {
-            return $fallback;
-        }
     }
 
     /**

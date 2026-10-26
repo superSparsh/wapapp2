@@ -67,6 +67,10 @@ class TemplateSyncService
             })
             ->whereNotNull('code')
             ->where('code', '!=', '')
+            ->where(function ($absent): void {
+                $absent->whereNull('payload->meta->cams_absent')
+                    ->orWhere('payload->meta->cams_absent', false);
+            })
             ->orderBy('synced_at')
             ->limit(max($limit * 3, 50))
             ->get()
@@ -87,6 +91,10 @@ class TemplateSyncService
         $templates = Template::query()
             ->whereNotNull('code')
             ->where('code', '!=', '')
+            ->where(function ($absent): void {
+                $absent->whereNull('payload->meta->cams_absent')
+                    ->orWhere('payload->meta->cams_absent', false);
+            })
             ->orderBy('synced_at')
             ->orderBy('updated_at')
             ->limit(max($limit * 3, 50))
@@ -200,6 +208,15 @@ class TemplateSyncService
             }
 
             if (! $response->successful()) {
+                $errorBody = $response->json();
+                if (is_array($errorBody) && CamsErrorPresenter::isTemplateMissing($errorBody)) {
+                    $this->markRemoteTemplateMissing($template);
+
+                    return false;
+                }
+
+                $template->forceFill(['synced_at' => now()])->save();
+
                 Log::warning('Template status sync HTTP failure', [
                     'template_id' => $template->id,
                     'status' => $response->status(),
@@ -339,6 +356,39 @@ class TemplateSyncService
         }
 
         return $categoryChanged;
+    }
+
+    /**
+     * CAMS no longer has this template code. Stop the every-minute detail poll.
+     */
+    private function markRemoteTemplateMissing(Template $template): void
+    {
+        $payload = $template->payload ?? [];
+        $payload['meta'] = array_merge($payload['meta'] ?? [], [
+            'cams_absent' => true,
+        ]);
+
+        $previous = $template->status;
+        $reason = 'This template no longer exists on WhatsApp.';
+
+        $template->update([
+            'payload' => $payload,
+            'synced_at' => now(),
+            'status' => TemplateStatus::Rejected,
+            'rejection_reason' => $reason,
+        ]);
+
+        if ($previous === TemplateStatus::Rejected) {
+            return;
+        }
+
+        TemplateStatusLog::query()->create([
+            'template_id' => $template->id,
+            'previous_status' => $previous->value,
+            'new_status' => TemplateStatus::Rejected->value,
+            'reason' => $reason,
+            'meta' => ['cams_absent' => true],
+        ]);
     }
 
     /**

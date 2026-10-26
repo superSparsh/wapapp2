@@ -29,6 +29,10 @@ class DeleteSoftDeletedTemplates extends Command
                 ->get();
 
             foreach ($templates as $template) {
+                if ((bool) data_get($template->payload, 'meta.cams_delete_blocked')) {
+                    continue;
+                }
+
                 if (filled($template->whatsappCode())) {
                     DeleteTemplateJob::dispatch($template->id);
                     $dispatched++;

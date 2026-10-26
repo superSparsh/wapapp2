@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domains\WhatsApp\Services;
 
 use App\Domains\WhatsApp\Support\CamsComponentEncoder;
+use App\Domains\WhatsApp\Support\CamsErrorPresenter;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Http;
@@ -503,6 +504,11 @@ class AlibabaCamsClient
             $httpOk = $response->successful();
 
             if ($httpOk && $codeOk) {
+                return;
+            }
+
+            if (is_array($json) && in_array($actionName, ['GetChatappTemplateDetail', 'DeleteChatappTemplate'], true)
+                && (CamsErrorPresenter::isTemplateMissing($json) || CamsErrorPresenter::isUnsupportedTemplateType($json))) {
                 return;
             }
 
