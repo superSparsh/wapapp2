@@ -90,7 +90,7 @@ class DripStatPresenter
 
         $this->applyActionFilter($query, $status);
 
-        return $query->paginate($perPage);
+        return $query->paginate($perPage)->withQueryString();
     }
 
     /**

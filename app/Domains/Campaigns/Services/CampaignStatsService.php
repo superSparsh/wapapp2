@@ -122,7 +122,7 @@ class CampaignStatsService
 
         $this->applyRecipientStatusFilter($query, $status);
 
-        return $query->paginate($perPage);
+        return $query->paginate($perPage)->withQueryString();
     }
 
     /**

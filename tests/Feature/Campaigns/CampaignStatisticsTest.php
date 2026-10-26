@@ -156,6 +156,39 @@ class CampaignStatisticsTest extends TestCase
             ->assertDontSee('Failed At');
     }
 
+    public function test_filtered_detail_keeps_status_on_later_pages(): void
+    {
+        $campaign = Campaign::factory()->create();
+        CampaignRecipient::factory()->for($campaign)->delivered()->count(11)->create();
+        CampaignRecipient::factory()->for($campaign)->failed()->create([
+            'contact_phone' => '919333333333',
+        ]);
+
+        $this->actingAsTenantUser()
+            ->get(route('campaigns.statistics.detail', ['bulkCampaign' => $campaign, 'status' => 'delivered']))
+            ->assertOk()
+            ->assertSee('status=delivered', false)
+            ->assertSee('page=2', false)
+            ->assertDontSee('919333333333');
+
+        $this->actingAsTenantUser()
+            ->get(route('campaigns.statistics.detail', [
+                'bulkCampaign' => $campaign,
+                'status' => 'delivered',
+                'page' => 2,
+            ]))
+            ->assertOk()
+            ->assertViewHas('recipients', function ($recipients) {
+                return $recipients->currentPage() === 2
+                    && $recipients->total() === 11
+                    && $recipients->count() === 1
+                    && $recipients->every(
+                        fn ($row) => $row->status === CampaignRecipientStatus::Delivered
+                    );
+            })
+            ->assertDontSee('919333333333');
+    }
+
     public function test_statistics_detail_paginates(): void
     {
         $campaign = Campaign::factory()->create();
