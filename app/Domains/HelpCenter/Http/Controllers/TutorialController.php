@@ -19,6 +19,10 @@ class TutorialController extends Controller
         TutorialQueryService $queryService,
         TutorialModuleTree $moduleTree,
     ): View {
+        if ($request->attributes->get('tutorial_public_share') === true) {
+            return $this->publicShare($queryService, $moduleTree);
+        }
+
         $search = $request->string('q')->trim()->toString();
         $allVideos = $queryService->active();
         $videos = $search !== '' ? $queryService->search($search) : $allVideos;
@@ -45,6 +49,29 @@ class TutorialController extends Controller
             'shareUrl' => $videoId > 0
                 ? url()->route('tutorials.index', ['video_id' => $videoId])
                 : url()->route('tutorials.index'),
+            'publicShare' => false,
+        ]);
+    }
+
+    private function publicShare(TutorialQueryService $queryService, TutorialModuleTree $moduleTree): View
+    {
+        $videoId = (int) config('help-center.public_tutorial_video_id');
+        $selected = $queryService->findActive($videoId);
+
+        abort_if($selected === null, 404);
+
+        return view('tutorials.index', [
+            'categories' => [],
+            'current' => $moduleTree->videoRow($selected, $videoId),
+            'navigation' => [
+                'index' => 1,
+                'total' => 1,
+                'previous_id' => null,
+                'next_id' => null,
+            ],
+            'search' => '',
+            'shareUrl' => url()->route('tutorials.index', ['video_id' => $videoId]),
+            'publicShare' => true,
         ]);
     }
 

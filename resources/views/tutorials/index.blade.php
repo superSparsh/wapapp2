@@ -1,7 +1,7 @@
 @php
-  $tutorialLayout = (auth('web')->check() || auth('team')->check())
-      ? 'components.layouts.app'
-      : 'components.layouts.guest';
+  $tutorialLayout = ! empty($publicShare)
+      ? 'components.layouts.guest'
+      : 'components.layouts.app';
 @endphp
 @component($tutorialLayout, ['title' => 'Tutorials - WapApp', 'active' => 'tutorials.index'])
   <div class="flex min-h-full flex-col bg-surface">
@@ -12,7 +12,9 @@
     <section class="flex-1 p-4">
 
       <div class="flex h-full flex-col gap-4 rounded-lg bg-elevated p-3 lg:min-h-[calc(100vh-8rem)] lg:flex-row lg:items-start">
-        <x-tutorials.sidebar :categories="$categories" :search="$search" />
+        @unless ($publicShare)
+          <x-tutorials.sidebar :categories="$categories" :search="$search" />
+        @endunless
 
         <div class="flex min-w-0 w-full flex-1 flex-col gap-4 lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:self-start lg:overflow-y-auto lg:rounded-lg lg:bg-muted-surface lg:p-3">
           @if ($current)
@@ -57,9 +59,9 @@
 
             <div class="flex flex-col gap-3 border-t border-divider pt-3 sm:flex-row sm:items-center sm:justify-between">
               <div class="flex flex-wrap items-center gap-2.5">
-                @if ($navigation['previous_id'])
+                @if (! $publicShare && $navigation['previous_id'])
                   <a
-                    href="{{ route('tutorials.index', array_filter(['video_id' => $navigation['previous_id'], 'q' => $search !== '' ? $search : null], fn ($value) => $value !== null && $value !== '')) }}"
+                    href="{{ route('tutorials.index', array_filter(['video_id' => $navigation['previous_id'], 'library' => (int) $navigation['previous_id'] === (int) config('help-center.public_tutorial_video_id') ? 1 : null, 'q' => $search !== '' ? $search : null], fn ($value) => $value !== null && $value !== '')) }}"
                     class="fd-btn-sm inline-flex items-center justify-center gap-2 rounded border border-solid border-green-500 px-6 py-3 text-xs font-semibold leading-[1.5] text-green-500 transition-colors hover:bg-green-50"
                   >
                     <img src="{{ asset('images/tutorials/arrow-left.svg') }}" alt="" class="size-5" width="20" height="20">
@@ -67,9 +69,9 @@
                   </a>
                 @endif
 
-                @if ($navigation['next_id'])
+                @if (! $publicShare && $navigation['next_id'])
                   <a
-                    href="{{ route('tutorials.index', array_filter(['video_id' => $navigation['next_id'], 'q' => $search !== '' ? $search : null], fn ($value) => $value !== null && $value !== '')) }}"
+                    href="{{ route('tutorials.index', array_filter(['video_id' => $navigation['next_id'], 'library' => (int) $navigation['next_id'] === (int) config('help-center.public_tutorial_video_id') ? 1 : null, 'q' => $search !== '' ? $search : null], fn ($value) => $value !== null && $value !== '')) }}"
                     class="fd-btn-sm inline-flex items-center justify-center gap-2 rounded border border-solid border-green-500 px-6 py-3 text-xs font-semibold leading-[1.5] text-green-500 transition-colors hover:bg-green-50"
                   >
                     Next
@@ -79,9 +81,11 @@
               </div>
 
               <div class="flex flex-wrap items-center justify-end gap-4">
-                <span class="text-sm font-semibold leading-[1.5] whitespace-nowrap text-green-500">
-                  {{ $navigation['index'] }} / {{ $navigation['total'] }}
-                </span>
+                @unless ($publicShare)
+                  <span class="text-sm font-semibold leading-[1.5] whitespace-nowrap text-green-500">
+                    {{ $navigation['index'] }} / {{ $navigation['total'] }}
+                  </span>
+                @endunless
                 <button
                   type="button"
                   id="tutorial-complete-btn"

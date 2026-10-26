@@ -9,6 +9,7 @@ return [
         'tutorials' => 'help-center.tutorials.active',
     ],
     'video_path' => public_path('assets/videos/tutorials'),
+    'public_tutorial_video_id' => 147,
     'legacy' => [
         'connection' => env('LEGACY_DB_CONNECTION', 'legacy'),
         'app_path' => env('LEGACY_APP_PATH', '/Applications/MAMP/htdocs/wapdev.tittu.in'),

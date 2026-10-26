@@ -131,22 +131,57 @@ class TutorialTest extends TestCase
             ->assertDontSee('Wallet Top Up');
     }
 
-    public function test_guest_can_open_a_shared_tutorial_link(): void
+    public function test_only_the_configured_tutorial_link_is_public(): void
     {
-        $video = TutorialVideo::factory()->create([
+        $public = TutorialVideo::factory()->create([
             'title' => 'Public Tutorial',
             'module_name' => 'Module 1: Dashboard',
             'sort_order' => 1,
         ]);
 
+        $private = TutorialVideo::factory()->create([
+            'title' => 'Private Tutorial',
+            'module_name' => 'Module 2: Inbox',
+            'sort_order' => 2,
+        ]);
+
+        $configuredId = config('help-center.public_tutorial_video_id');
+        config(['help-center.public_tutorial_video_id' => $public->id]);
+
         auth()->logout();
 
-        $this->get(route('tutorials.index', ['video_id' => $video->id]))
+        $this->get(route('tutorials.index', ['video_id' => $public->id]))
             ->assertOk()
-            ->assertSee('Public Tutorial');
+            ->assertSee('Public Tutorial')
+            ->assertDontSee('Private Tutorial')
+            ->assertDontSee('Search tutorials');
+
+        $this->get(route('tutorials.index', ['video_id' => $private->id]))
+            ->assertRedirect(route('login'));
+
+        $this->get(route('tutorials.index'))
+            ->assertRedirect(route('login'));
+
+        $this->get(route('tutorials.index', ['video_id' => $public->id, 'q' => 'private']))
+            ->assertRedirect(route('login'));
+
+        $this->actingAsTenantUser()
+            ->get(route('tutorials.index', ['video_id' => $public->id]))
+            ->assertOk()
+            ->assertSee('Public Tutorial')
+            ->assertDontSee('Private Tutorial')
+            ->assertDontSee('Search tutorials');
+
+        $this->actingAsTenantUser()
+            ->get(route('tutorials.index', ['video_id' => $public->id, 'library' => 1]))
+            ->assertOk()
+            ->assertSee('Public Tutorial')
+            ->assertSee('Private Tutorial');
+
+        config(['help-center.public_tutorial_video_id' => $configuredId]);
     }
 
-    public function test_team_member_can_open_tutorials(): void
+    public function test_team_member_cannot_access_tutorials(): void
     {
         $member = TeamMember::factory()->create([
             'parent_user_id' => $this->testUser->id,
@@ -154,6 +189,6 @@ class TutorialTest extends TestCase
 
         $this->actingAsTeamMember($member)
             ->get(route('tutorials.index'))
-            ->assertOk();
+            ->assertForbidden();
     }
 }

@@ -209,7 +209,7 @@ class TutorialModuleTree
             'description' => $video->description,
             'duration' => $video->duration,
             'active' => $activeVideoId !== null && (int) $activeVideoId === (int) $video->id,
-            'url' => route('tutorials.index', ['video_id' => (int) $video->id]),
+            'url' => route('tutorials.index', $this->libraryUrlParams((int) $video->id)),
             'embed_url' => null,
             'stream_url' => $hasLocalFile && $playback['filename'] !== null
                 ? $this->localPlaybackUrl($playback['filename'])
@@ -276,6 +276,20 @@ class TutorialModuleTree
     public function resolveLocalVideoPath(string $filename): ?string
     {
         return app(TutorialVideoStorage::class)->resolvePath($filename);
+    }
+
+    /**
+     * @return array{video_id: int, library?: int}
+     */
+    private function libraryUrlParams(int $videoId): array
+    {
+        $params = ['video_id' => $videoId];
+
+        if ($videoId === (int) config('help-center.public_tutorial_video_id')) {
+            $params['library'] = 1;
+        }
+
+        return $params;
     }
 
     private function encodePathSegment(string $filename): string

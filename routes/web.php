@@ -69,7 +69,9 @@ Route::get('/tutorial-video/{filename}', [TutorialController::class, 'stream'])
     ->where('filename', '[^/]+')
     ->name('tutorials.stream');
 
-Route::get('/tutorials', [TutorialController::class, 'index'])->name('tutorials.index');
+Route::get('/tutorials', [TutorialController::class, 'index'])
+    ->middleware('tutorials.public')
+    ->name('tutorials.index');
 
 // Profile routes moved to routes/account.php
 

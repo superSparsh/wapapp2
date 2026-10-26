@@ -13,6 +13,7 @@ use App\Domains\Audience\Console\Commands\PurgeSoftDeletedContactsCommand;
 use App\Domains\Audience\Console\Commands\SyncOptInDeliveryFromMessagesCommand;
 use App\Domains\Audience\Console\Commands\VerifyListContactsCommand;
 use App\Domains\Auth\Http\Middleware\EnsureEmailIsVerified;
+use App\Domains\HelpCenter\Http\Middleware\AllowPublicTutorial;
 use App\Domains\Auth\Http\Middleware\EnsureTwoFactorVerified;
 use App\Domains\Auth\Http\Middleware\InitializeTenancyFromSession;
 use App\Domains\Auth\Http\Middleware\RedirectIfAuthenticated;
@@ -147,6 +148,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'api.token' => AuthenticateApiToken::class,
             'jwt.auth' => AuthenticateJwt::class,
             'tenancy.session' => InitializeTenancyFromSession::class,
+            'tutorials.public' => AllowPublicTutorial::class,
             '2fa' => EnsureTwoFactorVerified::class,
             'verified' => EnsureEmailIsVerified::class,
             'team.owner' => EnsureAccountOwner::class,
