@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Inbox;
 
+use App\Domains\Audience\Support\UnsubscribeToken;
 use App\Domains\Inbox\Contracts\OutboundMessageGateway;
 use App\Domains\Inbox\Jobs\SendOutboundMessageJob;
 use App\Domains\Inbox\Services\InboxMessageService;
@@ -236,7 +237,7 @@ class InboxOutboundTest extends TestCase
             ->first();
 
         $this->assertNotNull($message);
-        $this->assertSame((string) $conversation->contact->id, $message->metadata['template_params']['unsub'] ?? null);
+        $this->assertSame(UnsubscribeToken::forContact($conversation->contact), $message->metadata['template_params']['unsub'] ?? null);
         $this->assertSame('Sparsh', $message->metadata['template_params']['name'] ?? null);
     }
 

@@ -68,6 +68,28 @@ class DripStatisticsTest extends TestCase
             });
     }
 
+    public function test_view_details_opens_only_that_status(): void
+    {
+        $campaign = DripCampaign::factory()->create();
+        DripCampaignStat::factory()->for($campaign, 'dripCampaign')->forPhone('919111111111')->entered()->create();
+        DripCampaignStat::factory()->for($campaign, 'dripCampaign')->forPhone('919222222222')->completed()->create();
+        DripCampaignStat::factory()->for($campaign, 'dripCampaign')->forPhone('919333333333')->error()->create();
+
+        $this->actingAsTenantUser()
+            ->get(route('automation.drip.statistics', $campaign))
+            ->assertOk()
+            ->assertSee(route('automation.drip.statistics.detail', ['campaign' => $campaign, 'status' => 'entered']), false)
+            ->assertSee(route('automation.drip.statistics.detail', ['campaign' => $campaign, 'status' => 'error']), false);
+
+        $this->actingAsTenantUser()
+            ->get(route('automation.drip.statistics.detail', ['campaign' => $campaign, 'status' => 'completed']))
+            ->assertOk()
+            ->assertSee('919222222222')
+            ->assertDontSee('919111111111')
+            ->assertDontSee('919333333333')
+            ->assertSee('Completed');
+    }
+
     public function test_statistics_detail_renders_paginated_log(): void
     {
         $campaign = DripCampaign::factory()->create();

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\TriggerTemplate\Services;
 
+use App\Domains\Audience\Support\UnsubscribeToken;
 use App\Domains\Templates\Services\TemplatePreviewService;
 use App\Domains\Templates\Services\TemplateRegistryService;
 use App\Models\Contact;
@@ -123,7 +124,7 @@ class TriggerTemplateParamsResolver
             'user_phone' => $phone !== '' ? $phone : null,
             'mobile' => $phone !== '' ? $phone : null,
             'email' => filled($contact?->email) ? (string) $contact->email : null,
-            'unsub' => (string) ($contact?->id ?? 'unsub'),
+            'unsub' => UnsubscribeToken::forContact($contact),
         ], static fn ($value) => $value !== null && $value !== '');
 
         $customFields = is_array($contact?->custom_fields) ? $contact->custom_fields : [];

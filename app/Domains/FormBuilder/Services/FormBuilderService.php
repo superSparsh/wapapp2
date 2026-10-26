@@ -256,8 +256,14 @@ class FormBuilderService
         }
 
         match ($status) {
-            'sent' => $query->whereNotNull('sent_at'),
-            'delivered' => $query->whereNotNull('delivered_at'),
+            'sent' => $query->whereNotNull('sent_at')
+                ->whereNull('delivered_at')
+                ->whereNull('read_at')
+                ->whereNull('failed_at')
+                ->where(function (Builder $q): void {
+                    $q->whereNull('message_status')->orWhere('message_status', '!=', 'failed');
+                }),
+            'delivered' => $query->whereNotNull('delivered_at')->whereNull('read_at'),
             'read' => $query->whereNotNull('read_at'),
             'failed' => $query->where(function (Builder $q): void {
                 $q->where('message_status', 'failed')

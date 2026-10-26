@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\FormBuilder;
 
+use App\Domains\Audience\Support\UnsubscribeToken;
 use App\Domains\FormBuilder\Services\FormTemplateParamsResolver;
 use App\Models\Contact;
 use App\Models\Template;
@@ -59,7 +60,7 @@ class FormTemplateParamsResolverTest extends TestCase
         );
 
         $this->assertSame('Sparsh', $params['first_name'] ?? null);
-        $this->assertSame((string) $contact->id, $params['unsub'] ?? null);
+        $this->assertSame(UnsubscribeToken::forContact($contact), $params['unsub'] ?? null);
         $this->assertArrayNotHasKey('phone', $params);
     }
 

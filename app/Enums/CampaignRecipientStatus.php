@@ -28,14 +28,14 @@ enum CampaignRecipientStatus: string
     }
 
     /**
-     * View-details / export filters keep higher funnel stages in earlier buckets
-     * (e.g. Read still appears under Delivered; Response still under Read).
+     * View Details lists only the clicked status. Read does not also appear under Delivered.
      *
      * @return list<self>|null  null = no filter
      */
     public static function statusesForFilter(?string $status): ?array
     {
-        if ($status === null || $status === '') {
+        $status = trim((string) ($status ?? ''));
+        if ($status === '') {
             return null;
         }
 
@@ -44,11 +44,7 @@ enum CampaignRecipientStatus: string
             return null;
         }
 
-        return match ($enum) {
-            self::Delivered => [self::Delivered, self::Read, self::Response],
-            self::Read => [self::Read, self::Response],
-            default => [$enum],
-        };
+        return [$enum];
     }
 
     public function progressionRank(): int

@@ -82,30 +82,36 @@ class DripStatPresenter
     /**
      * Paginated detail log of individual stat records.
      */
-    public function detailLog(DripCampaign $campaign, int $perPage = 10): LengthAwarePaginator
+    public function detailLog(DripCampaign $campaign, int $perPage = 10, ?string $status = null): LengthAwarePaginator
     {
-        return DripCampaignStat::query()
+        $query = DripCampaignStat::query()
             ->where('drip_campaign_id', $campaign->id)
-            ->orderByDesc('created_at')
-            ->paginate($perPage);
+            ->orderByDesc('created_at');
+
+        $this->applyActionFilter($query, $status);
+
+        return $query->paginate($perPage);
     }
 
     /**
      * Stream CSV export of all stat records for this campaign.
      */
-    public function exportCsv(DripCampaign $campaign): StreamedResponse
+    public function exportCsv(DripCampaign $campaign, ?string $status = null): StreamedResponse
     {
         $filename = 'drip-stats-'.$campaign->id.'-'.now()->format('Y-m-d').'.csv';
 
-        return response()->streamDownload(function () use ($campaign): void {
+        return response()->streamDownload(function () use ($campaign, $status): void {
             $handle = fopen('php://output', 'w');
             fputcsv($handle, ['SI. No', 'Contact Phone', 'Node ID', 'Node Type', 'Action', 'Sent At']);
 
             $seq = 0;
-            DripCampaignStat::query()
+            $query = DripCampaignStat::query()
                 ->where('drip_campaign_id', $campaign->id)
-                ->orderByDesc('created_at')
-                ->cursor()
+                ->orderByDesc('created_at');
+
+            $this->applyActionFilter($query, $status);
+
+            $query->cursor()
                 ->each(function (DripCampaignStat $stat) use ($handle, &$seq): void {
                     fputcsv($handle, [
                         ++$seq,
@@ -119,5 +125,23 @@ class DripStatPresenter
 
             fclose($handle);
         }, $filename, ['Content-Type' => 'text/csv']);
+    }
+
+    /**
+     * @param  \Illuminate\Database\Eloquent\Builder<DripCampaignStat>  $query
+     */
+    private function applyActionFilter($query, ?string $status): void
+    {
+        $status = trim((string) $status);
+        if ($status === '') {
+            return;
+        }
+
+        $action = ChatbotFlowStatAction::tryFrom($status);
+        if ($action === null) {
+            return;
+        }
+
+        $query->where('action', $action);
     }
 }

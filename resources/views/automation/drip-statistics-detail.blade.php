@@ -15,9 +15,20 @@
       </div>
 
       <div class="flex items-center justify-end gap-2">
-        <h2 class="min-w-0 flex-1 text-xl font-bold leading-[1.5] text-text-primary">Total Sent Messages</h2>
+        <h2 class="min-w-0 flex-1 text-xl font-bold leading-[1.5] text-text-primary">
+          @php
+            $statusTitle = match ($currentStatus ?? '') {
+                'entered' => 'Entered',
+                'completed' => 'Completed',
+                'dropped' => 'Dropped',
+                'error' => 'Errors',
+                default => 'All events',
+            };
+          @endphp
+          {{ $statusTitle }}
+        </h2>
         <a
-          href="{{ route('automation.drip.statistics.export', $campaign) }}"
+          href="{{ route('automation.drip.statistics.export', array_filter(['campaign' => $campaign, 'status' => ($currentStatus ?? '') !== '' ? $currentStatus : null])) }}"
           class="fd-btn inline-flex shrink-0 items-center justify-center gap-3 rounded border border-solid border-green-500 bg-green-50 px-4 py-3 text-sm font-semibold leading-[1.5] text-green-500 transition-colors hover:bg-green-50"
         >
           <img src="{{ asset('images/automation/export-csv.svg') }}" alt="" class="size-4" width="16" height="16">

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domains\Campaigns\Services;
 
 use App\Domains\Audience\Models\ListField;
+use App\Domains\Audience\Support\UnsubscribeToken;
 use App\Models\Campaign;
 use App\Models\CampaignRecipient;
 use App\Models\Contact;
@@ -147,7 +148,7 @@ class CampaignTemplateParamsResolver
             'first_name' => $firstName !== '' ? $firstName : null,
             'last_name' => $lastName !== '' ? $lastName : null,
             'phone' => $phone !== '' ? $phone : null,
-            'unsub' => (string) ($contact?->id ?? 'unsub'),
+            'unsub' => UnsubscribeToken::forContact($contact),
         ], static fn ($value) => $value !== null && $value !== '');
 
         $customFields = is_array($contact?->custom_fields) ? $contact->custom_fields : [];

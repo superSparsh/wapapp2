@@ -56,7 +56,7 @@ class CampaignStatisticsTest extends TestCase
             ->assertOk()
             ->assertViewHas('metrics', function ($metrics) {
                 return $metrics['total'] === 10
-                    && $metrics['delivered'] === 5
+                    && $metrics['delivered'] === 8
                     && $metrics['failed'] === 2
                     && $metrics['read'] === 3;
             });
@@ -89,6 +89,27 @@ class CampaignStatisticsTest extends TestCase
             ->assertViewIs('campaigns.detail')
             ->assertViewHas('campaign')
             ->assertViewHas('recipients');
+    }
+
+    public function test_delivered_detail_lists_only_delivered_recipients(): void
+    {
+        $campaign = Campaign::factory()->create();
+        CampaignRecipient::factory()->for($campaign)->delivered()->create([
+            'contact_phone' => '919111111111',
+        ]);
+        CampaignRecipient::factory()->for($campaign)->read()->create([
+            'contact_phone' => '919222222222',
+        ]);
+        CampaignRecipient::factory()->for($campaign)->failed()->create([
+            'contact_phone' => '919333333333',
+        ]);
+
+        $this->actingAsTenantUser()
+            ->get(route('campaigns.statistics.detail', ['bulkCampaign' => $campaign, 'status' => 'delivered']))
+            ->assertOk()
+            ->assertSee('919111111111')
+            ->assertDontSee('919222222222')
+            ->assertDontSee('919333333333');
     }
 
     public function test_statistics_detail_filters_by_status(): void

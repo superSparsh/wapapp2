@@ -8,6 +8,7 @@ use App\Domains\AiBot\Http\Controllers\AiProviderKeyController;
 use App\Domains\AiBot\Http\Controllers\KnowledgeBaseController;
 use App\Domains\AiBot\Http\Controllers\OpenAiKeyController;
 use App\Domains\Audience\Http\Controllers\PublicEmbeddedFormController;
+use App\Domains\Audience\Http\Controllers\PublicUnsubscribeController;
 use App\Domains\AutomationEvents\Http\Controllers\AutomationEventController;
 use App\Domains\Chatbot\Http\Controllers\ChatbotBuilderSupportController;
 use App\Domains\Chatbot\Http\Controllers\ChatbotFlowBuilderController;
@@ -72,6 +73,13 @@ Route::get('/tutorial-video/{filename}', [TutorialController::class, 'stream'])
 Route::get('/tutorials', [TutorialController::class, 'index'])
     ->middleware('tutorials.public')
     ->name('tutorials.index');
+
+Route::get('/unsubscribe-list/{token}', [PublicUnsubscribeController::class, 'show'])
+    ->where('token', '[^/]+')
+    ->name('unsubscribe.show');
+Route::post('/unsubscribe-list/{token}', [PublicUnsubscribeController::class, 'store'])
+    ->where('token', '[^/]+')
+    ->name('unsubscribe.store');
 
 // Profile routes moved to routes/account.php
 

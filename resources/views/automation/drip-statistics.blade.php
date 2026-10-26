@@ -43,7 +43,10 @@
           <div class="rounded-lg bg-elevated p-3">
             <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-2">
               @php
-                $detailHref = route('automation.drip.statistics.detail', $campaign);
+                $detailRoute = fn (string $status) => route('automation.drip.statistics.detail', [
+                    'campaign' => $campaign,
+                    'status' => $status,
+                ]);
                 $cards = [
                   [
                     'title' => 'Entered',
@@ -52,6 +55,7 @@
                     'percent' => $metrics['entered_pct'],
                     'color' => 'blue',
                     'icon' => 'task',
+                    'status' => 'entered',
                   ],
                   [
                     'title' => 'Completed',
@@ -60,6 +64,7 @@
                     'percent' => $metrics['completed_pct'],
                     'color' => 'green',
                     'icon' => 'tick-circle',
+                    'status' => 'completed',
                   ],
                   [
                     'title' => 'Dropped',
@@ -68,6 +73,7 @@
                     'percent' => $metrics['dropped_pct'],
                     'color' => 'orange',
                     'icon' => 'group',
+                    'status' => 'dropped',
                   ],
                   [
                     'title' => 'Errors',
@@ -76,6 +82,7 @@
                     'percent' => $metrics['failed_pct'],
                     'color' => 'red',
                     'icon' => 'warning',
+                    'status' => 'error',
                   ],
                 ];
               @endphp
@@ -88,7 +95,7 @@
                   :percent="$card['percent']"
                   :color="$card['color']"
                   :icon="$card['icon']"
-                  :details-href="$detailHref"
+                  :details-href="$detailRoute($card['status'])"
                   :details-link-color="$card['color'] === 'red' || $card['color'] === 'orange' ? 'text-[#71b56d]' : 'text-green-500'"
                 />
               @endforeach

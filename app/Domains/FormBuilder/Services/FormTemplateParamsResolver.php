@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\FormBuilder\Services;
 
+use App\Domains\Audience\Support\UnsubscribeToken;
 use App\Domains\Templates\Services\TemplatePreviewService;
 use App\Models\Contact;
 use App\Models\Template;
@@ -100,8 +101,7 @@ class FormTemplateParamsResolver
             'email' => filled($contact?->email)
                 ? (string) $contact->email
                 : ($fromSubmission['email'] ?? null),
-            // Campaigns / legacy: unsubscribe placeholder expects contact id (or stable token).
-            'unsub' => (string) ($contact?->id ?? 'unsub'),
+            'unsub' => UnsubscribeToken::forContact($contact),
         ], static fn ($value) => $value !== null && $value !== '');
 
         foreach ($fromSubmission as $key => $value) {

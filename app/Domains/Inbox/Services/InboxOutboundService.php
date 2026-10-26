@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Inbox\Services;
 
+use App\Domains\Audience\Support\UnsubscribeToken;
 use App\Domains\Billing\Services\WalletService;
 use App\Domains\Inbox\Jobs\SendOutboundMessageJob;
 use App\Domains\Templates\Services\TemplatePreviewService;
@@ -595,7 +596,7 @@ class InboxOutboundService
             'first_name' => trim((string) ($parts[0] ?? '')) ?: null,
             'last_name' => trim((string) ($parts[1] ?? '')) ?: null,
             'phone' => $phone !== '' ? $phone : null,
-            'unsub' => (string) ($contact?->id ?? 'unsub'),
+            'unsub' => UnsubscribeToken::forContact($contact),
         ], static fn ($value) => $value !== null && $value !== '');
 
         $needed = $template !== null

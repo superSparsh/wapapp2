@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit\Campaigns;
 
 use App\Domains\Audience\Enums\ContactStatus;
+use App\Domains\Audience\Support\UnsubscribeToken;
 use App\Domains\Audience\Models\ListField;
 use App\Domains\Campaigns\Services\CampaignTemplateParamsResolver;
 use App\Domains\Campaigns\Services\CampaignVariableGridService;
@@ -100,7 +101,7 @@ class CampaignVariableGridServiceTest extends TestCase
 
         $this->assertSame('Override', $params['first_name']);
         $this->assertSame('Per Recipient', $params['company']);
-        $this->assertSame((string) $contact->id, $params['unsub']);
+        $this->assertSame(UnsubscribeToken::forContact($contact), $params['unsub']);
         $this->assertArrayNotHasKey('cams_group_id', $params);
     }
 

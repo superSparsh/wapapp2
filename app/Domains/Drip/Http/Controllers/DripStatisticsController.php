@@ -8,6 +8,7 @@ use App\Domains\Drip\Services\DripCampaignStatService;
 use App\Domains\Drip\Services\DripStatPresenter;
 use App\Http\Controllers\Controller;
 use App\Models\DripCampaign;
+use Illuminate\Http\Request;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -33,19 +34,30 @@ class DripStatisticsController extends Controller
     /**
      * Detailed message log with pagination.
      */
-    public function detail(DripCampaign $campaign): View
+    public function detail(Request $request, DripCampaign $campaign): View
     {
+        $status = $request->query('status');
+
         return view('automation.drip-statistics-detail', [
             'campaign' => $campaign,
-            'messages' => $this->statPresenter->detailLog($campaign),
+            'messages' => $this->statPresenter->detailLog(
+                $campaign,
+                status: is_string($status) ? $status : null,
+            ),
+            'currentStatus' => is_string($status) ? $status : '',
         ]);
     }
 
     /**
      * Export statistics as CSV.
      */
-    public function export(DripCampaign $campaign): StreamedResponse
+    public function export(Request $request, DripCampaign $campaign): StreamedResponse
     {
-        return $this->statPresenter->exportCsv($campaign);
+        $status = $request->query('status');
+
+        return $this->statPresenter->exportCsv(
+            $campaign,
+            is_string($status) ? $status : null,
+        );
     }
 }

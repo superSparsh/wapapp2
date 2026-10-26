@@ -97,7 +97,7 @@ class CampaignStatsServiceTest extends TestCase
         $this->assertSame(5, $result->total());
     }
 
-    public function test_recipient_log_delivered_keeps_read_and_response(): void
+    public function test_recipient_log_delivered_excludes_read_and_response(): void
     {
         $campaign = Campaign::factory()->create();
         CampaignRecipient::factory()->for($campaign)->delivered()->count(2)->create();
@@ -110,8 +110,8 @@ class CampaignStatsServiceTest extends TestCase
         $delivered = $this->service->recipientLog($campaign, status: 'delivered');
         $read = $this->service->recipientLog($campaign, status: 'read');
 
-        $this->assertSame(6, $delivered->total());
-        $this->assertSame(4, $read->total());
+        $this->assertSame(2, $delivered->total());
+        $this->assertSame(3, $read->total());
     }
 
     public function test_recipient_log_returns_all_when_no_filter(): void
