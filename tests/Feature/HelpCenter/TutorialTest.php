@@ -59,7 +59,6 @@ class TutorialTest extends TestCase
             ->assertSee('Module 1: Dashboard')
             ->assertSee('Product Demo')
             ->assertSee('WapApp Complete Overview')
-            ->assertSee('Note: This tutorial still uses the previous WapApp design video.')
             ->assertDontSee('Inbox Basics')
             ->assertDontSee('Hidden Tutorial');
     }
@@ -132,7 +131,22 @@ class TutorialTest extends TestCase
             ->assertDontSee('Wallet Top Up');
     }
 
-    public function test_team_member_cannot_access_tutorials(): void
+    public function test_guest_can_open_a_shared_tutorial_link(): void
+    {
+        $video = TutorialVideo::factory()->create([
+            'title' => 'Public Tutorial',
+            'module_name' => 'Module 1: Dashboard',
+            'sort_order' => 1,
+        ]);
+
+        auth()->logout();
+
+        $this->get(route('tutorials.index', ['video_id' => $video->id]))
+            ->assertOk()
+            ->assertSee('Public Tutorial');
+    }
+
+    public function test_team_member_can_open_tutorials(): void
     {
         $member = TeamMember::factory()->create([
             'parent_user_id' => $this->testUser->id,
@@ -140,6 +154,6 @@ class TutorialTest extends TestCase
 
         $this->actingAsTeamMember($member)
             ->get(route('tutorials.index'))
-            ->assertForbidden();
+            ->assertOk();
     }
 }

@@ -1,4 +1,9 @@
-<x-layouts.app title="Tutorials - WapApp" active="tutorials.index">
+@php
+  $tutorialLayout = (auth('web')->check() || auth('team')->check())
+      ? 'components.layouts.app'
+      : 'components.layouts.guest';
+@endphp
+@component($tutorialLayout, ['title' => 'Tutorials - WapApp', 'active' => 'tutorials.index'])
   <div class="flex min-h-full flex-col bg-surface">
     <div class="shrink-0 p-4 pb-0">
       <h1 class="text-2xl font-bold leading-[1.5] text-text-primary">Tutorials</h1>
@@ -232,4 +237,4 @@
       });
     })();
   </script>
-</x-layouts.app>
+@endcomponent

@@ -69,6 +69,8 @@ Route::get('/tutorial-video/{filename}', [TutorialController::class, 'stream'])
     ->where('filename', '[^/]+')
     ->name('tutorials.stream');
 
+Route::get('/tutorials', [TutorialController::class, 'index'])->name('tutorials.index');
+
 // Profile routes moved to routes/account.php
 
 // Public Line Login (no auth - anyone with the link can log in as a specific number)
@@ -271,10 +273,6 @@ Route::middleware(['tenancy.session', 'auth:web,team', '2fa', 'team.redirect-das
             Route::post('/', [TriggerTemplateController::class, 'store'])->name('store');
             Route::post('/bulk-destroy', [TriggerTemplateController::class, 'bulkDestroy'])->name('bulk-destroy');
             Route::delete('/{triggerVariable}', [TriggerTemplateController::class, 'destroy'])->name('destroy');
-        });
-
-        Route::prefix('tutorials')->name('tutorials.')->group(function () {
-            Route::get('/', [TutorialController::class, 'index'])->name('index');
         });
 
         Route::get('/faqs', [FaqController::class, 'index'])->name('faqs.index');
