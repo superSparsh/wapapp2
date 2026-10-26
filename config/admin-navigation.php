@@ -63,7 +63,7 @@ return [
             ['label' => 'Maintenance mode', 'route' => 'admin.maintenance.edit', 'matches' => []],
             ['label' => 'Payment gateways', 'route' => 'admin.payment-gateways.edit', 'matches' => []],
             ['label' => 'OAuth', 'route' => 'admin.oauth.edit', 'matches' => []],
-            ['label' => 'Tittu Gateway', 'route' => 'admin.tittu-gateway.index', 'matches' => []],
+            ['label' => 'Tittu Gateway (AI)', 'route' => 'admin.tittu-gateway.index', 'matches' => []],
             ['label' => 'Template gallery', 'route' => 'admin.platform-templates.index', 'matches' => ['admin.platform-templates.create', 'admin.platform-templates.edit']],
             ['label' => 'Form templates', 'route' => 'admin.form-templates.index', 'matches' => ['admin.form-templates.create', 'admin.form-templates.edit']],
             ['label' => 'Page layouts', 'route' => 'admin.page-layouts.index', 'matches' => ['admin.page-layouts.create', 'admin.page-layouts.edit']],

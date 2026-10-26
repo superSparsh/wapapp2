@@ -144,4 +144,49 @@ class TittuGatewayStatusTest extends TestCase
             ->assertDontSee('saved-gateway-token')
             ->assertSee('A token is saved in admin.');
     }
+
+    public function test_customers_tab_lists_tittu_usage_only(): void
+    {
+        \App\Models\AiProviderKey::factory()->create([
+            'provider' => 'tittu',
+            'is_active' => true,
+            'is_validated' => true,
+        ]);
+
+        $bot = \App\Models\AiBot::factory()->create([
+            'name' => 'Estate Assistant',
+            'provider' => 'tittu',
+            'chat_model' => 'auto',
+            'embedding_model' => '',
+            'status' => 'active',
+        ]);
+
+        \App\Models\AiTokenUsageLog::query()->create([
+            'ai_bot_id' => $bot->id,
+            'provider' => 'tittu',
+            'model' => 'auto',
+            'request_type' => 'chat',
+            'prompt_tokens' => 10,
+            'completion_tokens' => 4,
+            'total_tokens' => 14,
+        ]);
+
+        \App\Models\AiTokenUsageLog::query()->create([
+            'provider' => 'openai',
+            'model' => 'gpt-4o-mini',
+            'request_type' => 'chat',
+            'prompt_tokens' => 1,
+            'completion_tokens' => 1,
+            'total_tokens' => 99999,
+        ]);
+
+        $this->actingAs($this->admin, 'admin')
+            ->get(route('admin.tittu-gateway.index', ['tab' => 'customers']))
+            ->assertOk()
+            ->assertSee('Tittu Gateway (AI)')
+            ->assertSee('Test Tenant')
+            ->assertSee('Estate Assistant')
+            ->assertSee('Active')
+            ->assertDontSee('99999');
+    }
 }

@@ -6,6 +6,7 @@ namespace App\Domains\Admin\Http\Controllers;
 
 use App\Domains\Admin\Services\PlatformSettingsService;
 use App\Domains\Admin\Services\TittuGatewayStatusService;
+use App\Domains\Admin\Services\TittuGatewayUsageService;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -18,10 +19,14 @@ class TittuGatewayStatusController extends Controller
         private readonly PlatformSettingsService $settings,
     ) {}
 
-    public function index(): View
+    public function index(Request $request, TittuGatewayUsageService $usage): View
     {
+        $tab = $request->query('tab') === 'customers' ? 'customers' : 'status';
+
         return view('admin.tittu-gateway.index', [
-            'snapshot' => $this->status->snapshot(),
+            'tab' => $tab,
+            'snapshot' => $tab === 'status' ? $this->status->snapshot() : null,
+            'usage' => $tab === 'customers' ? $usage->report() : null,
         ]);
     }
 
