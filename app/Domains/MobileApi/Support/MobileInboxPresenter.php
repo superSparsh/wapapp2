@@ -82,7 +82,7 @@ final class MobileInboxPresenter
         $body = (string) ($message->body ?? '');
         $createdAt = $message->created_at?->toIso8601String();
         $metadata = is_array($message->metadata) ? $message->metadata : [];
-        $mediaUrl = $metadata['media_url'] ?? $metadata['media_url_local'] ?? null;
+        $mediaUrl = \App\Domains\Inbox\Support\InboxPresenter::displayMediaUrl($metadata);
 
         return [
             'id' => (int) $message->id,

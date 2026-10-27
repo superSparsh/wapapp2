@@ -130,9 +130,10 @@ final class InboxPresenter
 
     /**
      * URL to show in the inbox UI.
-     * Outbound media is uploaded to Alibaba OSS for WhatsApp delivery (media_url),
-     * but browsers often cannot load that private/hosted object - prefer the local
-     * public disk copy (media_url_local / media_path) via the tenant stream route.
+     * Prefer local tenant disk copies (media_path / media_url_local) for both
+     * outbound and inbound media via the auth-gated stream route.
+     * Outbound also keeps an Alibaba OSS URL for WhatsApp delivery; inbound keeps
+     * the original remote URL as media_url_remote for fallback/retry.
      * Legacy /storage/... URLs 403 under filesystem tenancy.
      *
      * @param  array<string, mixed>  $metadata

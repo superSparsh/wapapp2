@@ -15,6 +15,7 @@ return [
     'media' => [
         'disk' => env('WHATSAPP_MEDIA_DISK', 'public'),
         'directory' => env('WHATSAPP_MEDIA_DIRECTORY', 'inbox/outbound'),
+        'inbound_directory' => env('WHATSAPP_MEDIA_INBOUND_DIRECTORY', 'inbox/inbound'),
         // Absolute ceiling (largest type). Prefer per-type limits below.
         'max_size_kb' => (int) env('WHATSAPP_MEDIA_MAX_SIZE_KB', 14336),
         'types' => [

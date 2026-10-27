@@ -193,6 +193,8 @@ class InboundMessageHandler
                 ])->save();
             }
 
+            $this->persistInboundMedia($message);
+
             if ($messageType === MessageType::Order) {
                 try {
                     $this->commerceOrderIngest->ingest($item, $line);
@@ -650,6 +652,33 @@ class InboundMessageHandler
         $status = trim((string) ($item['Status'] ?? $item['status'] ?? ''));
 
         return $from !== '' && $to !== '' && $messageId !== '' && $status === '';
+    }
+
+    private function persistInboundMedia(Message $message): void
+    {
+        $metadata = is_array($message->metadata) ? $message->metadata : [];
+        $remoteUrl = trim((string) ($metadata['media_url'] ?? ''));
+        if ($remoteUrl === '' || preg_match('#^https?://#i', $remoteUrl) !== 1) {
+            return;
+        }
+
+        try {
+            app(\App\Domains\Inbox\Services\InboxMediaService::class)
+                ->persistInboundMessageMedia($message);
+        } catch (\Throwable $e) {
+            Log::warning('Inbound media local store failed; queueing retry', [
+                'message_id' => $message->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            $tenantId = trim((string) (tenant('id') ?? ''));
+            if ($tenantId === '') {
+                return;
+            }
+
+            \App\Domains\Inbox\Jobs\StoreInboundMediaJob::dispatch($tenantId, (int) $message->id)
+                ->afterCommit();
+        }
     }
 
     private function mapMessageType(string $type): MessageType
