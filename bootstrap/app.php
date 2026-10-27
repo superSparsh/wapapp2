@@ -27,6 +27,7 @@ use App\Domains\Campaigns\Console\Commands\ProcessDueCampaignsCommand;
 use App\Domains\Campaigns\Console\Commands\SyncCampaignDeliveryFromMessagesCommand;
 use App\Domains\Drip\Console\Commands\ProcessDripAutomationsCommand;
 use App\Domains\Inbox\Console\Commands\BackfillInboundMediaCommand;
+use App\Domains\Inbox\Console\Commands\BackfillInboundReactionsCommand;
 use App\Domains\LegacyMigration\Console\ImportLegacyCountryPricingCommand;
 use App\Domains\LegacyMigration\Console\ImportLegacyPlansCommand;
 use App\Domains\LegacyMigration\Console\ImportLegacySettingsCommand;
@@ -195,6 +196,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ReconcileZohoWalletCommand::class,
         ProcessInboundResponsesCommand::class,
         BackfillInboundMediaCommand::class,
+        BackfillInboundReactionsCommand::class,
         ScheduleIntegrationSyncCommand::class,
         WhatsAppHealthSnapshotCommand::class,
         WhatsAppHealthDigestCommand::class,
