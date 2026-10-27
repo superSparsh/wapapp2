@@ -137,7 +137,7 @@
                 class="fd-btn inline-flex items-center justify-center gap-2 rounded bg-[#0356fb] px-4 py-3 text-sm font-semibold leading-[1.5] text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <img src="{{ asset('images/automation/send-flow.svg') }}" alt="" class="size-5" width="20" height="20">
-                Publish Flow
+                <span data-publish-flow-label>Publish Flow</span>
               </button>
             </form>
           @endif

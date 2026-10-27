@@ -75,6 +75,9 @@ function showUnlessCancelled(event, label) {
 }
 
 export function initPageLoader() {
+    window.showPageLoader = showPageLoader;
+    window.hidePageLoader = hidePageLoader;
+
     if (!getLoader()) {
         return;
     }

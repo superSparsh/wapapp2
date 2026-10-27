@@ -1263,6 +1263,37 @@ function setupImportModal() {
 /* ── Save / Export / Publish ── */
 
 let isSavingFlow = false;
+let isPublishingFlow = false;
+
+function showFlowLoader(label) {
+    if (typeof window.showPageLoader === 'function') {
+        window.showPageLoader(label);
+        return;
+    }
+
+    const el = document.querySelector('[data-page-loader]');
+    if (!el) return;
+    const text = el.querySelector('[data-page-loader-label]');
+    if (text) text.textContent = label;
+    el.classList.remove('hidden');
+    el.classList.add('flex');
+    el.setAttribute('aria-hidden', 'false');
+    document.documentElement.classList.add('fd-page-loading');
+}
+
+function hideFlowLoader() {
+    if (typeof window.hidePageLoader === 'function') {
+        window.hidePageLoader();
+        return;
+    }
+
+    const el = document.querySelector('[data-page-loader]');
+    if (!el) return;
+    el.classList.add('hidden');
+    el.classList.remove('flex');
+    el.setAttribute('aria-hidden', 'true');
+    document.documentElement.classList.remove('fd-page-loading');
+}
 
 function setSaveButtonsBusy(busy) {
     document.querySelectorAll('[data-action="save-flow"]').forEach((btn) => {
@@ -1278,6 +1309,24 @@ function setSaveButtonsBusy(busy) {
                 : (label.dataset.idleLabel || 'Save Draft');
         }
     });
+}
+
+function setPublishButtonBusy(busy) {
+    const btn = document.getElementById('publish-flow-btn');
+    if (!btn) return;
+
+    btn.disabled = busy;
+    btn.classList.toggle('opacity-50', busy);
+
+    const label = btn.querySelector('[data-publish-flow-label]');
+    if (label) {
+        if (busy && !label.dataset.idleLabel) {
+            label.dataset.idleLabel = label.textContent.trim() || 'Publish Flow';
+        }
+        label.textContent = busy
+            ? 'Publishing…'
+            : (label.dataset.idleLabel || 'Publish Flow');
+    }
 }
 
 function notifyUser(message, type = 'info') {
@@ -1308,6 +1357,7 @@ async function saveFlow(options = {}) {
 
     if (!quiet) {
         setSaveButtonsBusy(true);
+        showFlowLoader('Saving draft…');
         notifyUser('Saving draft…', 'info');
     }
 
@@ -1344,6 +1394,7 @@ async function saveFlow(options = {}) {
                 }, 700);
             } else if (!quiet) {
                 setSaveButtonsBusy(false);
+                hideFlowLoader();
             }
 
             return true;
@@ -1355,11 +1406,17 @@ async function saveFlow(options = {}) {
             || Object.values(result.errors || {}).flat()[0]
             || 'Failed to save draft.';
         notifyUser(String(message), 'error');
-        if (!quiet) setSaveButtonsBusy(false);
+        if (!quiet) {
+            setSaveButtonsBusy(false);
+            hideFlowLoader();
+        }
         return false;
     } catch (err) {
         notifyUser('Error saving draft: ' + err.message, 'error');
-        if (!quiet) setSaveButtonsBusy(false);
+        if (!quiet) {
+            setSaveButtonsBusy(false);
+            hideFlowLoader();
+        }
         return false;
     } finally {
         isSavingFlow = false;
@@ -1371,29 +1428,31 @@ async function saveFlow(options = {}) {
  */
 async function publishFlow() {
     const form = document.getElementById('publish-flow-form');
-    const btn = document.getElementById('publish-flow-btn');
     if (!form) return;
+
+    if (isPublishingFlow || isSavingFlow) return;
 
     if (!Array.isArray(state.screens) || state.screens.length === 0) {
         showStatus('Add at least one screen before publishing.', 'error');
         return;
     }
 
-    if (btn) {
-        btn.disabled = true;
-        btn.classList.add('opacity-50');
-    }
-
+    isPublishingFlow = true;
+    setPublishButtonBusy(true);
+    setSaveButtonsBusy(true);
+    showFlowLoader('Publishing flow…');
     showStatus('Saving draft, then publishing to WhatsApp…');
 
     const saved = await saveFlow({ quiet: true });
     if (!saved) {
-        if (btn) {
-            btn.disabled = false;
-            btn.classList.remove('opacity-50');
-        }
+        setPublishButtonBusy(false);
+        setSaveButtonsBusy(false);
+        hideFlowLoader();
+        isPublishingFlow = false;
         return;
     }
+
+    showFlowLoader('Publishing to WhatsApp…');
 
     try {
         const csrf = document.querySelector('meta[name="csrf-token"]')?.content
@@ -1413,6 +1472,7 @@ async function publishFlow() {
 
         if (resp.ok && result.success) {
             showStatus('Flow published successfully!', 'success');
+            showFlowLoader('Published! Redirecting…');
             window.setTimeout(() => {
                 window.location.href = form.action.replace(/\/publish$/, '') || window.location.href;
             }, 800);
@@ -1425,13 +1485,16 @@ async function publishFlow() {
             || Object.values(result.errors || {}).flat()[0]
             || 'Remote publish failed. Check CAMS configuration and try again.';
         showStatus(String(message), 'error');
+        setPublishButtonBusy(false);
+        setSaveButtonsBusy(false);
+        hideFlowLoader();
     } catch (err) {
         showStatus('Publish error: ' + err.message, 'error');
+        setPublishButtonBusy(false);
+        setSaveButtonsBusy(false);
+        hideFlowLoader();
     } finally {
-        if (btn) {
-            btn.disabled = false;
-            btn.classList.remove('opacity-50');
-        }
+        isPublishingFlow = false;
     }
 }
 
