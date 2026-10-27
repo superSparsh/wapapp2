@@ -260,6 +260,23 @@ class FlowNodeDataMapper
             $data['templateId'] = $code;
         }
 
+        $messageType = (string) ($data['messageType'] ?? '');
+        if ($messageType === 'custom') {
+            $customText = trim((string) ($data['customText'] ?? $data['text'] ?? $data['message'] ?? ''));
+            // Custom text body must stay separate from the trigger word.
+            if ($keyword !== '' && strcasecmp($customText, $keyword) === 0) {
+                $customText = '';
+            }
+            $data['customText'] = $customText;
+            $data['text'] = $customText;
+            $data['message'] = $customText;
+            $data['triggerKeyword'] = '';
+            $data['keywords'] = '';
+            $data['messageType'] = 'custom';
+
+            return $this->syncOfflineHoursFields($data);
+        }
+
         $data['triggerKeyword'] = $keyword;
         $data['keywords'] = $keyword;
         $data['messageType'] = ($code !== '' || filled($dbId))

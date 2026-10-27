@@ -40,7 +40,7 @@ class TemplateMessageProcessor extends AbstractNodeProcessor
                 $this->sendTemplate($conversation, $templateCode, $params);
             }
         } else {
-            $text = (string) ($data['text'] ?? $data['message'] ?? $data['welcomeMessage'] ?? '');
+            $text = $this->resolveCustomBody($data);
 
             if ($text !== '') {
                 $this->sendText($conversation, $this->resolveText($text, $variables, $conversation));
@@ -86,6 +86,37 @@ class TemplateMessageProcessor extends AbstractNodeProcessor
         }
 
         return NodeProcessResult::Continue;
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function resolveCustomBody(array $data): string
+    {
+        $keyword = trim((string) ($data['triggerKeyword'] ?? $data['keywords'] ?? ''));
+
+        foreach (['customText', 'message', 'welcomeMessage'] as $key) {
+            $value = trim((string) ($data[$key] ?? ''));
+            if ($value !== '') {
+                if ($keyword !== '' && strcasecmp($value, $keyword) === 0) {
+                    continue;
+                }
+
+                return $value;
+            }
+        }
+
+        $text = trim((string) ($data['text'] ?? ''));
+        if ($text === '') {
+            return '';
+        }
+
+        // Builder used to put triggerKeyword into text - never send that as the body.
+        if ($keyword !== '' && strcasecmp($text, $keyword) === 0) {
+            return '';
+        }
+
+        return $text;
     }
 
     /**

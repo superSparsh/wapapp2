@@ -150,6 +150,14 @@ const ReactFlowTemplateMessageModule = ({
 
       // Process the form data
       const offlineHours = normalizeOfflineHoursForSave(values);
+      const isCustom = values.messageType === "custom";
+      const resolvedCustomText = isCustom
+        ? String(customText || values.customText || "").trim()
+        : "";
+      // Custom text is the WhatsApp body - never store the trigger word as the message.
+      const triggerKeyword = isCustom
+        ? ""
+        : String(values.triggerKeyword || "").trim();
       const nodeData = {
         ...values,
         ...offlineHours,
@@ -181,8 +189,11 @@ const ReactFlowTemplateMessageModule = ({
                 selectedTemplate?.template_name || "Template"
               }`
             : "Text Message",
-        triggerKeyword: values.triggerKeyword || "",
-        keywords: values.triggerKeyword || "",
+        customText: resolvedCustomText,
+        text: isCustom ? resolvedCustomText : values.text || "",
+        message: isCustom ? resolvedCustomText : values.message || "",
+        triggerKeyword,
+        keywords: triggerKeyword,
       };
 
       console.log("handleSave - final nodeData:", nodeData);
@@ -566,22 +577,6 @@ const ReactFlowTemplateMessageModule = ({
                   style={{ marginBottom: 16 }}
                 >
                   <Form.Item
-                    name="triggerKeyword"
-                    label="Trigger Keyword"
-                    rules={[
-                      {
-                        required: true,
-                        message: "Please enter a trigger keyword",
-                      },
-                    ]}
-                    help="Customer must send this word/phrase to start the bot."
-                  >
-                    <Input
-                      placeholder="e.g., hello, start, offer, menu"
-                      maxLength={100}
-                    />
-                  </Form.Item>
-                  <Form.Item
                     name="customText"
                     rules={[
                       { required: true, message: "Please enter message text" },
@@ -592,7 +587,11 @@ const ReactFlowTemplateMessageModule = ({
                         rows={6}
                         placeholder="Enter your custom message text... You can use variables like {{user_name}}, {{order_id}}, etc."
                         value={customText}
-                        onChange={(e) => setCustomText(e.target.value)}
+                        onChange={(e) => {
+                          const next = e.target.value;
+                          setCustomText(next);
+                          form.setFieldsValue({ customText: next });
+                        }}
                         showCount
                         maxLength={1000}
                       />

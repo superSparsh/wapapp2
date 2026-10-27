@@ -119,4 +119,33 @@ class FlowNodeDataMapperTest extends TestCase
         $this->assertSame('Runtime text', $data['message']);
         $this->assertSame('start', $data['keywords']);
     }
+
+    #[Test]
+    public function it_keeps_custom_text_separate_from_trigger_on_template_message(): void
+    {
+        $result = $this->mapper->prepareForStorage([
+            'nodes' => [
+                [
+                    'id' => 'template_1',
+                    'type' => 'templateMessage',
+                    'data' => [
+                        'messageType' => 'custom',
+                        'customText' => 'Thanks for writing in.',
+                        'triggerKeyword' => 'hello',
+                        'keywords' => 'hello',
+                        'text' => 'hello',
+                    ],
+                ],
+            ],
+            'edges' => [],
+        ]);
+
+        $data = $result['nodes'][0]['data'];
+
+        $this->assertSame('custom', $data['messageType']);
+        $this->assertSame('Thanks for writing in.', $data['customText']);
+        $this->assertSame('Thanks for writing in.', $data['text']);
+        $this->assertSame('', $data['triggerKeyword']);
+        $this->assertSame('', $data['keywords']);
+    }
 }

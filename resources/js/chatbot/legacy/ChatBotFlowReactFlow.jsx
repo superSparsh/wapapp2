@@ -1765,7 +1765,8 @@ const TemplateMessageNode = ({ data = {}, selected, id }) => {
         {data.messageType === "template" && data.selectedTemplate && (
           <div>Template: {data.selectedTemplate.template_name}</div>
         )}
-        {data.messageType === "text" && data.customText && (
+        {(data.messageType === "custom" || data.messageType === "text") &&
+          data.customText && (
           <div>Message: {data.customText.substring(0, 20)}...</div>
         )}
         {data.selectedTemplate &&
