@@ -314,6 +314,19 @@
                 </div>
               @endif
             </div>
+          @elseif ($messageType === 'reaction')
+            @php
+              $reactionEmoji = trim((string) ($message['reaction_emoji'] ?? $body));
+              $reactionRemoved = ! empty($message['reaction_removed']) || $reactionEmoji === '' || $reactionEmoji === 'Reaction removed';
+            @endphp
+            <div class="flex flex-col items-start gap-1">
+              <div class="text-[10px] font-semibold uppercase tracking-wide text-green-700">Reaction</div>
+              @if ($reactionRemoved)
+                <div class="text-text-body/70">Reaction removed</div>
+              @else
+                <div class="text-3xl leading-none">{{ $reactionEmoji }}</div>
+              @endif
+            </div>
           @else
             {{ $body !== '' ? $body : '['.$messageType.']' }}
           @endif

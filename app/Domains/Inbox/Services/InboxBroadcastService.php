@@ -160,6 +160,9 @@ class InboxBroadcastService
             'latitude' => isset($metadata['latitude']) ? (float) $metadata['latitude'] : null,
             'longitude' => isset($metadata['longitude']) ? (float) $metadata['longitude'] : null,
             'contacts' => isset($metadata['contacts']) && is_array($metadata['contacts']) ? $metadata['contacts'] : null,
+            'reaction_emoji' => isset($metadata['reaction_emoji']) ? (string) $metadata['reaction_emoji'] : null,
+            'reacted_message_id' => isset($metadata['reacted_message_id']) ? (string) $metadata['reacted_message_id'] : null,
+            'reaction_removed' => (bool) ($metadata['reaction_removed'] ?? false),
             'template_code' => isset($metadata['template_code']) ? (string) $metadata['template_code'] : null,
             'template_name' => isset($metadata['template_name']) ? (string) $metadata['template_name'] : null,
             'template_buttons' => isset($metadata['template_buttons']) && is_array($metadata['template_buttons'])

@@ -134,7 +134,7 @@ class InboundMessageHandler
                 ])->save();
 
                 // Inbox row may exist from a prior attempt that failed commerce ingest.
-                $existingType = $this->mapMessageType((string) ($item['Type'] ?? 'TEXT'));
+                $existingType = $this->mapMessageType((string) ($item['Type'] ?? $item['type'] ?? 'TEXT'));
                 if ($existingType === MessageType::Order) {
                     try {
                         $this->commerceOrderIngest->ingest($item, $line);
@@ -149,9 +149,15 @@ class InboundMessageHandler
                 return 'processed';
             }
 
-            $messageType = $this->mapMessageType((string) ($item['Type'] ?? 'TEXT'));
+            $messageType = $this->mapMessageType((string) ($item['Type'] ?? $item['type'] ?? 'TEXT'));
             if ($parsedReply['is_interactive']) {
                 $messageType = MessageType::Interactive;
+            }
+            if (isset($parsedReply['metadata']['reaction_emoji'])
+                || isset($parsedReply['metadata']['reaction_removed'])
+                || isset($parsedReply['metadata']['reacted_message_id'])
+            ) {
+                $messageType = MessageType::Reaction;
             }
 
             $message = $this->messageService->recordInbound(
@@ -206,59 +212,62 @@ class InboundMessageHandler
                 }
             }
 
-            // STOP / START keywords: unsubscribe or restart before chatbot/triggers.
-            $keywordHandled = $this->stopKeywordService->handle($conversation->refresh(), $message);
+            // Reactions are display-only: do not treat emoji as STOP/chatbot/AI input.
+            if ($messageType !== MessageType::Reaction) {
+                // STOP / START keywords: unsubscribe or restart before chatbot/triggers.
+                $keywordHandled = $this->stopKeywordService->handle($conversation->refresh(), $message);
 
-            if (! $keywordHandled) {
-                try {
-                    $this->campaignInboundResponseService->recordReply($conversation, $message, $item);
-                } catch (\Throwable $e) {
-                    Log::warning('Campaign response tracking failed', [
-                        'message_id' => $messageId,
-                        'error' => $e->getMessage(),
-                    ]);
-                }
-
-                // Chatbot keyword flows take priority over free trigger-templates
-                // so the same word does not send template + wrong "next" chatbot message.
-                $chatbotResult = TriggerFireResult::NoMatch;
-
-                if (app(MaintenanceModeService::class)->moduleEnabled('chatbot')) {
-                    $chatbotResult = $this->chatbotFlowEngine->processInbound($conversation->refresh(), $message);
-                }
-
-                if ($chatbotResult === TriggerFireResult::NoMatch) {
-                    $triggerResult = $this->triggerTemplateEngine->process($conversation->refresh(), $message);
-                } else {
-                    $triggerResult = TriggerFireResult::NoMatch;
-                }
-
-                // AI when chatbot did not exclusively claim the turn.
-                // FiredAllowAi = offline-hours (etc.) already sent; AI may still answer.
-                // WalletBlocked / SendFailed must not permanently silence AI Assistant.
-                $allowAi = ! $chatbotResult->consumedTurn() && ! $triggerResult->consumedTurn();
-
-                if ($allowAi) {
+                if (! $keywordHandled) {
                     try {
-                        $this->aiInboundReplyService->handle(
-                            $conversation->refresh(),
-                            $message,
-                            ignoreChatbotOwnership: $chatbotResult === TriggerFireResult::FiredAllowAi
-                                || $triggerResult === TriggerFireResult::FiredAllowAi,
-                        );
+                        $this->campaignInboundResponseService->recordReply($conversation, $message, $item);
                     } catch (\Throwable $e) {
-                        Log::warning('AI inbound reply hook failed', [
+                        Log::warning('Campaign response tracking failed', [
                             'message_id' => $messageId,
                             'error' => $e->getMessage(),
                         ]);
                     }
+
+                    // Chatbot keyword flows take priority over free trigger-templates
+                    // so the same word does not send template + wrong "next" chatbot message.
+                    $chatbotResult = TriggerFireResult::NoMatch;
+
+                    if (app(MaintenanceModeService::class)->moduleEnabled('chatbot')) {
+                        $chatbotResult = $this->chatbotFlowEngine->processInbound($conversation->refresh(), $message);
+                    }
+
+                    if ($chatbotResult === TriggerFireResult::NoMatch) {
+                        $triggerResult = $this->triggerTemplateEngine->process($conversation->refresh(), $message);
+                    } else {
+                        $triggerResult = TriggerFireResult::NoMatch;
+                    }
+
+                    // AI when chatbot did not exclusively claim the turn.
+                    // FiredAllowAi = offline-hours (etc.) already sent; AI may still answer.
+                    // WalletBlocked / SendFailed must not permanently silence AI Assistant.
+                    $allowAi = ! $chatbotResult->consumedTurn() && ! $triggerResult->consumedTurn();
+
+                    if ($allowAi) {
+                        try {
+                            $this->aiInboundReplyService->handle(
+                                $conversation->refresh(),
+                                $message,
+                                ignoreChatbotOwnership: $chatbotResult === TriggerFireResult::FiredAllowAi
+                                    || $triggerResult === TriggerFireResult::FiredAllowAi,
+                            );
+                        } catch (\Throwable $e) {
+                            Log::warning('AI inbound reply hook failed', [
+                                'message_id' => $messageId,
+                                'error' => $e->getMessage(),
+                            ]);
+                        }
+                    }
                 }
+            }
 
             $this->newLeadWebhookListener->handle($message, $conversation->refresh());
 
             if ($message->message_type === MessageType::Interactive) {
                 $this->whatsappFlowInboundService->handleInteractiveMessage($message);
-                }
             }
 
             $this->registryService->indexMessage(
@@ -323,6 +332,12 @@ class InboundMessageHandler
                 }
             }
             if ($decoded === null) {
+                if ($type === 'REACTION') {
+                    return $this->reactionParseResult($this->reactionPayloadFromItem($item, [
+                        'emoji' => $trimmed,
+                    ]), $trimmed);
+                }
+
                 $mediaMeta = $this->extractRichMediaMetadata($type, null, $trimmed);
 
                 return [
@@ -332,6 +347,10 @@ class InboundMessageHandler
                 ];
             }
         } else {
+            if ($type === 'REACTION') {
+                return $this->reactionParseResult($this->reactionPayloadFromItem($item, []), null);
+            }
+
             $itemText = $this->extractReadableText($item);
             $mediaMeta = $this->extractRichMediaMetadata($type, is_array($item) ? $item : null, $itemText);
 
@@ -342,6 +361,14 @@ class InboundMessageHandler
                 'is_interactive' => false,
                 'metadata' => $mediaMeta['metadata'],
             ];
+        }
+
+        if ($type === 'REACTION'
+            || (isset($decoded['type']) && strtolower((string) $decoded['type']) === 'reaction')
+            || isset($decoded['reaction'])
+            || (isset($decoded['emoji']) && (isset($decoded['messageId']) || isset($decoded['message_id'])))
+        ) {
+            return $this->reactionParseResult($this->reactionPayloadFromItem($item, $decoded), null);
         }
 
         $interactive = is_array($decoded['interactive'] ?? null) ? $decoded['interactive'] : null;
@@ -681,6 +708,60 @@ class InboundMessageHandler
         }
     }
 
+    /**
+     * Merge webhook envelope fields (ContextMessageId) with decoded Message body.
+     *
+     * @param  array<string, mixed>  $item
+     * @param  array<string, mixed>  $decoded
+     * @return array<string, mixed>
+     */
+    private function reactionPayloadFromItem(array $item, array $decoded): array
+    {
+        return array_merge([
+            'ContextMessageId' => $item['ContextMessageId'] ?? $item['contextMessageId'] ?? null,
+            'contextMessageId' => $item['contextMessageId'] ?? $item['ContextMessageId'] ?? null,
+            'emoji' => $item['emoji'] ?? null,
+            'reaction' => $item['reaction'] ?? null,
+        ], $decoded);
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @return array{body: string, is_interactive: bool, metadata: array<string, mixed>}
+     */
+    private function reactionParseResult(array $payload, ?string $fallbackEmoji): array
+    {
+        $reaction = is_array($payload['reaction'] ?? null) ? $payload['reaction'] : $payload;
+
+        $emoji = $this->firstNonEmptyString(
+            $reaction['emoji'] ?? null,
+            $payload['emoji'] ?? null,
+            $fallbackEmoji,
+        ) ?? '';
+
+        $reactedMessageId = $this->firstNonEmptyString(
+            $reaction['message_id'] ?? null,
+            $reaction['messageId'] ?? null,
+            $payload['message_id'] ?? null,
+            $payload['messageId'] ?? null,
+            $payload['ContextMessageId'] ?? null,
+            $payload['contextMessageId'] ?? null,
+        );
+
+        $body = $emoji !== '' ? $emoji : 'Reaction removed';
+
+        return [
+            'body' => $body,
+            'is_interactive' => false,
+            'metadata' => array_filter([
+                'reaction_emoji' => $emoji !== '' ? $emoji : null,
+                'reacted_message_id' => $reactedMessageId,
+                'reaction_removed' => $emoji === '' ? true : null,
+                'raw_message' => $payload,
+            ], static fn ($value) => $value !== null && $value !== []),
+        ];
+    }
+
     private function mapMessageType(string $type): MessageType
     {
         return match (strtoupper($type)) {
@@ -692,6 +773,7 @@ class InboundMessageHandler
             'LOCATION' => MessageType::Location,
             'CONTACT', 'CONTACTS' => MessageType::Contact,
             'STICKER' => MessageType::Sticker,
+            'REACTION' => MessageType::Reaction,
             'ORDER' => MessageType::Order,
             default => MessageType::Text,
         };

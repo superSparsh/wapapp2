@@ -178,4 +178,79 @@ class InboundInteractiveReplyParseTest extends TestCase
         $this->assertSame(28.6139, $result['metadata']['latitude']);
         $this->assertSame(77.2090, $result['metadata']['longitude']);
     }
+
+    public function test_reaction_message_extracts_emoji_and_target_id(): void
+    {
+        $result = $this->parse([
+            'Type' => 'REACTION',
+            'ContextMessageId' => 'wamid.original123',
+            'Message' => json_encode([
+                'messageId' => 'wamid.original123',
+                'emoji' => '👍',
+            ], JSON_THROW_ON_ERROR),
+        ]);
+
+        $this->assertFalse($result['is_interactive']);
+        $this->assertSame('👍', $result['body']);
+        $this->assertSame('👍', $result['metadata']['reaction_emoji']);
+        $this->assertSame('wamid.original123', $result['metadata']['reacted_message_id']);
+    }
+
+    public function test_cloud_api_reaction_nested_object(): void
+    {
+        $result = $this->parse([
+            'Type' => 'REACTION',
+            'Message' => json_encode([
+                'type' => 'reaction',
+                'reaction' => [
+                    'message_id' => 'wamid.target456',
+                    'emoji' => '❤️',
+                ],
+            ], JSON_THROW_ON_ERROR),
+        ]);
+
+        $this->assertSame('❤️', $result['body']);
+        $this->assertSame('❤️', $result['metadata']['reaction_emoji']);
+        $this->assertSame('wamid.target456', $result['metadata']['reacted_message_id']);
+    }
+
+    public function test_empty_reaction_emoji_means_removed(): void
+    {
+        $result = $this->parse([
+            'Type' => 'REACTION',
+            'Message' => json_encode([
+                'messageId' => 'wamid.x',
+                'emoji' => '',
+            ], JSON_THROW_ON_ERROR),
+        ]);
+
+        $this->assertSame('Reaction removed', $result['body']);
+        $this->assertTrue($result['metadata']['reaction_removed']);
+        $this->assertSame('wamid.x', $result['metadata']['reacted_message_id']);
+    }
+
+    public function test_plain_emoji_reaction_body(): void
+    {
+        $result = $this->parse([
+            'Type' => 'REACTION',
+            'ContextMessageId' => 'wamid.plain',
+            'Message' => '😂',
+        ]);
+
+        $this->assertSame('😂', $result['body']);
+        $this->assertSame('😂', $result['metadata']['reaction_emoji']);
+        $this->assertSame('wamid.plain', $result['metadata']['reacted_message_id']);
+    }
+
+    public function test_maps_reaction_type(): void
+    {
+        $handler = app(InboundMessageHandler::class);
+        $method = new ReflectionMethod(InboundMessageHandler::class, 'mapMessageType');
+        $method->setAccessible(true);
+
+        $this->assertSame(
+            \App\Enums\MessageType::Reaction,
+            $method->invoke($handler, 'REACTION'),
+        );
+    }
 }

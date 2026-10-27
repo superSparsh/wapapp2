@@ -1948,6 +1948,36 @@ function fillMessageBubble(bubble, message) {
         return;
     }
 
+    if (messageType === 'reaction') {
+        const emoji = String(message.reaction_emoji || body || '').trim();
+        const removed =
+            Boolean(message.reaction_removed) || emoji === '' || emoji === 'Reaction removed';
+
+        const wrap = document.createElement('div');
+        wrap.className = 'flex flex-col items-start gap-1';
+
+        const label = document.createElement('div');
+        label.className = 'text-[10px] font-semibold uppercase tracking-wide text-green-700';
+        label.textContent = 'Reaction';
+        wrap.appendChild(label);
+
+        if (removed) {
+            const removedEl = document.createElement('div');
+            removedEl.className = 'text-text-body/70';
+            removedEl.textContent = 'Reaction removed';
+            wrap.appendChild(removedEl);
+        } else {
+            const emojiEl = document.createElement('div');
+            emojiEl.className = 'text-3xl leading-none';
+            emojiEl.textContent = emoji;
+            wrap.appendChild(emojiEl);
+        }
+
+        bubble.appendChild(wrap);
+        appendInboxMessageMeta(bubble, message);
+        return;
+    }
+
     bubble.textContent = displayBody;
     appendInboxMessageMeta(bubble, message);
 }
@@ -2477,7 +2507,13 @@ function initInboxChat() {
             return;
         }
 
-        if (!messageDisplayBody(message) && String(message.message_type || 'text') === 'text') {
+        const appendType = String(message.message_type || 'text');
+        if (!messageDisplayBody(message) && appendType === 'text') {
+            refreshMessages();
+            return;
+        }
+
+        if (appendType === 'reaction' && !messageDisplayBody(message) && !message.reaction_emoji) {
             refreshMessages();
             return;
         }
