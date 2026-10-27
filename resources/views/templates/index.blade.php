@@ -34,7 +34,7 @@
           </p>
         @else
           <p class="fd-page-note max-w-[854px]">
-            Note: According to Meta guidelines, template approval may take up to 24 hours after submission.
+            Note: According to Meta guidelines, template approval may take up to 24–48 hours after submission.
           </p>
         @endif
       </div>
