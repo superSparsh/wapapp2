@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace App\Support\Validation;
 
 use App\Domains\Templates\Enums\TemplateStatus;
+use App\Models\Campaign;
 use App\Models\MailList;
 use App\Models\Template;
 use App\Models\WhatsappLine;
 use App\Support\PublicId;
+use Closure;
 use Illuminate\Validation\Rule;
 
 final class CampaignWizardValidation
@@ -16,11 +18,11 @@ final class CampaignWizardValidation
     /**
      * @return array<string, mixed>
      */
-    public static function rulesForStep(int $step): array
+    public static function rulesForStep(int $step, ?int $ignoreCampaignId = null): array
     {
         return match ($step) {
             1 => [
-                'name' => ['required', 'string', 'min:2', 'max:255'],
+                'name' => self::nameRules(required: true, ignoreCampaignId: $ignoreCampaignId),
                 'whatsapp_line_id' => PublicId::uuidExistsRules(WhatsappLine::class, nullable: false),
             ],
             2 => [
@@ -60,6 +62,7 @@ final class CampaignWizardValidation
         return [
             'name.required' => 'Campaign name is required.',
             'name.min' => 'Campaign name must be at least 2 characters.',
+            'name.unique' => 'A campaign with this name already exists. Please choose a different name.',
             'whatsapp_line_id.required' => 'Please choose a From Number.',
             'whatsapp_line_id.exists' => 'The selected From Number is invalid.',
             'whatsapp_line_id.uuid' => 'Please choose a From Number.',
@@ -80,12 +83,44 @@ final class CampaignWizardValidation
     }
 
     /**
+     * @return array<int, mixed>
+     */
+    public static function nameRules(bool $required = true, ?int $ignoreCampaignId = null): array
+    {
+        $rules = [$required ? 'required' : 'sometimes', 'string', 'min:2', 'max:255'];
+        $rules[] = self::uniqueNameRule($ignoreCampaignId);
+
+        return $rules;
+    }
+
+    public static function uniqueNameRule(?int $ignoreCampaignId = null): Closure
+    {
+        return function (string $attribute, mixed $value, Closure $fail) use ($ignoreCampaignId): void {
+            $name = trim((string) $value);
+            if ($name === '') {
+                return;
+            }
+
+            $query = Campaign::query()
+                ->whereRaw('LOWER(name) = ?', [mb_strtolower($name)]);
+
+            if ($ignoreCampaignId !== null && $ignoreCampaignId > 0) {
+                $query->where('id', '!=', $ignoreCampaignId);
+            }
+
+            if ($query->exists()) {
+                $fail('A campaign with this name already exists. Please choose a different name.');
+            }
+        };
+    }
+
+    /**
      * @return array<string, mixed>
      */
-    public static function storeRules(): array
+    public static function storeRules(?int $ignoreCampaignId = null): array
     {
         return [
-            'name' => ['required', 'string', 'min:2', 'max:255'],
+            'name' => self::nameRules(required: true, ignoreCampaignId: $ignoreCampaignId),
             'audience_id' => [
                 'required_without:audience_ids',
                 'nullable',

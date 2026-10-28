@@ -107,6 +107,39 @@ class CampaignWizardTest extends TestCase
             ->assertOk();
     }
 
+    public function test_save_step_1_rejects_duplicate_campaign_name(): void
+    {
+        Campaign::factory()->create(['name' => 'Existing Promo']);
+
+        $this->actingAsTenantUser()
+            ->from(route('campaigns.create.step', 1))
+            ->post(route('campaigns.create.save', 1), [
+                'name' => 'existing promo',
+                'whatsapp_line_id' => $this->testLine->uuid,
+            ])
+            ->assertRedirect(route('campaigns.create.step', 1))
+            ->assertSessionHasErrors('name');
+    }
+
+    public function test_save_step_1_allows_same_name_for_current_draft(): void
+    {
+        $draft = Campaign::factory()->draft()->create(['name' => 'My Draft Campaign']);
+
+        $this->actingAsTenantUser()
+            ->withSession([
+                'campaign_wizard' => [
+                    'draft_id' => $draft->id,
+                    'name' => 'My Draft Campaign',
+                ],
+            ])
+            ->post(route('campaigns.create.save', 1), [
+                'name' => 'My Draft Campaign',
+                'whatsapp_line_id' => $this->testLine->uuid,
+            ])
+            ->assertRedirect(route('campaigns.create.step', 2))
+            ->assertSessionDoesntHaveErrors('name');
+    }
+
     public function test_save_step_2_stores_audience(): void
     {
         $audience = MailList::factory()->create();

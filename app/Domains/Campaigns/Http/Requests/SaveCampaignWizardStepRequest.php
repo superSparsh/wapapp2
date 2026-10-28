@@ -20,8 +20,12 @@ class SaveCampaignWizardStepRequest extends FormRequest
     public function rules(): array
     {
         $step = (int) $this->route('step');
+        $ignoreCampaignId = (int) ($this->session()->get('campaign_wizard.draft_id') ?? 0);
 
-        return CampaignWizardValidation::rulesForStep($step);
+        return CampaignWizardValidation::rulesForStep(
+            $step,
+            $ignoreCampaignId > 0 ? $ignoreCampaignId : null,
+        );
     }
 
     /**

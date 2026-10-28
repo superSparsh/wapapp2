@@ -122,6 +122,8 @@ class CampaignResendService
 
             abort_if($imported === 0, 422, 'No failed contacts found to resend.');
 
+            $this->campaignService->assertUniqueName($campaignName);
+
             $campaign = Campaign::query()->create([
                 'name' => $campaignName,
                 'status' => CampaignStatus::Draft,

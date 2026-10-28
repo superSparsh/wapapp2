@@ -44,6 +44,17 @@ class CampaignServiceTest extends TestCase
         $this->assertSame(CampaignStatus::Draft, $campaign->status);
     }
 
+    public function test_create_rejects_duplicate_name_case_insensitively(): void
+    {
+        Campaign::factory()->create(['name' => 'Summer Sale']);
+
+        $this->expectException(\Illuminate\Validation\ValidationException::class);
+
+        $this->service->create([
+            'name' => 'summer sale',
+        ]);
+    }
+
     public function test_create_with_scheduled_at_sets_scheduled_status(): void
     {
         $campaign = $this->service->create([

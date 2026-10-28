@@ -16,6 +16,7 @@ use App\Models\Contact;
 use App\Models\MailList;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 use Throwable;
 
 class CampaignService
@@ -28,6 +29,8 @@ class CampaignService
     public function create(array $data): Campaign
     {
         return DB::transaction(function () use ($data): Campaign {
+            $this->assertUniqueName((string) $data['name']);
+
             $audienceIds = $this->resolveAudienceIds($data);
             $primaryAudienceId = $audienceIds[0] ?? ($data['audience_id'] ?? null);
 
@@ -74,6 +77,10 @@ class CampaignService
     public function update(Campaign $campaign, array $data): Campaign
     {
         return DB::transaction(function () use ($campaign, $data): Campaign {
+            if (isset($data['name'])) {
+                $this->assertUniqueName((string) $data['name'], (int) $campaign->id);
+            }
+
             $previousAudienceIds = $campaign->getEffectiveAudienceIds();
             $previousRecipientCount = (int) $campaign->total_recipients;
             $fillable = [];
@@ -367,5 +374,29 @@ class CampaignService
 
             return ['list' => $list, 'imported' => $imported];
         });
+    }
+
+    /**
+     * Campaign names must be unique within the current tenant.
+     */
+    public function assertUniqueName(string $name, ?int $ignoreCampaignId = null): void
+    {
+        $name = trim($name);
+        if ($name === '') {
+            return;
+        }
+
+        $query = Campaign::query()
+            ->whereRaw('LOWER(name) = ?', [mb_strtolower($name)]);
+
+        if ($ignoreCampaignId !== null && $ignoreCampaignId > 0) {
+            $query->where('id', '!=', $ignoreCampaignId);
+        }
+
+        if ($query->exists()) {
+            throw ValidationException::withMessages([
+                'name' => 'A campaign with this name already exists. Please choose a different name.',
+            ]);
+        }
     }
 }

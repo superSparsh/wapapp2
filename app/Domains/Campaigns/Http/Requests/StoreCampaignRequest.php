@@ -19,7 +19,11 @@ class StoreCampaignRequest extends FormRequest
      */
     public function rules(): array
     {
-        return CampaignWizardValidation::storeRules();
+        $ignoreCampaignId = (int) ($this->session()->get('campaign_wizard.draft_id') ?? 0);
+
+        return CampaignWizardValidation::storeRules(
+            $ignoreCampaignId > 0 ? $ignoreCampaignId : null,
+        );
     }
 
     /**
