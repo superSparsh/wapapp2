@@ -228,7 +228,9 @@ class FlowNodeDataMapper
             ?? $selected['name']
             ?? ''
         ));
-        $keyword = (string) ($data['triggerKeyword'] ?? $data['keywords'] ?? '');
+        // Trigger keywords belong on welcomeMessage only - strip any leftover values.
+        $data['triggerKeyword'] = '';
+        $data['keywords'] = '';
 
         // Builder saves DB id in templateId - resolve real CAMS TemplateCode.
         if (($code === '' || ! \App\Domains\Templates\Support\CamsTemplateIdentity::isProviderCode($code))
@@ -263,22 +265,14 @@ class FlowNodeDataMapper
         $messageType = (string) ($data['messageType'] ?? '');
         if ($messageType === 'custom') {
             $customText = trim((string) ($data['customText'] ?? $data['text'] ?? $data['message'] ?? ''));
-            // Custom text body must stay separate from the trigger word.
-            if ($keyword !== '' && strcasecmp($customText, $keyword) === 0) {
-                $customText = '';
-            }
             $data['customText'] = $customText;
             $data['text'] = $customText;
             $data['message'] = $customText;
-            $data['triggerKeyword'] = '';
-            $data['keywords'] = '';
             $data['messageType'] = 'custom';
 
             return $this->syncOfflineHoursFields($data);
         }
 
-        $data['triggerKeyword'] = $keyword;
-        $data['keywords'] = $keyword;
         $data['messageType'] = ($code !== '' || filled($dbId))
             ? 'template'
             : (string) ($data['messageType'] ?? 'text');

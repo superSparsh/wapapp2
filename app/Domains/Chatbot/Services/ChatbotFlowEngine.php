@@ -573,7 +573,8 @@ class ChatbotFlowEngine
         foreach ($nodeMap as $nodeId => $node) {
             $nodeType = (string) ($node['class'] ?? $node['type'] ?? 'unknown');
 
-            if (! in_array($nodeType, ['welcomeMessage', 'templateMessage', 'textMessage'], true)) {
+            // Entry triggers live on welcome (and legacy textMessage) only.
+            if (! in_array($nodeType, ['welcomeMessage', 'textMessage'], true)) {
                 continue;
             }
 
@@ -621,7 +622,7 @@ class ChatbotFlowEngine
     }
 
     /**
-     * Resolve trigger keywords for a welcome/template node.
+     * Resolve trigger keywords for a welcome (or legacy textMessage) node.
      * Prefer dedicated fields; fall back to `text` only when it looks like a keyword list (legacy).
      *
      * @param  array<string, mixed>  $data
@@ -721,7 +722,7 @@ class ChatbotFlowEngine
 
             foreach ($nodeMap as $node) {
                 $nodeType = (string) ($node['class'] ?? 'unknown');
-                if (! in_array($nodeType, ['welcomeMessage', 'templateMessage', 'textMessage'], true)) {
+                if (! in_array($nodeType, ['welcomeMessage', 'textMessage'], true)) {
                     continue;
                 }
                 $kw = $this->resolveNodeTriggerKeywords(is_array($node['data'] ?? null) ? $node['data'] : []);

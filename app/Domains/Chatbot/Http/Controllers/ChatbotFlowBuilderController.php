@@ -264,7 +264,7 @@ class ChatbotFlowBuilderController
             }
 
             $type = (string) ($node['type'] ?? '');
-            if (! in_array($type, ['welcomeMessage', 'templateMessage', 'textMessage'], true)) {
+            if (! in_array($type, ['welcomeMessage', 'textMessage'], true)) {
                 continue;
             }
 

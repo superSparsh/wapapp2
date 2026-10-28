@@ -148,4 +148,31 @@ class FlowNodeDataMapperTest extends TestCase
         $this->assertSame('', $data['triggerKeyword']);
         $this->assertSame('', $data['keywords']);
     }
+
+    #[Test]
+    public function it_strips_trigger_keywords_from_template_message_nodes(): void
+    {
+        $result = $this->mapper->prepareForStorage([
+            'nodes' => [
+                [
+                    'id' => 'template_1',
+                    'type' => 'templateMessage',
+                    'data' => [
+                        'messageType' => 'template',
+                        'templateCode' => '1234567890123',
+                        'template_name' => 'Promo',
+                        'triggerKeyword' => 'promo',
+                        'keywords' => 'promo',
+                    ],
+                ],
+            ],
+            'edges' => [],
+        ]);
+
+        $data = $result['nodes'][0]['data'];
+
+        $this->assertSame('template', $data['messageType']);
+        $this->assertSame('', $data['triggerKeyword']);
+        $this->assertSame('', $data['keywords']);
+    }
 }

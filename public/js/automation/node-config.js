@@ -310,7 +310,6 @@
           html += helpText('No approved templates loaded. Enter the template code manually, or approve templates first.');
         }
         html += templateVariablesField(data);
-        html += field('Keywords (comma-separated)', 'cfg-keywords', data.keywords || data.triggerKeyword || '', 'text', false, 'optional reply keywords');
         break;
 
       case 'mediaMessage':
@@ -845,6 +844,12 @@
     data.interactiveType = data.interactive_type || data.interactiveType || 'button';
     data.interactive_type = String(data.interactiveType).toLowerCase();
     data.messageType = data.templateCode ? 'template' : (data.messageType || 'text');
+
+    // Chatbot entry triggers belong on welcomeMessage only.
+    if (node.type === 'templateMessage') {
+      data.triggerKeyword = '';
+      data.keywords = '';
+    }
 
     if (node.type === 'interactiveMessage') {
       data.buttons = (data.options || []).map(function (title, index) {

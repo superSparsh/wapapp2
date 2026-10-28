@@ -154,10 +154,7 @@ const ReactFlowTemplateMessageModule = ({
       const resolvedCustomText = isCustom
         ? String(customText || values.customText || "").trim()
         : "";
-      // Custom text is the WhatsApp body - never store the trigger word as the message.
-      const triggerKeyword = isCustom
-        ? ""
-        : String(values.triggerKeyword || "").trim();
+      // Trigger keywords live on welcomeMessage only - never on template nodes.
       const nodeData = {
         ...values,
         ...offlineHours,
@@ -192,8 +189,8 @@ const ReactFlowTemplateMessageModule = ({
         customText: resolvedCustomText,
         text: isCustom ? resolvedCustomText : values.text || "",
         message: isCustom ? resolvedCustomText : values.message || "",
-        triggerKeyword,
-        keywords: triggerKeyword,
+        triggerKeyword: "",
+        keywords: "",
       };
 
       console.log("handleSave - final nodeData:", nodeData);
@@ -417,28 +414,6 @@ const ReactFlowTemplateMessageModule = ({
             if (messageType === "template") {
               return (
                 <>
-                  <Card
-                    title="Trigger"
-                    size="small"
-                    style={{ marginBottom: 16 }}
-                  >
-                    <Form.Item
-                      name="triggerKeyword"
-                      label="Trigger Keyword"
-                      rules={[
-                        {
-                          required: true,
-                          message: "Please enter a trigger keyword",
-                        },
-                      ]}
-                      help="Customer must send this word/phrase to start the bot."
-                    >
-                      <Input
-                        placeholder="e.g., hello, start, offer, menu"
-                        maxLength={100}
-                      />
-                    </Form.Item>
-                  </Card>
                   {/* Template Selection */}
                   <Card
                     title="Select Template"
