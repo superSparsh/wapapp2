@@ -758,81 +758,108 @@ class ChatbotFlowEngine
         }
 
         $contextMessageId = $this->resolveInboundContextMessageId($inboundMessage);
-        if ($contextMessageId === null) {
-            return TriggerFireResult::NoMatch;
+        $outboundCandidates = [];
+
+        if ($contextMessageId !== null) {
+            $byContext = $this->findOutboundTemplateMessage($conversation, $contextMessageId);
+            if ($byContext !== null) {
+                $outboundCandidates[] = $byContext;
+            }
         }
 
-        $outbound = $this->findOutboundTemplateMessage($conversation, $contextMessageId);
-        if ($outbound === null) {
-            return TriggerFireResult::NoMatch;
+        // Inbox/Campaign button replies sometimes omit ContextMessageId.
+        // Fall back to recent outbound templates in this conversation.
+        if ($outboundCandidates === []) {
+            $outboundCandidates = Message::query()
+                ->where('conversation_id', $conversation->id)
+                ->where('direction', MessageDirection::Outbound)
+                ->where('message_type', MessageType::Template)
+                ->where('created_at', '>=', now()->subDays(7))
+                ->orderByDesc('id')
+                ->limit(8)
+                ->get()
+                ->all();
         }
 
-        $metadata = is_array($outbound->metadata) ? $outbound->metadata : [];
-        $templateCode = trim((string) ($metadata['template_code'] ?? ''));
-        $templateIdRaw = $metadata['template_id'] ?? $outbound->template_id ?? null;
-        $templateId = filled($templateIdRaw) && is_numeric($templateIdRaw) ? (int) $templateIdRaw : null;
+        foreach ($outboundCandidates as $outbound) {
+            $metadata = is_array($outbound->metadata) ? $outbound->metadata : [];
+            $templateCode = trim((string) ($metadata['template_code'] ?? ''));
+            $templateIdRaw = $metadata['template_id'] ?? $outbound->template_id ?? null;
+            $templateId = filled($templateIdRaw) && is_numeric($templateIdRaw) ? (int) $templateIdRaw : null;
 
-        if ($templateCode === '' && $templateId === null) {
-            return TriggerFireResult::NoMatch;
-        }
+            if ($templateCode === '' && $templateId === null) {
+                continue;
+            }
 
-        $match = $this->findBestTemplateEntryMatch($conversation, $templateCode, $templateId);
-        if ($match === null) {
-            return TriggerFireResult::NoMatch;
-        }
+            $match = $this->findBestTemplateEntryMatch($conversation, $templateCode, $templateId);
+            if ($match === null) {
+                continue;
+            }
 
-        /** @var ChatbotFlow $flow */
-        $flow = $match['flow'];
-        /** @var array<string, array<string, mixed>> $nodeMap */
-        $nodeMap = $match['node_map'];
-        $nodeId = (string) $match['node_id'];
-        $node = $nodeMap[$nodeId] ?? null;
+            /** @var ChatbotFlow $flow */
+            $flow = $match['flow'];
+            /** @var array<string, array<string, mixed>> $nodeMap */
+            $nodeMap = $match['node_map'];
+            $nodeId = (string) $match['node_id'];
+            $node = $nodeMap[$nodeId] ?? null;
 
-        if ($node === null || ! TemplateMessageWaitHydrator::isWaitable($node)) {
-            return TriggerFireResult::NoMatch;
-        }
+            if ($node === null || ! TemplateMessageWaitHydrator::isWaitable($node)) {
+                continue;
+            }
 
-        Log::info('Chatbot template-entry matched', [
-            'conversation_id' => $conversation->id,
-            'flow_id' => $flow->id,
-            'node_id' => $nodeId,
-            'template_code' => $templateCode,
-            'template_id' => $templateId,
-            'context_message_id' => $contextMessageId,
-        ]);
-
-        $this->resetConversationStates($conversation);
-
-        try {
-            $state = ChatbotFlowState::query()->create([
+            Log::info('Chatbot template-entry matched', [
                 'conversation_id' => $conversation->id,
-                'chatbot_flow_id' => $flow->id,
-                'current_node_id' => $nodeId,
-                'variables' => $this->variableResolver->withConversationContext([
-                    '_flow_name' => $flow->name,
-                    '_start_node' => $nodeId,
-                    '_template_entry' => true,
-                    '_last_reply' => $body,
-                    'user_response' => $body,
-                    'message_text' => $body,
-                ], $conversation),
-                'status' => ChatbotFlowStateStatus::Active,
-                'expires_at' => now()->addMinutes((int) config('chatbot.state_ttl_minutes', 2)),
-            ]);
-
-            TemplateMessageWaitHydrator::hydrateWaitingState($state, $node);
-            $state->refresh();
-
-            return $this->processReply($conversation, $inboundMessage, $state, $body);
-        } catch (\Throwable $e) {
-            Log::error('Chatbot template-entry start error', [
                 'flow_id' => $flow->id,
                 'node_id' => $nodeId,
-                'error' => $e->getMessage(),
+                'template_code' => $templateCode,
+                'template_id' => $templateId,
+                'context_message_id' => $contextMessageId,
+                'outbound_message_id' => $outbound->id,
+                'used_context' => $contextMessageId !== null,
             ]);
 
-            return TriggerFireResult::SendFailed;
+            $this->resetConversationStates($conversation);
+
+            try {
+                $state = ChatbotFlowState::query()->create([
+                    'conversation_id' => $conversation->id,
+                    'chatbot_flow_id' => $flow->id,
+                    'current_node_id' => $nodeId,
+                    'variables' => $this->variableResolver->withConversationContext([
+                        '_flow_name' => $flow->name,
+                        '_start_node' => $nodeId,
+                        '_template_entry' => true,
+                        '_last_reply' => $body,
+                        'user_response' => $body,
+                        'message_text' => $body,
+                    ], $conversation),
+                    'status' => ChatbotFlowStateStatus::Active,
+                    'expires_at' => now()->addMinutes((int) config('chatbot.state_ttl_minutes', 2)),
+                ]);
+
+                TemplateMessageWaitHydrator::hydrateWaitingState($state, $node);
+                $state->refresh();
+
+                return $this->processReply($conversation, $inboundMessage, $state, $body);
+            } catch (\Throwable $e) {
+                Log::error('Chatbot template-entry start error', [
+                    'flow_id' => $flow->id,
+                    'node_id' => $nodeId,
+                    'error' => $e->getMessage(),
+                ]);
+
+                return TriggerFireResult::SendFailed;
+            }
         }
+
+        Log::info('Chatbot template-entry no match', [
+            'conversation_id' => $conversation->id,
+            'context_message_id' => $contextMessageId,
+            'outbound_candidates' => count($outboundCandidates),
+            'reply' => $body,
+        ]);
+
+        return TriggerFireResult::NoMatch;
     }
 
     private function inboundLooksLikeInteractiveReply(Message $inboundMessage): bool

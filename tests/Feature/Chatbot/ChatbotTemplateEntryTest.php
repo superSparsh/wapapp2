@@ -308,6 +308,97 @@ class ChatbotTemplateEntryTest extends TestCase
         $this->assertStringContainsString('welcome message', $errors[0]);
     }
 
+    public function test_inbox_template_reply_works_without_context_message_id(): void
+    {
+        $this->assertTemplateEntryFromOutboundSource(
+            providerCode: '1234567890444',
+            walletSource: 'inbox',
+            expectedText: 'Thanks from inbox path',
+        );
+    }
+
+    public function test_campaign_template_reply_starts_matching_chatbot(): void
+    {
+        $this->assertTemplateEntryFromOutboundSource(
+            providerCode: '1234567890555',
+            walletSource: 'campaign',
+            expectedText: 'Thanks from campaign path',
+        );
+    }
+
+    private function assertTemplateEntryFromOutboundSource(
+        string $providerCode,
+        string $walletSource,
+        string $expectedText,
+    ): void {
+        $template = Template::factory()->create([
+            'code' => $providerCode,
+            'name' => ucfirst($walletSource).' Promo',
+        ]);
+
+        ChatbotFlow::factory()->active()->create([
+            'exported_data' => [
+                'nodes' => [
+                    [
+                        'id' => 'template_1',
+                        'type' => 'templateMessage',
+                        'data' => [
+                            'messageType' => 'template',
+                            'templateId' => $template->id,
+                            'templateCode' => $providerCode,
+                            'quickReplies' => [
+                                ['text' => 'Plain CHX'],
+                                ['text' => 'CHX + Vit C'],
+                            ],
+                        ],
+                    ],
+                    [
+                        'id' => 'thanks_1',
+                        'type' => 'templateMessage',
+                        'data' => [
+                            'messageType' => 'custom',
+                            'customText' => $expectedText,
+                        ],
+                    ],
+                ],
+                'edges' => [
+                    ['source' => 'template_1', 'target' => 'thanks_1', 'sourceHandle' => 'reply-0'],
+                    ['source' => 'template_1', 'target' => 'thanks_1', 'sourceHandle' => 'reply-1'],
+                ],
+            ],
+        ]);
+
+        $conversation = Conversation::factory()->create();
+
+        Message::factory()->outbound()->create([
+            'conversation_id' => $conversation->id,
+            'external_message_id' => 'wamid.'.$walletSource.'-template',
+            'message_type' => MessageType::Template,
+            'metadata' => [
+                'template_code' => $providerCode,
+                'template_id' => $template->id,
+                'wallet_source' => $walletSource,
+                'campaign_id' => $walletSource === 'campaign' ? 99 : null,
+            ],
+        ]);
+
+        $engine = app(ChatbotFlowEngine::class);
+        $result = $engine->processInbound($conversation, Message::factory()->create([
+            'conversation_id' => $conversation->id,
+            'body' => 'Plain CHX',
+            'direction' => MessageDirection::Inbound,
+            'message_type' => MessageType::Interactive,
+            'metadata' => [
+                // Campaign/Inbox button webhooks may omit context ids.
+                'interactive_reply_id' => 'Plain CHX',
+                'interactive_reply_type' => 'button',
+            ],
+        ]));
+
+        $this->assertSame(TriggerFireResult::Fired, $result);
+        $this->assertContains($expectedText, $this->sent);
+    }
+
     public function test_all_quick_reply_branches_to_same_node_still_continues(): void
     {
         $providerCode = '1234567890333';
