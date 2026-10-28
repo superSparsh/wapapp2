@@ -43,6 +43,7 @@ class OperationalAlertService
         ?string $whatsappTemplate = null,
         array $whatsappParams = [],
         ?User $owner = null,
+        bool $sync = false,
     ): void {
         if (! $this->alertsEnabled()) {
             return;
@@ -63,7 +64,7 @@ class OperationalAlertService
 
         foreach ($contacts as $contact) {
             if ($contact->type === NotificationContactType::Email) {
-                $this->sendEmail($contact->contact_info, $type, $emailSubject, $emailView, $emailData);
+                $this->sendEmail($contact->contact_info, $type, $emailSubject, $emailView, $emailData, $sync);
             }
 
             if ($contact->type === NotificationContactType::Whatsapp && filled($whatsappTemplate)) {

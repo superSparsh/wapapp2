@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Support\Console\Concerns\IteratesTenants;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Log;
 
 class SendPlanExpirationAlertsCommand extends Command
 {
@@ -19,53 +20,80 @@ class SendPlanExpirationAlertsCommand extends Command
 
     protected $signature = 'alerts:plan-expiration {--tenants=* : Tenant IDs to process}';
 
-    protected $description = 'Send plan expiration email/WhatsApp reminders from tenants.settings.valid_until (30/7/3/1 days).';
+    protected $description = 'Send plan expiration email/WhatsApp reminders from tenants.settings.valid_until (30/7/3/1 days, with catch-up).';
 
     public function handle(AlertDispatcher $dispatcher, SubscriptionService $subscriptions): int
     {
         $reminderDays = array_map('intval', (array) config('operational-alerts.plan_expiration.reminder_days', [30, 7, 3, 1]));
+        $maxReminder = $reminderDays !== [] ? max($reminderDays) : 30;
         $sent = 0;
+        $skipped = 0;
+        $failed = 0;
 
-        $this->foreachTenant(function (Tenant $tenant) use ($dispatcher, $subscriptions, $reminderDays, &$sent): void {
-            $endsAt = tenancy()->central(function () use ($tenant): ?Carbon {
-                $fresh = Tenant::query()->find($tenant->id);
+        $this->foreachTenant(function (Tenant $tenant) use ($dispatcher, $subscriptions, $maxReminder, &$sent, &$skipped, &$failed): void {
+            try {
+                $endsAt = tenancy()->central(function () use ($tenant): ?Carbon {
+                    $fresh = Tenant::query()->find($tenant->id);
 
-                return $fresh instanceof Tenant ? $this->validUntil($fresh) : null;
-            });
-            if (! $endsAt instanceof Carbon) {
-                return;
+                    return $fresh instanceof Tenant ? $this->validUntil($fresh) : null;
+                });
+                if (! $endsAt instanceof Carbon) {
+                    $skipped++;
+
+                    return;
+                }
+
+                $daysLeft = $this->calendarDaysLeft($endsAt);
+                if ($daysLeft < 0 || $daysLeft > $maxReminder) {
+                    $skipped++;
+
+                    return;
+                }
+
+                $summary = $subscriptions->subscriptionSummary();
+
+                $plan = $summary['plan']
+                    ?? (object) [
+                        'name' => $summary['plan_name'] ?? 'Plan',
+                        'price' => $summary['subscription']?->amount,
+                        'currency' => $summary['subscription']?->currency,
+                    ];
+
+                if (! $plan instanceof Plan && ($summary['subscription']?->plan_id ?? null)) {
+                    $plan = tenancy()->central(
+                        fn () => Plan::query()->find($summary['subscription']->plan_id)
+                    ) ?? $plan;
+                }
+
+                $user = User::query()->orderBy('id')->first();
+                $subscription = $summary['subscription'] ?? $dispatcher->ensureActiveSubscriptionForPlanAlerts();
+
+                $dispatcher->planExpiration($subscription, $daysLeft, $plan, $user, $endsAt);
+                $sent++;
+            } catch (\Throwable $e) {
+                $failed++;
+                Log::error('Plan expiration alert failed for tenant', [
+                    'tenant_id' => $tenant->id,
+                    'error' => $e->getMessage(),
+                ]);
+                report($e);
             }
-
-            $daysLeft = (int) now()->startOfDay()->diffInDays($endsAt->copy()->startOfDay(), false);
-            if ($daysLeft < 0 || ! in_array($daysLeft, $reminderDays, true)) {
-                return;
-            }
-
-            $summary = $subscriptions->subscriptionSummary();
-
-            $plan = $summary['plan']
-                ?? (object) [
-                    'name' => $summary['plan_name'] ?? 'Plan',
-                    'price' => $summary['subscription']?->amount,
-                    'currency' => $summary['subscription']?->currency,
-                ];
-
-            if (! $plan instanceof Plan && ($summary['subscription']?->plan_id ?? null)) {
-                $plan = tenancy()->central(
-                    fn () => Plan::query()->find($summary['subscription']->plan_id)
-                ) ?? $plan;
-            }
-
-            $user = User::query()->orderBy('id')->first();
-            $subscription = $summary['subscription'] ?? $dispatcher->ensureActiveSubscriptionForPlanAlerts();
-
-            $dispatcher->planExpiration($subscription, $daysLeft, $plan, $user, $endsAt);
-            $sent++;
         });
 
-        $this->info("Plan expiration alerts processed ({$sent} tenant(s) notified).");
+        $this->info("Plan expiration alerts processed (notified={$sent}, skipped={$skipped}, failed={$failed}).");
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Whole calendar days from today (app timezone) until valid_until.
+     */
+    private function calendarDaysLeft(Carbon $endsAt): int
+    {
+        $today = now()->startOfDay();
+        $end = $endsAt->copy()->startOfDay();
+
+        return (int) round($today->diffInDays($end, false));
     }
 
     /**

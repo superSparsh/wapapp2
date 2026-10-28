@@ -57,6 +57,12 @@ class InteractiveMessageProcessor extends AbstractNodeProcessor
             $previewBody = (string) ($content['body']['text'] ?? '[Interactive message]');
             $this->sendInteractive($conversation, $content, $previewBody);
 
+            // CTA URL clicks open a link only — WhatsApp never sends a reply.
+            // Auto-advance so the connected next node runs immediately (existing flows too).
+            if ($this->shouldAutoContinueWithoutReply($interactiveType, $content)) {
+                return $this->continueToNextNode($node, $state);
+            }
+
             if (($content['type'] ?? '') === 'flow' || $interactiveType === 'flow') {
                 $state->mergeVariables([
                     '_whatsapp_flow_id' => (string) ($content['action']['parameters']['flow_id'] ?? ''),
@@ -85,6 +91,10 @@ class InteractiveMessageProcessor extends AbstractNodeProcessor
             $this->sendText($conversation, $resolve($bodyText));
         }
 
+        if ($this->shouldAutoContinueWithoutReply($interactiveType, null)) {
+            return $this->continueToNextNode($node, $state);
+        }
+
         $state->mergeVariables([
             '_interactive_node_id' => $node['id'] ?? '',
             '_interactive_options' => [],
@@ -97,6 +107,52 @@ class InteractiveMessageProcessor extends AbstractNodeProcessor
         ])->save();
 
         return NodeProcessResult::WaitForResponse;
+    }
+
+    /**
+     * Interactive types that never produce an inbound reply when the user taps them.
+     *
+     * @param  array<string, mixed>|null  $content
+     */
+    private function shouldAutoContinueWithoutReply(string $interactiveType, ?array $content): bool
+    {
+        $type = strtolower(trim($interactiveType));
+        $contentType = strtolower(trim((string) ($content['type'] ?? '')));
+        $actionName = strtolower(trim((string) ($content['action']['name'] ?? '')));
+
+        foreach ([$type, $contentType, $actionName] as $candidate) {
+            if (in_array($candidate, ['cta_url', 'cta', 'call_to_action'], true)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @param  array<string, mixed>  $node
+     */
+    private function continueToNextNode(array $node, ChatbotFlowState $state): NodeProcessResult
+    {
+        $nextId = $this->defaultNextNodeId($node)
+            // Legacy flows often wired the next step to the "CTA Sent" / delivered handle.
+            ?? $this->nextNodeIdFromHandle($node, 'delivered');
+
+        if ($nextId === null) {
+            $state->forceFill([
+                'status' => ChatbotFlowStateStatus::Completed,
+                'current_node_id' => (string) ($node['id'] ?? ''),
+            ])->save();
+
+            return NodeProcessResult::Completed;
+        }
+
+        $state->forceFill([
+            'status' => ChatbotFlowStateStatus::Active,
+            'current_node_id' => $nextId,
+        ])->save();
+
+        return NodeProcessResult::Continue;
     }
 
     /**

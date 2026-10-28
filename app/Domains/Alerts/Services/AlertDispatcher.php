@@ -28,10 +28,15 @@ class AlertDispatcher
     public function planExpiration(?Subscription $subscription, int $daysLeft, object $plan, ?User $user = null, ?Carbon $endsAt = null): void
     {
         $endsAt ??= $subscription?->ends_at;
-        $dayKey = (string) $daysLeft;
+
+        $reminderDays = array_values(array_unique(array_map(
+            'intval',
+            (array) config('operational-alerts.plan_expiration.reminder_days', [30, 7, 3, 1]),
+        )));
+        rsort($reminderDays);
 
         $meta = is_array($subscription?->metadata) ? $subscription->metadata : [];
-        $sent = (array) ($meta['plan_expiration_alerts_sent'] ?? []);
+        $sent = array_map('strval', (array) ($meta['plan_expiration_alerts_sent'] ?? []));
 
         // Merge tenant.settings dedupe when subscription row is missing / never tracked.
         $tenantId = tenant('id');
@@ -41,10 +46,17 @@ class AlertDispatcher
         $tenantSettings = is_array($tenant?->settings) ? $tenant->settings : [];
         $sent = array_values(array_unique(array_merge(
             $sent,
-            (array) ($tenantSettings['plan_expiration_alerts_sent'] ?? []),
+            array_map('strval', (array) ($tenantSettings['plan_expiration_alerts_sent'] ?? [])),
         )));
 
-        if (in_array($dayKey, $sent, true)) {
+        // Catch-up: once a reminder threshold is crossed (daysLeft <= threshold) and not yet
+        // marked, send one mail with the real daysLeft (exact-day cron misses no longer drop).
+        $pendingThresholds = array_values(array_filter(
+            $reminderDays,
+            static fn (int $threshold): bool => $daysLeft <= $threshold && ! in_array((string) $threshold, $sent, true),
+        ));
+
+        if ($pendingThresholds === []) {
             return;
         }
 
@@ -79,9 +91,11 @@ class AlertDispatcher
             'ends_at' => $endsAt?->format('d M Y') ?? '',
         ];
 
-        $emailSubject = "Your plan expires in {$daysLeft} day(s)";
+        $emailSubject = $daysLeft === 0
+            ? 'Your plan expires today'
+            : "Your plan expires in {$daysLeft} day(s)";
 
-        // Business Alerts contacts (when alerts_enabled + contacts exist).
+        // Billing-critical: send mail synchronously so a stuck queue cannot drop these.
         $this->alerts->notifyTenantContacts(
             type: OperationalAlertType::PlanExpiration,
             emailSubject: $emailSubject,
@@ -90,6 +104,7 @@ class AlertDispatcher
             whatsappTemplate: $template,
             whatsappParams: $whatsappParams,
             owner: $user,
+            sync: true,
         );
 
         // Billing-critical fallback (legacy always emailed/WhatsApp'd the owner).
@@ -101,6 +116,7 @@ class AlertDispatcher
                     $emailSubject,
                     'emails.plan-expiration',
                     $emailData,
+                    sync: true,
                 );
             }
             if (filled($user?->phone) && $template !== '') {
@@ -108,11 +124,16 @@ class AlertDispatcher
             }
         }
 
+        $adminSubject = $daysLeft === 0
+            ? 'Plan expires today - '.($company ?? 'tenant')
+            : "Plan expiring in {$daysLeft} day(s) - ".($company ?? 'tenant');
+
         $this->platform->notifyAdmins(
             OperationalAlertType::PlanExpiration,
-            "Plan expiring in {$daysLeft} day(s) - ".($company ?? 'tenant'),
+            $adminSubject,
             'emails.plan-expiration-admin',
             $emailData,
+            sync: true,
         );
 
         // Admin WhatsApp (WHATSAPP_TO_NUMBERS_PLAN_EXPIRATION) — was configured but never sent.
@@ -121,7 +142,9 @@ class AlertDispatcher
             $this->alerts->notifyWhatsAppNumbers($adminWa, $template, $whatsappParams);
         }
 
-        $sent[] = $dayKey;
+        foreach ($pendingThresholds as $threshold) {
+            $sent[] = (string) $threshold;
+        }
         $sent = array_values(array_unique($sent));
 
         if ($subscription !== null) {

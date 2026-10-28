@@ -1070,4 +1070,183 @@ class ChatbotInteractiveFlowTest extends TestCase
         $this->assertSame(ChatbotFlowStateStatus::Waiting, $state->status);
         $this->assertSame('interactive_1', $state->current_node_id);
     }
+
+    public function test_cta_url_auto_continues_to_connected_next_node(): void
+    {
+        $sent = [];
+
+        $this->mock(InboxOutboundService::class, function ($mock) use (&$sent): void {
+            $mock->shouldReceive('sendText')->andReturnUsing(function ($conversation, string $body) use (&$sent) {
+                $sent[] = $body;
+
+                return new Message([
+                    'id' => 800 + count($sent),
+                    'body' => $body,
+                    'direction' => MessageDirection::Outbound,
+                    'message_type' => MessageType::Text,
+                ]);
+            });
+            $mock->shouldReceive('sendInteractive')->andReturnUsing(function ($conversation, array $content) use (&$sent) {
+                $sent[] = 'CTA:'.(string) ($content['body']['text'] ?? 'cta');
+
+                return new Message([
+                    'id' => 850 + count($sent),
+                    'body' => $sent[count($sent) - 1],
+                    'direction' => MessageDirection::Outbound,
+                    'message_type' => MessageType::Interactive,
+                ]);
+            });
+            $mock->shouldReceive('sendMedia')->andReturn(new Message([
+                'id' => 899,
+                'body' => 'media',
+                'direction' => MessageDirection::Outbound,
+                'message_type' => MessageType::Image,
+            ]));
+            $mock->shouldReceive('sendTypingIndicator')->andReturn(true);
+        });
+
+        ChatbotFlow::factory()->active()->create([
+            'exported_data' => [
+                'nodes' => [
+                    [
+                        'id' => 'welcome_1',
+                        'type' => 'welcomeMessage',
+                        'data' => [
+                            'messageType' => 'text',
+                            'triggerKeyword' => 'ctaflow',
+                            'text' => 'Starting',
+                        ],
+                    ],
+                    [
+                        'id' => 'cta_1',
+                        'type' => 'interactiveMessage',
+                        'data' => [
+                            'interactiveType' => 'cta_url',
+                            'bodyText' => 'Open our site',
+                            'buttonText' => 'Visit',
+                            'url' => 'https://example.com',
+                        ],
+                    ],
+                    [
+                        'id' => 'after_cta',
+                        'type' => 'welcomeMessage',
+                        'data' => [
+                            'messageType' => 'text',
+                            'text' => 'Thanks for visiting',
+                        ],
+                    ],
+                ],
+                'edges' => [
+                    ['source' => 'welcome_1', 'target' => 'cta_1', 'sourceHandle' => 'output_1'],
+                    ['source' => 'cta_1', 'target' => 'after_cta', 'sourceHandle' => 'default'],
+                ],
+            ],
+        ]);
+
+        $conversation = Conversation::factory()->create();
+        $engine = app(ChatbotFlowEngine::class);
+
+        $engine->processInbound($conversation, Message::factory()->create([
+            'conversation_id' => $conversation->id,
+            'body' => 'ctaflow',
+            'direction' => MessageDirection::Inbound,
+        ]));
+
+        $this->assertContains('CTA:Open our site', $sent);
+        $this->assertContains('Thanks for visiting', $sent);
+
+        $state = ChatbotFlowState::query()->first();
+        $this->assertNotNull($state);
+        $this->assertSame(ChatbotFlowStateStatus::Completed, $state->status);
+    }
+
+    public function test_cta_url_auto_continues_via_legacy_delivered_handle(): void
+    {
+        $sent = [];
+
+        $this->mock(InboxOutboundService::class, function ($mock) use (&$sent): void {
+            $mock->shouldReceive('sendText')->andReturnUsing(function ($conversation, string $body) use (&$sent) {
+                $sent[] = $body;
+
+                return new Message([
+                    'id' => 700 + count($sent),
+                    'body' => $body,
+                    'direction' => MessageDirection::Outbound,
+                    'message_type' => MessageType::Text,
+                ]);
+            });
+            $mock->shouldReceive('sendInteractive')->andReturnUsing(function ($conversation, array $content) use (&$sent) {
+                $sent[] = 'CTA:'.(string) ($content['body']['text'] ?? 'cta');
+
+                return new Message([
+                    'id' => 750 + count($sent),
+                    'body' => $sent[count($sent) - 1],
+                    'direction' => MessageDirection::Outbound,
+                    'message_type' => MessageType::Interactive,
+                ]);
+            });
+            $mock->shouldReceive('sendMedia')->andReturn(new Message([
+                'id' => 799,
+                'body' => 'media',
+                'direction' => MessageDirection::Outbound,
+                'message_type' => MessageType::Image,
+            ]));
+            $mock->shouldReceive('sendTypingIndicator')->andReturn(true);
+        });
+
+        ChatbotFlow::factory()->active()->create([
+            'exported_data' => [
+                'nodes' => [
+                    [
+                        'id' => 'welcome_1',
+                        'type' => 'welcomeMessage',
+                        'data' => [
+                            'messageType' => 'text',
+                            'triggerKeyword' => 'legacycta',
+                            'text' => 'Start',
+                        ],
+                    ],
+                    [
+                        'id' => 'cta_1',
+                        'type' => 'interactiveMessage',
+                        'data' => [
+                            'interactiveType' => 'cta_url',
+                            'type' => 'cta_url',
+                            'bodyText' => 'Tap link',
+                            'body' => ['text' => 'Tap link'],
+                            'action' => [
+                                'name' => 'cta_url',
+                                'parameters' => [
+                                    'display_text' => 'Open',
+                                    'url' => 'https://example.com/x',
+                                ],
+                            ],
+                        ],
+                    ],
+                    [
+                        'id' => 'after_cta',
+                        'type' => 'welcomeMessage',
+                        'data' => [
+                            'messageType' => 'text',
+                            'text' => 'Legacy next ran',
+                        ],
+                    ],
+                ],
+                'edges' => [
+                    ['source' => 'welcome_1', 'target' => 'cta_1', 'sourceHandle' => 'output_1'],
+                    ['source' => 'cta_1', 'target' => 'after_cta', 'sourceHandle' => 'delivered'],
+                ],
+            ],
+        ]);
+
+        $conversation = Conversation::factory()->create();
+        app(ChatbotFlowEngine::class)->processInbound($conversation, Message::factory()->create([
+            'conversation_id' => $conversation->id,
+            'body' => 'legacycta',
+            'direction' => MessageDirection::Inbound,
+        ]));
+
+        $this->assertContains('CTA:Tap link', $sent);
+        $this->assertContains('Legacy next ran', $sent);
+    }
 }

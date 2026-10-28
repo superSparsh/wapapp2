@@ -231,6 +231,9 @@ final class InteractiveMessagePayloadBuilder
             'product_retailer_id' => (string) ($data['product_retailer_id'] ?? ''),
             'flow_id' => (string) ($data['flow_id'] ?? $data['flowId'] ?? ''),
             'flow_cta' => (string) ($data['flow_cta'] ?? $data['flowCta'] ?? 'Open'),
+            'button_text' => (string) ($data['buttonText'] ?? $data['button_text'] ?? $data['display_text'] ?? 'Open'),
+            'display_text' => (string) ($data['display_text'] ?? $data['buttonText'] ?? $data['button_text'] ?? 'Open'),
+            'url' => (string) ($data['url'] ?? $data['ctaUrl'] ?? $data['cta_url'] ?? ''),
             'header' => is_array($data['header'] ?? null) ? $data['header'] : [
                 'type' => (string) ($data['headerType'] ?? 'none'),
                 'text' => (string) ($data['headerText'] ?? ''),

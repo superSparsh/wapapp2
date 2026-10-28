@@ -67,7 +67,7 @@ class PlanExpirationAlertTest extends TestCase
         );
     }
 
-    public function test_later_subscription_end_does_not_trigger_when_valid_until_is_not_a_reminder_day(): void
+    public function test_later_subscription_end_does_not_trigger_when_valid_until_is_not_in_window(): void
     {
         Notification::fake();
 
@@ -87,6 +87,73 @@ class PlanExpirationAlertTest extends TestCase
         ])->assertSuccessful();
 
         Notification::assertNothingSent();
+    }
+
+    public function test_catch_up_sends_when_exact_reminder_day_was_missed(): void
+    {
+        Notification::fake();
+
+        // 5 days left: day-7 window was missed; should still notify once.
+        $this->setValidUntil(now()->addDays(5)->toDateString());
+
+        Subscription::query()->create([
+            'plan_id' => $this->planId(),
+            'status' => SubscriptionStatus::Active,
+            'amount' => 1000,
+            'currency' => 'INR',
+            'starts_at' => now()->subMonth(),
+            'ends_at' => now()->addDays(5),
+        ]);
+
+        $this->artisan('alerts:plan-expiration', [
+            '--tenants' => [$this->testTenant->id],
+        ])->assertSuccessful();
+
+        Notification::assertSentOnDemand(
+            OperationalAlertMailNotification::class,
+            function (OperationalAlertMailNotification $notification): bool {
+                return ($notification->viewData['days_left'] ?? null) === 5;
+            },
+        );
+
+        Notification::fake();
+
+        $this->artisan('alerts:plan-expiration', [
+            '--tenants' => [$this->testTenant->id],
+        ])->assertSuccessful();
+
+        Notification::assertNothingSent();
+    }
+
+    public function test_three_days_left_notifies_admins_and_marks_threshold(): void
+    {
+        Notification::fake();
+
+        $this->setValidUntil(now()->addDays(3)->toDateString());
+
+        Subscription::query()->create([
+            'plan_id' => $this->planId(),
+            'status' => SubscriptionStatus::Active,
+            'amount' => 1000,
+            'currency' => 'INR',
+            'starts_at' => now()->subMonth(),
+            'ends_at' => now()->addDays(3),
+        ]);
+
+        $this->artisan('alerts:plan-expiration', [
+            '--tenants' => [$this->testTenant->id],
+        ])->assertSuccessful();
+
+        Notification::assertSentOnDemand(OperationalAlertMailNotification::class);
+
+        $settings = tenancy()->central(function () {
+            return Tenant::query()->find($this->testTenant->id)?->settings;
+        });
+        $sent = array_map('strval', (array) (($settings['plan_expiration_alerts_sent'] ?? [])));
+
+        $this->assertContains('3', $sent);
+        $this->assertContains('7', $sent);
+        $this->assertContains('30', $sent);
     }
 
     private function planId(): int
@@ -113,6 +180,7 @@ class PlanExpirationAlertTest extends TestCase
             $tenant = Tenant::query()->find($this->testTenant->id);
             $settings = is_array($tenant->settings) ? $tenant->settings : [];
             $settings['valid_until'] = $date;
+            unset($settings['plan_expiration_alerts_sent']);
             $tenant->settings = $settings;
             $tenant->save();
         });
