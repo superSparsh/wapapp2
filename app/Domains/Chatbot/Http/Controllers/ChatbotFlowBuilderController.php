@@ -199,6 +199,8 @@ class ChatbotFlowBuilderController
             'saved_triggers' => $savedTriggers,
         ]);
 
+        $hasTemplateEntry = $this->flowService->hasTemplateEntry($fresh);
+
         return response()->json([
             'success' => true,
             'status' => 'success',
@@ -210,6 +212,7 @@ class ChatbotFlowBuilderController
             'whatsapp_line_id' => $fresh->whatsapp_line_id,
             'whatsapp_line_uuid' => $fresh->whatsappLine?->uuid,
             'saved_triggers' => $savedTriggers,
+            'has_template_entry' => $hasTemplateEntry,
             'activation_errors' => $this->flowService->activationErrors($fresh),
             'automationBot' => [
                 'id' => $fresh->id,

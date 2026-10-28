@@ -6,6 +6,7 @@ namespace App\Domains\Chatbot\Services;
 
 use App\Domains\Chatbot\Support\FlowCacheManager;
 use App\Domains\Chatbot\Support\FlowNodeDataMapper;
+use App\Domains\Chatbot\Support\TemplateMessageWaitHydrator;
 use App\Enums\ChatbotFlowStatus;
 use App\Models\ChatbotFlow;
 use Illuminate\Support\Facades\DB;
@@ -230,7 +231,8 @@ class ChatbotFlowService
 
         $data = $flow->exported_data;
         $nodes = is_array($data['nodes'] ?? null) ? $data['nodes'] : [];
-        $hasTrigger = false;
+        $hasKeywordTrigger = false;
+        $hasTemplateEntry = false;
 
         foreach ($nodes as $node) {
             if (! is_array($node)) {
@@ -240,23 +242,50 @@ class ChatbotFlowService
             $type = (string) ($node['type'] ?? '');
             $nodeData = is_array($node['data'] ?? null) ? $node['data'] : [];
 
-            if (! in_array($type, ['welcomeMessage', 'textMessage'], true)) {
-                continue;
+            if (in_array($type, ['welcomeMessage', 'textMessage'], true)) {
+                $keyword = trim((string) ($nodeData['triggerKeyword'] ?? $nodeData['keywords'] ?? ''));
+                if ($keyword !== '') {
+                    $hasKeywordTrigger = true;
+                }
             }
 
-            $keyword = trim((string) ($nodeData['triggerKeyword'] ?? $nodeData['keywords'] ?? ''));
-
-            if ($keyword !== '') {
-                $hasTrigger = true;
-                break;
+            if ($type === 'templateMessage' && TemplateMessageWaitHydrator::hasConfiguredTemplate($nodeData)) {
+                $hasTemplateEntry = true;
             }
         }
 
-        if (! $hasTrigger) {
-            $errors[] = 'Add a welcome message node with trigger keywords before activating.';
+        if (! $hasKeywordTrigger && ! $hasTemplateEntry) {
+            $errors[] = 'Add a welcome message with trigger keywords, or a template message node with a selected template, before activating.';
         }
 
         return $errors;
+    }
+
+    public function hasTemplateEntry(ChatbotFlow $flow): bool
+    {
+        if (! $flow->hasFlowData()) {
+            return false;
+        }
+
+        $data = $flow->exported_data;
+        $nodes = is_array($data['nodes'] ?? null) ? $data['nodes'] : [];
+
+        foreach ($nodes as $node) {
+            if (! is_array($node)) {
+                continue;
+            }
+
+            if ((string) ($node['type'] ?? '') !== 'templateMessage') {
+                continue;
+            }
+
+            $nodeData = is_array($node['data'] ?? null) ? $node['data'] : [];
+            if (TemplateMessageWaitHydrator::hasConfiguredTemplate($nodeData)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function assertActivatable(ChatbotFlow $flow): void

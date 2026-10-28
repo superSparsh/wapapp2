@@ -6,7 +6,7 @@ namespace App\Domains\Chatbot\Services\NodeTypes;
 
 use App\Domains\Chatbot\Enums\NodeProcessResult;
 use App\Domains\Chatbot\Support\OfflineHoursEvaluator;
-use App\Enums\ChatbotFlowStateStatus;
+use App\Domains\Chatbot\Support\TemplateMessageWaitHydrator;
 use App\Models\ChatbotFlowState;
 use App\Models\Conversation;
 
@@ -52,7 +52,7 @@ class TemplateMessageProcessor extends AbstractNodeProcessor
             $quickReplies = [];
         }
 
-        if ($quickReplies !== [] || $this->hasQuickReplyBranches($node)) {
+        if (TemplateMessageWaitHydrator::isWaitable($node)) {
             if ($quickReplies !== [] && $messageType !== 'template') {
                 $lines = [];
                 foreach ($quickReplies as $i => $reply) {
@@ -66,15 +66,7 @@ class TemplateMessageProcessor extends AbstractNodeProcessor
                 }
             }
 
-            $state->mergeVariables([
-                '_quick_replies' => $quickReplies,
-                '_quick_reply_node_id' => (string) ($node['id'] ?? ''),
-                '_wait_variable_name' => 'user_response',
-            ]);
-            $state->forceFill([
-                'status' => ChatbotFlowStateStatus::Waiting,
-                'current_node_id' => (string) ($node['id'] ?? ''),
-            ])->save();
+            TemplateMessageWaitHydrator::hydrateWaitingState($state, $node);
 
             return NodeProcessResult::WaitForResponse;
         }
@@ -117,23 +109,5 @@ class TemplateMessageProcessor extends AbstractNodeProcessor
         }
 
         return $text;
-    }
-
-    /**
-     * @param  array<string, mixed>  $node
-     */
-    private function hasQuickReplyBranches(array $node): bool
-    {
-        foreach (array_keys($node['outputs'] ?? []) as $handle) {
-            $handle = (string) $handle;
-            if (str_starts_with($handle, 'reply-') || str_starts_with($handle, 'reply_')) {
-                $connections = $node['outputs'][$handle]['connections'] ?? [];
-                if ($connections !== []) {
-                    return true;
-                }
-            }
-        }
-
-        return false;
     }
 }

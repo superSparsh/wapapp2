@@ -86,6 +86,11 @@ class InboundMessageHandler
         $to = (string) ($item['To'] ?? $item['to'] ?? '');
         $messageId = (string) ($item['MessageId'] ?? $item['messageId'] ?? $item['id'] ?? '');
         $parsedReply = $this->parseInboundMessage($item);
+        $contextMessageId = $this->extractContextMessageId($item);
+        if ($contextMessageId !== null) {
+            $parsedReply['metadata']['context_message_id'] = $contextMessageId;
+            $parsedReply['metadata']['contextMessageId'] = $contextMessageId;
+        }
         $body = $parsedReply['body'];
 
         if ($from === '' || $to === '' || $messageId === '') {
@@ -777,5 +782,44 @@ class InboundMessageHandler
             'ORDER' => MessageType::Order,
             default => MessageType::Text,
         };
+    }
+
+    /**
+     * Resolve the WhatsApp message id this inbound is replying to (template / button context).
+     *
+     * @param  array<string, mixed>  $inboundItem
+     */
+    private function extractContextMessageId(array $inboundItem): ?string
+    {
+        $candidates = [
+            $inboundItem['ContextMessageId'] ?? null,
+            $inboundItem['contextMessageId'] ?? null,
+            $inboundItem['ReplyToMessageId'] ?? null,
+            $inboundItem['replyToMessageId'] ?? null,
+            data_get($inboundItem, 'Context.MessageId'),
+            data_get($inboundItem, 'context.id'),
+            data_get($inboundItem, 'context.message_id'),
+        ];
+
+        $message = $inboundItem['Message'] ?? $inboundItem['message'] ?? null;
+        if (is_string($message) && ($message[0] ?? '') === '{') {
+            $decoded = json_decode($message, true);
+            if (is_array($decoded)) {
+                $candidates[] = data_get($decoded, 'context.id');
+                $candidates[] = data_get($decoded, 'context.message_id');
+                $candidates[] = data_get($decoded, 'contextMessageId');
+            }
+        } elseif (is_array($message)) {
+            $candidates[] = data_get($message, 'context.id');
+            $candidates[] = data_get($message, 'context.message_id');
+        }
+
+        foreach ($candidates as $candidate) {
+            if (is_string($candidate) && trim($candidate) !== '') {
+                return trim($candidate);
+            }
+        }
+
+        return null;
     }
 }

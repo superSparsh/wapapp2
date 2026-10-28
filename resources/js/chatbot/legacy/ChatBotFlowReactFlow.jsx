@@ -6085,15 +6085,18 @@ const ChatBotFlowReactFlow = () => {
         const savedTriggers = Array.isArray(response.data?.saved_triggers)
           ? response.data.saved_triggers
           : [];
+        const hasTemplateEntry = Boolean(response.data?.has_template_entry);
         const becameActive = Boolean(response.data?.is_active);
         const triggerSummary =
           savedTriggers.length > 0
             ? ` Triggers: ${savedTriggers.join(", ")}.`
-            : "";
+            : hasTemplateEntry
+              ? " Template-entry ready (quick replies on that template can start this bot)."
+              : "";
 
-        if (savedTriggers.length === 0) {
+        if (savedTriggers.length === 0 && !hasTemplateEntry) {
           message.warning(
-            "Flow saved, but no Trigger Keyword is set. Open your welcome message node, add a keyword (e.g. hello), then save again — WhatsApp needs that to start the bot."
+            "Flow saved, but no start path is set. Add a Trigger Keyword on your welcome message, or select a template on a Template Message node so Inbox/Campaign sends of that template can start this bot."
           );
         } else if (becameActive) {
           builderConfig.isActive = true;

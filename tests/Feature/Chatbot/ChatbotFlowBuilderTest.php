@@ -3,6 +3,7 @@
 namespace Tests\Feature\Chatbot;
 
 use App\Models\ChatbotFlow;
+use App\Models\Template;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\InteractsWithTenants;
 use Tests\TestCase;
@@ -148,6 +149,47 @@ class ChatbotFlowBuilderTest extends TestCase
 
         $flow->refresh();
         $this->assertSame('pikaboo', $flow->exported_data['nodes'][0]['data']['triggerKeyword']);
+        $this->assertSame('active', $flow->status->value);
+    }
+
+    public function test_template_only_flow_saves_and_activates_without_keyword(): void
+    {
+        $template = Template::factory()->create([
+            'code' => '1234567890666',
+            'name' => 'Template Entry Bot',
+        ]);
+
+        $flow = ChatbotFlow::factory()->create(['status' => 'draft']);
+
+        $payload = [
+            'nodes' => [
+                [
+                    'id' => 'template_1',
+                    'type' => 'templateMessage',
+                    'position' => ['x' => 0, 'y' => 0],
+                    'data' => [
+                        'messageType' => 'template',
+                        'templateId' => $template->id,
+                        'templateCode' => '1234567890666',
+                        'quickReplies' => [['text' => 'Yes']],
+                    ],
+                ],
+            ],
+            'edges' => [],
+            'viewport' => ['x' => 0, 'y' => 0, 'zoom' => 1],
+        ];
+
+        $this->actingAsTenantUser()
+            ->postJson(route('chatbot.data.save', $flow), [
+                'customData' => json_encode($payload),
+            ])
+            ->assertOk()
+            ->assertJsonPath('status', 'success')
+            ->assertJsonPath('has_template_entry', true)
+            ->assertJsonPath('is_active', true)
+            ->assertJsonPath('saved_triggers', []);
+
+        $flow->refresh();
         $this->assertSame('active', $flow->status->value);
     }
 

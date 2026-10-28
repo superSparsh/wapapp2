@@ -9,10 +9,12 @@ use App\Domains\Billing\Services\WalletService;
 use App\Domains\Chatbot\Enums\NodeProcessResult;
 use App\Domains\Chatbot\Support\FlowVariableResolver;
 use App\Domains\Chatbot\Support\OfflineHoursEvaluator;
+use App\Domains\Chatbot\Support\TemplateMessageWaitHydrator;
 use App\Domains\Inbox\Services\InboxOutboundService;
 use App\Domains\TriggerTemplate\Enums\TriggerFireResult;
 use App\Enums\ChatbotFlowStateStatus;
 use App\Enums\MessageDirection;
+use App\Enums\MessageType;
 use App\Models\ChatbotFlow;
 use App\Models\ChatbotFlowState;
 use App\Models\Conversation;
@@ -104,7 +106,14 @@ class ChatbotFlowEngine
             return $this->processReply($conversation, $inboundMessage, $waitingState, $body);
         }
 
-        // 4. Or resume an active (non-waiting) state
+        // 4. Interactive reply to an outbound template (Inbox/Campaign/etc.) that matches
+        // a templateMessage node in an active chatbot → enter that flow without re-sending.
+        $templateEntry = $this->tryTemplateEntryFromInbound($conversation, $inboundMessage, $body);
+        if ($templateEntry !== TriggerFireResult::NoMatch) {
+            return $templateEntry;
+        }
+
+        // 5. Or resume an active (non-waiting) state
         $activeState = $this->findActiveState($conversation);
 
         if ($activeState !== null) {
@@ -684,6 +693,225 @@ class ChatbotFlowEngine
         $pattern = '/(?:^|[^\p{L}\p{N}])'.preg_quote($keywordLower, '/').'(?:[^\p{L}\p{N}]|$)/ui';
 
         return (bool) preg_match($pattern, $messageLower);
+    }
+
+    /**
+     * Start a chatbot from a quick-reply on a template that was already sent outside the flow.
+     */
+    private function tryTemplateEntryFromInbound(
+        Conversation $conversation,
+        Message $inboundMessage,
+        string $body,
+    ): TriggerFireResult {
+        if (! $this->inboundLooksLikeInteractiveReply($inboundMessage)) {
+            return TriggerFireResult::NoMatch;
+        }
+
+        $contextMessageId = $this->resolveInboundContextMessageId($inboundMessage);
+        if ($contextMessageId === null) {
+            return TriggerFireResult::NoMatch;
+        }
+
+        $outbound = $this->findOutboundTemplateMessage($conversation, $contextMessageId);
+        if ($outbound === null) {
+            return TriggerFireResult::NoMatch;
+        }
+
+        $metadata = is_array($outbound->metadata) ? $outbound->metadata : [];
+        $templateCode = trim((string) ($metadata['template_code'] ?? ''));
+        $templateIdRaw = $metadata['template_id'] ?? $outbound->template_id ?? null;
+        $templateId = filled($templateIdRaw) && is_numeric($templateIdRaw) ? (int) $templateIdRaw : null;
+
+        if ($templateCode === '' && $templateId === null) {
+            return TriggerFireResult::NoMatch;
+        }
+
+        $match = $this->findBestTemplateEntryMatch($conversation, $templateCode, $templateId);
+        if ($match === null) {
+            return TriggerFireResult::NoMatch;
+        }
+
+        /** @var ChatbotFlow $flow */
+        $flow = $match['flow'];
+        /** @var array<string, array<string, mixed>> $nodeMap */
+        $nodeMap = $match['node_map'];
+        $nodeId = (string) $match['node_id'];
+        $node = $nodeMap[$nodeId] ?? null;
+
+        if ($node === null || ! TemplateMessageWaitHydrator::isWaitable($node)) {
+            return TriggerFireResult::NoMatch;
+        }
+
+        Log::info('Chatbot template-entry matched', [
+            'conversation_id' => $conversation->id,
+            'flow_id' => $flow->id,
+            'node_id' => $nodeId,
+            'template_code' => $templateCode,
+            'template_id' => $templateId,
+            'context_message_id' => $contextMessageId,
+        ]);
+
+        $this->resetConversationStates($conversation);
+
+        try {
+            $state = ChatbotFlowState::query()->create([
+                'conversation_id' => $conversation->id,
+                'chatbot_flow_id' => $flow->id,
+                'current_node_id' => $nodeId,
+                'variables' => $this->variableResolver->withConversationContext([
+                    '_flow_name' => $flow->name,
+                    '_start_node' => $nodeId,
+                    '_template_entry' => true,
+                    '_last_reply' => $body,
+                    'user_response' => $body,
+                    'message_text' => $body,
+                ], $conversation),
+                'status' => ChatbotFlowStateStatus::Active,
+                'expires_at' => now()->addMinutes((int) config('chatbot.state_ttl_minutes', 2)),
+            ]);
+
+            TemplateMessageWaitHydrator::hydrateWaitingState($state, $node);
+            $state->refresh();
+
+            return $this->processReply($conversation, $inboundMessage, $state, $body);
+        } catch (\Throwable $e) {
+            Log::error('Chatbot template-entry start error', [
+                'flow_id' => $flow->id,
+                'node_id' => $nodeId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return TriggerFireResult::SendFailed;
+        }
+    }
+
+    private function inboundLooksLikeInteractiveReply(Message $inboundMessage): bool
+    {
+        if ($inboundMessage->message_type === MessageType::Interactive) {
+            return true;
+        }
+
+        $metadata = is_array($inboundMessage->metadata) ? $inboundMessage->metadata : [];
+
+        return filled($metadata['interactive_reply_id'] ?? null)
+            || filled($metadata['reply_id'] ?? null)
+            || filled($metadata['interactive_reply_type'] ?? null);
+    }
+
+    private function resolveInboundContextMessageId(Message $inboundMessage): ?string
+    {
+        $metadata = is_array($inboundMessage->metadata) ? $inboundMessage->metadata : [];
+
+        foreach ([
+            $metadata['context_message_id'] ?? null,
+            $metadata['contextMessageId'] ?? null,
+            $metadata['ContextMessageId'] ?? null,
+        ] as $candidate) {
+            if (is_string($candidate) && trim($candidate) !== '') {
+                return trim($candidate);
+            }
+        }
+
+        return null;
+    }
+
+    private function findOutboundTemplateMessage(Conversation $conversation, string $contextMessageId): ?Message
+    {
+        $byExternal = Message::query()
+            ->where('conversation_id', $conversation->id)
+            ->where('direction', MessageDirection::Outbound)
+            ->where('external_message_id', $contextMessageId)
+            ->orderByDesc('id')
+            ->first();
+
+        if ($byExternal !== null) {
+            return $byExternal;
+        }
+
+        if (ctype_digit($contextMessageId)) {
+            $byLocal = Message::query()
+                ->where('conversation_id', $conversation->id)
+                ->where('direction', MessageDirection::Outbound)
+                ->where('id', (int) $contextMessageId)
+                ->first();
+
+            if ($byLocal !== null) {
+                return $byLocal;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @return array{flow: ChatbotFlow, node_map: array<string, array<string, mixed>>, node_id: string}|null
+     */
+    private function findBestTemplateEntryMatch(
+        Conversation $conversation,
+        string $templateCode,
+        ?int $templateId,
+    ): ?array {
+        $lineId = (int) ($conversation->whatsapp_line_id ?? 0);
+        $best = null;
+
+        $flows = ChatbotFlow::query()
+            ->active()
+            ->orderByDesc('updated_at')
+            ->orderByDesc('id')
+            ->get();
+
+        foreach ($flows as $flow) {
+            if (! $flow->hasFlowData()) {
+                continue;
+            }
+
+            $lineRank = $this->flowLineRank($flow, $lineId);
+            if ($lineRank === 0) {
+                continue;
+            }
+
+            $nodeMap = $this->normalizer->normalize($flow, bypassCache: true);
+
+            foreach ($nodeMap as $nodeId => $node) {
+                $nodeType = (string) ($node['class'] ?? $node['type'] ?? '');
+                if ($nodeType !== 'templateMessage') {
+                    continue;
+                }
+
+                $data = is_array($node['data'] ?? null) ? $node['data'] : [];
+                if (! TemplateMessageWaitHydrator::matchesOutboundTemplate($data, $templateCode, $templateId)) {
+                    continue;
+                }
+
+                if (! TemplateMessageWaitHydrator::isWaitable($node)) {
+                    continue;
+                }
+
+                $candidate = [
+                    'flow' => $flow,
+                    'node_map' => $nodeMap,
+                    'node_id' => (string) $nodeId,
+                    'line_rank' => $lineRank,
+                    // Dummy fields so compareFlowTriggerCandidates can reuse line/recency scoring.
+                    'keyword' => $templateCode !== '' ? $templateCode : (string) $templateId,
+                    'exact' => true,
+                ];
+
+                if ($best === null || $this->compareFlowTriggerCandidates($candidate, $best) > 0) {
+                    $best = $candidate;
+                }
+            }
+        }
+
+        if ($best === null) {
+            return null;
+        }
+
+        return [
+            'flow' => $best['flow'],
+            'node_map' => $best['node_map'],
+            'node_id' => $best['node_id'],
+        ];
     }
 
     /**

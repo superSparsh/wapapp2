@@ -420,6 +420,11 @@ const ReactFlowTemplateMessageModule = ({
                     size="small"
                     style={{ marginBottom: 16 }}
                   >
+                    <Paragraph type="secondary" style={{ marginBottom: 12 }}>
+                      If this template is sent from Inbox or Campaign and the
+                      customer taps a quick reply, this chatbot can start here
+                      (no welcome keyword required for that path).
+                    </Paragraph>
                     <Form.Item
                       name="templateId"
                       rules={[
