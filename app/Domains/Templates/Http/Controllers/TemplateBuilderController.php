@@ -59,6 +59,7 @@ class TemplateBuilderController extends Controller
 
     public function saveHeader(SaveHeaderRequest $request, Template $template, TemplateBuilderService $builderService): RedirectResponse
     {
+        $this->assertBuilderEditable($template);
         $builderService->saveEditableName($template, $request->input('name'));
         $template->refresh();
 
@@ -106,6 +107,8 @@ class TemplateBuilderController extends Controller
         TemplateBuilderService $builderService,
         TemplateMediaService $mediaService,
     ): JsonResponse {
+        $this->assertBuilderEditable($template);
+
         if (WhatsappMediaRules::requestExceededPostMaxSize()) {
             return response()->json([
                 'message' => WhatsappMediaRules::postMaxExceededMessage(),
@@ -204,6 +207,7 @@ class TemplateBuilderController extends Controller
 
     public function saveBody(SaveBodyRequest $request, Template $template, TemplateBuilderService $builderService): RedirectResponse
     {
+        $this->assertBuilderEditable($template);
         $bodyText = TemplateVariableSyntax::normalizeBodyText((string) $request->input('body_text', ''));
 
         if ($template->canEditIdentity()) {
@@ -248,6 +252,7 @@ class TemplateBuilderController extends Controller
 
     public function saveAuth(SaveAuthRequest $request, Template $template, TemplateBuilderService $builderService): RedirectResponse
     {
+        $this->assertBuilderEditable($template);
         $builderService->saveEditableName($template, $request->input('name'));
 
         $apps = collect($request->input('supported_apps', []))
@@ -297,6 +302,7 @@ class TemplateBuilderController extends Controller
 
     public function saveLto(SaveLtoRequest $request, Template $template, TemplateBuilderService $builderService): RedirectResponse
     {
+        $this->assertBuilderEditable($template);
         $builderService->saveEditableName($template, $request->input('name'));
 
         $builderService->saveStep($template, 'lto', [
@@ -326,6 +332,7 @@ class TemplateBuilderController extends Controller
 
     public function saveCarousel(SaveCarouselRequest $request, Template $template, TemplateBuilderService $builderService): RedirectResponse
     {
+        $this->assertBuilderEditable($template);
         abort_unless($this->builderFlow->canUseCarousel(), 403);
 
         $builderService->saveEditableName($template, $request->input('name'));
@@ -379,6 +386,7 @@ class TemplateBuilderController extends Controller
         Template $template,
         TemplateMediaService $mediaService,
     ): JsonResponse {
+        $this->assertBuilderEditable($template);
         abort_unless($this->builderFlow->canUseCarousel(), 403);
 
         $file = $request->file('carousel_media') ?? $request->file('header_media');
@@ -438,6 +446,7 @@ class TemplateBuilderController extends Controller
 
     public function saveFooter(SaveFooterRequest $request, Template $template, TemplateBuilderService $builderService): RedirectResponse
     {
+        $this->assertBuilderEditable($template);
         $builderService->saveEditableName($template, $request->input('name'));
 
         $builderService->saveStep($template, 'footer', [
@@ -463,6 +472,7 @@ class TemplateBuilderController extends Controller
         TemplateBuilderService $builderService,
         WhatsappFlowInteractiveService $flowInteractiveService,
     ): RedirectResponse {
+        $this->assertBuilderEditable($template);
         $builderService->saveEditableName($template, $request->input('name'));
         $template->refresh();
 
@@ -540,6 +550,7 @@ class TemplateBuilderController extends Controller
 
     public function saveSubmit(SaveSubmitRequest $request, Template $template, TemplateBuilderService $builderService): RedirectResponse
     {
+        $this->assertBuilderEditable($template);
         $builderService->saveEditableName($template, $request->input('name'));
         $template->refresh();
 
@@ -579,6 +590,16 @@ class TemplateBuilderController extends Controller
         TemplatePreviewService $previewService,
         array $extra = [],
     ): View|RedirectResponse {
+        if (! $template->canOpenBuilder()) {
+            $message = $template->status === TemplateStatus::PendingReview
+                ? 'This template is pending WhatsApp review. Editing is locked until it is approved or rejected.'
+                : 'Approved templates cannot be edited. Duplicate the template to make changes.';
+
+            return redirect()
+                ->route('templates.index')
+                ->with('error', $message);
+        }
+
         if ($step !== 'body' && ! $template->isSetupComplete()) {
             return redirect()->route('templates.builder.body', $template);
         }
@@ -594,5 +615,16 @@ class TemplateBuilderController extends Controller
             'canUseCarousel' => $this->builderFlow->canUseCarousel(),
             'previousStepUrl' => $this->builderFlow->previousUrlFor($template, $step),
         ], $extra));
+    }
+
+    private function assertBuilderEditable(Template $template): void
+    {
+        if ($template->canOpenBuilder()) {
+            return;
+        }
+
+        abort(403, $template->status === TemplateStatus::PendingReview
+            ? 'This template is pending WhatsApp review and cannot be edited.'
+            : 'This template cannot be edited.');
     }
 }

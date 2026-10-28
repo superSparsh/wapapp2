@@ -80,7 +80,9 @@ class TemplateCatalogPresenter
                         'draft' => $template->code ? null : $template->uuid,
                         'preview' => 1,
                     ])),
-                    'edit_url' => in_array($template->status, [TemplateStatus::Draft, TemplateStatus::PendingReview, TemplateStatus::Rejected], true)
+                    // Pending review: no edit (freeze what Meta/CAMS is auditing).
+                    // Edit only for drafts or rejected (error → Edit & resubmit).
+                    'edit_url' => $template->canOpenBuilder()
                         ? route('templates.builder.body', $template)
                         : null,
                     'copy_url' => route('templates.duplicate', $template),

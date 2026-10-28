@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Templates;
 
+use App\Domains\Templates\Enums\TemplateStatus;
 use App\Domains\Templates\Jobs\SubmitTemplateJob;
 use App\Models\Template;
 use App\Models\Variable;
@@ -483,5 +484,65 @@ class TemplateBuilderTest extends TestCase
         $this->assertSame('flow', $button['type']);
         $this->assertSame('flow_template_btn', $button['flow_id']);
         $this->assertSame('SCREEN_A', $button['navigate_screen']);
+    }
+
+    public function test_pending_review_template_cannot_open_or_save_builder(): void
+    {
+        $template = Template::factory()->create([
+            'whatsapp_line_id' => $this->testLine->id,
+            'status' => TemplateStatus::PendingReview,
+            'payload' => array_merge(Template::defaultPayload(), [
+                'meta' => [
+                    'name' => 'Pending Lock',
+                    'category' => 'MARKETING',
+                    'language' => 'en_GB',
+                    'template_type' => 'regular',
+                    'setup_completed' => true,
+                ],
+                'body' => ['text' => 'Hello', 'samples' => []],
+            ]),
+        ]);
+
+        $this->assertFalse($template->canOpenBuilder());
+
+        $this->actingAsTenantUser()
+            ->get(route('templates.builder.body', $template))
+            ->assertRedirect(route('templates.index'))
+            ->assertSessionHas('error');
+
+        $this->actingAsTenantUser()
+            ->post(route('templates.builder.body.save', $template), [
+                'name' => 'should_not_save',
+                'category' => 'MARKETING',
+                'language' => 'en_GB',
+                'template_type' => 'regular',
+                'body_text' => 'Changed',
+            ])
+            ->assertForbidden();
+    }
+
+    public function test_rejected_template_can_open_builder(): void
+    {
+        $template = Template::factory()->create([
+            'whatsapp_line_id' => $this->testLine->id,
+            'status' => TemplateStatus::Rejected,
+            'rejection_reason' => 'Invalid content',
+            'payload' => array_merge(Template::defaultPayload(), [
+                'meta' => [
+                    'name' => 'Rejected Resubmit',
+                    'category' => 'MARKETING',
+                    'language' => 'en_GB',
+                    'template_type' => 'regular',
+                    'setup_completed' => true,
+                ],
+                'body' => ['text' => 'Hello', 'samples' => []],
+            ]),
+        ]);
+
+        $this->assertTrue($template->canOpenBuilder());
+
+        $this->actingAsTenantUser()
+            ->get(route('templates.builder.body', $template))
+            ->assertOk();
     }
 }

@@ -102,6 +102,15 @@ class Template extends TenantModel
         return true;
     }
 
+    /**
+     * Builder edit is only for drafts or rejected (error) templates.
+     * Pending review must stay frozen so local edits cannot diverge from CAMS/Meta.
+     */
+    public function canOpenBuilder(): bool
+    {
+        return in_array($this->status, [TemplateStatus::Draft, TemplateStatus::Rejected], true);
+    }
+
     public function whatsappCode(): ?string
     {
         if (CamsTemplateIdentity::isProviderCode($this->code)) {

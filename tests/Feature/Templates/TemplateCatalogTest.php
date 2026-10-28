@@ -181,4 +181,39 @@ class TemplateCatalogTest extends TestCase
             ->assertJsonPath('items.0.status', 'Pending review')
             ->assertJsonPath('items.0.status_key', 'pending_review');
     }
+
+    public function test_pending_review_hides_edit_and_rejected_shows_edit_resubmit(): void
+    {
+        $pending = Template::factory()->create([
+            'whatsapp_line_id' => $this->testLine->id,
+            'name' => 'Pending Edit Hidden',
+            'status' => TemplateStatus::PendingReview,
+            'source' => TemplateSource::Local,
+        ]);
+
+        $rejected = Template::factory()->create([
+            'whatsapp_line_id' => $this->testLine->id,
+            'name' => 'Rejected Edit Shown',
+            'status' => TemplateStatus::Rejected,
+            'rejection_reason' => 'Policy violation',
+            'source' => TemplateSource::Local,
+        ]);
+
+        $html = $this->actingAsTenantUser()
+            ->get(route('templates.index'))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('Pending Edit Hidden', $html);
+        $this->assertStringContainsString('Rejected Edit Shown', $html);
+        $this->assertStringContainsString('Edit &amp; resubmit', $html);
+        $this->assertStringContainsString(
+            route('templates.builder.body', $rejected),
+            $html,
+        );
+        $this->assertStringNotContainsString(
+            route('templates.builder.body', $pending),
+            $html,
+        );
+    }
 }
