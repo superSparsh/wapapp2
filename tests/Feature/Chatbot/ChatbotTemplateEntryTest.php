@@ -307,4 +307,76 @@ class ChatbotTemplateEntryTest extends TestCase
         $this->assertNotEmpty($errors);
         $this->assertStringContainsString('welcome message', $errors[0]);
     }
+
+    public function test_all_quick_reply_branches_to_same_node_still_continues(): void
+    {
+        $providerCode = '1234567890333';
+        $template = Template::factory()->create([
+            'code' => $providerCode,
+            'name' => 'CHX Feedback',
+        ]);
+
+        ChatbotFlow::factory()->active()->create([
+            'exported_data' => [
+                'nodes' => [
+                    [
+                        'id' => 'template_1',
+                        'type' => 'templateMessage',
+                        'data' => [
+                            'messageType' => 'template',
+                            'templateId' => $template->id,
+                            'templateCode' => $providerCode,
+                            'quickReplies' => [
+                                ['text' => 'Plain CHX'],
+                                ['text' => 'CHX + Vit C'],
+                                ['text' => 'CHX + Fluoride'],
+                            ],
+                        ],
+                    ],
+                    [
+                        'id' => 'thanks_1',
+                        'type' => 'templateMessage',
+                        'data' => [
+                            'messageType' => 'custom',
+                            'customText' => 'Thank you for sharing your feedback',
+                        ],
+                    ],
+                ],
+                'edges' => [
+                    ['source' => 'template_1', 'target' => 'thanks_1', 'sourceHandle' => 'reply-0'],
+                    ['source' => 'template_1', 'target' => 'thanks_1', 'sourceHandle' => 'reply-1'],
+                    ['source' => 'template_1', 'target' => 'thanks_1', 'sourceHandle' => 'reply-2'],
+                ],
+            ],
+        ]);
+
+        $conversation = Conversation::factory()->create();
+
+        Message::factory()->outbound()->create([
+            'conversation_id' => $conversation->id,
+            'external_message_id' => 'wamid.chx-template',
+            'message_type' => MessageType::Template,
+            'metadata' => [
+                'template_code' => $providerCode,
+                'template_id' => $template->id,
+            ],
+        ]);
+
+        $engine = app(ChatbotFlowEngine::class);
+        // Payload/title mismatch vs stored QR labels - shared-target fallback must still continue.
+        $result = $engine->processInbound($conversation, Message::factory()->create([
+            'conversation_id' => $conversation->id,
+            'body' => 'Option 2',
+            'direction' => MessageDirection::Inbound,
+            'message_type' => MessageType::Interactive,
+            'metadata' => [
+                'context_message_id' => 'wamid.chx-template',
+                'interactive_reply_id' => 'btn_payload_2',
+                'interactive_reply_type' => 'button_reply',
+            ],
+        ]));
+
+        $this->assertSame(TriggerFireResult::Fired, $result);
+        $this->assertContains('Thank you for sharing your feedback', $this->sent);
+    }
 }

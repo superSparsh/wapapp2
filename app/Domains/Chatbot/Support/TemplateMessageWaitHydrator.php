@@ -19,9 +19,7 @@ final class TemplateMessageWaitHydrator
      */
     public static function isWaitable(array $node): bool
     {
-        $data = is_array($node['data'] ?? null) ? $node['data'] : [];
-        $quickReplies = $data['quickReplies'] ?? [];
-        if (is_array($quickReplies) && $quickReplies !== []) {
+        if (self::resolveQuickReplies(is_array($node['data'] ?? null) ? $node['data'] : []) !== []) {
             return true;
         }
 
@@ -36,10 +34,7 @@ final class TemplateMessageWaitHydrator
     public static function hydrateWaitingState(ChatbotFlowState $state, array $node): void
     {
         $data = is_array($node['data'] ?? null) ? $node['data'] : [];
-        $quickReplies = $data['quickReplies'] ?? [];
-        if (! is_array($quickReplies)) {
-            $quickReplies = [];
-        }
+        $quickReplies = self::resolveQuickReplies($data);
 
         $state->mergeVariables([
             '_quick_replies' => $quickReplies,
@@ -51,6 +46,31 @@ final class TemplateMessageWaitHydrator
             'status' => ChatbotFlowStateStatus::Waiting,
             'current_node_id' => (string) ($node['id'] ?? ''),
         ])->save();
+    }
+
+    /**
+     * Prefer node.quickReplies; fall back to selectedTemplate auto_reply_text_N.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<int, mixed>
+     */
+    public static function resolveQuickReplies(array $data): array
+    {
+        $quickReplies = $data['quickReplies'] ?? [];
+        if (is_array($quickReplies) && $quickReplies !== []) {
+            return array_values($quickReplies);
+        }
+
+        $selected = is_array($data['selectedTemplate'] ?? null) ? $data['selectedTemplate'] : [];
+        $fromTemplate = [];
+        for ($i = 1; $i <= 10; $i++) {
+            $text = trim((string) ($selected['auto_reply_text_'.$i] ?? $data['auto_reply_text_'.$i] ?? ''));
+            if ($text !== '') {
+                $fromTemplate[] = ['id' => 'reply_'.($i - 1), 'text' => $text];
+            }
+        }
+
+        return $fromTemplate;
     }
 
     /**

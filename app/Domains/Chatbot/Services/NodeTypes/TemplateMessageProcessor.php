@@ -47,10 +47,7 @@ class TemplateMessageProcessor extends AbstractNodeProcessor
             }
         }
 
-        $quickReplies = $data['quickReplies'] ?? [];
-        if (! is_array($quickReplies)) {
-            $quickReplies = [];
-        }
+        $quickReplies = TemplateMessageWaitHydrator::resolveQuickReplies($data);
 
         if (TemplateMessageWaitHydrator::isWaitable($node)) {
             if ($quickReplies !== [] && $messageType !== 'template') {

@@ -419,12 +419,24 @@ class ChatbotFlowEngine
         // Quick replies → reply-{n} / output_{n} / button-{n}
         $quickReplies = $variables['_quick_replies'] ?? [];
         if (is_array($quickReplies)) {
-            foreach ($quickReplies as $index => $reply) {
+            foreach (array_values($quickReplies) as $index => $reply) {
                 $replyTitle = is_string($reply)
                     ? $reply
-                    : (string) ($reply['title'] ?? $reply['text'] ?? '');
+                    : (string) ($reply['title'] ?? $reply['text'] ?? $reply['label'] ?? '');
+                $replyObjId = is_array($reply)
+                    ? trim((string) ($reply['id'] ?? $reply['value'] ?? ''))
+                    : '';
 
-                if (! $this->labelsMatch($replyTitle, $replyBody)) {
+                $matched = ($replyTitle !== '' && (
+                    $this->labelsMatch($replyTitle, $replyBody)
+                    || ($replyId !== '' && $this->labelsMatch($replyTitle, $replyId))
+                ))
+                    || ($replyObjId !== '' && (
+                        strcasecmp($replyObjId, trim($replyBody)) === 0
+                        || ($replyId !== '' && strcasecmp($replyObjId, $replyId) === 0)
+                    ));
+
+                if (! $matched) {
                     continue;
                 }
 
@@ -437,7 +449,45 @@ class ChatbotFlowEngine
             }
         }
 
+        // Builder often wires every QR handle to the same thank-you node.
+        // If all reply-* targets are identical, any button tap can continue there.
+        $sharedTarget = $this->sharedQuickReplyTarget($node);
+        if ($sharedTarget !== null && (trim($replyBody) !== '' || trim($replyId) !== '')) {
+            return $sharedTarget;
+        }
+
         return null;
+    }
+
+    /**
+     * When every quick-reply handle points at the same next node, return that node id.
+     *
+     * @param  array<string, mixed>  $node
+     */
+    private function sharedQuickReplyTarget(array $node): ?string
+    {
+        $targets = [];
+
+        foreach ($node['outputs'] ?? [] as $handle => $output) {
+            $handle = (string) $handle;
+            if (! str_starts_with($handle, 'reply-') && ! str_starts_with($handle, 'reply_')) {
+                continue;
+            }
+
+            $connections = is_array($output['connections'] ?? null) ? $output['connections'] : [];
+            if ($connections === []) {
+                continue;
+            }
+
+            $target = trim((string) ($connections[0]['node'] ?? ''));
+            if ($target !== '') {
+                $targets[] = $target;
+            }
+        }
+
+        $targets = array_values(array_unique($targets));
+
+        return count($targets) === 1 ? $targets[0] : null;
     }
 
     /**
