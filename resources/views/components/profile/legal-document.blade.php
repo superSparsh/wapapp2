@@ -32,6 +32,8 @@
       <a href="{{ route('profile.privacy-policy') }}" @class(['underline', 'text-primary-2' => ! request()->routeIs('profile.privacy-policy'), 'text-text-muted' => request()->routeIs('profile.privacy-policy')])>Privacy Policy</a>
       <span class="text-text-muted">·</span>
       <a href="{{ route('profile.terms') }}" @class(['underline', 'text-primary-2' => ! request()->routeIs('profile.terms'), 'text-text-muted' => request()->routeIs('profile.terms')])>Terms of Service</a>
+      <span class="text-text-muted">·</span>
+      <a href="{{ route('profile.breach-playbook') }}" @class(['underline', 'text-primary-2' => ! request()->routeIs('profile.breach-playbook'), 'text-text-muted' => request()->routeIs('profile.breach-playbook')])>Breach playbook</a>
     </nav>
   </div>
 </x-profile.layout>

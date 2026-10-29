@@ -8,6 +8,17 @@
             question='Q. Do you agree with and comply with the WhatsApp Business Terms of Service? <span class="text-red-500">*</span>'
         />
 
+        <p class="text-sm font-medium leading-[1.4] text-text-subtle">
+            Review the official document before answering:
+            <a
+              href="{{ config('legal.meta_policies.business_terms.pdf_url') }}"
+              target="_blank"
+              rel="noopener"
+              class="font-semibold text-primary-2 underline"
+            >{{ config('legal.meta_policies.business_terms.label') }}</a>
+            (opens Meta / WhatsApp legal page — save or print as PDF from the browser if needed).
+        </p>
+
         @error('answer')
             <p class="text-sm font-medium text-red-500">{{ $message }}</p>
         @enderror

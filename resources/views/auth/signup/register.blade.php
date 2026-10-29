@@ -129,7 +129,16 @@
             <label class="flex cursor-pointer items-center gap-1.5">
                 <input type="checkbox" name="whatsapp_addendum" value="1" class="sr-only" required @checked(old('whatsapp_addendum'))>
                 <img src="{{ asset('images/auth/tick-square.svg') }}" alt="" class="size-5 shrink-0" width="20" height="20">
-                <span class="text-sm font-medium leading-[1.4] text-text-muted">I agree to WhatsApp Business Program Addendum.</span>
+                <span class="text-sm font-medium leading-[1.4] text-text-muted">
+                    I agree to
+                    <a
+                      href="{{ config('legal.meta_policies.program_addendum.pdf_url') }}"
+                      target="_blank"
+                      rel="noopener"
+                      class="font-semibold text-primary-2 underline"
+                      onclick="event.stopPropagation()"
+                    >{{ config('legal.meta_policies.program_addendum.label') }}</a>.
+                </span>
             </label>
 
             <x-ui.button type="submit" class="rounded-xl p-3.5">Register Now</x-ui.button>

@@ -121,11 +121,18 @@ class RegisterService
                 continue;
             }
 
+            $meta = [];
+            $documentUrl = $consents[$key.'_document_url'] ?? null;
+            if (is_string($documentUrl) && $documentUrl !== '') {
+                $meta['document_url'] = $documentUrl;
+            }
+
             SignupConsent::query()->create([
                 'user_id' => $user->id,
                 'step' => $step,
                 'question_key' => $key,
                 'answer' => (string) $consents[$key],
+                'meta' => $meta !== [] ? $meta : null,
                 'consented_at' => now(),
             ]);
         }

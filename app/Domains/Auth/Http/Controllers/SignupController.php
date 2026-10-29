@@ -40,9 +40,21 @@ class SignupController extends Controller
         abort_unless(isset(self::STEPS[$step]), 404);
 
         $config = self::STEPS[$step];
-        $signupSession->merge([$config['key'] => $request->string('answer')->toString()]);
+        $answer = $request->string('answer')->toString();
+        $payload = [$config['key'] => $answer];
 
-        if ($request->string('answer')->toString() !== 'yes') {
+        $documentUrl = match ($config['key']) {
+            'business_terms' => (string) config('legal.meta_policies.business_terms.pdf_url', ''),
+            'commerce_policy' => (string) config('legal.meta_policies.commerce_policy.pdf_url', ''),
+            default => '',
+        };
+        if ($documentUrl !== '') {
+            $payload[$config['key'].'_document_url'] = $documentUrl;
+        }
+
+        $signupSession->merge($payload);
+
+        if ($answer !== 'yes') {
             return back()->withErrors([
                 'answer' => 'You must confirm this requirement to continue with WapApp onboarding.',
             ]);

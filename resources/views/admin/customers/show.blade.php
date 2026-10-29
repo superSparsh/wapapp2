@@ -294,6 +294,69 @@
     </div>
   </section>
 
+  {{-- Custom customer terms (business-authored) --}}
+  <section class="px-4 pb-4" id="custom-terms">
+    <div class="rounded-[20px] border border-border bg-elevated p-5">
+      <div class="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 class="text-lg font-bold text-text-primary">Custom customer terms</h2>
+          <p class="mt-1 text-xs text-text-subtle">Business-authored terms for their end customers. Reject or remove non-compliant wording; optionally suspend the account.</p>
+        </div>
+        @if ($custom_terms)
+          <span class="rounded-lg bg-surface px-3 py-1.5 text-xs font-semibold text-text-primary">
+            {{ $custom_terms->status?->label() ?? $custom_terms->status }} · v{{ $custom_terms->version }}
+          </span>
+        @endif
+      </div>
+
+      @if (! $custom_terms)
+        <p class="mt-4 text-sm text-text-subtle">This business has not created custom terms yet.</p>
+      @else
+        <div class="mt-4 rounded-xl border border-border bg-surface p-4">
+          <p class="text-sm font-semibold text-text-primary">{{ $custom_terms->title }}</p>
+          <div class="mt-3 max-h-64 overflow-y-auto whitespace-pre-wrap text-sm leading-[1.6] text-text-body">{{ $custom_terms->body }}</div>
+          @if ($custom_terms->admin_note)
+            <p class="mt-3 text-xs text-text-muted"><span class="font-semibold">Last admin note:</span> {{ $custom_terms->admin_note }}</p>
+          @endif
+          @if ($custom_terms->submitted_at)
+            <p class="mt-1 text-xs text-text-muted">Submitted {{ $custom_terms->submitted_at->toDayDateTimeString() }}</p>
+          @endif
+        </div>
+
+        <div class="mt-4 grid gap-4 lg:grid-cols-3">
+          <form method="POST" action="{{ route('admin.customers.custom-terms.approve', $tenant) }}" class="flex flex-col gap-2 rounded-xl border border-border p-3">
+            @csrf
+            <p class="text-xs font-semibold text-text-primary">Approve</p>
+            <input type="text" name="admin_note" maxlength="1000" placeholder="Optional note" class="rounded-lg border border-border bg-surface px-3 py-2 text-sm">
+            <button type="submit" class="rounded-lg bg-green-500 px-3 py-2 text-xs font-semibold text-white">Approve &amp; publish</button>
+          </form>
+
+          <form method="POST" action="{{ route('admin.customers.custom-terms.reject', $tenant) }}" class="flex flex-col gap-2 rounded-xl border border-border p-3">
+            @csrf
+            <p class="text-xs font-semibold text-text-primary">Reject</p>
+            <textarea name="admin_note" required rows="3" maxlength="2000" placeholder="Why these terms are wrong (required)" class="rounded-lg border border-border bg-surface px-3 py-2 text-sm"></textarea>
+            <label class="flex items-center gap-2 text-xs font-semibold text-text-primary">
+              <input type="checkbox" name="suspend" value="1" class="rounded border-border">
+              Also suspend account
+            </label>
+            <button type="submit" class="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900">Reject &amp; notify</button>
+          </form>
+
+          <form method="POST" action="{{ route('admin.customers.custom-terms.remove', $tenant) }}" class="flex flex-col gap-2 rounded-xl border border-border p-3" onsubmit="return confirm('Remove these custom terms? The business will be notified.');">
+            @csrf
+            <p class="text-xs font-semibold text-text-primary">Remove</p>
+            <textarea name="admin_note" required rows="3" maxlength="2000" placeholder="Why removing (required)" class="rounded-lg border border-border bg-surface px-3 py-2 text-sm"></textarea>
+            <label class="flex items-center gap-2 text-xs font-semibold text-text-primary">
+              <input type="checkbox" name="suspend" value="1" class="rounded border-border">
+              Also suspend account
+            </label>
+            <button type="submit" class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700">Remove &amp; notify</button>
+          </form>
+        </div>
+      @endif
+    </div>
+  </section>
+
   {{-- Admin controls --}}
   <section class="grid gap-4 px-4 pb-8 xl:grid-cols-3" id="assign-plan">
     <div class="rounded-[20px] border border-border bg-elevated p-5">

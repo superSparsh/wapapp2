@@ -19,6 +19,11 @@ class LegalController extends Controller
         return view('profile.terms-of-service', $this->legalContext());
     }
 
+    public function breachPlaybook(): View
+    {
+        return view('profile.breach-playbook', $this->legalContext());
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -35,6 +40,12 @@ class LegalController extends Controller
             'whatsappBsp' => (string) config('legal.processing.whatsapp_bsp'),
             'platformName' => (string) config('legal.processing.platform'),
             'effectiveDate' => (string) config('legal.effective_date'),
+            'breachOwnerName' => (string) config('legal.breach.owner_name', 'Privacy / Security Owner'),
+            'breachOwnerEmail' => (string) config('legal.breach.owner_email', 'support@tittu.in'),
+            'breachEscalationEmail' => (string) config('legal.breach.escalation_email', 'support@tittu.in'),
+            'breachBoardHours' => (int) config('legal.breach.board_notify_hours', 72),
+            'breachPlaybookVersion' => (string) config('legal.breach.playbook_version', '1.0'),
+            'breachPlaybookDate' => (string) config('legal.breach.playbook_date', '29 October 2026'),
         ];
     }
 }

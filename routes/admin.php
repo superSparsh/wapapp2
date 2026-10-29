@@ -81,6 +81,9 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::get('/customers/{tenant}/activity-logs', [CustomerController::class, 'activityLogs'])->name('customers.activity-logs');
         Route::put('/customers/{tenant}', [CustomerController::class, 'update'])->name('customers.update');
         Route::post('/customers/{tenant}/toggle-status', [CustomerController::class, 'toggleStatus'])->name('customers.toggle-status');
+        Route::post('/customers/{tenant}/custom-terms/approve', [CustomerController::class, 'approveCustomTerms'])->name('customers.custom-terms.approve');
+        Route::post('/customers/{tenant}/custom-terms/reject', [CustomerController::class, 'rejectCustomTerms'])->name('customers.custom-terms.reject');
+        Route::post('/customers/{tenant}/custom-terms/remove', [CustomerController::class, 'removeCustomTerms'])->name('customers.custom-terms.remove');
         Route::post('/customers/{tenant}/assign-plan', [CustomerController::class, 'assignPlan'])->name('customers.assign-plan');
         Route::post('/customers/{tenant}/extend-validity', [CustomerController::class, 'extendValidity'])->name('customers.extend-validity');
         Route::patch('/customers/{tenant}/settings', [CustomerController::class, 'updateSettings'])->name('customers.settings');

@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace App\Domains\Admin\Http\Controllers;
 
+use App\Domains\Account\Services\BusinessCustomTermsService;
 use App\Domains\Admin\Services\AdminImpersonationService;
 use App\Domains\Admin\Services\CustomerAdminService;
 use App\Domains\Admin\Support\AdminListQuery;
 use App\Enums\TenantStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Admin;
+use App\Models\BusinessCustomTerm;
 use App\Models\Plan;
 use App\Models\Tenant;
 use App\Support\PublicId;
@@ -24,6 +26,7 @@ class CustomerController extends Controller
     public function __construct(
         private readonly CustomerAdminService $customers,
         private readonly AdminImpersonationService $impersonation,
+        private readonly BusinessCustomTermsService $customTerms,
     ) {}
 
     public function index(Request $request): View
@@ -101,6 +104,71 @@ class CustomerController extends Controller
         $this->customers->setStatus($tenant, $next);
 
         return back()->with('status', 'Customer marked as '.$next->value.'.');
+    }
+
+    public function approveCustomTerms(Request $request, Tenant $tenant): RedirectResponse
+    {
+        $term = $this->requireCustomTerms($tenant);
+        $admin = $this->currentAdmin();
+        $note = $request->string('admin_note')->toString() ?: null;
+
+        $this->customTerms->approve($term, $admin, $note);
+
+        return back()->with('status', 'Custom terms approved.');
+    }
+
+    public function rejectCustomTerms(Request $request, Tenant $tenant): RedirectResponse
+    {
+        $term = $this->requireCustomTerms($tenant);
+        $admin = $this->currentAdmin();
+        $validated = $request->validate([
+            'admin_note' => ['required', 'string', 'max:2000'],
+            'suspend' => ['nullable', 'boolean'],
+        ]);
+
+        $this->customTerms->reject(
+            $term,
+            $admin,
+            $validated['admin_note'],
+            $request->boolean('suspend'),
+        );
+
+        return back()->with('status', 'Custom terms rejected'.($request->boolean('suspend') ? ' and account suspended' : '').'.');
+    }
+
+    public function removeCustomTerms(Request $request, Tenant $tenant): RedirectResponse
+    {
+        $term = $this->requireCustomTerms($tenant);
+        $admin = $this->currentAdmin();
+        $validated = $request->validate([
+            'admin_note' => ['required', 'string', 'max:2000'],
+            'suspend' => ['nullable', 'boolean'],
+        ]);
+
+        $this->customTerms->remove(
+            $term,
+            $admin,
+            $validated['admin_note'],
+            $request->boolean('suspend'),
+        );
+
+        return back()->with('status', 'Custom terms removed'.($request->boolean('suspend') ? ' and account suspended' : '').'.');
+    }
+
+    private function requireCustomTerms(Tenant $tenant): BusinessCustomTerm
+    {
+        $term = BusinessCustomTerm::query()->where('tenant_id', $tenant->id)->first();
+        abort_unless($term instanceof BusinessCustomTerm, 404);
+
+        return $term;
+    }
+
+    private function currentAdmin(): Admin
+    {
+        $admin = Auth::guard('admin')->user();
+        abort_unless($admin instanceof Admin, 403);
+
+        return $admin;
     }
 
     public function assignPlan(Request $request, Tenant $tenant): RedirectResponse

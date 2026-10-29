@@ -10,4 +10,5 @@ return [
     ['route' => 'profile.alerts', 'label' => 'Business Alerts Setup'],
     // ['route' => 'profile.data-deletion', 'label' => 'Data Deletion'],
     ['route' => 'profile.activity-logs', 'label' => 'Activity Logs'],
+    ['route' => 'profile.business-terms', 'label' => 'Business Terms'],
 ];

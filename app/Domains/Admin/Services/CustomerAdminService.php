@@ -169,6 +169,11 @@ class CustomerAdminService
                 ->where('is_active', true)
                 ->orderBy('sort_order')
                 ->get(['id', 'uuid', 'name', 'price', 'currency']),
+            'custom_terms' => \Illuminate\Support\Facades\Schema::hasTable('business_custom_terms')
+                ? \App\Models\BusinessCustomTerm::query()
+                    ->where('tenant_id', $tenant->id)
+                    ->first()
+                : null,
         ];
     }
 

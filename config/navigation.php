@@ -60,6 +60,7 @@ return [
             ['label' => 'Business Alerts Setup', 'route' => 'profile.alerts'],
             // ['label' => 'Data Deletion', 'route' => 'profile.data-deletion'],
             ['label' => 'Activity Logs', 'route' => 'profile.activity-logs'],
+            ['label' => 'Business Terms', 'route' => 'profile.business-terms'],
         ],
     ],
 ];

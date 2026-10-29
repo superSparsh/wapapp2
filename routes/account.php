@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Domains\Account\Http\Controllers\ActivityLogController;
 use App\Domains\Account\Http\Controllers\ApiDocsController;
 use App\Domains\Account\Http\Controllers\ApiTokenController;
+use App\Domains\Account\Http\Controllers\BusinessTermsController;
 use App\Domains\Account\Http\Controllers\DataDeletionController;
 use App\Domains\Account\Http\Controllers\LegalController;
 use App\Domains\Account\Http\Controllers\NotificationContactController;
@@ -69,6 +70,11 @@ Route::prefix('profile')->name('profile.')->group(function () {
 
     Route::get('/privacy-policy', [LegalController::class, 'privacy'])->name('privacy-policy');
     Route::get('/terms', [LegalController::class, 'terms'])->name('terms');
+    Route::get('/breach-playbook', [LegalController::class, 'breachPlaybook'])->name('breach-playbook');
+
+    Route::get('/business-terms', [BusinessTermsController::class, 'show'])->name('business-terms');
+    Route::put('/business-terms', [BusinessTermsController::class, 'update'])->name('business-terms.update');
+    Route::get('/business-terms/signed-pdf', [BusinessTermsController::class, 'downloadSignedAgreement'])->name('business-terms.signed-pdf');
 
     Route::get('/security', [SecurityController::class, 'show'])->name('security');
     Route::post('/security/two-factor', [SecurityController::class, 'enable'])->name('security.enable');
