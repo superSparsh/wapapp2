@@ -25,7 +25,10 @@ class AlertDispatcher
         private readonly WalletService $wallet,
     ) {}
 
-    public function planExpiration(?Subscription $subscription, int $daysLeft, object $plan, ?User $user = null, ?Carbon $endsAt = null): void
+    /**
+     * @return bool true when at least one plan-expiration email/WhatsApp was dispatched
+     */
+    public function planExpiration(?Subscription $subscription, int $daysLeft, object $plan, ?User $user = null, ?Carbon $endsAt = null): bool
     {
         $endsAt ??= $subscription?->ends_at;
 
@@ -57,7 +60,7 @@ class AlertDispatcher
         ));
 
         if ($pendingThresholds === []) {
-            return;
+            return false;
         }
 
         $support = (array) config('operational-alerts.support', []);
@@ -165,6 +168,8 @@ class AlertDispatcher
                 $fresh->save();
             });
         }
+
+        return true;
     }
 
     private function tenantHasPlanExpirationContacts(?User $owner): bool

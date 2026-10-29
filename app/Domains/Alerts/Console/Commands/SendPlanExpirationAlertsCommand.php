@@ -68,8 +68,26 @@ class SendPlanExpirationAlertsCommand extends Command
                 $user = User::query()->orderBy('id')->first();
                 $subscription = $summary['subscription'] ?? $dispatcher->ensureActiveSubscriptionForPlanAlerts();
 
-                $dispatcher->planExpiration($subscription, $daysLeft, $plan, $user, $endsAt);
-                $sent++;
+                $didSend = $dispatcher->planExpiration($subscription, $daysLeft, $plan, $user, $endsAt);
+                if ($didSend) {
+                    $sent++;
+                    $this->line(sprintf(
+                        'Sent plan expiration alert: tenant=%s days_left=%d ends=%s owner=%s',
+                        $tenant->id,
+                        $daysLeft,
+                        $endsAt->toDateString(),
+                        $user?->email ?? 'none',
+                    ));
+                    Log::info('Plan expiration alert sent', [
+                        'tenant_id' => $tenant->id,
+                        'days_left' => $daysLeft,
+                        'ends_at' => $endsAt->toDateString(),
+                        'owner_email' => $user?->email,
+                    ]);
+                } else {
+                    // In window, but all due thresholds already marked sent (dedupe) — no mail.
+                    $skipped++;
+                }
             } catch (\Throwable $e) {
                 $failed++;
                 Log::error('Plan expiration alert failed for tenant', [
