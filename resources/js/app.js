@@ -14,12 +14,14 @@ import { initCampaignWizard } from './campaign-wizard.js';
 import { initPageLoader } from './page-loader.js';
 import { initDashboard } from './dashboard.js';
 import { initCommerceOrderModal } from './commerce.js';
+import { initPwa } from './pwa.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     initToast();
     // Confirm must register before the page loader so intercepted submits never flash a loader.
     initConfirmDialog();
     initPageLoader();
+    initPwa();
     initThemeToggle();
     initTabToggle();
     initPasswordToggle();

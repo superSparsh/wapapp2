@@ -25,7 +25,7 @@ class BusinessCustomTermsService
 
     public function forTenant(string $tenantId): ?BusinessCustomTerm
     {
-        if (! Schema::hasTable('business_custom_terms')) {
+        if (! $this->tableReady()) {
             return null;
         }
 
@@ -173,9 +173,16 @@ class BusinessCustomTermsService
 
     private function ensureTableReady(): void
     {
-        if (! Schema::hasTable('business_custom_terms')) {
+        if (! $this->tableReady()) {
             throw new RuntimeException('Business custom terms are not available until migrations are run.');
         }
+    }
+
+    private function tableReady(): bool
+    {
+        $connection = (string) config('tenancy.database.central_connection', config('database.default'));
+
+        return Schema::connection($connection)->hasTable('business_custom_terms');
     }
 
     private function suspendTenant(string $tenantId): void

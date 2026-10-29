@@ -32,6 +32,16 @@
   <div class="relative flex items-center gap-6">
     <button
       type="button"
+      data-pwa-install
+      class="hidden inline-flex items-center rounded-md border border-border-sidebar px-3 py-2 text-xs font-semibold text-text-dark transition-colors hover:bg-surface"
+      aria-label="Install WapApp"
+      aria-hidden="true"
+    >
+      Install app
+    </button>
+
+    <button
+      type="button"
       data-theme-toggle
       class="relative flex size-9 items-center justify-center rounded-md border border-border-sidebar text-text-dark transition-[background-color,border-color,color,transform] duration-300 hover:bg-surface active:scale-95"
       aria-label="Toggle color theme"
