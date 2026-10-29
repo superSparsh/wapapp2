@@ -444,11 +444,14 @@ class InboxServiceAdapter
         ], 201);
     }
 
-    public function exportConversation(Conversation $conversation): StreamedResponse
+    public function exportConversation(Conversation $conversation, Request $request): StreamedResponse
     {
         $this->localInboxService->authorizeConversation($conversation);
 
-        return $this->localExportService->exportConversation($conversation);
+        return $this->localExportService->exportConversation(
+            $conversation,
+            (string) $request->input('content', InboxExportService::CONTENT_BOTH),
+        );
     }
 
     public function exportAll(Request $request): StreamedResponse
@@ -470,6 +473,7 @@ class InboxServiceAdapter
             from: $from,
             to: $to,
             excludePhones: $excludePhones,
+            content: (string) $request->input('content', InboxExportService::CONTENT_BOTH),
         );
     }
 

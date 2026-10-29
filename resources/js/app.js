@@ -4570,6 +4570,10 @@ function initInboxExportModal() {
         showError('');
 
         const scope = form.querySelector('[name="export_scope"]:checked')?.value || 'all';
+        const content =
+            form.querySelector('[name="export_content"]:checked')?.value ||
+            'flow_responses';
+
         if (scope === 'current') {
             const exportUrl = chat?.dataset.exportUrl;
             if (!exportUrl) {
@@ -4577,7 +4581,9 @@ function initInboxExportModal() {
                 return;
             }
 
-            window.location.href = exportUrl;
+            const url = new URL(exportUrl, window.location.origin);
+            url.searchParams.set('content', content);
+            window.location.href = url.toString();
             return;
         }
 
@@ -4599,6 +4605,7 @@ function initInboxExportModal() {
 
         params.set('from', from);
         params.set('to', to);
+        params.set('content', content);
         if (skip) {
             params.set('skip_phones', skip);
         } else {

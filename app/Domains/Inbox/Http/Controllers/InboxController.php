@@ -290,10 +290,11 @@ class InboxController extends Controller
     }
 
     public function exportConversation(
+        Request $request,
         Conversation $conversation,
         InboxServiceAdapter $adapter,
     ): StreamedResponse {
-        return $adapter->exportConversation($conversation);
+        return $adapter->exportConversation($conversation, $request);
     }
 
     public function exportAll(

@@ -35,6 +35,22 @@
             </div>
 
             <div class="flex flex-col gap-2">
+                <p class="text-sm font-semibold text-text-primary">Export content</p>
+                <label class="flex items-center gap-2 text-sm">
+                    <input type="radio" name="export_content" value="flow_responses" checked>
+                    Flow form responses (name, phone, answers)
+                </label>
+                <label class="flex items-center gap-2 text-sm">
+                    <input type="radio" name="export_content" value="both">
+                    Flow responses + chat messages
+                </label>
+                <label class="flex items-center gap-2 text-sm">
+                    <input type="radio" name="export_content" value="messages">
+                    Chat messages only
+                </label>
+            </div>
+
+            <div class="flex flex-col gap-2">
                 <label for="export_skip_phones" class="text-sm font-semibold text-text-primary">Skip these numbers (optional)</label>
                 <textarea id="export_skip_phones" name="skip_phones" rows="3" placeholder="One phone number per line" class="w-full resize-none rounded-xl border border-border bg-elevated p-3.5 text-sm focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"></textarea>
             </div>

@@ -93,13 +93,13 @@
         />
       </div>
       <a
-        href="{{ route('inbox.api.export', $conversation) }}"
+        href="{{ route('inbox.api.export', [$conversation, 'content' => 'both']) }}"
         data-inbox-export-chat
         class="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-white/10 px-2 py-1.5 text-xs font-medium text-white transition hover:bg-white/20 xl:px-3 xl:py-2"
-        title="Export Chat"
+        title="Export chat + flow form responses"
       >
         <x-icons.nav-icon name="document-text" class="size-3.5" />
-        <span class="hidden 2xl:inline">Export Chat</span>
+        <span class="hidden 2xl:inline">Export</span>
       </a>
       <button
         type="button"
