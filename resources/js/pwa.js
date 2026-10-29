@@ -2,9 +2,6 @@ import { showAppAlert } from './confirm-dialog.js';
 
 /**
  * PWA install: register SW + Profile "Install now" via beforeinstallprompt.
- *
- * Note: calling preventDefault() is required for a reliable custom Install button.
- * Chrome may then hide the omnibox Install icon; use Profile → Install now instead.
  */
 export function initPwa() {
     if ('serviceWorker' in navigator) {
@@ -29,22 +26,34 @@ function isStandalone() {
         || window.navigator.standalone === true;
 }
 
+function setVisible(el, visible, displayClass = 'inline-flex') {
+    if (!el) {
+        return;
+    }
+
+    if (visible) {
+        el.hidden = false;
+        el.classList.remove('hidden');
+        el.classList.add(displayClass);
+        el.setAttribute('aria-hidden', 'false');
+    } else {
+        el.hidden = true;
+        el.classList.add('hidden');
+        el.classList.remove(displayClass);
+        el.setAttribute('aria-hidden', 'true');
+    }
+}
+
 function initInstallButton() {
     let deferredPrompt = null;
 
-    const cards = () => document.querySelectorAll('[data-pwa-install-card]');
-    const installedCards = () => document.querySelectorAll('[data-pwa-installed-card]');
-    const buttons = () => document.querySelectorAll('[data-pwa-install]');
+    const installCard = () => document.querySelector('[data-pwa-install-card]');
+    const installedCard = () => document.querySelector('[data-pwa-installed-card]');
+    const installButton = () => document.querySelector('[data-pwa-install]');
 
     const showInstalled = () => {
-        cards().forEach((el) => {
-            el.classList.add('hidden');
-            el.setAttribute('aria-hidden', 'true');
-        });
-        installedCards().forEach((el) => {
-            el.classList.remove('hidden');
-            el.setAttribute('aria-hidden', 'false');
-        });
+        setVisible(installCard(), false);
+        setVisible(installedCard(), true);
     };
 
     const showInstall = () => {
@@ -52,29 +61,26 @@ function initInstallButton() {
             showInstalled();
             return;
         }
-        cards().forEach((el) => {
-            el.classList.remove('hidden');
-            el.setAttribute('aria-hidden', 'false');
-        });
-        installedCards().forEach((el) => {
-            el.classList.add('hidden');
-            el.setAttribute('aria-hidden', 'true');
-        });
-        buttons().forEach((btn) => {
+
+        setVisible(installCard(), true);
+        setVisible(installedCard(), false);
+
+        const btn = installButton();
+        if (btn) {
             btn.disabled = !deferredPrompt;
             btn.classList.toggle('opacity-50', !deferredPrompt);
             btn.title = deferredPrompt
                 ? 'Install WapApp'
-                : 'Chrome install ready hone ka wait… HTTPS/localhost pe soft-refresh try karo';
-        });
+                : 'Chrome install ready hone ka wait… soft-refresh try karo';
+        }
     };
 
+    // Initial mutual exclusivity (before any events).
     if (isStandalone()) {
         showInstalled();
-        return;
+    } else {
+        showInstall();
     }
-
-    showInstall();
 
     window.addEventListener('beforeinstallprompt', (event) => {
         event.preventDefault();
@@ -95,7 +101,7 @@ function initInstallButton() {
 
         if (!deferredPrompt) {
             showAppAlert(
-                'Install abhi ready nahi hai. Chrome ⋮ menu → “Install WapApp…” check karo, ya HTTPS/localhost pe hard refresh (Cmd+Shift+R) → Application → Service Workers → Unregister → refresh.',
+                'Install abhi ready nahi hai. Chrome ⋮ menu → “Install WapApp…” check karo, ya HTTPS/localhost pe hard refresh → Application → Service Workers → Unregister → refresh.',
                 'Install WapApp',
             );
             return;

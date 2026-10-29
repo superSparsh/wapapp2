@@ -1,9 +1,43 @@
 <x-profile.layout title="My Profile - WapApp" active="profile.index">
-  <div class="flex flex-col gap-1">
-    <h1 class="text-2xl font-bold leading-[1.5] text-text-primary">My Profile</h1>
-    <p class="max-w-[854px] text-sm font-normal leading-[1.4] text-text-subtle opacity-50">
-      Manage your personal information, preferences, and account credentials.
-    </p>
+  <div class="flex items-start justify-between gap-4">
+    <div class="flex min-w-0 flex-1 flex-col gap-1">
+      <h1 class="text-2xl font-bold leading-[1.5] text-text-primary">My Profile</h1>
+      <p class="max-w-[854px] text-sm font-normal leading-[1.4] text-text-subtle opacity-50">
+        Manage your personal information, preferences, and account credentials.
+      </p>
+    </div>
+
+    <div class="shrink-0 pt-1">
+      <div
+        data-pwa-install-card
+        class="inline-flex items-center gap-2 rounded-xl border border-border-light bg-elevated px-2.5 py-1.5"
+      >
+        <img
+          src="{{ asset('images/favicons/icon-192.png') }}"
+          alt=""
+          class="size-8 shrink-0 rounded-lg object-cover"
+          width="32"
+          height="32"
+        >
+        <button
+          type="button"
+          data-pwa-install
+          class="rounded-lg bg-green-500 px-3 py-1.5 text-sm font-semibold text-white hover:bg-green-600 disabled:cursor-not-allowed"
+        >
+          Install now
+        </button>
+      </div>
+
+      <div
+        data-pwa-installed-card
+        class="hidden items-center gap-2 rounded-xl border border-green-200 bg-green-50 px-2.5 py-1.5 text-sm font-medium text-green-700"
+        hidden
+        aria-hidden="true"
+      >
+        <img src="{{ asset('images/favicons/icon-192.png') }}" alt="" class="size-7 rounded-md object-cover" width="28" height="28">
+        Installed
+      </div>
+    </div>
   </div>
 
   @if (session('status'))
@@ -21,35 +55,6 @@
       </ul>
     </div>
   @endif
-
-  <section
-    data-pwa-install-card
-    class="mt-6 inline-flex items-center gap-3 rounded-xl border border-border-light bg-elevated px-3 py-2"
-  >
-    <img
-      src="{{ asset('images/favicons/icon-192.png') }}"
-      alt=""
-      class="size-9 shrink-0 rounded-lg object-cover"
-      width="36"
-      height="36"
-    >
-    <button
-      type="button"
-      data-pwa-install
-      class="rounded-lg bg-green-500 px-3 py-1.5 text-sm font-semibold text-white hover:bg-green-600 disabled:cursor-not-allowed"
-    >
-      Install now
-    </button>
-  </section>
-
-  <section
-    data-pwa-installed-card
-    class="mt-6 hidden inline-flex items-center gap-2 rounded-xl border border-green-200 bg-green-50 px-3 py-2 text-sm font-medium text-green-700"
-    aria-hidden="true"
-  >
-    <img src="{{ asset('images/favicons/icon-192.png') }}" alt="" class="size-7 rounded-md object-cover" width="28" height="28">
-    Installed
-  </section>
 
   <form action="{{ route('profile.update') }}" method="POST" enctype="multipart/form-data" class="mt-6 flex flex-col gap-4" data-profile-form>
     @csrf
