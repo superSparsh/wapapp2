@@ -2,7 +2,7 @@
     'size' => 'default',
     'previewData' => null,
     'live' => false,
-    'scrollBody' => true,
+    'scrollBody' => true, // kept for call-site compatibility; phone frame scrolls the full bubble
 ])
 
 @php
@@ -32,7 +32,6 @@
   $showHeaderText = in_array($headerType, ['text', 'location'], true) && $headerText !== '';
   $carouselCards = is_array($previewData['carousel_cards'] ?? null) ? $previewData['carousel_cards'] : [];
   $isCarousel = (bool) ($previewData['is_carousel'] ?? false) || $carouselCards !== [];
-  $bodyScrollable = $scrollBody && ! $isCarousel;
   $ltoOffer = is_array($previewData['lto_offer'] ?? null) ? $previewData['lto_offer'] : null;
   $showLtoOffer = is_array($ltoOffer) && filled($ltoOffer['introduction'] ?? null);
 @endphp
@@ -41,8 +40,8 @@
   @if ($live) id="template-live-preview" @endif
   @class([
     'mx-auto flex w-full flex-col gap-3 rounded-br-[12px] rounded-tl-[12px] rounded-tr-[12px] border border-solid border-border bg-elevated p-2',
-    'mt-[205px] max-w-[354px]' => ! $isCompact,
-    'mt-[160px] max-w-full' => $isCompact,
+    'mt-[110px] max-w-[354px]' => ! $isCompact,
+    'mt-[90px] max-w-full' => $isCompact,
   ])
 >
   <div data-preview-standard @class(['contents' => ! $isCarousel, 'hidden' => $isCarousel])>
@@ -61,11 +60,11 @@
       src="{{ $showHeaderImage ? $headerImage : '' }}"
       alt=""
       @class([
-        'h-full w-full rounded object-cover',
+        'max-h-[160px] w-full rounded object-cover',
         'hidden' => ! $showHeaderImage || $isCarousel,
       ])
       width="100%"
-      height="300px"
+      height="160"
     >
     <video
       data-preview-header-video
@@ -144,9 +143,6 @@
       'wa-preview-body w-full font-normal leading-[1.4] text-text-body break-words',
       'text-base' => ! $isCompact,
       'text-sm' => $isCompact,
-      'wa-preview-body--scrollable overflow-x-hidden overflow-y-auto pr-1' => $bodyScrollable,
-      'max-h-[250px]' => $bodyScrollable && ! $isCompact,
-      'max-h-[220px]' => $bodyScrollable && $isCompact,
     ])
   >{!! $bodyHtml !== '' ? $bodyHtml : e($bodyText) !!}</div>
 
