@@ -6,6 +6,7 @@ use App\Domains\Account\Http\Controllers\ActivityLogController;
 use App\Domains\Account\Http\Controllers\ApiDocsController;
 use App\Domains\Account\Http\Controllers\ApiTokenController;
 use App\Domains\Account\Http\Controllers\DataDeletionController;
+use App\Domains\Account\Http\Controllers\LegalController;
 use App\Domains\Account\Http\Controllers\NotificationContactController;
 use App\Domains\Account\Http\Controllers\NotificationController;
 use App\Domains\Account\Http\Controllers\ProfileController;
@@ -65,6 +66,9 @@ Route::prefix('profile')->name('profile.')->group(function () {
     Route::get('/data-deletion/exports/{export}/download', [DataDeletionController::class, 'download'])->name('data-deletion.download');
 
     Route::get('/activity-logs', [ActivityLogController::class, 'index'])->name('activity-logs');
+
+    Route::get('/privacy-policy', [LegalController::class, 'privacy'])->name('privacy-policy');
+    Route::get('/terms', [LegalController::class, 'terms'])->name('terms');
 
     Route::get('/security', [SecurityController::class, 'show'])->name('security');
     Route::post('/security/two-factor', [SecurityController::class, 'enable'])->name('security.enable');

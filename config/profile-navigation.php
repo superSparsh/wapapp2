@@ -10,4 +10,7 @@ return [
     ['route' => 'profile.alerts', 'label' => 'Business Alerts Setup'],
     // ['route' => 'profile.data-deletion', 'label' => 'Data Deletion'],
     ['route' => 'profile.activity-logs', 'label' => 'Activity Logs'],
+    // Internal review only — do not add to login/footer until leadership approves.
+    ['route' => 'profile.privacy-policy', 'label' => 'Privacy Policy'],
+    ['route' => 'profile.terms', 'label' => 'Terms of Service'],
 ];
