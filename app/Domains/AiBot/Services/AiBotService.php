@@ -23,6 +23,7 @@ class AiBotService
 
             $provider = (string) ($data['provider'] ?? AiProvider::OpenAI->value);
             $isTittu = $provider === AiProvider::Tittu->value;
+            $embeddingModel = trim((string) ($data['embedding_model'] ?? ''));
 
             return AiBot::query()->create([
                 'name' => $data['name'],
@@ -30,7 +31,9 @@ class AiBotService
                 'system_prompt' => $data['system_prompt'] ?? null,
                 'provider' => $provider,
                 'chat_model' => $isTittu ? 'auto' : ($data['chat_model'] ?? 'gpt-4o-mini'),
-                'embedding_model' => $isTittu ? '' : ($data['embedding_model'] ?? 'text-embedding-3-small'),
+                'embedding_model' => $isTittu
+                    ? ($embeddingModel !== '' ? $embeddingModel : 'auto')
+                    : ($embeddingModel !== '' ? $embeddingModel : 'text-embedding-3-small'),
                 'temperature' => $data['temperature'] ?? 0.3,
                 'business_information' => $data['business_information'] ?? null,
                 'status' => $data['status'] ?? 'active',
@@ -57,7 +60,12 @@ class AiBotService
             $provider = (string) ($data['provider'] ?? $bot->provider?->value ?? $bot->provider);
             if ($provider === AiProvider::Tittu->value) {
                 $data['chat_model'] = 'auto';
-                $data['embedding_model'] = '';
+                $embeddingModel = trim((string) ($data['embedding_model'] ?? $bot->embedding_model ?? ''));
+                // Drop leftover OpenAI/Gemini embedding ids when switching to Tittu.
+                if ($embeddingModel === '' || str_starts_with(strtolower($embeddingModel), 'text-embedding')) {
+                    $embeddingModel = 'auto';
+                }
+                $data['embedding_model'] = $embeddingModel;
             }
 
             $bot->forceFill(array_filter($data, fn ($v) => $v !== null))->save();

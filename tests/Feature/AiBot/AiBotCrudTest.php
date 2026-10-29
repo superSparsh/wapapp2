@@ -85,7 +85,30 @@ class AiBotCrudTest extends TestCase
         $this->assertDatabaseHas('ai_bots', ['id' => $bot->id, 'name' => 'Updated Bot']);
     }
 
-    public function test_tittu_bot_does_not_keep_openai_models(): void
+    public function test_tittu_bot_uses_auto_chat_and_gateway_embedding(): void
+    {
+        $bot = AiBot::factory()->create([
+            'provider' => AiProvider::OpenAI,
+            'chat_model' => 'gpt-4o-mini',
+            'embedding_model' => 'text-embedding-3-small',
+        ]);
+
+        $this->actingAsTenantUser()
+            ->put(route('ai-bots.update', $bot), [
+                'name' => $bot->name,
+                'provider' => 'tittu',
+                'chat_model' => 'gpt-4o-mini',
+                'embedding_model' => 'voyage-embeddings',
+            ])
+            ->assertRedirect(route('openai-key.index', ['tab' => 'bot-manager']));
+
+        $bot->refresh();
+        $this->assertSame(AiProvider::Tittu, $bot->provider);
+        $this->assertSame('auto', $bot->chat_model);
+        $this->assertSame('voyage-embeddings', $bot->embedding_model);
+    }
+
+    public function test_switching_to_tittu_resets_openai_embedding_to_auto(): void
     {
         $bot = AiBot::factory()->create([
             'provider' => AiProvider::OpenAI,
@@ -103,9 +126,8 @@ class AiBotCrudTest extends TestCase
             ->assertRedirect(route('openai-key.index', ['tab' => 'bot-manager']));
 
         $bot->refresh();
-        $this->assertSame(AiProvider::Tittu, $bot->provider);
         $this->assertSame('auto', $bot->chat_model);
-        $this->assertSame('', $bot->embedding_model);
+        $this->assertSame('auto', $bot->embedding_model);
     }
 
     public function test_toggle_default(): void

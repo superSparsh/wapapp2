@@ -1184,23 +1184,54 @@ async function testBot() {
   const botProvider = document.getElementById('bot_provider');
   const botChat = document.getElementById('bot_chat_model');
   const botEmbed = document.getElementById('bot_embedding_model');
+  const botTittuChatHint = document.getElementById('bot-tittu-chat-hint');
+
+  const botChatHidden = document.getElementById('bot_chat_model_tittu');
+
+  function syncBotProviderFields() {
+    if (!botProvider || !botChat) return;
+    const isTittu = botProvider.value === 'tittu';
+    botChat.disabled = isTittu;
+    botChat.name = isTittu ? '' : 'chat_model';
+    if (botChatHidden) {
+      botChatHidden.disabled = !isTittu;
+      botChatHidden.name = isTittu ? 'chat_model' : '';
+    }
+    const selectWrap = botChat.closest('.relative');
+    if (selectWrap) selectWrap.classList.toggle('hidden', isTittu);
+    if (botTittuChatHint) botTittuChatHint.classList.toggle('hidden', !isTittu);
+    if (isTittu) {
+      botChat.value = 'auto';
+    }
+  }
 
   async function loadBotModels() {
     if (!botProvider || !botChat) return;
     const provider = botProvider.value;
     if (!provider) return;
+    syncBotProviderFields();
     botChat.disabled = true;
     if (botEmbed) botEmbed.disabled = true;
     try {
       const data = await fetchModels(provider, '');
-      fillSelect(botChat, data.chat_models, 'Select chat model');
-      if (botEmbed) fillSelect(botEmbed, data.embedding_models, 'Select embedding model');
+      if (provider !== 'tittu') {
+        fillSelect(botChat, data.chat_models, 'Select chat model');
+      }
+      if (botEmbed) {
+        fillSelect(botEmbed, data.embedding_models, 'Select embedding model');
+        if (provider === 'tittu' && !botEmbed.value) {
+          botEmbed.value = 'auto';
+        }
+      }
     } catch (e) {
-      fillSelect(botChat, [], 'Select chat model');
+      if (provider !== 'tittu') {
+        fillSelect(botChat, [], 'Select chat model');
+      }
       if (botEmbed) fillSelect(botEmbed, [], 'Select embedding model');
     } finally {
-      botChat.disabled = false;
+      botChat.disabled = provider === 'tittu';
       if (botEmbed) botEmbed.disabled = false;
+      syncBotProviderFields();
     }
   }
 

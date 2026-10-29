@@ -103,10 +103,11 @@
             </div>
           </div>
 
-          <div class="flex flex-col gap-2">
+          <div class="flex flex-col gap-2" id="bot-chat-model-field">
             <label for="bot_chat_model" class="text-sm font-semibold leading-[1.4] text-text-primary">
               Chat Model
             </label>
+            <input type="hidden" id="bot_chat_model_tittu" name="chat_model" value="auto" disabled>
             <div class="relative">
               <select
                 id="bot_chat_model"
@@ -128,9 +129,10 @@
               >
             </div>
             <p class="text-xs text-text-muted">Models load from the active API key for the selected provider.</p>
+            <p id="bot-tittu-chat-hint" class="hidden text-xs text-text-muted">Tittu Gateway routes chat automatically (Auto).</p>
           </div>
 
-          <div class="flex flex-col gap-2">
+          <div class="flex flex-col gap-2" id="bot-embedding-model-field">
             <label for="bot_embedding_model" class="text-sm font-semibold leading-[1.4] text-text-primary">
               Embedding Model
             </label>

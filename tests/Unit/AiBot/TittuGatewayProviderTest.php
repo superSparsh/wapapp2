@@ -69,4 +69,67 @@ class TittuGatewayProviderTest extends TestCase
 
         $this->assertFalse($provider->validate('bad-key'));
     }
+
+    public function test_embed_posts_to_embeddings_endpoint(): void
+    {
+        Http::fake([
+            'https://gateway.tittu.in/v1/embeddings' => Http::response([
+                'data' => [
+                    ['embedding' => [0.1, 0.2, 0.3]],
+                ],
+                'usage' => ['total_tokens' => 4],
+                'providerId' => 'voyage-embeddings',
+            ]),
+        ]);
+
+        $result = (new TittuGatewayProvider())->embed('hello world', [
+            'api_key' => 'tg_live_key',
+            'model' => 'voyage-embeddings',
+        ]);
+
+        $this->assertSame([0.1, 0.2, 0.3], $result['embedding']);
+        $this->assertSame(4, $result['tokens']);
+
+        Http::assertSent(function ($request): bool {
+            return $request->url() === 'https://gateway.tittu.in/v1/embeddings'
+                && $request->hasHeader('Authorization', 'Bearer tg_live_key')
+                && $request['input'] === 'hello world'
+                && $request['targetProvider'] === 'voyage-embeddings';
+        });
+    }
+
+    public function test_embed_falls_back_to_v1_embed_when_embeddings_is_missing(): void
+    {
+        Http::fake([
+            'https://gateway.tittu.in/v1/embeddings' => Http::response(['error' => 'not found'], 404),
+            'https://gateway.tittu.in/v1/embed' => Http::response([
+                'embedding' => [1.5, 2.5],
+                'tokens' => 2,
+            ]),
+        ]);
+
+        $result = (new TittuGatewayProvider())->embed('ping', [
+            'api_key' => 'tg_live_key',
+            'model' => 'auto',
+        ]);
+
+        $this->assertSame([1.5, 2.5], $result['embedding']);
+        $this->assertSame(2, $result['tokens']);
+    }
+
+    public function test_list_models_returns_gateway_embedding_pool_fallbacks(): void
+    {
+        Http::fake([
+            'https://gateway.tittu.in/v1/models' => Http::response(['error' => 'unauthorized'], 401),
+        ]);
+
+        $models = (new TittuGatewayProvider())->listModels('tg_live_key');
+
+        $this->assertNotEmpty($models['chat_models']);
+        $this->assertNotEmpty($models['embedding_models']);
+        $this->assertSame('auto', $models['embedding_models'][0]['id']);
+        $this->assertTrue(collect($models['embedding_models'])->contains(
+            fn (array $row): bool => $row['id'] === 'voyage-embeddings'
+        ));
+    }
 }

@@ -100,15 +100,15 @@
 
   function syncProviderFields() {
     const isTittu = providerSel.value === 'tittu';
+    // Chat routing stays auto for Tittu; embeddings are selectable from the gateway pool.
     if (chatField) chatField.hidden = isTittu;
-    if (embedField) embedField.hidden = isTittu;
+    if (embedField) embedField.hidden = false;
     chatSel.disabled = isTittu;
-    if (embedSel) embedSel.disabled = isTittu;
-    if (!isTittu) load();
+    if (embedSel) embedSel.disabled = false;
+    load();
   }
 
   async function load() {
-    if (providerSel.value === 'tittu') return;
     const provider = providerSel.value;
     const keepChat = chatSel.value;
     const keepEmbed = embedSel ? embedSel.value : '';
@@ -120,8 +120,10 @@
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed');
-      fillSelect(chatSel, data.chat_models, keepChat);
-      if (embedSel) fillSelect(embedSel, data.embedding_models, keepEmbed);
+      if (!chatSel.disabled) {
+        fillSelect(chatSel, data.chat_models, keepChat);
+      }
+      if (embedSel) fillSelect(embedSel, data.embedding_models, keepEmbed || 'auto');
     } catch (e) { /* keep current option */ }
   }
 

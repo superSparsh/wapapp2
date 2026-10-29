@@ -74,6 +74,10 @@ class AiProviderKeyService
      */
     public function listModels(string $provider, string $apiKey): array
     {
+        if (strtolower(trim($provider)) === AiProvider::Tittu->value) {
+            return (new TittuGatewayProvider())->listModels($apiKey);
+        }
+
         /** @var AiPythonClient $client */
         $client = app(AiPythonClient::class);
 

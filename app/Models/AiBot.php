@@ -90,12 +90,16 @@ class AiBot extends TenantModel
             ->orderByDesc('id')
             ->first();
 
+        $isTittu = $this->provider === AiProvider::Tittu;
+        $defaultChat = $isTittu ? 'auto' : 'gpt-4o-mini';
+        $defaultEmbed = $isTittu ? 'auto' : 'text-embedding-3-small';
+
         if ($providerKey !== null) {
             return [
                 'provider' => $this->provider->value,
                 'api_key' => $providerKey->api_key,
-                'chat_model' => $this->chat_model ?? $providerKey->chat_model ?? 'gpt-4o-mini',
-                'embedding_model' => $this->embedding_model ?? $providerKey->embedding_model ?? 'text-embedding-3-small',
+                'chat_model' => $this->chat_model ?: ($providerKey->chat_model ?: $defaultChat),
+                'embedding_model' => $this->embedding_model ?: ($providerKey->embedding_model ?: $defaultEmbed),
             ];
         }
 
@@ -113,16 +117,16 @@ class AiBot extends TenantModel
             return [
                 'provider' => $provider,
                 'api_key' => $anyKey->api_key,
-                'chat_model' => $anyKey->chat_model ?? 'gpt-4o-mini',
-                'embedding_model' => $anyKey->embedding_model ?? 'text-embedding-3-small',
+                'chat_model' => $anyKey->chat_model ?: $defaultChat,
+                'embedding_model' => $anyKey->embedding_model ?: $defaultEmbed,
             ];
         }
 
         return [
             'provider' => $this->provider->value,
             'api_key' => null,
-            'chat_model' => $this->chat_model ?? 'gpt-4o-mini',
-            'embedding_model' => $this->embedding_model ?? 'text-embedding-3-small',
+            'chat_model' => $this->chat_model ?: $defaultChat,
+            'embedding_model' => $this->embedding_model ?: $defaultEmbed,
         ];
     }
 }
