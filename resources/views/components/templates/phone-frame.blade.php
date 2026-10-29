@@ -35,17 +35,16 @@
   </div>
 @else
   <div {{ $attributes->merge(['class' => "relative mx-auto w-full max-w-[425px] {$class}"]) }}>
-    {{-- Cap preview height so long templates stay inside the phone with scroll --}}
-    <div class="relative h-[500px] max-h-[500px] w-full">
+    <div class="relative h-[856px] w-full">
       <div class="pointer-events-none absolute inset-[0_3px] rounded-[62px] border border-white/60 shadow-[inset_0px_0px_8px_0px_rgba(0,0,0,0.3)]">
         <div class="absolute inset-0 rounded-[62px] bg-muted-surface"></div>
       </div>
       <div class="absolute inset-[4px_7px] rounded-[58px] bg-black"></div>
-      <div class="absolute left-0 top-[80px] h-[18px] w-[3px] rounded-bl-[1px] rounded-tl-[1px] bg-border shadow-[inset_1px_0px_2px_0px_white]"></div>
-      <div class="absolute left-0 top-[116px] h-[36px] w-[3px] rounded-bl-[1px] rounded-tl-[1px] bg-border shadow-[inset_1px_0px_2px_0px_white]"></div>
-      <div class="absolute left-0 top-[162px] h-[36px] w-[3px] rounded-bl-[1px] rounded-tl-[1px] bg-border shadow-[inset_1px_0px_2px_0px_white]"></div>
-      <div class="absolute right-0 top-[128px] h-[58px] w-[3px] rounded-br-[1px] rounded-tr-[1px] bg-border shadow-[inset_-1px_0px_2px_0px_white]"></div>
-      <div class="absolute inset-[14px_18px] overflow-hidden rounded-[40px] bg-elevated">
+      <div class="absolute left-0 top-[136px] h-[30px] w-[3px] rounded-bl-[1px] rounded-tl-[1px] bg-border shadow-[inset_1px_0px_2px_0px_white]"></div>
+      <div class="absolute left-0 top-[198px] h-[62px] w-[3px] rounded-bl-[1px] rounded-tl-[1px] bg-border shadow-[inset_1px_0px_2px_0px_white]"></div>
+      <div class="absolute left-0 top-[278px] h-[62px] w-[3px] rounded-bl-[1px] rounded-tl-[1px] bg-border shadow-[inset_1px_0px_2px_0px_white]"></div>
+      <div class="absolute right-0 top-[220px] h-[100px] w-[3px] rounded-br-[1px] rounded-tr-[1px] bg-border shadow-[inset_-1px_0px_2px_0px_white]"></div>
+      <div class="absolute inset-[22px_25px] overflow-hidden rounded-[40px] bg-elevated">
         <img
           src="{{ asset('images/templates/phone-bg.png') }}"
           alt=""
