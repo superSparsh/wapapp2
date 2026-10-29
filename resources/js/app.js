@@ -14,7 +14,7 @@ import { initCampaignWizard } from './campaign-wizard.js';
 import { initPageLoader } from './page-loader.js';
 import { initDashboard } from './dashboard.js';
 import { initCommerceOrderModal } from './commerce.js';
-import { initPwa } from './pwa.js';
+import { initPwa, setPwaAppBadge } from './pwa.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     initToast();
@@ -1163,6 +1163,9 @@ function setInboxNavBadge(count) {
 
     const baseTitle = document.title.replace(/^\(\d+\+?\)\s+/, '');
     document.title = next > 0 ? `(${next > 99 ? '99+' : next}) ${baseTitle}` : baseTitle;
+
+    // Installed PWA / OS app icon badge (Badging API).
+    setPwaAppBadge(next);
 }
 
 function syncInboxNavBadge() {
@@ -1171,10 +1174,8 @@ function syncInboxNavBadge() {
 }
 
 function initInboxNavBadge() {
-    if (!document.querySelector('[data-inbox-nav-badge]')) {
-        return;
-    }
-
+    // Keep polling whenever unread API is available so PWA app-icon badge
+    // stays fresh even if the sidebar badge node is temporarily missing.
     const url = document.body?.dataset.inboxUnreadUrl;
     if (!url) {
         return;

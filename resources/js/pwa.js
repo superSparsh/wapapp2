@@ -1,7 +1,7 @@
 import { showAppAlert } from './confirm-dialog.js';
 
 /**
- * PWA install: register SW + Profile "Install now" via beforeinstallprompt.
+ * PWA install + app-icon inbox badge (Badging API where the OS allows it).
  */
 export function initPwa() {
     if ('serviceWorker' in navigator) {
@@ -19,11 +19,75 @@ export function initPwa() {
     }
 
     initInstallButton();
+    initAppBadgeLifecycle();
+}
+
+/**
+ * Mirror inbox unread onto the installed app icon when the Badging API exists.
+ * Android Chrome / Windows / ChromeOS: usually works.
+ * iOS Home Screen web apps (newer iOS): may work when installed via Safari.
+ * macOS Safari / older iOS: often unsupported — tab title badge still updates.
+ */
+export function setPwaAppBadge(count) {
+    const next = Math.max(0, Math.floor(Number(count) || 0));
+
+    const apply = (target) => {
+        if (!target) {
+            return;
+        }
+        try {
+            if (next > 0 && typeof target.setAppBadge === 'function') {
+                target.setAppBadge(next).catch(() => {});
+            } else if (next <= 0 && typeof target.clearAppBadge === 'function') {
+                target.clearAppBadge().catch(() => {});
+            }
+        } catch {
+            // OS / permission edge cases.
+        }
+    };
+
+    apply(navigator);
+
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.ready
+            .then((registration) => apply(registration))
+            .catch(() => {});
+    }
+}
+
+function initAppBadgeLifecycle() {
+    const syncFromDom = () => {
+        const total = Number(
+            document.querySelector('[data-inbox-root]')?.dataset.unreadTotal
+            || document.body?.dataset.inboxUnreadTotal
+            || 0,
+        );
+        setPwaAppBadge(total);
+    };
+
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+            syncFromDom();
+        }
+    });
+
+    window.addEventListener('focus', syncFromDom);
 }
 
 function isStandalone() {
     return window.matchMedia('(display-mode: standalone)').matches
         || window.navigator.standalone === true;
+}
+
+function isIosDevice() {
+    const ua = window.navigator.userAgent || '';
+    return /iPhone|iPad|iPod/i.test(ua)
+        || (window.navigator.platform === 'MacIntel' && window.navigator.maxTouchPoints > 1);
+}
+
+function isSafariBrowser() {
+    const ua = window.navigator.userAgent || '';
+    return /Safari/i.test(ua) && !/Chrome|CriOS|EdgiOS|FxiOS|OPiOS|Android/i.test(ua);
 }
 
 function setVisible(el, visible, displayClass = 'inline-flex') {
@@ -66,16 +130,22 @@ function initInstallButton() {
         setVisible(installedCard(), false);
 
         const btn = installButton();
-        if (btn) {
-            btn.disabled = !deferredPrompt;
-            btn.classList.toggle('opacity-50', !deferredPrompt);
-            btn.title = deferredPrompt
-                ? 'Install WapApp'
-                : 'Chrome install ready hone ka wait… soft-refresh try karo';
+        if (!btn) {
+            return;
         }
+
+        // iOS never fires beforeinstallprompt — keep button enabled with Add to Home Screen flow.
+        const iosFlow = isIosDevice();
+        btn.disabled = false;
+        btn.classList.remove('opacity-50');
+        btn.title = iosFlow
+            ? 'iPhone/iPad: Share → Add to Home Screen'
+            : deferredPrompt
+                ? 'Install WapApp'
+                : 'Chrome/Edge: Install when browser is ready, or use browser menu → Install app';
+        btn.dataset.pwaInstallMode = iosFlow ? 'ios' : (deferredPrompt ? 'prompt' : 'menu');
     };
 
-    // Initial mutual exclusivity (before any events).
     if (isStandalone()) {
         showInstalled();
     } else {
@@ -99,21 +169,32 @@ function initInstallButton() {
             return;
         }
 
-        if (!deferredPrompt) {
+        if (isIosDevice()) {
             showAppAlert(
-                'Install abhi ready nahi hai. Chrome ⋮ menu → “Install WapApp…” check karo, ya HTTPS/localhost pe hard refresh → Application → Service Workers → Unregister → refresh.',
-                'Install WapApp',
+                isSafariBrowser()
+                    ? 'iPhone/iPad pe: Safari Share button (□↑) → “Add to Home Screen” → Add. Chrome iOS pe bhi Share → Add to Home Screen use karo.'
+                    : 'iPhone/iPad pe WapApp install ke liye Safari kholo → Share (□↑) → “Add to Home Screen” → Add.',
+                'Install on iPhone / iPad',
             );
             return;
         }
 
-        deferredPrompt.prompt();
-        try {
-            await deferredPrompt.userChoice;
-        } catch {
-            // dismissed
+        if (deferredPrompt) {
+            deferredPrompt.prompt();
+            try {
+                await deferredPrompt.userChoice;
+            } catch {
+                // dismissed
+            }
+            deferredPrompt = null;
+            showInstall();
+            return;
         }
-        deferredPrompt = null;
-        showInstall();
+
+        showAppAlert(
+            'Chrome / Edge: address bar ya ⋮ menu → “Install WapApp…” / “Install app”.\n\n'
+            + 'Agar option na dikhe: HTTPS pe hard refresh karo, DevTools → Application → Service Workers → Unregister → refresh.',
+            'Install WapApp',
+        );
     });
 }
