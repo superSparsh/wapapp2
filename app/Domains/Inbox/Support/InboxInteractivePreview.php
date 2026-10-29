@@ -123,18 +123,46 @@ final class InboxInteractivePreview
      */
     private static function resolveNfmReply(?array $interactive, array $metadata): ?array
     {
-        if (is_array($interactive['nfm_reply'] ?? null)) {
-            return $interactive['nfm_reply'];
+        $candidates = [];
+
+        if (is_array($interactive)) {
+            $candidates[] = $interactive['nfm_reply'] ?? null;
+            if (strtolower((string) ($interactive['type'] ?? '')) === 'nfm_reply') {
+                $candidates[] = $interactive;
+            }
         }
 
-        if (is_array($metadata['nfm_reply'] ?? null)) {
-            return $metadata['nfm_reply'];
-        }
+        $candidates[] = $metadata['nfm_reply'] ?? null;
 
         $raw = is_array($metadata['raw_message'] ?? null) ? $metadata['raw_message'] : [];
+        $candidates[] = $raw['nfm_reply'] ?? null;
         $rawInteractive = is_array($raw['interactive'] ?? null) ? $raw['interactive'] : [];
-        if (is_array($rawInteractive['nfm_reply'] ?? null)) {
-            return $rawInteractive['nfm_reply'];
+        $candidates[] = $rawInteractive['nfm_reply'] ?? null;
+        if (strtolower((string) ($rawInteractive['type'] ?? '')) === 'nfm_reply') {
+            $candidates[] = $rawInteractive;
+        }
+        if (strtolower((string) ($raw['type'] ?? '')) === 'nfm_reply') {
+            $candidates[] = $raw;
+        }
+
+        foreach ($candidates as $candidate) {
+            if (! is_array($candidate)) {
+                continue;
+            }
+
+            if (
+                isset($candidate['response_json'])
+                || isset($candidate['responseJson'])
+                || isset($candidate['body'])
+                || isset($candidate['name'])
+                || isset($candidate['nfm_reply'])
+            ) {
+                if (is_array($candidate['nfm_reply'] ?? null)) {
+                    return $candidate['nfm_reply'];
+                }
+
+                return $candidate;
+            }
         }
 
         if (($metadata['interactive_reply_type'] ?? '') === 'nfm_reply' && is_array($interactive)) {

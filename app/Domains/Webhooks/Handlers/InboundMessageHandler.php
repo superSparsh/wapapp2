@@ -326,6 +326,7 @@ class InboundMessageHandler
         }
 
         $decoded = null;
+        $plainMessageText = null;
         if (is_array($message)) {
             $decoded = $message;
         } elseif (is_string($message) && trim($message) !== '') {
@@ -337,26 +338,26 @@ class InboundMessageHandler
                 }
             }
             if ($decoded === null) {
-                if ($type === 'REACTION') {
-                    return $this->reactionParseResult($this->reactionPayloadFromItem($item, [
-                        'emoji' => $trimmed,
-                    ]), $trimmed);
-                }
-
-                $mediaMeta = $this->extractRichMediaMetadata($type, null, $trimmed);
-
-                return [
-                    'body' => $mediaMeta['caption'] !== '' ? $mediaMeta['caption'] : $trimmed,
-                    'is_interactive' => false,
-                    'metadata' => $mediaMeta['metadata'],
-                ];
+                $plainMessageText = $trimmed;
             }
-        } else {
+        }
+
+        // Cloud API / BSP envelopes often put interactive on the item itself while
+        // Message is empty or just "Sent". Prefer the richer payload when present.
+        if ($decoded === null || $this->itemHasInteractiveReply($item)) {
+            if ($this->itemHasInteractiveReply($item)) {
+                $decoded = $item;
+            }
+        }
+
+        if ($decoded === null) {
             if ($type === 'REACTION') {
-                return $this->reactionParseResult($this->reactionPayloadFromItem($item, []), null);
+                return $this->reactionParseResult($this->reactionPayloadFromItem($item, [
+                    'emoji' => $plainMessageText,
+                ]), $plainMessageText);
             }
 
-            $itemText = $this->extractReadableText($item);
+            $itemText = $plainMessageText ?? $this->extractReadableText($item);
             $mediaMeta = $this->extractRichMediaMetadata($type, is_array($item) ? $item : null, $itemText);
 
             return [
@@ -376,14 +377,43 @@ class InboundMessageHandler
             return $this->reactionParseResult($this->reactionPayloadFromItem($item, $decoded), null);
         }
 
-        $interactive = is_array($decoded['interactive'] ?? null) ? $decoded['interactive'] : null;
+        $interactive = is_array($decoded['interactive'] ?? null)
+            ? $decoded['interactive']
+            : (is_array($item['interactive'] ?? null) ? $item['interactive'] : null);
+
+        // Some providers send the interactive object as Message itself (type=nfm_reply).
+        if (
+            $interactive === null
+            && isset($decoded['type'])
+            && in_array(strtolower((string) $decoded['type']), ['nfm_reply', 'button_reply', 'list_reply'], true)
+        ) {
+            $interactive = $decoded;
+        }
+
         $buttonReply = is_array($interactive['button_reply'] ?? null)
             ? $interactive['button_reply']
             : (is_array($decoded['button_reply'] ?? null) ? $decoded['button_reply'] : null);
         $listReply = is_array($interactive['list_reply'] ?? null)
             ? $interactive['list_reply']
             : (is_array($decoded['list_reply'] ?? null) ? $decoded['list_reply'] : null);
-        $nfmReply = is_array($interactive['nfm_reply'] ?? null) ? $interactive['nfm_reply'] : null;
+        $nfmReply = is_array($interactive['nfm_reply'] ?? null)
+            ? $interactive['nfm_reply']
+            : (is_array($decoded['nfm_reply'] ?? null) ? $decoded['nfm_reply'] : null);
+
+        // interactive.type=nfm_reply with fields on the interactive object itself
+        if (
+            $nfmReply === null
+            && is_array($interactive)
+            && strtolower((string) ($interactive['type'] ?? '')) === 'nfm_reply'
+            && (
+                isset($interactive['response_json'])
+                || isset($interactive['responseJson'])
+                || isset($interactive['body'])
+                || isset($interactive['name'])
+            )
+        ) {
+            $nfmReply = $interactive;
+        }
 
         if (is_array($buttonReply)) {
             $title = trim((string) ($buttonReply['title'] ?? $buttonReply['id'] ?? ''));
@@ -427,12 +457,19 @@ class InboundMessageHandler
                 $nfmBody = $nfmName !== '' ? 'Form submitted: '.$nfmName : 'Form submitted';
             }
 
+            $interactivePayload = is_array($interactive) ? $interactive : [];
+            if (! isset($interactivePayload['nfm_reply']) || ! is_array($interactivePayload['nfm_reply'])) {
+                $interactivePayload['nfm_reply'] = $nfmReply;
+            }
+            $interactivePayload['type'] = $interactivePayload['type'] ?? 'nfm_reply';
+
             return [
                 'body' => $nfmBody,
                 'is_interactive' => true,
                 'metadata' => [
                     'interactive_reply_type' => 'nfm_reply',
-                    'interactive' => $interactive,
+                    'interactive' => $interactivePayload,
+                    'nfm_reply' => $nfmReply,
                     'raw_message' => $decoded,
                 ],
             ];
@@ -614,6 +651,36 @@ class InboundMessageHandler
             'caption' => $caption,
             'metadata' => $metadata,
         ];
+    }
+
+    /**
+     * True when the webhook item (Cloud API style) carries an interactive reply payload
+     * outside of the Message string — e.g. item.interactive.nfm_reply.
+     *
+     * @param  array<string, mixed>  $item
+     */
+    private function itemHasInteractiveReply(array $item): bool
+    {
+        if (is_array($item['nfm_reply'] ?? null)
+            || is_array($item['button_reply'] ?? null)
+            || is_array($item['list_reply'] ?? null)
+        ) {
+            return true;
+        }
+
+        $interactive = is_array($item['interactive'] ?? null) ? $item['interactive'] : null;
+        if ($interactive === null) {
+            return false;
+        }
+
+        return is_array($interactive['nfm_reply'] ?? null)
+            || is_array($interactive['button_reply'] ?? null)
+            || is_array($interactive['list_reply'] ?? null)
+            || in_array(strtolower((string) ($interactive['type'] ?? '')), [
+                'nfm_reply',
+                'button_reply',
+                'list_reply',
+            ], true);
     }
 
     private function firstNonEmptyString(mixed ...$candidates): ?string

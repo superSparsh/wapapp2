@@ -251,12 +251,14 @@ class ChatbotFlowEngine
         // Find the next node based on the reply
         $nextNodeId = $this->resolveNextNodeFromReply($currentNode, $replyBody, $variables, $replyId);
 
+        $waitingOnFlow = $this->isWhatsappFlowWaitNode($currentNode, $variables);
+        // Fallback: some BSPs deliver Flow submit as plain "Sent" without nfm metadata.
+        if (! $isFlowCompletion && $waitingOnFlow && $this->looksLikeWhatsappFlowSentBody($replyBody)) {
+            $isFlowCompletion = true;
+        }
+
         // Flow completion is not a button/list match — continue via default / delivered / sole edge.
-        if (
-            $nextNodeId === null
-            && $isFlowCompletion
-            && $this->isWhatsappFlowWaitNode($currentNode, $variables)
-        ) {
+        if ($nextNodeId === null && $isFlowCompletion && $waitingOnFlow) {
             $nextNodeId = $this->nextNodeAfterWhatsappFlow($currentNode);
         }
 
@@ -1479,20 +1481,44 @@ class ChatbotFlowEngine
     private function resolveNfmReplyPayload(Message $message): ?array
     {
         $metadata = is_array($message->metadata) ? $message->metadata : [];
-
         $interactive = is_array($metadata['interactive'] ?? null) ? $metadata['interactive'] : [];
-        if (is_array($interactive['nfm_reply'] ?? null)) {
-            return $interactive['nfm_reply'];
-        }
-
         $raw = is_array($metadata['raw_message'] ?? null) ? $metadata['raw_message'] : [];
         $rawInteractive = is_array($raw['interactive'] ?? null) ? $raw['interactive'] : [];
-        if (is_array($rawInteractive['nfm_reply'] ?? null)) {
-            return $rawInteractive['nfm_reply'];
+
+        $candidates = [
+            $interactive['nfm_reply'] ?? null,
+            $metadata['nfm_reply'] ?? null,
+            $rawInteractive['nfm_reply'] ?? null,
+            $raw['nfm_reply'] ?? null,
+        ];
+
+        if (strtolower((string) ($interactive['type'] ?? '')) === 'nfm_reply') {
+            $candidates[] = $interactive;
+        }
+        if (strtolower((string) ($rawInteractive['type'] ?? '')) === 'nfm_reply') {
+            $candidates[] = $rawInteractive;
+        }
+        if (strtolower((string) ($raw['type'] ?? '')) === 'nfm_reply') {
+            $candidates[] = $raw;
         }
 
-        if (is_array($metadata['nfm_reply'] ?? null)) {
-            return $metadata['nfm_reply'];
+        foreach ($candidates as $candidate) {
+            if (! is_array($candidate)) {
+                continue;
+            }
+
+            if (is_array($candidate['nfm_reply'] ?? null)) {
+                return $candidate['nfm_reply'];
+            }
+
+            if (
+                isset($candidate['response_json'])
+                || isset($candidate['responseJson'])
+                || isset($candidate['body'])
+                || isset($candidate['name'])
+            ) {
+                return $candidate;
+            }
         }
 
         return null;
@@ -1505,7 +1531,26 @@ class ChatbotFlowEngine
             return true;
         }
 
-        return $this->resolveNfmReplyPayload($message) !== null;
+        if ($this->resolveNfmReplyPayload($message) !== null) {
+            return true;
+        }
+
+        $type = strtolower((string) ($message->message_type?->value ?? ''));
+        if ($type === 'interactive' && $this->looksLikeWhatsappFlowSentBody((string) ($message->body ?? ''))) {
+            return true;
+        }
+
+        return false;
+    }
+
+    private function looksLikeWhatsappFlowSentBody(string $body): bool
+    {
+        $normalized = mb_strtolower(trim($body));
+        if ($normalized === '' || $normalized === 'sent' || $normalized === '[flow reply]') {
+            return true;
+        }
+
+        return str_starts_with($normalized, 'form submitted');
     }
 
     /**

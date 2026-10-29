@@ -17,23 +17,35 @@ class WhatsappFlowInboundService
 
     public function handleInteractiveMessage(Message $message): void
     {
-        $metadata = $message->metadata ?? [];
+        $metadata = is_array($message->metadata) ? $message->metadata : [];
         $interactive = is_array($metadata['interactive'] ?? null)
             ? $metadata['interactive']
-            : (is_array($metadata['raw'] ?? null) ? $metadata['raw'] : []);
+            : [];
+
+        if ($interactive === [] && is_array($metadata['raw_message'] ?? null)) {
+            $raw = $metadata['raw_message'];
+            $interactive = is_array($raw['interactive'] ?? null) ? $raw['interactive'] : $raw;
+        }
+
+        if ($interactive === [] && is_array($metadata['nfm_reply'] ?? null)) {
+            $interactive = ['nfm_reply' => $metadata['nfm_reply']];
+        }
 
         if ($interactive === []) {
             return;
         }
 
-        $responseJson = Arr::get($interactive, 'nfm_reply.response_json');
+        $responseJson = Arr::get($interactive, 'nfm_reply.response_json')
+            ?? Arr::get($metadata, 'nfm_reply.response_json');
 
         if (! is_string($responseJson) || $responseJson === '') {
             return;
         }
 
-        $flowToken = Arr::get($interactive, 'nfm_reply.flow_token');
-        $metaFlowId = Arr::get($interactive, 'nfm_reply.name');
+        $flowToken = Arr::get($interactive, 'nfm_reply.flow_token')
+            ?? Arr::get($metadata, 'nfm_reply.flow_token');
+        $metaFlowId = Arr::get($interactive, 'nfm_reply.name')
+            ?? Arr::get($metadata, 'nfm_reply.name');
 
         $flow = $this->resolveFlow($flowToken, $metaFlowId);
 

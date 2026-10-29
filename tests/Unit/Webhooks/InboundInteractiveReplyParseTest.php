@@ -68,6 +68,80 @@ class InboundInteractiveReplyParseTest extends TestCase
         $this->assertSame('row_b', $result['metadata']['interactive_reply_id']);
     }
 
+    public function test_parses_nfm_reply_from_message_json(): void
+    {
+        $result = $this->parse([
+            'Type' => 'INTERACTIVE',
+            'Message' => json_encode([
+                'type' => 'interactive',
+                'interactive' => [
+                    'type' => 'nfm_reply',
+                    'nfm_reply' => [
+                        'name' => 'lead_form',
+                        'body' => 'Sent',
+                        'response_json' => json_encode([
+                            'full_name' => 'Riya',
+                            'city' => 'Mumbai',
+                        ], JSON_THROW_ON_ERROR),
+                    ],
+                ],
+            ], JSON_THROW_ON_ERROR),
+        ]);
+
+        $this->assertTrue($result['is_interactive']);
+        $this->assertSame('Form submitted: lead_form', $result['body']);
+        $this->assertSame('nfm_reply', $result['metadata']['interactive_reply_type']);
+        $this->assertSame('Riya', json_decode(
+            (string) $result['metadata']['interactive']['nfm_reply']['response_json'],
+            true
+        )['full_name'] ?? null);
+    }
+
+    public function test_parses_cloud_api_nfm_reply_on_item_without_message_field(): void
+    {
+        $result = $this->parse([
+            'from' => '918888800001',
+            'id' => 'wamid.flow1',
+            'type' => 'interactive',
+            'interactive' => [
+                'type' => 'nfm_reply',
+                'nfm_reply' => [
+                    'name' => 'booking',
+                    'body' => 'Sent',
+                    'response_json' => '{"appointment_date":"2026-11-05"}',
+                ],
+            ],
+        ]);
+
+        $this->assertTrue($result['is_interactive']);
+        $this->assertSame('Form submitted: booking', $result['body']);
+        $this->assertSame('nfm_reply', $result['metadata']['interactive_reply_type']);
+        $this->assertSame(
+            '2026-11-05',
+            json_decode((string) $result['metadata']['nfm_reply']['response_json'], true)['appointment_date'] ?? null
+        );
+    }
+
+    public function test_parses_nfm_when_message_is_sent_but_interactive_is_on_item(): void
+    {
+        $result = $this->parse([
+            'Type' => 'INTERACTIVE',
+            'Message' => 'Sent',
+            'interactive' => [
+                'type' => 'nfm_reply',
+                'nfm_reply' => [
+                    'name' => 'survey',
+                    'body' => 'Sent',
+                    'response_json' => '{"score":"5"}',
+                ],
+            ],
+        ]);
+
+        $this->assertTrue($result['is_interactive']);
+        $this->assertSame('Form submitted: survey', $result['body']);
+        $this->assertArrayHasKey('nfm_reply', $result['metadata']['interactive']);
+    }
+
     public function test_plain_text_message_unchanged(): void
     {
         $result = $this->parse([

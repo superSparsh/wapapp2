@@ -1486,4 +1486,108 @@ class ChatbotInteractiveFlowTest extends TestCase
 
         $this->assertContains('Flow done', $sent);
     }
+
+    public function test_whatsapp_flow_continues_when_reply_is_plain_sent_without_nfm_metadata(): void
+    {
+        $sent = [];
+
+        $this->mock(InboxOutboundService::class, function ($mock) use (&$sent): void {
+            $mock->shouldReceive('sendText')->andReturnUsing(function ($conversation, string $text) use (&$sent) {
+                $sent[] = $text;
+
+                return new Message([
+                    'id' => 999,
+                    'body' => $text,
+                    'direction' => MessageDirection::Outbound,
+                    'message_type' => MessageType::Text,
+                ]);
+            });
+            $mock->shouldReceive('sendInteractive')->andReturn(new Message([
+                'id' => 998,
+                'body' => 'mocked interactive',
+                'direction' => MessageDirection::Outbound,
+                'message_type' => MessageType::Interactive,
+            ]));
+            $mock->shouldReceive('sendTypingIndicator')->andReturn(true);
+        });
+
+        ChatbotFlow::factory()->active()->create([
+            'exported_data' => [
+                'nodes' => [
+                    [
+                        'id' => 'welcome_1',
+                        'type' => 'welcomeMessage',
+                        'data' => [
+                            'messageType' => 'text',
+                            'triggerKeyword' => 'flowplain',
+                            'text' => 'Opening form...',
+                        ],
+                    ],
+                    [
+                        'id' => 'flow_1',
+                        'type' => 'interactiveMessage',
+                        'data' => [
+                            'interactiveType' => 'flow',
+                            'type' => 'flow',
+                            'bodyText' => 'Fill the form',
+                            'body' => ['text' => 'Fill the form'],
+                            'flow_id' => 'flow_meta_plain_1',
+                            'flow_cta' => 'Open',
+                            'flow_token' => 'flow_meta_plain_1_token',
+                            'action' => [
+                                'name' => 'flow',
+                                'parameters' => [
+                                    'mode' => 'published',
+                                    'flow_message_version' => '3',
+                                    'flow_token' => 'flow_meta_plain_1_token',
+                                    'flow_id' => 'flow_meta_plain_1',
+                                    'flow_cta' => 'Open',
+                                    'flow_action' => 'navigate',
+                                    'flow_action_payload' => [
+                                        'screen' => 'ENTRY',
+                                        'data' => [],
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ],
+                    [
+                        'id' => 'after_flow',
+                        'type' => 'welcomeMessage',
+                        'data' => [
+                            'messageType' => 'text',
+                            'text' => 'Continued after Sent',
+                        ],
+                    ],
+                ],
+                'edges' => [
+                    ['source' => 'welcome_1', 'target' => 'flow_1', 'sourceHandle' => 'output_1'],
+                    ['source' => 'flow_1', 'target' => 'after_flow', 'sourceHandle' => 'default'],
+                ],
+            ],
+        ]);
+
+        $conversation = Conversation::factory()->create();
+        $engine = app(ChatbotFlowEngine::class);
+
+        $engine->processInbound($conversation, Message::factory()->create([
+            'conversation_id' => $conversation->id,
+            'body' => 'flowplain',
+            'direction' => MessageDirection::Inbound,
+        ]));
+
+        $state = ChatbotFlowState::query()->first();
+        $this->assertNotNull($state);
+        $this->assertSame(ChatbotFlowStateStatus::Waiting, $state->status);
+
+        $engine->processInbound($conversation, Message::factory()->create([
+            'conversation_id' => $conversation->id,
+            'body' => 'Sent',
+            'direction' => MessageDirection::Inbound,
+            'message_type' => MessageType::Interactive,
+            'metadata' => [],
+        ]));
+
+        $this->assertContains('Continued after Sent', $sent);
+    }
 }
