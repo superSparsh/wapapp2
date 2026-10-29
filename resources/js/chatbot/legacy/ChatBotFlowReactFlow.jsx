@@ -1222,6 +1222,8 @@ const WaitForResponseNode = ({ data = {}, selected, id }) => {
   const enableQuickReplies = data.enableQuickReplies || false;
   const expectedResponses = data.expectedResponses || [];
   const quickReplies = data.quickReplies || [];
+  const variableName =
+    data.variableName || data.variable_name || "user_response";
 
   return (
     <div
@@ -1282,6 +1284,9 @@ const WaitForResponseNode = ({ data = {}, selected, id }) => {
 
       <div style={{ fontSize: "12px", color: "#666" }}>
         <div>Pause conversation and wait for user input</div>
+        <div style={{ marginTop: 5, color: "#059669", fontWeight: 600 }}>
+          $({variableName})
+        </div>
 
         {enableTimeout && (
           <div style={{ marginTop: 5, color: "#fa8c16" }}>

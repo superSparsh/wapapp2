@@ -43,6 +43,10 @@ const ReactFlowWaitForResponseModule = ({
   useEffect(() => {
     if (visible && nodeData) {
       form.setFieldsValue({
+        variableName:
+          nodeData.variableName ||
+          nodeData.variable_name ||
+          "user_response",
         timeout: nodeData.timeout || 300,
         enableTimeout: nodeData.enableTimeout !== false,
         timeoutAction: nodeData.timeoutAction || "continue",
@@ -59,6 +63,7 @@ const ReactFlowWaitForResponseModule = ({
     } else if (visible) {
       // Reset form for new node
       form.setFieldsValue({
+        variableName: "user_response",
         timeout: 300,
         enableTimeout: true,
         timeoutAction: "continue",
@@ -79,9 +84,15 @@ const ReactFlowWaitForResponseModule = ({
     try {
       setLoading(true);
       const values = await form.validateFields();
+      const variableName = String(values.variableName || "user_response")
+        .trim()
+        .replace(/\s+/g, "_")
+        .replace(/[^\w.]/g, "");
 
       const nodeData = {
         ...values,
+        variableName: variableName || "user_response",
+        variable_name: variableName || "user_response",
         nodeType: "wait-for-response-node",
       };
 
@@ -148,6 +159,7 @@ const ReactFlowWaitForResponseModule = ({
         form={form}
         layout="vertical"
         initialValues={{
+          variableName: "user_response",
           timeout: 300,
           enableTimeout: true,
           timeoutAction: "continue",
@@ -162,6 +174,55 @@ const ReactFlowWaitForResponseModule = ({
           quickReplies: [],
         }}
       >
+        <Card
+          title={
+            <Space>
+              <SettingOutlined />
+              <span>Save Reply As</span>
+            </Space>
+          }
+          size="small"
+          style={{ marginBottom: 16 }}
+        >
+          <Form.Item
+            label="Variable name"
+            name="variableName"
+            rules={[
+              { required: true, message: "Variable name is required" },
+              {
+                pattern: /^[\w.]+$/,
+                message: "Use letters, numbers, underscore, or dot only",
+              },
+            ]}
+            help="Letters, numbers, underscore, or dot. Next text nodes can use $(your_name)."
+          >
+            <Input
+              placeholder="user_response"
+              onBlur={(e) => {
+                const cleaned = String(e.target.value || "")
+                  .trim()
+                  .replace(/\s+/g, "_")
+                  .replace(/[^\w.]/g, "");
+                form.setFieldsValue({
+                  variableName: cleaned || "user_response",
+                });
+              }}
+            />
+          </Form.Item>
+          <Form.Item shouldUpdate={(prev, cur) => prev.variableName !== cur.variableName} noStyle>
+            {() => {
+              const name = form.getFieldValue("variableName") || "user_response";
+              return (
+                <Alert
+                  type="info"
+                  showIcon
+                  message={`Use in next node: $(${name})`}
+                />
+              );
+            }}
+          </Form.Item>
+        </Card>
+
         {/* Timeout Configuration */}
         <Card
           title={
