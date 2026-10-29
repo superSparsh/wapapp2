@@ -206,13 +206,17 @@ const InteractiveMessagePreview = ({
     previewButtons != null &&
     (Array.isArray(previewButtons) ? previewButtons.length > 0 : true);
 
+  const hasFlowForm = type === "flow" && flowFields.length > 0;
+
   const hasContent =
     showHeaderImage ||
     showHeaderVideo ||
     showHeaderText ||
     resolvedBody ||
     resolvedFooterText ||
-    hasButtons;
+    hasButtons ||
+    hasFlowForm ||
+    (type === "flow" && Boolean(selectedFlowData));
 
   return (
     <div className="chatbot-template-preview">
@@ -287,6 +291,46 @@ const InteractiveMessagePreview = ({
                       </p>
                     ) : null}
 
+                    {hasFlowForm ? (
+                      <div className="chatbot-template-preview__flow-form chatbot-template-preview__flow-form--in-bubble">
+                        <p className="chatbot-template-preview__flow-form-title">
+                          Form preview
+                        </p>
+                        {flowFields.map((field) => (
+                          <div
+                            key={field.name}
+                            className="chatbot-template-preview__flow-field"
+                          >
+                            <div className="chatbot-template-preview__flow-field-label">
+                              <span>
+                                {field.label}
+                                {field.required ? " *" : ""}
+                              </span>
+                              <span className="chatbot-template-preview__flow-field-type">
+                                {fieldTypeHint(field.type)}
+                              </span>
+                            </div>
+                            <div className="chatbot-template-preview__flow-field-input">
+                              {fieldTypeHint(field.type) === "Choice"
+                                ? "Select…"
+                                : fieldTypeHint(field.type) === "Date"
+                                  ? "DD/MM/YYYY"
+                                  : "Enter value"}
+                            </div>
+                            <code className="chatbot-template-preview__flow-field-var">
+                              $({field.name})
+                            </code>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+
+                    {type === "flow" && selectedFlowData && flowFields.length === 0 ? (
+                      <p className="chatbot-template-preview__list-hint">
+                        Selected flow has no named input fields to preview.
+                      </p>
+                    ) : null}
+
                     {hasButtons ? (
                       <>
                         <img
@@ -302,46 +346,6 @@ const InteractiveMessagePreview = ({
                   </>
                 )}
               </div>
-
-              {type === "flow" && flowFields.length > 0 ? (
-                <div className="chatbot-template-preview__flow-form">
-                  <p className="chatbot-template-preview__flow-form-title">
-                    Form preview
-                  </p>
-                  {flowFields.map((field) => (
-                    <div
-                      key={field.name}
-                      className="chatbot-template-preview__flow-field"
-                    >
-                      <div className="chatbot-template-preview__flow-field-label">
-                        <span>
-                          {field.label}
-                          {field.required ? " *" : ""}
-                        </span>
-                        <span className="chatbot-template-preview__flow-field-type">
-                          {fieldTypeHint(field.type)}
-                        </span>
-                      </div>
-                      <div className="chatbot-template-preview__flow-field-input">
-                        {fieldTypeHint(field.type) === "Choice"
-                          ? "Select…"
-                          : fieldTypeHint(field.type) === "Date"
-                            ? "DD/MM/YYYY"
-                            : "Enter value"}
-                      </div>
-                      <code className="chatbot-template-preview__flow-field-var">
-                        $({field.name})
-                      </code>
-                    </div>
-                  ))}
-                </div>
-              ) : null}
-
-              {type === "flow" && selectedFlowData && flowFields.length === 0 ? (
-                <p className="chatbot-template-preview__list-hint" style={{ marginTop: 8 }}>
-                  Selected flow has no named input fields to preview.
-                </p>
-              ) : null}
             </div>
           </div>
         </div>

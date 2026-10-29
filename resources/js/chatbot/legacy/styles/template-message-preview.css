@@ -222,14 +222,17 @@
 }
 
 .chatbot-template-preview__flow-form {
-  margin-top: 10px;
   display: flex;
   flex-direction: column;
   gap: 8px;
   border: 1px solid var(--color-border, #e5e7eb);
-  border-radius: 12px;
-  background: var(--color-elevated, #fff);
+  border-radius: 10px;
+  background: var(--color-muted-surface, #f9fafb);
   padding: 8px;
+}
+
+.chatbot-template-preview__flow-form--in-bubble {
+  margin-top: 2px;
 }
 
 .chatbot-template-preview__flow-form-title {
