@@ -1249,4 +1249,126 @@ class ChatbotInteractiveFlowTest extends TestCase
         $this->assertContains('CTA:Tap link', $sent);
         $this->assertContains('Legacy next ran', $sent);
     }
+
+    public function test_whatsapp_flow_form_values_merge_into_variables_and_continue(): void
+    {
+        $sent = [];
+
+        $this->mock(InboxOutboundService::class, function ($mock) use (&$sent): void {
+            $mock->shouldReceive('sendText')->andReturnUsing(function ($conversation, string $text) use (&$sent) {
+                $sent[] = $text;
+
+                return new Message([
+                    'id' => 999,
+                    'body' => $text,
+                    'direction' => MessageDirection::Outbound,
+                    'message_type' => MessageType::Text,
+                ]);
+            });
+            $mock->shouldReceive('sendInteractive')->andReturn(new Message([
+                'id' => 998,
+                'body' => 'mocked interactive',
+                'direction' => MessageDirection::Outbound,
+                'message_type' => MessageType::Interactive,
+            ]));
+            $mock->shouldReceive('sendTypingIndicator')->andReturn(true);
+        });
+
+        ChatbotFlow::factory()->active()->create([
+            'exported_data' => [
+                'nodes' => [
+                    [
+                        'id' => 'welcome_1',
+                        'type' => 'welcomeMessage',
+                        'data' => [
+                            'messageType' => 'text',
+                            'triggerKeyword' => 'book',
+                            'text' => 'Opening form...',
+                        ],
+                    ],
+                    [
+                        'id' => 'flow_1',
+                        'type' => 'interactiveMessage',
+                        'data' => [
+                            'interactiveType' => 'flow',
+                            'type' => 'flow',
+                            'bodyText' => 'Fill the form',
+                            'body' => ['text' => 'Fill the form'],
+                            'flow_id' => 'flow_meta_vars_1',
+                            'flow_cta' => 'Open',
+                            'flow_token' => 'flow_meta_vars_1_token',
+                            'action' => [
+                                'name' => 'flow',
+                                'parameters' => [
+                                    'mode' => 'published',
+                                    'flow_message_version' => '3',
+                                    'flow_token' => 'flow_meta_vars_1_token',
+                                    'flow_id' => 'flow_meta_vars_1',
+                                    'flow_cta' => 'Open',
+                                    'flow_action' => 'navigate',
+                                    'flow_action_payload' => [
+                                        'screen' => 'ENTRY',
+                                        'data' => [],
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ],
+                    [
+                        'id' => 'confirm_1',
+                        'type' => 'welcomeMessage',
+                        'data' => [
+                            'messageType' => 'text',
+                            'text' => 'Thanks $(full_name), date $(appointment_date).',
+                        ],
+                    ],
+                ],
+                'edges' => [
+                    ['source' => 'welcome_1', 'target' => 'flow_1', 'sourceHandle' => 'output_1'],
+                    ['source' => 'flow_1', 'target' => 'confirm_1', 'sourceHandle' => 'output_1'],
+                ],
+            ],
+        ]);
+
+        $conversation = Conversation::factory()->create();
+        $engine = app(ChatbotFlowEngine::class);
+
+        $engine->processInbound($conversation, Message::factory()->create([
+            'conversation_id' => $conversation->id,
+            'body' => 'book',
+            'direction' => MessageDirection::Inbound,
+        ]));
+
+        $state = ChatbotFlowState::query()->first();
+        $this->assertNotNull($state);
+        $this->assertSame(ChatbotFlowStateStatus::Waiting, $state->status);
+        $this->assertSame('flow_1', $state->current_node_id);
+
+        $engine->processInbound($conversation, Message::factory()->create([
+            'conversation_id' => $conversation->id,
+            'body' => 'Sent',
+            'direction' => MessageDirection::Inbound,
+            'message_type' => MessageType::Interactive,
+            'metadata' => [
+                'interactive_reply_type' => 'nfm_reply',
+                'interactive' => [
+                    'nfm_reply' => [
+                        'name' => 'flow_meta_vars_1',
+                        'body' => 'Sent',
+                        'response_json' => json_encode([
+                            'full_name' => 'Riya Sharma',
+                            'appointment_date' => '2026-11-05',
+                            'flow_token' => 'should_skip',
+                        ], JSON_THROW_ON_ERROR),
+                    ],
+                ],
+            ],
+        ]));
+
+        $state->refresh();
+        $this->assertSame('Riya Sharma', $state->variables['full_name'] ?? null);
+        $this->assertSame('2026-11-05', $state->variables['appointment_date'] ?? null);
+        $this->assertArrayNotHasKey('flow_token', $state->variables['_whatsapp_flow_form'] ?? []);
+        $this->assertContains('Thanks Riya Sharma, date 2026-11-05.', $sent);
+    }
 }

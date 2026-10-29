@@ -233,6 +233,15 @@ class ChatbotFlowEngine
             $variables['_last_reply_id'] = $replyId;
         }
 
+        // WhatsApp Flow form submit (nfm_reply): merge field values for later $(field) use.
+        $flowFormVars = $this->extractWhatsappFlowFormVariables($inboundMessage);
+        if ($flowFormVars !== []) {
+            foreach ($flowFormVars as $key => $value) {
+                $variables[$key] = $value;
+            }
+            $variables['_whatsapp_flow_form'] = $flowFormVars;
+        }
+
         $state->forceFill([
             'variables' => $variables,
             'status' => ChatbotFlowStateStatus::Active,
@@ -240,6 +249,15 @@ class ChatbotFlowEngine
 
         // Find the next node based on the reply
         $nextNodeId = $this->resolveNextNodeFromReply($currentNode, $replyBody, $variables, $replyId);
+
+        // Flow completion is not a button/list match — continue via default/output_1.
+        if (
+            $nextNodeId === null
+            && $flowFormVars !== []
+            && $this->isWhatsappFlowWaitNode($currentNode, $variables)
+        ) {
+            $nextNodeId = $this->defaultNextNodeId($currentNode);
+        }
 
         if ($nextNodeId === null && $this->nodeRequiresMatchedReply($currentNode, $variables)) {
             // Waiting on interactive / QR - do NOT default-continue on random text
@@ -1391,6 +1409,122 @@ class ChatbotFlowEngine
         }
 
         return null;
+    }
+
+    /**
+     * True when the current wait is a WhatsApp Flow interactive / flow-template node.
+     *
+     * @param  array<string, mixed>  $node
+     * @param  array<string, mixed>  $variables
+     */
+    private function isWhatsappFlowWaitNode(array $node, array $variables): bool
+    {
+        $nodeClass = (string) ($node['class'] ?? $node['type'] ?? '');
+        if ($nodeClass === 'whatsappFlowTemplate') {
+            return true;
+        }
+
+        $data = is_array($node['data'] ?? null) ? $node['data'] : [];
+        $interactiveType = strtolower((string) ($data['interactiveType'] ?? $data['interactive_type'] ?? $data['type'] ?? ''));
+        if ($nodeClass === 'interactiveMessage' && $interactiveType === 'flow') {
+            return true;
+        }
+
+        return filled($variables['_whatsapp_flow_id'] ?? null)
+            || filled($variables['_whatsapp_flow_token'] ?? null)
+            || filled($variables['_whatsapp_flow_template_id'] ?? null);
+    }
+
+    /**
+     * Parse nfm_reply.response_json into flat chatbot variables for $(field) resolution.
+     *
+     * @return array<string, string>
+     */
+    private function extractWhatsappFlowFormVariables(Message $message): array
+    {
+        $metadata = is_array($message->metadata) ? $message->metadata : [];
+        $interactive = is_array($metadata['interactive'] ?? null) ? $metadata['interactive'] : [];
+        $nfm = is_array($interactive['nfm_reply'] ?? null) ? $interactive['nfm_reply'] : null;
+
+        if ($nfm === null && ($metadata['interactive_reply_type'] ?? '') !== 'nfm_reply') {
+            return [];
+        }
+
+        $responseJson = is_array($nfm) ? ($nfm['response_json'] ?? null) : null;
+        if (! is_string($responseJson) || trim($responseJson) === '') {
+            return [];
+        }
+
+        $decoded = json_decode($responseJson, true);
+        if (! is_array($decoded)) {
+            return [];
+        }
+
+        return $this->flattenWhatsappFlowFormData($decoded);
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, string>
+     */
+    private function flattenWhatsappFlowFormData(array $data, string $prefix = ''): array
+    {
+        $skip = [
+            'flow_token',
+            'version',
+            'extension_message_response',
+            'screen',
+            'action',
+        ];
+
+        $out = [];
+
+        foreach ($data as $key => $value) {
+            $rawKey = is_string($key) || is_int($key) ? (string) $key : '';
+            if ($rawKey === '' || in_array($rawKey, $skip, true)) {
+                continue;
+            }
+
+            $safeKey = preg_replace('/[^\w.]+/', '_', $rawKey) ?? '';
+            $safeKey = trim($safeKey, '._');
+            if ($safeKey === '') {
+                continue;
+            }
+
+            $fullKey = $prefix !== '' ? $prefix.'.'.$safeKey : $safeKey;
+
+            if (is_array($value)) {
+                // Associative / nested → recurse; list of scalars → join.
+                $isList = array_is_list($value);
+                $allScalar = $isList && $value === array_filter(
+                    $value,
+                    static fn ($item): bool => is_scalar($item) || $item === null
+                );
+
+                if ($allScalar) {
+                    $out[$fullKey] = implode(', ', array_map(
+                        static fn ($item): string => trim((string) $item),
+                        $value
+                    ));
+                } else {
+                    $out = array_merge($out, $this->flattenWhatsappFlowFormData($value, $fullKey));
+                }
+
+                continue;
+            }
+
+            if (is_bool($value)) {
+                $out[$fullKey] = $value ? 'true' : 'false';
+
+                continue;
+            }
+
+            if (is_scalar($value) || $value === null) {
+                $out[$fullKey] = trim((string) $value);
+            }
+        }
+
+        return $out;
     }
 
     /**
