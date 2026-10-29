@@ -63,7 +63,7 @@
       src="{{ $showHeaderImage ? $headerImage : '' }}"
       alt=""
       @class([
-        'h-auto max-h-[220px] w-full rounded object-cover',
+        'h-auto max-h-[250px] w-full rounded object-cover',
         'hidden' => ! $showHeaderImage || $isCarousel,
       ])
       width="100%"
