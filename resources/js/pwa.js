@@ -1,5 +1,7 @@
 /**
- * Register service worker + optional Chrome install prompt (L1/L2 PWA).
+ * Register service worker for PWA installability.
+ * Do NOT call preventDefault on beforeinstallprompt — that hides Chrome's
+ * address-bar Install icon. Profile page shows install guidance instead.
  */
 export function initPwa() {
     if (!('serviceWorker' in navigator)) {
@@ -7,7 +9,7 @@ export function initPwa() {
     }
 
     const register = () => {
-        navigator.serviceWorker.register('/sw.js').catch((error) => {
+        navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch((error) => {
             console.warn('Service worker registration failed', error);
         });
     };
@@ -18,51 +20,23 @@ export function initPwa() {
         window.addEventListener('load', register, { once: true });
     }
 
-    initInstallPrompt();
+    markInstallUiState();
+    window.addEventListener('appinstalled', markInstallUiState);
 }
 
-function initInstallPrompt() {
-    let deferredPrompt = null;
-    const buttons = () => document.querySelectorAll('[data-pwa-install]');
+function isStandalone() {
+    return window.matchMedia('(display-mode: standalone)').matches
+        || window.navigator.standalone === true;
+}
 
-    window.addEventListener('beforeinstallprompt', (event) => {
-        event.preventDefault();
-        deferredPrompt = event;
-        buttons().forEach((button) => {
-            button.classList.remove('hidden');
-            button.setAttribute('aria-hidden', 'false');
-        });
+function markInstallUiState() {
+    const installed = isStandalone();
+    document.querySelectorAll('[data-pwa-install-card]').forEach((card) => {
+        card.classList.toggle('hidden', installed);
+        card.setAttribute('aria-hidden', installed ? 'true' : 'false');
     });
-
-    window.addEventListener('appinstalled', () => {
-        deferredPrompt = null;
-        buttons().forEach((button) => {
-            button.classList.add('hidden');
-            button.setAttribute('aria-hidden', 'true');
-        });
+    document.querySelectorAll('[data-pwa-installed-card]').forEach((card) => {
+        card.classList.toggle('hidden', !installed);
+        card.setAttribute('aria-hidden', installed ? 'false' : 'true');
     });
-
-    document.addEventListener('click', async (event) => {
-        const button = event.target.closest('[data-pwa-install]');
-        if (!button || !deferredPrompt) {
-            return;
-        }
-
-        deferredPrompt.prompt();
-        try {
-            await deferredPrompt.userChoice;
-        } catch {
-            // User dismissed or browser blocked.
-        }
-        deferredPrompt = null;
-        buttons().forEach((el) => {
-            el.classList.add('hidden');
-            el.setAttribute('aria-hidden', 'true');
-        });
-    });
-
-    // Already running as installed PWA — never show install CTA.
-    if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
-        buttons().forEach((button) => button.classList.add('hidden'));
-    }
 }

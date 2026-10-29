@@ -1,5 +1,5 @@
 /* WapApp PWA — installability + light static cache (L1/L2). No offline API/inbox. */
-const CACHE = 'wapapp-shell-v1';
+const CACHE = 'wapapp-shell-v2';
 const PRECACHE = [
   '/manifest.webmanifest',
   '/images/favicons/icon-192.png',
@@ -9,7 +9,13 @@ const PRECACHE = [
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE).then((cache) => cache.addAll(PRECACHE)).then(() => self.skipWaiting()),
+    caches.open(CACHE)
+      .then((cache) =>
+        Promise.all(
+          PRECACHE.map((url) => cache.add(url).catch(() => undefined)),
+        ),
+      )
+      .then(() => self.skipWaiting()),
   );
 });
 
@@ -32,7 +38,6 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Navigations: network first, offline page fallback.
   if (request.mode === 'navigate') {
     event.respondWith(
       fetch(request).catch(() => caches.match('/offline.html')),
@@ -40,7 +45,6 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Precached shell assets only — everything else stays network.
   if (PRECACHE.includes(url.pathname)) {
     event.respondWith(
       caches.match(request).then((cached) => cached || fetch(request)),

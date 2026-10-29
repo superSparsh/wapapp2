@@ -22,6 +22,37 @@
     </div>
   @endif
 
+  <section
+    data-pwa-install-card
+    class="mt-6 flex flex-col gap-3 rounded-[20px] border border-border-light bg-elevated p-5 shadow-[0px_4px_6px_rgba(0,0,0,0.04)] sm:flex-row sm:items-center sm:justify-between"
+  >
+    <div class="flex min-w-0 items-start gap-3">
+      <img
+        src="{{ asset('images/favicons/icon-192.png') }}?v=2"
+        alt=""
+        class="size-12 shrink-0 rounded-xl border border-border object-cover"
+        width="48"
+        height="48"
+      >
+      <div class="min-w-0">
+        <h2 class="text-base font-semibold text-text-primary">Install WapApp</h2>
+        <p class="mt-1 text-sm leading-[1.5] text-text-body">
+          Chrome address bar mein <span class="font-semibold">Install</span> icon dikhega (monitor + arrow).
+          Ya menu → <span class="font-semibold">Install WapApp…</span> / <span class="font-semibold">Cast, save, and share</span> → Install.
+        </p>
+        <p class="mt-2 text-xs text-text-muted">HTTPS / localhost pe kholo, page soft-refresh karo. Pehle se install ho to icon hide ho jata hai.</p>
+      </div>
+    </div>
+  </section>
+
+  <section
+    data-pwa-installed-card
+    class="mt-6 hidden rounded-[20px] border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-700"
+    aria-hidden="true"
+  >
+    WapApp is installed on this device.
+  </section>
+
   <form action="{{ route('profile.update') }}" method="POST" enctype="multipart/form-data" class="mt-6 flex flex-col gap-4" data-profile-form>
     @csrf
 
