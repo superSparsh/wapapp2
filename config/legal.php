@@ -19,7 +19,7 @@ return [
     'company_location' => env('LEGAL_COMPANY_LOCATION', 'Bengaluru, India'),
 
     'grievance' => [
-        'email' => env('LEGAL_GRIEVANCE_EMAIL', env('OPERATIONAL_ALERTS_SUPPORT_EMAIL', 'support@wapapp.in')),
+        'email' => env('LEGAL_GRIEVANCE_EMAIL', 'support@tittu.in'),
         'response_days' => (int) env('LEGAL_GRIEVANCE_RESPONSE_DAYS', 7),
     ],
 

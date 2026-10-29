@@ -29,7 +29,7 @@ class LegalController extends Controller
             'productName' => (string) config('legal.product_name', config('app.name', 'WapApp')),
             'companyName' => (string) config('legal.company_legal_name', 'Tekkonnectpro IT Services'),
             'companyLocation' => (string) config('legal.company_location', 'Bengaluru, India'),
-            'grievanceEmail' => (string) config('legal.grievance.email', 'support@wapapp.in'),
+            'grievanceEmail' => (string) config('legal.grievance.email', 'support@tittu.in'),
             'grievanceDays' => (int) config('legal.grievance.response_days', 7),
             'processingRegion' => (string) config('legal.processing.primary_region', 'Singapore'),
             'whatsappBsp' => (string) config('legal.processing.whatsapp_bsp'),
