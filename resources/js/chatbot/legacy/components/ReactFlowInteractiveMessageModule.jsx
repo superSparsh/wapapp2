@@ -21,6 +21,7 @@ import {
   Switch,
   Spin,
   Upload,
+  Alert,
 } from "antd";
 import {
   MessageOutlined,
@@ -38,6 +39,10 @@ import {
 } from "@ant-design/icons";
 import VariableHelper from "./VariableHelper.jsx";
 import InteractiveMessagePreview from "./InteractiveMessagePreview";
+import {
+  extractWhatsappFlowFields,
+  flowFieldVariableSyntax,
+} from "./extractWhatsappFlowFields";
 
 const { Text, Paragraph } = Typography;
 const { TextArea } = Input;
@@ -139,7 +144,12 @@ const ReactFlowInteractiveMessageModule = ({
         setSelectedCatalog(nodeData.catalog_id);
       }
       if (nodeData.flow_id) {
-        setSelectedFlowData(nodeData.selectedFlowData);
+        if (nodeData.selectedFlowData) {
+          setSelectedFlowData(nodeData.selectedFlowData);
+        } else {
+          // Older nodes may only have flow_id — reload JSON for variable chips/preview.
+          fetchFlowJson(nodeData.flow_id);
+        }
       }
 
       // Store the form values to be set after interactive type is updated
@@ -876,6 +886,8 @@ const ReactFlowInteractiveMessageModule = ({
         // UI specific
         headerType: headerType,
         uploadedMedia: uploadedMedia,
+        selectedFlowData:
+          interactiveType === "flow" ? selectedFlowData : null,
         timeoutConfig: {
           unreadTimeout: timeoutConfig.unreadTimeout,
           undeliveredTimeout: timeoutConfig.undeliveredTimeout,
@@ -2081,6 +2093,74 @@ const ReactFlowInteractiveMessageModule = ({
       >
         <TextArea rows={4} readOnly disabled={fetchingFlowJson} />
       </Form.Item>
+
+      {fetchingFlowJson ? (
+        <Alert
+          type="info"
+          showIcon
+          style={{ marginBottom: 12 }}
+          message="Loading flow fields…"
+        />
+      ) : null}
+
+      {!fetchingFlowJson &&
+      selectedFlowData &&
+      extractWhatsappFlowFields(selectedFlowData).length > 0 ? (
+        <Card
+          size="small"
+          type="inner"
+          title="Use these variables in next nodes"
+          style={{ marginBottom: 8 }}
+        >
+          <Paragraph type="secondary" style={{ marginBottom: 10, fontSize: 12 }}>
+            After the user submits this Flow, use these names in later text /
+            conditions / templates. Click a chip to copy.
+          </Paragraph>
+          <Space wrap size={[8, 8]}>
+            {extractWhatsappFlowFields(selectedFlowData).map((field) => {
+              const syntax = flowFieldVariableSyntax(field.name);
+              return (
+                <Button
+                  key={field.name}
+                  size="small"
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(syntax);
+                      message.success(`Copied ${syntax}`);
+                    } catch (error) {
+                      message.info(syntax);
+                    }
+                  }}
+                  title={`${field.label} (${field.type})`}
+                  style={{
+                    borderColor: "#86efac",
+                    background: "#f0fdf4",
+                    color: "#166534",
+                    fontWeight: 600,
+                  }}
+                >
+                  {syntax}
+                  <Text type="secondary" style={{ marginLeft: 6, fontSize: 11 }}>
+                    {field.label}
+                  </Text>
+                </Button>
+              );
+            })}
+          </Space>
+        </Card>
+      ) : null}
+
+      {!fetchingFlowJson &&
+      form.getFieldValue("flow_id") &&
+      selectedFlowData &&
+      extractWhatsappFlowFields(selectedFlowData).length === 0 ? (
+        <Alert
+          type="warning"
+          showIcon
+          style={{ marginBottom: 8 }}
+          message="This Flow has no named input fields. Add field names in WhatsApp Flow builder to use $(variables) later."
+        />
+      ) : null}
     </Card>
   );
 
@@ -2558,6 +2638,7 @@ const ReactFlowInteractiveMessageModule = ({
                 uploadedMedia={uploadedMedia}
                 sections={sections}
                 buttons={buttons}
+                selectedFlowData={selectedFlowData}
               />
             </div>
           </Col>

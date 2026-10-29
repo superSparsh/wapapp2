@@ -5,6 +5,7 @@ import {
   UnorderedListOutlined,
 } from "@ant-design/icons";
 import "../styles/template-message-preview.css";
+import { extractWhatsappFlowFields } from "./extractWhatsappFlowFields";
 
 const ASSETS = {
   phoneBg: "/images/templates/phone-bg.png",
@@ -42,6 +43,20 @@ function buttonLabel(btn) {
   ).trim();
 }
 
+function fieldTypeHint(type) {
+  const t = String(type || "").toLowerCase();
+  if (t.includes("date")) return "Date";
+  if (t.includes("dropdown") || t.includes("radio") || t.includes("checkbox")) {
+    return "Choice";
+  }
+  if (t.includes("textarea") || t.includes("paragraph")) return "Long text";
+  if (t.includes("email")) return "Email";
+  if (t.includes("phone")) return "Phone";
+  if (t.includes("number")) return "Number";
+  if (t.includes("optin") || t.includes("switch")) return "Toggle";
+  return "Text";
+}
+
 function PreviewButton({ icon, label, anticon = null }) {
   if (!label) {
     return null;
@@ -69,6 +84,7 @@ const InteractiveMessagePreview = ({
   uploadedMedia,
   flow_cta,
   buttonText,
+  selectedFlowData = null,
 }) => {
   const resolvedBody = bodyText?.trim() || "";
   const resolvedHeaderText = headerText?.trim() || "";
@@ -81,6 +97,11 @@ const InteractiveMessagePreview = ({
   const showHeaderText =
     (headerType === "text" && resolvedHeaderText) ||
     (type === "product_list" && resolvedHeaderText);
+
+  const flowFields = useMemo(
+    () => (type === "flow" ? extractWhatsappFlowFields(selectedFlowData) : []),
+    [type, selectedFlowData]
+  );
 
   const headerImageSrc = useMemo(() => {
     if (!uploadedMedia) {
@@ -198,7 +219,9 @@ const InteractiveMessagePreview = ({
       <div className="chatbot-template-preview__intro">
         <h3 className="chatbot-template-preview__title">Message Preview</h3>
         <p className="chatbot-template-preview__subtitle">
-          How this interactive message will look on WhatsApp
+          {type === "flow"
+            ? "Chat bubble + form fields from the selected WhatsApp Flow"
+            : "How this interactive message will look on WhatsApp"}
         </p>
       </div>
 
@@ -279,6 +302,46 @@ const InteractiveMessagePreview = ({
                   </>
                 )}
               </div>
+
+              {type === "flow" && flowFields.length > 0 ? (
+                <div className="chatbot-template-preview__flow-form">
+                  <p className="chatbot-template-preview__flow-form-title">
+                    Form preview
+                  </p>
+                  {flowFields.map((field) => (
+                    <div
+                      key={field.name}
+                      className="chatbot-template-preview__flow-field"
+                    >
+                      <div className="chatbot-template-preview__flow-field-label">
+                        <span>
+                          {field.label}
+                          {field.required ? " *" : ""}
+                        </span>
+                        <span className="chatbot-template-preview__flow-field-type">
+                          {fieldTypeHint(field.type)}
+                        </span>
+                      </div>
+                      <div className="chatbot-template-preview__flow-field-input">
+                        {fieldTypeHint(field.type) === "Choice"
+                          ? "Select…"
+                          : fieldTypeHint(field.type) === "Date"
+                            ? "DD/MM/YYYY"
+                            : "Enter value"}
+                      </div>
+                      <code className="chatbot-template-preview__flow-field-var">
+                        $({field.name})
+                      </code>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+
+              {type === "flow" && selectedFlowData && flowFields.length === 0 ? (
+                <p className="chatbot-template-preview__list-hint" style={{ marginTop: 8 }}>
+                  Selected flow has no named input fields to preview.
+                </p>
+              ) : null}
             </div>
           </div>
         </div>
