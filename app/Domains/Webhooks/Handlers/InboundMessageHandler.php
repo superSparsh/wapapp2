@@ -420,8 +420,15 @@ class InboundMessageHandler
         }
 
         if (is_array($nfmReply)) {
+            $nfmBody = trim((string) ($nfmReply['body'] ?? ''));
+            $nfmName = trim((string) ($nfmReply['name'] ?? ''));
+            // WhatsApp often sends body "Sent" for Flow submits — use a clearer inbox label.
+            if ($nfmBody === '' || strcasecmp($nfmBody, 'Sent') === 0) {
+                $nfmBody = $nfmName !== '' ? 'Form submitted: '.$nfmName : 'Form submitted';
+            }
+
             return [
-                'body' => trim((string) ($nfmReply['body'] ?? $nfmReply['name'] ?? '[Flow reply]')),
+                'body' => $nfmBody,
                 'is_interactive' => true,
                 'metadata' => [
                     'interactive_reply_type' => 'nfm_reply',

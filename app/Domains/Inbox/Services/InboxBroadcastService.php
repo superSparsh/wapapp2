@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domains\Inbox\Services;
 
 use App\Domains\Admin\Services\MaintenanceModeService;
+use App\Domains\Inbox\Support\InboxInteractivePreview;
 use App\Domains\Inbox\Support\InboxPresenter;
 use App\Enums\MessageDirection;
 use App\Events\Inbox\InboxMessageCreated;
@@ -52,13 +53,15 @@ class InboxBroadcastService
         $conversation->unsetRelation('latestMessage');
         $conversation->setRelation('latestMessage', $message);
 
+        $messagePayload = $this->messagePayload($message);
         $thread = $this->threadPayload($conversation);
-        $thread['preview'] = InboxPresenter::preview($message->body) ?: ($thread['preview'] ?? '');
+        $previewSource = (string) ($messagePayload['body'] ?? $message->body ?? '');
+        $thread['preview'] = InboxPresenter::preview($previewSource) ?: ($thread['preview'] ?? '');
 
         $this->safeBroadcast(new InboxMessageCreated(
             tenantId: $tenantId,
             conversationUuid: $conversation->uuid,
-            message: $this->messagePayload($message),
+            message: $messagePayload,
             thread: $thread,
         ));
     }
@@ -147,12 +150,41 @@ class InboxBroadcastService
             }
         }
 
+        $interactive = isset($metadata['interactive']) && is_array($metadata['interactive'])
+            ? $metadata['interactive']
+            : null;
+        $interactivePreview = InboxInteractivePreview::build(
+            $interactive,
+            (string) ($message->body ?? ''),
+            $metadata,
+        );
+
+        $messageType = $message->message_type->value;
+        if (
+            $messageType !== 'interactive'
+            && is_array($interactivePreview)
+            && (
+                ($interactivePreview['flow_reply'] ?? null) !== null
+                || ($metadata['interactive_reply_type'] ?? '') !== ''
+            )
+        ) {
+            $messageType = 'interactive';
+        }
+
+        $displayBody = (string) ($message->body ?? '');
+        if (
+            is_array($interactivePreview['flow_reply'] ?? null)
+            && ($interactivePreview['body'] ?? '') !== ''
+        ) {
+            $displayBody = (string) $interactivePreview['body'];
+        }
+
         return [
             'uuid' => $message->uuid,
-            'body' => (string) $message->body,
+            'body' => $displayBody,
             'direction' => $message->direction->value,
             'status' => $message->status->value,
-            'message_type' => $message->message_type->value,
+            'message_type' => $messageType,
             'time' => InboxPresenter::relativeTime($message->created_at),
             'is_outbound' => $message->direction === MessageDirection::Outbound,
             'media_url' => $mediaUrl !== '' ? $mediaUrl : null,
@@ -168,7 +200,8 @@ class InboxBroadcastService
             'template_buttons' => isset($metadata['template_buttons']) && is_array($metadata['template_buttons'])
                 ? $metadata['template_buttons']
                 : [],
-            'interactive' => isset($metadata['interactive']) && is_array($metadata['interactive']) ? $metadata['interactive'] : null,
+            'interactive' => $interactive,
+            'interactive_preview' => $interactivePreview,
             'sent_at' => $message->sent_at?->toIso8601String(),
             'delivered_at' => $message->delivered_at?->toIso8601String(),
             'read_at' => $message->read_at?->toIso8601String(),

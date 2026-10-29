@@ -234,6 +234,7 @@ class ChatbotFlowEngine
         }
 
         // WhatsApp Flow form submit (nfm_reply): merge field values for later $(field) use.
+        $isFlowCompletion = $this->isWhatsappFlowCompletionReply($inboundMessage);
         $flowFormVars = $this->extractWhatsappFlowFormVariables($inboundMessage);
         if ($flowFormVars !== []) {
             foreach ($flowFormVars as $key => $value) {
@@ -250,13 +251,13 @@ class ChatbotFlowEngine
         // Find the next node based on the reply
         $nextNodeId = $this->resolveNextNodeFromReply($currentNode, $replyBody, $variables, $replyId);
 
-        // Flow completion is not a button/list match — continue via default/output_1.
+        // Flow completion is not a button/list match — continue via default / delivered / sole edge.
         if (
             $nextNodeId === null
-            && $flowFormVars !== []
+            && $isFlowCompletion
             && $this->isWhatsappFlowWaitNode($currentNode, $variables)
         ) {
-            $nextNodeId = $this->defaultNextNodeId($currentNode);
+            $nextNodeId = $this->nextNodeAfterWhatsappFlow($currentNode);
         }
 
         if ($nextNodeId === null && $this->nodeRequiresMatchedReply($currentNode, $variables)) {
@@ -1436,21 +1437,95 @@ class ChatbotFlowEngine
     }
 
     /**
+     * Resolve next node after a WhatsApp Flow submit.
+     * Builders often wire "Next Node" (default) or legacy "Delivered".
+     *
+     * @param  array<string, mixed>  $node
+     */
+    private function nextNodeAfterWhatsappFlow(array $node): ?string
+    {
+        foreach (['default', 'output_1', 'output_2', 'delivered'] as $handle) {
+            $nextId = $this->nextNodeIdFromHandle($node, $handle);
+            if ($nextId !== null) {
+                return $nextId;
+            }
+        }
+
+        $candidates = [];
+        foreach (($node['outputs'] ?? []) as $handle => $output) {
+            $handleKey = strtolower(trim((string) $handle));
+            if (in_array($handleKey, ['unread', 'undelivered', 'failed'], true)) {
+                continue;
+            }
+
+            if (! is_array($output)) {
+                continue;
+            }
+
+            $connections = $output['connections'] ?? [];
+            if (isset($connections[0]['node']) && (string) $connections[0]['node'] !== '') {
+                $candidates[] = (string) $connections[0]['node'];
+            }
+        }
+
+        $unique = array_values(array_unique($candidates));
+
+        return $unique[0] ?? null;
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function resolveNfmReplyPayload(Message $message): ?array
+    {
+        $metadata = is_array($message->metadata) ? $message->metadata : [];
+
+        $interactive = is_array($metadata['interactive'] ?? null) ? $metadata['interactive'] : [];
+        if (is_array($interactive['nfm_reply'] ?? null)) {
+            return $interactive['nfm_reply'];
+        }
+
+        $raw = is_array($metadata['raw_message'] ?? null) ? $metadata['raw_message'] : [];
+        $rawInteractive = is_array($raw['interactive'] ?? null) ? $raw['interactive'] : [];
+        if (is_array($rawInteractive['nfm_reply'] ?? null)) {
+            return $rawInteractive['nfm_reply'];
+        }
+
+        if (is_array($metadata['nfm_reply'] ?? null)) {
+            return $metadata['nfm_reply'];
+        }
+
+        return null;
+    }
+
+    private function isWhatsappFlowCompletionReply(Message $message): bool
+    {
+        $metadata = is_array($message->metadata) ? $message->metadata : [];
+        if (($metadata['interactive_reply_type'] ?? '') === 'nfm_reply') {
+            return true;
+        }
+
+        return $this->resolveNfmReplyPayload($message) !== null;
+    }
+
+    /**
      * Parse nfm_reply.response_json into flat chatbot variables for $(field) resolution.
      *
      * @return array<string, string>
      */
     private function extractWhatsappFlowFormVariables(Message $message): array
     {
-        $metadata = is_array($message->metadata) ? $message->metadata : [];
-        $interactive = is_array($metadata['interactive'] ?? null) ? $metadata['interactive'] : [];
-        $nfm = is_array($interactive['nfm_reply'] ?? null) ? $interactive['nfm_reply'] : null;
-
-        if ($nfm === null && ($metadata['interactive_reply_type'] ?? '') !== 'nfm_reply') {
+        $nfm = $this->resolveNfmReplyPayload($message);
+        if ($nfm === null) {
             return [];
         }
 
-        $responseJson = is_array($nfm) ? ($nfm['response_json'] ?? null) : null;
+        $responseJson = $nfm['response_json'] ?? $nfm['responseJson'] ?? null;
+
+        if (is_array($responseJson)) {
+            return $this->flattenWhatsappFlowFormData($responseJson);
+        }
+
         if (! is_string($responseJson) || trim($responseJson) === '') {
             return [];
         }

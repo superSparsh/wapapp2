@@ -301,17 +301,45 @@
             @php
               $interactiveBody = trim((string) ($interactivePreview['body'] ?? $body));
               $interactiveButtons = is_array($interactivePreview['buttons'] ?? null) ? $interactivePreview['buttons'] : [];
+              $flowReply = is_array($interactivePreview['flow_reply'] ?? null) ? $interactivePreview['flow_reply'] : null;
+              $flowFields = is_array($flowReply['fields'] ?? null) ? $flowReply['fields'] : [];
             @endphp
             <div class="flex flex-col gap-2">
-              <div>{{ $interactiveBody !== '' ? $interactiveBody : '[interactive]' }}</div>
-              @if ($interactiveButtons !== [])
-                <div class="mt-1 flex flex-wrap gap-1.5">
-                  @foreach ($interactiveButtons as $buttonLabel)
-                    <span class="rounded border border-green-300 bg-white/80 px-2 py-1 text-[11px] font-medium text-green-800">
-                      {{ $buttonLabel }}
-                    </span>
-                  @endforeach
+              @if ($flowReply !== null)
+                <div class="text-[10px] font-semibold uppercase tracking-wide text-green-700">
+                  {{ $flowReply['title'] ?? 'Form submitted' }}
                 </div>
+                @if (! empty($flowReply['flow_name']))
+                  <div class="text-[11px] text-text-body/70">{{ $flowReply['flow_name'] }}</div>
+                @endif
+                @if ($flowFields !== [])
+                  <div class="mt-0.5 flex flex-col gap-1.5 rounded-lg border border-green-200/80 bg-white/70 p-2">
+                    @foreach ($flowFields as $field)
+                      @php
+                        $fieldLabel = trim((string) ($field['label'] ?? $field['name'] ?? 'Field'));
+                        $fieldValue = trim((string) ($field['value'] ?? ''));
+                      @endphp
+                      @continue($fieldValue === '')
+                      <div class="flex flex-col gap-0.5">
+                        <span class="text-[10px] font-semibold uppercase tracking-wide text-text-body/55">{{ $fieldLabel }}</span>
+                        <span class="text-xs font-medium text-text-body break-words">{{ $fieldValue }}</span>
+                      </div>
+                    @endforeach
+                  </div>
+                @else
+                  <div class="text-xs text-text-body/70">No form answers were included in this reply.</div>
+                @endif
+              @else
+                <div>{{ $interactiveBody !== '' ? $interactiveBody : '[interactive]' }}</div>
+                @if ($interactiveButtons !== [])
+                  <div class="mt-1 flex flex-wrap gap-1.5">
+                    @foreach ($interactiveButtons as $buttonLabel)
+                      <span class="rounded border border-green-300 bg-white/80 px-2 py-1 text-[11px] font-medium text-green-800">
+                        {{ $buttonLabel }}
+                      </span>
+                    @endforeach
+                  </div>
+                @endif
               @endif
             </div>
           @elseif ($messageType === 'reaction')

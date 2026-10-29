@@ -1371,4 +1371,119 @@ class ChatbotInteractiveFlowTest extends TestCase
         $this->assertArrayNotHasKey('flow_token', $state->variables['_whatsapp_flow_form'] ?? []);
         $this->assertContains('Thanks Riya Sharma, date 2026-11-05.', $sent);
     }
+
+    public function test_whatsapp_flow_continues_via_delivered_handle_even_without_form_fields(): void
+    {
+        $sent = [];
+
+        $this->mock(InboxOutboundService::class, function ($mock) use (&$sent): void {
+            $mock->shouldReceive('sendText')->andReturnUsing(function ($conversation, string $text) use (&$sent) {
+                $sent[] = $text;
+
+                return new Message([
+                    'id' => 999,
+                    'body' => $text,
+                    'direction' => MessageDirection::Outbound,
+                    'message_type' => MessageType::Text,
+                ]);
+            });
+            $mock->shouldReceive('sendInteractive')->andReturn(new Message([
+                'id' => 998,
+                'body' => 'mocked interactive',
+                'direction' => MessageDirection::Outbound,
+                'message_type' => MessageType::Interactive,
+            ]));
+            $mock->shouldReceive('sendTypingIndicator')->andReturn(true);
+        });
+
+        ChatbotFlow::factory()->active()->create([
+            'exported_data' => [
+                'nodes' => [
+                    [
+                        'id' => 'welcome_1',
+                        'type' => 'welcomeMessage',
+                        'data' => [
+                            'messageType' => 'text',
+                            'triggerKeyword' => 'flowstuck',
+                            'text' => 'Opening form...',
+                        ],
+                    ],
+                    [
+                        'id' => 'flow_1',
+                        'type' => 'interactiveMessage',
+                        'data' => [
+                            'interactiveType' => 'flow',
+                            'type' => 'flow',
+                            'bodyText' => 'Fill the form',
+                            'body' => ['text' => 'Fill the form'],
+                            'flow_id' => 'flow_meta_stuck_1',
+                            'flow_cta' => 'Open',
+                            'flow_token' => 'flow_meta_stuck_1_token',
+                            'action' => [
+                                'name' => 'flow',
+                                'parameters' => [
+                                    'mode' => 'published',
+                                    'flow_message_version' => '3',
+                                    'flow_token' => 'flow_meta_stuck_1_token',
+                                    'flow_id' => 'flow_meta_stuck_1',
+                                    'flow_cta' => 'Open',
+                                    'flow_action' => 'navigate',
+                                    'flow_action_payload' => [
+                                        'screen' => 'ENTRY',
+                                        'data' => [],
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ],
+                    [
+                        'id' => 'after_flow',
+                        'type' => 'welcomeMessage',
+                        'data' => [
+                            'messageType' => 'text',
+                            'text' => 'Flow done',
+                        ],
+                    ],
+                ],
+                'edges' => [
+                    ['source' => 'welcome_1', 'target' => 'flow_1', 'sourceHandle' => 'output_1'],
+                    // Common builder wiring for interactive Flow nodes
+                    ['source' => 'flow_1', 'target' => 'after_flow', 'sourceHandle' => 'delivered'],
+                ],
+            ],
+        ]);
+
+        $conversation = Conversation::factory()->create();
+        $engine = app(ChatbotFlowEngine::class);
+
+        $engine->processInbound($conversation, Message::factory()->create([
+            'conversation_id' => $conversation->id,
+            'body' => 'flowstuck',
+            'direction' => MessageDirection::Inbound,
+        ]));
+
+        $state = ChatbotFlowState::query()->first();
+        $this->assertNotNull($state);
+        $this->assertSame(ChatbotFlowStateStatus::Waiting, $state->status);
+
+        $engine->processInbound($conversation, Message::factory()->create([
+            'conversation_id' => $conversation->id,
+            'body' => 'Sent',
+            'direction' => MessageDirection::Inbound,
+            'message_type' => MessageType::Interactive,
+            'metadata' => [
+                'interactive_reply_type' => 'nfm_reply',
+                'interactive' => [
+                    'nfm_reply' => [
+                        'name' => 'flow_meta_stuck_1',
+                        'body' => 'Sent',
+                        // Empty / token-only payload used to block continue.
+                        'response_json' => json_encode(['flow_token' => 'only_token'], JSON_THROW_ON_ERROR),
+                    ],
+                ],
+            ],
+        ]));
+
+        $this->assertContains('Flow done', $sent);
+    }
 }

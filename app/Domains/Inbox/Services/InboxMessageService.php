@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domains\Inbox\Services;
 
 use App\Domains\Inbox\Jobs\SendOutboundMessageJob;
+use App\Domains\Inbox\Support\InboxInteractivePreview;
 use App\Domains\Inbox\Support\InboxPresenter;
 use App\Enums\MessageDirection;
 use App\Enums\MessageStatus;
@@ -110,10 +111,36 @@ class InboxMessageService
             }
         }
 
+        $interactivePreview = InboxInteractivePreview::build(
+            $interactive,
+            (string) ($message->body ?? ''),
+            $metadata,
+        );
+
+        // Flow / interactive replies sometimes land as text/"Sent" — still render as interactive.
+        if (
+            $messageType !== 'interactive'
+            && is_array($interactivePreview)
+            && (
+                ($interactivePreview['flow_reply'] ?? null) !== null
+                || ($metadata['interactive_reply_type'] ?? '') !== ''
+            )
+        ) {
+            $messageType = 'interactive';
+        }
+
+        $displayBody = (string) ($message->body ?? '');
+        if (
+            is_array($interactivePreview['flow_reply'] ?? null)
+            && ($interactivePreview['body'] ?? '') !== ''
+        ) {
+            $displayBody = (string) $interactivePreview['body'];
+        }
+
         return [
             'id' => (int) $message->id,
             'uuid' => $message->uuid,
-            'body' => (string) ($message->body ?? ''),
+            'body' => $displayBody,
             'direction' => $message->direction->value,
             'status' => $message->status->value,
             'message_type' => $messageType,
@@ -136,75 +163,12 @@ class InboxMessageService
                 ? $metadata['template_buttons']
                 : [],
             'interactive' => $interactive,
-            'interactive_preview' => $this->interactivePreview($interactive, (string) ($message->body ?? '')),
+            'interactive_preview' => $interactivePreview,
             'sent_at' => $message->sent_at?->toIso8601String(),
             'delivered_at' => $message->delivered_at?->toIso8601String(),
             'read_at' => $message->read_at?->toIso8601String(),
             'failed_at' => $message->failed_at?->toIso8601String(),
             'failed_reason' => $message->failed_reason,
-        ];
-    }
-
-    /**
-     * @param  array<string, mixed>|null  $interactive
-     * @return array{body: string, buttons: array<int, string>, type: ?string}|null
-     */
-    private function interactivePreview(?array $interactive, string $fallbackBody): ?array
-    {
-        if ($interactive === null) {
-            return null;
-        }
-
-        $bodyRaw = $interactive['body'] ?? null;
-        if (is_array($bodyRaw)) {
-            $body = trim((string) ($bodyRaw['text'] ?? $fallbackBody));
-        } elseif (is_string($bodyRaw)) {
-            $body = trim($bodyRaw);
-        } else {
-            $body = trim($fallbackBody);
-        }
-
-        $buttons = [];
-
-        foreach ($interactive['action']['buttons'] ?? [] as $button) {
-            if (! is_array($button)) {
-                continue;
-            }
-
-            $title = (string) (
-                $button['reply']['title']
-                ?? $button['title']
-                ?? $button['text']
-                ?? $button['label']
-                ?? ''
-            );
-
-            if ($title !== '') {
-                $buttons[] = $title;
-            }
-        }
-
-        foreach ($interactive['action']['sections'] ?? [] as $section) {
-            if (! is_array($section)) {
-                continue;
-            }
-
-            foreach ($section['rows'] ?? [] as $row) {
-                if (! is_array($row)) {
-                    continue;
-                }
-
-                $title = trim((string) ($row['title'] ?? ''));
-                if ($title !== '') {
-                    $buttons[] = $title;
-                }
-            }
-        }
-
-        return [
-            'body' => $body !== '' ? $body : $fallbackBody,
-            'buttons' => array_values(array_unique($buttons)),
-            'type' => isset($interactive['type']) ? (string) $interactive['type'] : null,
         ];
     }
 

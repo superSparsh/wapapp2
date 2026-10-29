@@ -1922,25 +1922,81 @@ function fillMessageBubble(bubble, message) {
         const buttons = Array.isArray(preview?.buttons)
             ? preview.buttons
             : interactiveButtonLabels(message.interactive);
+        const flowReply =
+            preview?.flow_reply && typeof preview.flow_reply === 'object'
+                ? preview.flow_reply
+                : null;
 
         const wrap = document.createElement('div');
         wrap.className = 'flex flex-col gap-2';
 
-        const bodyEl = document.createElement('div');
-        bodyEl.textContent = interactiveBody || '[interactive]';
-        wrap.appendChild(bodyEl);
+        if (flowReply) {
+            const title = document.createElement('div');
+            title.className =
+                'text-[10px] font-semibold uppercase tracking-wide text-green-700';
+            title.textContent = String(flowReply.title || 'Form submitted');
+            wrap.appendChild(title);
 
-        if (buttons.length > 0) {
-            const row = document.createElement('div');
-            row.className = 'mt-1 flex flex-wrap gap-1.5';
-            buttons.forEach((label) => {
-                const chip = document.createElement('span');
-                chip.className =
-                    'rounded border border-green-300 bg-white/80 px-2 py-1 text-[11px] font-medium text-green-800';
-                chip.textContent = String(label);
-                row.appendChild(chip);
-            });
-            wrap.appendChild(row);
+            if (flowReply.flow_name) {
+                const nameEl = document.createElement('div');
+                nameEl.className = 'text-[11px] text-text-body/70';
+                nameEl.textContent = String(flowReply.flow_name);
+                wrap.appendChild(nameEl);
+            }
+
+            const fields = Array.isArray(flowReply.fields) ? flowReply.fields : [];
+            if (fields.length > 0) {
+                const card = document.createElement('div');
+                card.className =
+                    'mt-0.5 flex flex-col gap-1.5 rounded-lg border border-green-200/80 bg-white/70 p-2';
+
+                fields.forEach((field) => {
+                    const value = String(field?.value || '').trim();
+                    if (!value) {
+                        return;
+                    }
+
+                    const row = document.createElement('div');
+                    row.className = 'flex flex-col gap-0.5';
+
+                    const label = document.createElement('span');
+                    label.className =
+                        'text-[10px] font-semibold uppercase tracking-wide text-text-body/55';
+                    label.textContent = String(field?.label || field?.name || 'Field');
+
+                    const valueEl = document.createElement('span');
+                    valueEl.className = 'text-xs font-medium text-text-body break-words';
+                    valueEl.textContent = value;
+
+                    row.appendChild(label);
+                    row.appendChild(valueEl);
+                    card.appendChild(row);
+                });
+
+                wrap.appendChild(card);
+            } else {
+                const empty = document.createElement('div');
+                empty.className = 'text-xs text-text-body/70';
+                empty.textContent = 'No form answers were included in this reply.';
+                wrap.appendChild(empty);
+            }
+        } else {
+            const bodyEl = document.createElement('div');
+            bodyEl.textContent = interactiveBody || '[interactive]';
+            wrap.appendChild(bodyEl);
+
+            if (buttons.length > 0) {
+                const row = document.createElement('div');
+                row.className = 'mt-1 flex flex-wrap gap-1.5';
+                buttons.forEach((label) => {
+                    const chip = document.createElement('span');
+                    chip.className =
+                        'rounded border border-green-300 bg-white/80 px-2 py-1 text-[11px] font-medium text-green-800';
+                    chip.textContent = String(label);
+                    row.appendChild(chip);
+                });
+                wrap.appendChild(row);
+            }
         }
 
         bubble.appendChild(wrap);
