@@ -1,5 +1,5 @@
 /* WapApp PWA — installability + light static cache (L1/L2). No offline API/inbox. */
-const CACHE = 'wapapp-shell-v2';
+const CACHE = 'wapapp-shell-v3';
 const PRECACHE = [
   '/manifest.webmanifest',
   '/images/favicons/icon-192.png',

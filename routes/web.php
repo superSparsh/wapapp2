@@ -66,6 +66,16 @@ Route::get('/', function () {
     return redirect()->route('login');
 });
 
+Route::get('/manifest.webmanifest', function () {
+    $path = resource_path('pwa/manifest.webmanifest');
+    abort_unless(is_file($path), 404);
+
+    return response((string) file_get_contents($path), 200, [
+        'Content-Type' => 'application/manifest+json; charset=utf-8',
+        'Cache-Control' => 'no-cache, must-revalidate',
+    ]);
+})->name('pwa.manifest');
+
 Route::get('/tutorial-video/{filename}', [TutorialController::class, 'stream'])
     ->where('filename', '[^/]+')
     ->name('tutorials.stream');
