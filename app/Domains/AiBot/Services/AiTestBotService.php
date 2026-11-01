@@ -163,10 +163,16 @@ class AiTestBotService
         }
 
         if (empty($parts)) {
-            $parts[] = 'You are a helpful customer support assistant. Be concise and friendly.';
+            if ($bot->provider === AiProvider::Tittu) {
+                $parts[] = 'You are a WhatsApp client-relationship assistant. Use only known business facts. '
+                    .'If your training/KB names you (e.g. Lakshmi), use that name. '
+                    .'Never invent a name like "WhatsApp Support Bot". Keep replies to 1–3 short sentences and match the user language.';
+            } else {
+                $parts[] = 'You are a helpful customer support assistant. Be concise and friendly.';
+            }
         }
 
-        $parts[] = 'Format your response concisely.';
+        $parts[] = 'Format your response concisely for WhatsApp.';
 
         return implode("\n\n", $parts);
     }

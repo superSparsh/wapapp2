@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\AiBot\Services;
 
+use App\Enums\AiProvider;
 use App\Models\AiBot;
 use App\Models\AiProviderKey;
 use App\Models\LegacyCustomerMigration;
@@ -342,6 +343,25 @@ class KnowledgeBaseProxyService
             $systemPrompt = trim($systemPrompt."\n\nBusiness context: ".$bot->business_information);
         }
 
+        $isTittu = $bot?->provider === AiProvider::Tittu
+            || strtolower((string) ($cfg['provider'] ?? '')) === AiProvider::Tittu->value;
+
+        if ($isTittu) {
+            $systemPrompt = $this->buildTittuRagSystemPrompt($systemPrompt);
+        }
+
+        $temperature = (float) ($bot?->temperature ?? 0.3);
+        // Tittu gateway models stay more faithful to KB at lower temperature.
+        if ($isTittu) {
+            $temperature = min($temperature, 0.2);
+        }
+
+        // Keep recent turns only for Tittu so long chat history does not drown KB context.
+        $history = array_values($chatHistory);
+        if ($isTittu && count($history) > 8) {
+            $history = array_slice($history, -8);
+        }
+
         $payload = [
             'client_id' => $this->clientId(),
             'customer_id' => $this->clientId(),
@@ -350,9 +370,9 @@ class KnowledgeBaseProxyService
             'provider' => (string) $cfg['provider'],
             'chat_model' => (string) ($cfg['chat_model'] ?? 'auto'),
             'embedding_model' => (string) ($cfg['embedding_model'] ?? 'auto'),
-            'temperature' => (float) ($bot?->temperature ?? 0.3),
+            'temperature' => $temperature,
             'system_prompt' => $systemPrompt,
-            'chat_history' => array_values($chatHistory),
+            'chat_history' => $history,
         ];
 
         if ($uid = $this->botUid($bot)) {
@@ -360,6 +380,40 @@ class KnowledgeBaseProxyService
         }
 
         return $this->client->postJson('/process_query', $payload);
+    }
+
+    /**
+     * Tittu-only RAG instructions: identity + facts must come from KB context,
+     * WhatsApp-short replies, no invented bot names / prices.
+     */
+    private function buildTittuRagSystemPrompt(string $existing): string
+    {
+        $tittuBlock = <<<'PROMPT'
+You are a WhatsApp client-relationship assistant. Your name, tone, project facts, prices, and rules come ONLY from the knowledge below (training guide / KB). If the knowledge names you (for example Lakshmi), use that identity. Never invent a name like "WhatsApp Support Bot" or claim to be a generic support bot.
+
+Knowledge:
+{context}
+
+Reply rules:
+1. Answer the user's question first, then at most one short follow-up question.
+2. Keep replies to 1–3 short WhatsApp sentences. Sound natural, warm, and confident—not like a brochure or legal disclaimer.
+3. Match the user's language (English, Hindi, Hinglish, or Marathi). If they type Hindi/Marathi in Roman letters, reply the same way.
+4. Use ONLY facts from the knowledge. Do not invent prices, offers, EMI schemes, approvals, inventory, travel times, email addresses, or phone numbers.
+5. If the knowledge does not contain the answer, say you do not have that detail yet and offer the next helpful step (for example a site visit or calling the public number from the knowledge).
+6. Be persuasive by inviting them to visit/experience the project—never fake urgency or guarantees.
+7. Format lightly for WhatsApp (*bold* sparingly). No long bullet essays unless the user asks for a full list.
+PROMPT;
+
+        $existing = trim($existing);
+        if ($existing === '') {
+            return $tittuBlock;
+        }
+
+        if (! str_contains($existing, '{context}')) {
+            return $existing."\n\n".$tittuBlock;
+        }
+
+        return $existing."\n\n".$tittuBlock;
     }
 
     /**

@@ -7,6 +7,7 @@ namespace App\Domains\AiBot\Services;
 use App\Domains\AiBot\Support\AiResponseFormatter;
 use App\Domains\AiBot\Support\ConversationMemory;
 use App\Domains\Inbox\Services\InboxOutboundService;
+use App\Enums\AiProvider;
 use App\Models\AiBot;
 use App\Models\Conversation;
 use Illuminate\Support\Facades\Log;
@@ -179,7 +180,13 @@ class AiChatService
         }
 
         if (empty($parts)) {
-            $parts[] = 'You are a helpful customer support assistant for WhatsApp. Be concise and friendly. Keep responses under 300 words.';
+            if ($bot->provider === AiProvider::Tittu) {
+                $parts[] = 'You are a WhatsApp client-relationship assistant. Use only known business facts. '
+                    .'If your training/KB names you (e.g. Lakshmi), use that name. '
+                    .'Never invent a name like "WhatsApp Support Bot". Keep replies to 1–3 short sentences and match the user language.';
+            } else {
+                $parts[] = 'You are a helpful customer support assistant for WhatsApp. Be concise and friendly. Keep responses under 300 words.';
+            }
         }
 
         $parts[] = 'Important: Format your response for WhatsApp. Use *bold* for emphasis. Keep it concise and conversational.';
