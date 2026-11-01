@@ -68,7 +68,21 @@ class AiBotService
                 $data['embedding_model'] = $embeddingModel;
             }
 
-            $bot->forceFill(array_filter($data, fn ($v) => $v !== null))->save();
+            // Empty textareas become null via ConvertEmptyStringsToNull.
+            // Keep those keys so clearing System Prompt / Business Information persists.
+            $clearable = ['system_prompt', 'business_information', 'type'];
+            $nullable = [];
+            foreach ($clearable as $field) {
+                if (array_key_exists($field, $data)) {
+                    $nullable[$field] = $data[$field];
+                    unset($data[$field]);
+                }
+            }
+
+            $bot->forceFill(array_merge(
+                array_filter($data, fn ($v) => $v !== null),
+                $nullable,
+            ))->save();
 
             return $bot->refresh();
         });

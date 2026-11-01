@@ -85,6 +85,27 @@ class AiBotCrudTest extends TestCase
         $this->assertDatabaseHas('ai_bots', ['id' => $bot->id, 'name' => 'Updated Bot']);
     }
 
+    public function test_update_can_clear_system_prompt_and_business_information(): void
+    {
+        $bot = AiBot::factory()->create([
+            'system_prompt' => 'You are a sales bot.',
+            'business_information' => 'We sell widgets.',
+        ]);
+
+        $this->actingAsTenantUser()
+            ->put(route('ai-bots.update', $bot), [
+                'name' => $bot->name,
+                'provider' => $bot->provider->value,
+                'system_prompt' => '',
+                'business_information' => '',
+            ])
+            ->assertRedirect(route('openai-key.index', ['tab' => 'bot-manager']));
+
+        $bot->refresh();
+        $this->assertNull($bot->system_prompt);
+        $this->assertNull($bot->business_information);
+    }
+
     public function test_tittu_bot_uses_auto_chat_and_gateway_embedding(): void
     {
         $bot = AiBot::factory()->create([
