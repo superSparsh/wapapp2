@@ -8,6 +8,24 @@ from providers.tittu_provider import TittuGatewayProvider
 
 _cache: Dict[str, BaseAIProvider] = {}
 
+_PROVIDER_ALIASES = {
+    "openai": "openai",
+    "open_ai": "openai",
+    "gpt": "openai",
+    "gemini": "gemini",
+    "google": "gemini",
+    "google_gemini": "gemini",
+    "tittu": "tittu",
+    "tittu_gateway": "tittu",
+    "tittu-gateway": "tittu",
+    "gateway": "tittu",
+}
+
+
+def _normalize_provider(provider: str) -> str:
+    key = (provider or "").strip().lower().replace(" ", "_")
+    return _PROVIDER_ALIASES.get(key, key)
+
 
 def get_provider(provider: str, api_key: str) -> BaseAIProvider:
     if not api_key:
@@ -15,16 +33,20 @@ def get_provider(provider: str, api_key: str) -> BaseAIProvider:
             "API key is required for this operation. "
             "Configure a provider key in AI Assistant → API Settings."
         )
-    cache_key = f"{provider}:{hashlib.sha256(api_key.encode()).hexdigest()[:16]}"
+
+    normalized = _normalize_provider(provider)
+    cache_key = f"{normalized}:{hashlib.sha256(api_key.encode()).hexdigest()[:16]}"
     if cache_key not in _cache:
-        if provider == "openai":
+        if normalized == "openai":
             _cache[cache_key] = OpenAIProvider(api_key)
-        elif provider == "gemini":
+        elif normalized == "gemini":
             _cache[cache_key] = GeminiProvider(api_key)
-        elif provider == "tittu":
+        elif normalized == "tittu":
             _cache[cache_key] = TittuGatewayProvider(api_key)
         else:
-            raise ValueError(f"Unknown provider: {provider}")
+            raise ValueError(
+                f"Unknown provider: {provider}. Supported: openai, gemini, tittu."
+            )
     return _cache[cache_key]
 
 

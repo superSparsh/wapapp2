@@ -1,7 +1,7 @@
 <x-layouts.app title="{{ $bot->name }} - AI Bot" active="ai-bots">
   <div class="flex flex-col bg-surface">
     <div class="flex flex-col gap-4 p-4">
-      <div class="flex items-center gap-2"><a href="{{ route('ai-bots.index') }}" class="text-text-subtle hover:text-text-body">&larr; Back</a></div>
+      <div class="flex items-center gap-2"><a href="{{ route('openai-key.index', ['tab' => 'bot-manager']) }}" class="text-text-subtle hover:text-text-body">&larr; Back</a></div>
       <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h1 class="text-2xl font-bold text-text-primary">{{ $bot->name }}</h1>
         <div class="flex gap-3">

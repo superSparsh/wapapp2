@@ -2,7 +2,7 @@
   <div class="flex flex-col bg-surface">
     <div class="flex flex-col gap-4 p-4">
       <div class="flex flex-col gap-1">
-        <div class="flex items-center gap-2"><a href="{{ route('ai-bots.index') }}" class="text-text-subtle hover:text-text-body">&larr; Back</a></div>
+        <div class="flex items-center gap-2"><a href="{{ route('openai-key.index', ['tab' => 'bot-manager']) }}" class="text-text-subtle hover:text-text-body">&larr; Back</a></div>
         <h1 class="text-2xl font-bold leading-[1.5] text-text-primary">Create AI Bot</h1>
       </div>
       @if ($errors->any())
@@ -46,7 +46,7 @@
             <label for="is_default" class="text-sm text-text-body">Set as default bot</label>
           </div>
           <div class="flex items-center gap-3 pt-2">
-            <a href="{{ route('ai-bots.index') }}" class="inline-flex items-center justify-center rounded-lg border border-divider bg-surface px-5 py-3 text-sm font-semibold text-text-body">Cancel</a>
+            <a href="{{ route('openai-key.index', ['tab' => 'bot-manager']) }}" class="inline-flex items-center justify-center rounded-lg border border-divider bg-surface px-5 py-3 text-sm font-semibold text-text-body">Cancel</a>
             <button type="submit" class="inline-flex items-center justify-center gap-2 rounded-lg bg-green-500 px-5 py-3 text-sm font-semibold text-primary-2 hover:opacity-90">Create Bot</button>
           </div>
         </div>

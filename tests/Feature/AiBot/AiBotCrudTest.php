@@ -49,7 +49,7 @@ class AiBotCrudTest extends TestCase
                 'chat_model' => 'gpt-4o-mini',
                 'temperature' => 0.3,
             ])
-            ->assertRedirect();
+            ->assertRedirect(route('openai-key.index', ['tab' => 'bot-manager']));
 
         $this->assertDatabaseHas('ai_bots', ['name' => 'Support Bot']);
     }

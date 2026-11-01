@@ -1,7 +1,7 @@
 <x-layouts.app title="{{ $bot->name }} - Knowledge Base" active="ai-bots">
   <div class="flex flex-col bg-surface">
     <div class="flex flex-col gap-4 p-4">
-      <div class="flex items-center gap-2"><a href="{{ route('ai-bots.show', $bot) }}" class="text-text-subtle hover:text-text-body">&larr; Back to {{ $bot->name }}</a></div>
+      <div class="flex items-center gap-2"><a href="{{ route('openai-key.index', ['tab' => 'knowledge-base', 'bot' => $bot->uuid]) }}" class="text-text-subtle hover:text-text-body">&larr; Back to Knowledge Base</a></div>
       <div class="flex flex-col gap-1">
         <h1 class="text-2xl font-bold leading-[1.5] text-text-primary">{{ $bot->name }} - Knowledge Base</h1>
         <p class="max-w-[854px] text-sm font-normal leading-[1.4] text-text-subtle opacity-50">

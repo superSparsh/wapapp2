@@ -53,7 +53,7 @@ class AiBotController extends Controller
         $bot = $this->botService->create($request->validated());
 
         return redirect()
-            ->route('ai-bots.show', $bot)
+            ->route('openai-key.index', ['tab' => 'bot-manager'])
             ->with('status', 'AI bot created successfully.');
     }
 
@@ -87,7 +87,7 @@ class AiBotController extends Controller
         $this->botService->delete($aiBot);
 
         return redirect()
-            ->route('ai-bots.index')
+            ->route('openai-key.index', ['tab' => 'bot-manager'])
             ->with('status', 'AI bot deleted successfully.');
     }
 
@@ -108,7 +108,7 @@ class AiBotController extends Controller
         $status = $aiBot->fresh()->is_default ? 'set as default' : 'unset as default';
 
         return redirect()
-            ->route('ai-bots.index')
+            ->route('openai-key.index', ['tab' => 'bot-manager'])
             ->with('status', "AI bot {$status} successfully.");
     }
 
