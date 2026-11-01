@@ -1,5 +1,5 @@
 import os
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import requests
 
@@ -24,6 +24,30 @@ _FALLBACK_EMBEDDING_MODELS: List[Dict[str, Any]] = [
     {"id": "voyage-embeddings", "name": "Voyage AI", "dimensions": 0},
     {"id": "jina-embeddings", "name": "Jina AI", "dimensions": 0},
 ]
+
+# Meta names / empty values must NOT be sent as gateway targetProvider
+# (gateway returns "Unknown provider: tittu" if targetProvider=tittu).
+_AUTO_TARGET_ALIASES = {
+    "",
+    "auto",
+    "tittu",
+    "tittu_gateway",
+    "tittu-gateway",
+    "gateway",
+    "openai",
+    "gemini",
+    "azure",
+    "google",
+}
+
+
+def _resolve_target_provider(model: str) -> Optional[str]:
+    target = (model or "").strip()
+    if not target:
+        return None
+    if target.lower().replace(" ", "_") in _AUTO_TARGET_ALIASES:
+        return None
+    return target
 
 
 class TittuGatewayProvider(BaseAIProvider):
@@ -72,13 +96,15 @@ class TittuGatewayProvider(BaseAIProvider):
             "input": cleaned if len(cleaned) > 1 else cleaned[0],
             "text": cleaned[0] if len(cleaned) == 1 else cleaned,
         }
-        target = (model or "").strip()
-        if target and target.lower() != "auto":
+        target = _resolve_target_provider(model)
+        if target:
             body["model"] = target
             body["targetProvider"] = target
 
         response = self._post_embeddings(body)
-        response.raise_for_status()
+        if not response.ok:
+            detail = (response.text or "").strip()[:300] or f"HTTP {response.status_code}"
+            raise ValueError(f"Tittu Gateway embeddings failed: {detail}")
         data = response.json() if response.content else {}
         if not isinstance(data, dict):
             raise ValueError("Tittu Gateway returned an invalid embedding response.")
@@ -117,12 +143,14 @@ class TittuGatewayProvider(BaseAIProvider):
         if system_parts:
             body["systemPrompt"] = "\n\n".join(system_parts)
 
-        target = (model or "").strip()
-        if target and target.lower() != "auto":
+        target = _resolve_target_provider(model)
+        if target:
             body["targetProvider"] = target
 
         response = self._post_generate(body)
-        response.raise_for_status()
+        if not response.ok:
+            detail = (response.text or "").strip()[:300] or f"HTTP {response.status_code}"
+            raise ValueError(f"Tittu Gateway chat failed: {detail}")
         data = response.json() if response.content else {}
 
         return {

@@ -98,8 +98,16 @@ class AiBot extends TenantModel
             return [
                 'provider' => $this->provider->value,
                 'api_key' => $providerKey->api_key,
-                'chat_model' => $this->chat_model ?: ($providerKey->chat_model ?: $defaultChat),
-                'embedding_model' => $this->embedding_model ?: ($providerKey->embedding_model ?: $defaultEmbed),
+                'chat_model' => $this->normalizeTittuModel(
+                    $this->chat_model ?: ($providerKey->chat_model ?: $defaultChat),
+                    $defaultChat,
+                    $isTittu
+                ),
+                'embedding_model' => $this->normalizeTittuModel(
+                    $this->embedding_model ?: ($providerKey->embedding_model ?: $defaultEmbed),
+                    $defaultEmbed,
+                    $isTittu
+                ),
             ];
         }
 
@@ -117,16 +125,55 @@ class AiBot extends TenantModel
             return [
                 'provider' => $provider,
                 'api_key' => $anyKey->api_key,
-                'chat_model' => $anyKey->chat_model ?: $defaultChat,
-                'embedding_model' => $anyKey->embedding_model ?: $defaultEmbed,
+                'chat_model' => $this->normalizeTittuModel(
+                    $anyKey->chat_model ?: $defaultChat,
+                    $defaultChat,
+                    $isTittu
+                ),
+                'embedding_model' => $this->normalizeTittuModel(
+                    $anyKey->embedding_model ?: $defaultEmbed,
+                    $defaultEmbed,
+                    $isTittu
+                ),
             ];
         }
 
         return [
             'provider' => $this->provider->value,
             'api_key' => null,
-            'chat_model' => $this->chat_model ?: $defaultChat,
-            'embedding_model' => $this->embedding_model ?: $defaultEmbed,
+            'chat_model' => $this->normalizeTittuModel($this->chat_model ?: $defaultChat, $defaultChat, $isTittu),
+            'embedding_model' => $this->normalizeTittuModel($this->embedding_model ?: $defaultEmbed, $defaultEmbed, $isTittu),
         ];
+    }
+
+    /**
+     * Tittu Gateway rejects meta names like "tittu" as targetProvider.
+     * Coerce those (and blanks) back to auto for chat/embedding.
+     */
+    private function normalizeTittuModel(?string $model, string $default, bool $isTittu): string
+    {
+        $value = trim((string) $model);
+        if ($value === '') {
+            return $default;
+        }
+
+        if (! $isTittu) {
+            return $value;
+        }
+
+        $normalized = strtolower(str_replace(' ', '_', $value));
+        $meta = [
+            'auto',
+            'tittu',
+            'tittu_gateway',
+            'tittu-gateway',
+            'gateway',
+            'openai',
+            'gemini',
+            'azure',
+            'google',
+        ];
+
+        return in_array($normalized, $meta, true) ? $default : $value;
     }
 }
