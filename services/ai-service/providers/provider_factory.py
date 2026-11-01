@@ -1,5 +1,6 @@
 import hashlib
-from typing import Dict
+import re
+from typing import Dict, Type
 
 from providers.base_provider import BaseAIProvider
 from providers.gemini_provider import GeminiProvider
@@ -17,14 +18,26 @@ _PROVIDER_ALIASES = {
     "google_gemini": "gemini",
     "tittu": "tittu",
     "tittu_gateway": "tittu",
-    "tittu-gateway": "tittu",
+    "tittugateway": "tittu",
     "gateway": "tittu",
+}
+
+_PROVIDER_CLASSES: Dict[str, Type[BaseAIProvider]] = {
+    "openai": OpenAIProvider,
+    "gemini": GeminiProvider,
+    "tittu": TittuGatewayProvider,
 }
 
 
 def _normalize_provider(provider: str) -> str:
-    key = (provider or "").strip().lower().replace(" ", "_")
+    raw = (provider or "").strip().lower()
+    # Drop invisible / punctuation noise from forms or DB values.
+    key = re.sub(r"[^a-z0-9]+", "_", raw).strip("_")
     return _PROVIDER_ALIASES.get(key, key)
+
+
+def supported_providers() -> list[str]:
+    return sorted(_PROVIDER_CLASSES.keys())
 
 
 def get_provider(provider: str, api_key: str) -> BaseAIProvider:
@@ -37,16 +50,13 @@ def get_provider(provider: str, api_key: str) -> BaseAIProvider:
     normalized = _normalize_provider(provider)
     cache_key = f"{normalized}:{hashlib.sha256(api_key.encode()).hexdigest()[:16]}"
     if cache_key not in _cache:
-        if normalized == "openai":
-            _cache[cache_key] = OpenAIProvider(api_key)
-        elif normalized == "gemini":
-            _cache[cache_key] = GeminiProvider(api_key)
-        elif normalized == "tittu":
-            _cache[cache_key] = TittuGatewayProvider(api_key)
-        else:
+        cls = _PROVIDER_CLASSES.get(normalized)
+        if cls is None:
             raise ValueError(
-                f"Unknown provider: {provider}. Supported: openai, gemini, tittu."
+                f"Unknown provider: {provider!r} (normalized={normalized!r}). "
+                f"Supported: {', '.join(supported_providers())}."
             )
+        _cache[cache_key] = cls(api_key)
     return _cache[cache_key]
 
 

@@ -12,12 +12,21 @@ import time
 import hashlib
 
 from config import Config
-from providers.provider_factory import get_provider
+from providers.provider_factory import get_provider, supported_providers
 
 app = FastAPI()
 TRANSFER_MESSAGE = "I'm transferring your chat to our available executive."
 
 _model_cache = {}
+
+
+@app.get("/health")
+async def health():
+    return {
+        "ok": True,
+        "providers": supported_providers(),
+        "tittu": "tittu" in supported_providers(),
+    }
 
 
 class ValidateKeyRequest(BaseModel):

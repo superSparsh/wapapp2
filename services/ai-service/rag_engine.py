@@ -59,8 +59,15 @@ class RAGEngine:
         # Use provided API key or fall back to default from config.
         # Read-only Chroma ops (list / storage / delete) may run without a key.
         self.api_key = api_key or Config.OPENAI_API_KEY
-        self.provider_name = provider or "openai"
-        self.embedding_model_name = embedding_model or Config.EMBEDDING_MODEL
+        self.provider_name = (provider or "openai").strip().lower() or "openai"
+        is_tittu = self.provider_name.replace("-", "_") in {
+            "tittu",
+            "tittu_gateway",
+            "gateway",
+        }
+        default_embed = "auto" if is_tittu else Config.EMBEDDING_MODEL
+        default_chat = "auto" if is_tittu else Config.MODEL_NAME
+        self.embedding_model_name = (embedding_model or "").strip() or default_embed
         self.bot_id_str = bot_id_str
         self.customer_id = customer_id
 
@@ -68,7 +75,7 @@ class RAGEngine:
         self._response_cache = {}
 
         # Use provided model settings or fall back to defaults from config
-        self.model_name = model_name or Config.MODEL_NAME
+        self.model_name = (model_name or "").strip() or default_chat
         self.temperature = temperature if temperature is not None else Config.TEMPERATURE
 
         self._provider = None

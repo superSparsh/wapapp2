@@ -80,9 +80,9 @@ class TittuGatewayProvider implements AiProviderInterface
             $body['systemPrompt'] = implode("\n\n", $system);
         }
 
-        $model = strtolower(trim((string) ($options['model'] ?? '')));
-        if ($model !== '' && $model !== 'auto') {
-            $body['targetProvider'] = trim((string) $options['model']);
+        $target = $this->resolveTargetProvider((string) ($options['model'] ?? ''));
+        if ($target !== null) {
+            $body['targetProvider'] = $target;
         }
 
         $response = $this->http($apiKey)->post('/v1/generate', $body);
@@ -117,10 +117,10 @@ class TittuGatewayProvider implements AiProviderInterface
             'text' => $text,
         ];
 
-        $model = trim((string) ($options['model'] ?? ''));
-        if ($model !== '' && strtolower($model) !== 'auto') {
-            $body['model'] = $model;
-            $body['targetProvider'] = $model;
+        $target = $this->resolveTargetProvider((string) ($options['model'] ?? ''));
+        if ($target !== null) {
+            $body['model'] = $target;
+            $body['targetProvider'] = $target;
         }
 
         if (isset($options['dimensions'])) {
@@ -405,6 +405,36 @@ class TittuGatewayProvider implements AiProviderInterface
         }
 
         return $out;
+    }
+
+    /**
+     * Gateway rejects meta names (tittu/openai/...) as targetProvider.
+     */
+    private function resolveTargetProvider(string $model): ?string
+    {
+        $target = trim($model);
+        if ($target === '') {
+            return null;
+        }
+
+        $normalized = strtolower(str_replace([' ', '-'], '_', $target));
+        $meta = [
+            'auto',
+            'tittu',
+            'tittu_gateway',
+            'tittugateway',
+            'gateway',
+            'openai',
+            'gemini',
+            'azure',
+            'google',
+        ];
+
+        if (in_array($normalized, $meta, true)) {
+            return null;
+        }
+
+        return $target;
     }
 
     private function http(string $apiKey): PendingRequest
