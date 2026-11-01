@@ -335,27 +335,28 @@ class KnowledgeBaseProxyService
         $bot = $this->resolveBot($botId);
         $cfg = $this->requireApiKey($bot);
 
+        // Remote FastAPI (older Pydantic) rejects JSON null for str fields → HTTP 422.
+        // Always send strings / lists, never null, for process_query.
+        $systemPrompt = trim((string) ($bot?->system_prompt ?? ''));
+        if (filled($bot?->business_information)) {
+            $systemPrompt = trim($systemPrompt."\n\nBusiness context: ".$bot->business_information);
+        }
+
         $payload = [
             'client_id' => $this->clientId(),
             'customer_id' => $this->clientId(),
             'query_text' => $queryText,
-            'api_key' => $cfg['api_key'],
-            'provider' => $cfg['provider'],
-            'chat_model' => $cfg['chat_model'],
-            'embedding_model' => $cfg['embedding_model'],
-            'temperature' => $bot?->temperature ?? 0.3,
-            'system_prompt' => $bot?->system_prompt,
-            'chat_history' => $chatHistory,
+            'api_key' => (string) $cfg['api_key'],
+            'provider' => (string) $cfg['provider'],
+            'chat_model' => (string) ($cfg['chat_model'] ?? 'auto'),
+            'embedding_model' => (string) ($cfg['embedding_model'] ?? 'auto'),
+            'temperature' => (float) ($bot?->temperature ?? 0.3),
+            'system_prompt' => $systemPrompt,
+            'chat_history' => array_values($chatHistory),
         ];
 
         if ($uid = $this->botUid($bot)) {
-            $payload['bot_id'] = $uid;
-        }
-
-        if (filled($bot?->business_information)) {
-            $payload['system_prompt'] = trim(
-                (string) ($payload['system_prompt'] ?? '')."\n\nBusiness context: ".$bot->business_information
-            );
+            $payload['bot_id'] = (string) $uid;
         }
 
         return $this->client->postJson('/process_query', $payload);

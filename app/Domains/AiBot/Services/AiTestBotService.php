@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\AiBot\Services;
 
+use App\Enums\AiProvider;
 use App\Models\AiBot;
 use Illuminate\Support\Facades\Log;
 
@@ -37,10 +38,25 @@ class AiTestBotService
                     ? $payload['response']
                     : (string) json_encode($payload['response'] ?? $payload);
 
-                if (filled($payload['_error'] ?? null) || AiChatService::isTransferFallbackMessage($text)) {
-                    Log::warning('AI process_query unusable in test-bot; falling back to direct chat', [
+                // Surface RAG failures in Test Bot instead of silently chatting without KB.
+                if (filled($payload['_error'] ?? null)) {
+                    $error = (string) $payload['_error'];
+                    Log::warning('AI process_query error in test-bot', [
                         'bot_id' => $bot->id,
-                        'error' => (string) ($payload['_error'] ?? 'transfer_fallback'),
+                        'error' => $error,
+                    ]);
+
+                    return [
+                        'response' => 'Knowledge Base / RAG error: '.$error,
+                        'tokens' => 0,
+                        'error' => $error,
+                        'source' => 'process_query_error',
+                    ];
+                }
+
+                if (AiChatService::isTransferFallbackMessage($text)) {
+                    Log::warning('AI process_query returned transfer fallback in test-bot; trying direct chat', [
+                        'bot_id' => $bot->id,
                     ]);
                 } else {
                     $tokens = (int) ($payload['total_tokens'] ?? $payload['tokens'] ?? 0);
@@ -66,6 +82,7 @@ class AiTestBotService
                     return [
                         'response' => $text,
                         'tokens' => $tokens,
+                        'source' => 'knowledge_base',
                     ];
                 }
             } catch (\Throwable $e) {
@@ -73,6 +90,16 @@ class AiTestBotService
                     'bot_id' => $bot->id,
                     'error' => $e->getMessage(),
                 ]);
+
+                // For Tittu, keep the real KB error visible in Test Bot.
+                if ($bot->provider === AiProvider::Tittu) {
+                    return [
+                        'response' => 'Knowledge Base / RAG error: '.$e->getMessage(),
+                        'tokens' => 0,
+                        'error' => $e->getMessage(),
+                        'source' => 'process_query_exception',
+                    ];
+                }
             }
         }
 
