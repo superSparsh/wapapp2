@@ -1590,4 +1590,184 @@ class ChatbotInteractiveFlowTest extends TestCase
 
         $this->assertContains('Continued after Sent', $sent);
     }
+
+    public function test_button_with_two_connections_sends_text_and_template(): void
+    {
+        $sentTexts = [];
+        $sentTemplates = [];
+
+        $this->mock(InboxOutboundService::class, function ($mock) use (&$sentTexts, &$sentTemplates): void {
+            $mock->shouldReceive('sendText')->andReturnUsing(function ($conversation, string $body) use (&$sentTexts) {
+                $sentTexts[] = $body;
+
+                return new Message([
+                    'id' => 901,
+                    'body' => $body,
+                    'direction' => MessageDirection::Outbound,
+                    'message_type' => MessageType::Text,
+                ]);
+            });
+            $mock->shouldReceive('sendTemplate')->andReturnUsing(function ($conversation, string $code) use (&$sentTemplates) {
+                $sentTemplates[] = $code;
+
+                return new Message([
+                    'id' => 902,
+                    'body' => $code,
+                    'direction' => MessageDirection::Outbound,
+                    'message_type' => MessageType::Template,
+                ]);
+            });
+            $mock->shouldReceive('sendInteractive')->andReturn(new Message([
+                'id' => 903,
+                'body' => 'interactive',
+                'direction' => MessageDirection::Outbound,
+                'message_type' => MessageType::Interactive,
+            ]));
+            $mock->shouldReceive('sendTypingIndicator')->andReturn(true);
+        });
+
+        $flow = ChatbotFlow::factory()->active()->create([
+            'exported_data' => [
+                'nodes' => [
+                    [
+                        'id' => 'interactive_1',
+                        'type' => 'interactiveMessage',
+                        'data' => [
+                            'interactiveType' => 'button',
+                            'bodyText' => 'Choose',
+                            'buttons' => [
+                                ['id' => 'go', 'title' => 'Send both'],
+                            ],
+                        ],
+                    ],
+                    [
+                        'id' => 'text_1',
+                        'type' => 'templateMessage',
+                        'data' => [
+                            'messageType' => 'text',
+                            'customText' => 'Plain follow-up',
+                        ],
+                    ],
+                    [
+                        'id' => 'template_1',
+                        'type' => 'templateMessage',
+                        'data' => [
+                            'messageType' => 'template',
+                            'templateCode' => 'welcome_offer',
+                            'templateId' => 'welcome_offer',
+                        ],
+                    ],
+                ],
+                'edges' => [
+                    ['source' => 'interactive_1', 'target' => 'text_1', 'sourceHandle' => 'button-0'],
+                    ['source' => 'interactive_1', 'target' => 'template_1', 'sourceHandle' => 'button-0'],
+                ],
+            ],
+        ]);
+
+        $conversation = Conversation::factory()->create();
+
+        ChatbotFlowState::query()->create([
+            'conversation_id' => $conversation->id,
+            'chatbot_flow_id' => $flow->id,
+            'current_node_id' => 'interactive_1',
+            'variables' => [
+                '_interactive_options' => [
+                    ['id' => 'go', 'title' => 'Send both'],
+                ],
+            ],
+            'status' => ChatbotFlowStateStatus::Waiting,
+            'expires_at' => now()->addHour(),
+        ]);
+
+        app(ChatbotFlowEngine::class)->processInbound($conversation, Message::factory()->create([
+            'conversation_id' => $conversation->id,
+            'body' => 'Send both',
+            'direction' => MessageDirection::Inbound,
+            'message_type' => MessageType::Interactive,
+            'metadata' => ['interactive_reply_id' => 'go'],
+        ]));
+
+        $this->assertContains('Plain follow-up', $sentTexts);
+        $this->assertContains('welcome_offer', $sentTemplates);
+    }
+
+    public function test_button_with_single_connection_still_sends_only_one(): void
+    {
+        $sentTexts = [];
+
+        $this->mock(InboxOutboundService::class, function ($mock) use (&$sentTexts): void {
+            $mock->shouldReceive('sendText')->andReturnUsing(function ($conversation, string $body) use (&$sentTexts) {
+                $sentTexts[] = $body;
+
+                return new Message([
+                    'id' => 911,
+                    'body' => $body,
+                    'direction' => MessageDirection::Outbound,
+                    'message_type' => MessageType::Text,
+                ]);
+            });
+            $mock->shouldReceive('sendInteractive')->andReturn(new Message([
+                'id' => 912,
+                'body' => 'interactive',
+                'direction' => MessageDirection::Outbound,
+                'message_type' => MessageType::Interactive,
+            ]));
+            $mock->shouldReceive('sendTypingIndicator')->andReturn(true);
+        });
+
+        $flow = ChatbotFlow::factory()->active()->create([
+            'exported_data' => [
+                'nodes' => [
+                    [
+                        'id' => 'interactive_1',
+                        'type' => 'interactiveMessage',
+                        'data' => [
+                            'interactiveType' => 'button',
+                            'bodyText' => 'Choose',
+                            'buttons' => [
+                                ['id' => 'only', 'title' => 'Only one'],
+                            ],
+                        ],
+                    ],
+                    [
+                        'id' => 'text_1',
+                        'type' => 'welcomeMessage',
+                        'data' => [
+                            'messageType' => 'text',
+                            'welcomeMessage' => 'Only text',
+                        ],
+                    ],
+                ],
+                'edges' => [
+                    ['source' => 'interactive_1', 'target' => 'text_1', 'sourceHandle' => 'button-0'],
+                ],
+            ],
+        ]);
+
+        $conversation = Conversation::factory()->create();
+
+        ChatbotFlowState::query()->create([
+            'conversation_id' => $conversation->id,
+            'chatbot_flow_id' => $flow->id,
+            'current_node_id' => 'interactive_1',
+            'variables' => [
+                '_interactive_options' => [
+                    ['id' => 'only', 'title' => 'Only one'],
+                ],
+            ],
+            'status' => ChatbotFlowStateStatus::Waiting,
+            'expires_at' => now()->addHour(),
+        ]);
+
+        app(ChatbotFlowEngine::class)->processInbound($conversation, Message::factory()->create([
+            'conversation_id' => $conversation->id,
+            'body' => 'Only one',
+            'direction' => MessageDirection::Inbound,
+            'message_type' => MessageType::Interactive,
+            'metadata' => ['interactive_reply_id' => 'only'],
+        ]));
+
+        $this->assertSame(['Only text'], $sentTexts);
+    }
 }

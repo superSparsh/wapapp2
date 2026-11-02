@@ -249,7 +249,10 @@ class ChatbotFlowEngine
         ])->save();
 
         // Find the next node based on the reply
-        $nextNodeId = $this->resolveNextNodeFromReply($currentNode, $replyBody, $variables, $replyId);
+        $matchedHandle = $this->resolveMatchedReplyHandle($currentNode, $replyBody, $variables, $replyId);
+        $nextNodeId = $matchedHandle !== null
+            ? $this->nextNodeIdFromHandle($currentNode, $matchedHandle)
+            : $this->resolveNextNodeFromReply($currentNode, $replyBody, $variables, $replyId);
 
         $waitingOnFlow = $this->isWhatsappFlowWaitNode($currentNode, $variables);
         // Fallback: some BSPs deliver Flow submit as plain "Sent" without nfm metadata.
@@ -260,6 +263,7 @@ class ChatbotFlowEngine
         // Flow completion is not a button/list match — continue via default / delivered / sole edge.
         if ($nextNodeId === null && $isFlowCompletion && $waitingOnFlow) {
             $nextNodeId = $this->nextNodeAfterWhatsappFlow($currentNode);
+            $matchedHandle = null;
         }
 
         if ($nextNodeId === null && $this->nodeRequiresMatchedReply($currentNode, $variables)) {
@@ -302,6 +306,7 @@ class ChatbotFlowEngine
         if ($nextNodeId === null) {
             // Free-text wait nodes may continue via default/output_1
             $nextNodeId = $this->defaultNextNodeId($currentNode);
+            $matchedHandle = null;
         }
 
         if ($nextNodeId === null || ! isset($nodeMap[$nextNodeId])) {
@@ -310,10 +315,24 @@ class ChatbotFlowEngine
             return TriggerFireResult::Fired;
         }
 
-        $state->forceFill(['current_node_id' => $nextNodeId])->save();
+        // Multi-send: same button/handle with multiple edges → send each target in order.
+        // Single connection stays on the original executeFlowFromNode path.
+        $targets = [$nextNodeId];
+        if ($matchedHandle !== null) {
+            $fromHandle = $this->connectionTargetsFromHandle($currentNode, $matchedHandle);
+            if (count($fromHandle) > 1) {
+                $targets = $fromHandle;
+            }
+        }
 
         $this->processedNodeIds = [];
-        $result = $this->executeFlowFromNode($flow, $nodeMap, $conversation, $state);
+
+        if (count($targets) === 1) {
+            $state->forceFill(['current_node_id' => $targets[0]])->save();
+            $result = $this->executeFlowFromNode($flow, $nodeMap, $conversation, $state);
+        } else {
+            $result = $this->executeFanOutTargets($flow, $nodeMap, $conversation, $state, $targets);
+        }
 
         $this->markConversationRead($conversation);
 
@@ -517,6 +536,17 @@ class ChatbotFlowEngine
      */
     private function resolveInteractiveHandle(array $node, array $data, string $replyBody, string $replyId): ?string
     {
+        $handle = $this->matchInteractiveHandleKey($node, $data, $replyBody, $replyId);
+
+        return $handle !== null ? $this->nextNodeIdFromHandle($node, $handle) : null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $node
+     * @param  array<string, mixed>  $data
+     */
+    private function matchInteractiveHandleKey(array $node, array $data, string $replyBody, string $replyId): ?string
+    {
         $interactiveType = strtolower((string) ($data['interactiveType'] ?? $data['interactive_type'] ?? $data['type'] ?? 'button'));
 
         if ($interactiveType === 'button' || ($interactiveType === '' && isset($data['buttons']))) {
@@ -539,9 +569,8 @@ class ChatbotFlowEngine
                     if ($handleKey === '') {
                         continue;
                     }
-                    $nextId = $this->nextNodeIdFromHandle($node, (string) $handleKey);
-                    if ($nextId !== null) {
-                        return $nextId;
+                    if ($this->nextNodeIdFromHandle($node, (string) $handleKey) !== null) {
+                        return (string) $handleKey;
                     }
                 }
             }
@@ -577,9 +606,8 @@ class ChatbotFlowEngine
                         if ($handleKey === '') {
                             continue;
                         }
-                        $nextId = $this->nextNodeIdFromHandle($node, (string) $handleKey);
-                        if ($nextId !== null) {
-                            return $nextId;
+                        if ($this->nextNodeIdFromHandle($node, (string) $handleKey) !== null) {
+                            return (string) $handleKey;
                         }
                     }
                 }
@@ -595,6 +623,17 @@ class ChatbotFlowEngine
      */
     private function resolveCarouselHandle(array $node, array $data, string $replyBody): ?string
     {
+        $handle = $this->matchCarouselHandleKey($node, $data, $replyBody);
+
+        return $handle !== null ? $this->nextNodeIdFromHandle($node, $handle) : null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $node
+     * @param  array<string, mixed>  $data
+     */
+    private function matchCarouselHandleKey(array $node, array $data, string $replyBody): ?string
+    {
         foreach (array_values($data['templateCards'] ?? $data['cards'] ?? []) as $cardIndex => $card) {
             if (! is_array($card)) {
                 continue;
@@ -607,9 +646,9 @@ class ChatbotFlowEngine
                 if ($buttonText === '' || ! $this->labelsMatch($buttonText, $replyBody)) {
                     continue;
                 }
-                $nextId = $this->nextNodeIdFromHandle($node, 'carousel-'.$cardIndex.'-'.$buttonIndex);
-                if ($nextId !== null) {
-                    return $nextId;
+                $handle = 'carousel-'.$cardIndex.'-'.$buttonIndex;
+                if ($this->nextNodeIdFromHandle($node, $handle) !== null) {
+                    return $handle;
                 }
             }
         }
@@ -1649,12 +1688,234 @@ class ChatbotFlowEngine
 
     /**
      * @param  array<string, mixed>  $node
+     * @return list<string>
+     */
+    private function connectionTargetsFromHandle(array $node, string $handle): array
+    {
+        $connections = $node['outputs'][$handle]['connections'] ?? [];
+        if (! is_array($connections)) {
+            return [];
+        }
+
+        $targets = [];
+        foreach ($connections as $connection) {
+            if (! is_array($connection)) {
+                continue;
+            }
+            $target = trim((string) ($connection['node'] ?? ''));
+            if ($target !== '' && ! in_array($target, $targets, true)) {
+                $targets[] = $target;
+            }
+        }
+
+        return $targets;
+    }
+
+    /**
+     * @param  array<string, mixed>  $node
      */
     private function nextNodeIdFromHandle(array $node, string $handle): ?string
     {
-        $connections = $node['outputs'][$handle]['connections'] ?? [];
+        $targets = $this->connectionTargetsFromHandle($node, $handle);
 
-        return isset($connections[0]['node']) ? (string) $connections[0]['node'] : null;
+        return $targets[0] ?? null;
+    }
+
+    /**
+     * Same matching order as resolveNextNodeFromReply, but returns the output handle key.
+     *
+     * @param  array<string, mixed>  $node
+     * @param  array<string, mixed>  $variables
+     */
+    private function resolveMatchedReplyHandle(
+        array $node,
+        string $replyBody,
+        array $variables,
+        string $replyId = '',
+    ): ?string {
+        $data = is_array($node['data'] ?? null) ? $node['data'] : [];
+        $nodeClass = (string) ($node['class'] ?? $node['type'] ?? '');
+        $interactiveType = strtolower((string) ($data['interactiveType'] ?? $data['interactive_type'] ?? $data['type'] ?? ''));
+
+        if ($nodeClass === 'interactiveMessage' || in_array($interactiveType, ['button', 'list'], true)) {
+            $handle = $this->matchInteractiveHandleKey($node, $data, $replyBody, $replyId);
+            if ($handle !== null) {
+                return $handle;
+            }
+        }
+
+        if ($nodeClass === 'carouselTemplate') {
+            $handle = $this->matchCarouselHandleKey($node, $data, $replyBody);
+            if ($handle !== null) {
+                return $handle;
+            }
+        }
+
+        $outputs = $node['outputs'] ?? [];
+        $replyLower = mb_strtolower(trim($replyBody));
+        $replyIdLower = mb_strtolower(trim($replyId));
+
+        foreach ($outputs as $handle => $output) {
+            $connections = $output['connections'] ?? [];
+            if ($connections === []) {
+                continue;
+            }
+            $handleLower = mb_strtolower((string) $handle);
+            if ($handleLower === $replyLower || ($replyIdLower !== '' && $handleLower === $replyIdLower)) {
+                return (string) $handle;
+            }
+        }
+
+        $options = $variables['_interactive_options'] ?? [];
+        if (is_array($options)) {
+            foreach ($options as $index => $option) {
+                if (! is_array($option)) {
+                    continue;
+                }
+                $title = mb_strtolower(trim((string) ($option['title'] ?? '')));
+                $id = mb_strtolower(trim((string) ($option['id'] ?? '')));
+
+                if (($title !== '' && $this->labelsMatch($title, $replyLower))
+                    || ($id !== '' && ($id === $replyLower || $id === $replyIdLower))) {
+                    foreach (['button-'.$index, $id, $title] as $handleKey) {
+                        if ($handleKey === '') {
+                            continue;
+                        }
+                        if ($this->nextNodeIdFromHandle($node, (string) $handleKey) !== null) {
+                            return (string) $handleKey;
+                        }
+                    }
+                }
+            }
+        }
+
+        $quickReplies = $variables['_quick_replies'] ?? [];
+        if (is_array($quickReplies)) {
+            foreach (array_values($quickReplies) as $index => $reply) {
+                $replyTitle = is_string($reply)
+                    ? $reply
+                    : (string) ($reply['title'] ?? $reply['text'] ?? $reply['label'] ?? '');
+                $replyObjId = is_array($reply)
+                    ? trim((string) ($reply['id'] ?? $reply['value'] ?? ''))
+                    : '';
+
+                $matched = ($replyTitle !== '' && (
+                    $this->labelsMatch($replyTitle, $replyBody)
+                    || ($replyId !== '' && $this->labelsMatch($replyTitle, $replyId))
+                ))
+                    || ($replyObjId !== '' && (
+                        strcasecmp($replyObjId, trim($replyBody)) === 0
+                        || ($replyId !== '' && strcasecmp($replyObjId, $replyId) === 0)
+                    ));
+
+                if (! $matched) {
+                    continue;
+                }
+
+                foreach (['reply-'.$index, 'reply_'.$index, 'output_'.($index + 1), 'button-'.$index] as $handleKey) {
+                    if ($this->nextNodeIdFromHandle($node, $handleKey) !== null) {
+                        return $handleKey;
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Process multiple targets from one reply handle in edge order.
+     * Mid-targets only send (their default next is ignored until the last target).
+     * Wait / delay on any target stops the fan-out immediately.
+     *
+     * @param  array<string, array<string, mixed>>  $nodeMap
+     * @param  list<string>  $targets
+     */
+    private function executeFanOutTargets(
+        ChatbotFlow $flow,
+        array $nodeMap,
+        Conversation $conversation,
+        ChatbotFlowState $state,
+        array $targets,
+    ): TriggerFireResult {
+        $lastContinueNext = null;
+        $lastIndex = count($targets) - 1;
+
+        foreach ($targets as $index => $targetId) {
+            if (! isset($nodeMap[$targetId])) {
+                $this->logDebug("Fan-out target missing: {$targetId}");
+
+                continue;
+            }
+
+            $state->forceFill([
+                'current_node_id' => $targetId,
+                'status' => ChatbotFlowStateStatus::Active,
+            ])->save();
+
+            $node = $nodeMap[$targetId];
+            $result = $this->nodeProcessor->process($node, $nodeMap, $conversation, $state);
+
+            $this->logDebug("Fan-out node {$targetId} (".($node['class'] ?? '?').") → {$result->value}");
+
+            if ($result === NodeProcessResult::WaitForResponse) {
+                $this->refreshExpiry($state);
+
+                return TriggerFireResult::Fired;
+            }
+
+            if ($result === NodeProcessResult::Delayed) {
+                $this->refreshExpiry($state);
+
+                return TriggerFireResult::Fired;
+            }
+
+            if ($result === NodeProcessResult::Error) {
+                if ($this->isDemoFlow($flow)) {
+                    Log::warning('Demo chatbot skipped a failed fan-out node', [
+                        'flow_id' => $flow->id,
+                        'node_id' => $targetId,
+                    ]);
+
+                    continue;
+                }
+
+                $this->completeState($state);
+
+                return TriggerFireResult::Fired;
+            }
+
+            if ($result === NodeProcessResult::Completed) {
+                if ($index === $lastIndex) {
+                    $this->completeState($state);
+
+                    return TriggerFireResult::Fired;
+                }
+
+                continue;
+            }
+
+            // Continue: only the last sibling's default next is followed after fan-out.
+            $state->refresh();
+            if ($index === $lastIndex
+                && $state->current_node_id !== $targetId
+                && isset($nodeMap[$state->current_node_id])) {
+                $lastContinueNext = (string) $state->current_node_id;
+            }
+        }
+
+        if ($lastContinueNext !== null && isset($nodeMap[$lastContinueNext])) {
+            $state->forceFill([
+                'current_node_id' => $lastContinueNext,
+                'status' => ChatbotFlowStateStatus::Active,
+            ])->save();
+
+            return $this->executeFlowFromNode($flow, $nodeMap, $conversation, $state);
+        }
+
+        $this->completeState($state);
+
+        return TriggerFireResult::Fired;
     }
 
     private function completeState(ChatbotFlowState $state): void
