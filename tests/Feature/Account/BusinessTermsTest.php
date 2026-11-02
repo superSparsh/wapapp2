@@ -116,10 +116,29 @@ class BusinessTermsTest extends TestCase
     {
         $this->get(route('signup.step-3'))
             ->assertOk()
-            ->assertSee(config('legal.meta_policies.business_terms.pdf_url'), false);
+            ->assertSee(config('legal.meta_policies.business_terms.pdf_url'), false)
+            ->assertSee(config('legal.meta_policies.business_policy.pdf_url'), false);
 
         $this->get(route('signup.step-4'))
             ->assertOk()
             ->assertSee(config('legal.meta_policies.commerce_policy.pdf_url'), false);
+    }
+
+    public function test_business_can_download_custom_terms_pdf(): void
+    {
+        BusinessCustomTerm::query()->create([
+            'tenant_id' => (string) tenant('id'),
+            'title' => 'Customer Terms',
+            'body' => "Line one.\nLine two about WhatsApp messaging.",
+            'status' => BusinessCustomTermStatus::Draft,
+            'version' => 1,
+        ]);
+
+        $response = $this->actingAsTenantUser()
+            ->get(route('profile.business-terms.custom-pdf'));
+
+        $response->assertOk();
+        $this->assertStringContainsString('application/pdf', (string) $response->headers->get('content-type'));
+        $this->assertStringStartsWith('%PDF', $response->streamedContent());
     }
 }

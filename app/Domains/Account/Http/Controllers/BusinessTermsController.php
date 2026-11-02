@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Account\Http\Controllers;
 
+use App\Domains\Account\Services\BusinessCustomTermsPdfService;
 use App\Domains\Account\Services\BusinessCustomTermsService;
 use App\Domains\Account\Services\SignedAgreementService;
 use App\Http\Controllers\Controller;
@@ -13,6 +14,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class BusinessTermsController extends Controller
 {
@@ -67,6 +69,24 @@ class BusinessTermsController extends Controller
         return response()->file($path, [
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'inline; filename="'.basename($path).'"',
+        ]);
+    }
+
+    public function downloadCustomTermsPdf(
+        BusinessCustomTermsService $customTerms,
+        BusinessCustomTermsPdfService $pdf,
+    ): StreamedResponse {
+        $tenant = $this->currentTenant();
+        $term = $customTerms->forTenant((string) $tenant->id);
+        abort_unless($term !== null && filled($term->body), 404, 'Custom terms PDF is not available yet.');
+
+        $filename = $pdf->filename($term, $tenant);
+        $binary = $pdf->render($term, $tenant);
+
+        return response()->streamDownload(static function () use ($binary): void {
+            echo $binary;
+        }, $filename, [
+            'Content-Type' => 'application/pdf',
         ]);
     }
 

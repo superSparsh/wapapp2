@@ -20,6 +20,7 @@ use App\Domains\Admin\Http\Controllers\CustomerSubmissionController;
 use App\Domains\Admin\Http\Controllers\CustomerViewController;
 use App\Domains\Admin\Http\Controllers\DashboardController;
 use App\Domains\Admin\Http\Controllers\DataPurgeController;
+use App\Domains\Admin\Http\Controllers\DpdpReadinessController;
 use App\Domains\Admin\Http\Controllers\EnterAdminViewController;
 use App\Domains\Admin\Http\Controllers\FormTemplateController;
 use App\Domains\Admin\Http\Controllers\ImpersonationController;
@@ -84,6 +85,7 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::post('/customers/{tenant}/custom-terms/approve', [CustomerController::class, 'approveCustomTerms'])->name('customers.custom-terms.approve');
         Route::post('/customers/{tenant}/custom-terms/reject', [CustomerController::class, 'rejectCustomTerms'])->name('customers.custom-terms.reject');
         Route::post('/customers/{tenant}/custom-terms/remove', [CustomerController::class, 'removeCustomTerms'])->name('customers.custom-terms.remove');
+        Route::get('/customers/{tenant}/custom-terms/pdf', [CustomerController::class, 'downloadCustomTermsPdf'])->name('customers.custom-terms.pdf');
         Route::post('/customers/{tenant}/assign-plan', [CustomerController::class, 'assignPlan'])->name('customers.assign-plan');
         Route::post('/customers/{tenant}/extend-validity', [CustomerController::class, 'extendValidity'])->name('customers.extend-validity');
         Route::patch('/customers/{tenant}/settings', [CustomerController::class, 'updateSettings'])->name('customers.settings');
@@ -244,6 +246,8 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
 
         Route::get('/tittu-gateway', [TittuGatewayStatusController::class, 'index'])->name('tittu-gateway.index');
         Route::put('/tittu-gateway', [TittuGatewayStatusController::class, 'update'])->name('tittu-gateway.update');
+
+        Route::get('/legal/dpdp-readiness', DpdpReadinessController::class)->name('dpdp-readiness');
 
         Route::get('/platform-templates', [PlatformTemplateController::class, 'index'])->name('platform-templates.index');
         Route::get('/platform-templates/create', [PlatformTemplateController::class, 'create'])->name('platform-templates.create');

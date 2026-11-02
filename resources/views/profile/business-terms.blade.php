@@ -119,6 +119,16 @@
           <button type="submit" name="submit_for_review" value="1" class="fd-btn inline-flex rounded-lg bg-green-500 px-4 py-3 text-sm font-semibold text-white hover:bg-green-600">
             Submit for admin review
           </button>
+          @if ($term && filled($term->body))
+            <a
+              href="{{ route('profile.business-terms.custom-pdf') }}"
+              target="_blank"
+              rel="noopener"
+              class="fd-btn inline-flex rounded-lg border border-border-light bg-elevated px-4 py-3 text-sm font-semibold text-primary-2 hover:bg-surface"
+            >
+              Download PDF
+            </a>
+          @endif
         </div>
       </form>
     </section>

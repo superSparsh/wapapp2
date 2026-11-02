@@ -75,6 +75,7 @@ Route::prefix('profile')->name('profile.')->group(function () {
     Route::get('/business-terms', [BusinessTermsController::class, 'show'])->name('business-terms');
     Route::put('/business-terms', [BusinessTermsController::class, 'update'])->name('business-terms.update');
     Route::get('/business-terms/signed-pdf', [BusinessTermsController::class, 'downloadSignedAgreement'])->name('business-terms.signed-pdf');
+    Route::get('/business-terms/custom-pdf', [BusinessTermsController::class, 'downloadCustomTermsPdf'])->name('business-terms.custom-pdf');
 
     Route::get('/security', [SecurityController::class, 'show'])->name('security');
     Route::post('/security/two-factor', [SecurityController::class, 'enable'])->name('security.enable');

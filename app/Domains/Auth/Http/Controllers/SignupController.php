@@ -52,6 +52,14 @@ class SignupController extends Controller
             $payload[$config['key'].'_document_url'] = $documentUrl;
         }
 
+        // Step 3 also acknowledges WhatsApp Business Policy (alongside Business Terms).
+        if ($config['key'] === 'business_terms') {
+            $businessPolicyUrl = (string) config('legal.meta_policies.business_policy.pdf_url', '');
+            if ($businessPolicyUrl !== '') {
+                $payload['business_policy_document_url'] = $businessPolicyUrl;
+            }
+        }
+
         $signupSession->merge($payload);
 
         if ($answer !== 'yes') {

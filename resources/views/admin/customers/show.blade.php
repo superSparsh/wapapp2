@@ -294,6 +294,44 @@
     </div>
   </section>
 
+  {{-- DPDP / legal checklist for this customer --}}
+  @if (! empty($dpdp))
+    <section class="px-4 pb-4" id="dpdp">
+      <div class="rounded-[20px] border border-border bg-elevated p-5">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 class="text-lg font-bold text-text-primary">DPDP / legal for this customer</h2>
+            <p class="mt-1 text-xs text-text-subtle">
+              Signed agreement from forms onboarding + custom terms workflow.
+              <a href="{{ route('admin.dpdp-readiness') }}" class="font-semibold text-primary-2 underline">Platform DPDP checklist</a>
+            </p>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <span class="rounded-full bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-700 ring-1 ring-inset ring-green-200">{{ $dpdp['summary']['done'] }} done</span>
+            <span class="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800 ring-1 ring-inset ring-amber-200">{{ $dpdp['summary']['partial'] }} partial</span>
+            <span class="rounded-full bg-surface px-2.5 py-1 text-xs font-semibold text-text-muted ring-1 ring-inset ring-border">{{ $dpdp['summary']['pending'] }} pending</span>
+          </div>
+        </div>
+        <ul class="mt-4 divide-y divide-border">
+          @foreach ($dpdp['items'] as $item)
+            <li class="flex flex-col gap-1 py-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p class="text-sm font-semibold text-text-primary">{{ $item['label'] }}</p>
+                <p class="text-xs text-text-body">{{ $item['detail'] }}</p>
+              </div>
+              <span @class([
+                'mt-1 inline-flex shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset sm:mt-0',
+                'bg-green-50 text-green-700 ring-green-200' => ($item['status'] ?? '') === 'done',
+                'bg-amber-50 text-amber-800 ring-amber-200' => ($item['status'] ?? '') === 'partial',
+                'bg-surface text-text-muted ring-border' => ($item['status'] ?? '') === 'pending',
+              ])>{{ ucfirst($item['status'] ?? 'pending') }}</span>
+            </li>
+          @endforeach
+        </ul>
+      </div>
+    </section>
+  @endif
+
   {{-- Custom customer terms (business-authored) --}}
   <section class="px-4 pb-4" id="custom-terms">
     <div class="rounded-[20px] border border-border bg-elevated p-5">
@@ -321,6 +359,7 @@
           @if ($custom_terms->submitted_at)
             <p class="mt-1 text-xs text-text-muted">Submitted {{ $custom_terms->submitted_at->toDayDateTimeString() }}</p>
           @endif
+          <a href="{{ route('admin.customers.custom-terms.pdf', $tenant) }}" target="_blank" rel="noopener" class="mt-3 inline-flex text-xs font-semibold text-primary-2 underline">Download PDF</a>
         </div>
 
         <div class="mt-4 grid gap-4 lg:grid-cols-3">

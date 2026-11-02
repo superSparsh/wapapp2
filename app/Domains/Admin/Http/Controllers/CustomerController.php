@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Domains\Admin\Http\Controllers;
 
+use App\Domains\Account\Services\BusinessCustomTermsPdfService;
 use App\Domains\Account\Services\BusinessCustomTermsService;
 use App\Domains\Admin\Services\AdminImpersonationService;
 use App\Domains\Admin\Services\CustomerAdminService;
+use App\Domains\Admin\Services\DpdpReadinessService;
 use App\Domains\Admin\Support\AdminListQuery;
 use App\Enums\TenantStatus;
 use App\Http\Controllers\Controller;
@@ -20,6 +22,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 use RuntimeException;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class CustomerController extends Controller
 {
@@ -27,6 +30,8 @@ class CustomerController extends Controller
         private readonly CustomerAdminService $customers,
         private readonly AdminImpersonationService $impersonation,
         private readonly BusinessCustomTermsService $customTerms,
+        private readonly DpdpReadinessService $dpdpReadiness,
+        private readonly BusinessCustomTermsPdfService $customTermsPdf,
     ) {}
 
     public function index(Request $request): View
@@ -64,7 +69,10 @@ class CustomerController extends Controller
 
     public function show(Tenant $tenant): View
     {
-        return view('admin.customers.show', $this->customers->detail($tenant));
+        return view('admin.customers.show', array_merge(
+            $this->customers->detail($tenant),
+            ['dpdp' => $this->dpdpReadiness->tenantChecklist($tenant)],
+        ));
     }
 
     public function edit(Tenant $tenant): View
@@ -153,6 +161,21 @@ class CustomerController extends Controller
         );
 
         return back()->with('status', 'Custom terms removed'.($request->boolean('suspend') ? ' and account suspended' : '').'.');
+    }
+
+    public function downloadCustomTermsPdf(Tenant $tenant): StreamedResponse
+    {
+        $term = $this->requireCustomTerms($tenant);
+        abort_unless(filled($term->body), 404, 'Custom terms PDF is not available yet.');
+
+        $filename = $this->customTermsPdf->filename($term, $tenant);
+        $binary = $this->customTermsPdf->render($term, $tenant);
+
+        return response()->streamDownload(static function () use ($binary): void {
+            echo $binary;
+        }, $filename, [
+            'Content-Type' => 'application/pdf',
+        ]);
     }
 
     private function requireCustomTerms(Tenant $tenant): BusinessCustomTerm
