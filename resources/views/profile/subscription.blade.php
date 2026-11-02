@@ -172,6 +172,9 @@
               <span data-recharge-total>₹ {{ number_format($rechargeTotals['total'], 2) }}</span>
             </div>
           </div>
+          <p class="mt-3 text-xs leading-[1.45] text-text-muted">
+            After payment, wallet credit can take 30–60 minutes to appear (especially for UPI / QR). Keep this page open until Razorpay confirms success when possible.
+          </p>
         </form>
 
         <div class="flex items-center gap-2 rounded-lg border border-border-light bg-elevated p-4">

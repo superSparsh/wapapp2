@@ -50,7 +50,18 @@
           <dt class="text-xs font-semibold uppercase tracking-wide text-text-muted">Effective</dt>
           <dd class="mt-1 text-sm font-medium text-text-primary">{{ $config['effective_date'] }}</dd>
         </div>
+        <div>
+          <dt class="text-xs font-semibold uppercase tracking-wide text-text-muted">Public publish</dt>
+          <dd class="mt-1 text-sm font-medium text-text-primary">{{ ! empty($config['public_publish']) ? 'ON' : 'OFF (draft)' }}</dd>
+        </div>
+        <div>
+          <dt class="text-xs font-semibold uppercase tracking-wide text-text-muted">Minimum age</dt>
+          <dd class="mt-1 text-sm font-medium text-text-primary">{{ $config['minimum_age'] ?? 18 }}+</dd>
+        </div>
       </dl>
+      <p class="mt-4 text-sm">
+        <a href="{{ route('admin.rights-requests.index') }}" class="font-semibold text-primary-2 underline">Open rights / grievance queue</a>
+      </p>
     </section>
 
     <section class="rounded-[20px] border border-border bg-elevated p-5">

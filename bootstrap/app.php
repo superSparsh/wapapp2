@@ -21,6 +21,7 @@ use App\Domains\MobileApi\Http\Middleware\AuthenticateJwt;
 use App\Domains\AutomationEvents\Console\Commands\ProcessAutomationEventsCommand;
 use App\Domains\Billing\Console\Commands\CheckWalletAutoRechargeCommand;
 use App\Domains\Billing\Console\Commands\ProcessSubscriptionRenewalsCommand;
+use App\Domains\Billing\Console\Commands\ReconcilePendingWalletRechargesCommand;
 use App\Domains\Billing\Console\Commands\ReconcileZohoWalletCommand;
 use App\Domains\Billing\Console\Commands\SyncRazorpaySubscriptionsCommand;
 use App\Domains\Campaigns\Console\Commands\ProcessDueCampaignsCommand;
@@ -193,6 +194,7 @@ return Application::configure(basePath: dirname(__DIR__))
         CheckWalletAutoRechargeCommand::class,
         SyncRazorpaySubscriptionsCommand::class,
         ProcessSubscriptionRenewalsCommand::class,
+        ReconcilePendingWalletRechargesCommand::class,
         ReconcileZohoWalletCommand::class,
         ProcessInboundResponsesCommand::class,
         BackfillInboundMediaCommand::class,

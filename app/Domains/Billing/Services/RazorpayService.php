@@ -185,4 +185,49 @@ class RazorpayService
 
         return $response->json();
     }
+
+    /**
+     * Payments linked to a Razorpay order (for reconcile when browser verify was missed).
+     *
+     * @throws RequestException
+     * @return list<array<string, mixed>>
+     */
+    public function fetchOrderPayments(string $orderId): array
+    {
+        if (! $this->isConfigured()) {
+            throw new RuntimeException(
+                'Razorpay is not configured. Set credentials under Admin → Payment gateways.',
+            );
+        }
+
+        $response = Http::withBasicAuth(
+            $this->key(),
+            $this->secret(),
+        )->get('https://api.razorpay.com/v1/orders/'.$orderId.'/payments')->throw();
+
+        $items = $response->json('items');
+
+        return is_array($items) ? array_values($items) : [];
+    }
+
+    /**
+     * Latest captured/authorized payment id for an order, or null if unpaid.
+     */
+    public function findCapturedPaymentIdForOrder(string $orderId): ?string
+    {
+        foreach ($this->fetchOrderPayments($orderId) as $payment) {
+            if (! is_array($payment)) {
+                continue;
+            }
+
+            $status = (string) ($payment['status'] ?? '');
+            $paymentId = trim((string) ($payment['id'] ?? ''));
+
+            if ($paymentId !== '' && in_array($status, ['captured', 'authorized'], true)) {
+                return $paymentId;
+            }
+        }
+
+        return null;
+    }
 }

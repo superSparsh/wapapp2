@@ -126,6 +126,30 @@
 
             <p class="text-sm font-medium leading-[1.4] text-text-primary/60">Note: Please try to keep your signature in a single line, if possible.</p>
 
+            <x-legal.collection-notice />
+
+            <label class="flex cursor-pointer items-start gap-1.5">
+                <input type="checkbox" name="collection_notice_acknowledged" value="1" class="sr-only" required @checked(old('collection_notice_acknowledged'))>
+                <img src="{{ asset('images/auth/tick-square.svg') }}" alt="" class="mt-0.5 size-5 shrink-0" width="20" height="20">
+                <span class="text-sm font-medium leading-[1.4] text-text-muted">
+                    I have read the personal data collection notice above.
+                </span>
+            </label>
+            @error('collection_notice_acknowledged')
+              <p class="text-sm text-red-600">{{ $message }}</p>
+            @enderror
+
+            <label class="flex cursor-pointer items-start gap-1.5">
+                <input type="checkbox" name="age_confirmed" value="1" class="sr-only" required @checked(old('age_confirmed'))>
+                <img src="{{ asset('images/auth/tick-square.svg') }}" alt="" class="mt-0.5 size-5 shrink-0" width="20" height="20">
+                <span class="text-sm font-medium leading-[1.4] text-text-muted">
+                    I confirm I am at least {{ (int) config('legal.children.minimum_age', 18) }} years old and not registering on behalf of a child.
+                </span>
+            </label>
+            @error('age_confirmed')
+              <p class="text-sm text-red-600">{{ $message }}</p>
+            @enderror
+
             <label class="flex cursor-pointer items-center gap-1.5">
                 <input type="checkbox" name="whatsapp_addendum" value="1" class="sr-only" required @checked(old('whatsapp_addendum'))>
                 <img src="{{ asset('images/auth/tick-square.svg') }}" alt="" class="size-5 shrink-0" width="20" height="20">

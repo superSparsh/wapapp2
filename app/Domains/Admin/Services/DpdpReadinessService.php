@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Domains\Admin\Services;
 
+use App\Domains\Account\Services\ConsentEventService;
+use App\Domains\Account\Services\DataPrincipalRequestService;
 use App\Domains\Account\Services\SignedAgreementService;
 use App\Enums\BusinessCustomTermStatus;
 use App\Enums\TenantStatus;
@@ -20,12 +22,15 @@ class DpdpReadinessService
 {
     public function __construct(
         private readonly SignedAgreementService $signedAgreements,
+        private readonly ConsentEventService $consentEvents,
+        private readonly DataPrincipalRequestService $rightsRequests,
     ) {}
 
     /**
      * @return array{
      *   summary: array{done: int, partial: int, pending: int, total: int},
-     *   items: list<array{key: string, label: string, status: string, detail: string, href: ?string}>
+     *   items: list<array{key: string, label: string, status: string, detail: string, href: ?string}>,
+     *   config: array<string, mixed>
      * }
      */
     public function platformChecklist(): array
@@ -48,6 +53,13 @@ class DpdpReadinessService
         $breachRoute = Route::has('profile.breach-playbook');
         $businessTermsRoute = Route::has('profile.business-terms');
         $dataDeletionRoute = Route::has('profile.data-deletion');
+        $rightsRoute = Route::has('profile.privacy-rights');
+        $adminRightsRoute = Route::has('admin.rights-requests.index');
+        $publicPublish = (bool) config('legal.public_publish', false);
+        $cookieBanner = (bool) config('legal.cookies.banner_enabled', false);
+        $minAge = (int) config('legal.children.minimum_age', 18);
+        $consentReady = $this->consentEvents->tableReady();
+        $rightsTableReady = $this->rightsRequests->tableReady();
 
         $items = [
             [
@@ -92,6 +104,38 @@ class DpdpReadinessService
                 'href' => null,
             ],
             [
+                'key' => 'collection_notice',
+                'label' => 'Collection-point notice (signup)',
+                'status' => 'done',
+                'detail' => 'Reusable notice component + acknowledgement checkbox on register profile step.',
+                'href' => Route::has('signup.register') ? route('signup.register') : null,
+            ],
+            [
+                'key' => 'age_gate',
+                'label' => 'Children / age gate',
+                'status' => $minAge >= 18 ? 'done' : 'partial',
+                'detail' => 'Register requires affirmation of age ≥ '.$minAge.' (LEGAL_MINIMUM_AGE). Logged as consent event.',
+                'href' => null,
+            ],
+            [
+                'key' => 'consent_events',
+                'label' => 'Consent event ledger',
+                'status' => $consentReady ? 'done' : 'pending',
+                'detail' => $consentReady
+                    ? 'Central consent_events table + ConsentEventService; signup consents are mirrored.'
+                    : 'Run migration create_consent_events_table.',
+                'href' => null,
+            ],
+            [
+                'key' => 'rights_workflow',
+                'label' => 'Rights + grievance request workflow',
+                'status' => ($rightsRoute && $adminRightsRoute && $rightsTableReady) ? 'done' : 'pending',
+                'detail' => ($rightsRoute && $rightsTableReady)
+                    ? 'Profile Privacy rights form + Admin Rights / grievance queue (login-gated).'
+                    : 'Run migration create_data_principal_requests_table and deploy routes.',
+                'href' => $adminRightsRoute ? route('admin.rights-requests.index') : null,
+            ],
+            [
                 'key' => 'data_deletion',
                 'label' => 'Data deletion / export (account)',
                 'status' => $dataDeletionRoute ? 'partial' : 'pending',
@@ -101,10 +145,54 @@ class DpdpReadinessService
                 'href' => null,
             ],
             [
+                'key' => 'cookie_banner',
+                'label' => 'Cookie / SDK consent banner',
+                'status' => ($cookieBanner && $publicPublish) ? 'done' : 'partial',
+                'detail' => 'Component ready; LEGAL_COOKIE_BANNER_ENABLED and LEGAL_PUBLIC_PUBLISH both required to show.',
+                'href' => null,
+            ],
+            [
+                'key' => 'ai_disclosure',
+                'label' => 'AI processing disclosure',
+                'status' => 'done',
+                'detail' => 'AI processing notice on Create/Edit AI Bot. Privacy draft also covers processors.',
+                'href' => Route::has('ai-bots.create') ? route('ai-bots.create') : null,
+            ],
+            [
                 'key' => 'public_publish',
                 'label' => 'Public / login footer publish',
+                'status' => $publicPublish ? 'done' : 'pending',
+                'detail' => $publicPublish
+                    ? 'LEGAL_PUBLIC_PUBLISH=true — ensure footer/login links are wired before go-live.'
+                    : 'Intentionally draft: do not link Privacy/Terms on public login/footer until leadership sign-off.',
+                'href' => null,
+            ],
+            [
+                'key' => 'org_encryption_evidence',
+                'label' => 'Org: encryption evidence',
                 'status' => 'pending',
-                'detail' => 'Intentionally draft: do not link Privacy/Terms on public login/footer until leadership sign-off.',
+                'detail' => 'Attach hosting/DB encryption-at-rest and TLS evidence outside the app (ops register).',
+                'href' => null,
+            ],
+            [
+                'key' => 'org_vendor_dpas',
+                'label' => 'Org: vendor DPA register',
+                'status' => 'pending',
+                'detail' => 'Meta, Alibaba CAMS, Tittu, hosting — keep signed DPAs / SCCs on file.',
+                'href' => null,
+            ],
+            [
+                'key' => 'org_training_drills',
+                'label' => 'Org: training + breach drills',
+                'status' => 'pending',
+                'detail' => 'Staff DPDP training records and at least one breach-playbook tabletop drill.',
+                'href' => $breachRoute ? route('profile.breach-playbook') : null,
+            ],
+            [
+                'key' => 'org_sdf',
+                'label' => 'Org: Significant Data Fiduciary',
+                'status' => 'partial',
+                'detail' => 'Treat as N/A until notified as SDF; revisit Board obligations if classification changes.',
                 'href' => null,
             ],
         ];
@@ -118,6 +206,8 @@ class DpdpReadinessService
                 'effective_date' => (string) config('legal.effective_date'),
                 'grievance_email' => $grievance,
                 'breach_owner' => (string) config('legal.breach.owner_email'),
+                'public_publish' => $publicPublish,
+                'minimum_age' => $minAge,
             ],
         ];
     }

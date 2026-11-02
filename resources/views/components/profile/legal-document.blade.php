@@ -19,7 +19,8 @@
 
     <x-profile.info-banner title="Internal review draft">
       This page is available only to signed-in accounts so leadership can review the wording.
-      It is not linked from the public footer or login screen yet.
+      It is not linked from the public footer or login screen yet
+      (@if (config('legal.public_publish')) publish flag is ON — wire public links carefully @else <code class="text-xs">LEGAL_PUBLIC_PUBLISH=false</code> @endif).
     </x-profile.info-banner>
 
     <article class="rounded-[20px] border border-border-light bg-elevated p-5 shadow-[0px_4px_6px_rgba(0,0,0,0.04)] sm:p-8">

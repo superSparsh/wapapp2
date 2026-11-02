@@ -42,7 +42,10 @@ class DpdpReadinessTest extends TestCase
             ->assertOk()
             ->assertSee('DPDP / Legal readiness')
             ->assertSee(config('legal.grievance.email'))
-            ->assertSee('Privacy / Terms / Breach playbook pages');
+            ->assertSee('Privacy / Terms / Breach playbook pages')
+            ->assertSee('Consent event ledger')
+            ->assertSee('Rights + grievance request workflow')
+            ->assertSee('OFF (draft)');
     }
 
     public function test_customer_show_includes_dpdp_checklist_and_custom_terms_pdf(): void

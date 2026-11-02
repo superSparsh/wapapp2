@@ -9,6 +9,7 @@ use App\Domains\Audience\Console\Commands\VerifyListContactsCommand;
 use App\Domains\AutomationEvents\Console\Commands\ProcessAutomationEventsCommand;
 use App\Domains\Billing\Console\Commands\CheckWalletAutoRechargeCommand;
 use App\Domains\Billing\Console\Commands\ProcessSubscriptionRenewalsCommand;
+use App\Domains\Billing\Console\Commands\ReconcilePendingWalletRechargesCommand;
 use App\Domains\Billing\Console\Commands\ReconcileZohoWalletCommand;
 use App\Domains\Billing\Console\Commands\SyncRazorpaySubscriptionsCommand;
 use App\Domains\Campaigns\Console\Commands\ProcessDueCampaignsCommand;
@@ -59,6 +60,10 @@ Schedule::command(ProcessInboundResponsesCommand::class)->everyMinute();
 Schedule::command(SyncRazorpaySubscriptionsCommand::class)->everyFiveMinutes();
 Schedule::command(ProcessSubscriptionRenewalsCommand::class)->everyFiveMinutes();
 Schedule::command(CheckWalletAutoRechargeCommand::class)->everyFiveMinutes();
+Schedule::command(ReconcilePendingWalletRechargesCommand::class)
+    ->everyMinute()
+    ->withoutOverlapping()
+    ->onOneServer();
 Schedule::command(ReconcileZohoWalletCommand::class)->everyThirtyMinutes();
 
 // Integrations sync (Calendly / Google Calendar only - not WhatsApp line profile)

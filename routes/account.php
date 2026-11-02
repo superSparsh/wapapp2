@@ -7,6 +7,7 @@ use App\Domains\Account\Http\Controllers\ApiDocsController;
 use App\Domains\Account\Http\Controllers\ApiTokenController;
 use App\Domains\Account\Http\Controllers\BusinessTermsController;
 use App\Domains\Account\Http\Controllers\DataDeletionController;
+use App\Domains\Account\Http\Controllers\DataPrincipalRightsController;
 use App\Domains\Account\Http\Controllers\LegalController;
 use App\Domains\Account\Http\Controllers\NotificationContactController;
 use App\Domains\Account\Http\Controllers\NotificationController;
@@ -71,6 +72,9 @@ Route::prefix('profile')->name('profile.')->group(function () {
     Route::get('/privacy-policy', [LegalController::class, 'privacy'])->name('privacy-policy');
     Route::get('/terms', [LegalController::class, 'terms'])->name('terms');
     Route::get('/breach-playbook', [LegalController::class, 'breachPlaybook'])->name('breach-playbook');
+
+    Route::get('/privacy-rights', [DataPrincipalRightsController::class, 'show'])->name('privacy-rights');
+    Route::post('/privacy-rights', [DataPrincipalRightsController::class, 'store'])->name('privacy-rights.store');
 
     Route::get('/business-terms', [BusinessTermsController::class, 'show'])->name('business-terms');
     Route::put('/business-terms', [BusinessTermsController::class, 'update'])->name('business-terms.update');

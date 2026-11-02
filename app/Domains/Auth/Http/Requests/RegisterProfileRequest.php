@@ -25,6 +25,18 @@ class RegisterProfileRequest extends FormRequest
             'country_code' => ['nullable', 'string', 'size:2'],
             'new_password' => ['required', Password::min(8)->numbers()],
             'whatsapp_addendum' => ['accepted'],
+            'age_confirmed' => ['accepted'],
+            'collection_notice_acknowledged' => ['accepted'],
+        ];
+    }
+
+    public function messages(): array
+    {
+        $minAge = (int) config('legal.children.minimum_age', 18);
+
+        return [
+            'age_confirmed.accepted' => "You must confirm you are at least {$minAge} years old.",
+            'collection_notice_acknowledged.accepted' => 'Please acknowledge the personal data collection notice.',
         ];
     }
 }

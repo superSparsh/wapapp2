@@ -241,5 +241,6 @@
       <script>window.__FLASH_TOASTS__ = @json($flashToasts);</script>
     @endif
     @stack('scripts')
+    <x-legal.cookie-banner />
 </body>
 </html>

@@ -10,6 +10,9 @@
           <ul class="list-inside list-disc">@foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul>
         </div>
       @endif
+      <div class="max-w-[600px]">
+        <x-legal.ai-processing-notice class="mb-4" />
+      </div>
       <form action="{{ route('ai-bots.store') }}" method="POST" class="max-w-[600px] rounded-xl bg-elevated p-6 shadow-[0px_4px_6px_rgba(0,0,0,0.04)]">
         @csrf
         <div class="flex flex-col gap-5">

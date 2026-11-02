@@ -6,6 +6,9 @@
       @if ($errors->any())
         <div class="rounded-lg bg-red-50 px-4 py-3 text-sm font-medium text-red-700"><ul class="list-inside list-disc">@foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>
       @endif
+      <div class="max-w-[600px]">
+        <x-legal.ai-processing-notice class="mb-4" />
+      </div>
       <form action="{{ route('ai-bots.update', $bot) }}" method="POST" class="max-w-[600px] rounded-xl bg-elevated p-6">
         @csrf @method('PUT')
         <div class="flex flex-col gap-5">

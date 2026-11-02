@@ -20,6 +20,7 @@ use App\Domains\Admin\Http\Controllers\CustomerSubmissionController;
 use App\Domains\Admin\Http\Controllers\CustomerViewController;
 use App\Domains\Admin\Http\Controllers\DashboardController;
 use App\Domains\Admin\Http\Controllers\DataPurgeController;
+use App\Domains\Admin\Http\Controllers\DataPrincipalRequestController;
 use App\Domains\Admin\Http\Controllers\DpdpReadinessController;
 use App\Domains\Admin\Http\Controllers\EnterAdminViewController;
 use App\Domains\Admin\Http\Controllers\FormTemplateController;
@@ -248,6 +249,8 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::put('/tittu-gateway', [TittuGatewayStatusController::class, 'update'])->name('tittu-gateway.update');
 
         Route::get('/legal/dpdp-readiness', DpdpReadinessController::class)->name('dpdp-readiness');
+        Route::get('/legal/rights-requests', [DataPrincipalRequestController::class, 'index'])->name('rights-requests.index');
+        Route::put('/legal/rights-requests/{dataPrincipalRequest}', [DataPrincipalRequestController::class, 'update'])->name('rights-requests.update');
 
         Route::get('/platform-templates', [PlatformTemplateController::class, 'index'])->name('platform-templates.index');
         Route::get('/platform-templates/create', [PlatformTemplateController::class, 'create'])->name('platform-templates.create');

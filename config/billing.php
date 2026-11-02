@@ -30,6 +30,8 @@ return [
         'history_max_days' => (int) env('WALLET_HISTORY_MAX_DAYS', 365),
         // Hide opt-in debits from customer Wallet History; admins (impersonation / Admin View) still see them.
         'hide_opt_in_from_history' => (bool) env('WALLET_HIDE_OPT_IN_FROM_HISTORY', true),
+        // Pending-recharge poll only heals orders created at/after this timestamp (skip old stuck rows).
+        'reconcile_created_after' => env('WALLET_RAZORPAY_RECONCILE_AFTER', '2026-11-02 11:00:00'),
     ],
 
     /*

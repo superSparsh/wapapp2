@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Domains\Auth\Services;
 
+use App\Domains\Account\Services\ConsentEventService;
 use App\Domains\Tenancy\Services\TenantDatabaseNamingService;
 use App\Domains\Tenancy\Services\TenantSlugService;
+use App\Enums\ConsentEventType;
 use App\Enums\TenantStatus;
 use App\Enums\TenantUserAccountType;
 use App\Enums\UserRole;
@@ -23,6 +25,7 @@ class RegisterService
         private readonly EmailVerificationService $emailVerification,
         private readonly TenantSlugService $tenantSlugService,
         private readonly TenantDatabaseNamingService $databaseNamingService,
+        private readonly ConsentEventService $consentEvents,
     ) {}
 
     /** @param  array<string, mixed>  $data */
@@ -81,7 +84,7 @@ class RegisterService
             'is_active' => true,
         ]);
 
-        $this->persistConsents($user);
+        $this->persistConsents($user, $tenant->id, $email, $data);
         $this->syncTenantAccess($tenant->id, $email, $data['mobile'] ?? null);
 
         tenancy()->end();
@@ -105,7 +108,10 @@ class RegisterService
         return $user;
     }
 
-    private function persistConsents(User $user): void
+    /**
+     * @param  array<string, mixed>  $registrationData
+     */
+    private function persistConsents(User $user, string $tenantId, string $email, array $registrationData): void
     {
         $consents = $this->signupSession->all();
         $mapping = [
@@ -135,6 +141,61 @@ class RegisterService
                 'meta' => $meta !== [] ? $meta : null,
                 'consented_at' => now(),
             ]);
+
+            $this->consentEvents->log(
+                eventType: ConsentEventType::Given,
+                purpose: 'signup.'.$key,
+                subjectType: 'user',
+                subjectId: (string) $user->id,
+                subjectEmail: $email,
+                tenantId: $tenantId,
+                channel: 'signup',
+                source: 'register_service',
+                documentUrl: is_string($documentUrl) ? $documentUrl : null,
+                meta: array_merge($meta, ['step' => $step, 'answer' => (string) $consents[$key]]),
+            );
+        }
+
+        if (! empty($consents['whatsapp_addendum']) || ! empty($registrationData['whatsapp_addendum'])) {
+            $addendumUrl = (string) config('legal.meta_policies.program_addendum.pdf_url', '');
+            $this->consentEvents->log(
+                eventType: ConsentEventType::Given,
+                purpose: 'signup.program_addendum',
+                subjectType: 'user',
+                subjectId: (string) $user->id,
+                subjectEmail: $email,
+                tenantId: $tenantId,
+                channel: 'signup',
+                source: 'register_service',
+                documentUrl: $addendumUrl !== '' ? $addendumUrl : null,
+            );
+        }
+
+        if (! empty($consents['age_confirmed']) || ! empty($registrationData['age_confirmed'])) {
+            $this->consentEvents->log(
+                eventType: ConsentEventType::Affirmed,
+                purpose: 'signup.age_gate',
+                subjectType: 'user',
+                subjectId: (string) $user->id,
+                subjectEmail: $email,
+                tenantId: $tenantId,
+                channel: 'signup',
+                source: 'register_service',
+                meta: ['minimum_age' => (int) config('legal.children.minimum_age', 18)],
+            );
+        }
+
+        if (! empty($consents['collection_notice_acknowledged']) || ! empty($registrationData['collection_notice_acknowledged'])) {
+            $this->consentEvents->log(
+                eventType: ConsentEventType::Affirmed,
+                purpose: 'signup.collection_notice',
+                subjectType: 'user',
+                subjectId: (string) $user->id,
+                subjectEmail: $email,
+                tenantId: $tenantId,
+                channel: 'signup',
+                source: 'register_service',
+            );
         }
     }
 

@@ -33,6 +33,31 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Public publish gate
+    |--------------------------------------------------------------------------
+    |
+    | Keep false until leadership reviews Privacy / Terms / Breach wording.
+    | When true, login/footer may link public legal pages and cookie banner
+    | may be enabled separately.
+    |
+    */
+
+    'public_publish' => (bool) env('LEGAL_PUBLIC_PUBLISH', false),
+
+    'children' => [
+        'minimum_age' => (int) env('LEGAL_MINIMUM_AGE', 18),
+    ],
+
+    'rights' => [
+        'sla_days' => (int) env('LEGAL_RIGHTS_SLA_DAYS', (int) env('LEGAL_GRIEVANCE_RESPONSE_DAYS', 7)),
+    ],
+
+    'cookies' => [
+        'banner_enabled' => (bool) env('LEGAL_COOKIE_BANNER_ENABLED', false),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Breach / incident response (DPDP s.8(6))
     |--------------------------------------------------------------------------
     |

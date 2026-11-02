@@ -11,4 +11,5 @@ return [
     // ['route' => 'profile.data-deletion', 'label' => 'Data Deletion'],
     ['route' => 'profile.activity-logs', 'label' => 'Activity Logs'],
     ['route' => 'profile.business-terms', 'label' => 'Business Terms'],
+    ['route' => 'profile.privacy-rights', 'label' => 'Privacy rights'],
 ];

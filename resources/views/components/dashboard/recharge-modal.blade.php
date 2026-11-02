@@ -42,6 +42,9 @@
               A Zoho Books invoice is created automatically after payment.
             @endif
           </p>
+          <p class="rounded-xl border border-stat-orange/30 bg-stat-orange/10 px-3.5 py-3 text-sm font-medium leading-[1.45] text-text-body" style="font-family: var(--font-display)">
+            After payment, wallet credit can take 30–60 minutes to appear (especially for UPI / QR). Keep this page open until Razorpay confirms success when possible.
+          </p>
         </div>
 
         <div class="flex flex-col gap-3">
