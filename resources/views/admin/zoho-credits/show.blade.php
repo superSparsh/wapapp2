@@ -1,6 +1,6 @@
-<x-admin.layout title="Credit request - Admin" active="admin.zoho-credits.index">
+<x-admin.layout title="Credit request - Admin" active="admin.wallet-payments.index">
   <div class="p-4">
-    <a href="{{ route('admin.zoho-credits.index') }}" class="text-xs font-semibold text-green-600 hover:underline">← Credit requests</a>
+    <a href="{{ route('admin.wallet-payments.index', ['tab' => 'zoho']) }}" class="text-xs font-semibold text-green-600 hover:underline">← Wallet payments</a>
     <h1 class="mt-1 text-2xl font-bold text-text-primary">{{ $row->tenant?->company_name ?: ($row->tenant?->name ?: $row->tenant_id) }}</h1>
   </div>
 

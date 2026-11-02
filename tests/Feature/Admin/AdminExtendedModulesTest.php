@@ -53,9 +53,8 @@ class AdminExtendedModulesTest extends TestCase
     {
         $routes = [
             'admin.renew-requests.index',
-            'admin.recharge-requests.index',
+            'admin.wallet-payments.index',
             'admin.submissions.index',
-            'admin.zoho-credits.index',
             'admin.currencies.index',
             'admin.tax.edit',
             'admin.invoice-template.edit',
@@ -283,6 +282,13 @@ class AdminExtendedModulesTest extends TestCase
 
         $this->actingAs($this->admin, 'admin')
             ->get(route('admin.zoho-credits.index', ['source' => 'zoho']))
+            ->assertRedirect(route('admin.wallet-payments.index', [
+                'source' => 'zoho',
+                'tab' => 'zoho',
+            ]));
+
+        $this->actingAs($this->admin, 'admin')
+            ->get(route('admin.wallet-payments.index', ['tab' => 'zoho', 'source' => 'zoho']))
             ->assertOk()
             ->assertSee('INV-778');
 

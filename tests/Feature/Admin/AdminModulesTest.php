@@ -85,6 +85,16 @@ class AdminModulesTest extends TestCase
 
         $this->actingAs($this->admin, 'admin')
             ->get(route('admin.wallet-recharges.index', ['tenant' => $this->testTenant->id]))
+            ->assertRedirect(route('admin.wallet-payments.index', [
+                'tenant' => $this->testTenant->id,
+                'tab' => 'credits',
+            ]));
+
+        $this->actingAs($this->admin, 'admin')
+            ->get(route('admin.wallet-payments.index', [
+                'tenant' => $this->testTenant->id,
+                'tab' => 'credits',
+            ]))
             ->assertOk()
             ->assertSee('Admin wallet topup')
             ->assertSee('pay_test_123');

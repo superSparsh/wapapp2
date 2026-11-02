@@ -45,6 +45,7 @@ use App\Domains\Admin\Http\Controllers\RetentionController;
 use App\Domains\Admin\Http\Controllers\SettingsController;
 use App\Domains\Admin\Http\Controllers\TaxSettingsController;
 use App\Domains\Admin\Http\Controllers\TittuGatewayStatusController;
+use App\Domains\Admin\Http\Controllers\WalletPaymentController;
 use App\Domains\Admin\Http\Controllers\WalletRechargeController;
 use App\Domains\Admin\Http\Controllers\WhatsappHealthController;
 use App\Domains\Admin\Http\Controllers\ZohoRechargeHistoryController;
@@ -100,6 +101,11 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::get('/retention/export', [RetentionController::class, 'export'])->name('retention.export');
         Route::get('/retention/{tenant}', [RetentionController::class, 'show'])->name('retention.show');
         Route::post('/retention/{tenant}/notes', [RetentionController::class, 'storeNote'])->name('retention.notes.store');
+
+        Route::get('/wallet-payments', [WalletPaymentController::class, 'index'])->name('wallet-payments.index');
+        Route::get('/wallet-payments/{tenant}/{order}', [WalletPaymentController::class, 'show'])->name('wallet-payments.show');
+        Route::post('/wallet-payments/{tenant}/{order}/complete', [WalletPaymentController::class, 'completeFromRazorpay'])->name('wallet-payments.complete');
+        Route::post('/wallet-payments/{tenant}/{order}/retry-zoho', [WalletPaymentController::class, 'retryZoho'])->name('wallet-payments.retry-zoho');
 
         Route::get('/wallet-recharges', [WalletRechargeController::class, 'index'])->name('wallet-recharges.index');
 
