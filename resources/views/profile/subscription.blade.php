@@ -173,7 +173,7 @@
             </div>
           </div>
           <p class="mt-3 text-xs leading-[1.45] text-text-muted">
-            After payment, wallet credit can take 30–60 minutes to appear (especially for UPI / QR). Keep this page open until Razorpay confirms success when possible.
+            After payment, wallet credit can take 30–60 minutes to appear. Keep this page open until Razorpay confirms success when possible.
           </p>
         </form>
 
