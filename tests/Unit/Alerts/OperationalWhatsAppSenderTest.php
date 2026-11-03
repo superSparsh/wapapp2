@@ -63,4 +63,30 @@ class OperationalWhatsAppSenderTest extends TestCase
         $this->assertTrue($result['ok']);
         $this->assertNull($result['error']);
     }
+
+    public function test_send_template_sends_to_as_digits_only_without_plus(): void
+    {
+        Http::fake([
+            'cams.ap-southeast-1.aliyuncs.com/*' => Http::response([
+                'Code' => 'OK',
+                'Message' => 'success',
+            ], 200),
+        ]);
+
+        $result = app(OperationalWhatsAppSender::class)->sendTemplateResult(
+            '+91 98765-43210',
+            'calendly_customer_invite_created',
+            ['name' => 'Guest'],
+        );
+
+        $this->assertTrue($result['ok']);
+
+        Http::assertSent(function ($request) {
+            $to = $request['To'] ?? null;
+
+            return is_string($to)
+                && $to === '919876543210'
+                && ! str_contains($to, '+');
+        });
+    }
 }

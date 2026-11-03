@@ -48,9 +48,14 @@ class OperationalWhatsAppSender
             return ['ok' => false, 'error' => 'WhatsApp sender config missing (FROM number or Alibaba keys).'];
         }
 
+        // CAMS requires From/To as digits only (InvalidParameter.ToOnlyNumeric / FromOnlyNumeric).
         $to = $this->formatRecipient($toPhone);
+        $from = $this->formatRecipient($from);
         if ($to === '') {
             return ['ok' => false, 'error' => 'Invalid WhatsApp recipient number.'];
+        }
+        if ($from === '') {
+            return ['ok' => false, 'error' => 'WhatsApp sender FROM number is invalid.'];
         }
 
         $payload = [
@@ -161,10 +166,8 @@ class OperationalWhatsAppSender
 
     private function formatRecipient(string $phone): string
     {
-        $normalized = PhoneNormalizer::normalize($phone) ?? preg_replace('/\D+/', '', $phone) ?? '';
-        $normalized = ltrim((string) $normalized, '+');
-
-        return $normalized === '' ? '' : '+'.$normalized;
+        return PhoneNormalizer::normalize($phone)
+            ?? (preg_replace('/\D+/', '', $phone) ?? '');
     }
 
     /** @param  array<string, string>  $params */
