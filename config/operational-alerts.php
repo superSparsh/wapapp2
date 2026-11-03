@@ -93,8 +93,9 @@ return [
         'customer_created' => env('ALERT_WA_TEMPLATE_CALENDLY_CUSTOMER_CREATED', 'calendly_customer_invite_created'),
         'customer_canceled' => env('ALERT_WA_TEMPLATE_CALENDLY_CUSTOMER_CANCELED', 'calendly_customer_invite_canceled'),
         'customer_reminder' => env('ALERT_WA_TEMPLATE_CALENDLY_CUSTOMER_REMINDER', 'calendly_customer_event_reminder'),
-        'admin_created' => env('ALERT_WA_TEMPLATE_CALENDLY_ADMIN_CREATED', 'calendly_user_invite_created'),
-        'admin_canceled' => env('ALERT_WA_TEMPLATE_CALENDLY_ADMIN_CANCELED', 'calendly_user_invite_canceled'),
+        // Legacy template names (CalendlyMessageService): calendly_user_event_* not *_invite_*.
+        'admin_created' => env('ALERT_WA_TEMPLATE_CALENDLY_ADMIN_CREATED', 'calendly_user_event_created'),
+        'admin_canceled' => env('ALERT_WA_TEMPLATE_CALENDLY_ADMIN_CANCELED', 'calendly_user_event_canceled'),
         'admin_reminder' => env('ALERT_WA_TEMPLATE_CALENDLY_ADMIN_REMINDER', 'calendly_user_event_reminder'),
     ],
 

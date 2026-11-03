@@ -178,6 +178,7 @@ class CalendlyService
         $params = $sync->templateParamsForEvent(
             $event,
             $eventName !== '' ? $eventName : null,
+            forAdmin: strtolower((string) ($log->recipient_type ?? '')) === 'admin',
         );
         $result = app(\App\Domains\Alerts\Services\AlertDispatcher::class)
             ->calendarWhatsApp($templateKey, $phone, $params);

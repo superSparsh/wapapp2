@@ -135,19 +135,13 @@ class CalendlyEventSyncService
 
         $status = strtolower((string) ($event['status'] ?? 'active'));
         $eventName = (string) ($stored->raw_payload['name'] ?? $stored->event_type ?? 'Meeting');
-        $location = (string) (
-            $stored->raw_payload['location']['join_url']
-            ?? $stored->raw_payload['location']['location']
-            ?? ''
-        );
-        $params = $this->templateParamsForEvent($stored, $eventName, $location);
 
         try {
             if ($status === 'canceled' && ! $stored->notified_canceled) {
-                $this->notifyAndLog($integration, $stored, 'canceled', 'operational-alerts.calendly.customer_canceled', 'operational-alerts.calendly.admin_canceled', $params, $eventName);
+                $this->notifyAndLog($integration, $stored, 'canceled', 'operational-alerts.calendly.customer_canceled', 'operational-alerts.calendly.admin_canceled', $eventName);
                 $stored->update(['notified_canceled' => true]);
             } elseif ($status !== 'canceled' && ! $stored->notified_created && $integration->first_synced_at !== null) {
-                $this->notifyAndLog($integration, $stored, 'created', 'operational-alerts.calendly.customer_created', 'operational-alerts.calendly.admin_created', $params, $eventName);
+                $this->notifyAndLog($integration, $stored, 'created', 'operational-alerts.calendly.customer_created', 'operational-alerts.calendly.admin_created', $eventName);
                 $stored->update(['notified_created' => true]);
             }
         } catch (\Throwable $e) {
@@ -156,26 +150,46 @@ class CalendlyEventSyncService
     }
 
     /**
+     * Legacy CAMS template variables (SendsCalendlyWhatsapp).
+     * Missing links must be "N/A" — empty/null values cause InvalidParameter.
+     *
      * @return array<string, string>
      */
-    public function templateParamsForEvent(CalendlyEvent $event, ?string $eventName = null, ?string $location = null): array
-    {
-        $eventName ??= (string) ($event->raw_payload['name'] ?? $event->event_type ?? 'Meeting');
-        $location ??= (string) (
-            $event->raw_payload['location']['join_url']
-            ?? $event->raw_payload['location']['location']
-            ?? ''
+    public function templateParamsForEvent(
+        CalendlyEvent $event,
+        ?string $eventName = null,
+        bool $forAdmin = false,
+    ): array {
+        $tz = (string) (tenant('timezone') ?: config('app.timezone', 'UTC'));
+        $eventName = $this->fallbackNa(
+            $eventName ?? (string) ($event->raw_payload['name'] ?? $event->event_type ?? 'Meeting'),
+            'Meeting',
         );
 
-        $inviteeName = $this->resolveInviteeName($event);
+        $joinLink = $this->fallbackNa(
+            (string) ($event->raw_payload['location']['join_url'] ?? ''),
+        );
 
-        return [
-            'name' => $inviteeName,
-            'event' => $eventName,
-            'start' => $event->start_time?->format('d M Y h:i A') ?? '',
-            'meet' => $location,
-            'link' => $location,
+        $form = is_array($event->form_responses) ? $event->form_responses : [];
+        $rescheduleLink = $this->extractCalendlyUuid($form['reschedule_url'] ?? null);
+        $cancelLink = $this->extractCalendlyUuid($form['cancel_url'] ?? null);
+
+        $params = [
+            'full_name' => $this->fallbackNa($this->resolveInviteeName($event), 'Guest'),
+            'calendly_event_name' => $eventName,
+            'calendly_event_start_time' => $this->formatEventTime($event->start_time, $tz),
+            'calendly_event_end_time' => $this->formatEventTime($event->end_time, $tz),
+            'calendly_event_join_link' => $joinLink,
+            'reschedule_link' => $rescheduleLink,
+            'cancel_link' => $cancelLink,
         ];
+
+        if ($forAdmin) {
+            $params['whatsapp_number'] = $this->fallbackNa((string) ($event->whatsapp_number ?? ''));
+            $params['invitee_email'] = $this->fallbackNa((string) ($event->invitee_email ?? ''));
+        }
+
+        return $params;
     }
 
     public function templateKeyFor(string $recipientType, string $eventType): ?string
@@ -217,8 +231,6 @@ class CalendlyEventSyncService
 
     /**
      * Send customer + admin WhatsApp notifications and write message logs (sent / failed / skipped).
-     *
-     * @param  array<string, string>  $params
      */
     private function notifyAndLog(
         CalendlyIntegration $integration,
@@ -226,11 +238,11 @@ class CalendlyEventSyncService
         string $eventType,
         string $customerTemplateKey,
         string $adminTemplateKey,
-        array $params,
         string $eventName,
     ): void {
         $dispatcher = app(AlertDispatcher::class);
         $phone = (string) ($event->whatsapp_number ?? '');
+        $customerParams = $this->templateParamsForEvent($event, $eventName, forAdmin: false);
 
         if ($phone === '') {
             $this->writeMessageLog($event, 'customer', null, $eventName, $eventType, MessageLogStatus::Skipped, 'No WhatsApp number provided by invitee. Add a "WhatsApp number" or "Phone number" question to your Calendly event type so customers receive meeting notifications.');
@@ -239,7 +251,7 @@ class CalendlyEventSyncService
             if (strlen($digits) < 10) {
                 $this->writeMessageLog($event, 'customer', $digits, $eventName, $eventType, MessageLogStatus::Skipped, 'Phone number from form has fewer than 10 digits.');
             } else {
-                $result = $dispatcher->calendarWhatsApp($customerTemplateKey, $phone, $params);
+                $result = $dispatcher->calendarWhatsApp($customerTemplateKey, $phone, $customerParams);
                 $this->writeMessageLog(
                     $event,
                     'customer',
@@ -264,7 +276,8 @@ class CalendlyEventSyncService
             return;
         }
 
-        $result = $dispatcher->calendarWhatsApp($adminTemplateKey, $adminPhone, $params);
+        $adminParams = $this->templateParamsForEvent($event, $eventName, forAdmin: true);
+        $result = $dispatcher->calendarWhatsApp($adminTemplateKey, $adminPhone, $adminParams);
         $this->writeMessageLog(
             $event,
             'admin',
@@ -274,6 +287,40 @@ class CalendlyEventSyncService
             $result['ok'] ? MessageLogStatus::Sent : MessageLogStatus::Failed,
             $result['ok'] ? null : ($result['error'] ?: 'WhatsApp API did not return success.'),
         );
+    }
+
+    private function formatEventTime(mixed $time, string $timezone): string
+    {
+        if (! $time instanceof \DateTimeInterface) {
+            return 'N/A';
+        }
+
+        try {
+            return Carbon::instance($time)->timezone($timezone)->format('d M Y, h:i A');
+        } catch (\Throwable) {
+            return Carbon::instance($time)->format('d M Y, h:i A');
+        }
+    }
+
+    private function extractCalendlyUuid(mixed $url): string
+    {
+        $url = trim((string) $url);
+        if ($url === '' || strcasecmp($url, 'N/A') === 0) {
+            return 'N/A';
+        }
+
+        if (preg_match('/\/([a-f0-9-]+)$/i', $url, $matches) === 1) {
+            return $matches[1];
+        }
+
+        return 'N/A';
+    }
+
+    private function fallbackNa(string $value, string $fallback = 'N/A'): string
+    {
+        $value = trim($value);
+
+        return $value !== '' ? $value : $fallback;
     }
 
     private function writeMessageLog(

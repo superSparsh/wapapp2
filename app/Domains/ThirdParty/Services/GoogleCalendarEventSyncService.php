@@ -162,13 +162,6 @@ class GoogleCalendarEventSyncService
         }
 
         $eventName = (string) ($stored->summary ?? 'Meeting');
-        $params = [
-            'name'  => (string) ($stored->invitee_name ?? $stored->summary ?? 'Guest'),
-            'event' => $eventName,
-            'start' => $stored->start_time?->format('d M Y h:i A') ?? '',
-            'meet'  => (string) ($stored->meet_link ?? ''),
-            'link'  => (string) ($stored->meet_link ?: $stored->calendar_link ?: ''),
-        ];
 
         try {
             if ($status === 'canceled' && ! $stored->notified_canceled) {
@@ -178,7 +171,6 @@ class GoogleCalendarEventSyncService
                     'canceled',
                     'operational-alerts.google_calendar.customer_canceled',
                     'operational-alerts.google_calendar.admin_canceled',
-                    $params,
                     $eventName,
                 );
                 $stored->update(['notified_canceled' => true]);
@@ -189,7 +181,6 @@ class GoogleCalendarEventSyncService
                     'rescheduled',
                     'operational-alerts.google_calendar.customer_created',
                     'operational-alerts.google_calendar.admin_created',
-                    $params,
                     $eventName,
                 );
                 $stored->update(['notified_rescheduled' => true, 'notified_created' => true]);
@@ -200,7 +191,6 @@ class GoogleCalendarEventSyncService
                     'created',
                     'operational-alerts.google_calendar.customer_created',
                     'operational-alerts.google_calendar.admin_created',
-                    $params,
                     $eventName,
                 );
                 $stored->update(['notified_created' => true]);
@@ -211,9 +201,38 @@ class GoogleCalendarEventSyncService
     }
 
     /**
-     * Send customer + admin WhatsApp notifications and write message logs (sent / failed / skipped).
+     * Legacy CAMS template variables (SendsGoogleCalendarWhatsapp).
      *
-     * @param  array<string, string>  $params
+     * @return array<string, string>
+     */
+    public function templateParamsForEvent(GoogleCalendarEvent $event, ?string $eventName = null, bool $forAdmin = false): array
+    {
+        $tz = (string) (tenant('timezone') ?: config('app.timezone', 'UTC'));
+        $eventName = $this->fallbackNa($eventName ?? (string) ($event->summary ?? 'Meeting'), 'Meeting');
+        $clientName = $this->fallbackNa(
+            (string) ($event->invitee_name ?? $event->summary ?? 'Guest'),
+            'Guest',
+        );
+
+        $params = [
+            'full_name' => $clientName,
+            'google_event_name' => $eventName,
+            'google_event_start_time' => $this->formatEventTime($event->start_time, $tz),
+            'google_event_end_time' => $this->formatEventTime($event->end_time, $tz),
+            'google_meet_link' => $this->fallbackNa((string) ($event->meet_link ?? '')),
+            'google_calendar_link' => $this->fallbackNa((string) ($event->calendar_link ?? '')),
+        ];
+
+        if ($forAdmin) {
+            $params['whatsapp_number'] = $this->fallbackNa((string) ($event->whatsapp_number ?? ''));
+            $params['invitee_email'] = $this->fallbackNa((string) ($event->invitee_email ?? ''));
+        }
+
+        return $params;
+    }
+
+    /**
+     * Send customer + admin WhatsApp notifications and write message logs (sent / failed / skipped).
      */
     private function notifyAndLog(
         GoogleCalendarIntegration $integration,
@@ -221,11 +240,11 @@ class GoogleCalendarEventSyncService
         string $eventType,
         string $customerTemplateKey,
         string $adminTemplateKey,
-        array $params,
         string $eventName,
     ): void {
         $dispatcher = app(AlertDispatcher::class);
         $phone = (string) ($event->whatsapp_number ?? '');
+        $customerParams = $this->templateParamsForEvent($event, $eventName, forAdmin: false);
 
         if ($phone === '') {
             $this->writeMessageLog($event, 'customer', null, $eventName, $eventType, MessageLogStatus::Skipped, 'No WhatsApp number on the event. Add a phone in the event description or when creating/booking the meeting.');
@@ -234,7 +253,7 @@ class GoogleCalendarEventSyncService
             if (strlen($digits) < 10) {
                 $this->writeMessageLog($event, 'customer', $digits, $eventName, $eventType, MessageLogStatus::Skipped, 'Phone number has fewer than 10 digits.');
             } else {
-                $result = $dispatcher->calendarWhatsApp($customerTemplateKey, $phone, $params);
+                $result = $dispatcher->calendarWhatsApp($customerTemplateKey, $phone, $customerParams);
                 $this->writeMessageLog(
                     $event,
                     'customer',
@@ -259,7 +278,8 @@ class GoogleCalendarEventSyncService
             return;
         }
 
-        $result = $dispatcher->calendarWhatsApp($adminTemplateKey, $adminPhone, $params);
+        $adminParams = $this->templateParamsForEvent($event, $eventName, forAdmin: true);
+        $result = $dispatcher->calendarWhatsApp($adminTemplateKey, $adminPhone, $adminParams);
         $this->writeMessageLog(
             $event,
             'admin',
@@ -269,6 +289,26 @@ class GoogleCalendarEventSyncService
             $result['ok'] ? MessageLogStatus::Sent : MessageLogStatus::Failed,
             $result['ok'] ? null : ($result['error'] ?: 'WhatsApp API did not return success.'),
         );
+    }
+
+    private function formatEventTime(mixed $time, string $timezone): string
+    {
+        if (! $time instanceof \DateTimeInterface) {
+            return 'N/A';
+        }
+
+        try {
+            return Carbon::instance($time)->timezone($timezone)->format('d M Y, h:i A');
+        } catch (\Throwable) {
+            return Carbon::instance($time)->format('d M Y, h:i A');
+        }
+    }
+
+    private function fallbackNa(string $value, string $fallback = 'N/A'): string
+    {
+        $value = trim($value);
+
+        return $value !== '' ? $value : $fallback;
     }
 
     private function writeMessageLog(

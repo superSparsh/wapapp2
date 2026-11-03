@@ -13,6 +13,8 @@ use App\Domains\ThirdParty\Models\CalendlyMessageLog;
 use App\Domains\ThirdParty\Models\GoogleCalendarEvent;
 use App\Domains\ThirdParty\Models\GoogleCalendarIntegration;
 use App\Domains\ThirdParty\Models\GoogleCalendarMessageLog;
+use App\Domains\ThirdParty\Services\CalendlyEventSyncService;
+use App\Domains\ThirdParty\Services\GoogleCalendarEventSyncService;
 use App\Support\Console\Concerns\IteratesTenants;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Cache;
@@ -48,20 +50,7 @@ class SendCalendarRemindersCommand extends Command
                     }
 
                     $eventName = (string) ($event->raw_payload['name'] ?? $event->event_type ?? 'Meeting');
-                    $location = (string) (
-                        $event->raw_payload['location']['join_url']
-                        ?? $event->raw_payload['location']['location']
-                        ?? ''
-                    );
-                    $params = [
-                        'name'  => (string) ($event->invitee_email ?? 'Guest'),
-                        'event' => $eventName,
-                        'start' => $event->start_time?->format('d M Y h:i A') ?? '',
-                        'meet'  => $location,
-                        'link'  => $location,
-                    ];
-
-                    $sent += $this->sendCalendlyReminder($dispatcher, $integration, $event, $eventName, $params);
+                    $sent += $this->sendCalendlyReminder($dispatcher, $integration, $event, $eventName);
                 });
 
             GoogleCalendarEvent::query()
@@ -88,16 +77,7 @@ class SendCalendarRemindersCommand extends Command
                     }
 
                     $eventName = (string) ($event->summary ?? 'Meeting');
-                    $meet = (string) ($event->meet_link ?? '');
-                    $params = [
-                        'name'  => (string) ($event->invitee_name ?? $event->summary ?? 'Guest'),
-                        'event' => $eventName,
-                        'start' => $event->start_time?->format('d M Y h:i A') ?? '',
-                        'meet'  => $meet,
-                        'link'  => (string) ($meet ?: $event->calendar_link ?: ''),
-                    ];
-
-                    $sent += $this->sendGoogleReminder($dispatcher, $integration, $event, $eventName, $params);
+                    $sent += $this->sendGoogleReminder($dispatcher, $integration, $event, $eventName);
 
                     $event->update([
                         'reminder_days_sent' => array_values(array_unique([...$sentDays, $dayKey])),
@@ -110,18 +90,16 @@ class SendCalendarRemindersCommand extends Command
         return self::SUCCESS;
     }
 
-    /**
-     * @param  array<string, string>  $params
-     */
     private function sendCalendlyReminder(
         AlertDispatcher $dispatcher,
         CalendlyIntegration $integration,
         CalendlyEvent $event,
         string $eventName,
-        array $params,
     ): int {
         $sent = 0;
         $phone = (string) ($event->whatsapp_number ?? '');
+        $sync = app(CalendlyEventSyncService::class);
+        $customerParams = $sync->templateParamsForEvent($event, $eventName, forAdmin: false);
 
         if ($phone === '') {
             CalendlyMessageLog::query()->create([
@@ -140,7 +118,7 @@ class SendCalendarRemindersCommand extends Command
             $result = $dispatcher->calendarWhatsApp(
                 'operational-alerts.calendly.customer_reminder',
                 $phone,
-                $params,
+                $customerParams,
             );
 
             CalendlyMessageLog::query()->create([
@@ -184,10 +162,11 @@ class SendCalendarRemindersCommand extends Command
             return $sent;
         }
 
+        $adminParams = $sync->templateParamsForEvent($event, $eventName, forAdmin: true);
         $result = $dispatcher->calendarWhatsApp(
             'operational-alerts.calendly.admin_reminder',
             $adminPhone,
-            $params,
+            $adminParams,
         );
 
         CalendlyMessageLog::query()->create([
@@ -206,18 +185,16 @@ class SendCalendarRemindersCommand extends Command
         return $result['ok'] ? $sent + 1 : $sent;
     }
 
-    /**
-     * @param  array<string, string>  $params
-     */
     private function sendGoogleReminder(
         AlertDispatcher $dispatcher,
         GoogleCalendarIntegration $integration,
         GoogleCalendarEvent $event,
         string $eventName,
-        array $params,
     ): int {
         $sent = 0;
         $phone = (string) ($event->whatsapp_number ?? '');
+        $sync = app(GoogleCalendarEventSyncService::class);
+        $customerParams = $sync->templateParamsForEvent($event, $eventName, forAdmin: false);
 
         if ($phone === '') {
             GoogleCalendarMessageLog::query()->create([
@@ -236,7 +213,7 @@ class SendCalendarRemindersCommand extends Command
             $result = $dispatcher->calendarWhatsApp(
                 'operational-alerts.google_calendar.customer_reminder',
                 $phone,
-                $params,
+                $customerParams,
             );
 
             GoogleCalendarMessageLog::query()->create([
@@ -280,10 +257,11 @@ class SendCalendarRemindersCommand extends Command
             return $sent;
         }
 
+        $adminParams = $sync->templateParamsForEvent($event, $eventName, forAdmin: true);
         $result = $dispatcher->calendarWhatsApp(
             'operational-alerts.google_calendar.admin_reminder',
             $adminPhone,
-            $params,
+            $adminParams,
         );
 
         GoogleCalendarMessageLog::query()->create([
