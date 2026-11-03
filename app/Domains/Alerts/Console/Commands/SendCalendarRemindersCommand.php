@@ -137,7 +137,7 @@ class SendCalendarRemindersCommand extends Command
                 'sent_at' => now(),
             ]);
         } else {
-            $ok = $dispatcher->calendarWhatsApp(
+            $result = $dispatcher->calendarWhatsApp(
                 'operational-alerts.calendly.customer_reminder',
                 $phone,
                 $params,
@@ -151,12 +151,12 @@ class SendCalendarRemindersCommand extends Command
                 'invitee_email' => $event->invitee_email,
                 'event_name' => $eventName,
                 'event_type' => 'reminder',
-                'status' => $ok ? MessageLogStatus::Sent : MessageLogStatus::Failed,
-                'error_message' => $ok ? null : 'WhatsApp API did not return success.',
+                'status' => $result['ok'] ? MessageLogStatus::Sent : MessageLogStatus::Failed,
+                'error_message' => $result['ok'] ? null : ($result['error'] ?: 'WhatsApp API did not return success.'),
                 'sent_at' => now(),
             ]);
 
-            if ($ok) {
+            if ($result['ok']) {
                 $sent++;
             }
         }
@@ -184,7 +184,7 @@ class SendCalendarRemindersCommand extends Command
             return $sent;
         }
 
-        $ok = $dispatcher->calendarWhatsApp(
+        $result = $dispatcher->calendarWhatsApp(
             'operational-alerts.calendly.admin_reminder',
             $adminPhone,
             $params,
@@ -198,12 +198,12 @@ class SendCalendarRemindersCommand extends Command
             'invitee_email' => $event->invitee_email,
             'event_name' => $eventName,
             'event_type' => 'reminder',
-            'status' => $ok ? MessageLogStatus::Sent : MessageLogStatus::Failed,
-            'error_message' => $ok ? null : 'WhatsApp API did not return success.',
+            'status' => $result['ok'] ? MessageLogStatus::Sent : MessageLogStatus::Failed,
+            'error_message' => $result['ok'] ? null : ($result['error'] ?: 'WhatsApp API did not return success.'),
             'sent_at' => now(),
         ]);
 
-        return $ok ? $sent + 1 : $sent;
+        return $result['ok'] ? $sent + 1 : $sent;
     }
 
     /**
@@ -233,7 +233,7 @@ class SendCalendarRemindersCommand extends Command
                 'sent_at' => now(),
             ]);
         } else {
-            $ok = $dispatcher->calendarWhatsApp(
+            $result = $dispatcher->calendarWhatsApp(
                 'operational-alerts.google_calendar.customer_reminder',
                 $phone,
                 $params,
@@ -247,12 +247,12 @@ class SendCalendarRemindersCommand extends Command
                 'invitee_email' => $event->invitee_email,
                 'event_name' => $eventName,
                 'event_type' => 'reminder',
-                'status' => $ok ? MessageLogStatus::Sent : MessageLogStatus::Failed,
-                'error_message' => $ok ? null : 'WhatsApp API did not return success.',
+                'status' => $result['ok'] ? MessageLogStatus::Sent : MessageLogStatus::Failed,
+                'error_message' => $result['ok'] ? null : ($result['error'] ?: 'WhatsApp API did not return success.'),
                 'sent_at' => now(),
             ]);
 
-            if ($ok) {
+            if ($result['ok']) {
                 $sent++;
             }
         }
@@ -280,7 +280,7 @@ class SendCalendarRemindersCommand extends Command
             return $sent;
         }
 
-        $ok = $dispatcher->calendarWhatsApp(
+        $result = $dispatcher->calendarWhatsApp(
             'operational-alerts.google_calendar.admin_reminder',
             $adminPhone,
             $params,
@@ -294,11 +294,11 @@ class SendCalendarRemindersCommand extends Command
             'invitee_email' => $event->invitee_email,
             'event_name' => $eventName,
             'event_type' => 'reminder',
-            'status' => $ok ? MessageLogStatus::Sent : MessageLogStatus::Failed,
-            'error_message' => $ok ? null : 'WhatsApp API did not return success.',
+            'status' => $result['ok'] ? MessageLogStatus::Sent : MessageLogStatus::Failed,
+            'error_message' => $result['ok'] ? null : ($result['error'] ?: 'WhatsApp API did not return success.'),
             'sent_at' => now(),
         ]);
 
-        return $ok ? $sent + 1 : $sent;
+        return $result['ok'] ? $sent + 1 : $sent;
     }
 }

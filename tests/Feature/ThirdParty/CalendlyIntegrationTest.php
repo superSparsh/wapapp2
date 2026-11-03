@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Feature\ThirdParty;
 
+use App\Domains\Alerts\Services\AlertDispatcher;
 use App\Domains\ThirdParty\Enums\IntegrationStatus;
+use App\Domains\ThirdParty\Enums\MessageLogStatus;
 use App\Domains\ThirdParty\Jobs\SyncCalendlyEventsJob;
 use App\Domains\ThirdParty\Models\CalendlyEvent;
 use App\Domains\ThirdParty\Models\CalendlyIntegration;
@@ -371,5 +373,84 @@ class CalendlyIntegrationTest extends TestCase
 
         $this->assertDatabaseEmpty('calendly_events');
         $this->assertSame(IntegrationStatus::Disabled, $integration->fresh()->status);
+    }
+
+    public function test_failed_message_log_can_be_resent(): void
+    {
+        $userId = (int) $this->testUser->id;
+
+        $event = CalendlyEvent::query()->create([
+            'user_id' => $userId,
+            'event_id' => 'ev-resend-1',
+            'status' => 'active',
+            'event_type' => 'consultation',
+            'invitee_email' => 'guest@example.com',
+            'whatsapp_number' => '919876543210',
+            'start_time' => now()->addHour(),
+            'end_time' => now()->addHours(2),
+            'raw_payload' => [
+                'name' => '30 Minute Meeting',
+                'location' => ['join_url' => 'https://meet.example.com/abc'],
+            ],
+        ]);
+
+        $log = CalendlyMessageLog::query()->create([
+            'user_id' => $userId,
+            'event_id' => $event->id,
+            'recipient_type' => 'customer',
+            'recipient_number' => '919876543210',
+            'invitee_email' => 'guest@example.com',
+            'event_name' => '30 Minute Meeting',
+            'event_type' => 'created',
+            'status' => MessageLogStatus::Failed,
+            'error_message' => 'WhatsApp API did not return success.',
+            'sent_at' => now()->subMinute(),
+        ]);
+
+        $dispatcher = $this->createMock(AlertDispatcher::class);
+        $dispatcher->expects($this->once())
+            ->method('calendarWhatsApp')
+            ->willReturn(['ok' => true, 'error' => null]);
+        $this->app->instance(AlertDispatcher::class, $dispatcher);
+
+        $this->actingAsTenantUser()
+            ->post(route('integration.calendly.message-logs.resend', $log))
+            ->assertRedirect(route('integration.calendly', ['tab' => 'logs']));
+
+        $log->refresh();
+        $this->assertSame(MessageLogStatus::Sent, $log->status);
+        $this->assertNull($log->error_message);
+    }
+
+    public function test_message_logs_tab_shows_resend_for_failed_rows(): void
+    {
+        $userId = (int) $this->testUser->id;
+
+        $event = CalendlyEvent::query()->create([
+            'user_id' => $userId,
+            'event_id' => 'ev-log-ui-1',
+            'status' => 'active',
+            'event_type' => 'consultation',
+            'start_time' => now()->addHour(),
+            'end_time' => now()->addHours(2),
+        ]);
+
+        CalendlyMessageLog::query()->create([
+            'user_id' => $userId,
+            'event_id' => $event->id,
+            'recipient_type' => 'customer',
+            'recipient_number' => '919876543210',
+            'event_name' => 'Demo',
+            'event_type' => 'created',
+            'status' => MessageLogStatus::Failed,
+            'error_message' => 'Template missing',
+            'sent_at' => now(),
+        ]);
+
+        $this->actingAsTenantUser()
+            ->get(route('integration.calendly', ['tab' => 'logs']))
+            ->assertOk()
+            ->assertSee('Resend')
+            ->assertSee('Template missing');
     }
 }

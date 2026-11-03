@@ -136,6 +136,73 @@ class CalendlyService
     }
 
     /**
+     * Resend a failed Calendly WhatsApp notification.
+     *
+     * @return array{ok: bool, message: string}
+     */
+    public function resendMessageLog(int $userId, CalendlyMessageLog $log): array
+    {
+        if ((int) $log->user_id !== $userId) {
+            return ['ok' => false, 'message' => 'Message log not found.'];
+        }
+
+        if ($log->status !== \App\Domains\ThirdParty\Enums\MessageLogStatus::Failed) {
+            return ['ok' => false, 'message' => 'Only failed messages can be resent.'];
+        }
+
+        $phone = trim((string) ($log->recipient_number ?? ''));
+        if ($phone === '') {
+            return ['ok' => false, 'message' => 'No recipient number on this log.'];
+        }
+
+        $sync = app(CalendlyEventSyncService::class);
+        $templateKey = $sync->templateKeyFor(
+            (string) ($log->recipient_type ?? ''),
+            (string) ($log->event_type ?? ''),
+        );
+
+        if ($templateKey === null) {
+            return ['ok' => false, 'message' => 'Cannot determine WhatsApp template for this log.'];
+        }
+
+        $event = $log->event;
+        if ($event === null && $log->event_id) {
+            $event = CalendlyEvent::query()->find($log->event_id);
+        }
+
+        if ($event === null) {
+            return ['ok' => false, 'message' => 'Linked Calendly event is missing.'];
+        }
+
+        $eventName = trim((string) ($log->event_name ?? ''));
+        $params = $sync->templateParamsForEvent(
+            $event,
+            $eventName !== '' ? $eventName : null,
+        );
+        $result = app(\App\Domains\Alerts\Services\AlertDispatcher::class)
+            ->calendarWhatsApp($templateKey, $phone, $params);
+
+        if ($result['ok']) {
+            $log->forceFill([
+                'status' => \App\Domains\ThirdParty\Enums\MessageLogStatus::Sent,
+                'error_message' => null,
+                'sent_at' => now(),
+            ])->save();
+
+            return ['ok' => true, 'message' => 'WhatsApp message resent successfully.'];
+        }
+
+        $error = $result['error'] ?: 'WhatsApp API did not return success.';
+        $log->forceFill([
+            'status' => \App\Domains\ThirdParty\Enums\MessageLogStatus::Failed,
+            'error_message' => $error,
+            'sent_at' => now(),
+        ])->save();
+
+        return ['ok' => false, 'message' => $error];
+    }
+
+    /**
      * Register or replace the Calendly org-scoped webhook subscription.
      *
      * @param array<string, mixed> &$settings  Mutated in-place (webhook_id, signing_key written back)

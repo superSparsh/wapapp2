@@ -473,7 +473,7 @@ class GoogleCalendarIntegrationTest extends TestCase
         $dispatcher = $this->createMock(AlertDispatcher::class);
         $dispatcher->expects($this->exactly(2))
             ->method('calendarWhatsApp')
-            ->willReturn(true);
+            ->willReturn(['ok' => true, 'error' => null]);
         $this->app->instance(AlertDispatcher::class, $dispatcher);
 
         $start = now()->addDay()->toIso8601String();

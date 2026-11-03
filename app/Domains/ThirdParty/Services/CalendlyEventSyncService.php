@@ -140,13 +140,7 @@ class CalendlyEventSyncService
             ?? $stored->raw_payload['location']['location']
             ?? ''
         );
-        $params = [
-            'name'  => (string) ($stored->invitee_email ?? 'Guest'),
-            'event' => $eventName,
-            'start' => $stored->start_time?->format('d M Y h:i A') ?? '',
-            'meet'  => $location,
-            'link'  => $location,
-        ];
+        $params = $this->templateParamsForEvent($stored, $eventName, $location);
 
         try {
             if ($status === 'canceled' && ! $stored->notified_canceled) {
@@ -159,6 +153,66 @@ class CalendlyEventSyncService
         } catch (\Throwable $e) {
             Log::warning('Calendly booking alert failed', ['error' => $e->getMessage()]);
         }
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function templateParamsForEvent(CalendlyEvent $event, ?string $eventName = null, ?string $location = null): array
+    {
+        $eventName ??= (string) ($event->raw_payload['name'] ?? $event->event_type ?? 'Meeting');
+        $location ??= (string) (
+            $event->raw_payload['location']['join_url']
+            ?? $event->raw_payload['location']['location']
+            ?? ''
+        );
+
+        $inviteeName = $this->resolveInviteeName($event);
+
+        return [
+            'name' => $inviteeName,
+            'event' => $eventName,
+            'start' => $event->start_time?->format('d M Y h:i A') ?? '',
+            'meet' => $location,
+            'link' => $location,
+        ];
+    }
+
+    public function templateKeyFor(string $recipientType, string $eventType): ?string
+    {
+        $recipientType = strtolower(trim($recipientType));
+        $eventType = strtolower(trim($eventType));
+
+        return match (true) {
+            $recipientType === 'customer' && $eventType === 'created' => 'operational-alerts.calendly.customer_created',
+            $recipientType === 'customer' && $eventType === 'canceled' => 'operational-alerts.calendly.customer_canceled',
+            $recipientType === 'customer' && $eventType === 'reminder' => 'operational-alerts.calendly.customer_reminder',
+            $recipientType === 'admin' && $eventType === 'created' => 'operational-alerts.calendly.admin_created',
+            $recipientType === 'admin' && $eventType === 'canceled' => 'operational-alerts.calendly.admin_canceled',
+            $recipientType === 'admin' && $eventType === 'reminder' => 'operational-alerts.calendly.admin_reminder',
+            default => null,
+        };
+    }
+
+    private function resolveInviteeName(CalendlyEvent $event): string
+    {
+        $form = is_array($event->form_responses) ? $event->form_responses : [];
+        $candidates = [
+            $form['name'] ?? null,
+            $form['first_name'] ?? null,
+            is_array($form['name'] ?? null) ? ($form['name']['formatted_name'] ?? null) : null,
+        ];
+
+        foreach ($candidates as $candidate) {
+            $value = trim((string) $candidate);
+            if ($value !== '') {
+                return $value;
+            }
+        }
+
+        $email = trim((string) ($event->invitee_email ?? ''));
+
+        return $email !== '' ? $email : 'Guest';
     }
 
     /**
@@ -185,15 +239,15 @@ class CalendlyEventSyncService
             if (strlen($digits) < 10) {
                 $this->writeMessageLog($event, 'customer', $digits, $eventName, $eventType, MessageLogStatus::Skipped, 'Phone number from form has fewer than 10 digits.');
             } else {
-                $ok = $dispatcher->calendarWhatsApp($customerTemplateKey, $phone, $params);
+                $result = $dispatcher->calendarWhatsApp($customerTemplateKey, $phone, $params);
                 $this->writeMessageLog(
                     $event,
                     'customer',
                     $digits,
                     $eventName,
                     $eventType,
-                    $ok ? MessageLogStatus::Sent : MessageLogStatus::Failed,
-                    $ok ? null : 'WhatsApp API did not return success.',
+                    $result['ok'] ? MessageLogStatus::Sent : MessageLogStatus::Failed,
+                    $result['ok'] ? null : ($result['error'] ?: 'WhatsApp API did not return success.'),
                 );
             }
         }
@@ -210,15 +264,15 @@ class CalendlyEventSyncService
             return;
         }
 
-        $ok = $dispatcher->calendarWhatsApp($adminTemplateKey, $adminPhone, $params);
+        $result = $dispatcher->calendarWhatsApp($adminTemplateKey, $adminPhone, $params);
         $this->writeMessageLog(
             $event,
             'admin',
             $adminDigits,
             $eventName,
             $eventType,
-            $ok ? MessageLogStatus::Sent : MessageLogStatus::Failed,
-            $ok ? null : 'WhatsApp API did not return success.',
+            $result['ok'] ? MessageLogStatus::Sent : MessageLogStatus::Failed,
+            $result['ok'] ? null : ($result['error'] ?: 'WhatsApp API did not return success.'),
         );
     }
 

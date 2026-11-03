@@ -495,10 +495,29 @@
                     </p>
                   @endif
                 </div>
-                <div class="shrink-0 text-right text-xs text-text-muted whitespace-nowrap">
-                  {{ $log->sent_at?->format('d M Y') ?? '-' }}
-                  <br>
-                  {{ $log->sent_at?->format('h:i A') ?? '' }}
+                <div class="flex shrink-0 flex-col items-end gap-2 text-right text-xs text-text-muted whitespace-nowrap">
+                  <div>
+                    {{ $log->sent_at?->format('d M Y') ?? '-' }}
+                    <br>
+                    {{ $log->sent_at?->format('h:i A') ?? '' }}
+                  </div>
+                  @if ($logStatus === 'failed')
+                    <form method="POST" action="{{ route('integration.calendly.message-logs.resend', $log) }}">
+                      @csrf
+                      @if (request('log_type'))
+                        <input type="hidden" name="log_type" value="{{ request('log_type') }}">
+                      @endif
+                      @if (request('logs_page'))
+                        <input type="hidden" name="logs_page" value="{{ request('logs_page') }}">
+                      @endif
+                      <button
+                        type="submit"
+                        class="rounded-lg border border-green-500 px-3 py-1.5 text-xs font-semibold text-green-600 hover:bg-green-50"
+                      >
+                        Resend
+                      </button>
+                    </form>
+                  @endif
                 </div>
               </div>
             @endforeach

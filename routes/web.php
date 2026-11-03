@@ -417,6 +417,7 @@ Route::middleware(['tenancy.session', 'auth:web,team', '2fa', 'team.redirect-das
             Route::put('/calendly/update', [CalendlyController::class, 'update'])->name('calendly.update');
             Route::post('/calendly/test', [CalendlyController::class, 'test'])->name('calendly.test');
             Route::post('/calendly/sync', [CalendlyController::class, 'syncEvents'])->name('calendly.sync');
+            Route::post('/calendly/message-logs/{messageLog}/resend', [CalendlyController::class, 'resendMessageLog'])->name('calendly.message-logs.resend');
 
             // Google Calendar / Meet
             Route::get('/google-calendar', [GoogleCalendarController::class, 'index'])->name('google-calendar');

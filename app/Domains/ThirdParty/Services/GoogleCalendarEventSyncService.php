@@ -234,15 +234,15 @@ class GoogleCalendarEventSyncService
             if (strlen($digits) < 10) {
                 $this->writeMessageLog($event, 'customer', $digits, $eventName, $eventType, MessageLogStatus::Skipped, 'Phone number has fewer than 10 digits.');
             } else {
-                $ok = $dispatcher->calendarWhatsApp($customerTemplateKey, $phone, $params);
+                $result = $dispatcher->calendarWhatsApp($customerTemplateKey, $phone, $params);
                 $this->writeMessageLog(
                     $event,
                     'customer',
                     $digits,
                     $eventName,
                     $eventType,
-                    $ok ? MessageLogStatus::Sent : MessageLogStatus::Failed,
-                    $ok ? null : 'WhatsApp API did not return success.',
+                    $result['ok'] ? MessageLogStatus::Sent : MessageLogStatus::Failed,
+                    $result['ok'] ? null : ($result['error'] ?: 'WhatsApp API did not return success.'),
                 );
             }
         }
@@ -259,15 +259,15 @@ class GoogleCalendarEventSyncService
             return;
         }
 
-        $ok = $dispatcher->calendarWhatsApp($adminTemplateKey, $adminPhone, $params);
+        $result = $dispatcher->calendarWhatsApp($adminTemplateKey, $adminPhone, $params);
         $this->writeMessageLog(
             $event,
             'admin',
             $adminDigits,
             $eventName,
             $eventType,
-            $ok ? MessageLogStatus::Sent : MessageLogStatus::Failed,
-            $ok ? null : 'WhatsApp API did not return success.',
+            $result['ok'] ? MessageLogStatus::Sent : MessageLogStatus::Failed,
+            $result['ok'] ? null : ($result['error'] ?: 'WhatsApp API did not return success.'),
         );
     }
 

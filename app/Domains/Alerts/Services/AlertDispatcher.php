@@ -468,15 +468,19 @@ class AlertDispatcher
 
     /**
      * @param  array<string, string|int|float>  $params
+     * @return array{ok: bool, error: ?string}
      */
-    public function calendarWhatsApp(string $templateKey, string $toPhone, array $params): bool
+    public function calendarWhatsApp(string $templateKey, string $toPhone, array $params): array
     {
         $template = (string) config($templateKey, '');
-        if ($template === '' || $toPhone === '') {
-            return false;
+        if ($template === '') {
+            return ['ok' => false, 'error' => 'WhatsApp template code is not configured ('.$templateKey.').'];
+        }
+        if ($toPhone === '') {
+            return ['ok' => false, 'error' => 'WhatsApp recipient number is empty.'];
         }
 
-        return $this->alerts->notifyWhatsAppNumbers([$toPhone], $template, $params);
+        return $this->alerts->notifyWhatsAppNumbersResult([$toPhone], $template, $params);
     }
 
     public function ensureActiveSubscriptionForPlanAlerts(): ?Subscription

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domains\ThirdParty\Http\Controllers;
 
 use App\Domains\ThirdParty\Http\Requests\Calendly\UpdateCalendlyRequest;
+use App\Domains\ThirdParty\Models\CalendlyMessageLog;
 use App\Domains\ThirdParty\Models\CalendlyWebhookLog;
 use App\Domains\ThirdParty\Services\CalendlyService;
 use Illuminate\Http\JsonResponse;
@@ -142,6 +143,23 @@ class CalendlyController extends Controller
             'success' => true,
             'message' => 'Sync started in background. Events will update shortly.',
         ]);
+    }
+
+    public function resendMessageLog(CalendlyMessageLog $messageLog): RedirectResponse
+    {
+        $userId = (int) auth()->id();
+        $result = $this->calendly->resendMessageLog($userId, $messageLog);
+
+        return redirect()
+            ->route('integration.calendly', [
+                'tab' => 'logs',
+                'log_type' => request('log_type'),
+                'logs_page' => request('logs_page'),
+            ])
+            ->with(
+                $result['ok'] ? 'success' : 'error',
+                $result['message'],
+            );
     }
 
     public function receiveWebhook(Request $request): \Illuminate\Http\Response

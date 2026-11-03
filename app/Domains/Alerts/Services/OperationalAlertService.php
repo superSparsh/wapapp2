@@ -102,19 +102,37 @@ class OperationalAlertService
      */
     public function notifyWhatsAppNumbers(array $phones, string $templateCode, array $params = []): bool
     {
+        return $this->notifyWhatsAppNumbersResult($phones, $templateCode, $params)['ok'];
+    }
+
+    /**
+     * @param  list<string>  $phones
+     * @param  array<string, string|int|float>  $params
+     * @return array{ok: bool, error: ?string}
+     */
+    public function notifyWhatsAppNumbersResult(array $phones, string $templateCode, array $params = []): array
+    {
         $targets = array_values(array_unique(array_filter($phones)));
         if ($targets === []) {
-            return false;
+            return ['ok' => false, 'error' => 'No WhatsApp recipient numbers provided.'];
         }
 
         $ok = true;
+        $errors = [];
         foreach ($targets as $phone) {
-            if (! $this->whatsAppSender->sendTemplate((string) $phone, $templateCode, $params)) {
+            $result = $this->whatsAppSender->sendTemplateResult((string) $phone, $templateCode, $params);
+            if (! $result['ok']) {
                 $ok = false;
+                if (is_string($result['error'] ?? null) && $result['error'] !== '') {
+                    $errors[] = $result['error'];
+                }
             }
         }
 
-        return $ok;
+        return [
+            'ok' => $ok,
+            'error' => $errors === [] ? null : implode(' | ', array_values(array_unique($errors))),
+        ];
     }
 
     /**
