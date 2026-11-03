@@ -1500,6 +1500,181 @@ function interactiveButtonLabels(interactive) {
     return [...new Set(labels)];
 }
 
+function inboxWaActionIcon(type) {
+    const normalized = String(type || 'quick_reply').toLowerCase();
+    if (['phone', 'phone_number', 'call'].includes(normalized)) {
+        return '/images/inbox/modals/call.svg';
+    }
+    if (['cta_url', 'url', 'cta', 'call_to_action'].includes(normalized)) {
+        return '/images/inbox/modals/export.svg';
+    }
+    if (normalized === 'flow') {
+        return '/images/templates/flow.svg';
+    }
+
+    return '/images/templates/quick-reply.svg';
+}
+
+function appendInboxWaActionRows(parent, actions) {
+    const rows = [];
+    (Array.isArray(actions) ? actions : []).forEach((action) => {
+        let text = '';
+        let type = 'quick_reply';
+        if (typeof action === 'string') {
+            text = action.trim();
+        } else if (action && typeof action === 'object') {
+            text = String(action.text || action.title || '').trim();
+            type = String(action.type || 'quick_reply');
+        }
+        if (!text) {
+            return;
+        }
+        rows.push({ text, type });
+    });
+
+    if (rows.length === 0) {
+        return;
+    }
+
+    const wrap = document.createElement('div');
+    wrap.className = 'mt-1.5 w-full border-t border-black/10 pt-1';
+
+    rows.forEach((row) => {
+        const line = document.createElement('div');
+        line.className = 'flex w-full items-center justify-center gap-2 py-1.5';
+
+        const icon = document.createElement('img');
+        icon.src = inboxWaActionIcon(row.type);
+        icon.alt = '';
+        icon.width = 14;
+        icon.height = 14;
+        icon.className = 'size-3.5 shrink-0 opacity-90';
+
+        const label = document.createElement('span');
+        label.className = 'text-sm font-medium leading-none text-link-green';
+        label.textContent = row.text;
+
+        line.appendChild(icon);
+        line.appendChild(label);
+        wrap.appendChild(line);
+    });
+
+    parent.appendChild(wrap);
+}
+
+function appendInboxWaRichMessage(parent, options = {}) {
+    const card = document.createElement('div');
+    card.className = 'flex w-full min-w-[180px] max-w-full flex-col gap-1.5';
+
+    const header = options.header && typeof options.header === 'object' ? options.header : null;
+    const headerText = String(header?.text || '').trim();
+    const headerType = String(header?.type || '').toLowerCase();
+    const headerMedia = String(header?.media_url || '').trim();
+
+    if (headerText) {
+        const headerEl = document.createElement('div');
+        headerEl.className = 'text-sm font-semibold leading-[1.4] text-text-body';
+        headerEl.textContent = headerText;
+        card.appendChild(headerEl);
+    }
+
+    if (headerMedia && headerType === 'image') {
+        const img = document.createElement('img');
+        img.src = headerMedia;
+        img.alt = '';
+        img.className = 'max-h-48 w-full rounded-lg object-cover';
+        card.appendChild(img);
+    } else if (headerMedia && headerType === 'video') {
+        const video = document.createElement('video');
+        video.src = headerMedia;
+        video.className = 'max-h-48 w-full rounded-lg object-cover';
+        video.muted = true;
+        video.playsInline = true;
+        video.preload = 'metadata';
+        card.appendChild(video);
+    } else if (headerMedia && headerType === 'document') {
+        const link = document.createElement('a');
+        link.href = headerMedia;
+        link.target = '_blank';
+        link.rel = 'noopener';
+        link.className =
+            'rounded-lg border border-black/10 bg-white/70 px-3 py-2 text-xs font-semibold text-link-green underline';
+        link.textContent = 'Open document';
+        card.appendChild(link);
+    }
+
+    const bodyText = String(options.body || '').trim();
+    if (bodyText) {
+        const bodyEl = document.createElement('div');
+        bodyEl.className = 'wa-preview-body text-xs leading-[1.6] text-text-body break-words whitespace-pre-wrap';
+        bodyEl.textContent = bodyText;
+        card.appendChild(bodyEl);
+    }
+
+    const footerText = String(options.footer || '').trim();
+    if (footerText) {
+        const footerEl = document.createElement('div');
+        footerEl.className = 'text-[11px] leading-[1.4] text-text-body/55';
+        footerEl.textContent = footerText;
+        card.appendChild(footerEl);
+    }
+
+    const list = options.list && typeof options.list === 'object' ? options.list : null;
+    const sections = Array.isArray(list?.sections) ? list.sections : [];
+    if (sections.length > 0) {
+        const listCard = document.createElement('div');
+        listCard.className = 'mt-0.5 overflow-hidden rounded-lg border border-black/10 bg-white/60';
+
+        sections.forEach((section) => {
+            const sectionTitle = String(section?.title || '').trim();
+            if (sectionTitle) {
+                const titleEl = document.createElement('div');
+                titleEl.className =
+                    'border-b border-black/5 bg-black/[0.03] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-text-body/50';
+                titleEl.textContent = sectionTitle;
+                listCard.appendChild(titleEl);
+            }
+
+            (Array.isArray(section?.rows) ? section.rows : []).forEach((row) => {
+                const rowTitle = String(row?.title || '').trim();
+                const rowDescription = String(row?.description || '').trim();
+                if (!rowTitle && !rowDescription) {
+                    return;
+                }
+                const rowEl = document.createElement('div');
+                rowEl.className = 'border-b border-black/5 px-2.5 py-1.5 last:border-b-0';
+                if (rowTitle) {
+                    const t = document.createElement('div');
+                    t.className = 'text-xs font-medium text-text-body';
+                    t.textContent = rowTitle;
+                    rowEl.appendChild(t);
+                }
+                if (rowDescription) {
+                    const d = document.createElement('div');
+                    d.className = 'text-[11px] text-text-body/55';
+                    d.textContent = rowDescription;
+                    rowEl.appendChild(d);
+                }
+                listCard.appendChild(rowEl);
+            });
+        });
+
+        card.appendChild(listCard);
+    }
+
+    appendInboxWaActionRows(card, options.actions || []);
+
+    const caption = String(options.caption || '').trim();
+    if (caption) {
+        const captionEl = document.createElement('div');
+        captionEl.className = 'mt-0.5 text-[10px] font-semibold uppercase tracking-wide text-green-700/80';
+        captionEl.textContent = caption;
+        card.appendChild(captionEl);
+    }
+
+    parent.appendChild(card);
+}
+
 function messageDisplayBody(message) {
     if (!message || typeof message !== 'object') {
         return '';
@@ -1874,29 +2049,27 @@ function fillMessageBubble(bubble, message) {
         const isProviderCodeBody = body !== '' && (body === templateCode || /^[0-9]{10,}$/.test(body));
 
         if (body !== '' && !isProviderCodeBody) {
-            appendText(body);
-
-            if (buttons.length > 0) {
-                const row = document.createElement('div');
-                row.className = 'mt-1 flex flex-wrap gap-1.5';
-                buttons.forEach((button) => {
-                    const label = String(button?.text || button || '').trim();
-                    if (!label) {
-                        return;
+            const actions = buttons
+                .map((button) => {
+                    if (typeof button === 'string') {
+                        return { text: button, type: 'quick_reply' };
+                    }
+                    if (button && typeof button === 'object') {
+                        return {
+                            text: String(button.text || ''),
+                            type: String(button.type || 'quick_reply'),
+                        };
                     }
 
-                    const chip = document.createElement('span');
-                    chip.className = 'rounded border border-green-300 bg-white/80 px-2 py-1 text-[11px] font-medium text-green-800';
-                    chip.textContent = label;
-                    row.appendChild(chip);
-                });
-                bubble.appendChild(row);
-            }
+                    return null;
+                })
+                .filter(Boolean);
 
-            const caption = document.createElement('div');
-            caption.className = 'mt-1 text-[10px] font-semibold uppercase tracking-wide text-green-700';
-            caption.textContent = templateName ? `Template · ${templateName}` : 'Template';
-            bubble.appendChild(caption);
+            appendInboxWaRichMessage(bubble, {
+                body,
+                actions,
+                caption: templateName ? `Template · ${templateName}` : 'Template',
+            });
             appendInboxMessageMeta(bubble, message);
             return;
         }
@@ -1922,9 +2095,11 @@ function fillMessageBubble(bubble, message) {
     if (messageType === 'interactive') {
         const preview = message.interactive_preview || null;
         const interactiveBody = String(preview?.body || body || '[interactive]').trim();
-        const buttons = Array.isArray(preview?.buttons)
-            ? preview.buttons
-            : interactiveButtonLabels(message.interactive);
+        const actions = Array.isArray(preview?.actions) && preview.actions.length > 0
+            ? preview.actions
+            : (Array.isArray(preview?.buttons) ? preview.buttons : interactiveButtonLabels(message.interactive)).map(
+                (label) => ({ text: String(label), type: 'quick_reply' }),
+            );
         const flowReply =
             preview?.flow_reply && typeof preview.flow_reply === 'object'
                 ? preview.flow_reply
@@ -1984,22 +2159,13 @@ function fillMessageBubble(bubble, message) {
                 wrap.appendChild(empty);
             }
         } else {
-            const bodyEl = document.createElement('div');
-            bodyEl.textContent = interactiveBody || '[interactive]';
-            wrap.appendChild(bodyEl);
-
-            if (buttons.length > 0) {
-                const row = document.createElement('div');
-                row.className = 'mt-1 flex flex-wrap gap-1.5';
-                buttons.forEach((label) => {
-                    const chip = document.createElement('span');
-                    chip.className =
-                        'rounded border border-green-300 bg-white/80 px-2 py-1 text-[11px] font-medium text-green-800';
-                    chip.textContent = String(label);
-                    row.appendChild(chip);
-                });
-                wrap.appendChild(row);
-            }
+            appendInboxWaRichMessage(wrap, {
+                body: interactiveBody || '[interactive]',
+                header: preview?.header || null,
+                footer: preview?.footer || '',
+                actions,
+                list: preview?.list || null,
+            });
         }
 
         bubble.appendChild(wrap);

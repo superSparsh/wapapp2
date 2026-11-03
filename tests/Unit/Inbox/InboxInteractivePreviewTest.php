@@ -94,5 +94,66 @@ class InboxInteractivePreviewTest extends TestCase
         $this->assertNull($preview['flow_reply']);
         $this->assertSame('Pick one', $preview['body']);
         $this->assertSame(['Yes', 'No'], $preview['buttons']);
+        $this->assertSame(
+            [
+                ['text' => 'Yes', 'type' => 'quick_reply'],
+                ['text' => 'No', 'type' => 'quick_reply'],
+            ],
+            $preview['actions'],
+        );
+    }
+
+    #[Test]
+    public function it_builds_list_and_cta_actions_for_whatsapp_style_preview(): void
+    {
+        $listPreview = InboxInteractivePreview::build(
+            [
+                'type' => 'list',
+                'body' => ['text' => 'Choose a slot'],
+                'footer' => ['text' => 'Tap to open'],
+                'header' => ['type' => 'text', 'text' => 'Site visit'],
+                'action' => [
+                    'button' => 'View times',
+                    'sections' => [
+                        [
+                            'title' => 'Evening',
+                            'rows' => [
+                                ['title' => '10 pm', 'description' => 'Online'],
+                                ['title' => '11 pm', 'description' => ''],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+            'Choose a slot',
+        );
+
+        $this->assertNotNull($listPreview);
+        $this->assertSame('Site visit', $listPreview['header']['text']);
+        $this->assertSame('Tap to open', $listPreview['footer']);
+        $this->assertSame('View times', $listPreview['list']['button']);
+        $this->assertSame('list', $listPreview['actions'][0]['type']);
+        $this->assertSame('View times', $listPreview['actions'][0]['text']);
+
+        $ctaPreview = InboxInteractivePreview::build(
+            [
+                'type' => 'cta_url',
+                'body' => ['text' => 'Book on Zoom'],
+                'action' => [
+                    'name' => 'cta_url',
+                    'parameters' => [
+                        'display_text' => 'Open Zoom',
+                        'url' => 'https://zoom.us/j/1',
+                    ],
+                ],
+            ],
+            'Book on Zoom',
+        );
+
+        $this->assertNotNull($ctaPreview);
+        $this->assertSame(
+            [['text' => 'Open Zoom', 'type' => 'cta_url']],
+            $ctaPreview['actions'],
+        );
     }
 }

@@ -276,21 +276,24 @@
               $templateName = trim((string) ($message['template_name'] ?? ''));
               $templateButtons = is_array($message['template_buttons'] ?? null) ? $message['template_buttons'] : [];
               $isProviderCodeBody = $body !== '' && ($body === $templateCode || preg_match('/^[0-9]{10,}$/', $body));
+              $templateActions = [];
+              foreach ($templateButtons as $templateButton) {
+                  if (is_string($templateButton)) {
+                      $templateActions[] = ['text' => $templateButton, 'type' => 'quick_reply'];
+                  } elseif (is_array($templateButton)) {
+                      $templateActions[] = [
+                          'text' => (string) ($templateButton['text'] ?? ''),
+                          'type' => (string) ($templateButton['type'] ?? 'quick_reply'),
+                      ];
+                  }
+              }
             @endphp
             @if ($body !== '' && ! $isProviderCodeBody)
-              <div>{{ $body }}</div>
-              @if ($templateButtons !== [])
-                <div class="mt-1 flex flex-wrap gap-1.5">
-                  @foreach ($templateButtons as $templateButton)
-                    <span class="rounded border border-green-300 bg-white/80 px-2 py-1 text-[11px] font-medium text-green-800">
-                      {{ is_array($templateButton) ? ($templateButton['text'] ?? '') : $templateButton }}
-                    </span>
-                  @endforeach
-                </div>
-              @endif
-              <div class="mt-1 text-[10px] font-semibold uppercase tracking-wide text-green-700">
-                {{ $templateName !== '' ? 'Template · '.$templateName : 'Template' }}
-              </div>
+              <x-inbox.wa-rich-message
+                :body="$body"
+                :actions="$templateActions"
+                :caption="$templateName !== '' ? 'Template · '.$templateName : 'Template'"
+              />
             @else
               <div class="inline-flex items-center gap-2 rounded-full border border-green-300 bg-white/70 px-3 py-1 text-[11px] font-semibold text-green-800">
                 <span>Template</span>
@@ -300,7 +303,12 @@
           @elseif ($messageType === 'interactive')
             @php
               $interactiveBody = trim((string) ($interactivePreview['body'] ?? $body));
-              $interactiveButtons = is_array($interactivePreview['buttons'] ?? null) ? $interactivePreview['buttons'] : [];
+              $interactiveActions = is_array($interactivePreview['actions'] ?? null) ? $interactivePreview['actions'] : [];
+              if ($interactiveActions === [] && is_array($interactivePreview['buttons'] ?? null)) {
+                  foreach ($interactivePreview['buttons'] as $buttonLabel) {
+                      $interactiveActions[] = ['text' => (string) $buttonLabel, 'type' => 'quick_reply'];
+                  }
+              }
               $flowReply = is_array($interactivePreview['flow_reply'] ?? null) ? $interactivePreview['flow_reply'] : null;
               $flowFields = is_array($flowReply['fields'] ?? null) ? $flowReply['fields'] : [];
             @endphp
@@ -330,16 +338,13 @@
                   <div class="text-xs text-text-body/70">No form answers were included in this reply.</div>
                 @endif
               @else
-                <div>{{ $interactiveBody !== '' ? $interactiveBody : '[interactive]' }}</div>
-                @if ($interactiveButtons !== [])
-                  <div class="mt-1 flex flex-wrap gap-1.5">
-                    @foreach ($interactiveButtons as $buttonLabel)
-                      <span class="rounded border border-green-300 bg-white/80 px-2 py-1 text-[11px] font-medium text-green-800">
-                        {{ $buttonLabel }}
-                      </span>
-                    @endforeach
-                  </div>
-                @endif
+                <x-inbox.wa-rich-message
+                  :body="$interactiveBody !== '' ? $interactiveBody : '[interactive]'"
+                  :header="$interactivePreview['header'] ?? null"
+                  :footer="$interactivePreview['footer'] ?? ''"
+                  :actions="$interactiveActions"
+                  :list="$interactivePreview['list'] ?? null"
+                />
               @endif
             </div>
           @elseif ($messageType === 'reaction')
