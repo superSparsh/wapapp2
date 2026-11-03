@@ -223,8 +223,20 @@ class ChatbotFlowEngine
 
         // Store the user's response in variables
         $waitVariableName = (string) ($state->variables['_wait_variable_name'] ?? 'user_response');
+        if ($waitVariableName === '') {
+            $waitVariableName = 'user_response';
+        }
         $variables = $state->variables ?? [];
-        $variables[$waitVariableName] = $replyBody;
+
+        // Interactive button/list replies must not overwrite a prior Wait custom key
+        // (e.g. selected_Date) when _wait_variable_name was left stale.
+        $isInteractiveOptionReply = is_array($variables['_interactive_options'] ?? null)
+            && $variables['_interactive_options'] !== [];
+        if ($isInteractiveOptionReply) {
+            $variables['user_response'] = $replyBody;
+        } else {
+            $variables[$waitVariableName] = $replyBody;
+        }
         $variables['_last_reply'] = $replyBody;
         $variables['_last_reply_type'] = (string) $inboundMessage->message_type->value;
         $replyId = (string) (($inboundMessage->metadata['interactive_reply_id'] ?? null)

@@ -1770,4 +1770,106 @@ class ChatbotInteractiveFlowTest extends TestCase
 
         $this->assertSame(['Only text'], $sentTexts);
     }
+
+    public function test_interactive_time_choice_does_not_overwrite_prior_wait_variable(): void
+    {
+        $sentTexts = [];
+
+        $this->mock(InboxOutboundService::class, function ($mock) use (&$sentTexts): void {
+            $mock->shouldReceive('sendText')->andReturnUsing(function ($conversation, string $body) use (&$sentTexts) {
+                $sentTexts[] = $body;
+
+                return new Message([
+                    'id' => 921,
+                    'body' => $body,
+                    'direction' => MessageDirection::Outbound,
+                    'message_type' => MessageType::Text,
+                ]);
+            });
+            $mock->shouldReceive('sendInteractive')->andReturn(new Message([
+                'id' => 922,
+                'body' => 'Pick a time',
+                'direction' => MessageDirection::Outbound,
+                'message_type' => MessageType::Interactive,
+            ]));
+            $mock->shouldReceive('sendTypingIndicator')->andReturn(true);
+        });
+
+        $flow = ChatbotFlow::factory()->active()->create([
+            'exported_data' => [
+                'nodes' => [
+                    [
+                        'id' => 'wait_date',
+                        'type' => 'waitForResponse',
+                        'data' => [
+                            'variableName' => 'selected_Date',
+                        ],
+                    ],
+                    [
+                        'id' => 'interactive_time',
+                        'type' => 'interactiveMessage',
+                        'data' => [
+                            'interactiveType' => 'button',
+                            'bodyText' => 'Pick a time',
+                            'buttons' => [
+                                ['id' => 't10', 'title' => '10 pm'],
+                                ['id' => 't11', 'title' => '11 pm'],
+                            ],
+                        ],
+                    ],
+                    [
+                        'id' => 'thanks',
+                        'type' => 'templateMessage',
+                        'data' => [
+                            'messageType' => 'text',
+                            'customText' => "Date: $(selected_Date)\nTime: $(user_response)",
+                        ],
+                    ],
+                ],
+                'edges' => [
+                    ['source' => 'wait_date', 'target' => 'interactive_time', 'sourceHandle' => 'default'],
+                    ['source' => 'interactive_time', 'target' => 'thanks', 'sourceHandle' => 'button-0'],
+                ],
+            ],
+        ]);
+
+        $conversation = Conversation::factory()->create();
+
+        // Simulate: date already captured, then interactive time wait started
+        // with a stale _wait_variable_name (the bug before this fix).
+        ChatbotFlowState::query()->create([
+            'conversation_id' => $conversation->id,
+            'chatbot_flow_id' => $flow->id,
+            'current_node_id' => 'interactive_time',
+            'variables' => [
+                'selected_Date' => '15 March',
+                '_wait_variable_name' => 'selected_Date',
+                '_interactive_options' => [
+                    ['id' => 't10', 'title' => '10 pm'],
+                    ['id' => 't11', 'title' => '11 pm'],
+                ],
+                '_interactive_type' => 'button',
+            ],
+            'status' => ChatbotFlowStateStatus::Waiting,
+            'expires_at' => now()->addHour(),
+        ]);
+
+        app(ChatbotFlowEngine::class)->processInbound($conversation, Message::factory()->create([
+            'conversation_id' => $conversation->id,
+            'body' => '10 pm',
+            'direction' => MessageDirection::Inbound,
+            'message_type' => MessageType::Interactive,
+            'metadata' => ['interactive_reply_id' => 't10'],
+        ]));
+
+        $this->assertContains("Date: 15 March\nTime: 10 pm", $sentTexts);
+
+        $state = ChatbotFlowState::query()
+            ->where('chatbot_flow_id', $flow->id)
+            ->latest('id')
+            ->first();
+        $this->assertNotNull($state);
+        $this->assertSame('15 March', $state->variables['selected_Date'] ?? null);
+        $this->assertSame('10 pm', $state->variables['user_response'] ?? null);
+    }
 }

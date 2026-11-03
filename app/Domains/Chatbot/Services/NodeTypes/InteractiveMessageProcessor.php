@@ -68,12 +68,16 @@ class InteractiveMessageProcessor extends AbstractNodeProcessor
                     '_whatsapp_flow_id' => (string) ($content['action']['parameters']['flow_id'] ?? ''),
                     '_whatsapp_flow_token' => (string) ($content['action']['parameters']['flow_token'] ?? ''),
                     '_whatsapp_flow_node_id' => (string) ($node['id'] ?? ''),
+                    // Do not inherit a prior Wait "Save Reply As" name (e.g. selected_Date).
+                    '_wait_variable_name' => 'user_response',
                 ]);
             } else {
                 $state->mergeVariables([
                     '_interactive_node_id' => $node['id'] ?? '',
                     '_interactive_options' => $this->buildOptions($data, $content, $interactiveType),
                     '_interactive_type' => $interactiveType,
+                    // Button/list taps always land in user_response, not a prior custom wait key.
+                    '_wait_variable_name' => 'user_response',
                 ]);
             }
 
@@ -99,6 +103,7 @@ class InteractiveMessageProcessor extends AbstractNodeProcessor
             '_interactive_node_id' => $node['id'] ?? '',
             '_interactive_options' => [],
             '_interactive_type' => $interactiveType,
+            '_wait_variable_name' => 'user_response',
         ]);
 
         $state->forceFill([
