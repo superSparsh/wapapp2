@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 /**
  * Operational email + WhatsApp alerts (owner business alerts, admin digests, developer ops).
- * Template codes should match Meta/CAMS templates synced on the platform WhatsApp line.
+ * Calendar (Calendly / Google) templates are resolved on the tenant WhatsApp line:
+ * config may be a numeric CAMS TemplateCode or an approved template name.
+ * Other ops alerts use the platform OPERATIONAL_ALERTS_WA_* sender.
  */
 return [
 

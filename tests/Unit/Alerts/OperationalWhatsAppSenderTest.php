@@ -19,19 +19,32 @@ class OperationalWhatsAppSenderTest extends TestCase
             'operational-alerts.alibaba.access_key_id' => 'test-key',
             'operational-alerts.alibaba.access_key_secret' => 'test-secret',
             'operational-alerts.whatsapp.from' => '919999999999',
+            'operational-alerts.whatsapp.cust_space_id' => 'space-1',
             'operational-alerts.whatsapp.language' => 'en_GB',
         ]);
     }
 
     public function test_send_template_result_treats_cams_business_error_as_failure(): void
     {
-        Http::fake([
-            'cams.ap-southeast-1.aliyuncs.com/*' => Http::response([
+        Http::fake(function (\Illuminate\Http\Client\Request $request) {
+            $action = $request['Action'] ?? '';
+            if ($action === 'ListChatappTemplate') {
+                return Http::response([
+                    'Code' => 'OK',
+                    'Data' => [
+                        'ListTemplate' => [
+                            ['TemplateCode' => '1257583503568572001', 'TemplateName' => 'calendly_customer_invite_created'],
+                        ],
+                    ],
+                ], 200);
+            }
+
+            return Http::response([
                 'Code' => 'TemplateNotExist',
                 'Message' => 'The template does not exist.',
                 'RequestId' => 'req-1',
-            ], 200),
-        ]);
+            ], 200);
+        });
 
         $result = app(OperationalWhatsAppSender::class)->sendTemplateResult(
             '919876543210',
@@ -56,7 +69,7 @@ class OperationalWhatsAppSenderTest extends TestCase
 
         $result = app(OperationalWhatsAppSender::class)->sendTemplateResult(
             '919876543210',
-            'calendly_customer_invite_created',
+            '1257583503568572001',
             ['name' => 'Guest'],
         );
 
@@ -75,6 +88,49 @@ class OperationalWhatsAppSenderTest extends TestCase
 
         $result = app(OperationalWhatsAppSender::class)->sendTemplateResult(
             '+91 98765-43210',
+            '1257583503568572001',
+            ['name' => 'Guest'],
+        );
+
+        $this->assertTrue($result['ok']);
+
+        Http::assertSent(function ($request) {
+            $action = $request['Action'] ?? '';
+            if ($action !== 'SendChatappMessage') {
+                return false;
+            }
+
+            $to = $request['To'] ?? null;
+
+            return is_string($to)
+                && $to === '919876543210'
+                && ! str_contains($to, '+');
+        });
+    }
+
+    public function test_send_template_resolves_snake_case_name_to_provider_code(): void
+    {
+        Http::fake(function (\Illuminate\Http\Client\Request $request) {
+            $action = $request['Action'] ?? '';
+            if ($action === 'ListChatappTemplate') {
+                return Http::response([
+                    'Code' => 'OK',
+                    'Data' => [
+                        'ListTemplate' => [
+                            [
+                                'TemplateCode' => '1257583503568572999',
+                                'TemplateName' => 'calendly_customer_invite_created',
+                            ],
+                        ],
+                    ],
+                ], 200);
+            }
+
+            return Http::response(['Code' => 'OK', 'Message' => 'success'], 200);
+        });
+
+        $result = app(OperationalWhatsAppSender::class)->sendTemplateResult(
+            '919876543210',
             'calendly_customer_invite_created',
             ['name' => 'Guest'],
         );
@@ -82,11 +138,32 @@ class OperationalWhatsAppSenderTest extends TestCase
         $this->assertTrue($result['ok']);
 
         Http::assertSent(function ($request) {
-            $to = $request['To'] ?? null;
-
-            return is_string($to)
-                && $to === '919876543210'
-                && ! str_contains($to, '+');
+            return ($request['Action'] ?? '') === 'SendChatappMessage'
+                && ($request['TemplateCode'] ?? null) === '1257583503568572999';
         });
+    }
+
+    public function test_send_template_fails_clearly_when_name_not_on_space(): void
+    {
+        Http::fake(function (\Illuminate\Http\Client\Request $request) {
+            if (($request['Action'] ?? '') === 'ListChatappTemplate') {
+                return Http::response([
+                    'Code' => 'OK',
+                    'Data' => ['ListTemplate' => []],
+                ], 200);
+            }
+
+            return Http::response(['Code' => 'OK'], 200);
+        });
+
+        $result = app(OperationalWhatsAppSender::class)->sendTemplateResult(
+            '919876543210',
+            'calendly_customer_invite_created',
+            ['name' => 'Guest'],
+        );
+
+        $this->assertFalse($result['ok']);
+        $this->assertStringContainsString('calendly_customer_invite_created', (string) $result['error']);
+        $this->assertStringContainsString('not found', (string) $result['error']);
     }
 }

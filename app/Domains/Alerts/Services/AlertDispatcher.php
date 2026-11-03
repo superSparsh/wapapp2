@@ -5,10 +5,13 @@ declare(strict_types=1);
 namespace App\Domains\Alerts\Services;
 
 use App\Domains\Billing\Services\WalletService;
+use App\Domains\Templates\Enums\TemplateStatus;
+use App\Domains\Templates\Support\CamsTemplateIdentity;
 use App\Enums\OperationalAlertType;
 use App\Enums\SubscriptionStatus;
 use App\Models\NotificationContact;
 use App\Models\Subscription;
+use App\Models\Template;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Models\WalletAccount;
@@ -23,6 +26,7 @@ class AlertDispatcher
         private readonly OperationalAlertService $alerts,
         private readonly PlatformAlertService $platform,
         private readonly WalletService $wallet,
+        private readonly OperationalWhatsAppSender $whatsAppSender,
     ) {}
 
     /**
@@ -467,20 +471,92 @@ class AlertDispatcher
     }
 
     /**
+     * Calendly / Google Calendar notifications use the tenant WhatsApp line + Templates
+     * (same pattern as Shopify), not the platform OTP operational sender.
+     *
      * @param  array<string, string|int|float>  $params
      * @return array{ok: bool, error: ?string}
      */
     public function calendarWhatsApp(string $templateKey, string $toPhone, array $params): array
     {
-        $template = (string) config($templateKey, '');
-        if ($template === '') {
+        $configured = trim((string) config($templateKey, ''));
+        if ($configured === '') {
             return ['ok' => false, 'error' => 'WhatsApp template code is not configured ('.$templateKey.').'];
         }
         if ($toPhone === '') {
             return ['ok' => false, 'error' => 'WhatsApp recipient number is empty.'];
         }
 
-        return $this->alerts->notifyWhatsAppNumbersResult([$toPhone], $template, $params);
+        $line = WhatsappLine::query()->where('is_default', true)->first()
+            ?? WhatsappLine::query()->first();
+        if ($line === null) {
+            return ['ok' => false, 'error' => 'No WhatsApp Phone Number configured. Add a From number first.'];
+        }
+
+        $from = trim((string) ($line->phone ?? ''));
+        $custSpaceId = trim((string) ($line->alibaba_cust_space_id ?? ''));
+        if ($from === '') {
+            return ['ok' => false, 'error' => 'WhatsApp line is missing a phone number.'];
+        }
+        if ($custSpaceId === '') {
+            return ['ok' => false, 'error' => 'WhatsApp line is missing Alibaba Cust Space ID.'];
+        }
+
+        $resolved = $this->resolveCalendarTemplate($configured, $line);
+        if ($resolved['error'] !== null && $resolved['code'] === null) {
+            return ['ok' => false, 'error' => $resolved['error']];
+        }
+
+        return $this->whatsAppSender->sendTemplateResult(
+            $toPhone,
+            (string) $resolved['code'],
+            $params,
+            [
+                'from' => $from,
+                'cust_space_id' => $custSpaceId,
+                'language' => $resolved['language'],
+            ],
+        );
+    }
+
+    /**
+     * @return array{code: ?string, language: ?string, error: ?string}
+     */
+    private function resolveCalendarTemplate(string $configured, WhatsappLine $line): array
+    {
+        if (CamsTemplateIdentity::isProviderCode($configured)) {
+            return ['code' => $configured, 'language' => null, 'error' => null];
+        }
+
+        $template = Template::query()
+            ->where('name', $configured)
+            ->where('status', TemplateStatus::Approved)
+            ->where(function ($query) use ($line): void {
+                $query->where('whatsapp_line_id', $line->id)
+                    ->orWhereNull('whatsapp_line_id');
+            })
+            ->orderByRaw('case when whatsapp_line_id = ? then 0 else 1 end', [$line->id])
+            ->first();
+
+        if ($template === null) {
+            // Fall through to CAMS ListChatappTemplate by name on this line.
+            return ['code' => $configured, 'language' => null, 'error' => null];
+        }
+
+        $code = $template->whatsappCode();
+        if ($code === null) {
+            return [
+                'code' => null,
+                'language' => null,
+                'error' => 'Template "'.$configured.'" is approved locally but has no WhatsApp TemplateCode yet. Sync it from the Templates page.',
+            ];
+        }
+
+        return [
+            'code' => $code,
+            'language' => CamsTemplateIdentity::language($template->language),
+            'error' => null,
+        ];
     }
 
     public function ensureActiveSubscriptionForPlanAlerts(): ?Subscription
