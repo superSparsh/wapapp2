@@ -28,8 +28,12 @@ class InboxExportService
         private readonly InboxSettingsService $settingsService,
     ) {}
 
-    public function exportConversation(Conversation $conversation, string $content = self::CONTENT_BOTH): StreamedResponse
-    {
+    public function exportConversation(
+        Conversation $conversation,
+        string $content = self::CONTENT_BOTH,
+        ?CarbonInterface $from = null,
+        ?CarbonInterface $to = null,
+    ): StreamedResponse {
         $conversation->loadMissing('whatsappLine');
         $content = $this->normalizeContent($content);
 
@@ -47,8 +51,8 @@ class InboxExportService
             );
         }
 
-        return $this->streamCsv($fileName, function ($handle) use ($conversation, $content): void {
-            $this->writeConversationExport($handle, $conversation, $content);
+        return $this->streamCsv($fileName, function ($handle) use ($conversation, $content, $from, $to): void {
+            $this->writeConversationExport($handle, $conversation, $content, $from, $to);
         });
     }
 
@@ -78,13 +82,29 @@ class InboxExportService
             ->where('whatsapp_line_id', $line->id)
             ->when(
                 $from !== null || $to !== null,
-                function ($query) use ($from, $to): void {
-                    if ($from !== null) {
-                        $query->where('last_message_at', '>=', $from->copy()->startOfDay());
-                    }
-                    if ($to !== null) {
-                        $query->where('last_message_at', '<=', $to->copy()->endOfDay());
-                    }
+                function ($query) use ($from, $to, $content): void {
+                    // Only include chats that actually have matching rows in the date range
+                    // (not every chat whose last_message_at happens to fall in range).
+                    $query->whereExists(function ($exists) use ($from, $to, $content): void {
+                        $exists->selectRaw('1')
+                            ->from('messages')
+                            ->whereColumn('messages.conversation_id', 'conversations.id');
+
+                        if ($from !== null) {
+                            $exists->where('messages.created_at', '>=', $from->copy()->startOfDay());
+                        }
+                        if ($to !== null) {
+                            $exists->where('messages.created_at', '<=', $to->copy()->endOfDay());
+                        }
+
+                        if ($content === self::CONTENT_FLOW_RESPONSES) {
+                            $exists->where('messages.direction', MessageDirection::Inbound->value)
+                                ->where(function ($builder): void {
+                                    $builder->where('messages.message_type', MessageType::Interactive->value)
+                                        ->orWhere('messages.metadata->interactive_reply_type', 'nfm_reply');
+                                });
+                        }
+                    });
                 },
                 fn ($query) => $query->where('last_message_at', '>=', now()->subDays($lookbackDays)),
             )
@@ -152,7 +172,13 @@ class InboxExportService
                 }
 
                 foreach ($conversations as $conversation) {
-                    $this->writeConversationRows($handle, $conversation, includeConversationHeader: true);
+                    $this->writeConversationRows(
+                        $handle,
+                        $conversation,
+                        includeConversationHeader: true,
+                        from: $from,
+                        to: $to,
+                    );
                 }
             }
         });
@@ -161,10 +187,15 @@ class InboxExportService
     /**
      * @param  resource  $handle
      */
-    private function writeConversationExport($handle, Conversation $conversation, string $content): void
-    {
+    private function writeConversationExport(
+        $handle,
+        Conversation $conversation,
+        string $content,
+        ?CarbonInterface $from = null,
+        ?CarbonInterface $to = null,
+    ): void {
         if (in_array($content, [self::CONTENT_FLOW_RESPONSES, self::CONTENT_BOTH], true)) {
-            $this->writeFlowResponsesTable($handle, collect([$conversation]));
+            $this->writeFlowResponsesTable($handle, collect([$conversation]), $from, $to);
         }
 
         if (in_array($content, [self::CONTENT_MESSAGES, self::CONTENT_BOTH], true)) {
@@ -173,7 +204,7 @@ class InboxExportService
                 fputcsv($handle, []);
             }
 
-            $this->writeConversationRows($handle, $conversation);
+            $this->writeConversationRows($handle, $conversation, from: $from, to: $to);
         }
     }
 
@@ -311,8 +342,13 @@ class InboxExportService
     /**
      * @param  resource  $handle
      */
-    private function writeConversationRows($handle, Conversation $conversation, bool $includeConversationHeader = false): void
-    {
+    private function writeConversationRows(
+        $handle,
+        Conversation $conversation,
+        bool $includeConversationHeader = false,
+        ?CarbonInterface $from = null,
+        ?CarbonInterface $to = null,
+    ): void {
         if ($includeConversationHeader) {
             fputcsv($handle, [
                 'Conversation',
@@ -323,6 +359,8 @@ class InboxExportService
 
         $messages = Message::query()
             ->where('conversation_id', $conversation->id)
+            ->when($from !== null, fn ($query) => $query->where('created_at', '>=', $from->copy()->startOfDay()))
+            ->when($to !== null, fn ($query) => $query->where('created_at', '<=', $to->copy()->endOfDay()))
             ->orderBy('id')
             ->get(['body', 'direction', 'message_type', 'status', 'created_at', 'metadata']);
 

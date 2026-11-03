@@ -448,9 +448,14 @@ class InboxServiceAdapter
     {
         $this->localInboxService->authorizeConversation($conversation);
 
+        $from = $request->filled('from') ? $request->date('from') : null;
+        $to = $request->filled('to') ? $request->date('to') : null;
+
         return $this->localExportService->exportConversation(
             $conversation,
             (string) $request->input('content', InboxExportService::CONTENT_BOTH),
+            $from,
+            $to,
         );
     }
 
@@ -462,6 +467,15 @@ class InboxServiceAdapter
         $from = $request->filled('from') ? $request->date('from') : null;
         $to = $request->filled('to') ? $request->date('to') : null;
         $excludePhones = $this->parseSkipPhones($request->input('skip_phones'));
+
+        // Date range is required for bulk export so we never fall back to full lookback.
+        if ($from === null || $to === null) {
+            abort(422, 'Choose a from and to date for export.');
+        }
+
+        if ($from->greaterThan($to)) {
+            abort(422, 'From date must be on or before the to date.');
+        }
 
         return $this->localExportService->exportFilteredThreads(
             line: $line,

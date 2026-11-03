@@ -482,6 +482,7 @@ class InboxOutboundTest extends TestCase
             ->get(route('inbox.api.export-all', [
                 'from' => now()->toDateString(),
                 'to' => now()->toDateString(),
+                'content' => 'messages',
                 'skip_phones' => $skip->contact_phone,
             ]));
 
@@ -489,6 +490,60 @@ class InboxOutboundTest extends TestCase
         $csv = $response->streamedContent();
         $this->assertStringContainsString('Keep this chat', $csv);
         $this->assertStringNotContainsString('Skip this chat', $csv);
+    }
+
+    public function test_export_all_date_range_excludes_old_chats_and_old_messages(): void
+    {
+        $recent = $this->createConversation();
+        $old = $this->createConversation();
+
+        $recentMsg = Message::query()->create([
+            'conversation_id' => $recent->id,
+            'body' => 'Recent only message',
+            'direction' => MessageDirection::Inbound,
+            'message_type' => MessageType::Text,
+            'status' => MessageStatus::Delivered,
+        ]);
+        $recentMsg->forceFill(['created_at' => now()->subHour()])->save();
+
+        $oldInRecent = Message::query()->create([
+            'conversation_id' => $recent->id,
+            'body' => 'Old message in recent chat',
+            'direction' => MessageDirection::Inbound,
+            'message_type' => MessageType::Text,
+            'status' => MessageStatus::Delivered,
+        ]);
+        $oldInRecent->forceFill(['created_at' => now()->subDays(20)])->save();
+
+        $old->forceFill(['last_message_at' => now()->subDays(20)])->save();
+        $ancient = Message::query()->create([
+            'conversation_id' => $old->id,
+            'body' => 'Ancient chat body',
+            'direction' => MessageDirection::Inbound,
+            'message_type' => MessageType::Text,
+            'status' => MessageStatus::Delivered,
+        ]);
+        $ancient->forceFill(['created_at' => now()->subDays(20)])->save();
+
+        $response = $this->actingAsTenantUser()
+            ->get(route('inbox.api.export-all', [
+                'from' => now()->toDateString(),
+                'to' => now()->toDateString(),
+                'content' => 'messages',
+            ]));
+
+        $response->assertOk();
+        $csv = $response->streamedContent();
+        $this->assertStringContainsString('Recent only message', $csv);
+        $this->assertStringNotContainsString('Old message in recent chat', $csv);
+        $this->assertStringNotContainsString('Ancient chat body', $csv);
+    }
+
+    public function test_export_all_requires_date_range(): void
+    {
+        $this->actingAsTenantUser()
+            ->get(route('inbox.api.export-all', ['content' => 'messages']))
+            ->assertStatus(422);
     }
 
     private function createConversation(): Conversation

@@ -4734,6 +4734,16 @@ function initInboxExportModal() {
         });
     });
 
+    // Default dates to today so export always has an explicit range.
+    const fromInput = form.querySelector('[name="from"]');
+    const toInput = form.querySelector('[name="to"]');
+    if (fromInput && !fromInput.value) {
+        fromInput.value = formatDate(new Date());
+    }
+    if (toInput && !toInput.value) {
+        toInput.value = formatDate(new Date());
+    }
+
     form.addEventListener('submit', (event) => {
         event.preventDefault();
         showError('');
@@ -4742,6 +4752,19 @@ function initInboxExportModal() {
         const content =
             form.querySelector('[name="export_content"]:checked')?.value ||
             'flow_responses';
+        const from = form.querySelector('[name="from"]')?.value;
+        const to = form.querySelector('[name="to"]')?.value;
+        const skip = form.querySelector('[name="skip_phones"]')?.value?.trim();
+
+        if (!from || !to) {
+            showError('Choose a from and to date.');
+            return;
+        }
+
+        if (from > to) {
+            showError('From date must be on or before the to date.');
+            return;
+        }
 
         if (scope === 'current') {
             const exportUrl = chat?.dataset.exportUrl;
@@ -4752,6 +4775,8 @@ function initInboxExportModal() {
 
             const url = new URL(exportUrl, window.location.origin);
             url.searchParams.set('content', content);
+            url.searchParams.set('from', from);
+            url.searchParams.set('to', to);
             window.location.href = url.toString();
             return;
         }
@@ -4762,23 +4787,18 @@ function initInboxExportModal() {
             return;
         }
 
-        const params = new URLSearchParams(window.location.search);
-        const from = form.querySelector('[name="from"]')?.value;
-        const to = form.querySelector('[name="to"]')?.value;
-        const skip = form.querySelector('[name="skip_phones"]')?.value?.trim();
-
-        if (!from || !to) {
-            showError('Choose a from and to date.');
-            return;
-        }
-
+        // Build a clean query — do not inherit unrelated inbox URL filters.
+        const params = new URLSearchParams();
         params.set('from', from);
         params.set('to', to);
         params.set('content', content);
         if (skip) {
             params.set('skip_phones', skip);
-        } else {
-            params.delete('skip_phones');
+        }
+
+        const lineId = new URLSearchParams(window.location.search).get('line');
+        if (lineId) {
+            params.set('line', lineId);
         }
 
         window.location.href = `${exportAllUrl}?${params.toString()}`;
