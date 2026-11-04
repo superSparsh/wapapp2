@@ -216,7 +216,7 @@ class OperationalWhatsAppSenderTest extends TestCase
         );
 
         $this->assertTrue($result['ok'], (string) ($result['error'] ?? ''));
-        $this->assertGreaterThan(1, $sendAttempts);
+        $this->assertGreaterThanOrEqual(1, $sendAttempts);
 
         Http::assertSent(function ($request) {
             return ($request['Action'] ?? '') === 'SendChatappMessage'

@@ -503,35 +503,41 @@ class AlertDispatcher
         }
 
         $resolved = $this->resolveCalendarTemplate($configured, $line);
-        if ($resolved['error'] !== null && $resolved['code'] === null) {
+        if ($resolved['error'] !== null && $resolved['code'] === null && $resolved['list_name'] === null) {
             return ['ok' => false, 'error' => $resolved['error']];
         }
 
+        // Prefer live CAMS List by Meta/logical name on this line's CustSpaceId.
+        // Local numeric codes go stale after re-sync / WABA moves → DetailError.TemplateNotExist.
+        $sendAs = $resolved['list_name'] ?: (string) ($resolved['code'] ?? $configured);
+
         return $this->whatsAppSender->sendTemplateResult(
             $toPhone,
-            (string) $resolved['code'],
+            $sendAs,
             $params,
             [
                 'from' => $from,
                 'cust_space_id' => $custSpaceId,
                 'language' => $resolved['language'],
+                'template_name' => $resolved['list_name'],
+                'fallback_code' => $resolved['code'],
             ],
         );
     }
 
     /**
-     * Resolve calendar template like legacy: always prefer numeric CAMS TemplateCode.
+     * Resolve calendar template like legacy: numeric CAMS TemplateCode + Meta name for live List.
      *
      * After CAMS sync, local `name` is often the Meta real name
      * (`{customer_id}_google_calendar_customer_event_created`), while config still
      * stores the short logical name (`google_calendar_customer_event_created`).
      *
-     * @return array{code: ?string, language: ?string, error: ?string}
+     * @return array{code: ?string, list_name: ?string, language: ?string, error: ?string}
      */
     private function resolveCalendarTemplate(string $configured, WhatsappLine $line): array
     {
         if (CamsTemplateIdentity::isProviderCode($configured)) {
-            return ['code' => $configured, 'language' => null, 'error' => null];
+            return ['code' => $configured, 'list_name' => null, 'language' => null, 'error' => null];
         }
 
         $isUuid = (bool) preg_match(
@@ -568,7 +574,14 @@ class AlertDispatcher
 
         if ($template === null) {
             // Fall through to CAMS ListChatappTemplate by logical name on this line.
-            return ['code' => $configured, 'language' => null, 'error' => null];
+            return [
+                'code' => null,
+                'list_name' => $isUuid ? null : $configured,
+                'language' => null,
+                'error' => $isUuid
+                    ? 'Template uuid "'.$configured.'" was not found (or is not approved) on this WhatsApp line.'
+                    : null,
+            ];
         }
 
         $code = $template->whatsappCode()
@@ -581,21 +594,33 @@ class AlertDispatcher
                     : null,
             );
 
-        if (! CamsTemplateIdentity::isProviderCode($code)) {
+        $code = CamsTemplateIdentity::isProviderCode($code) ? $code : null;
+
+        // Prefer Meta real name for ListChatappTemplate (exact Name match on CAMS).
+        $metaName = trim((string) (
+            data_get($template->payload, 'legacy_real_template_name')
+            ?: $template->name
+            ?: ''
+        ));
+        $listName = $metaName !== '' ? $metaName : ($isUuid ? null : $configured);
+        if ($listName === null && ! $isUuid) {
+            $listName = $configured;
+        }
+
+        $rawLanguage = trim((string) ($template->language ?? ''));
+
+        if ($code === null && $listName === null) {
             return [
                 'code' => null,
+                'list_name' => null,
                 'language' => null,
-                'error' => 'Template "'.$configured.'" is approved locally but has no WhatsApp TemplateCode yet. Sync it from the Templates page.',
+                'error' => 'Template "'.$configured.'" is approved locally but has no WhatsApp TemplateCode / Meta name. Sync it from the Templates page.',
             ];
         }
 
-        // Prefer the template's own language for SendChatappMessage (en_US / en / en_GB).
-        // Do not force blank/"en" → en_GB here — that causes DetailError.TemplateNotExist
-        // when the approved CAMS template language differs from the ops default.
-        $rawLanguage = trim((string) ($template->language ?? ''));
-
         return [
             'code' => $code,
+            'list_name' => $listName,
             'language' => $rawLanguage !== '' ? $rawLanguage : null,
             'error' => null,
         ];

@@ -25,7 +25,13 @@ class OperationalWhatsAppSender
 
     /**
      * @param  array<string, string|int|float>  $templateParams
-     * @param  array{from?: string, cust_space_id?: string, language?: string}|null  $sender
+     * @param  array{
+     *     from?: string,
+     *     cust_space_id?: string,
+     *     language?: string,
+     *     template_name?: string|null,
+     *     fallback_code?: string|null
+     * }|null  $sender
      * @return array{ok: bool, error: ?string, message_id: ?string}
      */
     public function sendTemplateResult(string $toPhone, string $templateCode, array $templateParams = [], ?array $sender = null): array
@@ -39,6 +45,8 @@ class OperationalWhatsAppSender
         $from = trim((string) ($sender['from'] ?? config('operational-alerts.whatsapp.from', '')));
         $custSpaceId = trim((string) ($sender['cust_space_id'] ?? config('operational-alerts.whatsapp.cust_space_id', '')));
         $preferredLanguage = trim((string) ($sender['language'] ?? ''));
+        $templateName = trim((string) ($sender['template_name'] ?? ''));
+        $fallbackCode = trim((string) ($sender['fallback_code'] ?? ''));
         // Keep caller/template language as-is (including "en"). Only use ops default
         // when the caller did not specify a language — remapping en→en_GB here caused
         // DetailError.TemplateNotExist for Google/Calendly templates approved as "en".
@@ -70,24 +78,50 @@ class OperationalWhatsAppSender
             return ['ok' => false, 'error' => 'WhatsApp sender FROM number is invalid.', 'message_id' => null];
         }
 
-        $resolved = $this->resolveProviderTemplateCode(
-            $templateCode,
-            $language,
-            $custSpaceId,
-            $accessKeyId,
-            $accessKeySecret,
-        );
-        if (! $resolved['ok']) {
-            return ['ok' => false, 'error' => $resolved['error'], 'message_id' => null];
+        // 1) Live List by Meta/logical name on this CustSpaceId (avoids stale local codes)
+        // 2) Fall back to resolving $templateCode (name or numeric)
+        // 3) Last resort: explicit fallback_code from local Template row
+        $lookupNames = array_values(array_unique(array_filter([
+            $templateName,
+            CamsTemplateIdentity::isProviderCode($templateCode) ? null : $templateCode,
+        ])));
+
+        $resolved = ['ok' => false, 'code' => null, 'language' => null, 'error' => null];
+        foreach ($lookupNames as $lookupName) {
+            $resolved = $this->resolveProviderTemplateCode(
+                $lookupName,
+                $language,
+                $custSpaceId,
+                $accessKeyId,
+                $accessKeySecret,
+            );
+            if ($resolved['ok']) {
+                break;
+            }
         }
-        $providerCode = (string) $resolved['code'];
-        // Use the language that actually matched ListChatappTemplate when available.
+
+        if (! $resolved['ok'] && CamsTemplateIdentity::isProviderCode($templateCode)) {
+            $resolved = ['ok' => true, 'code' => $templateCode, 'language' => $language, 'error' => null];
+        }
+
+        if (! $resolved['ok'] && CamsTemplateIdentity::isProviderCode($fallbackCode)) {
+            $resolved = ['ok' => true, 'code' => $fallbackCode, 'language' => $language, 'error' => null];
+        }
+
+        if (! $resolved['ok']) {
+            return ['ok' => false, 'error' => $resolved['error'] ?: 'WhatsApp template could not be resolved on this line.', 'message_id' => null];
+        }
+
+        $providerCodesToTry = array_values(array_unique(array_filter([
+            (string) $resolved['code'],
+            CamsTemplateIdentity::isProviderCode($fallbackCode) ? $fallbackCode : null,
+            CamsTemplateIdentity::isProviderCode($templateCode) ? $templateCode : null,
+        ])));
+
         $sendLanguage = trim((string) ($resolved['language'] ?? '')) !== ''
             ? (string) $resolved['language']
             : $language;
 
-        // Keep raw locales (do not collapse "en" → en_GB) — CAMS TemplateNotExist
-        // happens when Send language does not match the approved template language.
         $languagesToTry = array_values(array_unique(array_filter([
             $sendLanguage,
             $preferredLanguage,
@@ -97,57 +131,115 @@ class OperationalWhatsAppSender
         ], static fn ($lang): bool => is_string($lang) && trim($lang) !== '')));
 
         $lastParsed = ['ok' => false, 'error' => 'WhatsApp API did not return success.', 'message_id' => null];
-        foreach ($languagesToTry as $tryLanguage) {
-            $payload = [
-                'ChannelType' => 'whatsapp',
-                'Type' => 'template',
-                'TemplateCode' => $providerCode,
-                'Language' => $tryLanguage,
-                'From' => $from,
-                'To' => $to,
-                'TemplateParams' => json_encode($this->stringifyParams($templateParams), JSON_THROW_ON_ERROR),
-            ];
+        $codesTried = [];
+        $didRefreshList = false;
 
-            if ($custSpaceId !== '') {
-                $payload['CustSpaceId'] = $custSpaceId;
+        while ($providerCodesToTry !== []) {
+            $providerCode = array_shift($providerCodesToTry);
+            if (! is_string($providerCode) || $providerCode === '' || in_array($providerCode, $codesTried, true)) {
+                continue;
+            }
+            $codesTried[] = $providerCode;
+
+            $hitTemplateNotExist = false;
+            foreach ($languagesToTry as $tryLanguage) {
+                $payload = [
+                    'ChannelType' => 'whatsapp',
+                    'Type' => 'template',
+                    'TemplateCode' => $providerCode,
+                    'Language' => $tryLanguage,
+                    'From' => $from,
+                    'To' => $to,
+                    'TemplateParams' => json_encode($this->stringifyParams($templateParams), JSON_THROW_ON_ERROR),
+                ];
+
+                if ($custSpaceId !== '') {
+                    $payload['CustSpaceId'] = $custSpaceId;
+                }
+
+                try {
+                    $response = $this->signedRequest($payload, $accessKeyId, $accessKeySecret);
+                } catch (\Throwable $e) {
+                    Log::error('Operational WhatsApp alert request failed', [
+                        'template' => $templateCode,
+                        'provider_code' => $providerCode,
+                        'language' => $tryLanguage,
+                        'to' => $to,
+                        'error' => $e->getMessage(),
+                    ]);
+
+                    return ['ok' => false, 'error' => 'WhatsApp request failed: '.$e->getMessage(), 'message_id' => null];
+                }
+
+                $parsed = $this->parseCamsResponse($response);
+                if ($parsed['ok']) {
+                    return $parsed;
+                }
+
+                $lastParsed = $parsed;
+                $errorText = strtolower((string) ($parsed['error'] ?? ''));
+                // Wrong Language often surfaces as TemplateNotExist — try next locale / code.
+                if (! str_contains($errorText, 'templatenotexist') && ! str_contains($errorText, 'template is not exist')) {
+                    Log::error('Operational WhatsApp alert delivery rejected', [
+                        'template' => $templateCode,
+                        'provider_code' => $providerCode,
+                        'to' => $to,
+                        'error' => $lastParsed['error'],
+                    ]);
+
+                    return $lastParsed;
+                }
+
+                $hitTemplateNotExist = true;
             }
 
-            try {
-                $response = $this->signedRequest($payload, $accessKeyId, $accessKeySecret);
-            } catch (\Throwable $e) {
-                Log::error('Operational WhatsApp alert request failed', [
-                    'template' => $templateCode,
-                    'provider_code' => $providerCode,
-                    'language' => $tryLanguage,
-                    'to' => $to,
-                    'error' => $e->getMessage(),
-                ]);
-
-                return ['ok' => false, 'error' => 'WhatsApp request failed: '.$e->getMessage(), 'message_id' => null];
-            }
-
-            $parsed = $this->parseCamsResponse($response);
-            if ($parsed['ok']) {
-                return $parsed;
-            }
-
-            $lastParsed = $parsed;
-            $errorText = strtolower((string) ($parsed['error'] ?? ''));
-            // Wrong Language often surfaces as TemplateNotExist — try the next locale.
-            if (! str_contains($errorText, 'templatenotexist') && ! str_contains($errorText, 'template is not exist')) {
-                break;
+            // Stale cached/local code: bust List cache once and queue a fresh TemplateCode.
+            if ($hitTemplateNotExist && ! $didRefreshList && $lookupNames !== []) {
+                $didRefreshList = true;
+                foreach ($lookupNames as $lookupName) {
+                    $this->forgetTemplateCodeCache($custSpaceId, $language, $lookupName);
+                    $fresh = $this->resolveProviderTemplateCode(
+                        $lookupName,
+                        $language,
+                        $custSpaceId,
+                        $accessKeyId,
+                        $accessKeySecret,
+                    );
+                    if ($fresh['ok']
+                        && is_string($fresh['code'])
+                        && ! in_array($fresh['code'], $codesTried, true)
+                    ) {
+                        $providerCodesToTry[] = $fresh['code'];
+                        if (trim((string) ($fresh['language'] ?? '')) !== '') {
+                            array_unshift($languagesToTry, (string) $fresh['language']);
+                            $languagesToTry = array_values(array_unique($languagesToTry));
+                        }
+                        break;
+                    }
+                }
             }
         }
 
         Log::error('Operational WhatsApp alert delivery rejected', [
             'template' => $templateCode,
-            'provider_code' => $providerCode,
+            'template_name' => $templateName !== '' ? $templateName : null,
+            'provider_codes_tried' => $codesTried,
             'to' => $to,
             'languages_tried' => $languagesToTry,
             'error' => $lastParsed['error'],
         ]);
 
         return $lastParsed;
+    }
+
+    private function forgetTemplateCodeCache(string $custSpaceId, string $language, string $name): void
+    {
+        $name = trim($name);
+        if ($name === '') {
+            return;
+        }
+
+        Cache::forget('ops-wa-template-code:'.hash('sha256', strtolower($custSpaceId.'|'.$language.'|'.$name)));
     }
 
     /**
@@ -245,7 +337,10 @@ class OperationalWhatsAppSender
 
                 $matched = $this->extractTemplateCodeFromList($body, $value);
                 if ($matched !== null) {
-                    $matchedLanguage = $tryLanguage !== '' ? $tryLanguage : $language;
+                    $matchedLanguage = trim((string) ($matched['language'] ?? ''));
+                    if ($matchedLanguage === '') {
+                        $matchedLanguage = $tryLanguage !== '' ? $tryLanguage : $language;
+                    }
                     Cache::put($cacheKey, [
                         'code' => $matched['code'],
                         'language' => $matchedLanguage,
@@ -274,7 +369,7 @@ class OperationalWhatsAppSender
 
     /**
      * @param  array<string, mixed>  $body
-     * @return array{code: string}|null
+     * @return array{code: string, language: ?string}|null
      */
     private function extractTemplateCodeFromList(array $body, ?string $preferredName = null): ?array
     {
@@ -303,17 +398,23 @@ class OperationalWhatsAppSender
                     continue;
                 }
 
+                $itemLanguage = trim((string) ($item['Language'] ?? $item['language'] ?? ''));
+                $matched = [
+                    'code' => $code,
+                    'language' => $itemLanguage !== '' ? $itemLanguage : null,
+                ];
+
                 $name = trim((string) ($item['TemplateName'] ?? $item['templateName'] ?? ''));
                 if ($preferredName !== '') {
                     if ($name === $preferredName || str_ends_with($name, '_'.$preferredName)) {
-                        return ['code' => $code];
+                        return $matched;
                     }
-                    $fallback ??= ['code' => $code];
+                    $fallback ??= $matched;
 
                     continue;
                 }
 
-                return ['code' => $code];
+                return $matched;
             }
         }
 

@@ -68,6 +68,7 @@ class CalendarTemplateResolveTest extends TestCase
         $resolved = $method->invoke($dispatcher, 'google_calendar_customer_event_created', $line);
 
         $this->assertSame('1257583503568572111', $resolved['code']);
+        $this->assertSame('42_google_calendar_customer_event_created', $resolved['list_name']);
         $this->assertSame('en', $resolved['language']);
         $this->assertNull($resolved['error']);
     }
@@ -99,11 +100,12 @@ class CalendarTemplateResolveTest extends TestCase
         $resolved = $method->invoke($dispatcher, (string) $template->uuid, $line);
 
         $this->assertSame('1257583503568572444', $resolved['code']);
+        $this->assertSame('google_calendar_customer_event_canceled', $resolved['list_name']);
         $this->assertSame('en', $resolved['language']);
         $this->assertNull($resolved['error']);
     }
 
-    public function test_calendar_whatsapp_sends_numeric_code_with_template_language(): void
+    public function test_calendar_whatsapp_lists_live_code_by_meta_name_before_send(): void
     {
         $line = WhatsappLine::query()->firstOrFail();
         $line->forceFill([
@@ -115,21 +117,36 @@ class CalendarTemplateResolveTest extends TestCase
         Template::query()->create([
             'whatsapp_line_id' => $line->id,
             'name' => '42_google_calendar_customer_event_created',
-            'code' => '1257583503568572222',
+            'code' => '1257583503568572222', // stale local code
             'status' => TemplateStatus::Approved,
             'language' => 'en_US',
             'category' => 'UTILITY',
             'source' => 'cams',
-            'payload' => [],
+            'payload' => [
+                'legacy_real_template_name' => '42_google_calendar_customer_event_created',
+            ],
         ]);
 
-        Http::fake([
-            'cams.ap-southeast-1.aliyuncs.com/*' => Http::response([
+        Http::fake(function (\Illuminate\Http\Client\Request $request) {
+            if (($request['Action'] ?? '') === 'ListChatappTemplate') {
+                return Http::response([
+                    'Code' => 'OK',
+                    'Data' => [
+                        'ListTemplate' => [[
+                            'TemplateCode' => '1257583503568579999',
+                            'TemplateName' => '42_google_calendar_customer_event_created',
+                            'Language' => 'en',
+                        ]],
+                    ],
+                ], 200);
+            }
+
+            return Http::response([
                 'Code' => 'OK',
                 'Message' => 'success',
                 'MessageId' => 'msg-created-1',
-            ], 200),
-        ]);
+            ], 200);
+        });
 
         $result = app(AlertDispatcher::class)->calendarWhatsApp(
             'operational-alerts.google_calendar.customer_created',
@@ -150,8 +167,8 @@ class CalendarTemplateResolveTest extends TestCase
 
         Http::assertSent(function ($request) {
             return ($request['Action'] ?? '') === 'SendChatappMessage'
-                && ($request['TemplateCode'] ?? null) === '1257583503568572222'
-                && ($request['Language'] ?? null) === 'en_US';
+                && ($request['TemplateCode'] ?? null) === '1257583503568579999'
+                && ($request['Language'] ?? null) === 'en';
         });
     }
 }
