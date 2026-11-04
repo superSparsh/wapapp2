@@ -1159,6 +1159,36 @@ Text:
             print(f"Error deleting collection: {str(e)}")
             raise
 
+    def delete_documents(self, client_id: str, document_ids: list, bot_id: str = None) -> dict:
+        """Delete specific chunk/document IDs from a client/bot collection."""
+        ids = [str(doc_id).strip() for doc_id in (document_ids or []) if str(doc_id).strip()]
+        if not ids:
+            return {"success": False, "deleted": 0, "message": "No document IDs provided"}
+
+        collection_name = self._get_collection_name(client_id, bot_id)
+        try:
+            collection = self.chroma_client.get_collection(collection_name)
+        except Exception:
+            return {
+                "success": False,
+                "deleted": 0,
+                "message": "No knowledge base found for this client/bot",
+            }
+
+        before = collection.count()
+        collection.delete(ids=ids)
+        after = collection.count()
+        deleted = max(0, before - after)
+
+        print(f"Deleted {deleted} chunk(s) for client {client_id} bot={bot_id}")
+        return {
+            "success": True,
+            "deleted": deleted,
+            "requested": len(ids),
+            "remaining": after,
+            "message": f"Deleted {deleted} chunk(s)",
+        }
+
     def get_client_storage_info(self, client_id: str, bot_id: str = None) -> dict:
         """Get storage information for a specific client."""
         try:

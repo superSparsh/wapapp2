@@ -94,6 +94,43 @@ class KnowledgeBaseController extends Controller
         }
     }
 
+    public function deleteDocument(Request $request): JsonResponse|\Illuminate\Http\RedirectResponse
+    {
+        try {
+            $validated = $request->validate([
+                'document_id' => ['required', 'string', 'max:512'],
+                'bot_id' => ['nullable', 'string'],
+            ]);
+
+            $botId = $validated['bot_id'] ?? $request->query('bot');
+            $payload = $this->kb->deleteDocument(
+                documentId: $validated['document_id'],
+                botId: $botId,
+            );
+
+            if ($request->expectsJson() || $request->wantsJson()) {
+                return response()->json($payload);
+            }
+
+            return redirect()
+                ->route('openai-key.index', [
+                    'tab' => 'knowledge-base',
+                    'bot' => $botId,
+                    'offset' => $request->integer('offset', 0) ?: null,
+                    'limit' => $request->integer('limit', 0) ?: null,
+                ])
+                ->with('status', 'Knowledge Base chunk deleted.');
+        } catch (Throwable $e) {
+            if ($request->expectsJson() || $request->wantsJson()) {
+                return $this->errorResponse($e);
+            }
+
+            return redirect()
+                ->back()
+                ->with('error', $e->getMessage());
+        }
+    }
+
     public function addManualContent(Request $request): JsonResponse
     {
         return $this->wrap(function () use ($request) {

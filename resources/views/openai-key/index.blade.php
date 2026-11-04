@@ -564,7 +564,7 @@
                       <th class="w-[180px] border-b border-divider p-3 text-[13px] font-medium leading-[1.5] text-text-body">Source</th>
                       <th class="w-[100px] border-b border-divider p-3 text-[13px] font-medium leading-[1.5] text-text-body">Type</th>
                       <th class="border-b border-divider p-3 text-[13px] font-medium leading-[1.5] text-text-body">Preview</th>
-                      <th class="w-[96px] border-b border-divider p-3 text-center text-[13px] font-medium leading-[1.5] text-text-body">Action</th>
+                      <th class="w-[140px] border-b border-divider p-3 text-center text-[13px] font-medium leading-[1.5] text-text-body">Action</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -575,6 +575,7 @@
                         $type = (string) ($meta['file_type'] ?? ($meta['type'] ?? 'text'));
                         $preview = (string) ($doc['content_preview'] ?? \Illuminate\Support\Str::limit((string) ($doc['content'] ?? ''), 200));
                         $full = (string) ($doc['content'] ?? '');
+                        $documentId = (string) ($doc['id'] ?? '');
                       @endphp
                       <tr class="border-t border-divider bg-elevated">
                         <td class="p-3 align-top text-[13px] font-normal leading-[1.5] text-text-body">{{ ($kbOffset ?? 0) + $index + 1 }}</td>
@@ -587,13 +588,35 @@
                         <td class="p-3 align-top text-[13px] font-normal leading-[1.5] text-text-body opacity-60">
                           <span class="line-clamp-3 break-words">{{ $preview }}</span>
                         </td>
-                        <td class="p-3 align-top text-center">
-                          <button
-                            type="button"
-                            class="fd-btn-sm inline-flex items-center justify-center rounded bg-green-500 px-4 py-1.5 text-[10px] font-semibold leading-[1.5] text-primary-2 transition-opacity hover:opacity-90"
-                            data-kb-view
-                            data-kb-content="{{ e($full) }}"
-                          >View</button>
+                        <td class="p-3 align-top">
+                          <div class="flex items-center justify-center gap-2">
+                            <button
+                              type="button"
+                              class="fd-btn-sm inline-flex items-center justify-center rounded bg-green-500 px-3 py-1.5 text-[10px] font-semibold leading-[1.5] text-primary-2 transition-opacity hover:opacity-90"
+                              data-kb-view
+                              data-kb-content="{{ e($full) }}"
+                            >View</button>
+                            @if ($documentId !== '')
+                              <form
+                                action="{{ route('openai-key.knowledge-base.delete-document') }}"
+                                method="POST"
+                                class="inline"
+                                onsubmit="return confirm('Delete this knowledge base chunk?')"
+                              >
+                                @csrf
+                                @method('DELETE')
+                                <input type="hidden" name="document_id" value="{{ $documentId }}">
+                                <input type="hidden" name="bot_id" value="{{ $selectedBot->uuid }}">
+                                <input type="hidden" name="offset" value="{{ $kbOffset ?? 0 }}">
+                                <input type="hidden" name="limit" value="{{ $kbLimit ?? 10 }}">
+                                <button
+                                  type="submit"
+                                  class="fd-btn-sm inline-flex items-center justify-center rounded border border-solid border-[red] px-3 py-1.5 text-[10px] font-semibold leading-[1.5] text-[red] transition-colors hover:bg-red-50"
+                                  aria-label="Delete chunk"
+                                >Delete</button>
+                              </form>
+                            @endif
+                          </div>
                         </td>
                       </tr>
                     @empty

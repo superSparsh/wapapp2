@@ -210,6 +210,24 @@ class KnowledgeBaseProxyService
     }
 
     /**
+     * Delete one knowledge-base chunk by Chroma document ID.
+     *
+     * @return array<string, mixed>
+     */
+    public function deleteDocument(string $documentId, ?string $botId = null): array
+    {
+        $bot = $this->resolveBot($botId);
+        $query = [
+            'document_id' => $documentId,
+        ];
+        if ($uid = $this->botUid($bot)) {
+            $query['bot_id'] = $uid;
+        }
+
+        return $this->client->delete('/knowledge_base/'.$this->clientId().'/documents', $query);
+    }
+
+    /**
      * @param  list<string>  $documents
      * @param  list<array<string, mixed>>  $metadata
      * @return array<string, mixed>

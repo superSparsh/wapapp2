@@ -316,6 +316,7 @@ Route::middleware(['tenancy.session', 'auth:web,team', '2fa', 'team.redirect-das
             Route::get('/knowledge_base_download', [KnowledgeBaseController::class, 'download'])->name('knowledge-base.download');
             Route::get('/client_storage_info', [KnowledgeBaseController::class, 'storageInfo'])->name('knowledge-base.storage');
             Route::delete('/clear_client_data', [KnowledgeBaseController::class, 'clear'])->name('knowledge-base.clear');
+            Route::delete('/knowledge_base/documents', [KnowledgeBaseController::class, 'deleteDocument'])->name('knowledge-base.delete-document');
             Route::post('/add_manual_content', [KnowledgeBaseController::class, 'addManualContent'])->name('knowledge-base.add-manual');
             Route::post('/upload_file', [KnowledgeBaseController::class, 'uploadFile'])->name('knowledge-base.upload');
             Route::post('/scrape_website', [KnowledgeBaseController::class, 'scrapeWebsite'])->name('knowledge-base.scrape');
@@ -330,6 +331,7 @@ Route::middleware(['tenancy.session', 'auth:web,team', '2fa', 'team.redirect-das
         Route::get('/knowledge_base_download', [KnowledgeBaseController::class, 'download'])->name('knowledge_base_download');
         Route::get('/client_storage_info', [KnowledgeBaseController::class, 'storageInfo'])->name('client_storage_info');
         Route::delete('/clear_client_data', [KnowledgeBaseController::class, 'clear'])->name('clear_client_data');
+        Route::delete('/knowledge_base/documents', [KnowledgeBaseController::class, 'deleteDocument'])->name('knowledge_base_delete_document');
         Route::post('/add_manual_content', [KnowledgeBaseController::class, 'addManualContent'])->name('add_manual_content');
         Route::post('/upload_file', [KnowledgeBaseController::class, 'uploadFile'])->name('upload_file');
         Route::post('/scrape_website', [KnowledgeBaseController::class, 'scrapeWebsite'])->name('scrape_website');

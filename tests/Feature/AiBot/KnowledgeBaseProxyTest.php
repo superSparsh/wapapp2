@@ -163,7 +163,8 @@ class KnowledgeBaseProxyTest extends TestCase
             ->assertSee('Knowledge Base Content')
             ->assertSee('Chroma chunk content here')
             ->assertSee('https://example.com')
-            ->assertSee('Total Chunks:');
+            ->assertSee('Total Chunks')
+            ->assertSee('Delete');
     }
 
     public function test_ai_service_error_surfaces_on_list(): void
@@ -178,5 +179,39 @@ class KnowledgeBaseProxyTest extends TestCase
             ->getJson(route('openai-key.knowledge-base'))
             ->assertStatus(503)
             ->assertJsonPath('success', false);
+    }
+
+    public function test_delete_document_proxies_to_ai_service(): void
+    {
+        $bot = AiBot::factory()->create([
+            'is_default' => true,
+            'legacy_bot_uid' => 'bot-uid-1',
+        ]);
+
+        Http::fake([
+            'http://ai.test.local/knowledge_base/*/documents*' => Http::response([
+                'success' => true,
+                'data' => [
+                    'deleted' => 1,
+                    'message' => 'Deleted 1 chunk(s)',
+                ],
+            ], 200),
+        ]);
+
+        $this->actingAsTenantUser()
+            ->from(route('openai-key.index', ['tab' => 'knowledge-base', 'bot' => $bot->uuid]))
+            ->delete(route('openai-key.knowledge-base.delete-document'), [
+                'document_id' => 'chunk-abc',
+                'bot_id' => $bot->uuid,
+            ])
+            ->assertRedirect();
+
+        Http::assertSent(function ($request) {
+            return $request->method() === 'DELETE'
+                && str_contains($request->url(), '/knowledge_base/')
+                && str_contains($request->url(), '/documents')
+                && str_contains($request->url(), 'document_id=chunk-abc')
+                && str_contains($request->url(), 'bot_id=bot-uid-1');
+        });
     }
 }

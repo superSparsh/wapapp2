@@ -15,6 +15,7 @@ use App\Models\Contact;
 use App\Models\Conversation;
 use App\Models\Message;
 use App\Support\PhoneNormalizer;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 
 class StopKeywordService
@@ -116,11 +117,19 @@ class StopKeywordService
 
     private function applyStop(Conversation $conversation, Message $inboundMessage): void
     {
-        $contact = $this->resolveContact($conversation);
-        if ($contact instanceof Contact) {
-            $alreadyStopped = $contact->status === ContactStatus::Unsubscribed
-                || $contact->opt_in_status === ContactOptInStatus::OptedOut;
+        $contacts = $this->resolveContacts($conversation);
+        if ($contacts->isEmpty()) {
+            Log::warning('STOP keyword received but no contact found', [
+                'conversation_id' => $conversation->id,
+                'phone' => $conversation->contact_phone,
+            ]);
 
+            return;
+        }
+
+        $alreadyAllStopped = $contacts->every(fn (Contact $contact): bool => $this->contactIsStopped($contact));
+
+        foreach ($contacts as $contact) {
             $contact->unsubscribe();
 
             $metadata = $contact->metadata ?? [];
@@ -128,53 +137,48 @@ class StopKeywordService
             $metadata['stopped_at'] = now()->toIso8601String();
             $metadata['stopped_message_id'] = $inboundMessage->id;
             $contact->forceFill(['metadata' => $metadata])->save();
+        }
 
-            $this->markCampaignRecipientsUnsubscribed($contact->phone);
+        $this->markCampaignRecipientsUnsubscribed((string) $conversation->contact_phone);
 
-            // Drop stale contact so inbox broadcasts pick up STOP immediately.
-            $conversation->unsetRelation('contact');
-            $this->broadcastThreadUpdated($conversation);
+        // Drop stale contact so inbox broadcasts pick up STOP immediately.
+        $conversation->unsetRelation('contact');
+        $this->broadcastThreadUpdated($conversation);
 
-            if (! $alreadyStopped) {
-                $this->sendConfirmation(
-                    $conversation,
-                    (string) config(
-                        'opt_in.stop_confirmation',
-                        'Thank you. You have been unsubscribed and will no longer receive promotional messages from us. To start receiving messages again, reply START.'
-                    ),
-                );
-            }
-        } else {
-            Log::warning('STOP keyword received but no contact found', [
-                'conversation_id' => $conversation->id,
-                'phone' => $conversation->contact_phone,
-            ]);
+        if (! $alreadyAllStopped) {
+            $this->sendConfirmation(
+                $conversation,
+                (string) config(
+                    'opt_in.stop_confirmation',
+                    'Thank you. You have been unsubscribed and will no longer receive promotional messages from us. To start receiving messages again, reply START.'
+                ),
+            );
         }
     }
 
     private function applyStart(Conversation $conversation, Message $inboundMessage): void
     {
-        $contact = $this->resolveContact($conversation);
-        if (! $contact instanceof Contact) {
+        $contacts = $this->resolveContacts($conversation);
+        if ($contacts->isEmpty()) {
             return;
         }
 
-        $wasStopped = $contact->status === ContactStatus::Unsubscribed
-            || $contact->opt_in_status === ContactOptInStatus::OptedOut
-            || (bool) data_get($contact->metadata, 'stopped_via_keyword');
-
-        if (! $wasStopped) {
+        // Inbox/outbound treat ANY same-phone contact as stopped — clear every match.
+        $stoppedContacts = $contacts->filter(fn (Contact $contact): bool => $this->contactIsStopped($contact));
+        if ($stoppedContacts->isEmpty()) {
             return;
         }
 
-        $contact->subscribe();
+        foreach ($stoppedContacts as $contact) {
+            $contact->subscribe();
 
-        $metadata = $contact->metadata ?? [];
-        unset($metadata['stopped_via_keyword'], $metadata['stopped_at'], $metadata['stopped_message_id']);
-        $metadata['restarted_via_keyword'] = true;
-        $metadata['restarted_at'] = now()->toIso8601String();
-        $metadata['restarted_message_id'] = $inboundMessage->id;
-        $contact->forceFill(['metadata' => $metadata])->save();
+            $metadata = $contact->metadata ?? [];
+            unset($metadata['stopped_via_keyword'], $metadata['stopped_at'], $metadata['stopped_message_id']);
+            $metadata['restarted_via_keyword'] = true;
+            $metadata['restarted_at'] = now()->toIso8601String();
+            $metadata['restarted_message_id'] = $inboundMessage->id;
+            $contact->forceFill(['metadata' => $metadata])->save();
+        }
 
         // Drop stale contact so inbox broadcasts pick up START immediately.
         $conversation->unsetRelation('contact');
@@ -189,6 +193,13 @@ class StopKeywordService
         );
     }
 
+    private function contactIsStopped(Contact $contact): bool
+    {
+        return $contact->status === ContactStatus::Unsubscribed
+            || $contact->opt_in_status === ContactOptInStatus::OptedOut
+            || (bool) data_get($contact->metadata, 'stopped_via_keyword');
+    }
+
     private function broadcastThreadUpdated(Conversation $conversation): void
     {
         try {
@@ -201,21 +212,29 @@ class StopKeywordService
         }
     }
 
-    private function resolveContact(Conversation $conversation): ?Contact
+    /**
+     * All audience rows for this conversation phone (across mail lists).
+     * Inbox stopped checks scan every same-phone contact — START/STOP must too.
+     *
+     * @return Collection<int, Contact>
+     */
+    private function resolveContacts(Conversation $conversation): Collection
     {
+        $variants = PhoneNormalizer::lookupVariants($conversation->contact_phone);
+        $contacts = collect();
+
+        if ($variants !== []) {
+            $contacts = Contact::query()->whereIn('phone', $variants)->get();
+        }
+
         if ($conversation->contact_id) {
-            $contact = Contact::query()->find($conversation->contact_id);
-            if ($contact instanceof Contact) {
-                return $contact;
+            $linked = Contact::query()->find($conversation->contact_id);
+            if ($linked instanceof Contact && ! $contacts->contains('id', $linked->id)) {
+                $contacts->push($linked);
             }
         }
 
-        $variants = PhoneNormalizer::lookupVariants($conversation->contact_phone);
-        if ($variants === []) {
-            return null;
-        }
-
-        return Contact::query()->whereIn('phone', $variants)->first();
+        return $contacts->unique('id')->values();
     }
 
     private function markCampaignRecipientsUnsubscribed(string $phone): void

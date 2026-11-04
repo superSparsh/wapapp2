@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, UploadFile, File, Query
+from fastapi import FastAPI, HTTPException, UploadFile, File, Query, Request
 from pydantic import BaseModel
 from rag_engine import RAGEngine
 import uvicorn
@@ -436,6 +436,66 @@ async def clear_client_data(client_id: str, bot_id: Optional[str] = Query(None))
         }
     except Exception as e:
         print(f"Error in clear_client_data endpoint: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/knowledge_base/{client_id}/documents")
+async def delete_knowledge_base_documents(
+    client_id: str,
+    request: Request,
+    bot_id: Optional[str] = Query(None, description="Bot ID for collection isolation"),
+    document_id: Optional[str] = Query(None, description="Single document/chunk ID"),
+):
+    """Delete one or more knowledge-base chunks by Chroma document ID."""
+    try:
+        body = {}
+        try:
+            body = await request.json()
+        except Exception:
+            body = {}
+
+        ids = []
+        if isinstance(body, dict):
+            raw_ids = body.get("document_ids") or body.get("ids") or []
+            if isinstance(raw_ids, list):
+                ids.extend(raw_ids)
+            single = body.get("document_id") or body.get("id")
+            if single:
+                ids.append(single)
+            if body.get("bot_id") and not bot_id:
+                bot_id = str(body.get("bot_id"))
+
+        if document_id:
+            ids.append(document_id)
+
+        # Deduplicate while preserving order
+        seen = set()
+        unique_ids = []
+        for value in ids:
+            key = str(value).strip()
+            if key and key not in seen:
+                seen.add(key)
+                unique_ids.append(key)
+
+        if not unique_ids:
+            raise HTTPException(status_code=422, detail="document_id or document_ids is required")
+
+        client_engine = RAGEngine()
+        result = client_engine.delete_documents(
+            client_id=client_id,
+            document_ids=unique_ids,
+            bot_id=bot_id,
+        )
+        if not result.get("success"):
+            raise HTTPException(status_code=404, detail=result.get("message") or "Delete failed")
+
+        return {
+            "success": True,
+            "data": result,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error in delete_knowledge_base_documents endpoint: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/client_storage_info/{client_id}")

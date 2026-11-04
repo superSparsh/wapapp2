@@ -15,6 +15,7 @@ use App\Models\Campaign;
 use App\Models\CampaignRecipient;
 use App\Models\Contact;
 use App\Models\Conversation;
+use App\Models\MailList;
 use App\Models\Message;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Mockery;
@@ -137,6 +138,58 @@ class StopKeywordServiceTest extends TestCase
         $this->assertSame(ContactStatus::Subscribed, $contact->status);
         $this->assertSame(ContactOptInStatus::OptedIn, $contact->opt_in_status);
         $this->assertFalse((bool) data_get($contact->metadata, 'stopped_via_keyword'));
+    }
+
+    public function test_start_clears_all_same_phone_contacts_across_mail_lists(): void
+    {
+        $outbound = Mockery::mock(InboxOutboundService::class);
+        $outbound->shouldReceive('sendText')
+            ->once()
+            ->withArgs(fn ($c, string $body) => str_contains($body, 'Welcome back'))
+            ->andReturn(new Message);
+        $this->app->instance(InboxOutboundService::class, $outbound);
+
+        $listA = MailList::factory()->create();
+        $listB = MailList::factory()->create();
+        $phone = '919911122233';
+
+        // Older STOP'd row on another list — Inbox still treats this as stopped.
+        $stoppedSibling = Contact::factory()->create([
+            'mail_list_id' => $listA->id,
+            'phone' => $phone,
+            'status' => ContactStatus::Unsubscribed,
+            'opt_in_status' => ContactOptInStatus::OptedOut,
+            'metadata' => ['stopped_via_keyword' => true],
+        ]);
+
+        // Conversation linked to a different (already subscribed) row for the same phone.
+        $linked = Contact::factory()->create([
+            'mail_list_id' => $listB->id,
+            'phone' => $phone,
+            'status' => ContactStatus::Subscribed,
+            'opt_in_status' => ContactOptInStatus::OptedIn,
+            'metadata' => [],
+        ]);
+
+        $conversation = Conversation::factory()->create([
+            'whatsapp_line_id' => $this->testLine->id,
+            'contact_id' => $linked->id,
+            'contact_phone' => $phone,
+        ]);
+        $inbound = Message::factory()->create([
+            'conversation_id' => $conversation->id,
+            'direction' => MessageDirection::Inbound,
+            'body' => 'START',
+        ]);
+
+        $this->assertTrue(app(StopKeywordService::class)->handle($conversation, $inbound));
+
+        $stoppedSibling->refresh();
+        $linked->refresh();
+        $this->assertSame(ContactStatus::Subscribed, $stoppedSibling->status);
+        $this->assertSame(ContactOptInStatus::OptedIn, $stoppedSibling->opt_in_status);
+        $this->assertFalse((bool) data_get($stoppedSibling->metadata, 'stopped_via_keyword'));
+        $this->assertSame(ContactStatus::Subscribed, $linked->status);
     }
 
     public function test_stop_marks_pending_campaign_recipients_unsubscribed(): void
