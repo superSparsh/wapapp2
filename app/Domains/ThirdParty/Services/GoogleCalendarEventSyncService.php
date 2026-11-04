@@ -474,6 +474,8 @@ class GoogleCalendarEventSyncService
             'template_key' => $templateKey,
             'google_meet_code' => $params['google_meet_code'] ?? null,
             'google_meet_link' => $params['google_meet_link'] ?? null,
+            'google_calendar_eid' => $params['google_calendar_eid'] ?? null,
+            'google_calendar_link' => $params['google_calendar_link'] ?? null,
             'param_keys' => array_keys($params),
         ]);
 
@@ -504,9 +506,10 @@ class GoogleCalendarEventSyncService
     /**
      * CAMS / Meta template variables for Google Calendar WhatsApp templates.
      *
-     * Legacy SendsGoogleCalendarWhatsapp sent google_meet_link + google_calendar_link.
-     * Approved CAMS templates also expect google_meet_code (Meet URL-button suffix),
-     * e.g. button https://meet.google.com/{{google_meet_code}}.
+     * Legacy SendsGoogleCalendarWhatsapp sent google_meet_link + google_calendar_link
+     * (full URLs only). Approved CAMS Utility URL buttons now also require suffix vars:
+     * - google_meet_code → https://meet.google.com/{{google_meet_code}}
+     * - google_calendar_eid → ...?eid={{google_calendar_eid}}
      *
      * @return array<string, string>
      */
@@ -524,6 +527,7 @@ class GoogleCalendarEventSyncService
         $meetLink = trim((string) ($event->meet_link ?? ''));
         $calendarLink = trim((string) ($event->calendar_link ?? ''));
         $meetCode = $this->extractGoogleMeetCode($meetLink);
+        $calendarEid = $this->extractGoogleCalendarCode($calendarLink);
 
         $params = [
             'full_name' => $clientName,
@@ -536,7 +540,11 @@ class GoogleCalendarEventSyncService
             // Some CAMS templates use this alias for the same Meet suffix.
             'meet_code' => $meetCode,
             'google_calendar_link' => $this->fallbackNa($calendarLink),
-            'google_calendar_code' => $this->extractGoogleCalendarCode($calendarLink),
+            // CAMS calendar URL buttons use eid suffix:
+            // https://calendar.google.com/calendar/event?eid={{google_calendar_eid}}
+            'google_calendar_eid' => $calendarEid,
+            // Alias kept for older template variable names.
+            'google_calendar_code' => $calendarEid,
         ];
 
         if ($forAdmin) {

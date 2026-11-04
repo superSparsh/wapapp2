@@ -55,6 +55,7 @@ class GoogleCalendarTemplateParamsTest extends TestCase
             'google_meet_code',
             'meet_code',
             'google_calendar_link',
+            'google_calendar_eid',
             'google_calendar_code',
         ], array_keys($params));
 
@@ -63,6 +64,7 @@ class GoogleCalendarTemplateParamsTest extends TestCase
         $this->assertSame('N/A', $params['google_meet_link']);
         $this->assertSame('N/A', $params['google_meet_code']);
         $this->assertSame('N/A', $params['google_calendar_link']);
+        $this->assertSame('N/A', $params['google_calendar_eid']);
         $this->assertSame('N/A', $params['google_calendar_code']);
         $this->assertArrayNotHasKey('whatsapp_number', $params);
         $this->assertArrayNotHasKey('invitee_email', $params);
@@ -92,6 +94,7 @@ class GoogleCalendarTemplateParamsTest extends TestCase
         $this->assertSame('https://meet.google.com/abc-defg-hij', $params['google_meet_link']);
         $this->assertSame('abc-defg-hij', $params['google_meet_code']);
         $this->assertSame('https://calendar.google.com/event?eid=xyz', $params['google_calendar_link']);
+        $this->assertSame('xyz', $params['google_calendar_eid']);
         $this->assertSame('xyz', $params['google_calendar_code']);
         $this->assertSame('+91 98765 43210', $params['whatsapp_number']);
         $this->assertSame('guest@example.com', $params['invitee_email']);
@@ -107,5 +110,18 @@ class GoogleCalendarTemplateParamsTest extends TestCase
         $this->assertSame('abc-defg-hij', $sync->extractGoogleMeetCode('abc-defg-hij'));
         $this->assertSame('N/A', $sync->extractGoogleMeetCode(null));
         $this->assertSame('N/A', $sync->extractGoogleMeetCode(''));
+    }
+
+    public function test_extract_google_calendar_eid_from_html_link(): void
+    {
+        $sync = app(GoogleCalendarEventSyncService::class);
+
+        $this->assertSame(
+            'abc123==',
+            $sync->extractGoogleCalendarCode('https://www.google.com/calendar/event?eid=abc123%3D%3D'),
+        );
+        $this->assertSame('xyz', $sync->extractGoogleCalendarCode('https://calendar.google.com/event?eid=xyz&ctz=UTC'));
+        $this->assertSame('N/A', $sync->extractGoogleCalendarCode(null));
+        $this->assertSame('N/A', $sync->extractGoogleCalendarCode('https://calendar.google.com/'));
     }
 }
