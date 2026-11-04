@@ -189,7 +189,7 @@ class KnowledgeBaseProxyTest extends TestCase
         ]);
 
         Http::fake([
-            'http://ai.test.local/knowledge_base/*/documents*' => Http::response([
+            'http://ai.test.local/delete_kb_document' => Http::response([
                 'success' => true,
                 'data' => [
                     'deleted' => 1,
@@ -200,18 +200,20 @@ class KnowledgeBaseProxyTest extends TestCase
 
         $this->actingAsTenantUser()
             ->from(route('openai-key.index', ['tab' => 'knowledge-base', 'bot' => $bot->uuid]))
-            ->delete(route('openai-key.knowledge-base.delete-document'), [
+            ->post(route('openai-key.knowledge-base.delete-document'), [
                 'document_id' => 'chunk-abc',
                 'bot_id' => $bot->uuid,
             ])
             ->assertRedirect();
 
         Http::assertSent(function ($request) {
-            return $request->method() === 'DELETE'
-                && str_contains($request->url(), '/knowledge_base/')
-                && str_contains($request->url(), '/documents')
-                && str_contains($request->url(), 'document_id=chunk-abc')
-                && str_contains($request->url(), 'bot_id=bot-uid-1');
+            $data = $request->data();
+
+            return $request->method() === 'POST'
+                && str_contains($request->url(), '/delete_kb_document')
+                && ($data['document_id'] ?? null) === 'chunk-abc'
+                && ($data['bot_id'] ?? null) === 'bot-uid-1'
+                && filled($data['client_id'] ?? null);
         });
     }
 }

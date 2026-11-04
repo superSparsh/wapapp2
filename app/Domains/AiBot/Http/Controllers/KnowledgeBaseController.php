@@ -125,9 +125,14 @@ class KnowledgeBaseController extends Controller
                 return $this->errorResponse($e);
             }
 
+            $message = $e->getMessage();
+            if (stripos($message, 'Not Found') !== false || (int) $e->getCode() === 404) {
+                $message = 'Could not delete this chunk. Restart the Python AI service (wapapp-ai) after deploying the latest AI code, then try again.';
+            }
+
             return redirect()
                 ->back()
-                ->with('error', $e->getMessage());
+                ->with('error', $message);
         }
     }
 

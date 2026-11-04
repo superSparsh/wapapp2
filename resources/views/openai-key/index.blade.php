@@ -544,7 +544,14 @@
                 >
                   Download All
                 </a>
-                <form action="{{ route('openai-key.knowledge-base.clear') }}" method="POST" onsubmit="return confirm('Clear all Knowledge Base data for this bot?')">
+                <form
+                  action="{{ route('openai-key.knowledge-base.clear') }}"
+                  method="POST"
+                  data-confirm="Clear all Knowledge Base data for this bot? This cannot be undone."
+                  data-confirm-title="Clear knowledge base"
+                  data-confirm-label="Clear KB"
+                  data-confirm-variant="danger"
+                >
                   @csrf @method('DELETE')
                   <input type="hidden" name="bot_id" value="{{ $selectedBot->uuid }}">
                   <button type="submit" class="fd-btn inline-flex items-center justify-center rounded border border-solid border-[red] px-4 py-3 text-sm font-semibold leading-[1.5] text-[red] transition-colors hover:bg-red-50">
@@ -601,10 +608,12 @@
                                 action="{{ route('openai-key.knowledge-base.delete-document') }}"
                                 method="POST"
                                 class="inline"
-                                onsubmit="return confirm('Delete this knowledge base chunk?')"
+                                data-confirm="Delete this knowledge base chunk? This cannot be undone."
+                                data-confirm-title="Delete chunk"
+                                data-confirm-label="Delete"
+                                data-confirm-variant="danger"
                               >
                                 @csrf
-                                @method('DELETE')
                                 <input type="hidden" name="document_id" value="{{ $documentId }}">
                                 <input type="hidden" name="bot_id" value="{{ $selectedBot->uuid }}">
                                 <input type="hidden" name="offset" value="{{ $kbOffset ?? 0 }}">

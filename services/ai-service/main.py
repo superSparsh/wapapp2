@@ -438,6 +438,29 @@ async def clear_client_data(client_id: str, bot_id: Optional[str] = Query(None))
         print(f"Error in clear_client_data endpoint: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+def _parse_kb_delete_ids(body: dict, document_id: Optional[str] = None) -> list:
+    ids = []
+    if isinstance(body, dict):
+        raw_ids = body.get("document_ids") or body.get("ids") or []
+        if isinstance(raw_ids, list):
+            ids.extend(raw_ids)
+        single = body.get("document_id") or body.get("id")
+        if single:
+            ids.append(single)
+
+    if document_id:
+        ids.append(document_id)
+
+    seen = set()
+    unique_ids = []
+    for value in ids:
+        key = str(value).strip()
+        if key and key not in seen:
+            seen.add(key)
+            unique_ids.append(key)
+    return unique_ids
+
+
 @app.delete("/knowledge_base/{client_id}/documents")
 async def delete_knowledge_base_documents(
     client_id: str,
@@ -453,29 +476,10 @@ async def delete_knowledge_base_documents(
         except Exception:
             body = {}
 
-        ids = []
-        if isinstance(body, dict):
-            raw_ids = body.get("document_ids") or body.get("ids") or []
-            if isinstance(raw_ids, list):
-                ids.extend(raw_ids)
-            single = body.get("document_id") or body.get("id")
-            if single:
-                ids.append(single)
-            if body.get("bot_id") and not bot_id:
-                bot_id = str(body.get("bot_id"))
+        if isinstance(body, dict) and body.get("bot_id") and not bot_id:
+            bot_id = str(body.get("bot_id"))
 
-        if document_id:
-            ids.append(document_id)
-
-        # Deduplicate while preserving order
-        seen = set()
-        unique_ids = []
-        for value in ids:
-            key = str(value).strip()
-            if key and key not in seen:
-                seen.add(key)
-                unique_ids.append(key)
-
+        unique_ids = _parse_kb_delete_ids(body if isinstance(body, dict) else {}, document_id)
         if not unique_ids:
             raise HTTPException(status_code=422, detail="document_id or document_ids is required")
 
@@ -496,6 +500,40 @@ async def delete_knowledge_base_documents(
         raise
     except Exception as e:
         print(f"Error in delete_knowledge_base_documents endpoint: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/delete_kb_document")
+async def delete_kb_document(request: Request):
+    """POST alias for chunk delete (more proxy/firewall friendly than DELETE)."""
+    try:
+        body = await request.json()
+        if not isinstance(body, dict):
+            raise HTTPException(status_code=422, detail="JSON body required")
+
+        client_id = str(body.get("client_id") or "").strip()
+        bot_id = body.get("bot_id")
+        bot_id = str(bot_id).strip() if bot_id else None
+        unique_ids = _parse_kb_delete_ids(body)
+        if not client_id:
+            raise HTTPException(status_code=422, detail="client_id is required")
+        if not unique_ids:
+            raise HTTPException(status_code=422, detail="document_id or document_ids is required")
+
+        client_engine = RAGEngine()
+        result = client_engine.delete_documents(
+            client_id=client_id,
+            document_ids=unique_ids,
+            bot_id=bot_id,
+        )
+        if not result.get("success"):
+            raise HTTPException(status_code=404, detail=result.get("message") or "Delete failed")
+
+        return {"success": True, "data": result}
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error in delete_kb_document endpoint: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/client_storage_info/{client_id}")

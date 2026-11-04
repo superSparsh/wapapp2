@@ -217,14 +217,32 @@ class KnowledgeBaseProxyService
     public function deleteDocument(string $documentId, ?string $botId = null): array
     {
         $bot = $this->resolveBot($botId);
-        $query = [
+
+        $payload = [
+            'client_id' => $this->clientId(),
             'document_id' => $documentId,
         ];
         if ($uid = $this->botUid($bot)) {
-            $query['bot_id'] = $uid;
+            $payload['bot_id'] = $uid;
         }
 
-        return $this->client->delete('/knowledge_base/'.$this->clientId().'/documents', $query);
+        // Prefer POST (firewall/proxy friendly). Fall back to DELETE path if needed.
+        try {
+            return $this->client->postJson('/delete_kb_document', $payload);
+        } catch (RuntimeException $e) {
+            if ($e->getCode() !== 404) {
+                throw $e;
+            }
+
+            $query = [
+                'document_id' => $documentId,
+            ];
+            if ($uid = $this->botUid($bot)) {
+                $query['bot_id'] = $uid;
+            }
+
+            return $this->client->delete('/knowledge_base/'.$this->clientId().'/documents', $query);
+        }
     }
 
     /**
