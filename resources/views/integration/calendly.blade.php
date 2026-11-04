@@ -266,7 +266,10 @@
                   <div class="flex shrink-0 items-center gap-2">
                     <form method="POST" action="{{ route('integration.calendly.events.destroy', $event) }}"
                       onclick="event.stopPropagation()"
-                      onsubmit="return confirm('Remove this event from WapApp and cancel it on Calendly?')">
+                      data-confirm="Remove this event from WapApp and cancel it on Calendly?"
+                      data-confirm-title="Remove event"
+                      data-confirm-label="Remove"
+                      data-confirm-variant="danger">
                       @csrf
                       @method('DELETE')
                       @if (request('status'))

@@ -187,7 +187,10 @@
                     {{ ucfirst($event->status?->value ?? 'unknown') }}
                   </span>
                   <form method="POST" action="{{ route('integration.google-calendar.events.destroy', $event) }}"
-                    onsubmit="return confirm('Remove this event from WapApp and delete it from Google Calendar?')">
+                    data-confirm="Remove this event from WapApp and delete it from Google Calendar?"
+                    data-confirm-title="Remove event"
+                    data-confirm-label="Remove"
+                    data-confirm-variant="danger">
                     @csrf
                     @method('DELETE')
                     @if (request('status'))
