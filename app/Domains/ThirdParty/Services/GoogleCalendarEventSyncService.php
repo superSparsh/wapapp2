@@ -458,12 +458,24 @@ class GoogleCalendarEventSyncService
             return ['ok' => false, 'message' => 'Linked Google Calendar event is missing.'];
         }
 
+        // Ensure Meet / calendar links are populated before building CAMS params
+        // (URL-button var google_meet_code rejects empty/N/A).
+        $this->hydrateEventLinksFromPayload($event);
+
         $eventName = trim((string) ($log->event_name ?? ''));
         $params = $this->templateParamsForEvent(
             $event,
             $eventName !== '' ? $eventName : null,
             forAdmin: strtolower((string) ($log->recipient_type ?? '')) === 'admin',
         );
+
+        Log::info('Google Calendar WhatsApp resend params', [
+            'log_id' => $log->id,
+            'template_key' => $templateKey,
+            'google_meet_code' => $params['google_meet_code'] ?? null,
+            'google_meet_link' => $params['google_meet_link'] ?? null,
+            'param_keys' => array_keys($params),
+        ]);
 
         $result = app(AlertDispatcher::class)->calendarWhatsApp($templateKey, $phone, $params);
         if ($result['ok']) {
@@ -507,8 +519,11 @@ class GoogleCalendarEventSyncService
             'Guest',
         );
 
+        $this->hydrateEventLinksFromPayload($event);
+
         $meetLink = trim((string) ($event->meet_link ?? ''));
         $calendarLink = trim((string) ($event->calendar_link ?? ''));
+        $meetCode = $this->extractGoogleMeetCode($meetLink);
 
         $params = [
             'full_name' => $clientName,
@@ -517,7 +532,9 @@ class GoogleCalendarEventSyncService
             'google_event_end_time' => $this->formatEventTime($event->end_time, $tz),
             'google_meet_link' => $this->fallbackNa($meetLink),
             // Required by approved CAMS URL buttons (TemplateParamsNotMatch: google_meet_code).
-            'google_meet_code' => $this->extractGoogleMeetCode($meetLink),
+            'google_meet_code' => $meetCode,
+            // Some CAMS templates use this alias for the same Meet suffix.
+            'meet_code' => $meetCode,
             'google_calendar_link' => $this->fallbackNa($calendarLink),
             'google_calendar_code' => $this->extractGoogleCalendarCode($calendarLink),
         ];
@@ -528,6 +545,35 @@ class GoogleCalendarEventSyncService
         }
 
         return $params;
+    }
+
+    /**
+     * Backfill meet_link / calendar_link from raw Google payload when columns are empty.
+     */
+    private function hydrateEventLinksFromPayload(GoogleCalendarEvent $event): void
+    {
+        $updates = [];
+        $payload = is_array($event->raw_payload) ? $event->raw_payload : [];
+
+        if (trim((string) ($event->meet_link ?? '')) === '') {
+            $fromPayload = $this->api->extractMeetLink($payload);
+            if (is_string($fromPayload) && trim($fromPayload) !== '') {
+                $updates['meet_link'] = $fromPayload;
+                $event->meet_link = $fromPayload;
+            }
+        }
+
+        if (trim((string) ($event->calendar_link ?? '')) === '') {
+            $htmlLink = trim((string) ($payload['htmlLink'] ?? ''));
+            if ($htmlLink !== '') {
+                $updates['calendar_link'] = $htmlLink;
+                $event->calendar_link = $htmlLink;
+            }
+        }
+
+        if ($updates !== []) {
+            $event->forceFill($updates)->save();
+        }
     }
 
     /**

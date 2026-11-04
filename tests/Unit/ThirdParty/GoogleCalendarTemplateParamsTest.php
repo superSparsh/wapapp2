@@ -53,6 +53,7 @@ class GoogleCalendarTemplateParamsTest extends TestCase
             'google_event_end_time',
             'google_meet_link',
             'google_meet_code',
+            'meet_code',
             'google_calendar_link',
             'google_calendar_code',
         ], array_keys($params));
