@@ -245,6 +245,59 @@ class CalendlyIntegrationTest extends TestCase
             ->assertViewHas('events');
     }
 
+    public function test_remove_calendly_event_cancels_on_platform_and_deletes_locally(): void
+    {
+        $userId = $this->testUser->id;
+        $uri = 'https://api.calendly.com/scheduled_events/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
+
+        CalendlyIntegration::query()->firstOrCreate(['user_id' => $userId], [
+            'status' => IntegrationStatus::Enabled,
+            'settings' => ['access_token' => 'tok-remove'],
+        ]);
+
+        $event = CalendlyEvent::query()->create([
+            'user_id' => $userId,
+            'event_id' => $uri,
+            'event_uri' => $uri,
+            'status' => 'active',
+            'event_type' => 'consultation',
+            'start_time' => now()->addHour(),
+            'end_time' => now()->addHours(2),
+            'raw_payload' => ['uri' => $uri, 'name' => 'Demo'],
+        ]);
+
+        CalendlyMessageLog::query()->create([
+            'user_id' => $userId,
+            'event_id' => $event->id,
+            'recipient_type' => 'customer',
+            'recipient_number' => '919876543210',
+            'event_name' => 'Demo',
+            'event_type' => 'created',
+            'status' => 'sent',
+            'sent_at' => now(),
+        ]);
+
+        Http::fake([
+            'api.calendly.com/scheduled_events/*/cancellation' => Http::response([], 201),
+        ]);
+
+        $this->actingAsTenantUser()
+            ->delete(route('integration.calendly.events.destroy', $event))
+            ->assertRedirect(route('integration.calendly', ['tab' => 'events']))
+            ->assertSessionHas('success');
+
+        $this->assertDatabaseMissing('calendly_events', ['id' => $event->id]);
+        $this->assertDatabaseMissing('calendly_message_logs', ['event_id' => $event->id]);
+
+        $integration = CalendlyIntegration::query()->where('user_id', $userId)->first();
+        $this->assertContains($uri, $integration?->settings['removed_event_ids'] ?? []);
+
+        Http::assertSent(function ($request) {
+            return $request->method() === 'POST'
+                && str_contains($request->url(), '/scheduled_events/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee/cancellation');
+        });
+    }
+
     public function test_message_logs_listed_on_logs_tab(): void
     {
         $userId = $this->testUser->id;

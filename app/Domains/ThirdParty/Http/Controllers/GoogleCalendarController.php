@@ -306,6 +306,23 @@ class GoogleCalendarController extends Controller
             );
     }
 
+    public function destroyEvent(GoogleCalendarEvent $event): RedirectResponse
+    {
+        $userId = (int) auth()->id();
+        $result = $this->sync->removeEvent($userId, $event);
+
+        return redirect()
+            ->route('integration.google-calendar', [
+                'tab' => 'events',
+                'status' => request('status'),
+                'page' => request('page'),
+            ])
+            ->with(
+                $result['ok'] ? 'success' : 'error',
+                $result['message'],
+            );
+    }
+
     public function createMeeting(CreateMeetingRequest $request): RedirectResponse
     {
         $validated   = $request->validated();
@@ -341,7 +358,7 @@ class GoogleCalendarController extends Controller
         $eventId = (string) ($googleEvent['id'] ?? '');
         if ($eventId !== '') {
             $times = $this->api->parseEventTimes($googleEvent);
-            GoogleCalendarEvent::query()->updateOrCreate(
+            $stored = GoogleCalendarEvent::query()->updateOrCreate(
                 [
                     'user_id' => $userId,
                     'event_id' => $eventId,
@@ -361,6 +378,9 @@ class GoogleCalendarController extends Controller
                     'notified_created' => false,
                 ],
             );
+
+            // Send WhatsApp immediately — do not wait for background sync.
+            $this->sync->notifyForCreatedEvent($integration, $stored);
         }
 
         $tenantId = tenancy()->tenant?->getTenantKey();

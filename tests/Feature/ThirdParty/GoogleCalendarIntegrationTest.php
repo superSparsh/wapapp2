@@ -18,6 +18,7 @@ use App\Domains\ThirdParty\Services\GoogleCalendarBookingAvailabilityService;
 use App\Domains\ThirdParty\Services\GoogleCalendarEventSyncService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Tests\Concerns\InteractsWithTenants;
 use Tests\TestCase;
@@ -296,6 +297,64 @@ class GoogleCalendarIntegrationTest extends TestCase
             ->assertRedirect();
 
         $this->assertDatabaseEmpty('google_calendar_booking_links');
+    }
+
+    public function test_remove_google_event_deletes_on_platform_and_locally(): void
+    {
+        $userId = $this->testUser->id;
+
+        GoogleCalendarIntegration::query()->create([
+            'user_id' => $userId,
+            'status' => IntegrationStatus::Enabled,
+            'settings' => [
+                'refresh_token' => 'rt',
+                'access_token' => 'at',
+                'token_expires_at' => now()->addHour()->toIso8601String(),
+                'calendar_id' => 'primary',
+            ],
+        ]);
+
+        $event = GoogleCalendarEvent::query()->create([
+            'user_id' => $userId,
+            'event_id' => 'gev-remove-1',
+            'calendar_id' => 'primary',
+            'status' => 'active',
+            'summary' => 'Remove me',
+            'start_time' => now()->addHour(),
+            'end_time' => now()->addHours(2),
+            'meet_link' => 'https://meet.google.com/abc-defg-hij',
+        ]);
+
+        GoogleCalendarMessageLog::query()->create([
+            'user_id' => $userId,
+            'event_id' => $event->id,
+            'recipient_type' => 'customer',
+            'recipient_number' => '919876543210',
+            'event_name' => 'Remove me',
+            'event_type' => 'created',
+            'status' => MessageLogStatus::Sent,
+            'sent_at' => now(),
+        ]);
+
+        Http::fake([
+            'www.googleapis.com/calendar/v3/calendars/*' => Http::response(null, 204),
+        ]);
+
+        $this->actingAsTenantUser()
+            ->delete(route('integration.google-calendar.events.destroy', $event))
+            ->assertRedirect(route('integration.google-calendar', ['tab' => 'events']))
+            ->assertSessionHas('success');
+
+        $this->assertDatabaseMissing('google_calendar_events', ['id' => $event->id]);
+        $this->assertDatabaseMissing('google_calendar_message_logs', ['event_id' => $event->id]);
+
+        $integration = GoogleCalendarIntegration::query()->where('user_id', $userId)->first();
+        $this->assertContains('gev-remove-1', $integration?->settings['removed_event_ids'] ?? []);
+
+        Http::assertSent(function ($request) {
+            return $request->method() === 'DELETE'
+                && str_contains($request->url(), '/calendars/primary/events/gev-remove-1');
+        });
     }
 
     // ─── Booking availability ─────────────────────────────────────────────────
@@ -577,6 +636,11 @@ class GoogleCalendarIntegrationTest extends TestCase
         $api = $this->createMock(GoogleCalendarApiService::class);
         $api->method('hasOverlappingEvent')->willReturn(false);
         $api->method('createEventWithMeet')->willReturn(['id' => 'created-1']);
+        $api->method('extractMeetLink')->willReturn(null);
+        $api->method('parseEventTimes')->willReturn([
+            'start' => now()->addDay(),
+            'end' => now()->addDay()->addMinutes(30),
+        ]);
         $this->app->instance(GoogleCalendarApiService::class, $api);
 
         $this->post(route('google-calendar.booking.book', $link->slug), [
@@ -588,6 +652,72 @@ class GoogleCalendarIntegrationTest extends TestCase
 
         Queue::assertPushed(SyncGoogleCalendarEventsJob::class);
         $this->assertSame($integration->id, $integration->fresh()->id);
+    }
+
+    public function test_public_book_sends_whatsapp_immediately_when_enabled(): void
+    {
+        Queue::fake();
+
+        GoogleCalendarIntegration::query()->create([
+            'user_id' => $this->testUser->id,
+            'status' => IntegrationStatus::Enabled,
+            'first_synced_at' => now()->subDay(),
+            'settings' => [
+                'refresh_token' => 'rt',
+                'access_token' => 'at',
+                'calendar_id' => 'primary',
+                'enable_whatsapp' => true,
+                'whatsapp_number' => '+911234567890',
+            ],
+        ]);
+
+        $link = GoogleCalendarBookingLink::query()->create([
+            'user_id' => $this->testUser->id,
+            'slug' => 'book-wa-test',
+            'title' => 'Intro Call',
+            'duration_minutes' => 30,
+            'status' => IntegrationStatus::Enabled,
+            'settings' => [],
+        ]);
+
+        $api = $this->createMock(GoogleCalendarApiService::class);
+        $api->method('hasOverlappingEvent')->willReturn(false);
+        $api->method('createEventWithMeet')->willReturn([
+            'id' => 'created-wa-1',
+            'summary' => 'Intro Call',
+            'hangoutLink' => 'https://meet.google.com/abc-defg-hij',
+            'htmlLink' => 'https://calendar.google.com/event?eid=1',
+            'start' => ['dateTime' => now()->addDay()->toIso8601String()],
+            'end' => ['dateTime' => now()->addDay()->addMinutes(30)->toIso8601String()],
+        ]);
+        $api->method('extractMeetLink')->willReturn('https://meet.google.com/abc-defg-hij');
+        $api->method('parseEventTimes')->willReturn([
+            'start' => now()->addDay(),
+            'end' => now()->addDay()->addMinutes(30),
+        ]);
+        $this->app->instance(GoogleCalendarApiService::class, $api);
+
+        $dispatcher = $this->createMock(AlertDispatcher::class);
+        $dispatcher->expects($this->exactly(2))
+            ->method('calendarWhatsApp')
+            ->willReturn(['ok' => true, 'error' => null]);
+        $this->app->instance(AlertDispatcher::class, $dispatcher);
+
+        $this->post(route('google-calendar.booking.book', $link->slug), [
+            'name' => 'Alex',
+            'email' => 'alex@example.com',
+            'phone' => '+919876543210',
+            'start_at' => now()->addDay()->toDateTimeString(),
+        ])->assertRedirect();
+
+        $event = GoogleCalendarEvent::query()->where('event_id', 'created-wa-1')->first();
+        $this->assertNotNull($event);
+        $this->assertTrue((bool) $event->notified_created);
+        $this->assertSame('+919876543210', $event->whatsapp_number);
+        $this->assertDatabaseCount('google_calendar_message_logs', 2);
+        $this->assertTrue(
+            GoogleCalendarMessageLog::query()->where('status', MessageLogStatus::Sent)->where('recipient_type', 'customer')->exists()
+        );
     }
 
     // ─── API service helpers ──────────────────────────────────────────────────

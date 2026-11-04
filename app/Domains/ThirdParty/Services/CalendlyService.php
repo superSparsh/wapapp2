@@ -136,6 +136,106 @@ class CalendlyService
     }
 
     /**
+     * Cancel the event on Calendly (when possible) and remove it from WapApp.
+     *
+     * @return array{ok: bool, message: string}
+     */
+    public function removeEvent(int $userId, CalendlyEvent $event): array
+    {
+        if ((int) $event->user_id !== $userId) {
+            return ['ok' => false, 'message' => 'Event not found.'];
+        }
+
+        $integration = $this->findOrCreate($userId);
+        $token = trim((string) ($integration->settings['access_token'] ?? ''));
+        $platformError = null;
+
+        if ($token !== '' && ! $event->isCanceled()) {
+            $uuid = $this->calendlyScheduledEventUuid($event);
+            if ($uuid === null) {
+                $platformError = 'Could not resolve Calendly event id for cancellation.';
+            } else {
+                $response = Http::withToken($token)
+                    ->timeout(20)
+                    ->post('https://api.calendly.com/scheduled_events/'.$uuid.'/cancellation', [
+                        'reason' => 'Canceled from WapApp',
+                    ]);
+
+                // 201/200 = canceled. 403/404 often means already canceled / gone — still remove locally.
+                if (! $response->successful() && ! in_array($response->status(), [403, 404], true)) {
+                    $platformError = (string) (
+                        $response->json('message')
+                        ?? $response->json('title')
+                        ?? ('Calendly cancel failed (HTTP '.$response->status().').')
+                    );
+                }
+            }
+        }
+
+        if ($platformError !== null) {
+            return ['ok' => false, 'message' => $platformError];
+        }
+
+        $this->rememberRemovedEventId($integration, (string) $event->event_id);
+
+        CalendlyMessageLog::query()
+            ->where('user_id', $userId)
+            ->where('event_id', $event->id)
+            ->forceDelete();
+
+        $event->forceDelete();
+
+        return ['ok' => true, 'message' => 'Event removed from WapApp and Calendly.'];
+    }
+
+    public function isRemovedEventId(CalendlyIntegration $integration, string $eventId): bool
+    {
+        $removed = $integration->settings['removed_event_ids'] ?? [];
+
+        return is_array($removed) && in_array($eventId, $removed, true);
+    }
+
+    /**
+     * @param  array<string, mixed>  $settings
+     */
+    private function rememberRemovedEventId(CalendlyIntegration $integration, string $eventId): void
+    {
+        $eventId = trim($eventId);
+        if ($eventId === '') {
+            return;
+        }
+
+        $settings = $integration->settings ?? [];
+        $existing = is_array($settings['removed_event_ids'] ?? null)
+            ? $settings['removed_event_ids']
+            : [];
+        $settings['removed_event_ids'] = array_values(array_slice(
+            array_unique([...$existing, $eventId]),
+            -500,
+        ));
+        $integration->settings = $settings;
+        $integration->save();
+    }
+
+    private function calendlyScheduledEventUuid(CalendlyEvent $event): ?string
+    {
+        foreach ([$event->event_uri, $event->event_id, $event->raw_payload['uri'] ?? null] as $candidate) {
+            $candidate = trim((string) $candidate);
+            if ($candidate === '') {
+                continue;
+            }
+            if (preg_match('~/scheduled_events/([^/?]+)$~i', $candidate, $matches) === 1) {
+                return $matches[1];
+            }
+            if (preg_match('/^[a-f0-9-]{36}$/i', $candidate) === 1) {
+                return $candidate;
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Resend a failed Calendly WhatsApp notification.
      *
      * @return array{ok: bool, message: string}
@@ -184,8 +284,18 @@ class CalendlyService
             ->calendarWhatsApp($templateKey, $phone, $params);
 
         if ($result['ok']) {
+            $messageId = is_string($result['message_id'] ?? null) ? trim((string) $result['message_id']) : '';
+            if ($messageId !== '') {
+                try {
+                    app(\App\Domains\Webhooks\Services\WhatsappLineRegistryService::class)
+                        ->indexMessage((string) (tenant('id') ?? ''), $messageId);
+                } catch (\Throwable) {
+                    // non-fatal
+                }
+            }
             $log->forceFill([
                 'status' => \App\Domains\ThirdParty\Enums\MessageLogStatus::Sent,
+                'external_message_id' => $messageId !== '' ? $messageId : $log->external_message_id,
                 'error_message' => null,
                 'sent_at' => now(),
             ])->save();

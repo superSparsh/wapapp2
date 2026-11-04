@@ -15,6 +15,7 @@ use App\Domains\ThirdParty\Models\GoogleCalendarIntegration;
 use App\Domains\ThirdParty\Models\GoogleCalendarMessageLog;
 use App\Domains\ThirdParty\Services\CalendlyEventSyncService;
 use App\Domains\ThirdParty\Services\GoogleCalendarEventSyncService;
+use App\Domains\Webhooks\Services\WhatsappLineRegistryService;
 use App\Support\Console\Concerns\IteratesTenants;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Cache;
@@ -120,6 +121,7 @@ class SendCalendarRemindersCommand extends Command
                 $phone,
                 $customerParams,
             );
+            $messageId = $this->messageIdFromResult($result);
 
             CalendlyMessageLog::query()->create([
                 'user_id' => $event->user_id,
@@ -130,6 +132,7 @@ class SendCalendarRemindersCommand extends Command
                 'event_name' => $eventName,
                 'event_type' => 'reminder',
                 'status' => $result['ok'] ? MessageLogStatus::Sent : MessageLogStatus::Failed,
+                'external_message_id' => $messageId,
                 'error_message' => $result['ok'] ? null : ($result['error'] ?: 'WhatsApp API did not return success.'),
                 'sent_at' => now(),
             ]);
@@ -168,6 +171,7 @@ class SendCalendarRemindersCommand extends Command
             $adminPhone,
             $adminParams,
         );
+        $messageId = $this->messageIdFromResult($result);
 
         CalendlyMessageLog::query()->create([
             'user_id' => $event->user_id,
@@ -178,6 +182,7 @@ class SendCalendarRemindersCommand extends Command
             'event_name' => $eventName,
             'event_type' => 'reminder',
             'status' => $result['ok'] ? MessageLogStatus::Sent : MessageLogStatus::Failed,
+            'external_message_id' => $messageId,
             'error_message' => $result['ok'] ? null : ($result['error'] ?: 'WhatsApp API did not return success.'),
             'sent_at' => now(),
         ]);
@@ -215,6 +220,7 @@ class SendCalendarRemindersCommand extends Command
                 $phone,
                 $customerParams,
             );
+            $messageId = $this->messageIdFromResult($result);
 
             GoogleCalendarMessageLog::query()->create([
                 'user_id' => $event->user_id,
@@ -225,6 +231,7 @@ class SendCalendarRemindersCommand extends Command
                 'event_name' => $eventName,
                 'event_type' => 'reminder',
                 'status' => $result['ok'] ? MessageLogStatus::Sent : MessageLogStatus::Failed,
+                'external_message_id' => $messageId,
                 'error_message' => $result['ok'] ? null : ($result['error'] ?: 'WhatsApp API did not return success.'),
                 'sent_at' => now(),
             ]);
@@ -263,6 +270,7 @@ class SendCalendarRemindersCommand extends Command
             $adminPhone,
             $adminParams,
         );
+        $messageId = $this->messageIdFromResult($result);
 
         GoogleCalendarMessageLog::query()->create([
             'user_id' => $event->user_id,
@@ -273,10 +281,31 @@ class SendCalendarRemindersCommand extends Command
             'event_name' => $eventName,
             'event_type' => 'reminder',
             'status' => $result['ok'] ? MessageLogStatus::Sent : MessageLogStatus::Failed,
+            'external_message_id' => $messageId,
             'error_message' => $result['ok'] ? null : ($result['error'] ?: 'WhatsApp API did not return success.'),
             'sent_at' => now(),
         ]);
 
         return $result['ok'] ? $sent + 1 : $sent;
+    }
+
+    /**
+     * @param  array{ok?: bool, message_id?: ?string}  $result
+     */
+    private function messageIdFromResult(array $result): ?string
+    {
+        $messageId = is_string($result['message_id'] ?? null) ? trim((string) $result['message_id']) : '';
+        if ($messageId === '' || ! ($result['ok'] ?? false)) {
+            return null;
+        }
+
+        try {
+            app(WhatsappLineRegistryService::class)
+                ->indexMessage((string) (tenant('id') ?? ''), $messageId);
+        } catch (\Throwable) {
+            // non-fatal
+        }
+
+        return $messageId;
     }
 }

@@ -26,12 +26,12 @@ class OperationalWhatsAppSender
     /**
      * @param  array<string, string|int|float>  $templateParams
      * @param  array{from?: string, cust_space_id?: string, language?: string}|null  $sender
-     * @return array{ok: bool, error: ?string}
+     * @return array{ok: bool, error: ?string, message_id: ?string}
      */
     public function sendTemplateResult(string $toPhone, string $templateCode, array $templateParams = [], ?array $sender = null): array
     {
         if (! (bool) config('operational-alerts.enabled', true)) {
-            return ['ok' => false, 'error' => 'Operational WhatsApp alerts are disabled.'];
+            return ['ok' => false, 'error' => 'Operational WhatsApp alerts are disabled.', 'message_id' => null];
         }
 
         $accessKeyId = (string) config('operational-alerts.alibaba.access_key_id', '');
@@ -51,17 +51,17 @@ class OperationalWhatsAppSender
                 'has_from' => $from !== '',
             ]);
 
-            return ['ok' => false, 'error' => 'WhatsApp sender config missing (FROM number or Alibaba keys).'];
+            return ['ok' => false, 'error' => 'WhatsApp sender config missing (FROM number or Alibaba keys).', 'message_id' => null];
         }
 
         // CAMS requires From/To as digits only (InvalidParameter.ToOnlyNumeric / FromOnlyNumeric).
         $to = $this->formatRecipient($toPhone);
         $from = $this->formatRecipient($from);
         if ($to === '') {
-            return ['ok' => false, 'error' => 'Invalid WhatsApp recipient number.'];
+            return ['ok' => false, 'error' => 'Invalid WhatsApp recipient number.', 'message_id' => null];
         }
         if ($from === '') {
-            return ['ok' => false, 'error' => 'WhatsApp sender FROM number is invalid.'];
+            return ['ok' => false, 'error' => 'WhatsApp sender FROM number is invalid.', 'message_id' => null];
         }
 
         $resolved = $this->resolveProviderTemplateCode(
@@ -72,7 +72,7 @@ class OperationalWhatsAppSender
             $accessKeySecret,
         );
         if (! $resolved['ok']) {
-            return ['ok' => false, 'error' => $resolved['error']];
+            return ['ok' => false, 'error' => $resolved['error'], 'message_id' => null];
         }
         $providerCode = (string) $resolved['code'];
 
@@ -100,7 +100,7 @@ class OperationalWhatsAppSender
                 'error' => $e->getMessage(),
             ]);
 
-            return ['ok' => false, 'error' => 'WhatsApp request failed: '.$e->getMessage()];
+            return ['ok' => false, 'error' => 'WhatsApp request failed: '.$e->getMessage(), 'message_id' => null];
         }
 
         $parsed = $this->parseCamsResponse($response);
@@ -248,7 +248,7 @@ class OperationalWhatsAppSender
     }
 
     /**
-     * @return array{ok: bool, error: ?string}
+     * @return array{ok: bool, error: ?string, message_id: ?string}
      */
     private function parseCamsResponse(Response $response): array
     {
@@ -256,7 +256,11 @@ class OperationalWhatsAppSender
         $body = is_array($body) ? $body : [];
 
         if (! $response->successful()) {
-            return ['ok' => false, 'error' => $this->extractCamsError($body, $response->body(), $response->status())];
+            return [
+                'ok' => false,
+                'error' => $this->extractCamsError($body, $response->body(), $response->status()),
+                'message_id' => null,
+            ];
         }
 
         $code = Arr::get($body, 'Code')
@@ -265,10 +269,27 @@ class OperationalWhatsAppSender
             ?? Arr::get($body, 'data.Code');
 
         if (is_string($code) && $code !== '' && strtoupper($code) !== 'OK') {
-            return ['ok' => false, 'error' => $this->extractCamsError($body, $response->body(), $response->status())];
+            return [
+                'ok' => false,
+                'error' => $this->extractCamsError($body, $response->body(), $response->status()),
+                'message_id' => null,
+            ];
         }
 
-        return ['ok' => true, 'error' => null];
+        $messageId = Arr::get($body, 'MessageId')
+            ?? Arr::get($body, 'messageId')
+            ?? Arr::get($body, 'Data.MessageId')
+            ?? Arr::get($body, 'data.MessageId')
+            ?? Arr::get($body, 'Data.messageId')
+            ?? Arr::get($body, 'data.messageId');
+
+        $messageId = is_string($messageId) || is_numeric($messageId) ? trim((string) $messageId) : '';
+
+        return [
+            'ok' => true,
+            'error' => null,
+            'message_id' => $messageId !== '' ? $messageId : null,
+        ];
     }
 
     /**

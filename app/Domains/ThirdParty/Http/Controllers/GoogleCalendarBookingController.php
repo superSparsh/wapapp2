@@ -10,6 +10,7 @@ use App\Domains\ThirdParty\Models\GoogleCalendarEvent;
 use App\Domains\ThirdParty\Models\GoogleCalendarIntegration;
 use App\Domains\ThirdParty\Services\GoogleCalendarApiService;
 use App\Domains\ThirdParty\Services\GoogleCalendarBookingAvailabilityService;
+use App\Domains\ThirdParty\Services\GoogleCalendarEventSyncService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -26,6 +27,7 @@ class GoogleCalendarBookingController extends Controller
     public function __construct(
         private readonly GoogleCalendarApiService $api,
         private readonly GoogleCalendarBookingAvailabilityService $availability,
+        private readonly GoogleCalendarEventSyncService $sync,
     ) {}
 
     public function show(string $slug): View
@@ -109,7 +111,7 @@ class GoogleCalendarBookingController extends Controller
             );
         }
 
-        $this->persistBookedEvent(
+        $stored = $this->persistBookedEvent(
             $integration,
             $googleEvent,
             $validated['name'],
@@ -118,6 +120,11 @@ class GoogleCalendarBookingController extends Controller
             $start,
             $end,
         );
+
+        if ($stored !== null) {
+            // Send WhatsApp immediately — do not wait for background sync.
+            $this->sync->notifyForCreatedEvent($integration, $stored);
+        }
 
         $tenantId = tenancy()->tenant?->getTenantKey();
         SyncGoogleCalendarEventsJob::dispatch($integration->id, (string) $tenantId);
@@ -141,15 +148,15 @@ class GoogleCalendarBookingController extends Controller
         string $guestPhone,
         Carbon $start,
         Carbon $end,
-    ): void {
+    ): ?GoogleCalendarEvent {
         $eventId = (string) ($googleEvent['id'] ?? '');
         if ($eventId === '') {
-            return;
+            return null;
         }
 
         $times = $this->api->parseEventTimes($googleEvent);
 
-        GoogleCalendarEvent::query()->updateOrCreate(
+        return GoogleCalendarEvent::query()->updateOrCreate(
             [
                 'user_id' => $integration->user_id,
                 'event_id' => $eventId,

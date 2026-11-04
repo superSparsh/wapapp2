@@ -173,8 +173,8 @@
         @else
           <div class="flex flex-col gap-2">
             @foreach ($events as $event)
-              <div class="flex items-center justify-between rounded-xl border border-border bg-elevated p-4">
-                <div class="flex flex-col gap-1">
+              <div class="flex items-center justify-between gap-3 rounded-xl border border-border bg-elevated p-4">
+                <div class="flex min-w-0 flex-col gap-1">
                   <p class="text-sm font-semibold text-text-primary">{{ $event->summary }}</p>
                   <p class="text-xs text-text-muted">{{ $event->invitee_email }}</p>
                   <p class="text-xs text-text-muted">{{ $event->start_time?->format('M d, Y H:i') }}</p>
@@ -182,9 +182,23 @@
                     <a href="{{ $event->meet_link }}" target="_blank" class="text-xs text-green-500 hover:underline">Join Meet</a>
                   @endif
                 </div>
-                <span @class(['inline-flex rounded px-2 py-1 text-[10px] font-medium', 'bg-green-100 text-green-700' => $event->isActive(), 'bg-red-100 text-red-600' => $event->status?->value === 'canceled', 'bg-yellow-100 text-yellow-700' => $event->isRescheduled()])>
-                  {{ ucfirst($event->status?->value ?? 'unknown') }}
-                </span>
+                <div class="flex shrink-0 items-center gap-2">
+                  <span @class(['inline-flex rounded px-2 py-1 text-[10px] font-medium', 'bg-green-100 text-green-700' => $event->isActive(), 'bg-red-100 text-red-600' => $event->status?->value === 'canceled', 'bg-yellow-100 text-yellow-700' => $event->isRescheduled()])>
+                    {{ ucfirst($event->status?->value ?? 'unknown') }}
+                  </span>
+                  <form method="POST" action="{{ route('integration.google-calendar.events.destroy', $event) }}"
+                    onsubmit="return confirm('Remove this event from WapApp and delete it from Google Calendar?')">
+                    @csrf
+                    @method('DELETE')
+                    @if (request('status'))
+                      <input type="hidden" name="status" value="{{ request('status') }}">
+                    @endif
+                    <button type="submit"
+                      class="rounded border border-red-200 bg-red-50 px-2.5 py-1 text-[11px] font-semibold text-red-600 hover:bg-red-100">
+                      Remove
+                    </button>
+                  </form>
+                </div>
               </div>
             @endforeach
           </div>
@@ -343,7 +357,7 @@
       {{-- Logs Tab --}}
       @if ($activeTab === 'logs')
         <div class="flex gap-2">
-          @foreach (['all' => 'All', 'sent' => 'Sent', 'failed' => 'Failed', 'skipped' => 'Skipped'] as $t => $label)
+          @foreach (['all' => 'All', 'sent' => 'Sent', 'delivered' => 'Delivered', 'failed' => 'Failed', 'skipped' => 'Skipped'] as $t => $label)
             <a href="{{ route('integration.google-calendar', ['tab' => 'logs', 'log_type' => $t === 'all' ? null : $t]) }}"
               class="rounded-lg border px-3 py-1 text-sm transition-colors {{ request('log_type', 'all') === $t ? 'border-green-500 bg-green-500 text-white' : 'border-border bg-elevated text-text-muted hover:bg-surface' }}">
               {{ $label }}
@@ -379,7 +393,8 @@
                     <td class="p-2">
                       <span @class([
                         'inline-flex rounded px-2 py-1 text-[10px] font-medium',
-                        'bg-green-100 text-green-700' => $logStatus === 'sent',
+                        'bg-blue-100 text-blue-700' => $logStatus === 'sent',
+                        'bg-green-100 text-green-700' => $logStatus === 'delivered',
                         'bg-red-100 text-red-600' => $logStatus === 'failed',
                         'bg-yellow-100 text-yellow-700' => $logStatus === 'skipped',
                       ])>

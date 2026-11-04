@@ -380,6 +380,63 @@ class GoogleCalendarApiService
     }
 
     /**
+     * Delete an event from Google Calendar.
+     * 204/200 = deleted. 404/410 = already gone (treated as success).
+     */
+    public function deleteEvent(
+        GoogleCalendarIntegration $integration,
+        string $eventId,
+        ?string $calendarId = null,
+        bool $notifyAttendees = true,
+    ): bool {
+        $this->lastError = null;
+
+        $token = $this->getValidAccessToken($integration);
+        if (! $token) {
+            $this->lastError = 'Google Calendar is not connected or the access token expired. Reconnect Google.';
+
+            return false;
+        }
+
+        $eventId = trim($eventId);
+        if ($eventId === '') {
+            $this->lastError = 'Missing Google Calendar event id.';
+
+            return false;
+        }
+
+        $calendarId = $calendarId ?: $integration->calendarId();
+        $url = 'https://www.googleapis.com/calendar/v3/calendars/'
+            .urlencode($calendarId)
+            .'/events/'
+            .urlencode($eventId);
+
+        if ($notifyAttendees) {
+            $url .= '?sendUpdates=all';
+        }
+
+        $response = Http::withToken($token)->timeout(20)->delete($url);
+
+        if ($response->successful() || in_array($response->status(), [404, 410], true)) {
+            return true;
+        }
+
+        $message = (string) (
+            $response->json('error.message')
+            ?? $response->body()
+        );
+        $this->lastError = 'Google Calendar could not delete the event: '.Str::limit(trim($message), 240);
+        Log::warning('Google Calendar deleteEvent failed', [
+            'status' => $response->status(),
+            'body' => $response->body(),
+            'event_id' => $eventId,
+            'integration_id' => $integration->id,
+        ]);
+
+        return false;
+    }
+
+    /**
      * Get busy periods from Google's freeBusy API.
      *
      * @return array<int, array{start: string, end: string}>|null

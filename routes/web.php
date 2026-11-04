@@ -417,6 +417,7 @@ Route::middleware(['tenancy.session', 'auth:web,team', '2fa', 'team.redirect-das
             Route::put('/calendly/update', [CalendlyController::class, 'update'])->name('calendly.update');
             Route::post('/calendly/test', [CalendlyController::class, 'test'])->name('calendly.test');
             Route::post('/calendly/sync', [CalendlyController::class, 'syncEvents'])->name('calendly.sync');
+            Route::delete('/calendly/events/{event}', [CalendlyController::class, 'destroyEvent'])->name('calendly.events.destroy');
             Route::post('/calendly/message-logs/{messageLog}/resend', [CalendlyController::class, 'resendMessageLog'])->name('calendly.message-logs.resend');
 
             // Google Calendar / Meet
@@ -429,6 +430,7 @@ Route::middleware(['tenancy.session', 'auth:web,team', '2fa', 'team.redirect-das
 
             Route::post('/google-calendar/test', [GoogleCalendarController::class, 'test'])->name('google-calendar.test');
             Route::post('/google-calendar/sync', [GoogleCalendarController::class, 'syncEvents'])->name('google-calendar.sync');
+            Route::delete('/google-calendar/events/{event}', [GoogleCalendarController::class, 'destroyEvent'])->name('google-calendar.events.destroy');
             Route::post('/google-calendar/message-logs/{messageLog}/resend', [GoogleCalendarController::class, 'resendMessageLog'])->name('google-calendar.message-logs.resend');
             Route::post('/google-calendar/create-meeting', [GoogleCalendarController::class, 'createMeeting'])->name('google-calendar.create-meeting');
             Route::put('/google-calendar/booking-availability', [GoogleCalendarController::class, 'updateBookingAvailability'])->name('google-calendar.booking-availability');

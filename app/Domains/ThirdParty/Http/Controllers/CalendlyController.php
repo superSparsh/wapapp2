@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domains\ThirdParty\Http\Controllers;
 
 use App\Domains\ThirdParty\Http\Requests\Calendly\UpdateCalendlyRequest;
+use App\Domains\ThirdParty\Models\CalendlyEvent;
 use App\Domains\ThirdParty\Models\CalendlyMessageLog;
 use App\Domains\ThirdParty\Models\CalendlyWebhookLog;
 use App\Domains\ThirdParty\Services\CalendlyService;
@@ -155,6 +156,23 @@ class CalendlyController extends Controller
                 'tab' => 'logs',
                 'log_type' => request('log_type'),
                 'logs_page' => request('logs_page'),
+            ])
+            ->with(
+                $result['ok'] ? 'success' : 'error',
+                $result['message'],
+            );
+    }
+
+    public function destroyEvent(CalendlyEvent $event): RedirectResponse
+    {
+        $userId = (int) auth()->id();
+        $result = $this->calendly->removeEvent($userId, $event);
+
+        return redirect()
+            ->route('integration.calendly', [
+                'tab' => 'events',
+                'status' => request('status'),
+                'page' => request('page'),
             ])
             ->with(
                 $result['ok'] ? 'success' : 'error',

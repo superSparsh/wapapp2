@@ -9,6 +9,7 @@ use App\Domains\ThirdParty\Enums\MessageLogStatus;
 use App\Domains\ThirdParty\Models\CalendlyEvent;
 use App\Domains\ThirdParty\Models\CalendlyIntegration;
 use App\Domains\ThirdParty\Models\CalendlyMessageLog;
+use App\Domains\Webhooks\Services\WhatsappLineRegistryService;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Http;
@@ -85,6 +86,16 @@ class CalendlyEventSyncService
      */
     private function processEvent(CalendlyIntegration $integration, array $event, string $token): void
     {
+        $eventUri = (string) ($event['uri'] ?? '');
+        if ($eventUri !== '' && app(CalendlyService::class)->isRemovedEventId($integration, $eventUri)) {
+            CalendlyEvent::withTrashed()
+                ->where('user_id', $integration->user_id)
+                ->where('event_id', $eventUri)
+                ->forceDelete();
+
+            return;
+        }
+
         $invitees = $this->fetchInvitees($event, $token);
         $invitee  = $invitees[0] ?? null;
 
@@ -252,6 +263,10 @@ class CalendlyEventSyncService
                 $this->writeMessageLog($event, 'customer', $digits, $eventName, $eventType, MessageLogStatus::Skipped, 'Phone number from form has fewer than 10 digits.');
             } else {
                 $result = $dispatcher->calendarWhatsApp($customerTemplateKey, $phone, $customerParams);
+                $messageId = is_string($result['message_id'] ?? null) ? trim((string) $result['message_id']) : '';
+                if ($result['ok'] && $messageId !== '') {
+                    $this->indexProviderMessageId($messageId);
+                }
                 $this->writeMessageLog(
                     $event,
                     'customer',
@@ -260,6 +275,7 @@ class CalendlyEventSyncService
                     $eventType,
                     $result['ok'] ? MessageLogStatus::Sent : MessageLogStatus::Failed,
                     $result['ok'] ? null : ($result['error'] ?: 'WhatsApp API did not return success.'),
+                    $result['ok'] && $messageId !== '' ? $messageId : null,
                 );
             }
         }
@@ -278,6 +294,10 @@ class CalendlyEventSyncService
 
         $adminParams = $this->templateParamsForEvent($event, $eventName, forAdmin: true);
         $result = $dispatcher->calendarWhatsApp($adminTemplateKey, $adminPhone, $adminParams);
+        $messageId = is_string($result['message_id'] ?? null) ? trim((string) $result['message_id']) : '';
+        if ($result['ok'] && $messageId !== '') {
+            $this->indexProviderMessageId($messageId);
+        }
         $this->writeMessageLog(
             $event,
             'admin',
@@ -286,7 +306,26 @@ class CalendlyEventSyncService
             $eventType,
             $result['ok'] ? MessageLogStatus::Sent : MessageLogStatus::Failed,
             $result['ok'] ? null : ($result['error'] ?: 'WhatsApp API did not return success.'),
+            $result['ok'] && $messageId !== '' ? $messageId : null,
         );
+    }
+
+    private function indexProviderMessageId(string $messageId): void
+    {
+        $messageId = trim($messageId);
+        $tenantId = (string) (tenant('id') ?? '');
+        if ($messageId === '' || $tenantId === '') {
+            return;
+        }
+
+        try {
+            app(WhatsappLineRegistryService::class)->indexMessage($tenantId, $messageId);
+        } catch (\Throwable $e) {
+            Log::warning('Failed to index Calendly WhatsApp message id', [
+                'message_id' => $messageId,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     private function formatEventTime(mixed $time, string $timezone): string
@@ -331,18 +370,20 @@ class CalendlyEventSyncService
         string $eventType,
         MessageLogStatus $status,
         ?string $errorMessage,
+        ?string $externalMessageId = null,
     ): void {
         CalendlyMessageLog::query()->create([
-            'user_id'          => $event->user_id,
-            'event_id'         => $event->id,
-            'recipient_type'   => $recipientType,
-            'recipient_number' => $recipientNumber,
-            'invitee_email'    => $event->invitee_email,
-            'event_name'       => $eventName,
-            'event_type'       => $eventType,
-            'status'           => $status,
-            'error_message'    => $errorMessage,
-            'sent_at'          => now(),
+            'user_id'             => $event->user_id,
+            'event_id'            => $event->id,
+            'recipient_type'      => $recipientType,
+            'recipient_number'    => $recipientNumber,
+            'invitee_email'       => $event->invitee_email,
+            'event_name'          => $eventName,
+            'event_type'          => $eventType,
+            'status'              => $status,
+            'external_message_id' => $externalMessageId,
+            'error_message'       => $errorMessage,
+            'sent_at'             => now(),
         ]);
     }
 

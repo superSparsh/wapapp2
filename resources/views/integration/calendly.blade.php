@@ -263,10 +263,25 @@
                   <span class="truncate text-xs text-text-muted">
                     {{ $event->whatsapp_number ?? $event->invitee_email ?? 'Contact details' }}
                   </span>
-                  <span class="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-green-600">
-                    View details
-                    <span aria-hidden="true">&rarr;</span>
-                  </span>
+                  <div class="flex shrink-0 items-center gap-2">
+                    <form method="POST" action="{{ route('integration.calendly.events.destroy', $event) }}"
+                      onclick="event.stopPropagation()"
+                      onsubmit="return confirm('Remove this event from WapApp and cancel it on Calendly?')">
+                      @csrf
+                      @method('DELETE')
+                      @if (request('status'))
+                        <input type="hidden" name="status" value="{{ request('status') }}">
+                      @endif
+                      <button type="submit"
+                        class="rounded border border-red-200 bg-red-50 px-2.5 py-1 text-[11px] font-semibold text-red-600 hover:bg-red-100">
+                        Remove
+                      </button>
+                    </form>
+                    <span class="inline-flex items-center gap-1 text-xs font-semibold text-green-600">
+                      View details
+                      <span aria-hidden="true">&rarr;</span>
+                    </span>
+                  </div>
                 </div>
               </article>
             @endforeach
@@ -396,6 +411,7 @@
         @php
           $logCollection = $messageLogs->getCollection();
           $pageSent = $logCollection->filter(fn ($l) => ($l->status?->value ?? $l->status) === 'sent')->count();
+          $pageDelivered = $logCollection->filter(fn ($l) => ($l->status?->value ?? $l->status) === 'delivered')->count();
           $pageFailed = $logCollection->filter(fn ($l) => ($l->status?->value ?? $l->status) === 'failed')->count();
           $pageSkipped = $logCollection->filter(fn ($l) => ($l->status?->value ?? $l->status) === 'skipped')->count();
         @endphp
@@ -408,7 +424,8 @@
           <div class="flex flex-wrap gap-2">
             @foreach ([
               'all' => ['label' => 'All', 'active' => 'border-green-500 bg-green-500 text-white'],
-              'sent' => ['label' => 'Sent', 'active' => 'border-green-500 bg-green-500 text-white'],
+              'sent' => ['label' => 'Sent', 'active' => 'border-blue-500 bg-blue-500 text-white'],
+              'delivered' => ['label' => 'Delivered', 'active' => 'border-green-500 bg-green-500 text-white'],
               'failed' => ['label' => 'Failed', 'active' => 'border-red-500 bg-red-500 text-white'],
               'skipped' => ['label' => 'Skipped', 'active' => 'border-yellow-500 bg-yellow-500 text-white'],
             ] as $t => $meta)
@@ -421,14 +438,18 @@
           </div>
         </div>
 
-        <div class="grid grid-cols-2 gap-3 md:grid-cols-5">
+        <div class="grid grid-cols-2 gap-3 md:grid-cols-6">
           <div class="rounded-xl border border-border bg-elevated p-3 text-center">
             <div class="text-xl font-bold text-text-primary">{{ $messageLogs->total() }}</div>
             <div class="text-xs text-text-muted">Total Messages</div>
           </div>
           <div class="rounded-xl border border-border bg-elevated p-3 text-center">
-            <div class="text-xl font-bold text-green-600">{{ $pageSent }}</div>
+            <div class="text-xl font-bold text-blue-600">{{ $pageSent }}</div>
             <div class="text-xs text-text-muted">Sent (this page)</div>
+          </div>
+          <div class="rounded-xl border border-border bg-elevated p-3 text-center">
+            <div class="text-xl font-bold text-green-600">{{ $pageDelivered }}</div>
+            <div class="text-xs text-text-muted">Delivered (this page)</div>
           </div>
           <div class="rounded-xl border border-border bg-elevated p-3 text-center">
             <div class="text-xl font-bold text-red-600">{{ $pageFailed }}</div>
@@ -469,8 +490,10 @@
                     <span @class(['rounded px-2 py-0.5 text-[10px] font-semibold capitalize', $typeClass])>
                       {{ $log->event_type ?? '-' }}
                     </span>
-                    @if ($logStatus === 'sent')
-                      <span class="rounded bg-green-100 px-2 py-0.5 text-[10px] font-semibold text-green-700">Sent</span>
+                    @if ($logStatus === 'delivered')
+                      <span class="rounded bg-green-100 px-2 py-0.5 text-[10px] font-semibold text-green-700">Delivered</span>
+                    @elseif ($logStatus === 'sent')
+                      <span class="rounded bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-700">Sent</span>
                     @elseif ($logStatus === 'skipped')
                       <span class="rounded bg-yellow-100 px-2 py-0.5 text-[10px] font-semibold text-yellow-800">Skipped</span>
                     @else

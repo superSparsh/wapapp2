@@ -8,6 +8,9 @@ use App\Domains\Audience\Services\NonWhatsAppNumberService;
 use App\Domains\Audience\Services\OptInMessageService;
 use App\Domains\Billing\Services\TemplateWalletChargeService;
 use App\Domains\FormBuilder\Services\FormSubmissionService;
+use App\Domains\ThirdParty\Enums\MessageLogStatus;
+use App\Domains\ThirdParty\Models\CalendlyMessageLog;
+use App\Domains\ThirdParty\Models\GoogleCalendarMessageLog;
 use App\Domains\Webhooks\Parsers\AlibabaWebhookParser;
 use App\Domains\Webhooks\Services\WebhookTenantResolver;
 use App\Domains\Webhooks\Services\WhatsappLineRegistryService;
@@ -21,6 +24,7 @@ use App\Models\InboundWebhookEvent;
 use App\Models\Message;
 use App\Models\MessageExternalIndex;
 use App\Support\PhoneNormalizer;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 
 class DeliveryStatusHandler
@@ -118,6 +122,7 @@ class DeliveryStatusHandler
                 $status,
                 $item,
             );
+            $this->syncCalendarMessageLogs($messageId, $status, $item, $now);
 
             // Form sync may have linked outbound_message_id - re-resolve for wallet charge.
             $message ??= $this->findOutboundMessage($messageId, $item);
@@ -656,5 +661,52 @@ class DeliveryStatusHandler
         }
 
         return 'Delivery failed';
+    }
+
+    /**
+     * Update Calendly / Google Calendar message logs from WhatsApp delivery webhooks.
+     *
+     * @param  array<string, mixed>  $item
+     */
+    private function syncCalendarMessageLogs(string $messageId, string $status, array $item, Carbon $now): void
+    {
+        $messageId = trim($messageId);
+        if ($messageId === '') {
+            return;
+        }
+
+        $mapped = match ($status) {
+            'Delivered', 'Read' => MessageLogStatus::Delivered,
+            'Failed' => MessageLogStatus::Failed,
+            'Sent' => MessageLogStatus::Sent,
+            default => null,
+        };
+
+        if ($mapped === null) {
+            return;
+        }
+
+        foreach ([CalendlyMessageLog::class, GoogleCalendarMessageLog::class] as $modelClass) {
+            $log = $modelClass::query()->where('external_message_id', $messageId)->first();
+            if ($log === null) {
+                continue;
+            }
+
+            // Never downgrade Delivered → Sent.
+            if ($log->status === MessageLogStatus::Delivered && $mapped === MessageLogStatus::Sent) {
+                continue;
+            }
+
+            $updates = ['status' => $mapped];
+            if ($mapped === MessageLogStatus::Delivered) {
+                $updates['delivered_at'] = $log->delivered_at ?? $now;
+                $updates['error_message'] = null;
+            }
+            if ($mapped === MessageLogStatus::Failed) {
+                $updates['error_message'] = $this->extractFailureReason($item);
+            }
+
+            $log->forceFill($updates)->save();
+        }
     }
 }

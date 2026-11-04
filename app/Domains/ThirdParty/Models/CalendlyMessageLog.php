@@ -24,15 +24,18 @@ class CalendlyMessageLog extends TenantModel
         'event_name',
         'event_type',
         'status',
+        'external_message_id',
         'error_message',
         'sent_at',
+        'delivered_at',
     ];
 
     protected function casts(): array
     {
         return [
-            'status'  => MessageLogStatus::class,
-            'sent_at' => 'datetime',
+            'status'       => MessageLogStatus::class,
+            'sent_at'      => 'datetime',
+            'delivered_at' => 'datetime',
         ];
     }
 

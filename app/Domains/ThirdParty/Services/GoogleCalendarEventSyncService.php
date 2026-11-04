@@ -68,6 +68,76 @@ class GoogleCalendarEventSyncService
     /**
      * @param array<string, mixed> $googleEvent
      */
+    /**
+     * Delete the event on Google Calendar and remove it from WapApp.
+     *
+     * @return array{ok: bool, message: string}
+     */
+    public function removeEvent(int $userId, GoogleCalendarEvent $event): array
+    {
+        if ((int) $event->user_id !== $userId) {
+            return ['ok' => false, 'message' => 'Event not found.'];
+        }
+
+        $integration = GoogleCalendarIntegration::query()->where('user_id', $userId)->first();
+        if ($integration === null || ! $integration->hasRefreshToken()) {
+            return ['ok' => false, 'message' => 'Connect Google Calendar first.'];
+        }
+
+        $platformEventId = trim((string) ($event->event_id ?? ''));
+        if ($platformEventId === '') {
+            return ['ok' => false, 'message' => 'Missing Google Calendar event id.'];
+        }
+
+        // Already canceled locally — still try platform delete, but don't block local cleanup.
+        $deleted = $this->api->deleteEvent(
+            $integration,
+            $platformEventId,
+            (string) ($event->calendar_id ?: $integration->calendarId()),
+        );
+
+        if (! $deleted && $event->status?->value !== 'canceled') {
+            return ['ok' => false, 'message' => $this->api->lastError() ?: 'Could not delete event from Google Calendar.'];
+        }
+
+        $this->rememberRemovedEventId($integration, $platformEventId);
+
+        GoogleCalendarMessageLog::query()
+            ->where('user_id', $userId)
+            ->where('event_id', $event->id)
+            ->forceDelete();
+
+        $event->forceDelete();
+
+        return ['ok' => true, 'message' => 'Event removed from WapApp and Google Calendar.'];
+    }
+
+    public function isRemovedEventId(GoogleCalendarIntegration $integration, string $eventId): bool
+    {
+        $removed = $integration->settings['removed_event_ids'] ?? [];
+
+        return is_array($removed) && in_array($eventId, $removed, true);
+    }
+
+    private function rememberRemovedEventId(GoogleCalendarIntegration $integration, string $eventId): void
+    {
+        $eventId = trim($eventId);
+        if ($eventId === '') {
+            return;
+        }
+
+        $settings = $integration->settings ?? [];
+        $existing = is_array($settings['removed_event_ids'] ?? null)
+            ? $settings['removed_event_ids']
+            : [];
+        $settings['removed_event_ids'] = array_values(array_slice(
+            array_unique([...$existing, $eventId]),
+            -500,
+        ));
+        $integration->settings = $settings;
+        $integration->save();
+    }
+
     private function processItem(
         GoogleCalendarIntegration $integration,
         array $googleEvent,
@@ -75,6 +145,16 @@ class GoogleCalendarEventSyncService
     ): void {
         $eventId = $googleEvent['id'] ?? null;
         if (! $eventId) {
+            return;
+        }
+
+        if ($this->isRemovedEventId($integration, (string) $eventId)) {
+            GoogleCalendarEvent::withTrashed()
+                ->where('user_id', $integration->user_id)
+                ->where('event_id', $eventId)
+                ->where('calendar_id', $calendarId)
+                ->forceDelete();
+
             return;
         }
 
@@ -217,6 +297,46 @@ class GoogleCalendarEventSyncService
         }
     }
 
+    /**
+     * Send created WhatsApp alerts immediately after a local booking / Create Meeting.
+     * Sync/webhooks also call the same path; notified_created prevents duplicates.
+     */
+    public function notifyForCreatedEvent(GoogleCalendarIntegration $integration, GoogleCalendarEvent $event): void
+    {
+        if (! (bool) ($integration->settings['enable_whatsapp'] ?? false)) {
+            Log::info('Google Calendar WhatsApp skipped: notifications disabled', [
+                'event_id' => $event->id,
+                'integration_id' => $integration->id,
+            ]);
+
+            return;
+        }
+
+        $event->refresh();
+        if ($event->notified_created) {
+            return;
+        }
+
+        $eventName = (string) ($event->summary ?? 'Meeting');
+
+        try {
+            $this->notifyAndLog(
+                $integration,
+                $event,
+                'created',
+                'operational-alerts.google_calendar.customer_created',
+                'operational-alerts.google_calendar.admin_created',
+                $eventName,
+            );
+            $event->update(['notified_created' => true]);
+        } catch (\Throwable $e) {
+            Log::warning('Google Calendar created-event WhatsApp failed', [
+                'event_id' => $event->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
     public function templateKeyFor(string $recipientType, string $eventType): ?string
     {
         $recipientType = strtolower(trim($recipientType));
@@ -278,8 +398,11 @@ class GoogleCalendarEventSyncService
 
         $result = app(AlertDispatcher::class)->calendarWhatsApp($templateKey, $phone, $params);
         if ($result['ok']) {
+            $messageId = is_string($result['message_id'] ?? null) ? trim((string) $result['message_id']) : '';
+            $this->indexProviderMessageId($messageId);
             $log->forceFill([
                 'status' => MessageLogStatus::Sent,
+                'external_message_id' => $messageId !== '' ? $messageId : $log->external_message_id,
                 'error_message' => null,
                 'sent_at' => now(),
             ])->save();
@@ -351,6 +474,10 @@ class GoogleCalendarEventSyncService
                 $this->writeMessageLog($event, 'customer', $digits, $eventName, $eventType, MessageLogStatus::Skipped, 'Phone number has fewer than 10 digits.');
             } else {
                 $result = $dispatcher->calendarWhatsApp($customerTemplateKey, $phone, $customerParams);
+                $messageId = is_string($result['message_id'] ?? null) ? trim((string) $result['message_id']) : '';
+                if ($result['ok'] && $messageId !== '') {
+                    $this->indexProviderMessageId($messageId);
+                }
                 $this->writeMessageLog(
                     $event,
                     'customer',
@@ -359,6 +486,7 @@ class GoogleCalendarEventSyncService
                     $eventType,
                     $result['ok'] ? MessageLogStatus::Sent : MessageLogStatus::Failed,
                     $result['ok'] ? null : ($result['error'] ?: 'WhatsApp API did not return success.'),
+                    $result['ok'] && $messageId !== '' ? $messageId : null,
                 );
             }
         }
@@ -377,6 +505,10 @@ class GoogleCalendarEventSyncService
 
         $adminParams = $this->templateParamsForEvent($event, $eventName, forAdmin: true);
         $result = $dispatcher->calendarWhatsApp($adminTemplateKey, $adminPhone, $adminParams);
+        $messageId = is_string($result['message_id'] ?? null) ? trim((string) $result['message_id']) : '';
+        if ($result['ok'] && $messageId !== '') {
+            $this->indexProviderMessageId($messageId);
+        }
         $this->writeMessageLog(
             $event,
             'admin',
@@ -385,7 +517,27 @@ class GoogleCalendarEventSyncService
             $eventType,
             $result['ok'] ? MessageLogStatus::Sent : MessageLogStatus::Failed,
             $result['ok'] ? null : ($result['error'] ?: 'WhatsApp API did not return success.'),
+            $result['ok'] && $messageId !== '' ? $messageId : null,
         );
+    }
+
+    private function indexProviderMessageId(string $messageId): void
+    {
+        $messageId = trim($messageId);
+        $tenantId = (string) (tenant('id') ?? '');
+        if ($messageId === '' || $tenantId === '') {
+            return;
+        }
+
+        try {
+            app(\App\Domains\Webhooks\Services\WhatsappLineRegistryService::class)
+                ->indexMessage($tenantId, $messageId);
+        } catch (\Throwable $e) {
+            Log::warning('Failed to index Google Calendar WhatsApp message id', [
+                'message_id' => $messageId,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     private function formatEventTime(mixed $time, string $timezone): string
@@ -448,18 +600,20 @@ class GoogleCalendarEventSyncService
         string $eventType,
         MessageLogStatus $status,
         ?string $errorMessage,
+        ?string $externalMessageId = null,
     ): void {
         GoogleCalendarMessageLog::query()->create([
-            'user_id'          => $event->user_id,
-            'event_id'         => $event->id,
-            'recipient_type'   => $recipientType,
-            'recipient_number' => $recipientNumber,
-            'invitee_email'    => $event->invitee_email,
-            'event_name'       => $eventName,
-            'event_type'       => $eventType,
-            'status'           => $status,
-            'error_message'    => $errorMessage,
-            'sent_at'          => now(),
+            'user_id'              => $event->user_id,
+            'event_id'             => $event->id,
+            'recipient_type'       => $recipientType,
+            'recipient_number'     => $recipientNumber,
+            'invitee_email'        => $event->invitee_email,
+            'event_name'           => $eventName,
+            'event_type'           => $eventType,
+            'status'               => $status,
+            'external_message_id'  => $externalMessageId,
+            'error_message'        => $errorMessage,
+            'sent_at'              => now(),
         ]);
     }
 }
