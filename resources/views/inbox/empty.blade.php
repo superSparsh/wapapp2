@@ -28,6 +28,7 @@
         'activeLine' => $activeLine ?? null,
         'aiForAll' => $aiForAll ?? false,
         'showAddContact' => true,
+        'unreadTotal' => $unreadTotal ?? 0,
       ])
     </div>
 

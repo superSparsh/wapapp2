@@ -232,6 +232,10 @@ class InboxHttpTest extends TestCase
 
         $this->assertMatchesRegularExpression('/data-inbox-nav-badge[^>]*>\s*1\s*</', $html);
         $this->assertStringContainsString('Hello badge', $html);
+        $this->assertStringContainsString('data-inbox-unread-filter', $html);
+        $this->assertStringContainsString('data-inbox-unread-count', $html);
+        $this->assertStringContainsString('Unread in', $html);
+        $this->assertStringNotContainsString('Unread Only', $html);
     }
 
     public function test_inbox_sidebar_badge_shows_on_other_pages(): void

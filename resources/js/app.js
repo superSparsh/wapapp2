@@ -1156,6 +1156,11 @@ function setInboxNavBadge(count) {
         el.classList.toggle('hidden', label === '');
     });
 
+    document.querySelectorAll('[data-inbox-unread-count]').forEach((el) => {
+        el.textContent = label || '0';
+        el.classList.toggle('hidden', next <= 0);
+    });
+
     const root = inboxRoot();
     if (root) {
         root.dataset.unreadTotal = String(Math.max(0, next));
