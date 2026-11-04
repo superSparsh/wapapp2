@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Admin\Http\Controllers;
 
+use App\Domains\Admin\Services\BusinessRegistrationLookupService;
 use App\Domains\Admin\Services\CustomerReadinessService;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
@@ -20,6 +21,7 @@ class CustomerReadinessController extends Controller
 {
     public function __construct(
         private readonly CustomerReadinessService $readiness,
+        private readonly BusinessRegistrationLookupService $registrationLookup,
     ) {}
 
     public function create(): View
@@ -68,10 +70,13 @@ class CustomerReadinessController extends Controller
     public function validateFacebookPage(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'page_name' => ['required', 'string', 'min:2', 'max:255'],
+            'page_name' => ['required', 'string', 'min:2', 'max:512'],
         ]);
 
-        $result = $this->readiness->validateFacebookPage((string) $validated['page_name']);
+        $result = $this->readiness->validateFacebookPage(
+            (string) $validated['page_name'],
+            strict: true,
+        );
 
         return response()->json($result, ($result['valid'] ?? false) ? 200 : 422);
     }
@@ -83,6 +88,21 @@ class CustomerReadinessController extends Controller
         ]);
 
         $result = $this->readiness->validateBusinessEmail((string) $validated['business_email']);
+
+        return response()->json($result, ($result['valid'] ?? false) ? 200 : 422);
+    }
+
+    public function lookupRegistration(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'registration_number' => ['required', 'string', 'min:8', 'max:40'],
+            'doc_type' => ['nullable', 'string', 'max:64'],
+        ]);
+
+        $result = $this->registrationLookup->lookup(
+            (string) $validated['registration_number'],
+            isset($validated['doc_type']) ? (string) $validated['doc_type'] : null,
+        );
 
         return response()->json($result, ($result['valid'] ?? false) ? 200 : 422);
     }

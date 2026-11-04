@@ -794,19 +794,19 @@
   <div class="steps-nav">
     <button class="step-btn active" onclick="goTo(0)">
       <div class="step-num">1</div>
-      <span>Your Details</span>
+      <span>Your Business</span>
     </button>
     <button class="step-btn" onclick="goTo(1)">
       <div class="step-num">2</div>
-      <span>Business Docs</span>
+      <span>Meta Access</span>
     </button>
     <button class="step-btn" onclick="goTo(2)">
       <div class="step-num">3</div>
-      <span>Meta Access</span>
+      <span>Your Number</span>
     </button>
     <button class="step-btn" onclick="goTo(3)">
       <div class="step-num">4</div>
-      <span>Your Number</span>
+      <span>Other Info</span>
     </button>
     <button class="step-btn" onclick="goTo(4)">
       <div class="step-num">5</div>
@@ -814,35 +814,55 @@
     </button>
   </div>
 
-  <!-- ────────────────────────── SECTION 1: Customer Details ──────────────────────────── -->
+  <!-- ────────────────────────── SECTION 1: Business Details ──────────────────────────── -->
   <div class="section-card active" id="sec-0">
     <div class="section-header">
-      <div class="section-icon">👤</div>
+      <div class="section-icon">🏢</div>
       <div>
-        <h2>Tell us about yourself</h2>
-        <p>A few quick details so we know who we're speaking with.</p>
+        <h2>Your business basics</h2>
+        <p>We verify your registration and Facebook Page first — if anything blocks onboarding, you’ll see it here.</p>
       </div>
     </div>
     <div class="section-body">
 
-      <div class="field-row">
-        <div class="field">
-          <label>Customer name <span class="req">*</span></label>
-          <input type="text" id="f-name" placeholder="Your full name" oninput="validateField('f-name')" onblur="validateField('f-name')"/>
-          <div class="field-error" id="e-name">⚠ Please enter your full name (at least 3 characters).</div>
-        </div>
-        <div class="field">
-          <label>Customer email <span class="req">*</span></label>
-          <input type="email" id="f-email" placeholder="you@company.com" oninput="validateField('f-email')" onblur="validateField('f-email')"/>
-          <div class="field-error" id="e-email">⚠ Enter a valid email address.</div>
+      <div id="step1-onboard-blockers" class="callout block" style="display:none; margin-bottom:14px;">
+        <span class="callout-icon">🚫</span>
+        <div>
+          <div style="font-weight:700; margin-bottom:4px;">We can’t onboard you yet</div>
+          <ul id="step1-onboard-blocker-list" style="margin:0 0 0 18px; padding:0;"></ul>
         </div>
       </div>
 
       <div class="field-row">
         <div class="field">
-          <label>Business name <span class="req">*</span></label>
-          <input type="text" id="f-bname" placeholder="e.g. Tekkonnect Pvt Ltd" oninput="validateField('f-bname')" onblur="validateField('f-bname')"/>
-          <div class="field-error" id="e-bname">⚠ Enter your registered business name.</div>
+          <label>Registration type <span class="req">*</span></label>
+          <select id="f-regdoc" onchange="onRegTypeChange()">
+            <option value="">Select GST or MSME</option>
+            <option value="gst">GST certificate</option>
+            <option value="udyam">Udyam MSME certificate</option>
+          </select>
+          <div class="field-error" id="e-regdoc">⚠ Please select GST or Udyam MSME.</div>
+        </div>
+        <div class="field">
+          <label>GST No. / MSME No. <span class="req">*</span></label>
+          <input type="text" id="f-regnum" placeholder="e.g. 29ABCDE1234F1Z5 or UDYAM-KR-03-1234567"
+                 autocomplete="off" oninput="onRegNumberInput()" onblur="lookupRegistrationRealtime()"/>
+          <div class="field-hint" id="regnum-live-status">🔎 Enter your number — we’ll fetch the registered business name automatically.</div>
+          <div class="field-error" id="e-regnum">⚠ Enter a valid GSTIN or Udyam number.</div>
+          <div class="field-block-msg" id="b-regnum" style="display:none">
+            <span>🚫</span>
+            <span id="b-regnum-text"><strong>We can’t onboard you with this registration number.</strong></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label>Business name <span class="req">*</span> <span class="badge">Auto-filled · read-only</span></label>
+          <input type="text" id="f-bname" placeholder="Fetched from GST / MSME records" readonly
+                 style="background:#f3f6f4; cursor:not-allowed;" oninput="validateField('f-bname')"/>
+          <div class="field-hint">This comes from official registration records and can’t be edited here.</div>
+          <div class="field-error" id="e-bname">⚠ Business name could not be fetched. Fix your GST / MSME number first.</div>
         </div>
         <div class="field">
           <label>Business email <span class="req">*</span> <span class="badge">Official domain required</span></label>
@@ -865,6 +885,24 @@
         </div>
       </div>
 
+      <div class="field" id="fbpageurl-field">
+        <label for="f-fbpageurl">
+          Facebook Page URL <span class="req">*</span>
+          <button type="button" class="btn-ghost" style="margin-left:4px; padding-left:0;border:0"
+                  onclick="openFacebookPageHelp()">ⓘ How to find this (easy steps)</button>
+        </label>
+        <input type="url" id="f-fbpageurl"
+               placeholder="https://www.facebook.com/YourPageName"
+               oninput="onFacebookPageUrlInput()" onblur="validateFacebookPageUrlRealtime()"/>
+        <div class="field-hint">Paste the public URL of your Facebook Page. We’ll verify it automatically.</div>
+        <div class="field-hint" id="fbpageurl-live-status"></div>
+        <div class="field-error" id="e-fbpageurl">⚠ Enter a valid public Facebook Page URL.</div>
+        <div class="field-block-msg" id="b-fbpageurl" style="display:none">
+          <span>🚫</span>
+          <span id="b-fbpageurl-text"><strong>We can’t onboard you without a verifiable Facebook Page.</strong> Create or open your page, make sure it’s public, then paste the correct URL.</span>
+        </div>
+      </div>
+
     </div>
     <div class="nav-row">
       <span></span>
@@ -872,57 +910,8 @@
     </div>
   </div>
 
-  <!-- ────────────────────────── SECTION 2: Business Identity ──────────────────────────── -->
+  <!-- ────────────────────────── SECTION 2: Meta & Facebook ──────────────────────────── -->
   <div class="section-card" id="sec-1">
-    <div class="section-header">
-      <div class="section-icon">📄</div>
-      <div>
-        <h2>Your business documents</h2>
-        <p>Meta verifies every business before activating the WhatsApp. Let's confirm your documents are ready.</p>
-      </div>
-    </div>
-    <div class="section-body">
-
-      <div class="callout info">
-        <span class="callout-icon">ℹ️</span>
-        <span>Meta's Business Verification requires you to upload official documents. Having these ready speeds up the process significantly. Verification can take 3–7 business days.</span>
-      </div>
-
-      <div class="">
-        <div class="field">
-          <label>Registration document <span class="req">*</span></label>
-          <select id="f-regdoc" onchange="validateField('f-regdoc')">
-            <option value="">Select document type</option>
-            <option value="gst">GST certificate</option>
-            <option value="udyam">Udyam MSME certificate</option>
-          </select>
-          <div class="field-error" id="e-regdoc">⚠ Please select a document type.</div>
-        </div>
-
-        {{-- Upload registration PDF - removed per request (no file upload on this form).
-        <div class="field">
-          <label>Upload registration PDF <span class="req">*</span></label>
-          <input type="file" id="f-regdoc-file" accept="application/pdf,.pdf" onchange="validateField('f-regdoc-file')">
-          <div class="field-hint">📎 Upload the PDF of your GST or Udyam certificate. Only PDF files are accepted here.</div>
-          <div class="field-error" id="e-regdoc-file">⚠ Please upload a valid PDF file (max 1 file).</div>
-        </div>
-        --}}
-      </div>
-
-      {{-- <div class="callout info">
-        <span class="callout-icon">📋</span>
-        <span><strong>Document checklist for Meta verification:</strong> Ensure the PDF clearly shows your business name and registration number, and that it matches the name on your Meta Business Manager.</span>
-      </div> --}}
-
-    </div>
-    <div class="nav-row">
-      <button class="btn btn-secondary" onclick="prevSection(1)">← Back</button>
-      <button class="btn btn-primary" onclick="nextSection(1)">Continue →</button>
-    </div>
-  </div>
-
-  <!-- ────────────────────────── SECTION 3: Meta & Facebook ──────────────────────────── -->
-  <div class="section-card" id="sec-2">
     <div class="section-header">
       <div class="section-icon">🔷</div>
       <div>
@@ -1015,13 +1004,13 @@
 
     </div>
     <div class="nav-row">
-      <button class="btn btn-secondary" onclick="prevSection(2)">← Back</button>
-      <button class="btn btn-primary" onclick="nextSection(2)">Continue →</button>
+      <button class="btn btn-secondary" onclick="prevSection(1)">← Back</button>
+      <button class="btn btn-primary" onclick="nextSection(1)">Continue →</button>
     </div>
   </div>
 
-  <!-- ────────────────────────── SECTION 4: WhatsApp Number ──────────────────────────── -->
-  <div class="section-card" id="sec-3">
+  <!-- ────────────────────────── SECTION 3: WhatsApp Number ──────────────────────────── -->
+  <div class="section-card" id="sec-2">
     <div class="section-header">
       <div class="section-icon">📱</div>
       <div>
@@ -1109,6 +1098,44 @@
           <a href="https://www.facebook.com/business/help/757569725593362" target="_blank" rel="noopener noreferrer">See full Meta rules</a>.
         </div>
         <div class="field-error" id="e-wadisplayname">⚠ Enter the display name you want to use on WhatsApp.</div>
+      </div>
+
+    </div>
+    <div class="nav-row">
+      <button class="btn btn-secondary" onclick="prevSection(2)">← Back</button>
+      <button class="btn btn-primary" onclick="nextSection(2)">Continue →</button>
+    </div>
+  </div>
+
+  <!-- ────────────────────────── SECTION 4: Other Info ──────────────────────────── -->
+  <div class="section-card" id="sec-3">
+    <div class="section-header">
+      <div class="section-icon">👤</div>
+      <div>
+        <h2>Other info</h2>
+        <p>A few personal details so we know who to reach for the demo and follow-ups.</p>
+      </div>
+    </div>
+    <div class="section-body">
+
+      <div class="field-row">
+        <div class="field">
+          <label>Customer name <span class="req">*</span></label>
+          <input type="text" id="f-name" placeholder="Your full name" oninput="validateField('f-name')" onblur="validateField('f-name')"/>
+          <div class="field-error" id="e-name">⚠ Please enter your full name (at least 3 characters).</div>
+        </div>
+        <div class="field">
+          <label>Customer email <span class="req">*</span></label>
+          <input type="email" id="f-email" placeholder="you@company.com" oninput="validateField('f-email')" onblur="validateField('f-email')"/>
+          <div class="field-error" id="e-email">⚠ Enter a valid email address.</div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Your personal number <span class="req">*</span></label>
+        <input type="tel" id="f-personal" placeholder="+91 98765 43210" oninput="validateField('f-personal')" onblur="validateField('f-personal')"/>
+        <div class="field-hint">We’ll use this if we need to reach you quickly about onboarding.</div>
+        <div class="field-error" id="e-personal">⚠ Enter a valid personal phone number with country code.</div>
       </div>
 
     </div>
@@ -1367,6 +1394,29 @@
   </div>
 </div>
 
+<!-- Facebook Page URL help modal -->
+<div class="modal-backdrop" id="facebookPageHelpModal" role="dialog" aria-modal="true" style="display:none;" onclick="if(event.target===this) closeFacebookPageHelp()">
+  <div class="modal">
+    <h3>Find your Facebook Page URL — easy steps</h3>
+    <p style="font-size:0.86rem; color:var(--text-muted); margin:8px 0 12px;">
+      You only need the public link people use to open your Page. Takes about a minute.
+    </p>
+    <ol style="margin:0 0 12px 18px; padding:0; font-size:0.84rem; color:var(--text); line-height:1.7;">
+      <li>Open Facebook on your phone or computer and go to <strong>your Page</strong> (not your personal profile).</li>
+      <li>On mobile: tap the <strong>⋯</strong> or share icon → <strong>Copy link</strong>.<br/>On desktop: look at the browser address bar while you’re on the Page.</li>
+      <li>You should get something like <code>https://www.facebook.com/YourPageName</code> or <code>https://www.facebook.com/profile.php?id=...</code>.</li>
+      <li>Paste that full link into the form. We’ll check it’s reachable automatically.</li>
+    </ol>
+    <div class="callout info" style="margin:0 0 12px;">
+      <span class="callout-icon">💡</span>
+      <span>Tip: The Page should be <strong>published / public</strong>. If the link opens a login wall or “content isn’t available”, Meta (and we) can’t verify it for WhatsApp onboarding.</span>
+    </div>
+    <div class="submit-row">
+      <button class="btn btn-primary" type="button" onclick="closeFacebookPageHelp()">Got it</button>
+    </div>
+  </div>
+</div>
+
 <!-- Business portfolio URL help modal -->
 <div class="modal-backdrop" id="businessPortfolioModal" role="dialog" aria-modal="true" style="display:none;" onclick="if(event.target===this) closeBusinessPortfolioInfo()">
   <div class="modal">
@@ -1415,13 +1465,15 @@ const totalSections = 5;
 const FREE_EMAIL_DOMAINS = ['gmail.com','yahoo.com','yahoo.in','hotmail.com','outlook.com','live.com','aol.com','icloud.com','rediffmail.com','zoho.com','yopmail.com','mailinator.com','temp-mail.org','guerrillamail.com'];
 
 // ── Navigation ──────────────────────────────────
-function goTo(idx, options = {}) {
+async function goTo(idx, options = {}) {
   const skipValidation = !!options.skipValidation;
   if (!skipValidation && idx > currentSection) {
     for (let s = 0; s < idx; s++) {
-      if (!validateSection(s)) {
-        if (currentSection !== s) goTo(s, { skipValidation: true });
-        showToast('⚠ Please fix the highlighted issues before continuing.');
+      if (!(await validateSectionAsync(s))) {
+        if (currentSection !== s) await goTo(s, { skipValidation: true });
+        showToast(s === 0
+          ? '⚠ We can’t continue — fix the issues shown in step 1.'
+          : '⚠ Please fix the highlighted issues before continuing.');
         return;
       }
       markStepDone(s);
@@ -1445,9 +1497,12 @@ function goTo(idx, options = {}) {
   window.scrollTo({ top: 120, behavior: 'smooth' });
 }
 
-function nextSection(idx) {
-  if (!validateSection(idx)) {
-    showToast('⚠ Please fix the highlighted issues before continuing.');
+async function nextSection(idx) {
+  const ok = await validateSectionAsync(idx);
+  if (!ok) {
+    showToast(idx === 0
+      ? '⚠ We can’t continue — fix the issues shown above (we’ll explain why onboarding is blocked).'
+      : '⚠ Please fix the highlighted issues before continuing.');
     return;
   }
   markStepDone(idx);
@@ -1504,12 +1559,21 @@ function isHttpsUrl(v) {
 
 let websiteReachable = null; // null=unknown, true=ok, false=failed
 let websiteChecking = false;
-let fbPageCheckState = null; // null=unknown, true=ok, false=failed
+let fbPageCheckState = null; // null=unknown, true=ok, false=failed — Meta portfolio URL
 let fbPageCheckMsg = '';
 let fbPageDebounceTimer = null;
+let fbPageUrlCheckState = null; // Facebook Page URL (step 1)
+let fbPageUrlCheckMsg = '';
+let fbPageUrlDebounceTimer = null;
+let regLookupState = null; // null=unknown, true=ok, false=failed
+let regLookupMsg = '';
+let regLookupDebounceTimer = null;
 let businessEmailCheckState = null; // null=unknown, true=ok, false=failed
 let businessEmailCheckMsg = '';
 let businessEmailDebounceTimer = null;
+
+const GSTIN_REGEX = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+const UDYAM_REGEX = /^UDYAM-[A-Z]{2}-[0-9]{2}-[0-9]{7}$/;
 
 function extractBusinessIdFromPortfolioUrl(url) {
   try {
@@ -1550,6 +1614,26 @@ function setFbPageStatus(kind, msg) {
   else el.style.color = '#6b7a71';
 }
 
+function setFbPageUrlStatus(kind, msg) {
+  const el = get('fbpageurl-live-status');
+  if (!el) return;
+  el.textContent = msg;
+  if (kind === 'ok') el.style.color = '#0e5c30';
+  else if (kind === 'err') el.style.color = '#7a1a10';
+  else if (kind === 'pending') el.style.color = '#7a4800';
+  else el.style.color = '#6b7a71';
+}
+
+function setRegnumStatus(kind, msg) {
+  const el = get('regnum-live-status');
+  if (!el) return;
+  el.textContent = msg;
+  if (kind === 'ok') el.style.color = '#0e5c30';
+  else if (kind === 'err') el.style.color = '#7a1a10';
+  else if (kind === 'pending') el.style.color = '#7a4800';
+  else el.style.color = '#6b7a71';
+}
+
 function setBusinessEmailStatus(kind, msg) {
   const el = get('business-email-live-status');
   if (!el) return;
@@ -1558,6 +1642,32 @@ function setBusinessEmailStatus(kind, msg) {
   else if (kind === 'err') el.style.color = '#7a1a10';
   else if (kind === 'pending') el.style.color = '#7a4800';
   else el.style.color = '#6b7a71';
+}
+
+function refreshStep1OnboardBlockers() {
+  const box = get('step1-onboard-blockers');
+  const list = get('step1-onboard-blocker-list');
+  if (!box || !list) return;
+
+  const blockers = [];
+  if (regLookupState === false && regLookupMsg) {
+    blockers.push(regLookupMsg);
+  }
+  if (get('f-website')?.value?.trim().startsWith('http://')) {
+    blockers.push('HTTP websites are not accepted. Enable HTTPS (SSL) before we can onboard you.');
+  }
+  if (websiteReachable === false) {
+    blockers.push('Your website appears unreachable. Meta needs a live HTTPS site for Business Verification.');
+  }
+  if (businessEmailCheckState === false && businessEmailCheckMsg) {
+    blockers.push(businessEmailCheckMsg);
+  }
+  if (fbPageUrlCheckState === false && fbPageUrlCheckMsg) {
+    blockers.push(fbPageUrlCheckMsg);
+  }
+
+  list.innerHTML = blockers.map(b => `<li style="margin:2px 0;">${b}</li>`).join('');
+  box.style.display = blockers.length ? 'flex' : 'none';
 }
 
 async function probeWebsite(url) {
@@ -1605,6 +1715,184 @@ async function validateFacebookPageRealtime(pageName) {
   fbPageCheckMsg = 'Paste the full browser URL from Business info. It must contain business_id in the query string.';
   setFbPageStatus('err', '❌ ' + fbPageCheckMsg);
   return false;
+}
+
+function onRegTypeChange() {
+  regLookupState = null;
+  regLookupMsg = '';
+  if (get('f-bname')) get('f-bname').value = '';
+  validateField('f-regdoc');
+  const num = (get('f-regnum')?.value || '').trim();
+  if (num) lookupRegistrationRealtime();
+  refreshStep1OnboardBlockers();
+}
+
+function onRegNumberInput() {
+  clearTimeout(regLookupDebounceTimer);
+  regLookupState = null;
+  if (get('f-bname')) get('f-bname').value = '';
+  setRegnumStatus('idle', '🔎 Enter your number — we’ll fetch the registered business name automatically.');
+  regLookupDebounceTimer = setTimeout(() => lookupRegistrationRealtime(), 650);
+  refreshStep1OnboardBlockers();
+}
+
+function isRegNumberFormatOk(raw, docType) {
+  const v = (raw || '').toUpperCase().replace(/\s+/g, '');
+  if (docType === 'udyam') return UDYAM_REGEX.test(v);
+  if (docType === 'gst') return GSTIN_REGEX.test(v);
+  return GSTIN_REGEX.test(v) || UDYAM_REGEX.test(v);
+}
+
+async function lookupRegistrationRealtime() {
+  const docType = get('f-regdoc')?.value || '';
+  const raw = (get('f-regnum')?.value || '').trim();
+  const normalized = raw.toUpperCase().replace(/\s+/g, '');
+
+  if (!docType) {
+    regLookupState = false;
+    regLookupMsg = 'Select GST or Udyam MSME first, then enter the registration number.';
+    setRegnumStatus('err', '🔎 ' + regLookupMsg);
+    refreshStep1OnboardBlockers();
+    return false;
+  }
+  if (!normalized) {
+    regLookupState = null;
+    regLookupMsg = '';
+    if (get('f-bname')) get('f-bname').value = '';
+    setRegnumStatus('idle', '🔎 Enter your number — we’ll fetch the registered business name automatically.');
+    refreshStep1OnboardBlockers();
+    return false;
+  }
+  if (!isRegNumberFormatOk(normalized, docType)) {
+    regLookupState = false;
+    regLookupMsg = docType === 'udyam'
+      ? 'That Udyam format looks wrong. Use UDYAM-XX-00-0000000. We can’t onboard you until this is fixed.'
+      : 'That GSTIN format looks wrong (must be 15 characters). We can’t onboard you until this is fixed.';
+    if (get('f-bname')) get('f-bname').value = '';
+    setRegnumStatus('err', '❌ ' + regLookupMsg);
+    const blockText = get('b-regnum-text');
+    if (blockText) blockText.innerHTML = '<strong>We can’t onboard you with this registration number.</strong> ' + regLookupMsg;
+    showBlock('f-regnum');
+    refreshStep1OnboardBlockers();
+    return false;
+  }
+
+  if (get('f-regnum')) get('f-regnum').value = normalized;
+
+  try {
+    setRegnumStatus('pending', '🔎 Looking up business name from registration records…');
+    const resp = await fetch(@json(route('customer.readiness.lookup.registration')), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-TOKEN': @json(csrf_token()),
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify({
+        registration_number: normalized,
+        doc_type: docType === 'udyam' ? 'Udyam MSME certificate' : 'GST certificate',
+      }),
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (resp.ok && data?.valid && data?.business_name) {
+      regLookupState = true;
+      regLookupMsg = data.message || 'Business name fetched.';
+      if (get('f-bname')) get('f-bname').value = data.business_name;
+      setRegnumStatus('ok', '✅ ' + regLookupMsg + ' Business: ' + data.business_name);
+      showValid('f-regnum');
+      showValid('f-bname');
+      refreshStep1OnboardBlockers();
+      return true;
+    }
+
+    regLookupState = false;
+    regLookupMsg = data?.message || 'We could not verify this registration number.';
+    if (get('f-bname')) get('f-bname').value = '';
+    setRegnumStatus('err', '❌ ' + regLookupMsg);
+    const blockText = get('b-regnum-text');
+    if (blockText) {
+      blockText.innerHTML = '<strong>We can’t onboard you with this registration number.</strong> ' + regLookupMsg;
+    }
+    showBlock('f-regnum');
+    refreshStep1OnboardBlockers();
+    return false;
+  } catch (e) {
+    regLookupState = false;
+    regLookupMsg = 'Registration lookup is temporarily unavailable. Please try again.';
+    setRegnumStatus('err', '❌ ' + regLookupMsg);
+    showBlock('f-regnum');
+    refreshStep1OnboardBlockers();
+    return false;
+  }
+}
+
+function onFacebookPageUrlInput() {
+  clearTimeout(fbPageUrlDebounceTimer);
+  fbPageUrlCheckState = null;
+  setFbPageUrlStatus('idle', '');
+  fbPageUrlDebounceTimer = setTimeout(() => validateFacebookPageUrlRealtime(), 550);
+  refreshStep1OnboardBlockers();
+}
+
+async function validateFacebookPageUrlRealtime() {
+  const raw = (get('f-fbpageurl')?.value || '').trim();
+  if (!raw) {
+    fbPageUrlCheckState = null;
+    fbPageUrlCheckMsg = '';
+    setFbPageUrlStatus('idle', '');
+    refreshStep1OnboardBlockers();
+    return false;
+  }
+
+  if (!/^https:\/\/(www\.)?facebook\.com\//i.test(raw)) {
+    fbPageUrlCheckState = false;
+    fbPageUrlCheckMsg = 'Use a full Facebook Page URL starting with https://www.facebook.com/… We can’t onboard you without a valid page link.';
+    setFbPageUrlStatus('err', '❌ ' + fbPageUrlCheckMsg);
+    showBlock('f-fbpageurl');
+    refreshStep1OnboardBlockers();
+    return false;
+  }
+
+  try {
+    setFbPageUrlStatus('pending', '🔎 Verifying Facebook Page…');
+    const resp = await fetch(@json(route('customer.readiness.validate.facebook-page')), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-TOKEN': @json(csrf_token()),
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify({ page_name: raw }),
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (resp.ok && data?.valid) {
+      fbPageUrlCheckState = true;
+      fbPageUrlCheckMsg = data.message || 'Facebook Page looks reachable.';
+      if (data.checked_url && get('f-fbpageurl')) get('f-fbpageurl').value = data.checked_url;
+      setFbPageUrlStatus('ok', '✅ ' + fbPageUrlCheckMsg);
+      showValid('f-fbpageurl');
+      refreshStep1OnboardBlockers();
+      return true;
+    }
+
+    fbPageUrlCheckState = false;
+    fbPageUrlCheckMsg = data?.message || 'We could not verify this Facebook Page URL.';
+    setFbPageUrlStatus('err', '❌ ' + fbPageUrlCheckMsg);
+    const blockText = get('b-fbpageurl-text');
+    if (blockText) {
+      blockText.innerHTML = '<strong>We can’t onboard you without a verifiable Facebook Page.</strong> ' + fbPageUrlCheckMsg;
+    }
+    showBlock('f-fbpageurl');
+    refreshStep1OnboardBlockers();
+    return false;
+  } catch (e) {
+    fbPageUrlCheckState = false;
+    fbPageUrlCheckMsg = 'Facebook Page verification is temporarily unavailable. Please retry.';
+    setFbPageUrlStatus('err', '❌ ' + fbPageUrlCheckMsg);
+    showBlock('f-fbpageurl');
+    refreshStep1OnboardBlockers();
+    return false;
+  }
 }
 
 async function validateBusinessEmailRealtime(email) {
@@ -1676,8 +1964,12 @@ function validateField(id) {
       if (!v || !isValidEmail(v)) { showError(id); return false; }
       showValid(id); return true;
 
+    case 'f-personal':
+      if (!v || !isValidPhone(v)) { showError(id); return false; }
+      showValid(id); return true;
+
     case 'f-bname':
-      if (!v || v.length < 2) { showError(id); return false; }
+      if (!v || v.length < 2 || regLookupState !== true) { showError(id); return false; }
       showValid(id); return true;
 
     case 'f-bemail':
@@ -1686,20 +1978,28 @@ function validateField(id) {
         businessEmailCheckMsg = '';
         setBusinessEmailStatus('idle', '📧 Business email status: not checked yet.');
         setFieldState(id, 'invalid', []);
+        refreshStep1OnboardBlockers();
         return false;
       }
       if (!isValidEmail(v)) {
+        businessEmailCheckState = false;
+        businessEmailCheckMsg = 'Enter a valid business email format.';
         setBusinessEmailStatus('err', '📧 Enter a valid email format.');
         setFieldState(id, 'invalid', []);
+        refreshStep1OnboardBlockers();
         return false;
       }
       if (isFreeEmail(v)) {
+        businessEmailCheckState = false;
+        businessEmailCheckMsg = 'Free email domains are not allowed. Use your company domain — we can’t onboard you with Gmail/Yahoo/Outlook.';
         setBusinessEmailStatus('err', '📧 Free email domains are not allowed. Use your company domain.');
         setFieldState(id, 'invalid', []);
+        refreshStep1OnboardBlockers();
         return false;
       }
       if (businessEmailCheckState === false) {
         setFieldState(id, 'invalid', []);
+        refreshStep1OnboardBlockers();
         return false;
       }
       if (businessEmailCheckState !== true) {
@@ -1709,18 +2009,42 @@ function validateField(id) {
         return false;
       }
       showValid(id);
+      refreshStep1OnboardBlockers();
       return true;
 
     case 'f-website':
-      if (!v) { showError(id); return false; }
-      if (v.startsWith('http://')) { showBlock(id); return false; }
-      if (!v.startsWith('https://') || !v.includes('.')) { showError(id); return false; }
-      if (websiteReachable === false) { showError(id); return false; }
-      showValid(id); return true;
+      if (!v) { showError(id); refreshStep1OnboardBlockers(); return false; }
+      if (v.startsWith('http://')) { showBlock(id); refreshStep1OnboardBlockers(); return false; }
+      if (!v.startsWith('https://') || !v.includes('.')) { showError(id); refreshStep1OnboardBlockers(); return false; }
+      if (websiteReachable === false) { showError(id); refreshStep1OnboardBlockers(); return false; }
+      showValid(id); refreshStep1OnboardBlockers(); return true;
 
     case 'f-regdoc':
       if (!v) { showError(id); return false; }
       showValid(id); return true;
+
+    case 'f-regnum':
+      if (!v) { showError(id); refreshStep1OnboardBlockers(); return false; }
+      if (regLookupState === false) { showBlock(id); refreshStep1OnboardBlockers(); return false; }
+      if (regLookupState !== true) {
+        const errEl = get('e-regnum');
+        if (errEl) errEl.textContent = '⚠ Wait for registration lookup to finish (or re-check the number).';
+        showError(id);
+        return false;
+      }
+      showValid(id); refreshStep1OnboardBlockers(); return true;
+
+    case 'f-fbpageurl':
+      if (!v) { showError(id); refreshStep1OnboardBlockers(); return false; }
+      if (!/^https:\/\/(www\.)?facebook\.com\//i.test(v)) { showBlock(id); refreshStep1OnboardBlockers(); return false; }
+      if (fbPageUrlCheckState === false) { showBlock(id); refreshStep1OnboardBlockers(); return false; }
+      if (fbPageUrlCheckState !== true) {
+        const errEl = get('e-fbpageurl');
+        if (errEl) errEl.textContent = '⚠ Wait for Facebook Page verification to finish.';
+        showError(id);
+        return false;
+      }
+      showValid(id); refreshStep1OnboardBlockers(); return true;
 
     case 'f-regdoc-file': {
       const input = el;
@@ -1803,13 +2127,13 @@ function validateField(id) {
 // Live website reachability check on blur/change
 get('f-website')?.addEventListener('blur', async () => {
   const url = get('f-website').value.trim();
-  if (!url || !isHttpsUrl(url)) return;
+  if (!url || !isHttpsUrl(url)) { refreshStep1OnboardBlockers(); return; }
   await probeWebsite(url);
   validateField('f-website');
 });
 get('f-website')?.addEventListener('change', async () => {
   const url = get('f-website').value.trim();
-  if (!url || !isHttpsUrl(url)) return;
+  if (!url || !isHttpsUrl(url)) { refreshStep1OnboardBlockers(); return; }
   await probeWebsite(url);
   validateField('f-website');
 });
@@ -1846,17 +2170,40 @@ get('f-bemail')?.addEventListener('blur', async () => {
 
 // ── Section validators ──────────────────────────
 const sectionFields = {
-  0: ['f-name','f-email','f-bname','f-bemail','f-website'],
-  1: ['f-regdoc'],
-  2: ['f-metaadmin','f-mfa','f-fbaccount'],
-  3: ['f-numplan','f-otp','f-numtype','f-wanum','f-wadisplayname'],
+  0: ['f-regdoc','f-regnum','f-bname','f-bemail','f-website','f-fbpageurl'],
+  1: ['f-metaadmin','f-mfa','f-fbaccount'],
+  2: ['f-numplan','f-otp','f-numtype','f-wanum','f-wadisplayname'],
+  3: ['f-name','f-email','f-personal'],
 };
+
+async function validateSectionAsync(idx) {
+  if (idx === 0) {
+    const regNum = (get('f-regnum')?.value || '').trim();
+    if (regNum && regLookupState !== true) {
+      await lookupRegistrationRealtime();
+    }
+    const fbUrl = (get('f-fbpageurl')?.value || '').trim();
+    if (fbUrl && fbPageUrlCheckState !== true) {
+      await validateFacebookPageUrlRealtime();
+    }
+    const be = (get('f-bemail')?.value || '').trim();
+    if (be && businessEmailCheckState !== true) {
+      await validateBusinessEmailRealtime(be);
+    }
+    const site = (get('f-website')?.value || '').trim();
+    if (site && isHttpsUrl(site) && websiteReachable === null) {
+      await probeWebsite(site);
+    }
+  }
+  return validateSection(idx);
+}
 
 function validateSection(idx) {
   const fields = sectionFields[idx];
   if (!fields) return true;
   let ok = true;
   fields.forEach(f => { if (!validateField(f)) ok = false; });
+  if (idx === 0) refreshStep1OnboardBlockers();
   updateProgress();
   return ok;
 }
@@ -1879,28 +2226,22 @@ function updateProgress() {
 function buildSummary() {
   const checks = [
     {
-      label: 'Customer name provided',
-      fn: () => get('f-name')?.value.trim().length >= 3,
-      note: 'Required for account identification.',
-      type: 'required'
+      label: 'GST / MSME number verified',
+      fn: () => regLookupState === true && (get('f-regnum')?.value || '').trim().length > 0,
+      note: 'A verified GSTIN or Udyam number is required before onboarding.',
+      type: 'blocker'
     },
     {
-      label: 'Valid customer email',
-      fn: () => isValidEmail(get('f-email')?.value || ''),
-      note: 'Used for communication and account access.',
-      type: 'required'
-    },
-    {
-      label: 'Business name provided',
-      fn: () => get('f-bname')?.value.trim().length >= 2,
-      note: 'Must match your Meta Business Manager name.',
+      label: 'Business name fetched from registry',
+      fn: () => get('f-bname')?.value.trim().length >= 2 && regLookupState === true,
+      note: 'Business name must come from official GST / MSME records.',
       type: 'required'
     },
     {
       label: 'Official domain business email',
       fn: () => {
         const v = get('f-bemail')?.value || '';
-        return isValidEmail(v) && !isFreeEmail(v);
+        return isValidEmail(v) && !isFreeEmail(v) && businessEmailCheckState !== false;
       },
       note: 'Free email providers are not accepted by Meta.',
       type: 'required'
@@ -1909,15 +2250,15 @@ function buildSummary() {
       label: 'HTTPS-secured website',
       fn: () => {
         const v = get('f-website')?.value || '';
-        return v.startsWith('https://') && v.includes('.');
+        return v.startsWith('https://') && v.includes('.') && websiteReachable !== false;
       },
       note: 'Meta verifies your website during Business Verification.',
       type: 'blocker'
     },
     {
-      label: 'Registration document available',
-      fn: () => { const v = get('f-regdoc')?.value; return v && v !== 'none'; },
-      note: 'GST or Udyam certificate required for Meta verification.',
+      label: 'Facebook Page URL verified',
+      fn: () => fbPageUrlCheckState === true && /^https:\/\/(www\.)?facebook\.com\//i.test(get('f-fbpageurl')?.value || ''),
+      note: 'A public, verifiable Facebook Page is required for WhatsApp onboarding.',
       type: 'blocker'
     },
     {
@@ -1970,6 +2311,24 @@ function buildSummary() {
       label: 'WhatsApp Display Name provided',
       fn: () => (get('f-wadisplayname')?.value || '').trim().length >= 2,
       note: 'Must follow Meta display name rules (see link on the form).',
+      type: 'required'
+    },
+    {
+      label: 'Customer name provided',
+      fn: () => get('f-name')?.value.trim().length >= 3,
+      note: 'Required for account identification.',
+      type: 'required'
+    },
+    {
+      label: 'Valid customer email',
+      fn: () => isValidEmail(get('f-email')?.value || ''),
+      note: 'Used for communication and account access.',
+      type: 'required'
+    },
+    {
+      label: 'Personal number provided',
+      fn: () => isValidPhone(get('f-personal')?.value || ''),
+      note: 'So we can reach you quickly about onboarding.',
       type: 'required'
     },
   ];
@@ -2061,6 +2420,16 @@ function closeDisplayNameInfo() {
   if (modal) modal.style.display = 'none';
 }
 
+function openFacebookPageHelp() {
+  const modal = get('facebookPageHelpModal');
+  if (modal) modal.style.display = 'flex';
+}
+
+function closeFacebookPageHelp() {
+  const modal = get('facebookPageHelpModal');
+  if (modal) modal.style.display = 'none';
+}
+
 function openBusinessPortfolioInfo() {
   const modal = get('businessPortfolioModal');
   if (modal) modal.style.display = 'flex';
@@ -2085,6 +2454,7 @@ document.addEventListener('keydown', function(e) {
   if (e.key !== 'Escape') return;
   closeDecisionModal();
   closeDisplayNameInfo();
+  closeFacebookPageHelp();
   closeBusinessPortfolioInfo();
   closeBusinessPortfolioImage();
 });
@@ -2106,10 +2476,13 @@ function mapToBackendPayload() {
   return {
     customer_name: get('f-name')?.value?.trim(),
     customer_email: get('f-email')?.value?.trim(),
+    personal_number: get('f-personal')?.value?.trim(),
     business_name: get('f-bname')?.value?.trim(),
     business_email: get('f-bemail')?.value?.trim(),
     site: get('f-website')?.value?.trim(),
     docType: docTypeMap[get('f-regdoc')?.value] || '',
+    registration_number: (get('f-regnum')?.value || '').trim().toUpperCase().replace(/\s+/g, ''),
+    facebook_page_url: get('f-fbpageurl')?.value?.trim(),
     mbm_admin: get('f-metaadmin')?.value || '',
     mbm_mfa: mfaMap[get('f-mfa')?.value] || '',
     fb_personal: fbPersonalMap[get('f-fbaccount')?.value] || '',
@@ -2125,24 +2498,20 @@ function mapToBackendPayload() {
 
 // ── Submit / Save ──────────────────────────────────
 async function submitForm() {
-  const be = get('f-bemail')?.value?.trim() || '';
-  if (be && isValidEmail(be) && !isFreeEmail(be)) {
-    await validateBusinessEmailRealtime(be);
+  for (let s = 0; s < 4; s++) {
+    if (!(await validateSectionAsync(s))) {
+      await goTo(s, { skipValidation: true });
+      showToast(s === 0
+        ? '⚠ We can’t submit — fix the onboarding blockers in step 1.'
+        : '⚠ Please fix all errors before submission.');
+      return;
+    }
   }
-
-  // strict checks before any action/mail/thank-you flow
-  let okAll = true;
-  Object.values(sectionFields).flat().forEach(id => {
-    if (!validateField(id)) okAll = false;
-  });
 
   const websiteValue = get('f-website')?.value?.trim() || '';
   if (!isHttpsUrl(websiteValue)) {
-    okAll = false;
+    await goTo(0, { skipValidation: true });
     validateField('f-website');
-  }
-
-  if (!okAll) {
     showToast('⚠ Please fix all errors before submission.');
     return;
   }
@@ -2216,10 +2585,13 @@ const oldInput = @json(session()->getOldInput());
 const oldToField = {
   customer_name: 'f-name',
   customer_email: 'f-email',
+  personal_number: 'f-personal',
   business_name: 'f-bname',
   business_email: 'f-bemail',
   site: 'f-website',
   docType: 'f-regdoc',
+  registration_number: 'f-regnum',
+  facebook_page_url: 'f-fbpageurl',
   mbm_admin: 'f-metaadmin',
   mbm_mfa: 'f-mfa',
   fb_personal: 'f-fbaccount',
@@ -2235,17 +2607,28 @@ Object.entries(oldToField).forEach(([backendKey, fieldId]) => {
   const val = oldInput?.[backendKey];
   if (val === undefined || val === null) return;
   const el = get(fieldId);
-  if (el) el.value = val;
+  if (!el) return;
+  if (fieldId === 'f-regdoc') {
+    const lower = String(val).toLowerCase();
+    el.value = lower.includes('udyam') || lower.includes('msme') ? 'udyam' : (lower.includes('gst') ? 'gst' : '');
+    return;
+  }
+  el.value = val;
 });
+if ((get('f-bname')?.value || '').trim()) regLookupState = true;
+if ((get('f-fbpageurl')?.value || '').trim()) fbPageUrlCheckState = true;
 
 const serverErrors = @json($errors->getMessages());
 const backendToField = {
   customer_name: 'f-name',
   customer_email: 'f-email',
+  personal_number: 'f-personal',
   business_name: 'f-bname',
   business_email: 'f-bemail',
   site: 'f-website',
   docType: 'f-regdoc',
+  registration_number: 'f-regnum',
+  facebook_page_url: 'f-fbpageurl',
   mbm_admin: 'f-metaadmin',
   mbm_mfa: 'f-mfa',
   fb_personal: 'f-fbaccount',
@@ -2269,7 +2652,16 @@ Object.entries(serverErrors || {}).forEach(([backendKey, msgs]) => {
     errEl.classList.add('show');
     errEl.style.display = 'flex';
   }
+  if (backendKey === 'registration_number' || backendKey === 'business_name') {
+    regLookupState = false;
+    regLookupMsg = msgs?.[0] || 'Registration could not be verified.';
+  }
+  if (backendKey === 'facebook_page_url') {
+    fbPageUrlCheckState = false;
+    fbPageUrlCheckMsg = msgs?.[0] || 'Facebook Page could not be verified.';
+  }
 });
+refreshStep1OnboardBlockers();
 updateProgress();
 
 // Update progress on any input

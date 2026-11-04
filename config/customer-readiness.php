@@ -69,4 +69,21 @@ return [
     ],
 
     'meta_portfolio_url_regex' => '/^https:\/\/business\.facebook\.com\/latest\/settings\/business_info\?business_id=\d+$/i',
+
+    /*
+    |--------------------------------------------------------------------------
+    | GST / Udyam business-name lookup
+    |--------------------------------------------------------------------------
+    | Point URL at your GST/MSME verification provider. Expected JSON fields
+    | (any one): business_name, legal_name, trade_name, taxpayerInfo.lgnm, etc.
+    */
+    'registration_lookup' => [
+        'url' => env('CUSTOMER_READINESS_REG_LOOKUP_URL'),
+        'api_key' => env('CUSTOMER_READINESS_REG_LOOKUP_KEY'),
+        'method' => env('CUSTOMER_READINESS_REG_LOOKUP_METHOD', 'GET'),
+        'timeout' => (int) env('CUSTOMER_READINESS_REG_LOOKUP_TIMEOUT', 10),
+    ],
+
+    'gstin_regex' => '/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/',
+    'udyam_regex' => '/^UDYAM-[A-Z]{2}-[0-9]{2}-[0-9]{7}$/',
 ];

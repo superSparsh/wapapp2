@@ -7,6 +7,7 @@ namespace Tests\Feature\Admin;
 use App\Models\Admin;
 use App\Models\CustomerReadinessSubmission;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\Factory as HttpFactory;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
@@ -27,11 +28,34 @@ class CustomerReadinessTest extends TestCase
             'is_active' => true,
         ]);
 
-        Http::fake([
+        config([
+            'customer-readiness.registration_lookup.url' => 'https://reg-lookup.test/verify',
+            'customer-readiness.registration_lookup.method' => 'GET',
+            'customer-readiness.registration_lookup.api_key' => 'test-key',
+        ]);
+
+        $this->fakeHttp([
             'https://ready-biz.test/*' => Http::response('ok', 200),
             'https://www.facebook.com/*' => Http::response('<html>ok</html>', 200),
+            'https://reg-lookup.test/*' => Http::response([
+                'business_name' => 'Sharma Traders',
+                'legal_name' => 'Sharma Traders',
+            ], 200),
             '*' => Http::response('ok', 200),
         ]);
+    }
+
+    /**
+     * Replace Http stubs entirely (Laravel merges consecutive Http::fake calls).
+     *
+     * @param  array<string, mixed>  $fakes
+     */
+    private function fakeHttp(array $fakes): void
+    {
+        $factory = new HttpFactory;
+        $this->app->instance(HttpFactory::class, $factory);
+        Http::swap($factory);
+        Http::fake($fakes);
     }
 
     /**
@@ -42,10 +66,13 @@ class CustomerReadinessTest extends TestCase
         return array_merge([
             'customer_name' => 'Riya Sharma',
             'customer_email' => 'riya@personal.test',
-            'business_name' => 'Sharma Traders',
+            'personal_number' => '+919876543210',
+            'business_name' => 'Will Be Overwritten',
             'business_email' => 'ops@sharma-biz.test',
             'site' => 'https://ready-biz.test',
             'docType' => 'GST certificate',
+            'registration_number' => '29ABCDE1234F1Z5',
+            'facebook_page_url' => 'https://www.facebook.com/SharmaTraders',
             'mbm_admin' => 'admin',
             'mbm_mfa' => 'all_admins',
             'fb_personal' => 'available',
@@ -72,6 +99,9 @@ class CustomerReadinessTest extends TestCase
         $this->assertSame('ops@sharma-biz.test', $submission->business_email);
         $this->assertTrue((bool) data_get($submission->meta, 'eligible'));
         $this->assertSame('1234567890', data_get($submission->data, 'Business Portfolio ID'));
+        $this->assertSame('29ABCDE1234F1Z5', data_get($submission->data, 'GST / MSME Number'));
+        $this->assertSame('https://www.facebook.com/SharmaTraders', data_get($submission->data, 'Facebook Page URL'));
+        $this->assertSame('+919876543210', data_get($submission->data, 'Personal Number'));
 
         $this->get(route('customer.readiness.result'))
             ->assertOk()
@@ -101,6 +131,57 @@ class CustomerReadinessTest extends TestCase
         ]))->assertSessionHasErrors('business_email');
     }
 
+    public function test_rejects_invalid_gstin_format(): void
+    {
+        $this->post(route('customer.readiness.store'), $this->eligiblePayload([
+            'registration_number' => 'INVALID',
+        ]))->assertSessionHasErrors('registration_number');
+    }
+
+    public function test_rejects_when_registration_lookup_fails(): void
+    {
+        $this->fakeHttp([
+            'https://ready-biz.test/*' => Http::response('ok', 200),
+            'https://www.facebook.com/*' => Http::response('<html>ok</html>', 200),
+            'https://reg-lookup.test/*' => Http::response(['error' => 'not found'], 404),
+            '*' => Http::response('ok', 200),
+        ]);
+
+        $response = $this->from(route('customer.readiness'))
+            ->post(route('customer.readiness.store'), $this->eligiblePayload());
+
+        $response->assertRedirect(route('customer.readiness'));
+        $response->assertSessionHasErrors(['registration_number', 'business_name']);
+    }
+
+    public function test_rejects_unverifiable_facebook_page_url(): void
+    {
+        $this->fakeHttp([
+            'https://ready-biz.test/*' => Http::response('ok', 200),
+            'https://www.facebook.com/*' => Http::response("This content isn't available", 404),
+            'https://reg-lookup.test/*' => Http::response([
+                'business_name' => 'Sharma Traders',
+            ], 200),
+            '*' => Http::response('ok', 200),
+        ]);
+
+        $response = $this->from(route('customer.readiness'))
+            ->post(route('customer.readiness.store'), $this->eligiblePayload());
+
+        $response->assertRedirect(route('customer.readiness'));
+        $response->assertSessionHasErrors('facebook_page_url');
+    }
+
+    public function test_lookup_registration_endpoint(): void
+    {
+        $this->postJson(route('customer.readiness.lookup.registration'), [
+            'registration_number' => '29ABCDE1234F1Z5',
+            'doc_type' => 'GST certificate',
+        ])->assertOk()
+            ->assertJsonPath('valid', true)
+            ->assertJsonPath('business_name', 'Sharma Traders');
+    }
+
     public function test_validate_business_email_endpoint(): void
     {
         $this->postJson(route('customer.readiness.validate.business-email'), [
@@ -117,7 +198,7 @@ class CustomerReadinessTest extends TestCase
     public function test_validate_facebook_page_endpoint(): void
     {
         $this->postJson(route('customer.readiness.validate.facebook-page'), [
-            'page_name' => 'Acme Corp',
+            'page_name' => 'https://www.facebook.com/AcmeCorp',
         ])->assertOk()
             ->assertJsonPath('valid', true);
     }

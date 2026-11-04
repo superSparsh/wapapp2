@@ -18,6 +18,10 @@ use Illuminate\Validation\ValidationException;
  */
 class CustomerReadinessService
 {
+    public function __construct(
+        private readonly BusinessRegistrationLookupService $registrationLookup,
+    ) {}
+
     /**
      * @return array{submission: CustomerReadinessSubmission, eligible: bool, result: array<string, mixed>}
      */
@@ -39,12 +43,13 @@ class CustomerReadinessService
 
         $fbPageCreated = (string) $validated['fb_page_created'];
         $fbPageName = $metaPortfolioUrl;
+        $facebookPageUrl = trim((string) ($validated['facebook_page_url'] ?? ''));
 
         $hardBlock = (
             $validated['mbm_admin'] !== 'admin'
             || $validated['fb_personal'] !== 'available'
             || $fbPageCreated !== 'yes'
-            || $fbPageName === ''
+            || $facebookPageUrl === ''
             || in_array($validated['num_plan'], ['existing_cannot_use', 'not_decided'], true)
             || $validated['num_otp'] === 'cannot_receive'
             || $validated['num_type'] === 'virtual'
@@ -52,16 +57,13 @@ class CustomerReadinessService
 
         $missing = [];
         $mustHave = [
-            'docType', 'mbm_admin', 'mbm_mfa', 'fb_personal', 'fb_page_created',
-            'num_plan', 'num_otp', 'num_type', 'site', 'whatsapp_display_name',
+            'docType', 'registration_number', 'facebook_page_url', 'mbm_admin', 'mbm_mfa', 'fb_personal', 'fb_page_created',
+            'num_plan', 'num_otp', 'num_type', 'site', 'whatsapp_display_name', 'personal_number',
         ];
         foreach ($mustHave as $key) {
             if (! filled($validated[$key] ?? null)) {
                 $missing[] = $key;
             }
-        }
-        if ($fbPageCreated === 'yes' && $fbPageName === '') {
-            $missing[] = 'fb_page_name';
         }
         if ($enforceWebsite && ! $websiteOk) {
             $missing[] = 'website_down';
@@ -69,7 +71,7 @@ class CustomerReadinessService
 
         $eligible = ! $hardBlock && $missing === [];
         $softWarn = ($validated['mbm_mfa'] ?? '') !== 'all_admins';
-        $reasons = $this->buildReasons($validated, $fbPageCreated, $fbPageName, $websiteOk, $websiteCheck);
+        $reasons = $this->buildReasons($validated, $fbPageCreated, $facebookPageUrl, $websiteOk, $websiteCheck);
 
         $meta = [
             'eligible' => $eligible,
@@ -119,10 +121,19 @@ class CustomerReadinessService
             'customer-readiness.meta_portfolio_url_regex',
             '/^https:\/\/business\.facebook\.com\/latest\/settings\/business_info\?business_id=\d+$/i'
         );
+        $gstinRegex = (string) config(
+            'customer-readiness.gstin_regex',
+            '/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/'
+        );
+        $udyamRegex = (string) config(
+            'customer-readiness.udyam_regex',
+            '/^UDYAM-[A-Z]{2}-[0-9]{2}-[0-9]{7}$/'
+        );
 
         $validator = Validator::make($input, [
             'customer_name' => ['required', 'string', 'max:255'],
             'customer_email' => ['required', 'email', 'max:255'],
+            'personal_number' => ['required', 'regex:/^\+?[0-9\s\-\(\)]{8,20}$/'],
             'business_name' => ['required', 'string', 'max:255'],
             'business_email' => [
                 'required',
@@ -137,6 +148,29 @@ class CustomerReadinessService
             ],
             'site' => ['required', 'url', 'regex:/^https:\/\//i', 'max:512'],
             'docType' => ['required', 'in:'.implode(',', $docTypes)],
+            'registration_number' => [
+                'required',
+                'string',
+                'max:40',
+                function (string $attribute, mixed $value, \Closure $fail) use ($input, $gstinRegex, $udyamRegex): void {
+                    $number = strtoupper(preg_replace('/\s+/', '', (string) $value) ?? '');
+                    $docType = (string) ($input['docType'] ?? '');
+                    $ok = $docType === 'Udyam MSME certificate'
+                        ? preg_match($udyamRegex, $number) === 1
+                        : preg_match($gstinRegex, $number) === 1;
+                    if (! $ok) {
+                        $fail($docType === 'Udyam MSME certificate'
+                            ? 'Enter a valid Udyam MSME number (UDYAM-XX-00-0000000).'
+                            : 'Enter a valid 15-character GSTIN.');
+                    }
+                },
+            ],
+            'facebook_page_url' => [
+                'required',
+                'url',
+                'max:512',
+                'regex:/^https:\/\/(www\.)?facebook\.com\//i',
+            ],
             'mbm_admin' => ['required', 'in:admin,employee,none'],
             'mbm_mfa' => ['required', 'in:all_admins,some_admins,none'],
             'fb_personal' => ['required', 'in:available,not'],
@@ -153,18 +187,55 @@ class CustomerReadinessService
             throw new ValidationException($validator);
         }
 
-        return $validator->validated();
+        $validated = $validator->validated();
+        $validated['registration_number'] = strtoupper(preg_replace('/\s+/', '', (string) $validated['registration_number']) ?? '');
+
+        $lookup = $this->registrationLookup->lookup(
+            (string) $validated['registration_number'],
+            (string) $validated['docType'],
+        );
+        if (! ($lookup['valid'] ?? false) || blank($lookup['business_name'] ?? null)) {
+            throw ValidationException::withMessages([
+                'registration_number' => [$lookup['message'] ?? 'We could not verify this GST / MSME number.'],
+                'business_name' => ['Business name could not be fetched from registration records. We cannot onboard you with an unverified registration.'],
+            ]);
+        }
+
+        // Always trust registry name — never allow a mismatched client-supplied name.
+        $validated['business_name'] = (string) $lookup['business_name'];
+        if (! empty($lookup['doc_type'])) {
+            $validated['docType'] = (string) $lookup['doc_type'];
+        }
+
+        $fbCheck = $this->validateFacebookPage((string) $validated['facebook_page_url'], strict: true);
+        if (! ($fbCheck['valid'] ?? false)) {
+            throw ValidationException::withMessages([
+                'facebook_page_url' => [$fbCheck['message'] ?? 'We could not verify this Facebook Page URL.'],
+            ]);
+        }
+        if (! empty($fbCheck['checked_url'])) {
+            $validated['facebook_page_url'] = (string) $fbCheck['checked_url'];
+        }
+
+        return $validated;
     }
 
     /**
      * @return array{valid: bool, message: string, checked_url?: string, auto_verified?: bool}
      */
-    public function validateFacebookPage(string $pageName): array
+    public function validateFacebookPage(string $pageName, bool $strict = false): array
     {
         $raw = trim($pageName);
         $candidates = [];
 
         if (filter_var($raw, FILTER_VALIDATE_URL)) {
+            if (! preg_match('/^https:\/\/(www\.)?facebook\.com\//i', $raw) && $strict) {
+                return [
+                    'valid' => false,
+                    'message' => 'Please enter a full Facebook Page URL starting with https://www.facebook.com/...',
+                    'auto_verified' => false,
+                ];
+            }
             $candidates[] = $raw;
         } else {
             $normalized = (string) preg_replace('/\s+/', ' ', $raw);
@@ -189,18 +260,29 @@ class CustomerReadinessService
                 $body = strtolower((string) $resp->body());
                 $unavailable = str_contains($body, "this content isn't available")
                     || str_contains($body, 'content is not available')
-                    || str_contains($body, "page isn't available");
+                    || str_contains($body, "page isn't available")
+                    || str_contains($body, 'page not found')
+                    || str_contains($body, 'sorry, this page');
 
                 if ($status >= 200 && $status < 400 && ! $unavailable) {
                     return [
                         'valid' => true,
                         'message' => 'Facebook Page looks reachable.',
                         'checked_url' => $url,
+                        'auto_verified' => true,
                     ];
                 }
             } catch (\Throwable) {
                 // try next candidate
             }
+        }
+
+        if ($strict) {
+            return [
+                'valid' => false,
+                'message' => 'We could not verify this Facebook Page. Check that the URL is public and correct — we cannot onboard you with an unverified page.',
+                'auto_verified' => false,
+            ];
         }
 
         return [
@@ -287,6 +369,18 @@ class CustomerReadinessService
             $input['fb_page_name'] = null;
         }
 
+        if (isset($input['registration_number'])) {
+            $input['registration_number'] = strtoupper(preg_replace('/\s+/', '', (string) $input['registration_number']) ?? '');
+        }
+
+        if (! isset($input['facebook_page_url']) && isset($input['fb_page_url'])) {
+            $input['facebook_page_url'] = $input['fb_page_url'];
+        }
+
+        if (! isset($input['personal_number']) && isset($input['phone'])) {
+            $input['personal_number'] = $input['phone'];
+        }
+
         return $input;
     }
 
@@ -299,11 +393,14 @@ class CustomerReadinessService
         $fieldLabels = [
             'customer_name' => 'Customer Name',
             'customer_email' => 'Customer Email',
+            'personal_number' => 'Personal Number',
             'business_name' => 'Business Name',
             'business_email' => 'Business Email',
             'site' => 'Website URL',
             'whatsapp_display_name' => 'WhatsApp Display Name',
             'docType' => 'Registration document',
+            'registration_number' => 'GST / MSME Number',
+            'facebook_page_url' => 'Facebook Page URL',
             'mbm_admin' => 'Meta Business account admin access',
             'mbm_mfa' => 'Multi-factor authentication on Meta admin',
             'fb_personal' => 'Personal Facebook account available for initial access',
@@ -312,7 +409,7 @@ class CustomerReadinessService
             'num_plan' => 'Phone Number Plan',
             'num_otp' => 'OTP reachability',
             'num_type' => 'Type of Number',
-            'number' => 'Phone Number',
+            'number' => 'WhatsApp Phone Number',
         ];
 
         $payload = [];
@@ -384,7 +481,7 @@ class CustomerReadinessService
     private function buildReasons(
         array $validated,
         string $fbPageCreated,
-        string $fbPageName,
+        string $facebookPageUrl,
         bool $websiteOk,
         array $websiteCheck,
     ): array {
@@ -396,8 +493,14 @@ class CustomerReadinessService
         if (($validated['fb_personal'] ?? '') !== 'available') {
             $reasons[] = 'A personal Facebook account is required initially.';
         }
-        if ($fbPageCreated !== 'yes' || $fbPageName === '') {
-            $reasons[] = 'Meta Business account must exist and the Meta Business portfolio URL must be provided.';
+        if ($fbPageCreated !== 'yes') {
+            $reasons[] = 'A Meta Business account must exist before WhatsApp onboarding can proceed.';
+        }
+        if ($facebookPageUrl === '') {
+            $reasons[] = 'A verified public Facebook Page URL is required.';
+        }
+        if (blank($validated['registration_number'] ?? null)) {
+            $reasons[] = 'A verified GSTIN or Udyam MSME number is required.';
         }
         if (in_array($validated['num_plan'] ?? '', ['existing_cannot_use', 'not_decided', ''], true)) {
             $reasons[] = 'Phone number plan must be "New" or "Migrate to API".';
