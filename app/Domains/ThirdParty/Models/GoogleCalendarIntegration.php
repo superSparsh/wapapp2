@@ -69,4 +69,20 @@ class GoogleCalendarIntegration extends TenantModel
     {
         return (int) ($this->settings['reminder_minutes_before'] ?? 30);
     }
+
+    public function isWhatsAppEnabled(): bool
+    {
+        $value = $this->settings['enable_whatsapp'] ?? false;
+
+        return $value === true
+            || $value === 1
+            || $value === '1'
+            || $value === 'on'
+            || $value === 'true';
+    }
+
+    public function adminWhatsAppNumber(): string
+    {
+        return trim((string) ($this->settings['whatsapp_number'] ?? ''));
+    }
 }

@@ -122,14 +122,24 @@
               <div class="flex flex-col gap-3 pt-5 md:col-span-2">
                 <label class="flex items-center gap-2 text-sm font-medium text-text-primary">
                   <input type="checkbox" name="settings[enable_whatsapp]" value="on"
-                    {{ ($integration->settings['enable_whatsapp'] ?? false) ? 'checked' : '' }}
+                    {{ $integration->isWhatsAppEnabled() ? 'checked' : '' }}
                     class="size-4 rounded border-border text-green-500" />
                   Enable WhatsApp Notifications
                 </label>
                 <p class="text-xs leading-relaxed text-text-muted pl-6">
                   When enabled, customers and the admin number above receive booking / cancel / reminder WhatsApp alerts.
                   Include a phone in the event description (or booking form) so invitees get confirmations. Message delivery appears under Message Logs.
+                  You must click <strong>Save Settings</strong> after enabling.
                 </p>
+                @if (! $integration->isWhatsAppEnabled())
+                  <p class="rounded-lg bg-yellow-50 px-3 py-2 text-xs text-yellow-800 pl-6">
+                    WhatsApp is currently <strong>OFF</strong> in saved settings. Check the box above and click Save Settings.
+                  </p>
+                @elseif ($integration->adminWhatsAppNumber() === '')
+                  <p class="rounded-lg bg-yellow-50 px-3 py-2 text-xs text-yellow-800 pl-6">
+                    WhatsApp is ON, but admin number is empty — only the guest number will get messages.
+                  </p>
+                @endif
                 <label class="flex items-center gap-2 text-sm font-medium text-text-primary">
                   <input type="checkbox" name="settings[meet_only]" value="on"
                     {{ ($integration->settings['meet_only'] ?? false) ? 'checked' : '' }}
@@ -216,6 +226,13 @@
           @if (!$connected)
             <p class="text-sm text-text-muted">Connect your Google Calendar first.</p>
           @else
+            @if (! $integration->isWhatsAppEnabled())
+              <div class="mb-4 rounded-lg border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-800">
+                WhatsApp notifications are <strong>OFF</strong>. Enable them under
+                <a href="{{ route('integration.google-calendar', ['tab' => 'notifications']) }}" class="font-semibold underline">Notifications</a>
+                and click Save — otherwise no WhatsApp will be sent for this meeting.
+              </div>
+            @endif
             <form method="POST" action="{{ route('integration.google-calendar.create-meeting') }}">
               @csrf
               <div class="grid gap-4 md:grid-cols-2">
@@ -274,6 +291,15 @@
           $dayNames = [0 => 'Sunday', 1 => 'Monday', 2 => 'Tuesday', 3 => 'Wednesday', 4 => 'Thursday', 5 => 'Friday', 6 => 'Saturday'];
           $weekly = $bookingAvailability['weekly'] ?? [];
         @endphp
+
+        @if (! $integration->isWhatsAppEnabled())
+          <div class="rounded-lg border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-800">
+            WhatsApp notifications are <strong>OFF</strong>. Creating a booking link does not send WhatsApp.
+            After a guest books a slot, messages send only if WhatsApp is enabled under
+            <a href="{{ route('integration.google-calendar', ['tab' => 'notifications']) }}" class="font-semibold underline">Notifications</a>
+            (remember to Save).
+          </div>
+        @endif
 
         <div class="rounded-xl border border-border bg-elevated p-6">
           <h2 class="mb-1 text-base font-semibold text-text-primary">Booking Hours</h2>

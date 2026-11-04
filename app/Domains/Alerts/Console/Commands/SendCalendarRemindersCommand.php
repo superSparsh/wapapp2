@@ -62,7 +62,7 @@ class SendCalendarRemindersCommand extends Command
                 ->get()
                 ->each(function (GoogleCalendarEvent $event) use ($dispatcher, &$sent): void {
                     $integration = GoogleCalendarIntegration::query()->where('user_id', $event->user_id)->first();
-                    if (! ($integration?->settings['enable_whatsapp'] ?? false)) {
+                    if ($integration === null || ! $integration->isWhatsAppEnabled()) {
                         return;
                     }
 

@@ -720,6 +720,80 @@ class GoogleCalendarIntegrationTest extends TestCase
         );
     }
 
+    public function test_public_book_writes_skipped_logs_when_whatsapp_disabled(): void
+    {
+        Queue::fake();
+
+        GoogleCalendarIntegration::query()->create([
+            'user_id' => $this->testUser->id,
+            'status' => IntegrationStatus::Enabled,
+            'first_synced_at' => now()->subDay(),
+            'settings' => [
+                'refresh_token' => 'rt',
+                'access_token' => 'at',
+                'calendar_id' => 'primary',
+                'enable_whatsapp' => false,
+                'whatsapp_number' => '+911234567890',
+            ],
+        ]);
+
+        $link = GoogleCalendarBookingLink::query()->create([
+            'user_id' => $this->testUser->id,
+            'slug' => 'book-wa-disabled',
+            'title' => 'Intro Call',
+            'duration_minutes' => 30,
+            'status' => IntegrationStatus::Enabled,
+            'settings' => [],
+        ]);
+
+        $api = $this->createMock(GoogleCalendarApiService::class);
+        $api->method('hasOverlappingEvent')->willReturn(false);
+        $api->method('createEventWithMeet')->willReturn([
+            'id' => 'created-wa-disabled-1',
+            'summary' => 'Intro Call',
+            'hangoutLink' => 'https://meet.google.com/abc-defg-hij',
+            'htmlLink' => 'https://calendar.google.com/event?eid=1',
+            'start' => ['dateTime' => now()->addDay()->toIso8601String()],
+            'end' => ['dateTime' => now()->addDay()->addMinutes(30)->toIso8601String()],
+        ]);
+        $api->method('extractMeetLink')->willReturn('https://meet.google.com/abc-defg-hij');
+        $api->method('parseEventTimes')->willReturn([
+            'start' => now()->addDay(),
+            'end' => now()->addDay()->addMinutes(30),
+        ]);
+        $this->app->instance(GoogleCalendarApiService::class, $api);
+
+        $dispatcher = $this->createMock(AlertDispatcher::class);
+        $dispatcher->expects($this->never())->method('calendarWhatsApp');
+        $this->app->instance(AlertDispatcher::class, $dispatcher);
+
+        $this->post(route('google-calendar.booking.book', $link->slug), [
+            'name' => 'Alex',
+            'email' => 'alex@example.com',
+            'phone' => '+919876543210',
+            'start_at' => now()->addDay()->toDateTimeString(),
+        ])
+            ->assertRedirect()
+            ->assertSessionHas('error');
+
+        $event = GoogleCalendarEvent::query()->where('event_id', 'created-wa-disabled-1')->first();
+        $this->assertNotNull($event);
+        $this->assertFalse((bool) $event->notified_created);
+        $this->assertDatabaseCount('google_calendar_message_logs', 2);
+        $this->assertTrue(
+            GoogleCalendarMessageLog::query()
+                ->where('status', MessageLogStatus::Skipped)
+                ->where('recipient_type', 'customer')
+                ->exists()
+        );
+        $this->assertTrue(
+            GoogleCalendarMessageLog::query()
+                ->where('status', MessageLogStatus::Skipped)
+                ->where('recipient_type', 'admin')
+                ->exists()
+        );
+    }
+
     // ─── API service helpers ──────────────────────────────────────────────────
 
     public function test_api_service_extracts_meet_link_from_hangout_link(): void

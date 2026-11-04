@@ -121,9 +121,10 @@ class GoogleCalendarBookingController extends Controller
             $end,
         );
 
+        $notify = null;
         if ($stored !== null) {
             // Send WhatsApp immediately — do not wait for background sync.
-            $this->sync->notifyForCreatedEvent($integration, $stored);
+            $notify = $this->sync->notifyForCreatedEvent($integration, $stored);
         }
 
         $tenantId = tenancy()->tenant?->getTenantKey();
@@ -134,7 +135,15 @@ class GoogleCalendarBookingController extends Controller
             ? 'Your meeting has been booked! Google Meet: '.$meetLink
             : 'Your meeting has been booked on Google Calendar. The Meet link will appear shortly.';
 
-        return back()->with('success', $success);
+        $redirect = back()->with('success', $success);
+
+        if (is_array($notify) && ($notify['skipped'] ?? false) && ! ($notify['ok'] ?? false)) {
+            $redirect->with('error', $notify['message']);
+        } elseif (is_array($notify) && ! ($notify['ok'] ?? true) && ! ($notify['skipped'] ?? false)) {
+            $redirect->with('error', $notify['message']);
+        }
+
+        return $redirect;
     }
 
     /**

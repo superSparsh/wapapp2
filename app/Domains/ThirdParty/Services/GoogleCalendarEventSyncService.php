@@ -253,8 +253,7 @@ class GoogleCalendarEventSyncService
             return;
         }
 
-        $enableWhatsapp = (bool) ($integration->settings['enable_whatsapp'] ?? false);
-        if (! $enableWhatsapp) {
+        if (! $integration->isWhatsAppEnabled()) {
             return;
         }
 
@@ -300,24 +299,61 @@ class GoogleCalendarEventSyncService
     /**
      * Send created WhatsApp alerts immediately after a local booking / Create Meeting.
      * Sync/webhooks also call the same path; notified_created prevents duplicates.
+     *
+     * Always writes message logs (sent / failed / skipped) so the UI is never silent.
+     *
+     * @return array{ok: bool, skipped: bool, message: string}
      */
-    public function notifyForCreatedEvent(GoogleCalendarIntegration $integration, GoogleCalendarEvent $event): void
+    public function notifyForCreatedEvent(GoogleCalendarIntegration $integration, GoogleCalendarEvent $event): array
     {
-        if (! (bool) ($integration->settings['enable_whatsapp'] ?? false)) {
+        $event->refresh();
+        if ($event->notified_created) {
+            return [
+                'ok' => true,
+                'skipped' => true,
+                'message' => 'WhatsApp already sent for this meeting.',
+            ];
+        }
+
+        $eventName = (string) ($event->summary ?? 'Meeting');
+
+        if (! $integration->isWhatsAppEnabled()) {
+            $reason = 'WhatsApp notifications are disabled. Open Google Calendar → Notifications, enable WhatsApp, set admin number, then click Save.';
+            $this->writeMessageLog(
+                $event,
+                'customer',
+                $this->digitsOrNull($event->whatsapp_number),
+                $eventName,
+                'created',
+                MessageLogStatus::Skipped,
+                $reason,
+            );
+
+            $adminPhone = $integration->adminWhatsAppNumber();
+            if ($adminPhone !== '') {
+                $this->writeMessageLog(
+                    $event,
+                    'admin',
+                    $this->digitsOrNull($adminPhone),
+                    $eventName,
+                    'created',
+                    MessageLogStatus::Skipped,
+                    $reason,
+                );
+            }
+
             Log::info('Google Calendar WhatsApp skipped: notifications disabled', [
                 'event_id' => $event->id,
                 'integration_id' => $integration->id,
             ]);
 
-            return;
+            // Do not mark notified_created — enabling WhatsApp later + Resend/sync can still send.
+            return [
+                'ok' => false,
+                'skipped' => true,
+                'message' => $reason,
+            ];
         }
-
-        $event->refresh();
-        if ($event->notified_created) {
-            return;
-        }
-
-        $eventName = (string) ($event->summary ?? 'Meeting');
 
         try {
             $this->notifyAndLog(
@@ -329,12 +365,45 @@ class GoogleCalendarEventSyncService
                 $eventName,
             );
             $event->update(['notified_created' => true]);
+
+            return [
+                'ok' => true,
+                'skipped' => false,
+                'message' => 'WhatsApp notifications sent.',
+            ];
         } catch (\Throwable $e) {
             Log::warning('Google Calendar created-event WhatsApp failed', [
                 'event_id' => $event->id,
                 'error' => $e->getMessage(),
             ]);
+
+            try {
+                $this->writeMessageLog(
+                    $event,
+                    'customer',
+                    $this->digitsOrNull($event->whatsapp_number),
+                    $eventName,
+                    'created',
+                    MessageLogStatus::Failed,
+                    $e->getMessage(),
+                );
+            } catch (\Throwable) {
+                // non-fatal
+            }
+
+            return [
+                'ok' => false,
+                'skipped' => false,
+                'message' => 'WhatsApp send failed: '.$e->getMessage(),
+            ];
         }
+    }
+
+    private function digitsOrNull(mixed $phone): ?string
+    {
+        $digits = preg_replace('/\D/', '', (string) ($phone ?? '')) ?: '';
+
+        return $digits !== '' ? $digits : null;
     }
 
     public function templateKeyFor(string $recipientType, string $eventType): ?string
@@ -473,26 +542,48 @@ class GoogleCalendarEventSyncService
             if (strlen($digits) < 10) {
                 $this->writeMessageLog($event, 'customer', $digits, $eventName, $eventType, MessageLogStatus::Skipped, 'Phone number has fewer than 10 digits.');
             } else {
-                $result = $dispatcher->calendarWhatsApp($customerTemplateKey, $phone, $customerParams);
-                $messageId = is_string($result['message_id'] ?? null) ? trim((string) $result['message_id']) : '';
-                if ($result['ok'] && $messageId !== '') {
-                    $this->indexProviderMessageId($messageId);
+                try {
+                    $result = $dispatcher->calendarWhatsApp($customerTemplateKey, $phone, $customerParams);
+                    $messageId = is_string($result['message_id'] ?? null) ? trim((string) $result['message_id']) : '';
+                    if ($result['ok'] && $messageId !== '') {
+                        $this->indexProviderMessageId($messageId);
+                    }
+                    $this->writeMessageLog(
+                        $event,
+                        'customer',
+                        $digits,
+                        $eventName,
+                        $eventType,
+                        $result['ok'] ? MessageLogStatus::Sent : MessageLogStatus::Failed,
+                        $result['ok'] ? null : ($result['error'] ?: 'WhatsApp API did not return success.'),
+                        $result['ok'] && $messageId !== '' ? $messageId : null,
+                    );
+                } catch (\Throwable $e) {
+                    $this->writeMessageLog(
+                        $event,
+                        'customer',
+                        $digits,
+                        $eventName,
+                        $eventType,
+                        MessageLogStatus::Failed,
+                        $e->getMessage(),
+                    );
                 }
-                $this->writeMessageLog(
-                    $event,
-                    'customer',
-                    $digits,
-                    $eventName,
-                    $eventType,
-                    $result['ok'] ? MessageLogStatus::Sent : MessageLogStatus::Failed,
-                    $result['ok'] ? null : ($result['error'] ?: 'WhatsApp API did not return success.'),
-                    $result['ok'] && $messageId !== '' ? $messageId : null,
-                );
             }
         }
 
-        $adminPhone = (string) ($integration->settings['whatsapp_number'] ?? '');
+        $adminPhone = $integration->adminWhatsAppNumber();
         if ($adminPhone === '') {
+            $this->writeMessageLog(
+                $event,
+                'admin',
+                null,
+                $eventName,
+                $eventType,
+                MessageLogStatus::Skipped,
+                'No admin WhatsApp number set. Add it under Google Calendar → Notifications.',
+            );
+
             return;
         }
 
@@ -504,21 +595,33 @@ class GoogleCalendarEventSyncService
         }
 
         $adminParams = $this->templateParamsForEvent($event, $eventName, forAdmin: true);
-        $result = $dispatcher->calendarWhatsApp($adminTemplateKey, $adminPhone, $adminParams);
-        $messageId = is_string($result['message_id'] ?? null) ? trim((string) $result['message_id']) : '';
-        if ($result['ok'] && $messageId !== '') {
-            $this->indexProviderMessageId($messageId);
+        try {
+            $result = $dispatcher->calendarWhatsApp($adminTemplateKey, $adminPhone, $adminParams);
+            $messageId = is_string($result['message_id'] ?? null) ? trim((string) $result['message_id']) : '';
+            if ($result['ok'] && $messageId !== '') {
+                $this->indexProviderMessageId($messageId);
+            }
+            $this->writeMessageLog(
+                $event,
+                'admin',
+                $adminDigits,
+                $eventName,
+                $eventType,
+                $result['ok'] ? MessageLogStatus::Sent : MessageLogStatus::Failed,
+                $result['ok'] ? null : ($result['error'] ?: 'WhatsApp API did not return success.'),
+                $result['ok'] && $messageId !== '' ? $messageId : null,
+            );
+        } catch (\Throwable $e) {
+            $this->writeMessageLog(
+                $event,
+                'admin',
+                $adminDigits,
+                $eventName,
+                $eventType,
+                MessageLogStatus::Failed,
+                $e->getMessage(),
+            );
         }
-        $this->writeMessageLog(
-            $event,
-            'admin',
-            $adminDigits,
-            $eventName,
-            $eventType,
-            $result['ok'] ? MessageLogStatus::Sent : MessageLogStatus::Failed,
-            $result['ok'] ? null : ($result['error'] ?: 'WhatsApp API did not return success.'),
-            $result['ok'] && $messageId !== '' ? $messageId : null,
-        );
     }
 
     private function indexProviderMessageId(string $messageId): void
@@ -602,18 +705,24 @@ class GoogleCalendarEventSyncService
         ?string $errorMessage,
         ?string $externalMessageId = null,
     ): void {
-        GoogleCalendarMessageLog::query()->create([
-            'user_id'              => $event->user_id,
-            'event_id'             => $event->id,
-            'recipient_type'       => $recipientType,
-            'recipient_number'     => $recipientNumber,
-            'invitee_email'        => $event->invitee_email,
-            'event_name'           => $eventName,
-            'event_type'           => $eventType,
-            'status'               => $status,
-            'external_message_id'  => $externalMessageId,
-            'error_message'        => $errorMessage,
-            'sent_at'              => now(),
-        ]);
+        $payload = [
+            'user_id' => $event->user_id,
+            'event_id' => $event->id,
+            'recipient_type' => $recipientType,
+            'recipient_number' => $recipientNumber,
+            'invitee_email' => $event->invitee_email,
+            'event_name' => $eventName,
+            'event_type' => $eventType,
+            'status' => $status,
+            'error_message' => $errorMessage,
+            'sent_at' => now(),
+        ];
+
+        // Defensive: older tenant DBs may not have run the delivery-fields migration yet.
+        if (\Illuminate\Support\Facades\Schema::hasColumn('google_calendar_message_logs', 'external_message_id')) {
+            $payload['external_message_id'] = $externalMessageId;
+        }
+
+        GoogleCalendarMessageLog::query()->create($payload);
     }
 }

@@ -380,21 +380,27 @@ class GoogleCalendarController extends Controller
             );
 
             // Send WhatsApp immediately — do not wait for background sync.
-            $this->sync->notifyForCreatedEvent($integration, $stored);
+            $notify = $this->sync->notifyForCreatedEvent($integration, $stored);
         }
 
         $tenantId = tenancy()->tenant?->getTenantKey();
         SyncGoogleCalendarEventsJob::dispatch($integration->id, (string) $tenantId);
 
         $meetLink = $this->api->extractMeetLink($googleEvent);
+        $success = $meetLink
+            ? 'Meeting created with Google Meet link.'
+            : 'Meeting created on Google Calendar. Meet link may appear after a short delay — click Sync Events.';
 
-        return redirect()->route('integration.google-calendar', ['tab' => 'events'])
-            ->with(
-                'success',
-                $meetLink
-                    ? 'Meeting created with Google Meet link.'
-                    : 'Meeting created on Google Calendar. Meet link may appear after a short delay — click Sync Events.',
-            );
+        $redirect = redirect()->route('integration.google-calendar', ['tab' => 'events'])
+            ->with('success', $success);
+
+        if (isset($notify) && ($notify['skipped'] ?? false) && ! ($notify['ok'] ?? false)) {
+            $redirect->with('error', $notify['message']);
+        } elseif (isset($notify) && ! ($notify['ok'] ?? true) && ! ($notify['skipped'] ?? false)) {
+            $redirect->with('error', $notify['message']);
+        }
+
+        return $redirect;
     }
 
     public function updateBookingAvailability(UpdateBookingAvailabilityRequest $request): RedirectResponse
