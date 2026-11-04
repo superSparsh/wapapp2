@@ -91,6 +91,10 @@ class RegistrationCertificateService
             'customer-readiness.udyam_regex',
             '/^UDYAM-[A-Z]{2}-[0-9]{2}-[0-9]{7}$/'
         );
+        $uamRegex = (string) config(
+            'customer-readiness.uam_regex',
+            '/^[A-Z]{2}[0-9]{2}[A-Z][0-9]{7}$/'
+        );
 
         if ($documentType === 'GST') {
             if (preg_match($gstinRegex, $registrationNumber) !== 1) {
@@ -100,9 +104,11 @@ class RegistrationCertificateService
             }
             $docType = 'GST certificate';
         } else {
-            if (preg_match($udyamRegex, $registrationNumber) !== 1) {
+            $okMsme = preg_match($udyamRegex, $registrationNumber) === 1
+                || preg_match($uamRegex, $registrationNumber) === 1;
+            if (! $okMsme) {
                 return $fail(
-                    'We found an MSME/Udyam certificate, but could not read a valid Udyam number from it. Upload a clear official Udyam certificate PDF.'
+                    'We found an MSME certificate, but could not read a valid Udyam / Udyog Aadhaar number from it. Upload a clear official MSME certificate PDF.'
                 );
             }
             $docType = 'Udyam MSME certificate';

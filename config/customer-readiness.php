@@ -86,4 +86,6 @@ return [
 
     'gstin_regex' => '/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/',
     'udyam_regex' => '/^UDYAM-[A-Z]{2}-[0-9]{2}-[0-9]{7}$/',
+    // Legacy MSME Udyog Aadhaar / UAM number (e.g. KR03D0042254)
+    'uam_regex' => '/^[A-Z]{2}[0-9]{2}[A-Z][0-9]{7}$/',
 ];

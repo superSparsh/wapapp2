@@ -140,6 +140,10 @@ class CustomerReadinessService
             'customer-readiness.udyam_regex',
             '/^UDYAM-[A-Z]{2}-[0-9]{2}-[0-9]{7}$/'
         );
+        $uamRegex = (string) config(
+            'customer-readiness.uam_regex',
+            '/^[A-Z]{2}[0-9]{2}[A-Z][0-9]{7}$/'
+        );
 
         $validator = Validator::make($input, [
             'customer_name' => ['required', 'string', 'max:255'],
@@ -163,11 +167,13 @@ class CustomerReadinessService
                 'required',
                 'string',
                 'max:40',
-                function (string $attribute, mixed $value, \Closure $fail) use ($gstinRegex, $udyamRegex): void {
+                function (string $attribute, mixed $value, \Closure $fail) use ($gstinRegex, $udyamRegex, $uamRegex): void {
                     $number = strtoupper(preg_replace('/\s+/', '', (string) $value) ?? '');
-                    $ok = preg_match($gstinRegex, $number) === 1 || preg_match($udyamRegex, $number) === 1;
+                    $ok = preg_match($gstinRegex, $number) === 1
+                        || preg_match($udyamRegex, $number) === 1
+                        || preg_match($uamRegex, $number) === 1;
                     if (! $ok) {
-                        $fail('Enter a valid GSTIN (15 characters) or Udyam MSME number (UDYAM-XX-00-0000000).');
+                        $fail('Enter a valid GSTIN, Udyam (UDYAM-XX-00-0000000), or Udyog Aadhaar MSME number.');
                     }
                 },
             ],
@@ -691,8 +697,15 @@ class CustomerReadinessService
     {
         $number = strtoupper(preg_replace('/\s+/', '', $registrationNumber) ?? '');
         $hint = strtolower(trim((string) $hint));
+        $uamRegex = (string) config('customer-readiness.uam_regex', '/^[A-Z]{2}[0-9]{2}[A-Z][0-9]{7}$/');
 
-        if (str_contains($hint, 'udyam') || str_contains($hint, 'msme') || str_starts_with($number, 'UDYAM')) {
+        if (
+            str_contains($hint, 'udyam')
+            || str_contains($hint, 'msme')
+            || str_contains($hint, 'udyog')
+            || str_starts_with($number, 'UDYAM')
+            || preg_match($uamRegex, $number) === 1
+        ) {
             return 'Udyam MSME certificate';
         }
 

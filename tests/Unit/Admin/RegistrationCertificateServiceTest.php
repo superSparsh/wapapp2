@@ -47,6 +47,34 @@ class RegistrationCertificateServiceTest extends TestCase
         $this->assertSame('GST certificate', $result['doc_type']);
     }
 
+    public function test_accepts_udyam_registration_certificate(): void
+    {
+        $path = base_path('tests/fixtures/udyam_MSME_Registration_Certificate.pdf');
+        $this->assertFileExists($path);
+        $file = new UploadedFile($path, 'udyam_MSME_Registration_Certificate.pdf', 'application/pdf', null, true);
+
+        $result = app(RegistrationCertificateService::class)->extractFromUpload($file);
+
+        $this->assertTrue($result['valid']);
+        $this->assertSame('UDYAM-KR-03-0294718', $result['registration_number']);
+        $this->assertSame('M/S TEKKONNECTPRO IT SERVICES', $result['business_name']);
+        $this->assertSame('Udyam MSME certificate', $result['doc_type']);
+    }
+
+    public function test_accepts_udyog_aadhaar_msme_certificate(): void
+    {
+        $path = base_path('tests/fixtures/udyam_MSME_Certificate.pdf');
+        $this->assertFileExists($path);
+        $file = new UploadedFile($path, 'udyam_MSME_Certificate.pdf', 'application/pdf', null, true);
+
+        $result = app(RegistrationCertificateService::class)->extractFromUpload($file);
+
+        $this->assertTrue($result['valid']);
+        $this->assertSame('KR03D0042254', $result['registration_number']);
+        $this->assertSame('TEKKONNECTPRO IT SERVICES', $result['business_name']);
+        $this->assertSame('Udyam MSME certificate', $result['doc_type']);
+    }
+
     public function test_rejects_non_gst_msme_pdf(): void
     {
         $file = $this->makePdf("Invoice\nAmount: 1000\nCustomer: Someone\n");

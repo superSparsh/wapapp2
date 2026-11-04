@@ -1582,6 +1582,7 @@ let businessEmailDebounceTimer = null;
 
 const GSTIN_REGEX = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
 const UDYAM_REGEX = /^UDYAM-[A-Z]{2}-[0-9]{2}-[0-9]{7}$/;
+const UAM_REGEX = /^[A-Z]{2}[0-9]{2}[A-Z][0-9]{7}$/;
 
 function extractBusinessIdFromPortfolioUrl(url) {
   try {
@@ -1737,7 +1738,7 @@ async function validateFacebookPageRealtime(pageName) {
 
 function detectRegDocType(raw) {
   const v = (raw || '').toUpperCase().replace(/\s+/g, '');
-  if (UDYAM_REGEX.test(v) || v.startsWith('UDYAM-')) return 'udyam';
+  if (UDYAM_REGEX.test(v) || v.startsWith('UDYAM-') || UAM_REGEX.test(v)) return 'udyam';
   if (GSTIN_REGEX.test(v)) return 'gst';
   return '';
 }

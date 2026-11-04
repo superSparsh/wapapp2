@@ -115,21 +115,26 @@ class RegistrationPdfExtractor
         $normalized = (string) preg_replace('/[ \t]+/', ' ', $text);
         $upper = strtoupper($normalized);
 
+        // MSME first — "REGISTRATION CERTIFICATE" appears on both GST and Udyam/UAM PDFs.
+        $looksUdyam = str_contains($upper, 'UDYAM REGISTRATION')
+            || str_contains($upper, 'UDYAM REGISTRATION NUMBER')
+            || str_contains($upper, 'UDYAM-')
+            || str_contains($upper, 'UDYOG AADHAAR')
+            || str_contains($upper, 'UAM NO')
+            || str_contains($upper, 'UDYOGAADHAAR.GOV.IN')
+            || str_contains($upper, 'UDYAMREGISTRATION.GOV.IN')
+            || (str_contains($upper, 'MSME') && (str_contains($upper, 'UDYAM') || str_contains($upper, 'MINISTRY OF MICRO')));
         $looksGst = str_contains($upper, 'FORM GST REG-06')
             || str_contains($upper, 'GOODS AND SERVICES TAX')
             || str_contains($upper, 'GSTIN/UIN')
             || str_contains($upper, 'GSTIN / UIN')
-            || str_contains($upper, 'REGISTRATION CERTIFICATE')
             || (str_contains($upper, 'GSTIN') && str_contains($upper, 'LEGAL NAME'))
-            || (str_contains($upper, 'REGISTRATION NUMBER') && str_contains($upper, 'LEGAL NAME'));
-        $looksUdyam = str_contains($upper, 'UDYAM REGISTRATION')
-            || str_contains($upper, 'UDYAM-')
-            || (str_contains($upper, 'MSME') && (str_contains($upper, 'UDYAM') || str_contains($upper, 'MINISTRY OF MICRO')));
+            || (str_contains($upper, 'REGISTRATION NUMBER') && str_contains($upper, 'LEGAL NAME') && ! $looksUdyam);
 
-        if ($looksGst) {
-            $result['document_type'] = 'GST';
-        } elseif ($looksUdyam) {
+        if ($looksUdyam) {
             $result['document_type'] = 'UDYAM';
+        } elseif ($looksGst) {
+            $result['document_type'] = 'GST';
         }
 
         $gstinFromLabel = $this->valueAfterLabels($lines, [
@@ -139,17 +144,34 @@ class RegistrationPdfExtractor
             'GSTIN/UIN',
             'GSTIN / UIN',
         ]);
-        $result['gstin'] = $this->findGstinCandidate((string) ($gstinFromLabel ?? ''), $normalized);
+        // Only hunt GSTIN when this is (or might be) a GST certificate — avoids false hits on MSME PDFs.
+        if (($result['document_type'] ?? null) !== 'UDYAM') {
+            $result['gstin'] = $this->findGstinCandidate((string) ($gstinFromLabel ?? ''), $normalized);
+        }
 
         $udyamFromLabel = $this->valueAfterLabels($lines, [
             'Udyam Registration Number',
+            'UDYAM REGISTRATION NUMBER',
             'Udyam Registration No',
             'UDYAM Registration Number',
+        ]) ?: $this->valueFromMessyLine($lines, [
+            'Udyam Registration Number',
+            'UDYAM REGISTRATION NUMBER',
+            'Udyam Registration No',
         ]);
         if (is_string($udyamFromLabel) && preg_match('/\bUDYAM-[A-Z]{2}-[0-9]{2}-[0-9]{7}\b/i', $udyamFromLabel, $m) === 1) {
             $result['udyam'] = strtoupper($m[0]);
         } elseif (preg_match('/\bUDYAM-[A-Z]{2}-[0-9]{2}-[0-9]{7}\b/i', $normalized, $m) === 1) {
             $result['udyam'] = strtoupper($m[0]);
+        }
+
+        // Legacy MSME: Udyog Aadhaar / UAM (e.g. KR03D0042254)
+        $uam = $this->findUamCandidate($lines, $normalized);
+        if ($uam !== null && blank($result['udyam'])) {
+            $result['udyam'] = $uam;
+            if ($result['document_type'] === null) {
+                $result['document_type'] = 'UDYAM';
+            }
         }
 
         if (($result['document_type'] ?? null) === 'UDYAM' && filled($result['udyam'])) {
@@ -168,19 +190,25 @@ class RegistrationPdfExtractor
 
         if (filled($result['gstin']) && preg_match('/^[0-9]{2}([A-Z]{5}[0-9]{4}[A-Z])/', (string) $result['gstin'], $m) === 1) {
             $result['pan'] = $m[1];
-        } elseif (preg_match('/\b[A-Z]{5}[0-9]{4}[A-Z]\b/i', $normalized, $m) === 1) {
+        } elseif (($result['document_type'] ?? null) === 'GST' && preg_match('/\b[A-Z]{5}[0-9]{4}[A-Z]\b/i', $normalized, $m) === 1) {
             $result['pan'] = strtoupper($m[0]);
         }
 
-        $legal = $this->valueAfterLabels($lines, ['Legal Name', 'Name of Business', 'Name of the Enterprise', 'Enterprise Name'])
-            ?: $this->valueByLabels($lines, ['Legal Name', 'Name of Business', 'Name of the Enterprise', 'Enterprise Name']);
+        $enterpriseLabels = [
+            'NAME OF ENTERPRISE',
+            'Name of Enterprise',
+            'Name of the Enterprise',
+            'Legal Name',
+            'Name of Business',
+            'Enterprise Name',
+        ];
+        $legal = $this->valueAfterLabels($lines, $enterpriseLabels)
+            ?: $this->valueByLabels($lines, $enterpriseLabels)
+            ?: $this->valueFromMessyLine($lines, $enterpriseLabels);
         $trade = $this->valueAfterLabels($lines, ['Trade Name, if any', 'Trade Name', 'Business Name', 'Additional trade names, if any'])
             ?: $this->valueByLabels($lines, ['Trade Name, if any', 'Trade Name', 'Business Name']);
 
         // OCR / print layouts often glue "Legal Name MEYDAN INFRA LLP" on one line.
-        if ($legal === null) {
-            $legal = $this->valueFromMessyLine($lines, ['Legal Name']);
-        }
         if ($trade === null) {
             $trade = $this->valueFromMessyLine($lines, ['Trade Name, if any', 'Trade Name']);
         }
@@ -249,6 +277,37 @@ class RegistrationPdfExtractor
         }
 
         return $primary;
+    }
+
+    /**
+     * @param  list<string>  $lines
+     */
+    private function findUamCandidate(array $lines, string $haystack): ?string
+    {
+        $labeled = $this->valueAfterLabels($lines, [
+            'Udyog Aadhaar Number',
+            'Udyog Aadhaar No',
+            'UAM No',
+            'UAM No.',
+            'UAM Number',
+        ]) ?: $this->valueFromMessyLine($lines, [
+            'Udyog Aadhaar Number',
+            'Udyog Aadhaar No',
+            'UAM No',
+            'UAM No.',
+            'UAM Number',
+        ]);
+
+        foreach ([$labeled, $haystack] as $source) {
+            if (! is_string($source) || $source === '') {
+                continue;
+            }
+            if (preg_match('/\b([A-Z]{2}[0-9]{2}[A-Z][0-9]{7})\b/i', $source, $m) === 1) {
+                return strtoupper($m[1]);
+            }
+        }
+
+        return null;
     }
 
     private function findGstinCandidate(string $labeled, string $haystack): ?string
@@ -849,6 +908,8 @@ class RegistrationPdfExtractor
         $norm = $this->normalizeLabel($value);
         $labels = [
             'legal name',
+            'name of enterprise',
+            'name of the enterprise',
             'trade name',
             'trade name, if any',
             'constitution of business',
@@ -857,7 +918,11 @@ class RegistrationPdfExtractor
             'date of liability',
             'period of validity',
             'type of registration',
+            'type of enterprise',
             'registration number',
+            'udyam registration number',
+            'udyog aadhaar number',
+            'uam no',
             'gstin',
             'from',
             'to',

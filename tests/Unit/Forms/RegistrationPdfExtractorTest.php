@@ -42,4 +42,30 @@ class RegistrationPdfExtractorTest extends TestCase
         $this->assertSame('140603', $result['pincode']);
         $this->assertSame('Punjab', $result['state']);
     }
+
+    public function test_extracts_fields_from_udyam_registration_certificate(): void
+    {
+        $path = base_path('tests/fixtures/udyam_MSME_Registration_Certificate.pdf');
+        $this->assertFileExists($path);
+
+        $result = app(RegistrationPdfExtractor::class)->extract($path);
+
+        $this->assertSame('UDYAM', $result['document_type']);
+        $this->assertSame('UDYAM-KR-03-0294718', $result['udyam']);
+        $this->assertSame('UDYAM-KR-03-0294718', $result['registration_number']);
+        $this->assertSame('M/S TEKKONNECTPRO IT SERVICES', $result['business_name']);
+    }
+
+    public function test_extracts_fields_from_udyog_aadhaar_msme_certificate(): void
+    {
+        $path = base_path('tests/fixtures/udyam_MSME_Certificate.pdf');
+        $this->assertFileExists($path);
+
+        $result = app(RegistrationPdfExtractor::class)->extract($path);
+
+        $this->assertSame('UDYAM', $result['document_type']);
+        $this->assertSame('KR03D0042254', $result['udyam']);
+        $this->assertSame('KR03D0042254', $result['registration_number']);
+        $this->assertSame('TEKKONNECTPRO IT SERVICES', $result['business_name']);
+    }
 }
