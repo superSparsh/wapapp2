@@ -32,8 +32,8 @@ return new class extends Migration
             $table->timestamp('end_time')->nullable();
             $table->string('invitee_email')->nullable();
             $table->string('invitee_name')->nullable();
-            $table->string('meet_link')->nullable();
-            $table->string('calendar_link')->nullable();
+            $table->text('meet_link')->nullable();
+            $table->text('calendar_link')->nullable();
             $table->string('whatsapp_number')->nullable();
             $table->json('raw_payload')->nullable();
             $table->json('attendee_payload')->nullable();

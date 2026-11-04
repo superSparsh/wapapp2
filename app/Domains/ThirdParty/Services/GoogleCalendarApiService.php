@@ -569,6 +569,33 @@ class GoogleCalendarApiService
         $integration->save();
     }
 
+    /**
+     * Google Calendar watch channels return expiration as Unix milliseconds.
+     */
+    public function parseWatchExpiration(mixed $expiration): ?Carbon
+    {
+        if ($expiration === null || $expiration === '') {
+            return null;
+        }
+
+        if (is_numeric($expiration)) {
+            $value = (int) $expiration;
+
+            // ms timestamps are 13 digits; seconds are 10.
+            if ($value >= 1_000_000_000_000) {
+                return Carbon::createFromTimestampMs($value);
+            }
+
+            return Carbon::createFromTimestamp($value);
+        }
+
+        try {
+            return Carbon::parse((string) $expiration);
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
     // ──────────────────────────────────────────────────────────────────────────
     // Data extraction helpers
     // ──────────────────────────────────────────────────────────────────────────

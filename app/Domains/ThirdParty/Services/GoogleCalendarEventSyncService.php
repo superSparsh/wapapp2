@@ -572,7 +572,16 @@ class GoogleCalendarEventSyncService
         }
 
         if ($updates !== []) {
-            $event->forceFill($updates)->save();
+            try {
+                $event->forceFill($updates)->save();
+            } catch (\Throwable $e) {
+                // Keep in-memory links for template params even if persist fails
+                // (e.g. legacy VARCHAR(255) calendar_link before text migration).
+                Log::warning('Failed to persist hydrated Google Calendar event links', [
+                    'event_id' => $event->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
         }
     }
 

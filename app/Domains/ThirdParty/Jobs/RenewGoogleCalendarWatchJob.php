@@ -7,7 +7,6 @@ namespace App\Domains\ThirdParty\Jobs;
 use App\Domains\ThirdParty\Models\GoogleCalendarIntegration;
 use App\Domains\ThirdParty\Services\GoogleCalendarApiService;
 use App\Models\Tenant;
-use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -55,13 +54,15 @@ class RenewGoogleCalendarWatchJob implements ShouldQueue
                 return;
             }
 
-            // Skip if watch does not expire within 24 hours
-            $expiration = $integration->settings['watch_expiration'] ?? null;
-            if ($expiration && Carbon::parse($expiration)->isAfter(now()->addDay())) {
+            $api = new GoogleCalendarApiService();
+
+            // Skip if watch does not expire within 24 hours.
+            // Google stores/returns watch expiration as Unix ms (e.g. 1794235512000).
+            $expirationAt = $api->parseWatchExpiration($integration->settings['watch_expiration'] ?? null);
+            if ($expirationAt !== null && $expirationAt->isAfter(now()->addDay())) {
                 return;
             }
 
-            $api = new GoogleCalendarApiService();
             $api->registerWatch($integration);
         } finally {
             tenancy()->end();
