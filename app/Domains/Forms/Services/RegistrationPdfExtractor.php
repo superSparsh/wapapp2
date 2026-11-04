@@ -7,9 +7,10 @@ namespace App\Domains\Forms\Services;
 /**
  * GST / Udyam registration PDF field extraction.
  *
- * Handles official Form GST REG-06 style certificates where text lives in
- * FlateDecode content streams as (... )Tj operators (not plain ASCII), plus
- * pdftotext / raw fallbacks for text-layer PDFs.
+ * Supports:
+ * 1) Official Form GST REG-06 text-layer PDFs (FlateDecode + Tj operators)
+ * 2) "Microsoft Print to PDF" / vector-outline certificates via OCR fallback
+ *    (pdftoppm + tesseract), with light image cleanup for pale grey glyphs
  */
 class RegistrationPdfExtractor
 {
@@ -31,7 +32,7 @@ class RegistrationPdfExtractor
      */
     public function extract(?string $absolutePath): array
     {
-        $result = [
+        $empty = [
             'business_name' => null,
             'business_address' => null,
             'address_line_1' => null,
@@ -47,7 +48,7 @@ class RegistrationPdfExtractor
         ];
 
         if ($absolutePath === null || $absolutePath === '' || ! is_file($absolutePath)) {
-            return $result;
+            return $empty;
         }
 
         $tokens = $this->extractPdfTextTokens($absolutePath);
@@ -57,10 +58,60 @@ class RegistrationPdfExtractor
             $tokens = $this->linesFromText($text);
         }
 
+        $result = $this->parseFieldsFromText($text, $tokens);
+
+        // Print-to-PDF / scanned certificates often have no extractable text layer.
+        if (! $this->hasUsableRegistration($result)) {
+            $ocrText = $this->extractTextViaOcr($absolutePath);
+            if ($ocrText !== '') {
+                $ocrTokens = $this->linesFromText($ocrText);
+                $ocrResult = $this->parseFieldsFromText($ocrText, $ocrTokens);
+                $result = $this->mergeExtractionResults($result, $ocrResult);
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * @param  list<string>  $tokens
+     * @return array{
+     *     business_name: ?string,
+     *     business_address: ?string,
+     *     address_line_1: ?string,
+     *     address_line_2: ?string,
+     *     city: ?string,
+     *     state: ?string,
+     *     pincode: ?string,
+     *     gstin: ?string,
+     *     udyam: ?string,
+     *     registration_number: ?string,
+     *     pan: ?string,
+     *     document_type: ?string
+     * }
+     */
+    private function parseFieldsFromText(string $text, array $tokens): array
+    {
+        $result = [
+            'business_name' => null,
+            'business_address' => null,
+            'address_line_1' => null,
+            'address_line_2' => null,
+            'city' => null,
+            'state' => null,
+            'pincode' => null,
+            'gstin' => null,
+            'udyam' => null,
+            'registration_number' => null,
+            'pan' => null,
+            'document_type' => null,
+        ];
+
         if ($text === '' && $tokens === []) {
             return $result;
         }
 
+        $lines = $tokens !== [] ? $tokens : $this->linesFromText($text);
         $normalized = (string) preg_replace('/[ \t]+/', ' ', $text);
         $upper = strtoupper($normalized);
 
@@ -81,21 +132,16 @@ class RegistrationPdfExtractor
             $result['document_type'] = 'UDYAM';
         }
 
-        // Prefer labeled Registration Number (Form GST REG-06), then any GSTIN shape.
-        $gstinFromLabel = $this->valueAfterLabels($tokens, [
+        $gstinFromLabel = $this->valueAfterLabels($lines, [
             'Registration Number',
             'Registration Number :',
             'GSTIN',
             'GSTIN/UIN',
             'GSTIN / UIN',
         ]);
-        if (is_string($gstinFromLabel) && preg_match('/\b\d{2}[A-Z]{5}\d{4}[A-Z][A-Z0-9]Z[A-Z0-9]\b/i', $gstinFromLabel, $m) === 1) {
-            $result['gstin'] = strtoupper($m[0]);
-        } elseif (preg_match('/\b\d{2}[A-Z]{5}\d{4}[A-Z][A-Z0-9]Z[A-Z0-9]\b/i', $normalized, $m) === 1) {
-            $result['gstin'] = strtoupper($m[0]);
-        }
+        $result['gstin'] = $this->findGstinCandidate((string) ($gstinFromLabel ?? ''), $normalized);
 
-        $udyamFromLabel = $this->valueAfterLabels($tokens, [
+        $udyamFromLabel = $this->valueAfterLabels($lines, [
             'Udyam Registration Number',
             'Udyam Registration No',
             'UDYAM Registration Number',
@@ -110,8 +156,14 @@ class RegistrationPdfExtractor
             $result['registration_number'] = $result['udyam'];
         } elseif (filled($result['gstin'])) {
             $result['registration_number'] = $result['gstin'];
+            if ($result['document_type'] === null) {
+                $result['document_type'] = 'GST';
+            }
         } elseif (filled($result['udyam'])) {
             $result['registration_number'] = $result['udyam'];
+            if ($result['document_type'] === null) {
+                $result['document_type'] = 'UDYAM';
+            }
         }
 
         if (filled($result['gstin']) && preg_match('/^[0-9]{2}([A-Z]{5}[0-9]{4}[A-Z])/', (string) $result['gstin'], $m) === 1) {
@@ -120,15 +172,26 @@ class RegistrationPdfExtractor
             $result['pan'] = strtoupper($m[0]);
         }
 
-        $legal = $this->valueAfterLabels($tokens, ['Legal Name', 'Name of Business', 'Name of the Enterprise', 'Enterprise Name']);
-        $trade = $this->valueAfterLabels($tokens, ['Trade Name, if any', 'Trade Name', 'Business Name']);
-        $result['business_name'] = $this->cleanName($legal)
-            ?: $this->cleanName($trade)
-            ?: $this->cleanName($this->valueByLabels($this->linesFromText($text), [
-                'Legal Name', 'Name of Business', 'Trade Name', 'Enterprise Name', 'Name of Enterprise', 'Business Name',
-            ]));
+        $legal = $this->valueAfterLabels($lines, ['Legal Name', 'Name of Business', 'Name of the Enterprise', 'Enterprise Name'])
+            ?: $this->valueByLabels($lines, ['Legal Name', 'Name of Business', 'Name of the Enterprise', 'Enterprise Name']);
+        $trade = $this->valueAfterLabels($lines, ['Trade Name, if any', 'Trade Name', 'Business Name', 'Additional trade names, if any'])
+            ?: $this->valueByLabels($lines, ['Trade Name, if any', 'Trade Name', 'Business Name']);
 
-        $address = $this->extractPrincipalAddress($tokens, $text);
+        // OCR / print layouts often glue "Legal Name MEYDAN INFRA LLP" on one line.
+        if ($legal === null) {
+            $legal = $this->valueFromMessyLine($lines, ['Legal Name']);
+        }
+        if ($trade === null) {
+            $trade = $this->valueFromMessyLine($lines, ['Trade Name, if any', 'Trade Name']);
+        }
+
+        $result['business_name'] = $this->cleanName($legal)
+            ?: $this->cleanName($trade);
+
+        $address = $this->extractPrincipalAddress($lines, $text);
+        if ($address === null) {
+            $address = $this->extractStructuredAddressFromLines($lines);
+        }
         if ($address !== null) {
             $result['business_address'] = $address;
             $parts = array_values(array_filter(array_map('trim', explode(',', $address))));
@@ -139,22 +202,341 @@ class RegistrationPdfExtractor
             if (preg_match('/\b(\d{6})\b/', $address, $m) === 1) {
                 $result['pincode'] = $m[1];
             }
-            // Last non-pincode token before pin is often state on REG-06.
             if (preg_match('/,\s*([A-Za-z ]+),\s*\d{6}\s*$/', $address, $m) === 1) {
                 $result['state'] = trim($m[1]);
             }
         }
 
-        if ($result['pincode'] === null && preg_match('/\b\d{6}\b/', $normalized, $m) === 1) {
-            $result['pincode'] = $m[0];
+        $pinFromLabel = $this->valueFromMessyLine($lines, ['PIN Code', 'Pincode', 'Pin Code']);
+        if (is_string($pinFromLabel) && preg_match('/\b(\d{6})\b/', $pinFromLabel, $m) === 1) {
+            $result['pincode'] = $m[1];
+        }
+
+        // Only guess loose pincode once we know this is a registration certificate.
+        if ($result['pincode'] === null && $result['document_type'] !== null && preg_match('/\b(\d{6})\b/', $normalized, $m) === 1) {
+            $result['pincode'] = $m[1];
         }
 
         $result['city'] = $result['city']
-            ?: $this->valueAfterLabels($tokens, ['City', 'Town', 'Locality']);
+            ?: $this->valueAfterLabels($lines, ['City/Town/Village', 'City', 'Town', 'Locality'])
+            ?: $this->valueFromMessyLine($lines, ['City/Town/Village', 'City', 'Town', 'Locality']);
         $result['state'] = $result['state']
-            ?: $this->valueAfterLabels($tokens, ['State', 'Resident of State']);
+            ?: $this->valueAfterLabels($lines, ['State', 'Resident of State'])
+            ?: $this->valueFromMessyLine($lines, ['State']);
 
         return $result;
+    }
+
+    /**
+     * @param  array<string, mixed>  $result
+     */
+    private function hasUsableRegistration(array $result): bool
+    {
+        return filled($result['registration_number'] ?? null) && filled($result['business_name'] ?? null);
+    }
+
+    /**
+     * @param  array<string, mixed>  $primary
+     * @param  array<string, mixed>  $secondary
+     * @return array<string, mixed>
+     */
+    private function mergeExtractionResults(array $primary, array $secondary): array
+    {
+        foreach ($secondary as $key => $value) {
+            if (! filled($primary[$key] ?? null) && filled($value)) {
+                $primary[$key] = $value;
+            }
+        }
+
+        return $primary;
+    }
+
+    private function findGstinCandidate(string $labeled, string $haystack): ?string
+    {
+        // Prefer value next to Registration Number / GSTIN labels (OCR print layouts).
+        if (preg_match('/Registration\s*Number\s*:?\s*([0-9A-Za-z]{14,18})/i', $haystack, $m) === 1) {
+            $normalized = $this->normalizeOcrGstin($m[1]);
+            if ($normalized !== null) {
+                return $normalized;
+            }
+        }
+        if (preg_match('/GSTIN(?:\s*\/\s*UIN)?\s*:?\s*([0-9A-Za-z]{14,18})/i', $haystack, $m) === 1) {
+            $normalized = $this->normalizeOcrGstin($m[1]);
+            if ($normalized !== null) {
+                return $normalized;
+            }
+        }
+
+        foreach ([$labeled, $haystack] as $source) {
+            $source = strtoupper((string) preg_replace('/\s+/', '', $source));
+            if ($source === '') {
+                continue;
+            }
+            // Strict match first.
+            if (preg_match('/\d{2}[A-Z]{5}\d{4}[A-Z][1-9A-Z]Z[0-9A-Z]/', $source, $m) === 1) {
+                return $m[0];
+            }
+            // OCR-tolerant 15–16 char blobs near GSTIN shape.
+            if (preg_match_all('/[0-9A-Z]{14,16}/', $source, $matches) > 0) {
+                foreach ($matches[0] as $blob) {
+                    $normalized = $this->normalizeOcrGstin($blob);
+                    if ($normalized !== null) {
+                        return $normalized;
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private function normalizeOcrGstin(string $raw): ?string
+    {
+        $s = strtoupper(preg_replace('/[^0-9A-Z]/', '', $raw) ?? '');
+        if ($s === '') {
+            return null;
+        }
+
+        // Drop common OCR insertions in state-code area:
+        // 0I3 / OI3 / 0L3 / 0P3 -> 03 (extra letter between state digits)
+        if (strlen($s) === 16 && preg_match('/^[0O][A-Z]([0-9].+)$/', $s, $m) === 1) {
+            $s = '0'.$m[1];
+        }
+        // 03xABYFM... where x is junk letter after valid 2-digit state
+        if (strlen($s) === 16 && preg_match('/^([0-9O]{2})[A-Z]([A-Z]{5}[0-9A-Z]{7})$/', $s, $m) === 1) {
+            $state = str_replace(['O', 'I', 'L'], ['0', '1', '1'], $m[1]);
+            if (preg_match('/^\d{2}$/', $state) === 1) {
+                $s = $state.$m[2];
+            }
+        }
+
+        // Build 15-char candidate with positional O/0 and I/1 fixes.
+        if (strlen($s) !== 15) {
+            return null;
+        }
+
+        $chars = str_split($s);
+        // positions 0-1 state digits
+        foreach ([0, 1] as $i) {
+            $chars[$i] = match ($chars[$i]) {
+                'O' => '0',
+                'I', 'L' => '1',
+                default => $chars[$i],
+            };
+        }
+        // positions 2-6 letters (PAN first 5) — digits mistaken as letters rare; 0->O, 1->I
+        foreach ([2, 3, 4, 5, 6] as $i) {
+            $chars[$i] = match ($chars[$i]) {
+                '0' => 'O',
+                '1' => 'I',
+                default => $chars[$i],
+            };
+        }
+        // positions 7-10 digits
+        foreach ([7, 8, 9, 10] as $i) {
+            $chars[$i] = match ($chars[$i]) {
+                'O' => '0',
+                'I', 'L' => '1',
+                default => $chars[$i],
+            };
+        }
+        // position 11 letter
+        $chars[11] = match ($chars[11]) {
+            '0' => 'O',
+            '1' => 'I',
+            default => $chars[11],
+        };
+        // position 13 must be Z for GSTIN
+        if ($chars[13] === '2') {
+            $chars[13] = 'Z';
+        }
+
+        $candidate = implode('', $chars);
+        if (preg_match('/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/', $candidate) === 1) {
+            return $candidate;
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  list<string>  $lines
+     * @param  list<string>  $labels
+     */
+    private function valueFromMessyLine(array $lines, array $labels): ?string
+    {
+        foreach ($lines as $line) {
+            $clean = trim((string) preg_replace('/^[|\d\.\[\]\s]+/', '', $line));
+            foreach ($labels as $label) {
+                if (preg_match('/'.preg_quote($label, '/').'\s*[:\-\|]?\s*(.+)$/i', $clean, $m) === 1) {
+                    $value = trim((string) ($m[1] ?? ''));
+                    $value = trim($value, " \t|:[]");
+                    if ($value !== '' && ! $this->looksLikeLabel($value)) {
+                        return $value;
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Newer REG-06 print layouts break address into labeled rows.
+     *
+     * @param  list<string>  $lines
+     */
+    private function extractStructuredAddressFromLines(array $lines): ?string
+    {
+        $parts = [];
+        $keys = [
+            'Floor No',
+            'Building No./Flat No',
+            'Building No/Flat No',
+            'Name Of Premises/Building',
+            'Road/Street',
+            'Nearby Landmark',
+            'Locality/Sub Locality',
+            'City/Town/Village',
+            'District',
+            'State',
+            'PIN Code',
+        ];
+        foreach ($keys as $key) {
+            $val = $this->valueFromMessyLine($lines, [$key]);
+            if ($val !== null && $val !== '') {
+                // Strip repeated key prefixes like "UPPER..." only.
+                $parts[] = $val;
+            }
+        }
+
+        $parts = array_values(array_unique(array_filter(array_map(
+            static fn (string $p): string => trim($p),
+            $parts
+        ))));
+
+        return $parts === [] ? null : implode(', ', $parts);
+    }
+
+    /**
+     * Rasterize PDF pages and OCR (for Microsoft Print-to-PDF / scanned certificates).
+     */
+    private function extractTextViaOcr(string $absolutePath): string
+    {
+        $pdftoppm = $this->findBinary(['pdftoppm', '/opt/homebrew/bin/pdftoppm', '/usr/local/bin/pdftoppm', '/usr/bin/pdftoppm']);
+        $tesseract = $this->findBinary(['tesseract', '/opt/homebrew/bin/tesseract', '/usr/local/bin/tesseract', '/usr/bin/tesseract']);
+        if ($pdftoppm === null || $tesseract === null) {
+            return '';
+        }
+
+        $tmpDir = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR)
+            .DIRECTORY_SEPARATOR.'wapapp-gst-ocr-'.bin2hex(random_bytes(6));
+        if (! @mkdir($tmpDir, 0700, true) && ! is_dir($tmpDir)) {
+            return '';
+        }
+
+        try {
+            $prefix = $tmpDir.DIRECTORY_SEPARATOR.'page';
+            $cmd = escapeshellarg($pdftoppm)
+                .' -png -r 200 -f 1 -l 2 '
+                .escapeshellarg($absolutePath).' '.escapeshellarg($prefix).' 2>/dev/null';
+            @shell_exec($cmd);
+
+            $images = glob($prefix.'-*.png') ?: [];
+            if ($images === []) {
+                return '';
+            }
+
+            $chunks = [];
+            foreach ($images as $image) {
+                $prepared = $this->prepareImageForOcr($image);
+                $target = $prepared ?? $image;
+                $ocrCmd = escapeshellarg($tesseract).' '
+                    .escapeshellarg($target)
+                    .' stdout -l eng --psm 6 2>/dev/null';
+                $out = (string) shell_exec($ocrCmd);
+                if (trim($out) !== '') {
+                    $chunks[] = $out;
+                }
+                if ($prepared !== null && is_file($prepared)) {
+                    @unlink($prepared);
+                }
+                @unlink($image);
+            }
+
+            return trim(implode("\n", $chunks));
+        } finally {
+            foreach (glob($tmpDir.DIRECTORY_SEPARATOR.'*') ?: [] as $f) {
+                @unlink($f);
+            }
+            @rmdir($tmpDir);
+        }
+    }
+
+    private function prepareImageForOcr(string $imagePath): ?string
+    {
+        if (! function_exists('imagecreatefrompng')) {
+            return null;
+        }
+
+        $src = @imagecreatefrompng($imagePath);
+        if ($src === false) {
+            return null;
+        }
+
+        $width = imagesx($src);
+        $height = imagesy($src);
+        $dst = imagecreatetruecolor($width, $height);
+        if ($dst === false) {
+            imagedestroy($src);
+
+            return null;
+        }
+
+        // Convert pale grey vector printouts to high-contrast black text on white.
+        for ($y = 0; $y < $height; $y++) {
+            for ($x = 0; $x < $width; $x++) {
+                $rgb = imagecolorat($src, $x, $y);
+                $r = ($rgb >> 16) & 0xFF;
+                $g = ($rgb >> 8) & 0xFF;
+                $b = $rgb & 0xFF;
+                $gray = (int) (($r + $g + $b) / 3);
+                $val = $gray < 200 ? 0 : 255;
+                $color = imagecolorallocate($dst, $val, $val, $val);
+                if ($color !== false) {
+                    imagesetpixel($dst, $x, $y, $color);
+                }
+            }
+        }
+
+        $out = $imagePath.'.bw.png';
+        $ok = imagepng($dst, $out);
+        imagedestroy($src);
+        imagedestroy($dst);
+
+        return $ok ? $out : null;
+    }
+
+    /**
+     * @param  list<string>  $candidates
+     */
+    private function findBinary(array $candidates): ?string
+    {
+        foreach ($candidates as $bin) {
+            if (str_contains($bin, '/')) {
+                if (is_executable($bin)) {
+                    return $bin;
+                }
+
+                continue;
+            }
+            $found = trim((string) shell_exec('command -v '.escapeshellarg($bin).' 2>/dev/null'));
+            if ($found !== '' && is_executable($found)) {
+                return $found;
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -318,9 +700,9 @@ class RegistrationPdfExtractor
             foreach ($labels as $label) {
                 $labelNorm = $this->normalizeLabel($label);
                 if ($currentNorm === $labelNorm || str_starts_with($currentNorm, $labelNorm)) {
-                    // Value may be on same token after ":" or on following token(s).
-                    if (str_contains($current, ':')) {
-                        $after = trim((string) substr($current, (int) strpos($current, ':') + 1));
+                    // Same-line remainder: "Legal Name MEYDAN INFRA LLP" / "Registration Number : 03..."
+                    if (preg_match('/^'.preg_quote($label, '/').'\s*[:\-\|]?\s*(.+)$/i', $current, $same) === 1) {
+                        $after = trim((string) ($same[1] ?? ''), " \t|:[]");
                         if ($after !== '' && ! $this->looksLikeLabel($after)) {
                             return $after;
                         }
@@ -495,8 +877,17 @@ class RegistrationPdfExtractor
         $name = trim((string) preg_replace('/\s+/', ' ', $name));
         $name = (string) preg_replace('/\s*%%EOF.*/i', '', $name);
         $name = (string) preg_replace('/\s*\b(endobj|endstream|trailer|xref)\b.*/i', '', $name);
-        $name = trim($name, " \t\n\r\0\x0B:-");
+        // OCR row junk: "| 2. [Trade Name, if any MEYDAN..." → keep trailing name if present
+        if (preg_match('/Trade Name(?:, if any)?\s*[:\-\|]?\s*(.+)$/i', $name, $m) === 1) {
+            $name = $m[1];
+        }
+        $name = (string) preg_replace('/^[|\d\.\s\[\]\-]+/', '', $name);
+        $name = trim($name, " \t\n\r\0\x0B:-|[]");
         if ($name === '' || $this->looksLikeLabel($name)) {
+            return null;
+        }
+        // Reject if it still looks like a whole OCR table row.
+        if (preg_match('/\b(Trade Name|Constitution|Address of Principal|Additional trade)\b/i', $name) === 1) {
             return null;
         }
 

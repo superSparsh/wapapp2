@@ -26,4 +26,20 @@ class RegistrationPdfExtractorTest extends TestCase
         $this->assertNotNull($result['business_address']);
         $this->assertStringContainsString('HUBLI', (string) $result['business_address']);
     }
+
+    public function test_extracts_fields_from_microsoft_print_to_pdf_gst_certificate(): void
+    {
+        $path = base_path('tests/fixtures/gst_certificate_MEYDAN_INFRA_print.pdf');
+        $this->assertFileExists($path);
+
+        $result = app(RegistrationPdfExtractor::class)->extract($path);
+
+        $this->assertSame('GST', $result['document_type']);
+        $this->assertSame('03ABYFM7945F1ZQ', $result['gstin']);
+        $this->assertSame('03ABYFM7945F1ZQ', $result['registration_number']);
+        $this->assertSame('MEYDAN INFRA LLP', $result['business_name']);
+        $this->assertSame('ABYFM7945F', $result['pan']);
+        $this->assertSame('140603', $result['pincode']);
+        $this->assertSame('Punjab', $result['state']);
+    }
 }
