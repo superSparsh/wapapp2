@@ -534,13 +534,25 @@ class AlertDispatcher
             return ['code' => $configured, 'language' => null, 'error' => null];
         }
 
+        $isUuid = (bool) preg_match(
+            '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i',
+            $configured,
+        );
+
         $template = Template::query()
             ->where('status', TemplateStatus::Approved)
             ->where(function ($query) use ($line): void {
                 $query->where('whatsapp_line_id', $line->id)
                     ->orWhereNull('whatsapp_line_id');
             })
-            ->where(function ($query) use ($configured): void {
+            ->where(function ($query) use ($configured, $isUuid): void {
+                if ($isUuid) {
+                    // Local template uuid (Templates page) — pin exact row.
+                    $query->where('uuid', $configured);
+
+                    return;
+                }
+
                 $query->where('name', $configured)
                     // CAMS / legacy real_template_name: "{customer_id}_{logical_name}"
                     ->orWhere('name', 'like', '%_'.$configured)
@@ -548,7 +560,10 @@ class AlertDispatcher
                     ->orWhere('payload->legacy_real_template_name', 'like', '%_'.$configured);
             })
             ->orderByRaw('case when whatsapp_line_id = ? then 0 else 1 end', [$line->id])
-            ->orderByRaw('case when name = ? then 0 else 1 end', [$configured])
+            ->when(
+                ! $isUuid,
+                fn ($query) => $query->orderByRaw('case when name = ? then 0 else 1 end', [$configured]),
+            )
             ->first();
 
         if ($template === null) {

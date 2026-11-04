@@ -99,6 +99,8 @@ return [
         'admin_reminder' => env('ALERT_WA_TEMPLATE_CALENDLY_ADMIN_REMINDER', 'calendly_user_event_reminder'),
     ],
 
+    // Defaults are Meta/logical template names (legacy parity).
+    // Env may also be a local Templates uuid or numeric CAMS TemplateCode.
     'google_calendar' => [
         'customer_created' => env('ALERT_WA_TEMPLATE_GCAL_CUSTOMER_CREATED', 'google_calendar_customer_event_created'),
         'customer_canceled' => env('ALERT_WA_TEMPLATE_GCAL_CUSTOMER_CANCELED', 'google_calendar_customer_event_canceled'),

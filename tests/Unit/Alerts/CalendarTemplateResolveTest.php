@@ -72,6 +72,37 @@ class CalendarTemplateResolveTest extends TestCase
         $this->assertNull($resolved['error']);
     }
 
+    public function test_resolve_calendar_template_matches_local_uuid(): void
+    {
+        $line = WhatsappLine::query()->firstOrFail();
+        $line->forceFill([
+            'is_default' => true,
+            'phone' => '919999999999',
+            'alibaba_cust_space_id' => 'space-1',
+        ])->save();
+
+        $template = Template::query()->create([
+            'whatsapp_line_id' => $line->id,
+            'name' => 'google_calendar_customer_event_canceled',
+            'code' => '1257583503568572444',
+            'status' => TemplateStatus::Approved,
+            'language' => 'en',
+            'category' => 'UTILITY',
+            'source' => 'cams',
+            'payload' => [],
+        ]);
+
+        $dispatcher = app(AlertDispatcher::class);
+        $method = new ReflectionMethod(AlertDispatcher::class, 'resolveCalendarTemplate');
+        $method->setAccessible(true);
+
+        $resolved = $method->invoke($dispatcher, (string) $template->uuid, $line);
+
+        $this->assertSame('1257583503568572444', $resolved['code']);
+        $this->assertSame('en', $resolved['language']);
+        $this->assertNull($resolved['error']);
+    }
+
     public function test_calendar_whatsapp_sends_numeric_code_with_template_language(): void
     {
         $line = WhatsappLine::query()->firstOrFail();
