@@ -66,6 +66,13 @@ class RegistrationCertificateService
 
         $documentType = strtoupper((string) ($extracted['document_type'] ?? ''));
         if (! in_array($documentType, ['GST', 'UDYAM'], true)) {
+            $hasOcrTools = $this->ocrToolsAvailable();
+            if (! $hasOcrTools) {
+                return $fail(
+                    'This PDF has no readable text layer (common with “Microsoft Print to PDF”). Install poppler-utils + tesseract on the server, or upload the original GST / Udyam certificate PDF.'
+                );
+            }
+
             return $fail(
                 'This does not look like a GST or Udyam MSME certificate. Only those two documents are accepted — we can’t onboard you with other PDFs.'
             );
@@ -169,5 +176,35 @@ class RegistrationCertificateService
         }
 
         return null;
+    }
+
+    private function ocrToolsAvailable(): bool
+    {
+        foreach ([
+            ['pdftoppm', '/opt/homebrew/bin/pdftoppm', '/usr/local/bin/pdftoppm', '/usr/bin/pdftoppm'],
+            ['tesseract', '/opt/homebrew/bin/tesseract', '/usr/local/bin/tesseract', '/usr/bin/tesseract'],
+        ] as $candidates) {
+            $found = false;
+            foreach ($candidates as $bin) {
+                if (str_contains($bin, '/')) {
+                    if (is_executable($bin)) {
+                        $found = true;
+                        break;
+                    }
+
+                    continue;
+                }
+                $which = trim((string) shell_exec('command -v '.escapeshellarg($bin).' 2>/dev/null'));
+                if ($which !== '' && is_executable($which)) {
+                    $found = true;
+                    break;
+                }
+            }
+            if (! $found) {
+                return false;
+            }
+        }
+
+        return true;
     }
 }

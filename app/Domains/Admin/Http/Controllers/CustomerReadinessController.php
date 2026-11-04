@@ -92,8 +92,9 @@ class CustomerReadinessController extends Controller
 
     public function extractRegistration(Request $request): JsonResponse
     {
+        // Avoid brittle mimes:pdf guessing — RegistrationCertificateService checks %PDF magic.
         $request->validate([
-            'regdoc_file' => ['required', 'file', 'mimes:pdf', 'max:5120'],
+            'regdoc_file' => ['required', 'file', 'max:5120'],
         ]);
 
         $file = $request->file('regdoc_file');

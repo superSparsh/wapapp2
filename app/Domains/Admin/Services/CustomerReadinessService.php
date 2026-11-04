@@ -19,6 +19,8 @@ use Illuminate\Validation\ValidationException;
  */
 class CustomerReadinessService
 {
+    public const VERIFIED_CERT_SESSION_KEY = 'customer_readiness.verified_certificate';
+
     public function __construct(
         private readonly RegistrationCertificateService $registrationCertificate,
     ) {}
@@ -214,12 +216,31 @@ class CustomerReadinessService
 
     /**
      * Extract GSTIN/Udyam + business name from an uploaded certificate PDF.
+     * On success, caches the verified certificate in session so a later form
+     * submit can succeed even if the browser cleared the file input (e.g. after
+     * validation errors on other fields).
      *
      * @return array{valid: bool, message: string, business_name: ?string, registration_number: ?string, doc_type: ?string, document_type: ?string}
      */
     public function extractRegistrationCertificate(UploadedFile $file): array
     {
-        return $this->registrationCertificate->extractFromUpload($file);
+        $extracted = $this->registrationCertificate->extractFromUpload($file);
+
+        if ($extracted['valid'] ?? false) {
+            $storedPath = $file->store('customer-readiness/regdocs', 'local');
+            session([self::VERIFIED_CERT_SESSION_KEY => [
+                'business_name' => (string) $extracted['business_name'],
+                'registration_number' => (string) $extracted['registration_number'],
+                'doc_type' => (string) $extracted['doc_type'],
+                'document_type' => (string) ($extracted['document_type'] ?? ''),
+                'original_name' => (string) $file->getClientOriginalName(),
+                'stored_path' => $storedPath,
+            ]]);
+        } else {
+            session()->forget(self::VERIFIED_CERT_SESSION_KEY);
+        }
+
+        return $extracted;
     }
 
     /**
@@ -234,30 +255,70 @@ class CustomerReadinessService
     private function requireCertificateExtract(Request $request): array
     {
         $file = $request->file('regdoc_file');
-        if (! $file instanceof UploadedFile) {
-            throw ValidationException::withMessages([
-                'regdoc_file' => ['Upload your GST or Udyam MSME certificate PDF. We can’t onboard you without it.'],
-            ]);
+        if ($file instanceof UploadedFile) {
+            $extracted = $this->registrationCertificate->extractFromUpload($file);
+            if (! ($extracted['valid'] ?? false)) {
+                $request->session()->forget(self::VERIFIED_CERT_SESSION_KEY);
+                $this->forgetGstOldInput($request);
+
+                throw ValidationException::withMessages([
+                    'regdoc_file' => [$extracted['message'] ?? 'Invalid registration certificate.'],
+                    'registration_number' => ['GST / MSME number could not be read from the uploaded certificate.'],
+                    'business_name' => ['Business name could not be read from the uploaded certificate.'],
+                ]);
+            }
+
+            $storedPath = $file->store('customer-readiness/regdocs', 'local');
+            $payload = [
+                'business_name' => (string) $extracted['business_name'],
+                'registration_number' => (string) $extracted['registration_number'],
+                'doc_type' => (string) $extracted['doc_type'],
+                'original_name' => (string) $file->getClientOriginalName(),
+                'stored_path' => $storedPath,
+            ];
+            $request->session()->put(self::VERIFIED_CERT_SESSION_KEY, $payload);
+
+            return $payload;
         }
 
-        $extracted = $this->registrationCertificate->extractFromUpload($file);
-        if (! ($extracted['valid'] ?? false)) {
-            throw ValidationException::withMessages([
-                'regdoc_file' => [$extracted['message'] ?? 'Invalid registration certificate.'],
-                'registration_number' => ['GST / MSME number could not be read from the uploaded certificate.'],
-                'business_name' => ['Business name could not be read from the uploaded certificate.'],
-            ]);
+        // Browser cannot restore <input type="file"> after a redirect. Reuse the
+        // certificate verified earlier in this session (extract endpoint / prior attempt).
+        $cached = $request->session()->get(self::VERIFIED_CERT_SESSION_KEY);
+        if (
+            is_array($cached)
+            && filled($cached['registration_number'] ?? null)
+            && filled($cached['business_name'] ?? null)
+            && filled($cached['stored_path'] ?? null)
+            && filled($cached['doc_type'] ?? null)
+        ) {
+            return [
+                'business_name' => (string) $cached['business_name'],
+                'registration_number' => (string) $cached['registration_number'],
+                'doc_type' => (string) $cached['doc_type'],
+                'original_name' => (string) ($cached['original_name'] ?? 'certificate.pdf'),
+                'stored_path' => (string) $cached['stored_path'],
+            ];
         }
 
-        $storedPath = $file->store('customer-readiness/regdocs', 'local');
+        $this->forgetGstOldInput($request);
 
-        return [
-            'business_name' => (string) $extracted['business_name'],
-            'registration_number' => (string) $extracted['registration_number'],
-            'doc_type' => (string) $extracted['doc_type'],
-            'original_name' => (string) $file->getClientOriginalName(),
-            'stored_path' => $storedPath,
-        ];
+        throw ValidationException::withMessages([
+            'regdoc_file' => ['Upload your GST or Udyam MSME certificate PDF. We can’t onboard you without it.'],
+            'registration_number' => ['GST / MSME number could not be read from the uploaded certificate.'],
+            'business_name' => ['Business name could not be read from the uploaded certificate.'],
+        ]);
+    }
+
+    /**
+     * On GST/certificate failures, do not flash stale GST No. / Business name back.
+     */
+    private function forgetGstOldInput(Request $request): void
+    {
+        $request->merge([
+            'registration_number' => null,
+            'business_name' => null,
+            'docType' => null,
+        ]);
     }
 
     /**

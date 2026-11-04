@@ -1747,28 +1747,26 @@ function rememberGoodRegistration(regNum, bname) {
   lastGoodBname = (bname || '').trim();
 }
 
-function restorePreservedRegistration() {
-  if (!lastGoodRegNum || !lastGoodBname) return false;
-  if (get('f-regnum')) get('f-regnum').value = lastGoodRegNum;
-  if (get('f-bname')) get('f-bname').value = lastGoodBname;
-  regLookupState = true;
-  regLookupMsg = 'Using previously extracted certificate details.';
-  setRegnumStatus('ok', '✅ ' + lastGoodRegNum);
-  showValid('f-regnum');
-  showValid('f-bname');
-  return true;
+function clearRegistrationFields(message) {
+  lastGoodRegNum = '';
+  lastGoodBname = '';
+  regLookupState = false;
+  regLookupMsg = message || 'Upload a valid GST or Udyam MSME certificate PDF.';
+  if (get('f-regnum')) get('f-regnum').value = '';
+  if (get('f-bname')) get('f-bname').value = '';
+  setRegnumStatus('idle', '');
+  showError('f-regnum');
+  showError('f-bname');
 }
 
 async function onRegDocFileChange() {
-  // Keep previously extracted values visible while the new file is checked.
   setRegdocStatus('idle', '');
   const input = get('f-regdoc-file');
   const file = input?.files?.[0] || null;
   if (!file) {
-    // File cleared by user — still preserve last good extracted values on screen.
-    if (restorePreservedRegistration()) {
-      setRegdocStatus('idle', 'Previous certificate details kept. Upload a PDF again before submit.');
-    }
+    // File cleared — drop GST No. / Business name (must re-upload to continue).
+    clearRegistrationFields('Upload your GST or Udyam MSME certificate PDF.');
+    setRegdocStatus('idle', '');
     refreshStep1OnboardBlockers();
     return false;
   }
@@ -1777,10 +1775,7 @@ async function onRegDocFileChange() {
 
 async function extractRegistrationFromPdf(file) {
   if (!file) {
-    regLookupMsg = 'Upload your GST or Udyam MSME certificate PDF.';
-    if (!restorePreservedRegistration()) {
-      regLookupState = false;
-    }
+    clearRegistrationFields('Upload your GST or Udyam MSME certificate PDF.');
     setRegdocStatus('err', '❌ ' + regLookupMsg);
     showBlock('f-regdoc-file');
     refreshStep1OnboardBlockers();
@@ -1790,23 +1785,23 @@ async function extractRegistrationFromPdf(file) {
   const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name || '');
   if (!isPdf) {
     regLookupMsg = 'Only PDF files are allowed (GST or Udyam MSME certificate).';
-    restorePreservedRegistration();
     if (get('f-regdoc-file')) get('f-regdoc-file').value = '';
+    clearRegistrationFields(regLookupMsg);
     setRegdocStatus('err', '❌ ' + regLookupMsg);
     const blockText = get('b-regdoc-file-text');
     if (blockText) blockText.innerHTML = '<strong>We can’t onboard you with this document.</strong> ' + regLookupMsg;
     showBlock('f-regdoc-file');
     refreshStep1OnboardBlockers();
-    return !!lastGoodRegNum;
+    return false;
   }
   if (file.size > 5 * 1024 * 1024) {
     regLookupMsg = 'PDF must be under 5 MB.';
-    restorePreservedRegistration();
     if (get('f-regdoc-file')) get('f-regdoc-file').value = '';
+    clearRegistrationFields(regLookupMsg);
     setRegdocStatus('err', '❌ ' + regLookupMsg);
     showBlock('f-regdoc-file');
     refreshStep1OnboardBlockers();
-    return !!lastGoodRegNum;
+    return false;
   }
 
   try {
@@ -1838,31 +1833,21 @@ async function extractRegistrationFromPdf(file) {
     }
 
     const failMsg = data?.message || 'We could not verify this certificate.';
-    // Preserve previously extracted GST/MSME + business name on error.
-    const preserved = restorePreservedRegistration();
     if (get('f-regdoc-file')) get('f-regdoc-file').value = '';
-    if (!preserved) {
-      regLookupState = false;
-      setRegnumStatus('idle', '');
-    }
-    regLookupMsg = failMsg;
-    setRegdocStatus('err', '❌ ' + failMsg + (preserved ? ' Previous GST No. and Business name kept — upload a valid PDF again to continue.' : ''));
+    clearRegistrationFields(failMsg);
+    setRegdocStatus('err', '❌ ' + failMsg);
     const blockText = get('b-regdoc-file-text');
     if (blockText) {
       blockText.innerHTML = '<strong>We can’t onboard you with this document.</strong> ' + failMsg;
     }
     showBlock('f-regdoc-file');
     refreshStep1OnboardBlockers();
-    return false; // file itself failed; names may still be on screen
+    return false;
   } catch (e) {
-    const preserved = restorePreservedRegistration();
     if (get('f-regdoc-file')) get('f-regdoc-file').value = '';
-    if (!preserved) {
-      regLookupState = false;
-      setRegnumStatus('idle', '');
-    }
     regLookupMsg = 'Certificate check is temporarily unavailable. Please try again.';
-    setRegdocStatus('err', '❌ ' + regLookupMsg + (preserved ? ' Previous GST No. and Business name kept.' : ''));
+    clearRegistrationFields(regLookupMsg);
+    setRegdocStatus('err', '❌ ' + regLookupMsg);
     showBlock('f-regdoc-file');
     refreshStep1OnboardBlockers();
     return false;
@@ -2064,7 +2049,14 @@ function validateField(id) {
 
     case 'f-regdoc-file': {
       const input = el;
-      if (!input.files || input.files.length === 0) {
+      const hasFile = !!(input.files && input.files.length > 0);
+      // After other-field validation redirects, file input is empty but session extract remains.
+      if (!hasFile) {
+        if (regLookupState === true && (get('f-regnum')?.value || '').trim() && (get('f-bname')?.value || '').trim()) {
+          showValid(id);
+          refreshStep1OnboardBlockers();
+          return true;
+        }
         showError(id);
         refreshStep1OnboardBlockers();
         return false;
@@ -2280,7 +2272,7 @@ function buildSummary() {
   const checks = [
     {
       label: 'GST / MSME certificate verified',
-      fn: () => regLookupState === true && (get('f-regdoc-file')?.files?.length || 0) > 0,
+      fn: () => regLookupState === true && !!(get('f-regnum')?.value || '').trim() && !!(get('f-bname')?.value || '').trim(),
       note: 'Upload an official GST or Udyam MSME certificate PDF.',
       type: 'blocker'
     },
@@ -2587,7 +2579,11 @@ async function submitForm() {
   const payload = mapToBackendPayload();
 
   const certFile = get('f-regdoc-file')?.files?.[0] || null;
-  if (!certFile) {
+  // File input is wiped after redirects; session keeps a verified extract from step-1 upload.
+  const hasVerifiedExtract = regLookupState === true
+    && !!(get('f-regnum')?.value || '').trim()
+    && !!(get('f-bname')?.value || '').trim();
+  if (!certFile && !hasVerifiedExtract) {
     await goTo(0, { skipValidation: true });
     showToast('⚠ Upload your GST or Udyam certificate PDF before submitting.');
     return;
@@ -2681,18 +2677,40 @@ const oldToField = {
 };
 Object.entries(oldToField).forEach(([backendKey, fieldId]) => {
   const val = oldInput?.[backendKey];
-  if (val === undefined || val === null) return;
+  if (val === undefined || val === null || val === '') return;
   const el = get(fieldId);
   if (el) el.value = val;
 });
-if ((get('f-regnum')?.value || '').trim() && (get('f-bname')?.value || '').trim()) {
+
+const serverErrors = @json($errors->getMessages());
+const hasGstUploadError = !!(serverErrors?.regdoc_file || serverErrors?.registration_number || serverErrors?.business_name);
+const verifiedCert = @json(session(App\Domains\Admin\Services\CustomerReadinessService::VERIFIED_CERT_SESSION_KEY));
+
+// GST upload errors → clear GST No. / Business name. Other-field errors → keep them.
+if (hasGstUploadError) {
+  clearRegistrationFields(
+    serverErrors?.regdoc_file?.[0]
+      || serverErrors?.registration_number?.[0]
+      || serverErrors?.business_name?.[0]
+      || 'Registration certificate could not be verified.'
+  );
+  setRegdocStatus('err', '❌ ' + regLookupMsg);
+} else if (verifiedCert?.registration_number && verifiedCert?.business_name) {
+  if (get('f-regnum')) get('f-regnum').value = verifiedCert.registration_number;
+  if (get('f-bname')) get('f-bname').value = verifiedCert.business_name;
+  regLookupState = true;
+  rememberGoodRegistration(verifiedCert.registration_number, verifiedCert.business_name);
+  setRegnumStatus('ok', '✅ ' + verifiedCert.registration_number);
+  setRegdocStatus('ok', '✅ Certificate verified — re-upload only if you need to change it.');
+  showValid('f-regnum');
+  showValid('f-bname');
+} else if ((get('f-regnum')?.value || '').trim() && (get('f-bname')?.value || '').trim()) {
   regLookupState = true;
   rememberGoodRegistration(get('f-regnum').value, get('f-bname').value);
   setRegnumStatus('ok', '✅ ' + get('f-regnum').value.trim());
 }
 if ((get('f-fbpageurl')?.value || '').trim()) fbPageUrlCheckState = true;
 
-const serverErrors = @json($errors->getMessages());
 const backendToField = {
   customer_name: 'f-name',
   customer_email: 'f-email',
@@ -2714,6 +2732,17 @@ const backendToField = {
   whatsapp_display_name: 'f-wadisplayname',
 };
 Object.entries(serverErrors || {}).forEach(([backendKey, msgs]) => {
+  if (hasGstUploadError && (backendKey === 'registration_number' || backendKey === 'business_name' || backendKey === 'regdoc_file')) {
+    // Already cleared + messaged above.
+    if (backendKey === 'regdoc_file') {
+      showBlock('f-regdoc-file');
+      const blockText = get('b-regdoc-file-text');
+      if (blockText && msgs?.[0]) {
+        blockText.innerHTML = '<strong>We can’t onboard you with this document.</strong> ' + msgs[0];
+      }
+    }
+    return;
+  }
   const fieldId = backendToField[backendKey];
   if (!fieldId) return;
   const inputEl = get(fieldId);
@@ -2724,10 +2753,6 @@ Object.entries(serverErrors || {}).forEach(([backendKey, msgs]) => {
     errEl.textContent = '⚠ ' + msgs[0];
     errEl.classList.add('show');
     errEl.style.display = 'flex';
-  }
-  if (backendKey === 'registration_number' || backendKey === 'business_name' || backendKey === 'regdoc_file') {
-    regLookupState = false;
-    regLookupMsg = msgs?.[0] || 'Registration certificate could not be verified.';
   }
   if (backendKey === 'facebook_page_url') {
     fbPageUrlCheckState = false;

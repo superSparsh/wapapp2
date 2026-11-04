@@ -298,8 +298,8 @@ class RegistrationPdfExtractor
         }
 
         // Drop common OCR insertions in state-code area:
-        // 0I3 / OI3 / 0L3 / 0P3 -> 03 (extra letter between state digits)
-        if (strlen($s) === 16 && preg_match('/^[0O][A-Z]([0-9].+)$/', $s, $m) === 1) {
+        // 0I3 / OI3 / 0L3 / 0P3 / OP3 -> 03 (extra letter between state digits)
+        if (strlen($s) === 16 && preg_match('/^[0O][A-ZILP]([0-9].+)$/', $s, $m) === 1) {
             $s = '0'.$m[1];
         }
         // 03xABYFM... where x is junk letter after valid 2-digit state
@@ -308,6 +308,10 @@ class RegistrationPdfExtractor
             if (preg_match('/^\d{2}$/', $state) === 1) {
                 $s = $state.$m[2];
             }
+        }
+        // Leading O mistaken for 0 on an otherwise 15-char GSTIN (O3ABYFM...)
+        if (strlen($s) === 15 && preg_match('/^O(\d[A-Z0-9]{13})$/', $s, $m) === 1) {
+            $s = '0'.$m[1];
         }
 
         // Build 15-char candidate with positional O/0 and I/1 fixes.
@@ -450,13 +454,19 @@ class RegistrationPdfExtractor
             $chunks = [];
             foreach ($images as $image) {
                 $prepared = $this->prepareImageForOcr($image);
-                $target = $prepared ?? $image;
-                $ocrCmd = escapeshellarg($tesseract).' '
-                    .escapeshellarg($target)
-                    .' stdout -l eng --psm 6 2>/dev/null';
-                $out = (string) shell_exec($ocrCmd);
-                if (trim($out) !== '') {
-                    $chunks[] = $out;
+                // Prefer high-contrast pass (pale grey Print-to-PDF glyphs), then raw.
+                foreach (array_values(array_filter([$prepared, $image])) as $target) {
+                    foreach ([6, 4] as $psm) {
+                        $ocrCmd = escapeshellarg($tesseract).' '
+                            .escapeshellarg($target)
+                            .' stdout -l eng --psm '.$psm.' 2>/dev/null';
+                        $out = trim((string) shell_exec($ocrCmd));
+                        if ($out !== '') {
+                            $chunks[] = $out;
+                            // One good pass is enough for this page.
+                            break 2;
+                        }
+                    }
                 }
                 if ($prepared !== null && is_file($prepared)) {
                     @unlink($prepared);
@@ -664,8 +674,13 @@ class RegistrationPdfExtractor
 
     private function extractTextFallback(string $absolutePath): string
     {
-        $pdftotext = trim((string) shell_exec('command -v pdftotext 2>/dev/null'));
-        if ($pdftotext !== '') {
+        $pdftotext = $this->findBinary([
+            'pdftotext',
+            '/opt/homebrew/bin/pdftotext',
+            '/usr/local/bin/pdftotext',
+            '/usr/bin/pdftotext',
+        ]);
+        if ($pdftotext !== null) {
             $cmd = escapeshellarg($pdftotext).' -layout '.escapeshellarg($absolutePath).' - 2>/dev/null';
             $out = (string) shell_exec($cmd);
             if (trim($out) !== '') {
@@ -673,14 +688,9 @@ class RegistrationPdfExtractor
             }
         }
 
-        $raw = @file_get_contents($absolutePath);
-        if (! is_string($raw) || $raw === '') {
-            return '';
-        }
-
-        $raw = preg_replace('/[^\x09\x0A\x0D\x20-\x7E]/', ' ', $raw) ?? '';
-
-        return trim((string) preg_replace('/\s{2,}/', ' ', $raw));
+        // Do not scrape binary PDF bytes — that invents false "text" and can
+        // short-circuit the OCR path for Microsoft Print-to-PDF certificates.
+        return '';
     }
 
     /**

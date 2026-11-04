@@ -258,7 +258,45 @@ class CustomerReadinessTest extends TestCase
         ])->assertOk()
             ->assertJsonPath('valid', true)
             ->assertJsonPath('business_name', 'Sharma Traders')
-            ->assertJsonPath('registration_number', '29ABCDE1234F1Z5');
+            ->assertJsonPath('registration_number', '29ABCDE1234F1Z5')
+            ->assertSessionHas(\App\Domains\Admin\Services\CustomerReadinessService::VERIFIED_CERT_SESSION_KEY);
+    }
+
+    public function test_submit_reuses_session_verified_certificate_without_reupload(): void
+    {
+        $this->post(route('customer.readiness.extract.registration'), [
+            'regdoc_file' => $this->certificatePdf(),
+        ])->assertOk();
+
+        $payload = $this->eligiblePayload();
+        unset($payload['regdoc_file']);
+
+        $this->post(route('customer.readiness.store'), $payload)
+            ->assertRedirect(route('customer.readiness.result'))
+            ->assertSessionHas('readiness_result.eligible', true);
+
+        $submission = CustomerReadinessSubmission::query()->firstOrFail();
+        $this->assertSame('Sharma Traders', $submission->business_name);
+        $this->assertSame('29ABCDE1234F1Z5', data_get($submission->data, 'GST / MSME Number'));
+    }
+
+    public function test_extract_microsoft_print_to_pdf_gst_certificate(): void
+    {
+        $real = new RegistrationCertificateService(
+            app(\App\Domains\Forms\Services\RegistrationPdfExtractor::class)
+        );
+        $this->app->instance(RegistrationCertificateService::class, $real);
+
+        $path = base_path('tests/fixtures/gst_certificate_MEYDAN_INFRA_print.pdf');
+        $this->assertFileExists($path);
+        $file = new UploadedFile($path, 'GST CERTIFICATE.pdf', 'application/pdf', null, true);
+
+        $this->post(route('customer.readiness.extract.registration'), [
+            'regdoc_file' => $file,
+        ])->assertOk()
+            ->assertJsonPath('valid', true)
+            ->assertJsonPath('registration_number', '03ABYFM7945F1ZQ')
+            ->assertJsonPath('business_name', 'MEYDAN INFRA LLP');
     }
 
     public function test_validate_business_email_endpoint(): void
