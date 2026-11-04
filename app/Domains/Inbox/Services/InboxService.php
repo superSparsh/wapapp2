@@ -10,7 +10,6 @@ use App\Domains\Integration\Services\PhoneLineService;
 use App\Models\Contact;
 use App\Models\Conversation;
 use App\Models\WhatsappLine;
-use App\Support\PhoneNormalizer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -299,19 +298,7 @@ class InboxService
 
     private function conversationIsStopped(Conversation $conversation): bool
     {
-        if ($conversation->contact?->hasStoppedMessaging()) {
-            return true;
-        }
-
-        $variants = PhoneNormalizer::lookupVariants($conversation->contact_phone);
-        if ($variants === []) {
-            return false;
-        }
-
-        return Contact::query()
-            ->whereIn('phone', $variants)
-            ->get()
-            ->contains(fn (Contact $contact): bool => $contact->hasStoppedMessaging());
+        return Contact::isPhoneStoppedMessaging($conversation->contact_phone);
     }
 
     private function normalizeLookbackDays(int $lookbackDays): int

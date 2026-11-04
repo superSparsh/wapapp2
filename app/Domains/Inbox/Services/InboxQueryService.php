@@ -6,6 +6,7 @@ namespace App\Domains\Inbox\Services;
 
 use App\Domains\Inbox\Support\InboxActor;
 use App\Domains\Inbox\Support\InboxPresenter;
+use App\Models\Contact;
 use App\Models\Conversation;
 use App\Models\WhatsappLine;
 use App\Support\PhoneNormalizer;
@@ -70,10 +71,17 @@ class InboxQueryService
             ? InboxPresenter::encodeCursor($last->last_message_at, (int) $last->id)
             : null;
 
-        $items = $rows->values()->map(function (Conversation $conversation, int $index): array {
+        $stoppedVariants = Contact::stoppedPhoneVariantSet($rows->pluck('contact_phone'));
+
+        $items = $rows->values()->map(function (Conversation $conversation, int $index) use ($stoppedVariants): array {
             $preview = InboxPresenter::preview($conversation->latestMessage?->body);
-            $contact = $conversation->contact;
-            $stopped = $contact?->hasStoppedMessaging() ?? false;
+            $stopped = false;
+            foreach (PhoneNormalizer::lookupVariants($conversation->contact_phone) as $variant) {
+                if (isset($stoppedVariants[$variant])) {
+                    $stopped = true;
+                    break;
+                }
+            }
 
             $phone = $this->settingsService->shouldMaskPhone($conversation->contact_phone);
 

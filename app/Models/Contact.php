@@ -214,6 +214,58 @@ class Contact extends TenantModel
             || (bool) data_get($this->metadata, 'stopped_via_keyword');
     }
 
+    /**
+     * True when ANY audience row for this phone (across mail lists) is stopped.
+     * Inbox list, contact card, and outbound send must all use this same rule.
+     */
+    public static function isPhoneStoppedMessaging(?string $phone): bool
+    {
+        $variants = \App\Support\PhoneNormalizer::lookupVariants($phone);
+        if ($variants === []) {
+            return false;
+        }
+
+        return static::query()
+            ->whereIn('phone', $variants)
+            ->get()
+            ->contains(fn (self $contact): bool => $contact->hasStoppedMessaging());
+    }
+
+    /**
+     * Bulk helper for inbox thread lists: phone digits that are currently stopped.
+     *
+     * @param  iterable<int, string|null>  $phones
+     * @return array<string, true> lookup of normalized/variant digits that map to a stopped contact
+     */
+    public static function stoppedPhoneVariantSet(iterable $phones): array
+    {
+        $variants = [];
+        foreach ($phones as $phone) {
+            foreach (\App\Support\PhoneNormalizer::lookupVariants($phone) as $variant) {
+                $variants[$variant] = true;
+            }
+        }
+
+        if ($variants === []) {
+            return [];
+        }
+
+        $stopped = [];
+        static::query()
+            ->whereIn('phone', array_keys($variants))
+            ->get(['phone', 'status', 'opt_in_status', 'metadata'])
+            ->each(function (self $contact) use (&$stopped): void {
+                if (! $contact->hasStoppedMessaging()) {
+                    return;
+                }
+                foreach (\App\Support\PhoneNormalizer::lookupVariants($contact->phone) as $variant) {
+                    $stopped[$variant] = true;
+                }
+            });
+
+        return $stopped;
+    }
+
     public function markBlacklisted(): void
     {
         $this->update([

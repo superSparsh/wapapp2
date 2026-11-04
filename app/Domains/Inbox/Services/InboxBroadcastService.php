@@ -11,6 +11,7 @@ use App\Enums\MessageDirection;
 use App\Events\Inbox\InboxMessageCreated;
 use App\Events\Inbox\InboxMessageStatusUpdated;
 use App\Events\Inbox\InboxThreadUpdated;
+use App\Models\Contact;
 use App\Models\Conversation;
 use App\Models\Message;
 use Illuminate\Broadcasting\BroadcastException;
@@ -227,7 +228,7 @@ class InboxBroadcastService
             'unread' => (int) $conversation->unread_count,
             'assignee' => $this->assigneeLabel($conversation),
             'ai_enabled' => $conversation->response_type?->isAi() ?? false,
-            'stopped' => $conversation->contact?->hasStoppedMessaging() ?? false,
+            'stopped' => Contact::isPhoneStoppedMessaging($conversation->contact_phone),
         ];
     }
 
