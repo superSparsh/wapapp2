@@ -24,6 +24,13 @@ class GoogleCalendarApiService
     public const CALENDAR_SCOPE = 'https://www.googleapis.com/auth/calendar';
     public const EVENTS_SCOPE   = 'https://www.googleapis.com/auth/calendar.events';
 
+    private ?string $lastError = null;
+
+    public function lastError(): ?string
+    {
+        return $this->lastError;
+    }
+
     // ──────────────────────────────────────────────────────────────────────────
     // OAuth helpers
     // ──────────────────────────────────────────────────────────────────────────
@@ -240,8 +247,9 @@ class GoogleCalendarApiService
     }
 
     /**
-     * Create a Google Calendar event with an auto-attached Google Meet link.
-     * Step 1: create event. Step 2: patch conferenceData only if no Meet link was auto-attached.
+     * Create a Google Calendar event with an attached Google Meet link.
+     * Google requires conferenceDataVersion=1 on insert together with conferenceData.createRequest
+     * — creating without it and patching later often yields events with no Meet link.
      *
      * @return array<string, mixed>|null
      */
@@ -255,65 +263,120 @@ class GoogleCalendarApiService
         ?string $phone         = null,
         ?string $description   = null,
     ): ?array {
+        $this->lastError = null;
+
         $token = $this->getValidAccessToken($integration);
         if (! $token) {
+            $this->lastError = 'Google Calendar is not connected or the access token expired. Reconnect Google.';
+
             return null;
         }
 
         if ($this->hasOverlappingEvent($integration, $start, $end)) {
+            $this->lastError = 'This time slot already has a meeting. Pick another time.';
+
             return null;
         }
 
         $calendarId        = $integration->calendarId();
         $calendarIdEncoded = urlencode($calendarId);
-        $timezone          = config('app.timezone', 'UTC');
+        $timezone          = (string) (tenant('timezone') ?: config('app.timezone', 'UTC'));
 
         $body = [
             'summary'     => $summary,
             'description' => $this->buildDescription($description, $phone, $attendeeName),
-            'start'       => ['dateTime' => $start->copy()->timezone($timezone)->toRfc3339String(), 'timeZone' => $timezone],
-            'end'         => ['dateTime' => $end->copy()->timezone($timezone)->toRfc3339String(), 'timeZone' => $timezone],
+            'start'       => [
+                'dateTime' => $start->copy()->timezone($timezone)->format('Y-m-d\TH:i:s'),
+                'timeZone' => $timezone,
+            ],
+            'end'         => [
+                'dateTime' => $end->copy()->timezone($timezone)->format('Y-m-d\TH:i:s'),
+                'timeZone' => $timezone,
+            ],
+            'conferenceData' => [
+                'createRequest' => [
+                    'requestId'             => (string) Str::uuid(),
+                    'conferenceSolutionKey' => ['type' => 'hangoutsMeet'],
+                ],
+            ],
         ];
 
         if ($attendeeEmail) {
-            $body['attendees'] = [['email' => $attendeeEmail, 'displayName' => $attendeeName ?? $attendeeEmail]];
+            $body['attendees'] = [[
+                'email' => $attendeeEmail,
+                'displayName' => $attendeeName ?? $attendeeEmail,
+            ]];
         }
 
-        $response = Http::withToken($token)->timeout(30)->post(
-            "https://www.googleapis.com/calendar/v3/calendars/{$calendarIdEncoded}/events",
-            $body
-        );
+        $query = [
+            'conferenceDataVersion' => 1,
+        ];
+        if ($attendeeEmail) {
+            $query['sendUpdates'] = 'all';
+        }
+
+        $url = 'https://www.googleapis.com/calendar/v3/calendars/'.$calendarIdEncoded.'/events?'
+            .http_build_query($query);
+
+        $response = Http::withToken($token)->timeout(30)->post($url, $body);
 
         if (! $response->successful()) {
+            $message = (string) (
+                $response->json('error.message')
+                ?? $response->body()
+            );
+            $this->lastError = 'Google Calendar rejected the booking: '.Str::limit(trim($message), 240);
+            Log::warning('Google Calendar createEventWithMeet failed', [
+                'status' => $response->status(),
+                'body' => $response->body(),
+                'integration_id' => $integration->id,
+                'calendar_id' => $calendarId,
+            ]);
+
             return null;
         }
 
         $event = $response->json();
+        if (! is_array($event) || empty($event['id'])) {
+            $this->lastError = 'Google Calendar did not return a created event.';
 
-        // If Google auto-attached a Meet link, we're done
+            return null;
+        }
+
         if ($this->extractMeetLink($event)) {
             return $event;
         }
 
-        // Patch to request a Meet link via conferenceData
-        $eventId = urlencode((string) ($event['id'] ?? ''));
-        if ($eventId === '') {
-            return $event;
-        }
-
+        // Rare: insert accepted but Meet not ready yet — patch as fallback.
+        $eventId = urlencode((string) $event['id']);
         $patchResponse = Http::withToken($token)->timeout(30)->patch(
             "https://www.googleapis.com/calendar/v3/calendars/{$calendarIdEncoded}/events/{$eventId}?conferenceDataVersion=1",
             [
                 'conferenceData' => [
                     'createRequest' => [
-                        'requestId'            => Str::uuid()->toString(),
+                        'requestId'             => (string) Str::uuid(),
                         'conferenceSolutionKey' => ['type' => 'hangoutsMeet'],
                     ],
                 ],
             ]
         );
 
-        return $patchResponse->successful() ? $patchResponse->json() : $event;
+        if ($patchResponse->successful() && is_array($patchResponse->json())) {
+            $patched = $patchResponse->json();
+            if ($this->extractMeetLink($patched) !== null) {
+                return $patched;
+            }
+        } else {
+            Log::warning('Google Calendar Meet patch failed after insert', [
+                'status' => $patchResponse->status(),
+                'body' => $patchResponse->body(),
+                'event_id' => $event['id'] ?? null,
+                'integration_id' => $integration->id,
+            ]);
+        }
+
+        // Event exists on Google even if Meet link is delayed — still return it.
+        return $event;
     }
 
     /**

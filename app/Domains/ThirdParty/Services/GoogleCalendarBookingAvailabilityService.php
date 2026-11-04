@@ -105,16 +105,22 @@ class GoogleCalendarBookingAvailabilityService
             return $this->slotCache[$cacheKey] = [];
         }
 
+        // Availability hours are wall-clock in the tenant/app timezone (not UTC).
+        $tz = (string) (tenant('timezone') ?: config('app.timezone', 'UTC'));
+
         // Build candidate slots from the schedule
         $candidates = [];
         foreach ($daySchedule['intervals'] as $interval) {
-            $windowStart = Carbon::parse($date->toDateString() . ' ' . $interval['start'], 'UTC');
-            $windowEnd   = Carbon::parse($date->toDateString() . ' ' . $interval['end'], 'UTC');
+            $windowStart = Carbon::parse($date->toDateString().' '.$interval['start'], $tz);
+            $windowEnd   = Carbon::parse($date->toDateString().' '.$interval['end'], $tz);
 
             $cursor = $windowStart->copy();
             while ($cursor->copy()->addMinutes($durationMinutes)->lte($windowEnd)) {
-                $slotEnd       = $cursor->copy()->addMinutes($durationMinutes);
-                $candidates[]  = ['start' => $cursor->toRfc3339String(), 'end' => $slotEnd->toRfc3339String()];
+                $slotEnd = $cursor->copy()->addMinutes($durationMinutes);
+                $candidates[] = [
+                    'start' => $cursor->toIso8601String(),
+                    'end' => $slotEnd->toIso8601String(),
+                ];
                 $cursor->addMinutes($durationMinutes);
             }
         }
@@ -124,8 +130,8 @@ class GoogleCalendarBookingAvailabilityService
         }
 
         // Subtract busy periods from Google freeBusy
-        $dayStart  = $date->copy()->startOfDay()->utc();
-        $dayEnd    = $date->copy()->endOfDay()->utc();
+        $dayStart = $date->copy()->timezone($tz)->startOfDay()->utc();
+        $dayEnd = $date->copy()->timezone($tz)->endOfDay()->utc();
         $busyPeriods = $api->getFreeBusyPeriods($integration, $dayStart, $dayEnd) ?? [];
 
         $available = array_values(array_filter($candidates, function (array $slot) use ($busyPeriods): bool {
@@ -144,9 +150,11 @@ class GoogleCalendarBookingAvailabilityService
             return $sStart->isFuture();
         }));
 
-        // Add a human-readable label
+        // Add a human-readable label in local timezone
         foreach ($available as &$slot) {
-            $slot['label'] = Carbon::parse($slot['start'])->format('h:i A') . ' - ' . Carbon::parse($slot['end'])->format('h:i A');
+            $slot['label'] = Carbon::parse($slot['start'])->timezone($tz)->format('h:i A')
+                .' - '
+                .Carbon::parse($slot['end'])->timezone($tz)->format('h:i A');
         }
 
         return $this->slotCache[$cacheKey] = $available;

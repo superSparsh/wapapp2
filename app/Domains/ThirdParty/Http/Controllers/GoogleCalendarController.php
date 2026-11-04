@@ -333,20 +333,48 @@ class GoogleCalendarController extends Controller
         );
 
         if (! $googleEvent) {
-            $message = $this->api->hasOverlappingEvent($integration, $start, $end)
-                ? 'This time slot already has a meeting. Pick another time.'
-                : 'Could not create Google Calendar event.';
-
             return redirect()->route('integration.google-calendar', ['tab' => 'create'])
                 ->withInput()
-                ->with('error', $message);
+                ->with('error', $this->api->lastError() ?: 'Could not create Google Calendar event.');
+        }
+
+        $eventId = (string) ($googleEvent['id'] ?? '');
+        if ($eventId !== '') {
+            $times = $this->api->parseEventTimes($googleEvent);
+            GoogleCalendarEvent::query()->updateOrCreate(
+                [
+                    'user_id' => $userId,
+                    'event_id' => $eventId,
+                    'calendar_id' => $integration->calendarId(),
+                ],
+                [
+                    'status' => 'active',
+                    'summary' => (string) ($googleEvent['summary'] ?? $validated['summary']),
+                    'start_time' => $times['start'] ?? $start,
+                    'end_time' => $times['end'] ?? $end,
+                    'meet_link' => $this->api->extractMeetLink($googleEvent),
+                    'calendar_link' => $googleEvent['htmlLink'] ?? null,
+                    'invitee_email' => $validated['attendee_email'] ?? null,
+                    'invitee_name' => $validated['attendee_name'] ?? null,
+                    'whatsapp_number' => preg_replace('/\s+/', '', (string) ($validated['attendee_phone'] ?? '')) ?: null,
+                    'raw_payload' => $googleEvent,
+                    'notified_created' => false,
+                ],
+            );
         }
 
         $tenantId = tenancy()->tenant?->getTenantKey();
         SyncGoogleCalendarEventsJob::dispatch($integration->id, (string) $tenantId);
 
+        $meetLink = $this->api->extractMeetLink($googleEvent);
+
         return redirect()->route('integration.google-calendar', ['tab' => 'events'])
-            ->with('success', 'Meeting created with Google Meet link.');
+            ->with(
+                'success',
+                $meetLink
+                    ? 'Meeting created with Google Meet link.'
+                    : 'Meeting created on Google Calendar. Meet link may appear after a short delay — click Sync Events.',
+            );
     }
 
     public function updateBookingAvailability(UpdateBookingAvailabilityRequest $request): RedirectResponse
