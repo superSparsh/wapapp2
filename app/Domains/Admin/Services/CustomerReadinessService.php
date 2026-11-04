@@ -147,21 +147,16 @@ class CustomerReadinessService
                 },
             ],
             'site' => ['required', 'url', 'regex:/^https:\/\//i', 'max:512'],
-            'docType' => ['required', 'in:'.implode(',', $docTypes)],
+            'docType' => ['nullable', 'in:'.implode(',', $docTypes)],
             'registration_number' => [
                 'required',
                 'string',
                 'max:40',
-                function (string $attribute, mixed $value, \Closure $fail) use ($input, $gstinRegex, $udyamRegex): void {
+                function (string $attribute, mixed $value, \Closure $fail) use ($gstinRegex, $udyamRegex): void {
                     $number = strtoupper(preg_replace('/\s+/', '', (string) $value) ?? '');
-                    $docType = (string) ($input['docType'] ?? '');
-                    $ok = $docType === 'Udyam MSME certificate'
-                        ? preg_match($udyamRegex, $number) === 1
-                        : preg_match($gstinRegex, $number) === 1;
+                    $ok = preg_match($gstinRegex, $number) === 1 || preg_match($udyamRegex, $number) === 1;
                     if (! $ok) {
-                        $fail($docType === 'Udyam MSME certificate'
-                            ? 'Enter a valid Udyam MSME number (UDYAM-XX-00-0000000).'
-                            : 'Enter a valid 15-character GSTIN.');
+                        $fail('Enter a valid GSTIN (15 characters) or Udyam MSME number (UDYAM-XX-00-0000000).');
                     }
                 },
             ],
@@ -189,6 +184,10 @@ class CustomerReadinessService
 
         $validated = $validator->validated();
         $validated['registration_number'] = strtoupper(preg_replace('/\s+/', '', (string) $validated['registration_number']) ?? '');
+        $validated['docType'] = $this->detectDocTypeFromRegistration(
+            (string) $validated['registration_number'],
+            isset($validated['docType']) ? (string) $validated['docType'] : null,
+        );
 
         $lookup = $this->registrationLookup->lookup(
             (string) $validated['registration_number'],
@@ -371,6 +370,9 @@ class CustomerReadinessService
 
         if (isset($input['registration_number'])) {
             $input['registration_number'] = strtoupper(preg_replace('/\s+/', '', (string) $input['registration_number']) ?? '');
+            if (! filled($input['docType'] ?? null)) {
+                $input['docType'] = $this->detectDocTypeFromRegistration((string) $input['registration_number']);
+            }
         }
 
         if (! isset($input['facebook_page_url']) && isset($input['fb_page_url'])) {
@@ -382,6 +384,18 @@ class CustomerReadinessService
         }
 
         return $input;
+    }
+
+    private function detectDocTypeFromRegistration(string $registrationNumber, ?string $hint = null): string
+    {
+        $number = strtoupper(preg_replace('/\s+/', '', $registrationNumber) ?? '');
+        $hint = strtolower(trim((string) $hint));
+
+        if (str_contains($hint, 'udyam') || str_contains($hint, 'msme') || str_starts_with($number, 'UDYAM')) {
+            return 'Udyam MSME certificate';
+        }
+
+        return 'GST certificate';
     }
 
     /**

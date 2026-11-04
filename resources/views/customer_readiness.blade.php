@@ -833,35 +833,23 @@
         </div>
       </div>
 
-      <div class="field-row">
-        <div class="field">
-          <label>Registration type <span class="req">*</span></label>
-          <select id="f-regdoc" onchange="onRegTypeChange()">
-            <option value="">Select GST or MSME</option>
-            <option value="gst">GST certificate</option>
-            <option value="udyam">Udyam MSME certificate</option>
-          </select>
-          <div class="field-error" id="e-regdoc">⚠ Please select GST or Udyam MSME.</div>
-        </div>
-        <div class="field">
-          <label>GST No. / MSME No. <span class="req">*</span></label>
-          <input type="text" id="f-regnum" placeholder="e.g. 29ABCDE1234F1Z5 or UDYAM-KR-03-1234567"
-                 autocomplete="off" oninput="onRegNumberInput()" onblur="lookupRegistrationRealtime()"/>
-          <div class="field-hint" id="regnum-live-status">🔎 Enter your number — we’ll fetch the registered business name automatically.</div>
-          <div class="field-error" id="e-regnum">⚠ Enter a valid GSTIN or Udyam number.</div>
-          <div class="field-block-msg" id="b-regnum" style="display:none">
-            <span>🚫</span>
-            <span id="b-regnum-text"><strong>We can’t onboard you with this registration number.</strong></span>
-          </div>
+      <div class="field">
+        <label>GST No. / MSME No. <span class="req">*</span></label>
+        <input type="text" id="f-regnum" placeholder="e.g. 29ABCDE1234F1Z5 or UDYAM-KR-03-1234567"
+               autocomplete="off" oninput="onRegNumberInput()" onblur="lookupRegistrationRealtime()"/>
+        <div class="field-hint" id="regnum-live-status"></div>
+        <div class="field-error" id="e-regnum">⚠ Enter a valid GSTIN or Udyam number.</div>
+        <div class="field-block-msg" id="b-regnum" style="display:none">
+          <span>🚫</span>
+          <span id="b-regnum-text"><strong>We can’t onboard you with this registration number.</strong></span>
         </div>
       </div>
 
       <div class="field-row">
         <div class="field">
-          <label>Business name <span class="req">*</span> <span class="badge">Auto-filled · read-only</span></label>
-          <input type="text" id="f-bname" placeholder="Fetched from GST / MSME records" readonly
+          <label>Business name <span class="req">*</span></label>
+          <input type="text" id="f-bname" placeholder="e.g. Tekkonnect Pvt Ltd" readonly
                  style="background:#f3f6f4; cursor:not-allowed;" oninput="validateField('f-bname')"/>
-          <div class="field-hint">This comes from official registration records and can’t be edited here.</div>
           <div class="field-error" id="e-bname">⚠ Business name could not be fetched. Fix your GST / MSME number first.</div>
         </div>
         <div class="field">
@@ -1717,57 +1705,43 @@ async function validateFacebookPageRealtime(pageName) {
   return false;
 }
 
-function onRegTypeChange() {
-  regLookupState = null;
-  regLookupMsg = '';
-  if (get('f-bname')) get('f-bname').value = '';
-  validateField('f-regdoc');
-  const num = (get('f-regnum')?.value || '').trim();
-  if (num) lookupRegistrationRealtime();
-  refreshStep1OnboardBlockers();
+function detectRegDocType(raw) {
+  const v = (raw || '').toUpperCase().replace(/\s+/g, '');
+  if (UDYAM_REGEX.test(v) || v.startsWith('UDYAM-')) return 'udyam';
+  if (GSTIN_REGEX.test(v)) return 'gst';
+  return '';
 }
 
 function onRegNumberInput() {
   clearTimeout(regLookupDebounceTimer);
   regLookupState = null;
   if (get('f-bname')) get('f-bname').value = '';
-  setRegnumStatus('idle', '🔎 Enter your number — we’ll fetch the registered business name automatically.');
+  setRegnumStatus('idle', '');
   regLookupDebounceTimer = setTimeout(() => lookupRegistrationRealtime(), 650);
   refreshStep1OnboardBlockers();
 }
 
-function isRegNumberFormatOk(raw, docType) {
+function isRegNumberFormatOk(raw) {
   const v = (raw || '').toUpperCase().replace(/\s+/g, '');
-  if (docType === 'udyam') return UDYAM_REGEX.test(v);
-  if (docType === 'gst') return GSTIN_REGEX.test(v);
   return GSTIN_REGEX.test(v) || UDYAM_REGEX.test(v);
 }
 
 async function lookupRegistrationRealtime() {
-  const docType = get('f-regdoc')?.value || '';
   const raw = (get('f-regnum')?.value || '').trim();
   const normalized = raw.toUpperCase().replace(/\s+/g, '');
+  const docType = detectRegDocType(normalized);
 
-  if (!docType) {
-    regLookupState = false;
-    regLookupMsg = 'Select GST or Udyam MSME first, then enter the registration number.';
-    setRegnumStatus('err', '🔎 ' + regLookupMsg);
-    refreshStep1OnboardBlockers();
-    return false;
-  }
   if (!normalized) {
     regLookupState = null;
     regLookupMsg = '';
     if (get('f-bname')) get('f-bname').value = '';
-    setRegnumStatus('idle', '🔎 Enter your number — we’ll fetch the registered business name automatically.');
+    setRegnumStatus('idle', '');
     refreshStep1OnboardBlockers();
     return false;
   }
-  if (!isRegNumberFormatOk(normalized, docType)) {
+  if (!isRegNumberFormatOk(normalized)) {
     regLookupState = false;
-    regLookupMsg = docType === 'udyam'
-      ? 'That Udyam format looks wrong. Use UDYAM-XX-00-0000000. We can’t onboard you until this is fixed.'
-      : 'That GSTIN format looks wrong (must be 15 characters). We can’t onboard you until this is fixed.';
+    regLookupMsg = 'Enter a valid GSTIN (15 characters) or Udyam number (UDYAM-XX-00-0000000). We can’t onboard you until this is fixed.';
     if (get('f-bname')) get('f-bname').value = '';
     setRegnumStatus('err', '❌ ' + regLookupMsg);
     const blockText = get('b-regnum-text');
@@ -1780,7 +1754,7 @@ async function lookupRegistrationRealtime() {
   if (get('f-regnum')) get('f-regnum').value = normalized;
 
   try {
-    setRegnumStatus('pending', '🔎 Looking up business name from registration records…');
+    setRegnumStatus('pending', '🔎 Looking up business name…');
     const resp = await fetch(@json(route('customer.readiness.lookup.registration')), {
       method: 'POST',
       headers: {
@@ -1798,7 +1772,7 @@ async function lookupRegistrationRealtime() {
       regLookupState = true;
       regLookupMsg = data.message || 'Business name fetched.';
       if (get('f-bname')) get('f-bname').value = data.business_name;
-      setRegnumStatus('ok', '✅ ' + regLookupMsg + ' Business: ' + data.business_name);
+      setRegnumStatus('ok', '✅ ' + data.business_name);
       showValid('f-regnum');
       showValid('f-bname');
       refreshStep1OnboardBlockers();
@@ -2019,10 +1993,6 @@ function validateField(id) {
       if (websiteReachable === false) { showError(id); refreshStep1OnboardBlockers(); return false; }
       showValid(id); refreshStep1OnboardBlockers(); return true;
 
-    case 'f-regdoc':
-      if (!v) { showError(id); return false; }
-      showValid(id); return true;
-
     case 'f-regnum':
       if (!v) { showError(id); refreshStep1OnboardBlockers(); return false; }
       if (regLookupState === false) { showBlock(id); refreshStep1OnboardBlockers(); return false; }
@@ -2170,7 +2140,7 @@ get('f-bemail')?.addEventListener('blur', async () => {
 
 // ── Section validators ──────────────────────────
 const sectionFields = {
-  0: ['f-regdoc','f-regnum','f-bname','f-bemail','f-website','f-fbpageurl'],
+  0: ['f-regnum','f-bname','f-bemail','f-website','f-fbpageurl'],
   1: ['f-metaadmin','f-mfa','f-fbaccount'],
   2: ['f-numplan','f-otp','f-numtype','f-wanum','f-wadisplayname'],
   3: ['f-name','f-email','f-personal'],
@@ -2480,7 +2450,11 @@ function mapToBackendPayload() {
     business_name: get('f-bname')?.value?.trim(),
     business_email: get('f-bemail')?.value?.trim(),
     site: get('f-website')?.value?.trim(),
-    docType: docTypeMap[get('f-regdoc')?.value] || '',
+    docType: (() => {
+      const n = (get('f-regnum')?.value || '').trim().toUpperCase().replace(/\s+/g, '');
+      const t = detectRegDocType(n);
+      return docTypeMap[t] || '';
+    })(),
     registration_number: (get('f-regnum')?.value || '').trim().toUpperCase().replace(/\s+/g, ''),
     facebook_page_url: get('f-fbpageurl')?.value?.trim(),
     mbm_admin: get('f-metaadmin')?.value || '',
@@ -2589,7 +2563,6 @@ const oldToField = {
   business_name: 'f-bname',
   business_email: 'f-bemail',
   site: 'f-website',
-  docType: 'f-regdoc',
   registration_number: 'f-regnum',
   facebook_page_url: 'f-fbpageurl',
   mbm_admin: 'f-metaadmin',
@@ -2607,13 +2580,7 @@ Object.entries(oldToField).forEach(([backendKey, fieldId]) => {
   const val = oldInput?.[backendKey];
   if (val === undefined || val === null) return;
   const el = get(fieldId);
-  if (!el) return;
-  if (fieldId === 'f-regdoc') {
-    const lower = String(val).toLowerCase();
-    el.value = lower.includes('udyam') || lower.includes('msme') ? 'udyam' : (lower.includes('gst') ? 'gst' : '');
-    return;
-  }
-  el.value = val;
+  if (el) el.value = val;
 });
 if ((get('f-bname')?.value || '').trim()) regLookupState = true;
 if ((get('f-fbpageurl')?.value || '').trim()) fbPageUrlCheckState = true;
@@ -2626,7 +2593,6 @@ const backendToField = {
   business_name: 'f-bname',
   business_email: 'f-bemail',
   site: 'f-website',
-  docType: 'f-regdoc',
   registration_number: 'f-regnum',
   facebook_page_url: 'f-fbpageurl',
   mbm_admin: 'f-metaadmin',
