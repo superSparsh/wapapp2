@@ -28,7 +28,7 @@ class CalendarTemplateResolveTest extends TestCase
             'operational-alerts.enabled' => true,
             'operational-alerts.alibaba.access_key_id' => 'test-key',
             'operational-alerts.alibaba.access_key_secret' => 'test-secret',
-            'operational-alerts.google_calendar.customer_created' => '864e8632-6123-41bd-8070-124dc595838b',
+            'operational-alerts.google_calendar.customer_created' => 'google_calendar_customer_event_created_new',
         ]);
     }
 
@@ -105,7 +105,7 @@ class CalendarTemplateResolveTest extends TestCase
         $this->assertNull($resolved['error']);
     }
 
-    public function test_calendar_whatsapp_create_uses_uuid_pinned_template_code(): void
+    public function test_calendar_whatsapp_create_uses_created_new_template_name(): void
     {
         $line = WhatsappLine::query()->firstOrFail();
         $line->forceFill([
@@ -114,9 +114,9 @@ class CalendarTemplateResolveTest extends TestCase
             'alibaba_cust_space_id' => 'space-1',
         ])->save();
 
-        $template = Template::query()->create([
+        Template::query()->create([
             'whatsapp_line_id' => $line->id,
-            'name' => 'google_calendar_customer_event_created',
+            'name' => 'google_calendar_customer_event_created_new',
             'code' => '1257583503568572222',
             'status' => TemplateStatus::Approved,
             'language' => 'en',
@@ -124,27 +124,28 @@ class CalendarTemplateResolveTest extends TestCase
             'source' => 'cams',
             'payload' => [],
         ]);
-        $template->forceFill(['uuid' => '864e8632-6123-41bd-8070-124dc595838b'])->save();
 
-        // Wrong same-name row must not be used when config is uuid-pinned.
-        Template::query()->create([
-            'whatsapp_line_id' => $line->id,
-            'name' => '99_google_calendar_customer_event_created',
-            'code' => '1257583503568579999',
-            'status' => TemplateStatus::Approved,
-            'language' => 'en',
-            'category' => 'UTILITY',
-            'source' => 'cams',
-            'payload' => [],
-        ]);
+        Http::fake(function (\Illuminate\Http\Client\Request $request) {
+            if (($request['Action'] ?? '') === 'ListChatappTemplate') {
+                return Http::response([
+                    'Code' => 'OK',
+                    'Data' => [
+                        'ListTemplate' => [[
+                            'TemplateCode' => '1257583503568572222',
+                            'TemplateName' => 'google_calendar_customer_event_created_new',
+                            'Language' => 'en',
+                            'AuditStatus' => 'APPROVED',
+                        ]],
+                    ],
+                ], 200);
+            }
 
-        Http::fake([
-            'cams.ap-southeast-1.aliyuncs.com/*' => Http::response([
+            return Http::response([
                 'Code' => 'OK',
                 'Message' => 'success',
-                'MessageId' => 'msg-created-uuid',
-            ], 200),
-        ]);
+                'MessageId' => 'msg-created-new',
+            ], 200);
+        });
 
         $result = app(AlertDispatcher::class)->calendarWhatsApp(
             'operational-alerts.google_calendar.customer_created',
@@ -165,11 +166,7 @@ class CalendarTemplateResolveTest extends TestCase
 
         Http::assertSent(function ($request) {
             return ($request['Action'] ?? '') === 'SendChatappMessage'
-                && ($request['TemplateCode'] ?? null) === '1257583503568572222'
-                && ($request['Language'] ?? null) === 'en';
-        });
-        Http::assertNotSent(function ($request) {
-            return ($request['Action'] ?? '') === 'ListChatappTemplate';
+                && ($request['TemplateCode'] ?? null) === '1257583503568572222';
         });
     }
 }

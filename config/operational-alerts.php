@@ -101,10 +101,8 @@ return [
 
     // Defaults are Meta/logical template names (legacy parity).
     // Env may also be a local Templates uuid or numeric CAMS TemplateCode.
-    // customer_created is pinned to the approved local template uuid (name lookup was
-    // picking the wrong CAMS TemplateCode → DetailError.TemplateNotExist).
     'google_calendar' => [
-        'customer_created' => env('ALERT_WA_TEMPLATE_GCAL_CUSTOMER_CREATED', '864e8632-6123-41bd-8070-124dc595838b'),
+        'customer_created' => env('ALERT_WA_TEMPLATE_GCAL_CUSTOMER_CREATED', 'google_calendar_customer_event_created_new'),
         'customer_canceled' => env('ALERT_WA_TEMPLATE_GCAL_CUSTOMER_CANCELED', 'google_calendar_customer_event_canceled'),
         'customer_reminder' => env('ALERT_WA_TEMPLATE_GCAL_CUSTOMER_REMINDER', 'google_calendar_customer_event_reminder'),
         'admin_created' => env('ALERT_WA_TEMPLATE_GCAL_ADMIN_CREATED', 'google_calendar_user_event_created'),
