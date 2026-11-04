@@ -507,10 +507,25 @@ class AlertDispatcher
             return ['ok' => false, 'error' => $resolved['error']];
         }
 
-        // Prefer live CAMS List by Meta/logical name on this line's CustSpaceId.
-        // Local numeric codes go stale after re-sync / WABA moves → DetailError.TemplateNotExist.
-        $sendAs = $resolved['list_name'] ?: (string) ($resolved['code'] ?? $configured);
-        $logicalName = CamsTemplateIdentity::isProviderCode($configured) ? null : $configured;
+        $isUuid = (bool) preg_match(
+            '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i',
+            $configured,
+        );
+
+        // UUID-pinned templates (e.g. google create): send that row's numeric TemplateCode.
+        // Name-based List was matching the wrong CAMS template → DetailError.TemplateNotExist.
+        // Name-configured templates still prefer live List by Meta/logical name.
+        if ($isUuid && CamsTemplateIdentity::isProviderCode($resolved['code'] ?? null)) {
+            $sendAs = (string) $resolved['code'];
+            $templateName = null;
+            $logicalName = null;
+        } else {
+            $sendAs = $resolved['list_name'] ?: (string) ($resolved['code'] ?? $configured);
+            $templateName = $resolved['list_name'];
+            $logicalName = (! CamsTemplateIdentity::isProviderCode($configured) && ! $isUuid)
+                ? $configured
+                : null;
+        }
 
         return $this->whatsAppSender->sendTemplateResult(
             $toPhone,
@@ -520,8 +535,7 @@ class AlertDispatcher
                 'from' => $from,
                 'cust_space_id' => $custSpaceId,
                 'language' => $resolved['language'],
-                'template_name' => $resolved['list_name'],
-                // Always also try the config short name (e.g. google_calendar_customer_event_created).
+                'template_name' => $templateName,
                 'logical_name' => $logicalName,
                 'fallback_code' => $resolved['code'],
             ],

@@ -199,44 +199,41 @@
     </div>
   </div>
 
-  <div class="flex shrink-0 flex-col gap-0.5">
-    <div class="flex items-center gap-2">
-      <a
-        href="{{ $unreadHref }}"
-        data-inbox-unread-filter
-        @class([
-          'fd-btn inline-flex h-9 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border px-2.5 text-xs font-medium transition',
-          'border-green-500 bg-green-500 text-primary-2 hover:opacity-90' => $isUnreadScope,
-          'border-border bg-elevated text-text-body hover:bg-surface' => ! $isUnreadScope,
-        ])
-        title="{{ $isUnreadScope ? 'Show all conversations' : 'Show unread conversations' }}"
-      >
-        Unread
-        <span
-          data-inbox-unread-count
-          @class([
-            'inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-semibold',
-            'bg-white/20 text-primary-2' => $isUnreadScope,
-            'bg-green-500 text-white' => ! $isUnreadScope,
-            'hidden' => $unreadTotal <= 0,
-          ])
-        >{{ $unreadCountLabel }}</span>
-      </a>
+  <a
+    href="{{ $unreadHref }}"
+    data-inbox-unread-filter
+    @class([
+      'fd-btn inline-flex h-9 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border px-2.5 text-xs font-medium transition',
+      'border-green-500 bg-green-500 text-primary-2 hover:opacity-90' => $isUnreadScope,
+      'border-border bg-elevated text-text-body hover:bg-surface' => ! $isUnreadScope,
+    ])
+    title="{{ $isUnreadScope ? 'Show all conversations' : 'Show unread conversations' }}"
+  >
+    Unread
+    <span
+      data-inbox-unread-count
+      @class([
+        'inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-semibold',
+        'bg-white/20 text-primary-2' => $isUnreadScope,
+        'bg-green-500 text-white' => ! $isUnreadScope,
+        'hidden' => $unreadTotal <= 0,
+      ])
+    >{{ $unreadCountLabel }}</span>
+    <span
+      class="border-l border-current/20 pl-1.5 text-[11px] font-normal opacity-70"
+      data-inbox-unread-range
+    >{{ $lookbackLabel }}</span>
+  </a>
 
-      <button
-        type="button"
-        data-inbox-mark-all-read
-        data-mark-all-url="{{ route('inbox.api.mark-all-read') }}?{{ http_build_query($baseQuery) }}"
-        class="fd-btn inline-flex h-9 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-green-500 bg-transparent px-2.5 text-xs font-medium text-green-600 transition hover:bg-green-50"
-      >
-        <x-icons.nav-icon name="refresh" class="size-3.5" />
-        Mark all read
-      </button>
-    </div>
-    <p class="pl-0.5 text-[11px] leading-snug text-text-body/45" data-inbox-unread-range>
-      Unread in {{ $lookbackLabel }}
-    </p>
-  </div>
+  <button
+    type="button"
+    data-inbox-mark-all-read
+    data-mark-all-url="{{ route('inbox.api.mark-all-read') }}?{{ http_build_query($baseQuery) }}"
+    class="fd-btn inline-flex h-9 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-green-500 bg-transparent px-2.5 text-xs font-medium text-green-600 transition hover:bg-green-50"
+  >
+    <x-icons.nav-icon name="refresh" class="size-3.5" />
+    Mark all read
+  </button>
 
   <button
     type="button"

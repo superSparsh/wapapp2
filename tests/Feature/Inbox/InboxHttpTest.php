@@ -234,7 +234,7 @@ class InboxHttpTest extends TestCase
         $this->assertStringContainsString('Hello badge', $html);
         $this->assertStringContainsString('data-inbox-unread-filter', $html);
         $this->assertStringContainsString('data-inbox-unread-count', $html);
-        $this->assertStringContainsString('Unread in', $html);
+        $this->assertStringContainsString('data-inbox-unread-range', $html);
         $this->assertStringNotContainsString('Unread Only', $html);
     }
 
