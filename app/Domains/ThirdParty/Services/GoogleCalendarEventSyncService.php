@@ -89,6 +89,9 @@ class GoogleCalendarEventSyncService
             return ['ok' => false, 'message' => 'Missing Google Calendar event id.'];
         }
 
+        // Notify customer + admin with canceled templates before the row is deleted.
+        $this->notifyCanceled($integration, $event);
+
         // Already canceled locally — still try platform delete, but don't block local cleanup.
         $deleted = $this->api->deleteEvent(
             $integration,
@@ -102,14 +105,52 @@ class GoogleCalendarEventSyncService
 
         $this->rememberRemovedEventId($integration, $platformEventId);
 
+        // Drop older created/reminder rows; keep cancel logs for the Messages tab.
         GoogleCalendarMessageLog::query()
             ->where('user_id', $userId)
             ->where('event_id', $event->id)
+            ->where('event_type', '!=', 'canceled')
             ->forceDelete();
+
+        GoogleCalendarMessageLog::query()
+            ->where('user_id', $userId)
+            ->where('event_id', $event->id)
+            ->where('event_type', 'canceled')
+            ->update(['event_id' => null]);
 
         $event->forceDelete();
 
         return ['ok' => true, 'message' => 'Event removed from WapApp and Google Calendar.'];
+    }
+
+    /**
+     * Send customer + admin canceled WhatsApp (legacy cancel templates).
+     * No-op when WhatsApp is off or cancel was already notified (e.g. platform cancel sync).
+     */
+    public function notifyCanceled(GoogleCalendarIntegration $integration, GoogleCalendarEvent $event): void
+    {
+        if (! $integration->isWhatsAppEnabled() || $event->notified_canceled) {
+            return;
+        }
+
+        $eventName = trim((string) ($event->summary ?? 'Meeting'));
+        if ($eventName === '') {
+            $eventName = 'Meeting';
+        }
+
+        $this->notifyAndLog(
+            $integration,
+            $event,
+            'canceled',
+            'operational-alerts.google_calendar.customer_canceled',
+            'operational-alerts.google_calendar.admin_canceled',
+            $eventName,
+        );
+
+        $event->forceFill([
+            'status' => 'canceled',
+            'notified_canceled' => true,
+        ])->save();
     }
 
     public function isRemovedEventId(GoogleCalendarIntegration $integration, string $eventId): bool

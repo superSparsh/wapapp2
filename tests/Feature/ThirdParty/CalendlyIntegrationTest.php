@@ -298,6 +298,77 @@ class CalendlyIntegrationTest extends TestCase
         });
     }
 
+    public function test_remove_calendly_event_sends_canceled_whatsapp_to_customer_and_admin(): void
+    {
+        $userId = $this->testUser->id;
+        $uri = 'https://api.calendly.com/scheduled_events/bbbbbbbb-cccc-dddd-eeee-ffffffffffff';
+
+        CalendlyIntegration::query()->firstOrCreate(['user_id' => $userId], [
+            'status' => IntegrationStatus::Enabled,
+            'settings' => [
+                'access_token' => 'tok-remove-wa',
+                'enable_whatsapp' => true,
+                'whatsapp_number' => '911234567890',
+            ],
+        ]);
+
+        $event = CalendlyEvent::query()->create([
+            'user_id' => $userId,
+            'event_id' => $uri,
+            'event_uri' => $uri,
+            'status' => 'active',
+            'event_type' => 'consultation',
+            'invitee_email' => 'guest@example.com',
+            'whatsapp_number' => '919876543210',
+            'start_time' => now()->addHour(),
+            'end_time' => now()->addHours(2),
+            'raw_payload' => ['uri' => $uri, 'name' => 'Cancel Notify'],
+            'notified_created' => true,
+            'notified_canceled' => false,
+        ]);
+
+        $dispatcher = $this->createMock(AlertDispatcher::class);
+        $dispatcher->expects($this->exactly(2))
+            ->method('calendarWhatsApp')
+            ->willReturnCallback(function (string $templateKey, string $toPhone) {
+                static $calls = 0;
+                $calls++;
+                if ($calls === 1) {
+                    $this->assertSame('operational-alerts.calendly.customer_canceled', $templateKey);
+                    $this->assertSame('919876543210', preg_replace('/\D/', '', $toPhone));
+                } else {
+                    $this->assertSame('operational-alerts.calendly.admin_canceled', $templateKey);
+                    $this->assertSame('911234567890', preg_replace('/\D/', '', $toPhone));
+                }
+
+                return ['ok' => true, 'error' => null, 'message_id' => 'msg-cal-cancel-'.$calls];
+            });
+        $this->app->instance(AlertDispatcher::class, $dispatcher);
+
+        Http::fake([
+            'api.calendly.com/scheduled_events/*/cancellation' => Http::response([], 201),
+        ]);
+
+        $this->actingAsTenantUser()
+            ->delete(route('integration.calendly.events.destroy', $event))
+            ->assertRedirect(route('integration.calendly', ['tab' => 'events']))
+            ->assertSessionHas('success');
+
+        $this->assertDatabaseMissing('calendly_events', ['id' => $event->id]);
+        $this->assertDatabaseHas('calendly_message_logs', [
+            'user_id' => $userId,
+            'event_type' => 'canceled',
+            'recipient_type' => 'customer',
+            'status' => MessageLogStatus::Sent->value,
+        ]);
+        $this->assertDatabaseHas('calendly_message_logs', [
+            'user_id' => $userId,
+            'event_type' => 'canceled',
+            'recipient_type' => 'admin',
+            'status' => MessageLogStatus::Sent->value,
+        ]);
+    }
+
     public function test_message_logs_listed_on_logs_tab(): void
     {
         $userId = $this->testUser->id;

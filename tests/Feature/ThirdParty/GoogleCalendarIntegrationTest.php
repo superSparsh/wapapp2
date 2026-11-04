@@ -357,6 +357,82 @@ class GoogleCalendarIntegrationTest extends TestCase
         });
     }
 
+    public function test_remove_google_event_sends_canceled_whatsapp_to_customer_and_admin(): void
+    {
+        $userId = $this->testUser->id;
+
+        GoogleCalendarIntegration::query()->create([
+            'user_id' => $userId,
+            'status' => IntegrationStatus::Enabled,
+            'settings' => [
+                'refresh_token' => 'rt',
+                'access_token' => 'at',
+                'token_expires_at' => now()->addHour()->toIso8601String(),
+                'calendar_id' => 'primary',
+                'enable_whatsapp' => true,
+                'whatsapp_number' => '911234567890',
+            ],
+        ]);
+
+        $event = GoogleCalendarEvent::query()->create([
+            'user_id' => $userId,
+            'event_id' => 'gev-remove-wa-1',
+            'calendar_id' => 'primary',
+            'status' => 'active',
+            'summary' => 'Cancel Notify',
+            'invitee_name' => 'Guest',
+            'invitee_email' => 'guest@example.com',
+            'whatsapp_number' => '919876543210',
+            'start_time' => now()->addHour(),
+            'end_time' => now()->addHours(2),
+            'meet_link' => 'https://meet.google.com/abc-defg-hij',
+            'calendar_link' => 'https://calendar.google.com/event?eid=xyz',
+            'notified_created' => true,
+            'notified_canceled' => false,
+        ]);
+
+        $dispatcher = $this->createMock(AlertDispatcher::class);
+        $dispatcher->expects($this->exactly(2))
+            ->method('calendarWhatsApp')
+            ->willReturnCallback(function (string $templateKey, string $toPhone) {
+                static $calls = 0;
+                $calls++;
+                if ($calls === 1) {
+                    $this->assertSame('operational-alerts.google_calendar.customer_canceled', $templateKey);
+                    $this->assertSame('919876543210', preg_replace('/\D/', '', $toPhone));
+                } else {
+                    $this->assertSame('operational-alerts.google_calendar.admin_canceled', $templateKey);
+                    $this->assertSame('911234567890', preg_replace('/\D/', '', $toPhone));
+                }
+
+                return ['ok' => true, 'error' => null, 'message_id' => 'msg-cancel-'.$calls];
+            });
+        $this->app->instance(AlertDispatcher::class, $dispatcher);
+
+        Http::fake([
+            'www.googleapis.com/calendar/v3/calendars/*' => Http::response(null, 204),
+        ]);
+
+        $this->actingAsTenantUser()
+            ->delete(route('integration.google-calendar.events.destroy', $event))
+            ->assertRedirect(route('integration.google-calendar', ['tab' => 'events']))
+            ->assertSessionHas('success');
+
+        $this->assertDatabaseMissing('google_calendar_events', ['id' => $event->id]);
+        $this->assertDatabaseHas('google_calendar_message_logs', [
+            'user_id' => $userId,
+            'event_type' => 'canceled',
+            'recipient_type' => 'customer',
+            'status' => MessageLogStatus::Sent->value,
+        ]);
+        $this->assertDatabaseHas('google_calendar_message_logs', [
+            'user_id' => $userId,
+            'event_type' => 'canceled',
+            'recipient_type' => 'admin',
+            'status' => MessageLogStatus::Sent->value,
+        ]);
+    }
+
     // ─── Booking availability ─────────────────────────────────────────────────
 
     public function test_update_booking_availability_requires_at_least_one_day(): void

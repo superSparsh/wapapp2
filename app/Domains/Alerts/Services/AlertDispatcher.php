@@ -520,6 +520,12 @@ class AlertDispatcher
     }
 
     /**
+     * Resolve calendar template like legacy: always prefer numeric CAMS TemplateCode.
+     *
+     * After CAMS sync, local `name` is often the Meta real name
+     * (`{customer_id}_google_calendar_customer_event_created`), while config still
+     * stores the short logical name (`google_calendar_customer_event_created`).
+     *
      * @return array{code: ?string, language: ?string, error: ?string}
      */
     private function resolveCalendarTemplate(string $configured, WhatsappLine $line): array
@@ -529,22 +535,38 @@ class AlertDispatcher
         }
 
         $template = Template::query()
-            ->where('name', $configured)
             ->where('status', TemplateStatus::Approved)
             ->where(function ($query) use ($line): void {
                 $query->where('whatsapp_line_id', $line->id)
                     ->orWhereNull('whatsapp_line_id');
             })
+            ->where(function ($query) use ($configured): void {
+                $query->where('name', $configured)
+                    // CAMS / legacy real_template_name: "{customer_id}_{logical_name}"
+                    ->orWhere('name', 'like', '%_'.$configured)
+                    ->orWhere('payload->legacy_real_template_name', $configured)
+                    ->orWhere('payload->legacy_real_template_name', 'like', '%_'.$configured);
+            })
             ->orderByRaw('case when whatsapp_line_id = ? then 0 else 1 end', [$line->id])
+            ->orderByRaw('case when name = ? then 0 else 1 end', [$configured])
             ->first();
 
         if ($template === null) {
-            // Fall through to CAMS ListChatappTemplate by name on this line.
+            // Fall through to CAMS ListChatappTemplate by logical name on this line.
             return ['code' => $configured, 'language' => null, 'error' => null];
         }
 
-        $code = $template->whatsappCode();
-        if ($code === null) {
+        $code = $template->whatsappCode()
+            ?? CamsTemplateIdentity::code(
+                is_string(data_get($template->payload, 'legacy_template_code'))
+                    ? (string) data_get($template->payload, 'legacy_template_code')
+                    : null,
+                is_string(data_get($template->payload, 'meta.archived_code'))
+                    ? (string) data_get($template->payload, 'meta.archived_code')
+                    : null,
+            );
+
+        if (! CamsTemplateIdentity::isProviderCode($code)) {
             return [
                 'code' => null,
                 'language' => null,
@@ -552,9 +574,14 @@ class AlertDispatcher
             ];
         }
 
+        // Prefer the template's own language for SendChatappMessage (en_US / en / en_GB).
+        // Do not force blank/"en" → en_GB here — that causes DetailError.TemplateNotExist
+        // when the approved CAMS template language differs from the ops default.
+        $rawLanguage = trim((string) ($template->language ?? ''));
+
         return [
             'code' => $code,
-            'language' => CamsTemplateIdentity::language($template->language),
+            'language' => $rawLanguage !== '' ? $rawLanguage : null,
             'error' => null,
         ];
     }

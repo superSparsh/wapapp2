@@ -176,12 +176,23 @@ class CalendlyService
             return ['ok' => false, 'message' => $platformError];
         }
 
+        // Notify customer + admin with canceled templates before the row is deleted.
+        app(CalendlyEventSyncService::class)->notifyCanceled($integration, $event);
+
         $this->rememberRemovedEventId($integration, (string) $event->event_id);
+
+        // Drop older created/reminder rows; keep cancel logs for the Messages tab.
+        CalendlyMessageLog::query()
+            ->where('user_id', $userId)
+            ->where('event_id', $event->id)
+            ->where('event_type', '!=', 'canceled')
+            ->forceDelete();
 
         CalendlyMessageLog::query()
             ->where('user_id', $userId)
             ->where('event_id', $event->id)
-            ->forceDelete();
+            ->where('event_type', 'canceled')
+            ->update(['event_id' => null]);
 
         $event->forceDelete();
 

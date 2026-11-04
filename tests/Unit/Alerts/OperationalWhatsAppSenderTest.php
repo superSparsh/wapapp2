@@ -166,4 +166,62 @@ class OperationalWhatsAppSenderTest extends TestCase
         $this->assertStringContainsString('calendly_customer_invite_created', (string) $result['error']);
         $this->assertStringContainsString('not found', (string) $result['error']);
     }
+
+    public function test_send_template_matches_prefixed_meta_name_and_retries_language_on_not_exist(): void
+    {
+        $sendAttempts = 0;
+
+        Http::fake(function (\Illuminate\Http\Client\Request $request) use (&$sendAttempts) {
+            $action = $request['Action'] ?? '';
+            if ($action === 'ListChatappTemplate') {
+                // Short Name miss; unfiltered list returns prefixed Meta real name.
+                if (($request['Name'] ?? null) === 'google_calendar_customer_event_created') {
+                    return Http::response(['Code' => 'OK', 'Data' => ['ListTemplate' => []]], 200);
+                }
+
+                return Http::response([
+                    'Code' => 'OK',
+                    'Data' => [
+                        'ListTemplate' => [
+                            [
+                                'TemplateCode' => '1257583503568572333',
+                                'TemplateName' => '42_google_calendar_customer_event_created',
+                                'Language' => 'en',
+                            ],
+                        ],
+                    ],
+                ], 200);
+            }
+
+            $sendAttempts++;
+            if (($request['Language'] ?? null) === 'en_GB') {
+                return Http::response([
+                    'Code' => 'TemplateNotExist',
+                    'Message' => 'The template is not exist.',
+                ], 200);
+            }
+
+            return Http::response([
+                'Code' => 'OK',
+                'Message' => 'success',
+                'MessageId' => 'msg-lang-ok',
+            ], 200);
+        });
+
+        $result = app(OperationalWhatsAppSender::class)->sendTemplateResult(
+            '919876543210',
+            'google_calendar_customer_event_created',
+            ['full_name' => 'Guest'],
+            ['language' => 'en_GB'],
+        );
+
+        $this->assertTrue($result['ok'], (string) ($result['error'] ?? ''));
+        $this->assertGreaterThan(1, $sendAttempts);
+
+        Http::assertSent(function ($request) {
+            return ($request['Action'] ?? '') === 'SendChatappMessage'
+                && ($request['TemplateCode'] ?? null) === '1257583503568572333'
+                && ($request['Language'] ?? null) === 'en';
+        });
+    }
 }

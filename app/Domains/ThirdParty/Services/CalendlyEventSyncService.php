@@ -241,6 +241,37 @@ class CalendlyEventSyncService
     }
 
     /**
+     * Send customer + admin canceled WhatsApp (legacy cancel templates).
+     * No-op when WhatsApp is off or cancel was already notified (e.g. invitee.canceled webhook).
+     */
+    public function notifyCanceled(CalendlyIntegration $integration, CalendlyEvent $event): void
+    {
+        $enableWhatsapp = (bool) ($integration->settings['enable_whatsapp'] ?? false);
+        if (! $enableWhatsapp || $event->notified_canceled) {
+            return;
+        }
+
+        $eventName = trim((string) ($event->raw_payload['name'] ?? $event->event_type ?? 'Meeting'));
+        if ($eventName === '') {
+            $eventName = 'Meeting';
+        }
+
+        $this->notifyAndLog(
+            $integration,
+            $event,
+            'canceled',
+            'operational-alerts.calendly.customer_canceled',
+            'operational-alerts.calendly.admin_canceled',
+            $eventName,
+        );
+
+        $event->forceFill([
+            'status' => 'canceled',
+            'notified_canceled' => true,
+        ])->save();
+    }
+
+    /**
      * Send customer + admin WhatsApp notifications and write message logs (sent / failed / skipped).
      */
     private function notifyAndLog(

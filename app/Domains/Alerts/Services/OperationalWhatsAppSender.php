@@ -38,9 +38,15 @@ class OperationalWhatsAppSender
         $accessKeySecret = (string) config('operational-alerts.alibaba.access_key_secret', '');
         $from = trim((string) ($sender['from'] ?? config('operational-alerts.whatsapp.from', '')));
         $custSpaceId = trim((string) ($sender['cust_space_id'] ?? config('operational-alerts.whatsapp.cust_space_id', '')));
-        $language = CamsTemplateIdentity::language(
-            (string) ($sender['language'] ?? config('operational-alerts.whatsapp.language', 'en_GB')),
-        );
+        $preferredLanguage = trim((string) ($sender['language'] ?? ''));
+        // Keep caller/template language as-is (including "en"). Only use ops default
+        // when the caller did not specify a language — remapping en→en_GB here caused
+        // DetailError.TemplateNotExist for Google/Calendly templates approved as "en".
+        $language = $preferredLanguage !== ''
+            ? $preferredLanguage
+            : CamsTemplateIdentity::language(
+                (string) config('operational-alerts.whatsapp.language', 'en_GB'),
+            );
 
         if ($accessKeyId === '' || $accessKeySecret === '' || $from === '' || $templateCode === '') {
             Log::warning('Operational WhatsApp alert skipped: missing CAMS config', [
@@ -75,54 +81,80 @@ class OperationalWhatsAppSender
             return ['ok' => false, 'error' => $resolved['error'], 'message_id' => null];
         }
         $providerCode = (string) $resolved['code'];
+        // Use the language that actually matched ListChatappTemplate when available.
+        $sendLanguage = trim((string) ($resolved['language'] ?? '')) !== ''
+            ? (string) $resolved['language']
+            : $language;
 
-        $payload = [
-            'ChannelType' => 'whatsapp',
-            'Type' => 'template',
-            'TemplateCode' => $providerCode,
-            'Language' => $language,
-            'From' => $from,
-            'To' => $to,
-            'TemplateParams' => json_encode($this->stringifyParams($templateParams), JSON_THROW_ON_ERROR),
-        ];
+        // Keep raw locales (do not collapse "en" → en_GB) — CAMS TemplateNotExist
+        // happens when Send language does not match the approved template language.
+        $languagesToTry = array_values(array_unique(array_filter([
+            $sendLanguage,
+            $preferredLanguage,
+            'en',
+            'en_US',
+            'en_GB',
+        ], static fn ($lang): bool => is_string($lang) && trim($lang) !== '')));
 
-        if ($custSpaceId !== '') {
-            $payload['CustSpaceId'] = $custSpaceId;
+        $lastParsed = ['ok' => false, 'error' => 'WhatsApp API did not return success.', 'message_id' => null];
+        foreach ($languagesToTry as $tryLanguage) {
+            $payload = [
+                'ChannelType' => 'whatsapp',
+                'Type' => 'template',
+                'TemplateCode' => $providerCode,
+                'Language' => $tryLanguage,
+                'From' => $from,
+                'To' => $to,
+                'TemplateParams' => json_encode($this->stringifyParams($templateParams), JSON_THROW_ON_ERROR),
+            ];
+
+            if ($custSpaceId !== '') {
+                $payload['CustSpaceId'] = $custSpaceId;
+            }
+
+            try {
+                $response = $this->signedRequest($payload, $accessKeyId, $accessKeySecret);
+            } catch (\Throwable $e) {
+                Log::error('Operational WhatsApp alert request failed', [
+                    'template' => $templateCode,
+                    'provider_code' => $providerCode,
+                    'language' => $tryLanguage,
+                    'to' => $to,
+                    'error' => $e->getMessage(),
+                ]);
+
+                return ['ok' => false, 'error' => 'WhatsApp request failed: '.$e->getMessage(), 'message_id' => null];
+            }
+
+            $parsed = $this->parseCamsResponse($response);
+            if ($parsed['ok']) {
+                return $parsed;
+            }
+
+            $lastParsed = $parsed;
+            $errorText = strtolower((string) ($parsed['error'] ?? ''));
+            // Wrong Language often surfaces as TemplateNotExist — try the next locale.
+            if (! str_contains($errorText, 'templatenotexist') && ! str_contains($errorText, 'template is not exist')) {
+                break;
+            }
         }
 
-        try {
-            $response = $this->signedRequest($payload, $accessKeyId, $accessKeySecret);
-        } catch (\Throwable $e) {
-            Log::error('Operational WhatsApp alert request failed', [
-                'template' => $templateCode,
-                'provider_code' => $providerCode,
-                'to' => $to,
-                'error' => $e->getMessage(),
-            ]);
+        Log::error('Operational WhatsApp alert delivery rejected', [
+            'template' => $templateCode,
+            'provider_code' => $providerCode,
+            'to' => $to,
+            'languages_tried' => $languagesToTry,
+            'error' => $lastParsed['error'],
+        ]);
 
-            return ['ok' => false, 'error' => 'WhatsApp request failed: '.$e->getMessage(), 'message_id' => null];
-        }
-
-        $parsed = $this->parseCamsResponse($response);
-        if (! $parsed['ok']) {
-            Log::error('Operational WhatsApp alert delivery rejected', [
-                'template' => $templateCode,
-                'provider_code' => $providerCode,
-                'to' => $to,
-                'status' => $response->status(),
-                'body' => $response->body(),
-                'error' => $parsed['error'],
-            ]);
-        }
-
-        return $parsed;
+        return $lastParsed;
     }
 
     /**
      * CAMS SendChatappMessage needs a numeric TemplateCode. Config often stores the
      * Meta template name (snake_case) — resolve via ListChatappTemplate when needed.
      *
-     * @return array{ok: bool, code: ?string, error: ?string}
+     * @return array{ok: bool, code: ?string, language: ?string, error: ?string}
      */
     private function resolveProviderTemplateCode(
         string $templateCodeOrName,
@@ -133,17 +165,29 @@ class OperationalWhatsAppSender
     ): array {
         $value = trim($templateCodeOrName);
         if ($value === '') {
-            return ['ok' => false, 'code' => null, 'error' => 'WhatsApp template code is empty.'];
+            return ['ok' => false, 'code' => null, 'language' => null, 'error' => 'WhatsApp template code is empty.'];
         }
 
         if (CamsTemplateIdentity::isProviderCode($value)) {
-            return ['ok' => true, 'code' => $value, 'error' => null];
+            return ['ok' => true, 'code' => $value, 'language' => $language, 'error' => null];
         }
 
         $cacheKey = 'ops-wa-template-code:'.hash('sha256', strtolower($custSpaceId.'|'.$language.'|'.$value));
         $cached = Cache::get($cacheKey);
+        if (is_array($cached)
+            && is_string($cached['code'] ?? null)
+            && CamsTemplateIdentity::isProviderCode($cached['code'])
+        ) {
+            return [
+                'ok' => true,
+                'code' => $cached['code'],
+                'language' => is_string($cached['language'] ?? null) ? $cached['language'] : $language,
+                'error' => null,
+            ];
+        }
+        // Legacy cache entries stored only the code string.
         if (is_string($cached) && CamsTemplateIdentity::isProviderCode($cached)) {
-            return ['ok' => true, 'code' => $cached, 'error' => null];
+            return ['ok' => true, 'code' => $cached, 'language' => $language, 'error' => null];
         }
 
         // Try configured language first, then fall back without Language filter.
@@ -158,47 +202,62 @@ class OperationalWhatsAppSender
 
         $lastError = null;
         foreach ($languagesToTry as $tryLanguage) {
-            $params = [
-                'Action' => 'ListChatappTemplate',
-                'Name' => $value,
-                'PageSize' => '10',
-                'PageIndex' => '1',
-            ];
-            if ($tryLanguage !== '') {
-                $params['Language'] = $tryLanguage;
-            }
-            if ($custSpaceId !== '') {
-                $params['CustSpaceId'] = $custSpaceId;
-            }
+            // 1) Exact Name filter (short logical name)
+            // 2) Unfiltered page — match "{customer_id}_{logical_name}" Meta real names
+            foreach ([true, false] as $filterByName) {
+                $params = [
+                    'Action' => 'ListChatappTemplate',
+                    'PageSize' => $filterByName ? '10' : '50',
+                    'PageIndex' => '1',
+                ];
+                if ($filterByName) {
+                    $params['Name'] = $value;
+                }
+                if ($tryLanguage !== '') {
+                    $params['Language'] = $tryLanguage;
+                }
+                if ($custSpaceId !== '') {
+                    $params['CustSpaceId'] = $custSpaceId;
+                }
 
-            try {
-                $response = $this->signedRequest($params, $accessKeyId, $accessKeySecret);
-            } catch (\Throwable $e) {
-                $lastError = 'Could not look up WhatsApp template "'.$value.'": '.$e->getMessage();
+                try {
+                    $response = $this->signedRequest($params, $accessKeyId, $accessKeySecret);
+                } catch (\Throwable $e) {
+                    $lastError = 'Could not look up WhatsApp template "'.$value.'": '.$e->getMessage();
 
-                continue;
-            }
+                    continue;
+                }
 
-            $body = $response->json();
-            $body = is_array($body) ? $body : [];
-            if (! $response->successful()) {
-                $lastError = $this->extractCamsError($body, $response->body(), $response->status());
+                $body = $response->json();
+                $body = is_array($body) ? $body : [];
+                if (! $response->successful()) {
+                    $lastError = $this->extractCamsError($body, $response->body(), $response->status());
 
-                continue;
-            }
+                    continue;
+                }
 
-            $code = Arr::get($body, 'Code') ?? Arr::get($body, 'code');
-            if (is_string($code) && $code !== '' && strtoupper($code) !== 'OK') {
-                $lastError = $this->extractCamsError($body, $response->body(), $response->status());
+                $code = Arr::get($body, 'Code') ?? Arr::get($body, 'code');
+                if (is_string($code) && $code !== '' && strtoupper($code) !== 'OK') {
+                    $lastError = $this->extractCamsError($body, $response->body(), $response->status());
 
-                continue;
-            }
+                    continue;
+                }
 
-            $providerCode = $this->extractTemplateCodeFromList($body);
-            if ($providerCode !== null) {
-                Cache::put($cacheKey, $providerCode, now()->addHours(6));
+                $matched = $this->extractTemplateCodeFromList($body, $value);
+                if ($matched !== null) {
+                    $matchedLanguage = $tryLanguage !== '' ? $tryLanguage : $language;
+                    Cache::put($cacheKey, [
+                        'code' => $matched['code'],
+                        'language' => $matchedLanguage,
+                    ], now()->addHours(6));
 
-                return ['ok' => true, 'code' => $providerCode, 'error' => null];
+                    return [
+                        'ok' => true,
+                        'code' => $matched['code'],
+                        'language' => $matchedLanguage,
+                        'error' => null,
+                    ];
+                }
             }
         }
 
@@ -207,6 +266,7 @@ class OperationalWhatsAppSender
         return [
             'ok' => false,
             'code' => null,
+            'language' => null,
             'error' => $lastError
                 ?: ('WhatsApp template "'.$value.'" was not found on this WhatsApp line'.$spaceHint.'. Use the exact approved template name, or set the numeric TemplateCode in env.'),
         ];
@@ -214,8 +274,9 @@ class OperationalWhatsAppSender
 
     /**
      * @param  array<string, mixed>  $body
+     * @return array{code: string}|null
      */
-    private function extractTemplateCodeFromList(array $body): ?string
+    private function extractTemplateCodeFromList(array $body, ?string $preferredName = null): ?array
     {
         $lists = [
             Arr::get($body, 'ListTemplate'),
@@ -224,23 +285,39 @@ class OperationalWhatsAppSender
             Arr::get($body, 'body.Data.ListTemplate'),
         ];
 
+        $preferredName = is_string($preferredName) ? trim($preferredName) : '';
+        $fallback = null;
+
         foreach ($lists as $list) {
             if (! is_array($list) || $list === []) {
                 continue;
             }
 
-            $first = $list[0] ?? null;
-            if (! is_array($first)) {
-                continue;
-            }
+            foreach ($list as $item) {
+                if (! is_array($item)) {
+                    continue;
+                }
 
-            $code = $first['TemplateCode'] ?? $first['templateCode'] ?? null;
-            if (is_string($code) && CamsTemplateIdentity::isProviderCode($code)) {
-                return $code;
+                $code = $item['TemplateCode'] ?? $item['templateCode'] ?? null;
+                if (! is_string($code) || ! CamsTemplateIdentity::isProviderCode($code)) {
+                    continue;
+                }
+
+                $name = trim((string) ($item['TemplateName'] ?? $item['templateName'] ?? ''));
+                if ($preferredName !== '') {
+                    if ($name === $preferredName || str_ends_with($name, '_'.$preferredName)) {
+                        return ['code' => $code];
+                    }
+                    $fallback ??= ['code' => $code];
+
+                    continue;
+                }
+
+                return ['code' => $code];
             }
         }
 
-        return null;
+        return $fallback;
     }
 
     /**
