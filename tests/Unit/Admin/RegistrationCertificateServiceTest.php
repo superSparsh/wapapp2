@@ -21,15 +21,15 @@ class RegistrationCertificateServiceTest extends TestCase
 
     public function test_accepts_gst_certificate_and_extracts_fields(): void
     {
-        $file = $this->makePdf(
-            "GOVERNMENT OF INDIA\nGOODS AND SERVICES TAX\nGSTIN/UIN: 29ABCDE1234F1Z5\nLegal Name: Sharma Traders Private Limited\n"
-        );
+        $path = base_path('tests/fixtures/gst_certificate_KAMMAR_UDYOG.pdf');
+        $this->assertFileExists($path);
+        $file = new UploadedFile($path, 'gst_certificate_KAMMAR_UDYOG.pdf', 'application/pdf', null, true);
 
         $result = app(RegistrationCertificateService::class)->extractFromUpload($file);
 
         $this->assertTrue($result['valid']);
-        $this->assertSame('29ABCDE1234F1Z5', $result['registration_number']);
-        $this->assertSame('Sharma Traders Private Limited', $result['business_name']);
+        $this->assertSame('29AABFK4985D1Z5', $result['registration_number']);
+        $this->assertSame('KAMMAR UDYOG', $result['business_name']);
         $this->assertSame('GST certificate', $result['doc_type']);
     }
 
