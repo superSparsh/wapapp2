@@ -490,7 +490,11 @@ class GoogleCalendarEventSyncService
     }
 
     /**
-     * Legacy CAMS template variables (SendsGoogleCalendarWhatsapp).
+     * CAMS / Meta template variables for Google Calendar WhatsApp templates.
+     *
+     * Legacy SendsGoogleCalendarWhatsapp sent google_meet_link + google_calendar_link.
+     * Approved CAMS templates also expect google_meet_code (Meet URL-button suffix),
+     * e.g. button https://meet.google.com/{{google_meet_code}}.
      *
      * @return array<string, string>
      */
@@ -503,13 +507,19 @@ class GoogleCalendarEventSyncService
             'Guest',
         );
 
+        $meetLink = trim((string) ($event->meet_link ?? ''));
+        $calendarLink = trim((string) ($event->calendar_link ?? ''));
+
         $params = [
             'full_name' => $clientName,
             'google_event_name' => $eventName,
             'google_event_start_time' => $this->formatEventTime($event->start_time, $tz),
             'google_event_end_time' => $this->formatEventTime($event->end_time, $tz),
-            'google_meet_link' => $this->fallbackNa((string) ($event->meet_link ?? '')),
-            'google_calendar_link' => $this->fallbackNa((string) ($event->calendar_link ?? '')),
+            'google_meet_link' => $this->fallbackNa($meetLink),
+            // Required by approved CAMS URL buttons (TemplateParamsNotMatch: google_meet_code).
+            'google_meet_code' => $this->extractGoogleMeetCode($meetLink),
+            'google_calendar_link' => $this->fallbackNa($calendarLink),
+            'google_calendar_code' => $this->extractGoogleCalendarCode($calendarLink),
         ];
 
         if ($forAdmin) {
@@ -518,6 +528,47 @@ class GoogleCalendarEventSyncService
         }
 
         return $params;
+    }
+
+    /**
+     * Meet code used in WhatsApp URL buttons: https://meet.google.com/{{google_meet_code}}
+     */
+    public function extractGoogleMeetCode(?string $meetLink): string
+    {
+        $meetLink = trim((string) $meetLink);
+        if ($meetLink === '') {
+            return 'N/A';
+        }
+
+        if (preg_match('~meet\.google\.com/([a-z0-9\-]+)~i', $meetLink, $matches) === 1) {
+            return $matches[1];
+        }
+
+        // Already a bare Meet code (xxx-xxxx-xxx).
+        if (preg_match('/^[a-z0-9]{2,4}-[a-z0-9]{3,5}-[a-z0-9]{2,4}$/i', $meetLink) === 1) {
+            return $meetLink;
+        }
+
+        return 'N/A';
+    }
+
+    /**
+     * Calendar event id/code for URL-button style templates (eid=...).
+     */
+    public function extractGoogleCalendarCode(?string $calendarLink): string
+    {
+        $calendarLink = trim((string) $calendarLink);
+        if ($calendarLink === '') {
+            return 'N/A';
+        }
+
+        if (preg_match('/[?&]eid=([^&]+)/i', $calendarLink, $matches) === 1) {
+            $eid = rawurldecode($matches[1]);
+
+            return $eid !== '' ? $eid : 'N/A';
+        }
+
+        return 'N/A';
     }
 
     /**

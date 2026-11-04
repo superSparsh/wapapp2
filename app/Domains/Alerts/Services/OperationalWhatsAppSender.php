@@ -146,60 +146,70 @@ class OperationalWhatsAppSender
             return ['ok' => true, 'code' => $cached, 'error' => null];
         }
 
-        $params = [
-            'Action' => 'ListChatappTemplate',
-            'Name' => $value,
-            'Language' => $language,
-            'PageSize' => '10',
-            'PageIndex' => '1',
+        // Try configured language first, then fall back without Language filter.
+        // Approved Google/Calendly templates are often en / en_US while ops default is en_GB.
+        $languagesToTry = array_values(array_unique(array_filter([
+            $language,
+            'en',
+            'en_US',
+            'en_GB',
+            '',
+        ], static fn ($lang): bool => is_string($lang))));
+
+        $lastError = null;
+        foreach ($languagesToTry as $tryLanguage) {
+            $params = [
+                'Action' => 'ListChatappTemplate',
+                'Name' => $value,
+                'PageSize' => '10',
+                'PageIndex' => '1',
+            ];
+            if ($tryLanguage !== '') {
+                $params['Language'] = $tryLanguage;
+            }
+            if ($custSpaceId !== '') {
+                $params['CustSpaceId'] = $custSpaceId;
+            }
+
+            try {
+                $response = $this->signedRequest($params, $accessKeyId, $accessKeySecret);
+            } catch (\Throwable $e) {
+                $lastError = 'Could not look up WhatsApp template "'.$value.'": '.$e->getMessage();
+
+                continue;
+            }
+
+            $body = $response->json();
+            $body = is_array($body) ? $body : [];
+            if (! $response->successful()) {
+                $lastError = $this->extractCamsError($body, $response->body(), $response->status());
+
+                continue;
+            }
+
+            $code = Arr::get($body, 'Code') ?? Arr::get($body, 'code');
+            if (is_string($code) && $code !== '' && strtoupper($code) !== 'OK') {
+                $lastError = $this->extractCamsError($body, $response->body(), $response->status());
+
+                continue;
+            }
+
+            $providerCode = $this->extractTemplateCodeFromList($body);
+            if ($providerCode !== null) {
+                Cache::put($cacheKey, $providerCode, now()->addHours(6));
+
+                return ['ok' => true, 'code' => $providerCode, 'error' => null];
+            }
+        }
+
+        $spaceHint = $custSpaceId !== '' ? ' (CustSpaceId '.$custSpaceId.')' : '';
+
+        return [
+            'ok' => false,
+            'code' => null,
+            'error' => $lastError
+                ?: ('WhatsApp template "'.$value.'" was not found on this WhatsApp line'.$spaceHint.'. Use the exact approved template name, or set the numeric TemplateCode in env.'),
         ];
-        if ($custSpaceId !== '') {
-            $params['CustSpaceId'] = $custSpaceId;
-        }
-
-        try {
-            $response = $this->signedRequest($params, $accessKeyId, $accessKeySecret);
-        } catch (\Throwable $e) {
-            return [
-                'ok' => false,
-                'code' => null,
-                'error' => 'Could not look up WhatsApp template "'.$value.'": '.$e->getMessage(),
-            ];
-        }
-
-        $body = $response->json();
-        $body = is_array($body) ? $body : [];
-        if (! $response->successful()) {
-            return [
-                'ok' => false,
-                'code' => null,
-                'error' => $this->extractCamsError($body, $response->body(), $response->status()),
-            ];
-        }
-
-        $code = Arr::get($body, 'Code') ?? Arr::get($body, 'code');
-        if (is_string($code) && $code !== '' && strtoupper($code) !== 'OK') {
-            return [
-                'ok' => false,
-                'code' => null,
-                'error' => $this->extractCamsError($body, $response->body(), $response->status()),
-            ];
-        }
-
-        $providerCode = $this->extractTemplateCodeFromList($body);
-        if ($providerCode === null) {
-            $spaceHint = $custSpaceId !== '' ? ' (CustSpaceId '.$custSpaceId.')' : '';
-
-            return [
-                'ok' => false,
-                'code' => null,
-                'error' => 'WhatsApp template "'.$value.'" was not found on this WhatsApp line'.$spaceHint.'. Use the exact approved template name, or set the numeric TemplateCode in env.',
-            ];
-        }
-
-        Cache::put($cacheKey, $providerCode, now()->addHours(6));
-
-        return ['ok' => true, 'code' => $providerCode, 'error' => null];
     }
 
     /**

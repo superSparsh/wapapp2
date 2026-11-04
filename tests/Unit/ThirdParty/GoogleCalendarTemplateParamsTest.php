@@ -52,13 +52,17 @@ class GoogleCalendarTemplateParamsTest extends TestCase
             'google_event_start_time',
             'google_event_end_time',
             'google_meet_link',
+            'google_meet_code',
             'google_calendar_link',
+            'google_calendar_code',
         ], array_keys($params));
 
         $this->assertSame('Ada Lovelace', $params['full_name']);
         $this->assertSame('Product Demo', $params['google_event_name']);
         $this->assertSame('N/A', $params['google_meet_link']);
+        $this->assertSame('N/A', $params['google_meet_code']);
         $this->assertSame('N/A', $params['google_calendar_link']);
+        $this->assertSame('N/A', $params['google_calendar_code']);
         $this->assertArrayNotHasKey('whatsapp_number', $params);
         $this->assertArrayNotHasKey('invitee_email', $params);
         $this->assertArrayNotHasKey('meet', $params);
@@ -85,9 +89,22 @@ class GoogleCalendarTemplateParamsTest extends TestCase
         $params = app(GoogleCalendarEventSyncService::class)->templateParamsForEvent($event, forAdmin: true);
 
         $this->assertSame('https://meet.google.com/abc-defg-hij', $params['google_meet_link']);
+        $this->assertSame('abc-defg-hij', $params['google_meet_code']);
         $this->assertSame('https://calendar.google.com/event?eid=xyz', $params['google_calendar_link']);
+        $this->assertSame('xyz', $params['google_calendar_code']);
         $this->assertSame('+91 98765 43210', $params['whatsapp_number']);
         $this->assertSame('guest@example.com', $params['invitee_email']);
         $this->assertSame('Guest', $params['full_name']);
+    }
+
+    public function test_extract_google_meet_code_from_url_and_bare_code(): void
+    {
+        $sync = app(GoogleCalendarEventSyncService::class);
+
+        $this->assertSame('abc-defg-hij', $sync->extractGoogleMeetCode('https://meet.google.com/abc-defg-hij'));
+        $this->assertSame('abc-defg-hij', $sync->extractGoogleMeetCode('https://meet.google.com/abc-defg-hij?hs=122'));
+        $this->assertSame('abc-defg-hij', $sync->extractGoogleMeetCode('abc-defg-hij'));
+        $this->assertSame('N/A', $sync->extractGoogleMeetCode(null));
+        $this->assertSame('N/A', $sync->extractGoogleMeetCode(''));
     }
 }
