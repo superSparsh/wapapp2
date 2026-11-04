@@ -165,11 +165,19 @@ class GoogleCalendarApiService
         }
 
         $calendarId = urlencode($integration->calendarId());
-        $params     = ['singleEvents' => 'true', 'orderBy' => 'startTime', 'maxResults' => 250];
+
+        // Google rejects syncToken when combined with orderBy / timeMin / timeMax.
+        $params = [
+            'singleEvents' => 'true',
+            'maxResults' => 250,
+            // Required so Meet conferenceData.entryPoints is returned.
+            'conferenceDataVersion' => 1,
+        ];
 
         if ($syncToken) {
             $params['syncToken'] = $syncToken;
         } else {
+            $params['orderBy'] = 'startTime';
             $params['timeMin'] = Carbon::now('UTC')->subMonths(1)->toRfc3339String();
             $params['timeMax'] = Carbon::now('UTC')->addMonths(3)->toRfc3339String();
         }
@@ -189,22 +197,36 @@ class GoogleCalendarApiService
                 $params
             );
 
-            // Sync token expired - reset and retry with full fetch
-            if ($response->status() === 410 && $syncToken) {
+            // Sync token expired / invalid - reset and retry with full fetch
+            if ($syncToken && in_array($response->status(), [400, 410], true)) {
                 $settings = $integration->settings;
                 unset($settings['sync_token']);
                 $integration->settings = $settings;
                 $integration->save();
 
+                Log::warning('Google Calendar syncToken rejected; falling back to full fetch', [
+                    'status' => $response->status(),
+                    'body' => $response->body(),
+                    'integration_id' => $integration->id,
+                ]);
+
                 return $this->listEvents($integration, null);
             }
 
             if (! $response->successful()) {
+                Log::warning('Google Calendar listEvents failed', [
+                    'status' => $response->status(),
+                    'body' => $response->body(),
+                    'integration_id' => $integration->id,
+                    'has_sync_token' => $syncToken !== null && $syncToken !== '',
+                ]);
                 break;
             }
 
             foreach (($response->json('items') ?? []) as $item) {
-                if ($meetOnly && ! $this->extractMeetLink($item)) {
+                $isCancelled = ($item['status'] ?? '') === 'cancelled';
+                // Keep cancellations so existing Meet events can be marked canceled.
+                if ($meetOnly && ! $isCancelled && ! $this->extractMeetLink($item)) {
                     continue;
                 }
                 $allItems[] = $item;
@@ -437,12 +459,21 @@ class GoogleCalendarApiService
     public function extractMeetLink(array $event): ?string
     {
         if (! empty($event['hangoutLink'])) {
-            return $event['hangoutLink'];
+            return (string) $event['hangoutLink'];
         }
 
         foreach (($event['conferenceData']['entryPoints'] ?? []) as $entry) {
             if (($entry['entryPointType'] ?? '') === 'video' && ! empty($entry['uri'])) {
-                return $entry['uri'];
+                return (string) $entry['uri'];
+            }
+        }
+
+        foreach ([
+            (string) ($event['location'] ?? ''),
+            (string) ($event['description'] ?? ''),
+        ] as $haystack) {
+            if ($haystack !== '' && preg_match('#https?://meet\.google\.com/[a-zA-Z0-9\-_]+#', $haystack, $matches) === 1) {
+                return $matches[0];
             }
         }
 
@@ -500,8 +531,8 @@ class GoogleCalendarApiService
             return null;
         }
 
-        if (preg_match('/phone\s*[:=]\s*([+\d\s\-()]{10,20})/i', $description, $m)) {
-            $phone = preg_replace('/\s+/', '', $m[1]);
+        if (preg_match('/(?:phone|whatsapp|mobile|wa)\s*[:=]\s*([+\d\s\-()]{10,20})/i', $description, $m)) {
+            $phone = preg_replace('/\s+/', '', $m[1]) ?: '';
             if (strlen(preg_replace('/\D/', '', $phone) ?: '') >= 10) {
                 return $phone;
             }

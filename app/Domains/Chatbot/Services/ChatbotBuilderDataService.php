@@ -74,6 +74,7 @@ class ChatbotBuilderDataService
 
         $mapped = [
             'id' => $template->id,
+            'uuid' => $template->uuid,
             'template_name' => $template->name,
             'template_code' => $providerCode,
             'code' => $providerCode,
@@ -181,41 +182,49 @@ class ChatbotBuilderDataService
     public function templateCards(Template $template): array
     {
         $payload = $template->wizardPayload();
-        $cards = array_values($payload['carousel']['cards'] ?? []);
+        $cards = is_array($payload['carousel']['cards'] ?? null)
+            ? array_values($payload['carousel']['cards'])
+            : [];
 
         return [
-            'cards' => collect($cards)->map(function (array $card, int $index): array {
-                $buttons = array_values($card['buttons'] ?? []);
-                $mediaUrl = (string) ($card['media_url'] ?? $card['image_url'] ?? $card['header_media'] ?? $card['url'] ?? '');
-                $body = (string) ($card['body'] ?? $card['body_text'] ?? '');
+            'cards' => collect($cards)
+                ->filter(fn ($card): bool => is_array($card))
+                ->values()
+                ->map(function (array $card, int $index): array {
+                    $buttons = is_array($card['buttons'] ?? null) ? array_values($card['buttons']) : [];
+                    $mediaUrl = (string) ($card['media_url'] ?? $card['image_url'] ?? $card['header_media'] ?? $card['url'] ?? '');
+                    $body = (string) ($card['body'] ?? $card['body_text'] ?? '');
 
-                $mappedButtons = collect($buttons)->map(function (array $button, int $buttonIndex): array {
-                    $text = (string) ($button['text'] ?? $button['title'] ?? '');
-                    $type = strtoupper((string) ($button['type'] ?? 'QUICK_REPLY'));
+                    $mappedButtons = collect($buttons)
+                        ->filter(fn ($button): bool => is_array($button))
+                        ->values()
+                        ->map(function (array $button, int $buttonIndex): array {
+                            $text = (string) ($button['text'] ?? $button['title'] ?? '');
+                            $type = strtoupper((string) ($button['type'] ?? 'QUICK_REPLY'));
+
+                            return [
+                                'id' => (string) ($button['id'] ?? 'btn_'.$buttonIndex),
+                                'title' => $text,
+                                // Legacy React drawer reads `text`; keep both.
+                                'text' => $text,
+                                'type' => $type,
+                                'url' => (string) ($button['url'] ?? ''),
+                            ];
+                        })->all();
 
                     return [
-                        'id' => (string) ($button['id'] ?? 'btn_'.$buttonIndex),
-                        'title' => $text,
-                        // Legacy React drawer reads `text`; keep both.
-                        'text' => $text,
-                        'type' => $type,
-                        'url' => (string) ($button['url'] ?? ''),
+                        'id' => $card['id'] ?? ('card_'.$index),
+                        'title' => (string) ($card['title'] ?? $card['header'] ?? 'IMAGE'),
+                        'header' => strtoupper((string) ($card['header'] ?? $card['header_type'] ?? 'IMAGE')),
+                        'body' => $body,
+                        // Legacy preview fields
+                        'body_text' => $body,
+                        'image_url' => $mediaUrl,
+                        'media_url' => $mediaUrl,
+                        'header_media' => $mediaUrl,
+                        'buttons' => $mappedButtons,
                     ];
-                })->values()->all();
-
-                return [
-                    'id' => $card['id'] ?? ('card_'.$index),
-                    'title' => (string) ($card['title'] ?? $card['header'] ?? 'IMAGE'),
-                    'header' => strtoupper((string) ($card['header'] ?? $card['header_type'] ?? 'IMAGE')),
-                    'body' => $body,
-                    // Legacy preview fields
-                    'body_text' => $body,
-                    'image_url' => $mediaUrl,
-                    'media_url' => $mediaUrl,
-                    'header_media' => $mediaUrl,
-                    'buttons' => $mappedButtons,
-                ];
-            })->values()->all(),
+                })->all(),
         ];
     }
 }

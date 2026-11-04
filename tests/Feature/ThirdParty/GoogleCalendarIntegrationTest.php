@@ -619,6 +619,153 @@ class GoogleCalendarIntegrationTest extends TestCase
         $this->assertNull($api->extractMeetLink($event));
     }
 
+    public function test_api_service_extracts_meet_link_from_description(): void
+    {
+        $api = new GoogleCalendarApiService();
+        $event = [
+            'summary' => 'Call',
+            'description' => "Join here\nhttps://meet.google.com/aaa-bbbb-ccc\nThanks",
+        ];
+
+        $this->assertSame('https://meet.google.com/aaa-bbbb-ccc', $api->extractMeetLink($event));
+    }
+
+    public function test_failed_message_log_can_be_resent(): void
+    {
+        $userId = (int) $this->testUser->id;
+
+        $event = GoogleCalendarEvent::query()->create([
+            'user_id' => $userId,
+            'event_id' => 'gev-resend-1',
+            'calendar_id' => 'primary',
+            'status' => 'active',
+            'summary' => 'Demo Call',
+            'invitee_email' => 'guest@example.com',
+            'whatsapp_number' => '919876543210',
+            'meet_link' => 'https://meet.google.com/abc-defg-hij',
+            'calendar_link' => 'https://calendar.google.com/event?eid=1',
+            'start_time' => now()->addHour(),
+            'end_time' => now()->addHours(2),
+        ]);
+
+        $log = GoogleCalendarMessageLog::query()->create([
+            'user_id' => $userId,
+            'event_id' => $event->id,
+            'recipient_type' => 'customer',
+            'recipient_number' => '919876543210',
+            'invitee_email' => 'guest@example.com',
+            'event_name' => 'Demo Call',
+            'event_type' => 'created',
+            'status' => MessageLogStatus::Failed,
+            'error_message' => 'Template params error',
+            'sent_at' => now()->subMinute(),
+        ]);
+
+        $dispatcher = $this->createMock(AlertDispatcher::class);
+        $dispatcher->expects($this->once())
+            ->method('calendarWhatsApp')
+            ->willReturn(['ok' => true, 'error' => null]);
+        $this->app->instance(AlertDispatcher::class, $dispatcher);
+
+        $this->actingAsTenantUser()
+            ->post(route('integration.google-calendar.message-logs.resend', $log))
+            ->assertRedirect(route('integration.google-calendar', ['tab' => 'logs']));
+
+        $log->refresh();
+        $this->assertSame(MessageLogStatus::Sent, $log->status);
+        $this->assertNull($log->error_message);
+    }
+
+    public function test_message_logs_tab_shows_resend_for_failed_rows(): void
+    {
+        $userId = (int) $this->testUser->id;
+
+        $event = GoogleCalendarEvent::query()->create([
+            'user_id' => $userId,
+            'event_id' => 'gev-log-ui-1',
+            'calendar_id' => 'primary',
+            'status' => 'active',
+            'summary' => 'Demo',
+            'start_time' => now()->addHour(),
+            'end_time' => now()->addHours(2),
+        ]);
+
+        GoogleCalendarMessageLog::query()->create([
+            'user_id' => $userId,
+            'event_id' => $event->id,
+            'recipient_type' => 'customer',
+            'recipient_number' => '919876543210',
+            'event_name' => 'Demo',
+            'event_type' => 'created',
+            'status' => MessageLogStatus::Failed,
+            'error_message' => 'Template missing',
+            'sent_at' => now(),
+        ]);
+
+        $this->actingAsTenantUser()
+            ->get(route('integration.google-calendar', ['tab' => 'logs']))
+            ->assertOk()
+            ->assertSee('Resend')
+            ->assertSee('Template missing');
+    }
+
+    public function test_sync_resolves_guest_phone_from_audience_email(): void
+    {
+        $integration = GoogleCalendarIntegration::query()->create([
+            'user_id' => $this->testUser->id,
+            'status' => IntegrationStatus::Enabled,
+            'first_synced_at' => now()->subDay(),
+            'settings' => [
+                'refresh_token' => 'rt',
+                'enable_whatsapp' => true,
+                'whatsapp_number' => '+911234567890',
+                'calendar_id' => 'primary',
+            ],
+        ]);
+
+        \App\Models\Contact::query()->create([
+            'phone' => '+919811122233',
+            'email' => 'guest@example.com',
+            'name' => 'Audience Guest',
+        ]);
+
+        $dispatcher = $this->createMock(AlertDispatcher::class);
+        $dispatcher->expects($this->exactly(2))
+            ->method('calendarWhatsApp')
+            ->willReturn(['ok' => true, 'error' => null]);
+        $this->app->instance(AlertDispatcher::class, $dispatcher);
+
+        $start = now()->addDay()->toIso8601String();
+        $end = now()->addDay()->addHour()->toIso8601String();
+
+        $api = $this->getMockBuilder(GoogleCalendarApiService::class)
+            ->onlyMethods(['listEvents'])
+            ->getMock();
+        $api->method('listEvents')->willReturn([
+            'items' => [[
+                'id' => 'gev-audience-1',
+                'status' => 'confirmed',
+                'summary' => 'Audience Match Call',
+                'description' => 'No phone here',
+                'hangoutLink' => 'https://meet.google.com/aud-ience-mtg',
+                'htmlLink' => 'https://calendar.google.com/event?eid=2',
+                'start' => ['dateTime' => $start],
+                'end' => ['dateTime' => $end],
+                'attendees' => [
+                    ['email' => 'guest@example.com', 'displayName' => 'Guest'],
+                ],
+                'organizer' => ['email' => 'host@example.com'],
+            ]],
+            'nextSyncToken' => 'tok',
+        ]);
+
+        (new GoogleCalendarEventSyncService($api))->sync($integration);
+
+        $event = GoogleCalendarEvent::query()->where('event_id', 'gev-audience-1')->first();
+        $this->assertSame('+919811122233', $event?->whatsapp_number);
+        $this->assertDatabaseCount('google_calendar_message_logs', 2);
+    }
+
     // ─── Booking availability service ─────────────────────────────────────────
 
     public function test_booking_availability_service_normalizes_weekly_schedule(): void

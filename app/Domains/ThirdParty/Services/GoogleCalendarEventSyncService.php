@@ -9,6 +9,7 @@ use App\Domains\ThirdParty\Enums\MessageLogStatus;
 use App\Domains\ThirdParty\Models\GoogleCalendarEvent;
 use App\Domains\ThirdParty\Models\GoogleCalendarIntegration;
 use App\Domains\ThirdParty\Models\GoogleCalendarMessageLog;
+use App\Models\Contact;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 
@@ -91,8 +92,18 @@ class GoogleCalendarEventSyncService
         $status   = $this->api->mapGoogleStatus($googleEvent);
         $attendee = $this->api->extractPrimaryAttendee($googleEvent, (int) $integration->user_id);
         $desc     = $googleEvent['description'] ?? '';
-        $phone    = $this->api->extractPhoneFromDescription($desc);
         $guestName = $this->api->extractGuestNameFromDescription($desc);
+        $meetLink = $this->api->extractMeetLink($googleEvent);
+
+        // Meet-only: skip new non-Meet actives, but keep updates for already-synced / canceled rows.
+        if (
+            $integration->isMeetOnly()
+            && $status === 'active'
+            && $meetLink === null
+            && $existing === null
+        ) {
+            return;
+        }
 
         // Detect reschedule: active event whose start_time changed after created notification
         if ($existing && $status === 'active' && $existing->status?->value === 'active') {
@@ -109,7 +120,7 @@ class GoogleCalendarEventSyncService
             'summary'      => $googleEvent['summary'] ?? 'Meeting',
             'start_time'   => $times['start'],
             'end_time'     => $times['end'],
-            'meet_link'    => $this->api->extractMeetLink($googleEvent),
+            'meet_link'    => $meetLink ?? $existing?->meet_link,
             'calendar_link' => $googleEvent['htmlLink'] ?? null,
             'raw_payload'  => $googleEvent,
         ];
@@ -128,8 +139,14 @@ class GoogleCalendarEventSyncService
             $payload['attendee_payload'] = $attendee['payload'];
         }
 
-        if ($phone) {
-            $payload['whatsapp_number'] = preg_replace('/\s+/', '', $phone);
+        $inviteeEmail = (string) ($payload['invitee_email'] ?? $existing?->invitee_email ?? '');
+        $phone = $this->resolveGuestPhone(
+            is_string($desc) ? $desc : '',
+            $inviteeEmail !== '' ? $inviteeEmail : null,
+            $existing?->whatsapp_number,
+        );
+        if ($phone !== null) {
+            $payload['whatsapp_number'] = $phone;
         }
 
         if ($existing && $status === 'rescheduled') {
@@ -198,6 +215,86 @@ class GoogleCalendarEventSyncService
         } catch (\Throwable $e) {
             Log::warning('Google Calendar booking alert failed', ['error' => $e->getMessage()]);
         }
+    }
+
+    public function templateKeyFor(string $recipientType, string $eventType): ?string
+    {
+        $recipientType = strtolower(trim($recipientType));
+        $eventType = strtolower(trim($eventType));
+
+        return match (true) {
+            $recipientType === 'customer' && $eventType === 'created' => 'operational-alerts.google_calendar.customer_created',
+            $recipientType === 'customer' && $eventType === 'canceled' => 'operational-alerts.google_calendar.customer_canceled',
+            $recipientType === 'customer' && $eventType === 'rescheduled' => 'operational-alerts.google_calendar.customer_created',
+            $recipientType === 'customer' && $eventType === 'reminder' => 'operational-alerts.google_calendar.customer_reminder',
+            $recipientType === 'admin' && $eventType === 'created' => 'operational-alerts.google_calendar.admin_created',
+            $recipientType === 'admin' && $eventType === 'canceled' => 'operational-alerts.google_calendar.admin_canceled',
+            $recipientType === 'admin' && $eventType === 'rescheduled' => 'operational-alerts.google_calendar.admin_created',
+            $recipientType === 'admin' && $eventType === 'reminder' => 'operational-alerts.google_calendar.admin_reminder',
+            default => null,
+        };
+    }
+
+    /**
+     * @return array{ok: bool, message: string}
+     */
+    public function resendMessageLog(int $userId, GoogleCalendarMessageLog $log): array
+    {
+        if ((int) $log->user_id !== $userId) {
+            return ['ok' => false, 'message' => 'Message log not found.'];
+        }
+
+        if ($log->status !== MessageLogStatus::Failed) {
+            return ['ok' => false, 'message' => 'Only failed messages can be resent.'];
+        }
+
+        $phone = trim((string) ($log->recipient_number ?? ''));
+        if ($phone === '') {
+            return ['ok' => false, 'message' => 'No recipient number on this log.'];
+        }
+
+        $templateKey = $this->templateKeyFor(
+            (string) ($log->recipient_type ?? ''),
+            (string) ($log->event_type ?? ''),
+        );
+        if ($templateKey === null) {
+            return ['ok' => false, 'message' => 'Cannot determine WhatsApp template for this log.'];
+        }
+
+        $event = $log->event;
+        if ($event === null && $log->event_id) {
+            $event = GoogleCalendarEvent::query()->find($log->event_id);
+        }
+        if ($event === null) {
+            return ['ok' => false, 'message' => 'Linked Google Calendar event is missing.'];
+        }
+
+        $eventName = trim((string) ($log->event_name ?? ''));
+        $params = $this->templateParamsForEvent(
+            $event,
+            $eventName !== '' ? $eventName : null,
+            forAdmin: strtolower((string) ($log->recipient_type ?? '')) === 'admin',
+        );
+
+        $result = app(AlertDispatcher::class)->calendarWhatsApp($templateKey, $phone, $params);
+        if ($result['ok']) {
+            $log->forceFill([
+                'status' => MessageLogStatus::Sent,
+                'error_message' => null,
+                'sent_at' => now(),
+            ])->save();
+
+            return ['ok' => true, 'message' => 'WhatsApp message resent successfully.'];
+        }
+
+        $error = $result['error'] ?: 'WhatsApp API did not return success.';
+        $log->forceFill([
+            'status' => MessageLogStatus::Failed,
+            'error_message' => $error,
+            'sent_at' => now(),
+        ])->save();
+
+        return ['ok' => false, 'message' => $error];
     }
 
     /**
@@ -309,6 +406,38 @@ class GoogleCalendarEventSyncService
         $value = trim($value);
 
         return $value !== '' ? $value : $fallback;
+    }
+
+    /**
+     * Prefer Phone/WhatsApp in the event description, then audience contact by invitee email
+     * (legacy Google Calendar behavior), then any previously stored number.
+     */
+    private function resolveGuestPhone(string $description, ?string $inviteeEmail, mixed $existingPhone): ?string
+    {
+        $fromDescription = $this->api->extractPhoneFromDescription($description);
+        if (is_string($fromDescription) && $fromDescription !== '') {
+            return preg_replace('/\s+/', '', $fromDescription) ?: $fromDescription;
+        }
+
+        $email = strtolower(trim((string) $inviteeEmail));
+        if ($email !== '') {
+            $contactPhone = Contact::query()
+                ->whereRaw('LOWER(email) = ?', [$email])
+                ->whereNotNull('phone')
+                ->value('phone');
+
+            $contactPhone = trim((string) $contactPhone);
+            if ($contactPhone !== '') {
+                return preg_replace('/\s+/', '', $contactPhone) ?: $contactPhone;
+            }
+        }
+
+        $existing = trim((string) ($existingPhone ?? ''));
+        if ($existing !== '') {
+            return preg_replace('/\s+/', '', $existing) ?: $existing;
+        }
+
+        return null;
     }
 
     private function writeMessageLog(

@@ -72,10 +72,12 @@ const ReactFlowCarouselTemplateModule = ({
     if (visible && nodeData) {
       form.setFieldsValue(nodeData);
       if (nodeData.templateId) {
-        const template = templates.find((t) => t.id === nodeData.templateId);
+        const template = templates.find(
+          (t) => t.id === nodeData.templateId || t.uuid === nodeData.templateId
+        );
         if (template) {
           setSelectedTemplate(template);
-          fetchTemplateCards(template.id);
+          fetchTemplateCards(template);
         }
       }
       if (nodeData.timeoutConfig) {
@@ -101,12 +103,25 @@ const ReactFlowCarouselTemplateModule = ({
     }
   }, [visible, nodeData, form, templates]);
 
-  const fetchTemplateCards = async (templateId) => {
+  const resolveTemplateCardKey = (template) =>
+    template?.uuid || template?.id || null;
+
+  const fetchTemplateCards = async (template) => {
+    const templateKey = typeof template === "object"
+      ? resolveTemplateCardKey(template)
+      : template;
+
+    if (!templateKey) {
+      setTemplateCards([]);
+      return;
+    }
+
     try {
       setLoadingCards(true);
-      const response = await axios.get(`/template-cards/${templateId}`);
+      const response = await axios.get(`/template-cards/${templateKey}`);
       console.log("Carousel cards response:", response);
-      const cardsWithButtons = response.data.cards.map((card) => ({
+      const cards = Array.isArray(response?.data?.cards) ? response.data.cards : [];
+      const cardsWithButtons = cards.map((card) => ({
         ...card,
         buttons: card.buttons || [],
       }));
@@ -121,10 +136,10 @@ const ReactFlowCarouselTemplateModule = ({
   };
 
   const handleTemplateChange = (templateId) => {
-    const template = templates.find((t) => t.id === templateId);
+    const template = templates.find((t) => t.id === templateId || t.uuid === templateId);
     if (template) {
       setSelectedTemplate(template);
-      fetchTemplateCards(template.id);
+      fetchTemplateCards(template);
       form.setFieldsValue({
         templateId: templateId,
       });

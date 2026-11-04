@@ -16,6 +16,7 @@ use App\Domains\ThirdParty\Models\GoogleCalendarMessageLog;
 use App\Domains\ThirdParty\Models\GoogleCalendarWebhookLog;
 use App\Domains\ThirdParty\Services\GoogleCalendarApiService;
 use App\Domains\ThirdParty\Services\GoogleCalendarBookingAvailabilityService;
+use App\Domains\ThirdParty\Services\GoogleCalendarEventSyncService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -29,6 +30,7 @@ class GoogleCalendarController extends Controller
     public function __construct(
         private readonly GoogleCalendarApiService $api,
         private readonly GoogleCalendarBookingAvailabilityService $availability,
+        private readonly GoogleCalendarEventSyncService $sync,
     ) {}
 
     public function index(Request $request): View
@@ -285,6 +287,23 @@ class GoogleCalendarController extends Controller
             'success' => true,
             'message' => 'Sync started in background. Events will update shortly.',
         ]);
+    }
+
+    public function resendMessageLog(GoogleCalendarMessageLog $messageLog): RedirectResponse
+    {
+        $userId = (int) auth()->id();
+        $result = $this->sync->resendMessageLog($userId, $messageLog);
+
+        return redirect()
+            ->route('integration.google-calendar', [
+                'tab' => 'logs',
+                'log_type' => request('log_type'),
+                'logs_page' => request('logs_page'),
+            ])
+            ->with(
+                $result['ok'] ? 'success' : 'error',
+                $result['message'],
+            );
     }
 
     public function createMeeting(CreateMeetingRequest $request): RedirectResponse

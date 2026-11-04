@@ -121,9 +121,21 @@ class ChatbotBuilderSupportController
         ]);
     }
 
-    public function templateCards(Template $template): JsonResponse
+    public function templateCards(string $template): JsonResponse
     {
-        return response()->json($this->builderDataService->templateCards($template));
+        // Chatbot React builder historically passes numeric template ids, but Template
+        // route keys are UUIDs (HasPublicUuid). Accept either so carousel select works.
+        $model = Template::query()
+            ->where(function ($query) use ($template): void {
+                $query->where('uuid', $template);
+
+                if (ctype_digit($template)) {
+                    $query->orWhere('id', (int) $template);
+                }
+            })
+            ->firstOrFail();
+
+        return response()->json($this->builderDataService->templateCards($model));
     }
 
     public function testWebhook(Request $request): JsonResponse

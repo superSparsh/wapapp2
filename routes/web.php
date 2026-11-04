@@ -429,6 +429,7 @@ Route::middleware(['tenancy.session', 'auth:web,team', '2fa', 'team.redirect-das
 
             Route::post('/google-calendar/test', [GoogleCalendarController::class, 'test'])->name('google-calendar.test');
             Route::post('/google-calendar/sync', [GoogleCalendarController::class, 'syncEvents'])->name('google-calendar.sync');
+            Route::post('/google-calendar/message-logs/{messageLog}/resend', [GoogleCalendarController::class, 'resendMessageLog'])->name('google-calendar.message-logs.resend');
             Route::post('/google-calendar/create-meeting', [GoogleCalendarController::class, 'createMeeting'])->name('google-calendar.create-meeting');
             Route::put('/google-calendar/booking-availability', [GoogleCalendarController::class, 'updateBookingAvailability'])->name('google-calendar.booking-availability');
             Route::post('/google-calendar/booking-links', [GoogleCalendarController::class, 'storeBookingLink'])->name('google-calendar.booking.store');

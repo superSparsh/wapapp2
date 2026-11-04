@@ -366,10 +366,12 @@
                   <th class="p-2">Status</th>
                   <th class="p-2">Detail</th>
                   <th class="p-2">Sent At</th>
+                  <th class="p-2">Action</th>
                 </tr>
               </thead>
               <tbody>
                 @foreach ($messageLogs as $log)
+                  @php $logStatus = $log->status?->value ?? (string) $log->status; @endphp
                   <tr class="border-b border-border bg-elevated">
                     <td class="p-2 capitalize">{{ $log->recipient_type }}</td>
                     <td class="p-2">{{ $log->recipient_number ?? '—' }}</td>
@@ -377,15 +379,36 @@
                     <td class="p-2">
                       <span @class([
                         'inline-flex rounded px-2 py-1 text-[10px] font-medium',
-                        'bg-green-100 text-green-700' => $log->status?->value === 'sent',
-                        'bg-red-100 text-red-600' => $log->status?->value === 'failed',
-                        'bg-yellow-100 text-yellow-700' => $log->status?->value === 'skipped',
+                        'bg-green-100 text-green-700' => $logStatus === 'sent',
+                        'bg-red-100 text-red-600' => $logStatus === 'failed',
+                        'bg-yellow-100 text-yellow-700' => $logStatus === 'skipped',
                       ])>
-                        {{ ucfirst($log->status?->value ?? '') }}
+                        {{ ucfirst($logStatus) }}
                       </span>
                     </td>
                     <td class="p-2 text-xs text-text-muted">{{ $log->error_message ?? '—' }}</td>
                     <td class="p-2 whitespace-nowrap">{{ $log->sent_at?->format('M d, Y H:i') ?? '-' }}</td>
+                    <td class="p-2">
+                      @if ($logStatus === 'failed')
+                        <form method="POST" action="{{ route('integration.google-calendar.message-logs.resend', $log) }}">
+                          @csrf
+                          @if (request('log_type'))
+                            <input type="hidden" name="log_type" value="{{ request('log_type') }}">
+                          @endif
+                          @if (request('logs_page'))
+                            <input type="hidden" name="logs_page" value="{{ request('logs_page') }}">
+                          @endif
+                          <button
+                            type="submit"
+                            class="rounded-lg border border-green-500 px-3 py-1.5 text-xs font-semibold text-green-600 hover:bg-green-50"
+                          >
+                            Resend
+                          </button>
+                        </form>
+                      @else
+                        <span class="text-xs text-text-muted">—</span>
+                      @endif
+                    </td>
                   </tr>
                 @endforeach
               </tbody>

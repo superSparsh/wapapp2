@@ -336,4 +336,48 @@ class ChatbotFlowBuilderTest extends TestCase
             ->assertRedirect()
             ->assertSessionHasErrors('flow');
     }
+
+    public function test_template_cards_accepts_numeric_id_and_uuid(): void
+    {
+        $payload = Template::defaultPayload();
+        $payload['carousel'] = [
+            'enabled' => true,
+            'cards' => [
+                [
+                    'title' => 'Card One',
+                    'body' => 'First card body',
+                    'media_url' => 'https://example.com/one.jpg',
+                    'buttons' => [
+                        ['type' => 'QUICK_REPLY', 'text' => 'Buy'],
+                    ],
+                ],
+                [
+                    'title' => 'Card Two',
+                    'body' => 'Second card body',
+                    'media_url' => 'https://example.com/two.jpg',
+                    'buttons' => [
+                        ['type' => 'QUICK_REPLY', 'text' => 'More'],
+                    ],
+                ],
+            ],
+        ];
+
+        $template = Template::factory()->create([
+            'payload' => $payload,
+            'code' => '1234567890123',
+        ]);
+
+        $this->actingAsTenantUser()
+            ->getJson('/template-cards/'.$template->id)
+            ->assertOk()
+            ->assertJsonPath('cards.0.body', 'First card body')
+            ->assertJsonPath('cards.0.buttons.0.text', 'Buy')
+            ->assertJsonCount(2, 'cards');
+
+        $this->actingAsTenantUser()
+            ->getJson('/template-cards/'.$template->uuid)
+            ->assertOk()
+            ->assertJsonPath('cards.1.body', 'Second card body')
+            ->assertJsonCount(2, 'cards');
+    }
 }
