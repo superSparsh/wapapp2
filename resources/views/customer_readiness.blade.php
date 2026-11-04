@@ -1698,16 +1698,29 @@ async function probeWebsite(url) {
   try {
     websiteChecking = true;
     setWebsiteStatus('pending', '🌐 Checking website reachability...');
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 7000);
-    await fetch(url, { method: 'GET', mode: 'no-cors', signal: controller.signal });
-    clearTimeout(timer);
-    websiteReachable = true;
-    setWebsiteStatus('ok', '✅ Website appears reachable.');
-    return true;
+    // Server-side probe — browser cross-origin fetch fails on Cloudflare/CORP sites
+    // even when the same URL opens fine in a new tab.
+    const resp = await fetch(@json(route('customer.readiness.validate.website')), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'X-CSRF-TOKEN': @json(csrf_token()),
+      },
+      body: JSON.stringify({ site: url }),
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (resp.ok && data?.valid) {
+      websiteReachable = true;
+      setWebsiteStatus('ok', '✅ ' + (data.message || 'Website appears reachable.'));
+      return true;
+    }
+    websiteReachable = false;
+    setWebsiteStatus('err', '❌ ' + (data?.message || 'Website appears unreachable. Please re-check URL.'));
+    return false;
   } catch (e) {
     websiteReachable = false;
-    setWebsiteStatus('err', '❌ Website appears unreachable. Please re-check URL.');
+    setWebsiteStatus('err', '❌ Website check is temporarily unavailable. Please try again.');
     return false;
   } finally {
     websiteChecking = false;

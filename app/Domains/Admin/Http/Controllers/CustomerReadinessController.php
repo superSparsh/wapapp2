@@ -90,6 +90,17 @@ class CustomerReadinessController extends Controller
         return response()->json($result, ($result['valid'] ?? false) ? 200 : 422);
     }
 
+    public function validateWebsite(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'site' => ['required', 'url', 'regex:/^https:\/\//i', 'max:512'],
+        ]);
+
+        $result = $this->readiness->validateWebsite((string) $validated['site']);
+
+        return response()->json($result, ($result['valid'] ?? false) ? 200 : 422);
+    }
+
     public function extractRegistration(Request $request): JsonResponse
     {
         // Avoid brittle mimes:pdf guessing — RegistrationCertificateService checks %PDF magic.

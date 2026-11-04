@@ -312,6 +312,20 @@ class CustomerReadinessTest extends TestCase
             ->assertJson(['valid' => true]);
     }
 
+    public function test_validate_website_treats_waf_403_as_reachable(): void
+    {
+        $this->fakeHttp([
+            'https://tekprocloud.com' => Http::response('Forbidden', 403),
+            'https://tekprocloud.com/*' => Http::response('Forbidden', 403),
+            '*' => Http::response('ok', 200),
+        ]);
+
+        $this->postJson(route('customer.readiness.validate.website'), [
+            'site' => 'https://tekprocloud.com',
+        ])->assertOk()
+            ->assertJsonPath('valid', true);
+    }
+
     public function test_validate_facebook_page_endpoint(): void
     {
         $this->fakeHttp(array_merge($this->defaultHttpFakes(), [

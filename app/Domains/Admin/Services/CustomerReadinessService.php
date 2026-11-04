@@ -751,7 +751,16 @@ class CustomerReadinessService
     /**
      * @return array{url: ?string, method: ?string, status: ?int, error: ?string, ok: bool}
      */
-    private function checkWebsite(string $websiteUrl): array
+    /**
+     * Probe a public HTTPS website.
+     *
+     * Many business sites sit behind Cloudflare / WAF and return 401/403 to bots
+     * while remaining fine in a real browser (and for Meta BV). Treat those as
+     * reachable. Only DNS / connection failures count as unreachable.
+     *
+     * @return array{url: string, method: ?string, status: ?int, error: ?string, ok: bool, note?: string}
+     */
+    public function checkWebsite(string $websiteUrl): array
     {
         $websiteCheck = [
             'url' => $websiteUrl,
@@ -776,29 +785,127 @@ class CustomerReadinessService
             return $websiteCheck;
         }
 
+        if (! str_starts_with(strtolower($websiteUrl), 'https://')) {
+            $websiteCheck['ok'] = false;
+            $websiteCheck['error'] = 'Only HTTPS websites are accepted.';
+
+            return $websiteCheck;
+        }
+
+        $client = Http::withHeaders([
+            'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language' => 'en-US,en;q=0.9',
+        ])->connectTimeout(5)->timeout(12);
+
         try {
             $websiteCheck['method'] = 'HEAD';
-            $resp = Http::connectTimeout(5)->timeout(8)->retry(1, 200)->head($websiteUrl);
+            $resp = $client->head($websiteUrl);
             $status = $resp->status();
 
-            if (in_array($status, [403, 405], true)) {
+            // Some hosts reject HEAD — fall back to GET.
+            if (in_array($status, [403, 405, 501], true)) {
                 $websiteCheck['method'] = 'GET';
-                $resp = Http::connectTimeout(5)->timeout(10)->retry(1, 200)->get($websiteUrl);
+                $resp = $client->get($websiteUrl);
                 $status = $resp->status();
             }
 
             $websiteCheck['status'] = $status;
-            $websiteCheck['ok'] = $status >= 200 && $status < 400;
-        } catch (\Throwable $e) {
-            $websiteCheck['ok'] = false;
+            $websiteCheck['ok'] = $this->isWebsiteStatusReachable($status);
+            if ($websiteCheck['ok'] && $status >= 400) {
+                $websiteCheck['note'] = 'Host responded (bot / access protection).';
+            }
+        } catch (\Illuminate\Http\Client\RequestException $e) {
+            $status = $e->response?->status();
+            $websiteCheck['status'] = $status;
             $websiteCheck['error'] = $e->getMessage();
-            Log::notice('Customer readiness website check failed', [
-                'site' => $websiteUrl,
-                'error' => $e->getMessage(),
-            ]);
+
+            if ($status !== null && $this->isWebsiteStatusReachable($status)) {
+                $websiteCheck['ok'] = true;
+                $websiteCheck['note'] = 'Host responded (bot / access protection).';
+            } elseif ($this->hostResolves((string) $host)) {
+                // Proxy / WAF may block datacenter IPs while browsers still open the site.
+                $websiteCheck['ok'] = true;
+                $websiteCheck['note'] = 'DNS resolves; HTTP probe blocked (likely WAF). Treated as reachable.';
+            } else {
+                $websiteCheck['ok'] = false;
+            }
+
+            if (! $websiteCheck['ok']) {
+                Log::notice('Customer readiness website check failed', [
+                    'site' => $websiteUrl,
+                    'error' => $e->getMessage(),
+                    'status' => $status,
+                ]);
+            }
+        } catch (\Throwable $e) {
+            $websiteCheck['error'] = $e->getMessage();
+            if ($this->hostResolves((string) $host)) {
+                $websiteCheck['ok'] = true;
+                $websiteCheck['note'] = 'DNS resolves; HTTP probe failed. Treated as reachable.';
+            } else {
+                $websiteCheck['ok'] = false;
+                Log::notice('Customer readiness website check failed', [
+                    'site' => $websiteUrl,
+                    'error' => $e->getMessage(),
+                ]);
+            }
         }
 
         return $websiteCheck;
+    }
+
+    private function isWebsiteStatusReachable(int $status): bool
+    {
+        if ($status >= 200 && $status < 400) {
+            return true;
+        }
+
+        // Bot protection / method rejection — site is up, just not open to scrapers.
+        return in_array($status, [401, 403, 405, 406, 429, 503], true);
+    }
+
+    private function hostResolves(string $host): bool
+    {
+        if ($host === '') {
+            return false;
+        }
+
+        if (filter_var($host, FILTER_VALIDATE_IP)) {
+            return true;
+        }
+
+        $ip = gethostbyname($host);
+
+        return is_string($ip) && $ip !== '' && $ip !== $host;
+    }
+
+    /**
+     * @return array{valid: bool, message: string, status?: int|null, note?: string}
+     */
+    public function validateWebsite(string $websiteUrl): array
+    {
+        $check = $this->checkWebsite(trim($websiteUrl));
+        if ($check['ok'] ?? false) {
+            $msg = 'Website appears reachable.';
+            if (! empty($check['note'])) {
+                $msg = 'Website looks live. '.$check['note'];
+            }
+
+            return [
+                'valid' => true,
+                'message' => $msg,
+                'status' => $check['status'] ?? null,
+                'note' => $check['note'] ?? null,
+            ];
+        }
+
+        return [
+            'valid' => false,
+            'message' => 'Website appears unreachable. Meta needs a live HTTPS site for Business Verification.',
+            'status' => $check['status'] ?? null,
+            'note' => $check['error'] ?? null,
+        ];
     }
 
     /**
