@@ -31,13 +31,43 @@ class CustomerReadinessTest extends TestCase
             'is_active' => true,
         ]);
 
-        $this->fakeHttp([
-            'https://ready-biz.test/*' => Http::response('ok', 200),
-            'https://www.facebook.com/*' => Http::response('<html>ok</html>', 200),
-            '*' => Http::response('ok', 200),
-        ]);
+        $this->fakeHttp($this->defaultHttpFakes());
 
         $this->mockValidCertificateExtract();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function defaultHttpFakes(): array
+    {
+        return [
+            'https://ready-biz.test/*' => Http::response('ok', 200),
+            // Real vanity pages: Graph asks for app ID (means object exists).
+            'https://graph.facebook.com/SharmaTraders' => Http::response([
+                'error' => [
+                    'message' => '(#200) Provide valid app ID',
+                    'type' => 'OAuthException',
+                    'code' => 200,
+                ],
+            ], 403),
+            'https://graph.facebook.com/AcmeCorp' => Http::response([
+                'error' => [
+                    'message' => '(#200) Provide valid app ID',
+                    'type' => 'OAuthException',
+                    'code' => 200,
+                ],
+            ], 403),
+            'https://graph.facebook.com/*' => Http::response([
+                'error' => [
+                    'message' => "Unsupported get request. Object with ID does not exist, cannot be loaded due to missing permissions, or does not support this operation.",
+                    'type' => 'GraphMethodException',
+                    'code' => 100,
+                ],
+            ], 400),
+            'https://www.facebook.com/*' => Http::response('<html>ok</html>', 200),
+            '*' => Http::response('ok', 200),
+        ];
     }
 
     /**
@@ -183,18 +213,42 @@ class CustomerReadinessTest extends TestCase
 
     public function test_rejects_unverifiable_facebook_page_url(): void
     {
-        $this->fakeHttp([
-            'https://ready-biz.test/*' => Http::response('ok', 200),
-            'https://www.facebook.com/*' => Http::response("This content isn't available", 404),
-            '*' => Http::response('ok', 200),
-        ]);
+        $this->fakeHttp(array_merge($this->defaultHttpFakes(), [
+            'https://graph.facebook.com/afasfsafwq123' => Http::response([
+                'error' => [
+                    'message' => "Unsupported get request. Object with ID 'afasfsafwq123' does not exist, cannot be loaded due to missing permissions, or does not support this operation.",
+                    'type' => 'GraphMethodException',
+                    'code' => 100,
+                ],
+            ], 400),
+        ]));
         $this->mockValidCertificateExtract();
 
         $response = $this->from(route('customer.readiness'))
-            ->post(route('customer.readiness.store'), $this->eligiblePayload());
+            ->post(route('customer.readiness.store'), $this->eligiblePayload([
+                'facebook_page_url' => 'https://www.facebook.com/afasfsafwq123',
+            ]));
 
         $response->assertRedirect(route('customer.readiness'));
         $response->assertSessionHasErrors('facebook_page_url');
+    }
+
+    public function test_validate_facebook_page_rejects_missing_page(): void
+    {
+        $this->fakeHttp(array_merge($this->defaultHttpFakes(), [
+            'https://graph.facebook.com/afasfsafwq123' => Http::response([
+                'error' => [
+                    'message' => "Unsupported get request. Object with ID 'afasfsafwq123' does not exist, cannot be loaded due to missing permissions, or does not support this operation.",
+                    'type' => 'GraphMethodException',
+                    'code' => 100,
+                ],
+            ], 400),
+        ]));
+
+        $this->postJson(route('customer.readiness.validate.facebook-page'), [
+            'page_name' => 'https://www.facebook.com/afasfsafwq123',
+        ])->assertStatus(422)
+            ->assertJsonPath('valid', false);
     }
 
     public function test_extract_registration_endpoint(): void
@@ -222,6 +276,16 @@ class CustomerReadinessTest extends TestCase
 
     public function test_validate_facebook_page_endpoint(): void
     {
+        $this->fakeHttp(array_merge($this->defaultHttpFakes(), [
+            'https://graph.facebook.com/AcmeCorp' => Http::response([
+                'error' => [
+                    'message' => '(#200) Provide valid app ID',
+                    'type' => 'OAuthException',
+                    'code' => 200,
+                ],
+            ], 403),
+        ]));
+
         $this->postJson(route('customer.readiness.validate.facebook-page'), [
             'page_name' => 'https://www.facebook.com/AcmeCorp',
         ])->assertOk()

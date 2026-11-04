@@ -1574,6 +1574,8 @@ let fbPageUrlDebounceTimer = null;
 let regLookupState = null; // null=unknown, true=ok, false=failed
 let regLookupMsg = '';
 let regLookupDebounceTimer = null;
+let lastGoodRegNum = '';
+let lastGoodBname = '';
 let businessEmailCheckState = null; // null=unknown, true=ok, false=failed
 let businessEmailCheckMsg = '';
 let businessEmailDebounceTimer = null;
@@ -1740,20 +1742,33 @@ function detectRegDocType(raw) {
   return '';
 }
 
-function clearExtractedRegistration() {
-  regLookupState = null;
-  regLookupMsg = '';
-  if (get('f-regnum')) get('f-regnum').value = '';
-  if (get('f-bname')) get('f-bname').value = '';
-  setRegnumStatus('idle', '');
-  setRegdocStatus('idle', '');
+function rememberGoodRegistration(regNum, bname) {
+  lastGoodRegNum = (regNum || '').trim();
+  lastGoodBname = (bname || '').trim();
+}
+
+function restorePreservedRegistration() {
+  if (!lastGoodRegNum || !lastGoodBname) return false;
+  if (get('f-regnum')) get('f-regnum').value = lastGoodRegNum;
+  if (get('f-bname')) get('f-bname').value = lastGoodBname;
+  regLookupState = true;
+  regLookupMsg = 'Using previously extracted certificate details.';
+  setRegnumStatus('ok', '✅ ' + lastGoodRegNum);
+  showValid('f-regnum');
+  showValid('f-bname');
+  return true;
 }
 
 async function onRegDocFileChange() {
-  clearExtractedRegistration();
+  // Keep previously extracted values visible while the new file is checked.
+  setRegdocStatus('idle', '');
   const input = get('f-regdoc-file');
   const file = input?.files?.[0] || null;
   if (!file) {
+    // File cleared by user — still preserve last good extracted values on screen.
+    if (restorePreservedRegistration()) {
+      setRegdocStatus('idle', 'Previous certificate details kept. Upload a PDF again before submit.');
+    }
     refreshStep1OnboardBlockers();
     return false;
   }
@@ -1762,8 +1777,10 @@ async function onRegDocFileChange() {
 
 async function extractRegistrationFromPdf(file) {
   if (!file) {
-    regLookupState = false;
     regLookupMsg = 'Upload your GST or Udyam MSME certificate PDF.';
+    if (!restorePreservedRegistration()) {
+      regLookupState = false;
+    }
     setRegdocStatus('err', '❌ ' + regLookupMsg);
     showBlock('f-regdoc-file');
     refreshStep1OnboardBlockers();
@@ -1772,24 +1789,24 @@ async function extractRegistrationFromPdf(file) {
 
   const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name || '');
   if (!isPdf) {
-    regLookupState = false;
     regLookupMsg = 'Only PDF files are allowed (GST or Udyam MSME certificate).';
-    clearExtractedRegistration();
+    restorePreservedRegistration();
+    if (get('f-regdoc-file')) get('f-regdoc-file').value = '';
     setRegdocStatus('err', '❌ ' + regLookupMsg);
     const blockText = get('b-regdoc-file-text');
     if (blockText) blockText.innerHTML = '<strong>We can’t onboard you with this document.</strong> ' + regLookupMsg;
     showBlock('f-regdoc-file');
     refreshStep1OnboardBlockers();
-    return false;
+    return !!lastGoodRegNum;
   }
   if (file.size > 5 * 1024 * 1024) {
-    regLookupState = false;
     regLookupMsg = 'PDF must be under 5 MB.';
-    clearExtractedRegistration();
+    restorePreservedRegistration();
+    if (get('f-regdoc-file')) get('f-regdoc-file').value = '';
     setRegdocStatus('err', '❌ ' + regLookupMsg);
     showBlock('f-regdoc-file');
     refreshStep1OnboardBlockers();
-    return false;
+    return !!lastGoodRegNum;
   }
 
   try {
@@ -1810,6 +1827,7 @@ async function extractRegistrationFromPdf(file) {
       regLookupMsg = data.message || 'Certificate verified.';
       if (get('f-regnum')) get('f-regnum').value = data.registration_number;
       if (get('f-bname')) get('f-bname').value = data.business_name;
+      rememberGoodRegistration(data.registration_number, data.business_name);
       setRegdocStatus('ok', '✅ Certificate accepted');
       setRegnumStatus('ok', '✅ ' + data.registration_number);
       showValid('f-regdoc-file');
@@ -1820,27 +1838,31 @@ async function extractRegistrationFromPdf(file) {
     }
 
     const failMsg = data?.message || 'We could not verify this certificate.';
-    if (get('f-regnum')) get('f-regnum').value = '';
-    if (get('f-bname')) get('f-bname').value = '';
+    // Preserve previously extracted GST/MSME + business name on error.
+    const preserved = restorePreservedRegistration();
     if (get('f-regdoc-file')) get('f-regdoc-file').value = '';
-    regLookupState = false;
+    if (!preserved) {
+      regLookupState = false;
+      setRegnumStatus('idle', '');
+    }
     regLookupMsg = failMsg;
-    setRegnumStatus('idle', '');
-    setRegdocStatus('err', '❌ ' + failMsg);
+    setRegdocStatus('err', '❌ ' + failMsg + (preserved ? ' Previous GST No. and Business name kept — upload a valid PDF again to continue.' : ''));
     const blockText = get('b-regdoc-file-text');
     if (blockText) {
       blockText.innerHTML = '<strong>We can’t onboard you with this document.</strong> ' + failMsg;
     }
     showBlock('f-regdoc-file');
     refreshStep1OnboardBlockers();
-    return false;
+    return false; // file itself failed; names may still be on screen
   } catch (e) {
-    if (get('f-regnum')) get('f-regnum').value = '';
-    if (get('f-bname')) get('f-bname').value = '';
-    regLookupState = false;
+    const preserved = restorePreservedRegistration();
+    if (get('f-regdoc-file')) get('f-regdoc-file').value = '';
+    if (!preserved) {
+      regLookupState = false;
+      setRegnumStatus('idle', '');
+    }
     regLookupMsg = 'Certificate check is temporarily unavailable. Please try again.';
-    setRegnumStatus('idle', '');
-    setRegdocStatus('err', '❌ ' + regLookupMsg);
+    setRegdocStatus('err', '❌ ' + regLookupMsg + (preserved ? ' Previous GST No. and Business name kept.' : ''));
     showBlock('f-regdoc-file');
     refreshStep1OnboardBlockers();
     return false;
@@ -2663,7 +2685,11 @@ Object.entries(oldToField).forEach(([backendKey, fieldId]) => {
   const el = get(fieldId);
   if (el) el.value = val;
 });
-if ((get('f-bname')?.value || '').trim()) regLookupState = true;
+if ((get('f-regnum')?.value || '').trim() && (get('f-bname')?.value || '').trim()) {
+  regLookupState = true;
+  rememberGoodRegistration(get('f-regnum').value, get('f-bname').value);
+  setRegnumStatus('ok', '✅ ' + get('f-regnum').value.trim());
+}
 if ((get('f-fbpageurl')?.value || '').trim()) fbPageUrlCheckState = true;
 
 const serverErrors = @json($errors->getMessages());

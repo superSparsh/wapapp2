@@ -266,70 +266,269 @@ class CustomerReadinessService
     public function validateFacebookPage(string $pageName, bool $strict = false): array
     {
         $raw = trim($pageName);
-        $candidates = [];
+        $normalizedUrl = $this->normalizeFacebookPageUrl($raw);
 
-        if (filter_var($raw, FILTER_VALIDATE_URL)) {
-            if (! preg_match('/^https:\/\/(www\.)?facebook\.com\//i', $raw) && $strict) {
-                return [
-                    'valid' => false,
-                    'message' => 'Please enter a full Facebook Page URL starting with https://www.facebook.com/...',
-                    'auto_verified' => false,
-                ];
-            }
-            $candidates[] = $raw;
-        } else {
-            $normalized = (string) preg_replace('/\s+/', ' ', $raw);
-            $slugA = (string) preg_replace('/[^a-zA-Z0-9._-]/', '', str_replace(' ', '', $normalized));
-            $slugB = (string) preg_replace('/[^a-zA-Z0-9._-]/', '', str_replace(' ', '.', $normalized));
-            $slugC = (string) preg_replace('/[^a-zA-Z0-9._-]/', '', str_replace(' ', '-', $normalized));
-
-            foreach (array_unique([$slugA, $slugB, $slugC]) as $slug) {
-                if ($slug !== '') {
-                    $candidates[] = 'https://www.facebook.com/'.ltrim($slug, '/');
-                }
-            }
+        if ($normalizedUrl === null) {
+            return [
+                'valid' => false,
+                'message' => 'Please enter a full public Facebook Page URL starting with https://www.facebook.com/...',
+                'auto_verified' => false,
+            ];
         }
 
-        foreach ($candidates as $url) {
-            try {
-                $resp = Http::withHeaders([
-                    'User-Agent' => 'Mozilla/5.0 (compatible; WAPAPP-Validator/1.0)',
-                ])->connectTimeout(4)->timeout(8)->retry(1, 150)->get($url);
+        $pageId = $this->extractFacebookPageIdentifier($normalizedUrl);
+        if ($pageId === null) {
+            return [
+                'valid' => false,
+                'message' => 'That does not look like a Facebook Page URL. Open your Page and paste the public link (for example https://www.facebook.com/YourPageName).',
+                'auto_verified' => false,
+            ];
+        }
 
-                $status = $resp->status();
-                $body = strtolower((string) $resp->body());
-                $unavailable = str_contains($body, "this content isn't available")
-                    || str_contains($body, 'content is not available')
-                    || str_contains($body, "page isn't available")
-                    || str_contains($body, 'page not found')
-                    || str_contains($body, 'sorry, this page');
+        $existence = $this->probeFacebookPageViaGraph($pageId);
+        if ($existence === true) {
+            return [
+                'valid' => true,
+                'message' => 'Facebook Page verified.',
+                'checked_url' => $normalizedUrl,
+                'auto_verified' => true,
+            ];
+        }
 
-                if ($status >= 200 && $status < 400 && ! $unavailable) {
-                    return [
-                        'valid' => true,
-                        'message' => 'Facebook Page looks reachable.',
-                        'checked_url' => $url,
-                        'auto_verified' => true,
-                    ];
-                }
-            } catch (\Throwable) {
-                // try next candidate
-            }
+        if ($existence === false) {
+            return [
+                'valid' => false,
+                'message' => 'This Facebook Page is not available (missing, private, or deleted). Paste a public Page URL — we can’t onboard you with an unreachable page.',
+                'checked_url' => $normalizedUrl,
+                'auto_verified' => false,
+            ];
+        }
+
+        // Graph probe inconclusive (network / rate-limit). Fall back to HTML scrape signals.
+        $htmlProbe = $this->probeFacebookPageViaHttp($normalizedUrl);
+        if ($htmlProbe === true) {
+            return [
+                'valid' => true,
+                'message' => 'Facebook Page looks reachable.',
+                'checked_url' => $normalizedUrl,
+                'auto_verified' => true,
+            ];
+        }
+        if ($htmlProbe === false) {
+            return [
+                'valid' => false,
+                'message' => 'This Facebook Page is not available (missing, private, or deleted). Paste a public Page URL — we can’t onboard you with an unreachable page.',
+                'checked_url' => $normalizedUrl,
+                'auto_verified' => false,
+            ];
         }
 
         if ($strict) {
             return [
                 'valid' => false,
-                'message' => 'We could not verify this Facebook Page. Check that the URL is public and correct — we cannot onboard you with an unverified page.',
+                'message' => 'We could not verify this Facebook Page right now. Please re-check the public Page URL and try again.',
                 'auto_verified' => false,
             ];
         }
 
         return [
             'valid' => true,
-            'message' => 'Could not auto-verify right now. We will proceed with your provided page name.',
+            'message' => 'Could not auto-verify right now. We will proceed with your provided page URL.',
             'auto_verified' => false,
+            'checked_url' => $normalizedUrl,
         ];
+    }
+
+    private function normalizeFacebookPageUrl(string $raw): ?string
+    {
+        $raw = trim($raw);
+        if ($raw === '') {
+            return null;
+        }
+
+        if (! filter_var($raw, FILTER_VALIDATE_URL)) {
+            $slug = (string) preg_replace('/[^a-zA-Z0-9._-]/', '', str_replace(' ', '', $raw));
+            if ($slug === '') {
+                return null;
+            }
+            $raw = 'https://www.facebook.com/'.$slug;
+        }
+
+        if (! preg_match('/^https:\/\/(www\.|m\.|web\.)?facebook\.com\//i', $raw)) {
+            return null;
+        }
+
+        $parts = parse_url($raw);
+        if (! is_array($parts) || empty($parts['host']) || empty($parts['path'])) {
+            return null;
+        }
+
+        $host = strtolower((string) $parts['host']);
+        $path = (string) $parts['path'];
+        $query = isset($parts['query']) ? '?'.$parts['query'] : '';
+
+        return 'https://www.facebook.com'.$path.$query;
+    }
+
+    private function extractFacebookPageIdentifier(string $url): ?string
+    {
+        $parts = parse_url($url);
+        if (! is_array($parts)) {
+            return null;
+        }
+
+        $query = [];
+        if (! empty($parts['query'])) {
+            parse_str((string) $parts['query'], $query);
+        }
+
+        if (! empty($query['id']) && preg_match('/^\d{5,}$/', (string) $query['id']) === 1) {
+            return (string) $query['id'];
+        }
+
+        $path = trim((string) ($parts['path'] ?? ''), '/');
+        if ($path === '') {
+            return null;
+        }
+
+        $segments = array_values(array_filter(explode('/', $path), static fn ($s) => $s !== ''));
+        if ($segments === []) {
+            return null;
+        }
+
+        $blocked = [
+            'watch', 'reel', 'reels', 'stories', 'story', 'marketplace', 'gaming',
+            'groups', 'events', 'friends', 'messages', 'settings', 'login', 'share',
+            'permalink.php', 'photo.php', 'photos', 'video.php', 'hashtag',
+        ];
+        $first = strtolower($segments[0]);
+        if (in_array($first, $blocked, true)) {
+            return null;
+        }
+
+        // /pages/category/Name/123456 or /pages/Name/123456
+        if ($first === 'pages') {
+            $last = end($segments);
+            if (is_string($last) && preg_match('/^\d{5,}$/', $last) === 1) {
+                return $last;
+            }
+            foreach (array_reverse($segments) as $seg) {
+                if (! in_array(strtolower($seg), ['pages', 'category'], true) && preg_match('/^[A-Za-z0-9.]+$/', $seg) === 1) {
+                    return $seg;
+                }
+            }
+
+            return null;
+        }
+
+        if ($first === 'profile.php') {
+            return ! empty($query['id']) ? (string) $query['id'] : null;
+        }
+
+        // People sometimes paste /YourPage/about — use first segment.
+        if (preg_match('/^[A-Za-z0-9.]+$/', $segments[0]) === 1) {
+            return $segments[0];
+        }
+
+        return null;
+    }
+
+    /**
+     * Graph API without app token:
+     * - real vanity pages usually return OAuth #200 "Provide valid app ID"
+     * - missing pages return GraphMethodException #100 "... does not exist ..."
+     *
+     * @return bool|null true=exists, false=missing, null=inconclusive
+     */
+    private function probeFacebookPageViaGraph(string $pageId): ?bool
+    {
+        try {
+            $resp = Http::withHeaders([
+                'Accept' => 'application/json',
+                'User-Agent' => 'WAPAPP-CustomerReadiness/1.0',
+            ])->connectTimeout(4)->timeout(8)->retry(1, 150)->get('https://graph.facebook.com/'.$pageId);
+
+            $json = $resp->json();
+            if (is_array($json) && isset($json['id'])) {
+                return true;
+            }
+
+            $message = strtolower((string) data_get($json, 'error.message', ''));
+            $code = (int) data_get($json, 'error.code', 0);
+            $type = strtolower((string) data_get($json, 'error.type', ''));
+
+            if (str_contains($message, 'does not exist')) {
+                return false;
+            }
+
+            // Exists but needs app token / permissions.
+            if (
+                $type === 'oauthexception'
+                || in_array($code, [200, 104, 190], true)
+                || str_contains($message, 'provide valid app id')
+                || str_contains($message, 'access token is required')
+                || str_contains($message, 'requires an access token')
+            ) {
+                return true;
+            }
+
+            // Explicit unsupported/missing.
+            if ($code === 100 || $type === 'graphmethodexception') {
+                return false;
+            }
+        } catch (\Throwable $e) {
+            Log::notice('Facebook Graph page probe failed', [
+                'page_id' => $pageId,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        return null;
+    }
+
+    /**
+     * @return bool|null true=looks real, false=unavailable, null=inconclusive
+     */
+    private function probeFacebookPageViaHttp(string $url): ?bool
+    {
+        try {
+            $resp = Http::withHeaders([
+                'User-Agent' => 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+                'Accept' => 'text/html,application/xhtml+xml',
+                'Accept-Language' => 'en-US,en;q=0.9',
+            ])->connectTimeout(4)->timeout(8)->retry(1, 150)->get($url);
+
+            $status = $resp->status();
+            $body = strtolower((string) $resp->body());
+
+            $unavailable = str_contains($body, "this content isn't available")
+                || str_contains($body, 'content is not available')
+                || str_contains($body, "content isn't available at the moment")
+                || str_contains($body, "page isn't available")
+                || str_contains($body, 'page not found')
+                || str_contains($body, 'sorry, this page')
+                || str_contains($body, 'small group of people')
+                || str_contains($body, 'changed who can see it')
+                || str_contains($body, 'been deleted');
+
+            if ($unavailable || $status === 404) {
+                return false;
+            }
+
+            $positive = str_contains($body, 'property="og:title"')
+                || str_contains($body, '"pageid"')
+                || str_contains($body, '"page_id"')
+                || preg_match('/"is_page"\s*:\s*true/', $body) === 1;
+
+            if ($status >= 200 && $status < 400 && $positive) {
+                return true;
+            }
+
+            // Facebook often returns 400/login walls to bots — treat as inconclusive.
+            return null;
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     /**
