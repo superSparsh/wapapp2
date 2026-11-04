@@ -260,7 +260,6 @@ class InboxService
         return [
             'scopes' => [
                 ['value' => 'all', 'label' => 'All Conversations'],
-                ['value' => 'unread', 'label' => 'Unread Only'],
                 ['value' => 'mine', 'label' => 'Assigned to Me'],
             ],
             'lookback_days' => config('inbox.allowed_lookback_days', [1, 3, 7, 90, 180, 365]),

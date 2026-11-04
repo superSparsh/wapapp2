@@ -187,6 +187,7 @@ class OperationalWhatsAppSenderTest extends TestCase
                                 'TemplateCode' => '1257583503568572333',
                                 'TemplateName' => '42_google_calendar_customer_event_created',
                                 'Language' => 'en',
+                                'AuditStatus' => 'APPROVED',
                             ],
                         ],
                     ],
@@ -222,6 +223,54 @@ class OperationalWhatsAppSenderTest extends TestCase
             return ($request['Action'] ?? '') === 'SendChatappMessage'
                 && ($request['TemplateCode'] ?? null) === '1257583503568572333'
                 && ($request['Language'] ?? null) === 'en';
+        });
+    }
+
+    public function test_send_template_does_not_use_unrelated_list_fallback_for_created_name(): void
+    {
+        Http::fake(function (\Illuminate\Http\Client\Request $request) {
+            if (($request['Action'] ?? '') === 'ListChatappTemplate') {
+                return Http::response([
+                    'Code' => 'OK',
+                    'Data' => [
+                        'ListTemplate' => [
+                            [
+                                // Unrelated first row — must NOT be used as created template code.
+                                'TemplateCode' => '1257583503568572001',
+                                'TemplateName' => 'google_calendar_customer_event_canceled',
+                                'Language' => 'en',
+                                'AuditStatus' => 'APPROVED',
+                            ],
+                            [
+                                'TemplateCode' => '1257583503568572777',
+                                'TemplateName' => '99_google_calendar_customer_event_created',
+                                'Language' => 'en',
+                                'AuditStatus' => 'APPROVED',
+                            ],
+                        ],
+                    ],
+                ], 200);
+            }
+
+            return Http::response(['Code' => 'OK', 'Message' => 'success', 'MessageId' => 'msg-created-ok'], 200);
+        });
+
+        $result = app(OperationalWhatsAppSender::class)->sendTemplateResult(
+            '919876543210',
+            'google_calendar_customer_event_created',
+            ['full_name' => 'Guest'],
+            [
+                'language' => 'en',
+                'template_name' => 'google_calendar_customer_event_created',
+                'logical_name' => 'google_calendar_customer_event_created',
+            ],
+        );
+
+        $this->assertTrue($result['ok'], (string) ($result['error'] ?? ''));
+
+        Http::assertSent(function ($request) {
+            return ($request['Action'] ?? '') === 'SendChatappMessage'
+                && ($request['TemplateCode'] ?? null) === '1257583503568572777';
         });
     }
 }

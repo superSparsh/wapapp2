@@ -510,6 +510,7 @@ class AlertDispatcher
         // Prefer live CAMS List by Meta/logical name on this line's CustSpaceId.
         // Local numeric codes go stale after re-sync / WABA moves → DetailError.TemplateNotExist.
         $sendAs = $resolved['list_name'] ?: (string) ($resolved['code'] ?? $configured);
+        $logicalName = CamsTemplateIdentity::isProviderCode($configured) ? null : $configured;
 
         return $this->whatsAppSender->sendTemplateResult(
             $toPhone,
@@ -520,6 +521,8 @@ class AlertDispatcher
                 'cust_space_id' => $custSpaceId,
                 'language' => $resolved['language'],
                 'template_name' => $resolved['list_name'],
+                // Always also try the config short name (e.g. google_calendar_customer_event_created).
+                'logical_name' => $logicalName,
                 'fallback_code' => $resolved['code'],
             ],
         );

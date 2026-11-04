@@ -30,6 +30,7 @@ class OperationalWhatsAppSender
      *     cust_space_id?: string,
      *     language?: string,
      *     template_name?: string|null,
+     *     logical_name?: string|null,
      *     fallback_code?: string|null
      * }|null  $sender
      * @return array{ok: bool, error: ?string, message_id: ?string}
@@ -46,6 +47,7 @@ class OperationalWhatsAppSender
         $custSpaceId = trim((string) ($sender['cust_space_id'] ?? config('operational-alerts.whatsapp.cust_space_id', '')));
         $preferredLanguage = trim((string) ($sender['language'] ?? ''));
         $templateName = trim((string) ($sender['template_name'] ?? ''));
+        $logicalName = trim((string) ($sender['logical_name'] ?? ''));
         $fallbackCode = trim((string) ($sender['fallback_code'] ?? ''));
         // Keep caller/template language as-is (including "en"). Only use ops default
         // when the caller did not specify a language — remapping en→en_GB here caused
@@ -83,6 +85,7 @@ class OperationalWhatsAppSender
         // 3) Last resort: explicit fallback_code from local Template row
         $lookupNames = array_values(array_unique(array_filter([
             $templateName,
+            $logicalName,
             CamsTemplateIdentity::isProviderCode($templateCode) ? null : $templateCode,
         ])));
 
@@ -239,7 +242,41 @@ class OperationalWhatsAppSender
             return;
         }
 
-        Cache::forget('ops-wa-template-code:'.hash('sha256', strtolower($custSpaceId.'|'.$language.'|'.$name)));
+        foreach ($this->templateNameLookupVariants($name) as $variant) {
+            Cache::forget($this->templateCodeCacheKey($custSpaceId, $language, $variant));
+            // Also clear pre-fix v1 keys that may hold a wrong fallback code.
+            Cache::forget('ops-wa-template-code:'.hash('sha256', strtolower($custSpaceId.'|'.$language.'|'.$variant)));
+        }
+    }
+
+    private function templateCodeCacheKey(string $custSpaceId, string $language, string $name): string
+    {
+        return 'ops-wa-template-code:v2:'.hash('sha256', strtolower($custSpaceId.'|'.$language.'|'.$name));
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function templateNameLookupVariants(string $name): array
+    {
+        $name = trim($name);
+        if ($name === '') {
+            return [];
+        }
+
+        $variants = [$name];
+
+        // "{customer_id}_{logical_name}" → also try logical short name.
+        if (preg_match('/^\d+_(.+)$/', $name, $matches) === 1) {
+            $variants[] = $matches[1];
+        }
+
+        // Prefixed / renamed rows: keep trailing google_calendar_* / calendly_* logical name.
+        if (preg_match('/((?:google_calendar|calendly)_[a-z0-9_]+)$/i', $name, $matches) === 1) {
+            $variants[] = $matches[1];
+        }
+
+        return array_values(array_unique(array_filter($variants)));
     }
 
     /**
@@ -264,7 +301,7 @@ class OperationalWhatsAppSender
             return ['ok' => true, 'code' => $value, 'language' => $language, 'error' => null];
         }
 
-        $cacheKey = 'ops-wa-template-code:'.hash('sha256', strtolower($custSpaceId.'|'.$language.'|'.$value));
+        $cacheKey = $this->templateCodeCacheKey($custSpaceId, $language, $value);
         $cached = Cache::get($cacheKey);
         if (is_array($cached)
             && is_string($cached['code'] ?? null)
@@ -277,10 +314,8 @@ class OperationalWhatsAppSender
                 'error' => null,
             ];
         }
-        // Legacy cache entries stored only the code string.
-        if (is_string($cached) && CamsTemplateIdentity::isProviderCode($cached)) {
-            return ['ok' => true, 'code' => $cached, 'language' => $language, 'error' => null];
-        }
+
+        $namesToFind = $this->templateNameLookupVariants($value);
 
         // Try configured language first, then fall back without Language filter.
         // Approved Google/Calendly templates are often en / en_US while ops default is en_GB.
@@ -293,65 +328,76 @@ class OperationalWhatsAppSender
         ], static fn ($lang): bool => is_string($lang))));
 
         $lastError = null;
-        foreach ($languagesToTry as $tryLanguage) {
-            // 1) Exact Name filter (short logical name)
-            // 2) Unfiltered page — match "{customer_id}_{logical_name}" Meta real names
-            foreach ([true, false] as $filterByName) {
-                $params = [
-                    'Action' => 'ListChatappTemplate',
-                    'PageSize' => $filterByName ? '10' : '50',
-                    'PageIndex' => '1',
-                ];
-                if ($filterByName) {
-                    $params['Name'] = $value;
-                }
-                if ($tryLanguage !== '') {
-                    $params['Language'] = $tryLanguage;
-                }
-                if ($custSpaceId !== '') {
-                    $params['CustSpaceId'] = $custSpaceId;
-                }
+        foreach ($namesToFind as $searchName) {
+            foreach ($languagesToTry as $tryLanguage) {
+                // 1) Exact Name filter
+                // 2) Paginated unfiltered list — match exact / "{id}_{logical}" suffix only
+                //    (never pick an unrelated first row — that caused create TemplateNotExist).
+                foreach ([true, false] as $filterByName) {
+                    $maxPages = $filterByName ? 1 : 5;
+                    for ($page = 1; $page <= $maxPages; $page++) {
+                        $params = [
+                            'Action' => 'ListChatappTemplate',
+                            'PageSize' => $filterByName ? '20' : '50',
+                            'PageIndex' => (string) $page,
+                        ];
+                        if ($filterByName) {
+                            $params['Name'] = $searchName;
+                        }
+                        if ($tryLanguage !== '') {
+                            $params['Language'] = $tryLanguage;
+                        }
+                        if ($custSpaceId !== '') {
+                            $params['CustSpaceId'] = $custSpaceId;
+                        }
 
-                try {
-                    $response = $this->signedRequest($params, $accessKeyId, $accessKeySecret);
-                } catch (\Throwable $e) {
-                    $lastError = 'Could not look up WhatsApp template "'.$value.'": '.$e->getMessage();
+                        try {
+                            $response = $this->signedRequest($params, $accessKeyId, $accessKeySecret);
+                        } catch (\Throwable $e) {
+                            $lastError = 'Could not look up WhatsApp template "'.$searchName.'": '.$e->getMessage();
 
-                    continue;
-                }
+                            break;
+                        }
 
-                $body = $response->json();
-                $body = is_array($body) ? $body : [];
-                if (! $response->successful()) {
-                    $lastError = $this->extractCamsError($body, $response->body(), $response->status());
+                        $body = $response->json();
+                        $body = is_array($body) ? $body : [];
+                        if (! $response->successful()) {
+                            $lastError = $this->extractCamsError($body, $response->body(), $response->status());
 
-                    continue;
-                }
+                            break;
+                        }
 
-                $code = Arr::get($body, 'Code') ?? Arr::get($body, 'code');
-                if (is_string($code) && $code !== '' && strtoupper($code) !== 'OK') {
-                    $lastError = $this->extractCamsError($body, $response->body(), $response->status());
+                        $code = Arr::get($body, 'Code') ?? Arr::get($body, 'code');
+                        if (is_string($code) && $code !== '' && strtoupper($code) !== 'OK') {
+                            $lastError = $this->extractCamsError($body, $response->body(), $response->status());
 
-                    continue;
-                }
+                            break;
+                        }
 
-                $matched = $this->extractTemplateCodeFromList($body, $value);
-                if ($matched !== null) {
-                    $matchedLanguage = trim((string) ($matched['language'] ?? ''));
-                    if ($matchedLanguage === '') {
-                        $matchedLanguage = $tryLanguage !== '' ? $tryLanguage : $language;
+                        $matched = $this->extractTemplateCodeFromList($body, $namesToFind);
+                        if ($matched !== null) {
+                            $matchedLanguage = trim((string) ($matched['language'] ?? ''));
+                            if ($matchedLanguage === '') {
+                                $matchedLanguage = $tryLanguage !== '' ? $tryLanguage : $language;
+                            }
+                            Cache::put($cacheKey, [
+                                'code' => $matched['code'],
+                                'language' => $matchedLanguage,
+                            ], now()->addHours(6));
+
+                            return [
+                                'ok' => true,
+                                'code' => $matched['code'],
+                                'language' => $matchedLanguage,
+                                'error' => null,
+                            ];
+                        }
+
+                        $pageItems = $this->listTemplateItems($body);
+                        if ($pageItems === [] || count($pageItems) < 50) {
+                            break;
+                        }
                     }
-                    Cache::put($cacheKey, [
-                        'code' => $matched['code'],
-                        'language' => $matchedLanguage,
-                    ], now()->addHours(6));
-
-                    return [
-                        'ok' => true,
-                        'code' => $matched['code'],
-                        'language' => $matchedLanguage,
-                        'error' => null,
-                    ];
                 }
             }
         }
@@ -363,62 +409,95 @@ class OperationalWhatsAppSender
             'code' => null,
             'language' => null,
             'error' => $lastError
-                ?: ('WhatsApp template "'.$value.'" was not found on this WhatsApp line'.$spaceHint.'. Use the exact approved template name, or set the numeric TemplateCode in env.'),
+                ?: ('WhatsApp template "'.$value.'" was not found on this WhatsApp line'.$spaceHint.'. Sync/refresh the template from the Templates page.'),
         ];
     }
 
     /**
      * @param  array<string, mixed>  $body
-     * @return array{code: string, language: ?string}|null
+     * @return list<array<string, mixed>>
      */
-    private function extractTemplateCodeFromList(array $body, ?string $preferredName = null): ?array
+    private function listTemplateItems(array $body): array
     {
-        $lists = [
+        foreach ([
             Arr::get($body, 'ListTemplate'),
             Arr::get($body, 'Data.ListTemplate'),
             Arr::get($body, 'data.ListTemplate'),
             Arr::get($body, 'body.Data.ListTemplate'),
-        ];
-
-        $preferredName = is_string($preferredName) ? trim($preferredName) : '';
-        $fallback = null;
-
-        foreach ($lists as $list) {
-            if (! is_array($list) || $list === []) {
-                continue;
-            }
-
-            foreach ($list as $item) {
-                if (! is_array($item)) {
-                    continue;
-                }
-
-                $code = $item['TemplateCode'] ?? $item['templateCode'] ?? null;
-                if (! is_string($code) || ! CamsTemplateIdentity::isProviderCode($code)) {
-                    continue;
-                }
-
-                $itemLanguage = trim((string) ($item['Language'] ?? $item['language'] ?? ''));
-                $matched = [
-                    'code' => $code,
-                    'language' => $itemLanguage !== '' ? $itemLanguage : null,
-                ];
-
-                $name = trim((string) ($item['TemplateName'] ?? $item['templateName'] ?? ''));
-                if ($preferredName !== '') {
-                    if ($name === $preferredName || str_ends_with($name, '_'.$preferredName)) {
-                        return $matched;
-                    }
-                    $fallback ??= $matched;
-
-                    continue;
-                }
-
-                return $matched;
+        ] as $list) {
+            if (is_array($list) && $list !== []) {
+                return array_values(array_filter($list, static fn ($item): bool => is_array($item)));
             }
         }
 
-        return $fallback;
+        return [];
+    }
+
+    /**
+     * @param  array<string, mixed>  $body
+     * @param  list<string>|string|null  $preferredNames
+     * @return array{code: string, language: ?string}|null
+     */
+    private function extractTemplateCodeFromList(array $body, array|string|null $preferredNames = null): ?array
+    {
+        $names = [];
+        if (is_string($preferredNames) && trim($preferredNames) !== '') {
+            $names = $this->templateNameLookupVariants($preferredNames);
+        } elseif (is_array($preferredNames)) {
+            foreach ($preferredNames as $preferredName) {
+                if (is_string($preferredName) && trim($preferredName) !== '') {
+                    foreach ($this->templateNameLookupVariants($preferredName) as $variant) {
+                        $names[] = $variant;
+                    }
+                }
+            }
+            $names = array_values(array_unique($names));
+        }
+
+        $approvedMatch = null;
+        $anyMatch = null;
+
+        foreach ($this->listTemplateItems($body) as $item) {
+            $code = $item['TemplateCode'] ?? $item['templateCode'] ?? null;
+            if (! is_string($code) || ! CamsTemplateIdentity::isProviderCode($code)) {
+                continue;
+            }
+
+            $itemLanguage = trim((string) ($item['Language'] ?? $item['language'] ?? ''));
+            $matched = [
+                'code' => $code,
+                'language' => $itemLanguage !== '' ? $itemLanguage : null,
+            ];
+
+            $name = trim((string) ($item['TemplateName'] ?? $item['templateName'] ?? ''));
+            if ($names === []) {
+                return $matched;
+            }
+
+            $isNameMatch = false;
+            foreach ($names as $preferredName) {
+                if ($name === $preferredName || str_ends_with($name, '_'.$preferredName)) {
+                    $isNameMatch = true;
+                    break;
+                }
+            }
+            if (! $isNameMatch) {
+                continue;
+            }
+
+            $audit = strtoupper(trim((string) ($item['AuditStatus'] ?? $item['auditStatus'] ?? '')));
+            if (in_array($audit, ['APPROVED', 'PASS', ''], true)) {
+                // Prefer explicitly approved; empty audit still accepted (some CAMS payloads omit it).
+                if ($audit === 'APPROVED' || $audit === 'PASS') {
+                    return $matched;
+                }
+                $approvedMatch ??= $matched;
+            }
+
+            $anyMatch ??= $matched;
+        }
+
+        return $approvedMatch ?? $anyMatch;
     }
 
     /**
