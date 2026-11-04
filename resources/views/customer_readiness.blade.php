@@ -834,31 +834,43 @@
       </div>
 
       <div class="field">
-        <label>GST No. / MSME No. <span class="req">*</span></label>
-        <input type="text" id="f-regnum" placeholder="e.g. 29ABCDE1234F1Z5 or UDYAM-KR-03-1234567"
-               autocomplete="off" oninput="onRegNumberInput()" onblur="lookupRegistrationRealtime()"/>
-        <div class="field-hint" id="regnum-live-status"></div>
-        <div class="field-error" id="e-regnum">⚠ Enter a valid GSTIN or Udyam number.</div>
-        <div class="field-block-msg" id="b-regnum" style="display:none">
+        <label>GST / MSME certificate (PDF) <span class="req">*</span></label>
+        <input type="file" id="f-regdoc-file" accept="application/pdf,.pdf" onchange="onRegDocFileChange()"/>
+        <div class="field-hint">Upload only your official GST certificate or Udyam MSME certificate (PDF, max 5 MB). We’ll read the number and business name from it.</div>
+        <div class="field-hint" id="regdoc-live-status"></div>
+        <div class="field-error" id="e-regdoc-file">⚠ Please upload a valid GST or Udyam MSME certificate PDF.</div>
+        <div class="field-block-msg" id="b-regdoc-file" style="display:none">
           <span>🚫</span>
-          <span id="b-regnum-text"><strong>We can’t onboard you with this registration number.</strong></span>
+          <span id="b-regdoc-file-text"><strong>We can’t onboard you with this document.</strong> Only a clear GST or Udyam MSME certificate PDF is accepted.</span>
         </div>
       </div>
 
       <div class="field-row">
         <div class="field">
-          <label>Business name <span class="req">*</span></label>
-          <input type="text" id="f-bname" placeholder="e.g. Tekkonnect Pvt Ltd" readonly
-                 style="background:#f3f6f4; cursor:not-allowed;" oninput="validateField('f-bname')"/>
-          <div class="field-error" id="e-bname">⚠ Business name could not be fetched. Fix your GST / MSME number first.</div>
+          <label>GST No. / MSME No. <span class="req">*</span></label>
+          <input type="text" id="f-regnum" placeholder="Extracted from certificate" readonly
+                 style="background:#f3f6f4; cursor:not-allowed;"/>
+          <div class="field-hint" id="regnum-live-status"></div>
+          <div class="field-error" id="e-regnum">⚠ Number could not be read from the certificate.</div>
+          <div class="field-block-msg" id="b-regnum" style="display:none">
+            <span>🚫</span>
+            <span id="b-regnum-text"><strong>We can’t onboard you without a valid GST / MSME number from the certificate.</strong></span>
+          </div>
         </div>
         <div class="field">
-          <label>Business email <span class="req">*</span> <span class="badge">Official domain required</span></label>
-          <input type="email" id="f-bemail" placeholder="admin@yourdomain.com" oninput="validateField('f-bemail')" onblur="validateField('f-bemail')"/>
-          <div class="field-hint">💡 Must use your company domain - not Gmail, Yahoo, Outlook etc.</div>
-          <div class="field-hint" id="business-email-live-status">📧 Business email status: not checked yet.</div>
-          <div class="field-error" id="e-bemail" style="display:none;">⚠ Enter a valid business email.</div>
+          <label>Business name <span class="req">*</span></label>
+          <input type="text" id="f-bname" placeholder="Extracted from certificate" readonly
+                 style="background:#f3f6f4; cursor:not-allowed;" oninput="validateField('f-bname')"/>
+          <div class="field-error" id="e-bname">⚠ Business name could not be read from the certificate.</div>
         </div>
+      </div>
+
+      <div class="field">
+        <label>Business email <span class="req">*</span> <span class="badge">Official domain required</span></label>
+        <input type="email" id="f-bemail" placeholder="admin@yourdomain.com" oninput="validateField('f-bemail')" onblur="validateField('f-bemail')"/>
+        <div class="field-hint">💡 Must use your company domain - not Gmail, Yahoo, Outlook etc.</div>
+        <div class="field-hint" id="business-email-live-status">📧 Business email status: not checked yet.</div>
+        <div class="field-error" id="e-bemail" style="display:none;">⚠ Enter a valid business email.</div>
       </div>
 
       <div class="field">
@@ -1389,15 +1401,21 @@
     <p style="font-size:0.86rem; color:var(--text-muted); margin:8px 0 12px;">
       You only need the public link people use to open your Page. Takes about a minute.
     </p>
+    <p style="font-size:0.84rem; color:var(--text); margin:0 0 12px; line-height:1.6;">
+      Open your Pages here (click to open):<br/>
+      <a href="https://www.facebook.com/pages/?category=your_pages" target="_blank" rel="noopener noreferrer">https://www.facebook.com/pages/?category=your_pages</a><br/>
+      or Meta Business Suite Pages:<br/>
+      <a href="https://business.facebook.com/latest/home" target="_blank" rel="noopener noreferrer">https://business.facebook.com/latest/home</a>
+    </p>
     <ol style="margin:0 0 12px 18px; padding:0; font-size:0.84rem; color:var(--text); line-height:1.7;">
-      <li>Open Facebook on your phone or computer and go to <strong>your Page</strong> (not your personal profile).</li>
+      <li>Open <a href="https://www.facebook.com/pages/?category=your_pages" target="_blank" rel="noopener noreferrer">Facebook → Your Pages</a> and open <strong>your Page</strong> (not your personal profile).</li>
       <li>On mobile: tap the <strong>⋯</strong> or share icon → <strong>Copy link</strong>.<br/>On desktop: look at the browser address bar while you’re on the Page.</li>
       <li>You should get something like <code>https://www.facebook.com/YourPageName</code> or <code>https://www.facebook.com/profile.php?id=...</code>.</li>
       <li>Paste that full link into the form. We’ll check it’s reachable automatically.</li>
     </ol>
     <div class="callout info" style="margin:0 0 12px;">
       <span class="callout-icon">💡</span>
-      <span>Tip: The Page should be <strong>published / public</strong>. If the link opens a login wall or “content isn’t available”, Meta (and we) can’t verify it for WhatsApp onboarding.</span>
+      <span>Tip: The Page should be <strong>published / public</strong>. If the link opens a login wall or “content isn’t available”, Meta (and we) can’t verify it for WhatsApp onboarding. Don’t have a Page yet? Create one at <a href="https://www.facebook.com/pages/create" target="_blank" rel="noopener noreferrer">facebook.com/pages/create</a>.</span>
     </div>
     <div class="submit-row">
       <button class="btn btn-primary" type="button" onclick="closeFacebookPageHelp()">Got it</button>
@@ -1622,6 +1640,16 @@ function setRegnumStatus(kind, msg) {
   else el.style.color = '#6b7a71';
 }
 
+function setRegdocStatus(kind, msg) {
+  const el = get('regdoc-live-status');
+  if (!el) return;
+  el.textContent = msg;
+  if (kind === 'ok') el.style.color = '#0e5c30';
+  else if (kind === 'err') el.style.color = '#7a1a10';
+  else if (kind === 'pending') el.style.color = '#7a4800';
+  else el.style.color = '#6b7a71';
+}
+
 function setBusinessEmailStatus(kind, msg) {
   const el = get('business-email-live-status');
   if (!el) return;
@@ -1712,89 +1740,108 @@ function detectRegDocType(raw) {
   return '';
 }
 
-function onRegNumberInput() {
-  clearTimeout(regLookupDebounceTimer);
+function clearExtractedRegistration() {
   regLookupState = null;
+  regLookupMsg = '';
+  if (get('f-regnum')) get('f-regnum').value = '';
   if (get('f-bname')) get('f-bname').value = '';
   setRegnumStatus('idle', '');
-  regLookupDebounceTimer = setTimeout(() => lookupRegistrationRealtime(), 650);
-  refreshStep1OnboardBlockers();
+  setRegdocStatus('idle', '');
 }
 
-function isRegNumberFormatOk(raw) {
-  const v = (raw || '').toUpperCase().replace(/\s+/g, '');
-  return GSTIN_REGEX.test(v) || UDYAM_REGEX.test(v);
-}
-
-async function lookupRegistrationRealtime() {
-  const raw = (get('f-regnum')?.value || '').trim();
-  const normalized = raw.toUpperCase().replace(/\s+/g, '');
-  const docType = detectRegDocType(normalized);
-
-  if (!normalized) {
-    regLookupState = null;
-    regLookupMsg = '';
-    if (get('f-bname')) get('f-bname').value = '';
-    setRegnumStatus('idle', '');
+async function onRegDocFileChange() {
+  clearExtractedRegistration();
+  const input = get('f-regdoc-file');
+  const file = input?.files?.[0] || null;
+  if (!file) {
     refreshStep1OnboardBlockers();
     return false;
   }
-  if (!isRegNumberFormatOk(normalized)) {
+  return extractRegistrationFromPdf(file);
+}
+
+async function extractRegistrationFromPdf(file) {
+  if (!file) {
     regLookupState = false;
-    regLookupMsg = 'Enter a valid GSTIN (15 characters) or Udyam number (UDYAM-XX-00-0000000). We can’t onboard you until this is fixed.';
-    if (get('f-bname')) get('f-bname').value = '';
-    setRegnumStatus('err', '❌ ' + regLookupMsg);
-    const blockText = get('b-regnum-text');
-    if (blockText) blockText.innerHTML = '<strong>We can’t onboard you with this registration number.</strong> ' + regLookupMsg;
-    showBlock('f-regnum');
+    regLookupMsg = 'Upload your GST or Udyam MSME certificate PDF.';
+    setRegdocStatus('err', '❌ ' + regLookupMsg);
+    showBlock('f-regdoc-file');
     refreshStep1OnboardBlockers();
     return false;
   }
 
-  if (get('f-regnum')) get('f-regnum').value = normalized;
+  const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name || '');
+  if (!isPdf) {
+    regLookupState = false;
+    regLookupMsg = 'Only PDF files are allowed (GST or Udyam MSME certificate).';
+    clearExtractedRegistration();
+    setRegdocStatus('err', '❌ ' + regLookupMsg);
+    const blockText = get('b-regdoc-file-text');
+    if (blockText) blockText.innerHTML = '<strong>We can’t onboard you with this document.</strong> ' + regLookupMsg;
+    showBlock('f-regdoc-file');
+    refreshStep1OnboardBlockers();
+    return false;
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    regLookupState = false;
+    regLookupMsg = 'PDF must be under 5 MB.';
+    clearExtractedRegistration();
+    setRegdocStatus('err', '❌ ' + regLookupMsg);
+    showBlock('f-regdoc-file');
+    refreshStep1OnboardBlockers();
+    return false;
+  }
 
   try {
-    setRegnumStatus('pending', '🔎 Looking up business name…');
-    const resp = await fetch(@json(route('customer.readiness.lookup.registration')), {
+    setRegdocStatus('pending', '🔎 Reading certificate…');
+    const body = new FormData();
+    body.append('regdoc_file', file);
+    const resp = await fetch(@json(route('customer.readiness.extract.registration')), {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
         'X-CSRF-TOKEN': @json(csrf_token()),
         'Accept': 'application/json',
       },
-      body: JSON.stringify({
-        registration_number: normalized,
-        doc_type: docType === 'udyam' ? 'Udyam MSME certificate' : 'GST certificate',
-      }),
+      body,
     });
     const data = await resp.json().catch(() => ({}));
-    if (resp.ok && data?.valid && data?.business_name) {
+    if (resp.ok && data?.valid && data?.business_name && data?.registration_number) {
       regLookupState = true;
-      regLookupMsg = data.message || 'Business name fetched.';
+      regLookupMsg = data.message || 'Certificate verified.';
+      if (get('f-regnum')) get('f-regnum').value = data.registration_number;
       if (get('f-bname')) get('f-bname').value = data.business_name;
-      setRegnumStatus('ok', '✅ ' + data.business_name);
+      setRegdocStatus('ok', '✅ Certificate accepted');
+      setRegnumStatus('ok', '✅ ' + data.registration_number);
+      showValid('f-regdoc-file');
       showValid('f-regnum');
       showValid('f-bname');
       refreshStep1OnboardBlockers();
       return true;
     }
 
-    regLookupState = false;
-    regLookupMsg = data?.message || 'We could not verify this registration number.';
+    const failMsg = data?.message || 'We could not verify this certificate.';
+    if (get('f-regnum')) get('f-regnum').value = '';
     if (get('f-bname')) get('f-bname').value = '';
-    setRegnumStatus('err', '❌ ' + regLookupMsg);
-    const blockText = get('b-regnum-text');
+    if (get('f-regdoc-file')) get('f-regdoc-file').value = '';
+    regLookupState = false;
+    regLookupMsg = failMsg;
+    setRegnumStatus('idle', '');
+    setRegdocStatus('err', '❌ ' + failMsg);
+    const blockText = get('b-regdoc-file-text');
     if (blockText) {
-      blockText.innerHTML = '<strong>We can’t onboard you with this registration number.</strong> ' + regLookupMsg;
+      blockText.innerHTML = '<strong>We can’t onboard you with this document.</strong> ' + failMsg;
     }
-    showBlock('f-regnum');
+    showBlock('f-regdoc-file');
     refreshStep1OnboardBlockers();
     return false;
   } catch (e) {
+    if (get('f-regnum')) get('f-regnum').value = '';
+    if (get('f-bname')) get('f-bname').value = '';
     regLookupState = false;
-    regLookupMsg = 'Registration lookup is temporarily unavailable. Please try again.';
-    setRegnumStatus('err', '❌ ' + regLookupMsg);
-    showBlock('f-regnum');
+    regLookupMsg = 'Certificate check is temporarily unavailable. Please try again.';
+    setRegnumStatus('idle', '');
+    setRegdocStatus('err', '❌ ' + regLookupMsg);
+    showBlock('f-regdoc-file');
     refreshStep1OnboardBlockers();
     return false;
   }
@@ -1993,12 +2040,42 @@ function validateField(id) {
       if (websiteReachable === false) { showError(id); refreshStep1OnboardBlockers(); return false; }
       showValid(id); refreshStep1OnboardBlockers(); return true;
 
+    case 'f-regdoc-file': {
+      const input = el;
+      if (!input.files || input.files.length === 0) {
+        showError(id);
+        refreshStep1OnboardBlockers();
+        return false;
+      }
+      const file = input.files[0];
+      const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
+      if (!isPdf) {
+        showBlock(id);
+        refreshStep1OnboardBlockers();
+        return false;
+      }
+      if (regLookupState === false) {
+        showBlock(id);
+        refreshStep1OnboardBlockers();
+        return false;
+      }
+      if (regLookupState !== true) {
+        const errEl = get('e-regdoc-file');
+        if (errEl) errEl.textContent = '⚠ Wait for the certificate check to finish.';
+        showError(id);
+        return false;
+      }
+      showValid(id);
+      refreshStep1OnboardBlockers();
+      return true;
+    }
+
     case 'f-regnum':
       if (!v) { showError(id); refreshStep1OnboardBlockers(); return false; }
       if (regLookupState === false) { showBlock(id); refreshStep1OnboardBlockers(); return false; }
       if (regLookupState !== true) {
         const errEl = get('e-regnum');
-        if (errEl) errEl.textContent = '⚠ Wait for registration lookup to finish (or re-check the number).';
+        if (errEl) errEl.textContent = '⚠ Upload a valid GST / MSME certificate first.';
         showError(id);
         return false;
       }
@@ -2015,22 +2092,6 @@ function validateField(id) {
         return false;
       }
       showValid(id); refreshStep1OnboardBlockers(); return true;
-
-    case 'f-regdoc-file': {
-      const input = el;
-      if (!input.files || input.files.length === 0) {
-        showError(id);
-        return false;
-      }
-      const file = input.files[0];
-      const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
-      if (!isPdf) {
-        showError(id);
-        return false;
-      }
-      showValid(id);
-      return true;
-    }
 
     case 'f-metaadmin':
       if (!v) { showError(id); return false; }
@@ -2140,7 +2201,7 @@ get('f-bemail')?.addEventListener('blur', async () => {
 
 // ── Section validators ──────────────────────────
 const sectionFields = {
-  0: ['f-regnum','f-bname','f-bemail','f-website','f-fbpageurl'],
+  0: ['f-regdoc-file','f-regnum','f-bname','f-bemail','f-website','f-fbpageurl'],
   1: ['f-metaadmin','f-mfa','f-fbaccount'],
   2: ['f-numplan','f-otp','f-numtype','f-wanum','f-wadisplayname'],
   3: ['f-name','f-email','f-personal'],
@@ -2148,9 +2209,9 @@ const sectionFields = {
 
 async function validateSectionAsync(idx) {
   if (idx === 0) {
-    const regNum = (get('f-regnum')?.value || '').trim();
-    if (regNum && regLookupState !== true) {
-      await lookupRegistrationRealtime();
+    const file = get('f-regdoc-file')?.files?.[0] || null;
+    if (file && regLookupState !== true) {
+      await extractRegistrationFromPdf(file);
     }
     const fbUrl = (get('f-fbpageurl')?.value || '').trim();
     if (fbUrl && fbPageUrlCheckState !== true) {
@@ -2196,15 +2257,21 @@ function updateProgress() {
 function buildSummary() {
   const checks = [
     {
-      label: 'GST / MSME number verified',
-      fn: () => regLookupState === true && (get('f-regnum')?.value || '').trim().length > 0,
-      note: 'A verified GSTIN or Udyam number is required before onboarding.',
+      label: 'GST / MSME certificate verified',
+      fn: () => regLookupState === true && (get('f-regdoc-file')?.files?.length || 0) > 0,
+      note: 'Upload an official GST or Udyam MSME certificate PDF.',
       type: 'blocker'
     },
     {
-      label: 'Business name fetched from registry',
+      label: 'GST / MSME number extracted',
+      fn: () => regLookupState === true && (get('f-regnum')?.value || '').trim().length > 0,
+      note: 'Number must be read from your certificate PDF.',
+      type: 'blocker'
+    },
+    {
+      label: 'Business name extracted from certificate',
       fn: () => get('f-bname')?.value.trim().length >= 2 && regLookupState === true,
-      note: 'Business name must come from official GST / MSME records.',
+      note: 'Business name must come from your GST / MSME certificate.',
       type: 'required'
     },
     {
@@ -2497,6 +2564,13 @@ async function submitForm() {
   const isComplete = blockers === 0 && warnings === 0;
   const payload = mapToBackendPayload();
 
+  const certFile = get('f-regdoc-file')?.files?.[0] || null;
+  if (!certFile) {
+    await goTo(0, { skipValidation: true });
+    showToast('⚠ Upload your GST or Udyam certificate PDF before submitting.');
+    return;
+  }
+
   showToast(
     isComplete
       ? '✅ Submitting your details and redirecting...'
@@ -2506,7 +2580,7 @@ async function submitForm() {
     const form = document.createElement('form');
     form.method = 'POST';
     form.action = @json(route('customer.readiness.store'));
-    form.enctype = 'application/x-www-form-urlencoded';
+    form.enctype = 'multipart/form-data';
     form.style.display = 'none';
 
     const csrf = document.createElement('input');
@@ -2522,6 +2596,13 @@ async function submitForm() {
       input.value = v || '';
       form.appendChild(input);
     });
+
+    // Move the live file input into the submit form so the PDF is posted.
+    const liveFile = get('f-regdoc-file');
+    if (liveFile) {
+      liveFile.name = 'regdoc_file';
+      form.appendChild(liveFile);
+    }
 
     document.body.appendChild(form);
     form.submit();
@@ -2618,9 +2699,9 @@ Object.entries(serverErrors || {}).forEach(([backendKey, msgs]) => {
     errEl.classList.add('show');
     errEl.style.display = 'flex';
   }
-  if (backendKey === 'registration_number' || backendKey === 'business_name') {
+  if (backendKey === 'registration_number' || backendKey === 'business_name' || backendKey === 'regdoc_file') {
     regLookupState = false;
-    regLookupMsg = msgs?.[0] || 'Registration could not be verified.';
+    regLookupMsg = msgs?.[0] || 'Registration certificate could not be verified.';
   }
   if (backendKey === 'facebook_page_url') {
     fbPageUrlCheckState = false;

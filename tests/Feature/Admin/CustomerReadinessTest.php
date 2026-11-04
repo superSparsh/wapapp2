@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Admin;
 
+use App\Domains\Admin\Services\RegistrationCertificateService;
 use App\Models\Admin;
 use App\Models\CustomerReadinessSubmission;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Factory as HttpFactory;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
+use Mockery;
 use Tests\TestCase;
 
 class CustomerReadinessTest extends TestCase
@@ -28,21 +31,13 @@ class CustomerReadinessTest extends TestCase
             'is_active' => true,
         ]);
 
-        config([
-            'customer-readiness.registration_lookup.url' => 'https://reg-lookup.test/verify',
-            'customer-readiness.registration_lookup.method' => 'GET',
-            'customer-readiness.registration_lookup.api_key' => 'test-key',
-        ]);
-
         $this->fakeHttp([
             'https://ready-biz.test/*' => Http::response('ok', 200),
             'https://www.facebook.com/*' => Http::response('<html>ok</html>', 200),
-            'https://reg-lookup.test/*' => Http::response([
-                'business_name' => 'Sharma Traders',
-                'legal_name' => 'Sharma Traders',
-            ], 200),
             '*' => Http::response('ok', 200),
         ]);
+
+        $this->mockValidCertificateExtract();
     }
 
     /**
@@ -56,6 +51,30 @@ class CustomerReadinessTest extends TestCase
         $this->app->instance(HttpFactory::class, $factory);
         Http::swap($factory);
         Http::fake($fakes);
+    }
+
+    /**
+     * @param  array<string, mixed>  $overrides
+     */
+    private function mockValidCertificateExtract(array $overrides = []): void
+    {
+        $result = array_merge([
+            'valid' => true,
+            'message' => 'Certificate verified. GST / MSME details extracted.',
+            'business_name' => 'Sharma Traders',
+            'registration_number' => '29ABCDE1234F1Z5',
+            'doc_type' => 'GST certificate',
+            'document_type' => 'GST',
+        ], $overrides);
+
+        $mock = Mockery::mock(RegistrationCertificateService::class);
+        $mock->shouldReceive('extractFromUpload')->andReturn($result);
+        $this->app->instance(RegistrationCertificateService::class, $mock);
+    }
+
+    private function certificatePdf(): UploadedFile
+    {
+        return UploadedFile::fake()->create('gst-certificate.pdf', 120, 'application/pdf');
     }
 
     /**
@@ -83,6 +102,7 @@ class CustomerReadinessTest extends TestCase
             'num_type' => 'physical',
             'number' => '+919876543210',
             'whatsapp_display_name' => 'Sharma Traders',
+            'regdoc_file' => $this->certificatePdf(),
         ], $overrides);
     }
 
@@ -131,27 +151,34 @@ class CustomerReadinessTest extends TestCase
         ]))->assertSessionHasErrors('business_email');
     }
 
-    public function test_rejects_invalid_gstin_format(): void
+    public function test_rejects_when_certificate_missing(): void
     {
-        $this->post(route('customer.readiness.store'), $this->eligiblePayload([
-            'registration_number' => 'INVALID',
-        ]))->assertSessionHasErrors('registration_number');
+        $payload = $this->eligiblePayload();
+        unset($payload['regdoc_file']);
+
+        $response = $this->from(route('customer.readiness'))
+            ->post(route('customer.readiness.store'), $payload);
+
+        $response->assertRedirect(route('customer.readiness'));
+        $response->assertSessionHasErrors('regdoc_file');
     }
 
-    public function test_rejects_when_registration_lookup_fails(): void
+    public function test_rejects_when_certificate_extract_fails(): void
     {
-        $this->fakeHttp([
-            'https://ready-biz.test/*' => Http::response('ok', 200),
-            'https://www.facebook.com/*' => Http::response('<html>ok</html>', 200),
-            'https://reg-lookup.test/*' => Http::response(['error' => 'not found'], 404),
-            '*' => Http::response('ok', 200),
+        $this->mockValidCertificateExtract([
+            'valid' => false,
+            'message' => 'This does not look like a GST or Udyam MSME certificate.',
+            'business_name' => null,
+            'registration_number' => null,
+            'doc_type' => null,
+            'document_type' => null,
         ]);
 
         $response = $this->from(route('customer.readiness'))
             ->post(route('customer.readiness.store'), $this->eligiblePayload());
 
         $response->assertRedirect(route('customer.readiness'));
-        $response->assertSessionHasErrors(['registration_number', 'business_name']);
+        $response->assertSessionHasErrors(['regdoc_file', 'registration_number', 'business_name']);
     }
 
     public function test_rejects_unverifiable_facebook_page_url(): void
@@ -159,11 +186,9 @@ class CustomerReadinessTest extends TestCase
         $this->fakeHttp([
             'https://ready-biz.test/*' => Http::response('ok', 200),
             'https://www.facebook.com/*' => Http::response("This content isn't available", 404),
-            'https://reg-lookup.test/*' => Http::response([
-                'business_name' => 'Sharma Traders',
-            ], 200),
             '*' => Http::response('ok', 200),
         ]);
+        $this->mockValidCertificateExtract();
 
         $response = $this->from(route('customer.readiness'))
             ->post(route('customer.readiness.store'), $this->eligiblePayload());
@@ -172,14 +197,14 @@ class CustomerReadinessTest extends TestCase
         $response->assertSessionHasErrors('facebook_page_url');
     }
 
-    public function test_lookup_registration_endpoint(): void
+    public function test_extract_registration_endpoint(): void
     {
-        $this->postJson(route('customer.readiness.lookup.registration'), [
-            'registration_number' => '29ABCDE1234F1Z5',
-            'doc_type' => 'GST certificate',
+        $this->post(route('customer.readiness.extract.registration'), [
+            'regdoc_file' => $this->certificatePdf(),
         ])->assertOk()
             ->assertJsonPath('valid', true)
-            ->assertJsonPath('business_name', 'Sharma Traders');
+            ->assertJsonPath('business_name', 'Sharma Traders')
+            ->assertJsonPath('registration_number', '29ABCDE1234F1Z5');
     }
 
     public function test_validate_business_email_endpoint(): void
@@ -205,7 +230,7 @@ class CustomerReadinessTest extends TestCase
 
     public function test_json_api_store_returns_eligibility(): void
     {
-        $this->postJson(route('api.customer-readiness.store'), $this->eligiblePayload())
+        $this->post(route('api.customer-readiness.store'), $this->eligiblePayload())
             ->assertOk()
             ->assertJsonPath('success', true)
             ->assertJsonPath('eligible', true);

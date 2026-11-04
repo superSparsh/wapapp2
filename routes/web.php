@@ -127,8 +127,8 @@ Route::middleware('web')->group(function () {
         ->name('customer.readiness.validate.facebook-page');
     Route::post('/customer-readiness/validate-business-email', [CustomerReadinessController::class, 'validateBusinessEmail'])
         ->name('customer.readiness.validate.business-email');
-    Route::post('/customer-readiness/lookup-registration', [CustomerReadinessController::class, 'lookupRegistration'])
-        ->name('customer.readiness.lookup.registration');
+    Route::post('/customer-readiness/extract-registration', [CustomerReadinessController::class, 'extractRegistration'])
+        ->name('customer.readiness.extract.registration');
     Route::get('/customer-readiness/result', [CustomerReadinessController::class, 'result'])
         ->name('customer.readiness.result');
 });

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Domains\Admin\Http\Controllers;
 
-use App\Domains\Admin\Services\BusinessRegistrationLookupService;
 use App\Domains\Admin\Services\CustomerReadinessService;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
@@ -21,7 +20,6 @@ class CustomerReadinessController extends Controller
 {
     public function __construct(
         private readonly CustomerReadinessService $readiness,
-        private readonly BusinessRegistrationLookupService $registrationLookup,
     ) {}
 
     public function create(): View
@@ -92,17 +90,14 @@ class CustomerReadinessController extends Controller
         return response()->json($result, ($result['valid'] ?? false) ? 200 : 422);
     }
 
-    public function lookupRegistration(Request $request): JsonResponse
+    public function extractRegistration(Request $request): JsonResponse
     {
-        $validated = $request->validate([
-            'registration_number' => ['required', 'string', 'min:8', 'max:40'],
-            'doc_type' => ['nullable', 'string', 'max:64'],
+        $request->validate([
+            'regdoc_file' => ['required', 'file', 'mimes:pdf', 'max:5120'],
         ]);
 
-        $result = $this->registrationLookup->lookup(
-            (string) $validated['registration_number'],
-            isset($validated['doc_type']) ? (string) $validated['doc_type'] : null,
-        );
+        $file = $request->file('regdoc_file');
+        $result = $this->readiness->extractRegistrationCertificate($file);
 
         return response()->json($result, ($result['valid'] ?? false) ? 200 : 422);
     }

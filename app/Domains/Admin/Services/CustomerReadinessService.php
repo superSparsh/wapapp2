@@ -7,6 +7,7 @@ namespace App\Domains\Admin\Services;
 use App\Domains\Alerts\Services\AlertDispatcher;
 use App\Models\CustomerReadinessSubmission;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
@@ -19,7 +20,7 @@ use Illuminate\Validation\ValidationException;
 class CustomerReadinessService
 {
     public function __construct(
-        private readonly BusinessRegistrationLookupService $registrationLookup,
+        private readonly RegistrationCertificateService $registrationCertificate,
     ) {}
 
     /**
@@ -27,10 +28,16 @@ class CustomerReadinessService
      */
     public function process(Request $request): array
     {
+        $certificate = $this->requireCertificateExtract($request);
         $input = $this->normalizeInput($request->all());
+        // Certificate PDF is source of truth — never trust client-supplied name / number.
+        $input['business_name'] = $certificate['business_name'];
+        $input['registration_number'] = $certificate['registration_number'];
+        $input['docType'] = $certificate['doc_type'];
         $validated = $this->validate($input);
 
         $payload = $this->buildLabeledPayload($validated);
+        $payload['Registration certificate file'] = $certificate['original_name'];
         $metaPortfolioUrl = trim((string) ($validated['fb_page_name'] ?? ''));
         $metaBusinessId = $this->extractBusinessIdFromMetaUrl($metaPortfolioUrl);
         if ($metaBusinessId !== null) {
@@ -95,7 +102,9 @@ class CustomerReadinessService
             'doc_type' => $this->docTypeStorageKey((string) $validated['docType']),
             'status' => $eligible ? 'eligible' : 'not_eligible',
             'data' => $payload,
-            'meta' => $meta,
+            'meta' => array_merge($meta, [
+                'registration_certificate_path' => $certificate['stored_path'],
+            ]),
         ]);
 
         $this->notify($submission, $eligible, $reasons);
@@ -188,23 +197,7 @@ class CustomerReadinessService
             (string) $validated['registration_number'],
             isset($validated['docType']) ? (string) $validated['docType'] : null,
         );
-
-        $lookup = $this->registrationLookup->lookup(
-            (string) $validated['registration_number'],
-            (string) $validated['docType'],
-        );
-        if (! ($lookup['valid'] ?? false) || blank($lookup['business_name'] ?? null)) {
-            throw ValidationException::withMessages([
-                'registration_number' => [$lookup['message'] ?? 'We could not verify this GST / MSME number.'],
-                'business_name' => ['Business name could not be fetched from registration records. We cannot onboard you with an unverified registration.'],
-            ]);
-        }
-
-        // Always trust registry name — never allow a mismatched client-supplied name.
-        $validated['business_name'] = (string) $lookup['business_name'];
-        if (! empty($lookup['doc_type'])) {
-            $validated['docType'] = (string) $lookup['doc_type'];
-        }
+        $validated['business_name'] = trim((string) ($validated['business_name'] ?? ''));
 
         $fbCheck = $this->validateFacebookPage((string) $validated['facebook_page_url'], strict: true);
         if (! ($fbCheck['valid'] ?? false)) {
@@ -217,6 +210,54 @@ class CustomerReadinessService
         }
 
         return $validated;
+    }
+
+    /**
+     * Extract GSTIN/Udyam + business name from an uploaded certificate PDF.
+     *
+     * @return array{valid: bool, message: string, business_name: ?string, registration_number: ?string, doc_type: ?string, document_type: ?string}
+     */
+    public function extractRegistrationCertificate(UploadedFile $file): array
+    {
+        return $this->registrationCertificate->extractFromUpload($file);
+    }
+
+    /**
+     * @return array{
+     *     business_name: string,
+     *     registration_number: string,
+     *     doc_type: string,
+     *     original_name: string,
+     *     stored_path: string
+     * }
+     */
+    private function requireCertificateExtract(Request $request): array
+    {
+        $file = $request->file('regdoc_file');
+        if (! $file instanceof UploadedFile) {
+            throw ValidationException::withMessages([
+                'regdoc_file' => ['Upload your GST or Udyam MSME certificate PDF. We can’t onboard you without it.'],
+            ]);
+        }
+
+        $extracted = $this->registrationCertificate->extractFromUpload($file);
+        if (! ($extracted['valid'] ?? false)) {
+            throw ValidationException::withMessages([
+                'regdoc_file' => [$extracted['message'] ?? 'Invalid registration certificate.'],
+                'registration_number' => ['GST / MSME number could not be read from the uploaded certificate.'],
+                'business_name' => ['Business name could not be read from the uploaded certificate.'],
+            ]);
+        }
+
+        $storedPath = $file->store('customer-readiness/regdocs', 'local');
+
+        return [
+            'business_name' => (string) $extracted['business_name'],
+            'registration_number' => (string) $extracted['registration_number'],
+            'doc_type' => (string) $extracted['doc_type'],
+            'original_name' => (string) $file->getClientOriginalName(),
+            'stored_path' => $storedPath,
+        ];
     }
 
     /**

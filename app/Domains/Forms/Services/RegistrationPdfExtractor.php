@@ -19,6 +19,8 @@ class RegistrationPdfExtractor
      *     state: ?string,
      *     pincode: ?string,
      *     gstin: ?string,
+     *     udyam: ?string,
+     *     registration_number: ?string,
      *     pan: ?string,
      *     document_type: ?string
      * }
@@ -34,6 +36,8 @@ class RegistrationPdfExtractor
             'state' => null,
             'pincode' => null,
             'gstin' => null,
+            'udyam' => null,
+            'registration_number' => null,
             'pan' => null,
             'document_type' => null,
         ];
@@ -50,14 +54,37 @@ class RegistrationPdfExtractor
         $normalized = (string) preg_replace('/[ \t]+/', ' ', $text);
         $upper = strtoupper($normalized);
 
-        if (str_contains($upper, 'GOODS AND SERVICES TAX') || str_contains($upper, 'GSTIN')) {
+        $looksGst = str_contains($upper, 'GOODS AND SERVICES TAX')
+            || str_contains($upper, 'GSTIN/UIN')
+            || str_contains($upper, 'GSTIN / UIN')
+            || (str_contains($upper, 'GSTIN') && str_contains($upper, 'GOVERNMENT OF INDIA'));
+        $looksUdyam = str_contains($upper, 'UDYAM REGISTRATION')
+            || str_contains($upper, 'UDYAM-')
+            || (str_contains($upper, 'MSME') && (str_contains($upper, 'UDYAM') || str_contains($upper, 'MINISTRY OF MICRO')));
+
+        if ($looksGst) {
             $result['document_type'] = 'GST';
-        } elseif (str_contains($upper, 'UDYAM') || str_contains($upper, 'MSME')) {
+        } elseif ($looksUdyam) {
             $result['document_type'] = 'UDYAM';
         }
 
         if (preg_match('/\b\d{2}[A-Z]{5}\d{4}[A-Z][A-Z0-9]Z[A-Z0-9]\b/i', $normalized, $m) === 1) {
             $result['gstin'] = strtoupper($m[0]);
+        }
+
+        if (preg_match('/\bUDYAM-[A-Z]{2}-[0-9]{2}-[0-9]{7}\b/i', $normalized, $m) === 1) {
+            $result['udyam'] = strtoupper($m[0]);
+        }
+
+        if (($result['document_type'] ?? null) === 'UDYAM' && filled($result['udyam'])) {
+            $result['registration_number'] = $result['udyam'];
+        } elseif (filled($result['gstin'])) {
+            $result['registration_number'] = $result['gstin'];
+            if (($result['document_type'] ?? null) === null) {
+                // GSTIN alone is not enough to classify — keep null unless markers matched above.
+            }
+        } elseif (filled($result['udyam'])) {
+            $result['registration_number'] = $result['udyam'];
         }
 
         if (preg_match('/\b[A-Z]{5}[0-9]{4}[A-Z]\b/i', $normalized, $m) === 1) {
