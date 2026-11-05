@@ -820,7 +820,7 @@
       <div class="section-icon">🏢</div>
       <div>
         <h2>Your business basics</h2>
-        <p>We verify your registration and Facebook Page first — if anything blocks onboarding, you’ll see it here.</p>
+        <p>We verify your registration and Facebook Page first - if anything blocks onboarding, you’ll see it here.</p>
       </div>
     </div>
     <div class="section-body">

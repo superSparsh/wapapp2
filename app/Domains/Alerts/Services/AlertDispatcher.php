@@ -362,7 +362,17 @@ class AlertDispatcher
             default => 'Customer readiness: submitted',
         };
 
-        $this->platform->notifyAdmins($type, $adminSubject, $view, $submission, $adminEmails);
+        // GST / MSME PDF goes only to admin — not to the customer copy.
+        $adminAttachments = $this->readinessCertificateAttachments($submission);
+
+        $this->platform->notifyAdmins(
+            $type,
+            $adminSubject,
+            $view,
+            $submission,
+            $adminEmails,
+            attachments: $adminAttachments,
+        );
 
         $customerEmail = (string) ($submission['customer_email'] ?? $submission['email'] ?? '');
         if ($customerEmail !== '') {
@@ -380,6 +390,43 @@ class AlertDispatcher
                 $submission,
             );
         }
+    }
+
+    /**
+     * @param  array<string, mixed>  $submission
+     * @return list<array{path: string, as: string, mime: string}>
+     */
+    private function readinessCertificateAttachments(array $submission): array
+    {
+        $relative = (string) (
+            $submission['certificate_path']
+            ?? data_get($submission, 'meta.registration_certificate_path')
+            ?? ''
+        );
+        if ($relative === '') {
+            return [];
+        }
+
+        $absolute = \Illuminate\Support\Facades\Storage::disk('local')->path($relative);
+        if (! is_file($absolute)) {
+            return [];
+        }
+
+        $original = (string) (
+            $submission['certificate_original_name']
+            ?? data_get($submission, 'meta.registration_certificate_original_name')
+            ?? 'registration-certificate.pdf'
+        );
+        $safeName = basename($original);
+        if ($safeName === '' || ! str_ends_with(strtolower($safeName), '.pdf')) {
+            $safeName = 'registration-certificate.pdf';
+        }
+
+        return [[
+            'path' => $absolute,
+            'as' => $safeName,
+            'mime' => 'application/pdf',
+        ]];
     }
 
     /**

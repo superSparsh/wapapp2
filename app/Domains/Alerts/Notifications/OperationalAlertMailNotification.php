@@ -20,12 +20,14 @@ class OperationalAlertMailNotification extends Notification implements ShouldQue
 
     /**
      * @param  array<string, mixed>  $viewData
+     * @param  list<array{path: string, as?: string, mime?: string}>  $attachments
      */
     public function __construct(
         public readonly OperationalAlertType $type,
         public readonly string $subject,
         public readonly string $view,
         public readonly array $viewData = [],
+        public readonly array $attachments = [],
     ) {
         $this->onQueue((string) config('operational-alerts.queue', 'default'));
     }
@@ -48,6 +50,17 @@ class OperationalAlertMailNotification extends Notification implements ShouldQue
             ->view($this->view, array_merge($this->viewData, [
                 'logoUrl' => $logoUrl,
             ]));
+
+        foreach ($this->attachments as $attachment) {
+            $path = (string) ($attachment['path'] ?? '');
+            if ($path === '' || ! is_file($path)) {
+                continue;
+            }
+            $message->attach($path, array_filter([
+                'as' => $attachment['as'] ?? basename($path),
+                'mime' => $attachment['mime'] ?? null,
+            ]));
+        }
 
         if (! $embedLogo) {
             return $message;

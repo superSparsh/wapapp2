@@ -117,6 +117,8 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
 
         Route::get('/submissions', [CustomerSubmissionController::class, 'index'])->name('submissions.index');
         Route::get('/submissions/readiness/{submission}', [CustomerSubmissionController::class, 'showReadiness'])->name('submissions.readiness.show');
+        Route::get('/submissions/readiness/{submission}/certificate', [CustomerSubmissionController::class, 'downloadReadinessCertificate'])
+            ->name('submissions.readiness.certificate');
         Route::get('/submissions/onboarding/{submission}', [CustomerSubmissionController::class, 'showOnboarding'])->name('submissions.onboarding.show');
         Route::post('/submissions/onboarding/{submission}/resend', [CustomerSubmissionController::class, 'resend'])->name('submissions.onboarding.resend');
 

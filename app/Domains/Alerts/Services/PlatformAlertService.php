@@ -20,6 +20,7 @@ class PlatformAlertService
 
     /**
      * @param  array<string, mixed>  $emailData
+     * @param  list<array{path: string, as?: string, mime?: string}>  $attachments
      */
     public function notifyAdmins(
         OperationalAlertType $type,
@@ -28,6 +29,7 @@ class PlatformAlertService
         array $emailData = [],
         ?array $overrideEmails = null,
         bool $sync = false,
+        array $attachments = [],
     ): void {
         $emails = $overrideEmails ?? (array) config('operational-alerts.admin_emails', []);
         if ($emails === []) {
@@ -38,7 +40,7 @@ class PlatformAlertService
             return;
         }
 
-        $this->alerts->notifyEmails($emails, $type, $subject, $view, $emailData, $sync);
+        $this->alerts->notifyEmails($emails, $type, $subject, $view, $emailData, $sync, $attachments);
     }
 
     /**

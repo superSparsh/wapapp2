@@ -251,6 +251,45 @@ class AdminExtendedModulesTest extends TestCase
             ->assertSee('riya@example.com');
     }
 
+    public function test_admin_can_view_and_download_readiness_certificate(): void
+    {
+        $relative = 'customer-readiness/regdocs/test-cert.pdf';
+        \Illuminate\Support\Facades\Storage::disk('local')->put($relative, "%PDF-1.4\nfake cert\n%%EOF\n");
+
+        $submission = CustomerReadinessSubmission::query()->create([
+            'customer_name' => 'Riya Sharma',
+            'customer_email' => 'riya@example.com',
+            'business_name' => 'Sharma Traders',
+            'business_email' => 'billing@sharma.test',
+            'website' => 'https://sharma.test',
+            'doc_type' => 'gst_certificate',
+            'status' => 'eligible',
+            'data' => ['GST / MSME Number' => '29ABCDE1234F1Z5'],
+            'meta' => [
+                'registration_certificate_path' => $relative,
+                'registration_certificate_original_name' => 'GST-Sharma.pdf',
+                'eligible' => true,
+            ],
+        ]);
+
+        $this->actingAs($this->admin, 'admin')
+            ->get(route('admin.submissions.readiness.show', $submission))
+            ->assertOk()
+            ->assertSee('GST-Sharma.pdf')
+            ->assertSee('View PDF')
+            ->assertSee('Download PDF');
+
+        $this->actingAs($this->admin, 'admin')
+            ->get(route('admin.submissions.readiness.certificate', ['submission' => $submission, 'inline' => 1]))
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf');
+
+        $this->actingAs($this->admin, 'admin')
+            ->get(route('admin.submissions.readiness.certificate', ['submission' => $submission, 'inline' => 0]))
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf');
+    }
+
     public function test_onboarding_submission_tab_and_zoho_credit_detail(): void
     {
         $onboarding = CustomerOnboardingSubmission::query()->create([

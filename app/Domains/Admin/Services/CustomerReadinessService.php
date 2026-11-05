@@ -106,10 +106,11 @@ class CustomerReadinessService
             'data' => $payload,
             'meta' => array_merge($meta, [
                 'registration_certificate_path' => $certificate['stored_path'],
+                'registration_certificate_original_name' => $certificate['original_name'],
             ]),
         ]);
 
-        $this->notify($submission, $eligible, $reasons);
+        $this->notify($submission, $eligible, $reasons, $certificate);
 
         $result = $this->buildResultFlash($eligible, (string) $validated['business_email']);
 
@@ -963,9 +964,14 @@ class CustomerReadinessService
 
     /**
      * @param  list<string>  $reasons
+     * @param  array{business_name: string, registration_number: string, doc_type: string, original_name: string, stored_path: string}  $certificate
      */
-    private function notify(CustomerReadinessSubmission $submission, bool $eligible, array $reasons): void
-    {
+    private function notify(
+        CustomerReadinessSubmission $submission,
+        bool $eligible,
+        array $reasons,
+        array $certificate,
+    ): void {
         $status = $eligible ? 'eligible' : 'not_eligible';
         $payload = [
             'customer_name' => $submission->customer_name,
@@ -981,6 +987,8 @@ class CustomerReadinessService
             'meta' => $submission->meta,
             'data' => $submission->data,
             'status' => $status,
+            'certificate_path' => $certificate['stored_path'],
+            'certificate_original_name' => $certificate['original_name'],
         ];
 
         // Prefer business email for customer notifications (legacy).

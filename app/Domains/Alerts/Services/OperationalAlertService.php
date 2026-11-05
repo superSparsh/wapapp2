@@ -82,6 +82,7 @@ class OperationalAlertService
      *
      * @param  list<string>  $emails
      * @param  array<string, mixed>  $emailData
+     * @param  list<array{path: string, as?: string, mime?: string}>  $attachments
      */
     public function notifyEmails(
         array $emails,
@@ -90,9 +91,10 @@ class OperationalAlertService
         string $view,
         array $emailData = [],
         bool $sync = false,
+        array $attachments = [],
     ): void {
         foreach (array_unique(array_filter($emails)) as $email) {
-            $this->sendEmail((string) $email, $type, $subject, $view, $emailData, $sync);
+            $this->sendEmail((string) $email, $type, $subject, $view, $emailData, $sync, $attachments);
         }
     }
 
@@ -137,6 +139,7 @@ class OperationalAlertService
 
     /**
      * @param  array<string, mixed>  $emailData
+     * @param  list<array{path: string, as?: string, mime?: string}>  $attachments
      */
     private function sendEmail(
         string $email,
@@ -145,6 +148,7 @@ class OperationalAlertService
         string $view,
         array $emailData,
         bool $sync = false,
+        array $attachments = [],
     ): void {
         $email = trim($email);
         if ($email === '' || ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
@@ -152,7 +156,7 @@ class OperationalAlertService
         }
 
         try {
-            $notification = new OperationalAlertMailNotification($type, $subject, $view, $emailData);
+            $notification = new OperationalAlertMailNotification($type, $subject, $view, $emailData, $attachments);
             $pending = Notification::route('mail', $email);
             if ($sync) {
                 $pending->notifyNow($notification);

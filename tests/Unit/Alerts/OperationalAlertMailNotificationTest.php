@@ -47,4 +47,32 @@ class OperationalAlertMailNotificationTest extends TestCase
 
         $this->assertTrue($embedded, 'Expected tittu logo to be embedded with CID wapapp-logo');
     }
+
+    public function test_to_mail_attaches_registration_certificate_pdf(): void
+    {
+        $pdf = tempnam(sys_get_temp_dir(), 'gstcert_');
+        $this->assertNotFalse($pdf);
+        file_put_contents($pdf, "%PDF-1.4\nfake\n%%EOF\n");
+
+        $notification = new OperationalAlertMailNotification(
+            OperationalAlertType::ReadinessEligible,
+            'Customer readiness: eligible',
+            'emails.alerts.readiness-eligible',
+            ['customer_name' => 'Riya', 'business_name' => 'Sharma Traders'],
+            [[
+                'path' => $pdf,
+                'as' => 'gst-certificate.pdf',
+                'mime' => 'application/pdf',
+            ]],
+        );
+
+        $mail = $notification->toMail(new AnonymousNotifiable);
+
+        $this->assertNotEmpty($mail->attachments);
+        $this->assertSame($pdf, $mail->attachments[0]['file'] ?? null);
+        $this->assertSame('gst-certificate.pdf', $mail->attachments[0]['options']['as'] ?? null);
+        $this->assertSame('application/pdf', $mail->attachments[0]['options']['mime'] ?? null);
+
+        @unlink($pdf);
+    }
 }

@@ -10,7 +10,10 @@ use App\Models\CustomerOnboardingSubmission;
 use App\Models\CustomerReadinessSubmission;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class CustomerSubmissionController extends Controller
 {
@@ -66,6 +69,7 @@ class CustomerSubmissionController extends Controller
     public function showReadiness(CustomerReadinessSubmission $submission): View
     {
         $meta = is_array($submission->meta) ? $submission->meta : [];
+        $certificate = $this->readinessCertificateInfo($submission);
 
         return view('admin.submissions.show', [
             'tab' => 'readiness',
@@ -82,12 +86,62 @@ class CustomerSubmissionController extends Controller
                 'Soft warn (MFA)' => ! empty($meta['soft_warn']) ? 'Yes' : 'No',
                 'Received' => $submission->created_at?->toDayDateTimeString(),
             ],
+            'certificate' => $certificate,
             'payload' => [
                 'answers' => is_array($submission->data) ? $submission->data : [],
                 'meta' => $meta,
             ],
             'resendUrl' => null,
         ]);
+    }
+
+    public function downloadReadinessCertificate(
+        CustomerReadinessSubmission $submission,
+        Request $request,
+    ): StreamedResponse|Response {
+        $info = $this->readinessCertificateInfo($submission);
+        if ($info === null) {
+            abort(404, 'Registration certificate not found for this submission.');
+        }
+
+        $inline = $request->boolean('inline', true);
+
+        return Storage::disk('local')->response(
+            $info['path'],
+            $info['name'],
+            ['Content-Type' => 'application/pdf'],
+            $inline ? 'inline' : 'attachment',
+        );
+    }
+
+    /**
+     * @return array{path: string, name: string, url: string, download_url: string}|null
+     */
+    private function readinessCertificateInfo(CustomerReadinessSubmission $submission): ?array
+    {
+        $meta = is_array($submission->meta) ? $submission->meta : [];
+        $path = (string) ($meta['registration_certificate_path'] ?? '');
+        if ($path === '' || ! Storage::disk('local')->exists($path)) {
+            return null;
+        }
+
+        $name = basename((string) ($meta['registration_certificate_original_name'] ?? 'registration-certificate.pdf'));
+        if ($name === '' || ! str_ends_with(strtolower($name), '.pdf')) {
+            $name = 'registration-certificate.pdf';
+        }
+
+        return [
+            'path' => $path,
+            'name' => $name,
+            'url' => route('admin.submissions.readiness.certificate', [
+                'submission' => $submission,
+                'inline' => 1,
+            ]),
+            'download_url' => route('admin.submissions.readiness.certificate', [
+                'submission' => $submission,
+                'inline' => 0,
+            ]),
+        ];
     }
 
     public function showOnboarding(CustomerOnboardingSubmission $submission): View
@@ -103,6 +157,7 @@ class CustomerSubmissionController extends Controller
                 'Status' => $submission->status,
                 'Received' => $submission->created_at?->toDayDateTimeString(),
             ],
+            'certificate' => null,
             'payload' => is_array($submission->payload) ? $submission->payload : [],
             'resendUrl' => route('admin.submissions.onboarding.resend', $submission),
         ]);
