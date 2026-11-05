@@ -834,34 +834,51 @@
       </div>
 
       <div class="field">
-        <label>GST / MSME certificate (PDF) <span class="req">*</span></label>
-        <input type="file" id="f-regdoc-file" accept="application/pdf,.pdf" onchange="onRegDocFileChange()"/>
-        <div class="field-hint">Upload only your official GST certificate or Udyam MSME certificate (PDF, max 5 MB). We’ll read the number and business name from it.</div>
-        <div class="field-hint" id="regdoc-live-status"></div>
-        <div class="field-error" id="e-regdoc-file">⚠ Please upload a valid GST or Udyam MSME certificate PDF.</div>
-        <div class="field-block-msg" id="b-regdoc-file" style="display:none">
+        <label>Registration document <span class="req">*</span></label>
+        <select id="f-regdoc-type" onchange="onRegDocTypeChange()">
+          <option value="">Select document type</option>
+          <option value="gst">GST certificate</option>
+          <option value="msme">MSME certificate</option>
+          <option value="none">I don’t have any</option>
+        </select>
+        <div class="field-error" id="e-regdoc-type">⚠ Please select your registration document type.</div>
+        <div class="field-block-msg" id="b-regdoc-type" style="display:none">
           <span>🚫</span>
-          <span id="b-regdoc-file-text"><strong>We can’t onboard you with this document.</strong> Only a clear GST or Udyam MSME certificate PDF is accepted.</span>
+          <span id="b-regdoc-type-text"><strong>We can’t onboard you without a GST or MSME certificate.</strong> Meta requires a valid business registration document to proceed.</span>
         </div>
       </div>
 
-      <div class="field-row">
+      <div id="regdoc-upload-wrap" style="display:none;">
         <div class="field">
-          <label>GST No. / MSME No. <span class="req">*</span></label>
-          <input type="text" id="f-regnum" placeholder="Extracted from certificate" readonly
-                 style="background:#f3f6f4; cursor:not-allowed;"/>
-          <div class="field-hint" id="regnum-live-status"></div>
-          <div class="field-error" id="e-regnum">⚠ Number could not be read from the certificate.</div>
-          <div class="field-block-msg" id="b-regnum" style="display:none">
+          <label>GST / MSME certificate (PDF) <span class="req">*</span></label>
+          <input type="file" id="f-regdoc-file" accept="application/pdf,.pdf" onchange="onRegDocFileChange()"/>
+          <div class="field-hint">Upload only your official GST certificate or Udyam MSME certificate (PDF, max 5 MB). We’ll read the number and business name from it.</div>
+          <div class="field-hint" id="regdoc-live-status"></div>
+          <div class="field-error" id="e-regdoc-file">⚠ Please upload a valid GST or Udyam MSME certificate PDF.</div>
+          <div class="field-block-msg" id="b-regdoc-file" style="display:none">
             <span>🚫</span>
-            <span id="b-regnum-text"><strong>We can’t onboard you without a valid GST / MSME number from the certificate.</strong></span>
+            <span id="b-regdoc-file-text"><strong>We can’t onboard you with this document.</strong> Only a clear GST or Udyam MSME certificate PDF is accepted.</span>
           </div>
         </div>
-        <div class="field">
-          <label>Business name <span class="req">*</span></label>
-          <input type="text" id="f-bname" placeholder="Extracted from certificate" readonly
-                 style="background:#f3f6f4; cursor:not-allowed;" oninput="validateField('f-bname')"/>
-          <div class="field-error" id="e-bname">⚠ Business name could not be read from the certificate.</div>
+
+        <div class="field-row">
+          <div class="field">
+            <label>GST No. / MSME No. <span class="req">*</span></label>
+            <input type="text" id="f-regnum" placeholder="Extracted from certificate" readonly
+                   style="background:#f3f6f4; cursor:not-allowed;"/>
+            <div class="field-hint" id="regnum-live-status"></div>
+            <div class="field-error" id="e-regnum">⚠ Number could not be read from the certificate.</div>
+            <div class="field-block-msg" id="b-regnum" style="display:none">
+              <span>🚫</span>
+              <span id="b-regnum-text"><strong>We can’t onboard you without a valid GST / MSME number from the certificate.</strong></span>
+            </div>
+          </div>
+          <div class="field">
+            <label>Business name <span class="req">*</span></label>
+            <input type="text" id="f-bname" placeholder="Extracted from certificate" readonly
+                   style="background:#f3f6f4; cursor:not-allowed;" oninput="validateField('f-bname')"/>
+            <div class="field-error" id="e-bname">⚠ Business name could not be read from the certificate.</div>
+          </div>
         </div>
       </div>
 
@@ -885,7 +902,21 @@
         </div>
       </div>
 
-      <div class="field" id="fbpageurl-field">
+      <div class="field">
+        <label>Personal Facebook account <span class="req">*</span></label>
+        <select id="f-fbaccount" onchange="onFbAccountChange()">
+          <option value="">Select option</option>
+          <option value="yes">Yes ✓</option>
+          <option value="no">No</option>
+        </select>
+        <div class="field-error" id="e-fbaccount">⚠ Please select an option.</div>
+        <div class="field-block-msg" id="b-fbaccount" style="display:none">
+          <span>🚫</span>
+          <span><strong>We can’t onboard you without a personal Facebook account.</strong> Meta Business Manager must be linked to a personal Facebook account. Create one at <a href="https://www.facebook.com" target="_blank">facebook.com</a> before proceeding.</span>
+        </div>
+      </div>
+
+      <div class="field" id="fbpageurl-field" style="display:none;">
         <label for="f-fbpageurl">
           Facebook Page URL <span class="req">*</span>
           <button type="button" class="btn-ghost" style="margin-left:4px; padding-left:0;border:0"
@@ -960,33 +991,17 @@
         </div>
       </div>
 
-      <div class="field-row">
-        <div class="field">
-          <label>Personal Facebook account <span class="req">*</span></label>
-          <select id="f-fbaccount" onchange="validateField('f-fbaccount')">
-            <option value="">Select option</option>
-            <option value="yes">Available ✓</option>
-            <option value="no">Not available</option>
-          </select>
-          <div class="field-error" id="e-fbaccount">⚠ Please select an option.</div>
-          <div class="field-block-msg" id="b-fbaccount" style="display:none">
-            <span>🚫</span>
-            <span><strong>A personal Facebook account is required.</strong> Meta Business Manager must be linked to a personal Facebook account. You need to create one at <a href="https://www.facebook.com" target="_blank">facebook.com</a> before proceeding.</span>
-          </div>
-        </div>
-
-        <div class="field">
-          <label>Meta Business account status</label>
-          <select id="f-fbpage" onchange="validateField('f-fbpage')">
-            <option value="">Select option</option>
-            <option value="yes">Yes, Meta Business is created ✓</option>
-            <option value="no">Not yet created</option>
-            <option value="unsure">Not sure</option>
-          </select>
-          <div class="field-error" id="e-fbpage">⚠ Please select a valid option.</div>
-          <div class="field-warn-msg" id="w-fbpage" style="display:none">
-            ⚠ <span>A Meta Business account is required to proceed. You can create or access it at <a href="https://business.facebook.com" target="_blank">business.facebook.com</a>.</span>
-          </div>
+      <div class="field">
+        <label>Meta Business account status</label>
+        <select id="f-fbpage" onchange="validateField('f-fbpage')">
+          <option value="">Select option</option>
+          <option value="yes">Yes, Meta Business is created ✓</option>
+          <option value="no">Not yet created</option>
+          <option value="unsure">Not sure</option>
+        </select>
+        <div class="field-error" id="e-fbpage">⚠ Please select a valid option.</div>
+        <div class="field-warn-msg" id="w-fbpage" style="display:none">
+          ⚠ <span>A Meta Business account is required to proceed. You can create or access it at <a href="https://business.facebook.com" target="_blank">business.facebook.com</a>.</span>
         </div>
       </div>
 
@@ -1663,13 +1678,66 @@ function setBusinessEmailStatus(kind, msg) {
   else el.style.color = '#6b7a71';
 }
 
+function hasRegDocTypeSelected() {
+  const v = get('f-regdoc-type')?.value || '';
+  return v === 'gst' || v === 'msme';}
+
+function syncRegDocTypeUI() {
+  const wrap = get('regdoc-upload-wrap');
+  if (wrap) wrap.style.display = hasRegDocTypeSelected() ? 'block' : 'none';
+}
+
+function onRegDocTypeChange() {
+  syncRegDocTypeUI();
+  const type = get('f-regdoc-type')?.value || '';
+  if (type === 'none') {
+    // Clear any prior upload so a blocked path can't submit stale extract data.
+    if (get('f-regdoc-file')) get('f-regdoc-file').value = '';
+    clearRegistrationFields('We can’t onboard you without a GST or MSME certificate.');
+    setRegdocStatus('idle', '');
+  } else if (type === 'gst' || type === 'msme') {
+    // Keep a previously verified extract if present; otherwise reset upload prompts.
+    if (regLookupState !== true) {
+      setRegdocStatus('idle', '');
+      showNeutral('f-regdoc-file');
+    }
+  }
+  validateField('f-regdoc-type');
+  refreshStep1OnboardBlockers();
+  updateProgress();
+}
+
+function syncFbAccountUI() {
+  const wrap = get('fbpageurl-field');
+  const hasAccount = get('f-fbaccount')?.value === 'yes';
+  if (wrap) wrap.style.display = hasAccount ? 'block' : 'none';
+}
+
+function onFbAccountChange() {
+  syncFbAccountUI();
+  const v = get('f-fbaccount')?.value || '';
+  if (v !== 'yes') {
+    fbPageUrlCheckState = null;
+    fbPageUrlCheckMsg = '';
+    setFbPageUrlStatus('idle', '');
+    if (get('f-fbpageurl')) get('f-fbpageurl').value = '';
+    showNeutral('f-fbpageurl');
+  }
+  validateField('f-fbaccount');
+  refreshStep1OnboardBlockers();
+  updateProgress();
+}
+
 function refreshStep1OnboardBlockers() {
   const box = get('step1-onboard-blockers');
   const list = get('step1-onboard-blocker-list');
   if (!box || !list) return;
 
   const blockers = [];
-  if (regLookupState === false && regLookupMsg) {
+  if (get('f-regdoc-type')?.value === 'none') {
+    blockers.push('We can’t onboard you without a GST or MSME certificate.');
+  }
+  if (hasRegDocTypeSelected() && regLookupState === false && regLookupMsg) {
     blockers.push(regLookupMsg);
   }
   if (get('f-website')?.value?.trim().startsWith('http://')) {
@@ -1681,7 +1749,10 @@ function refreshStep1OnboardBlockers() {
   if (businessEmailCheckState === false && businessEmailCheckMsg) {
     blockers.push(businessEmailCheckMsg);
   }
-  if (fbPageUrlCheckState === false && fbPageUrlCheckMsg) {
+  if (get('f-fbaccount')?.value === 'no') {
+    blockers.push('We can’t onboard you without a personal Facebook account.');
+  }
+  if (get('f-fbaccount')?.value === 'yes' && fbPageUrlCheckState === false && fbPageUrlCheckMsg) {
     blockers.push(fbPageUrlCheckMsg);
   }
 
@@ -2011,6 +2082,7 @@ function validateField(id) {
       showValid(id); return true;
 
     case 'f-bname':
+      if (!hasRegDocTypeSelected()) return true;
       if (!v || v.length < 2 || regLookupState !== true) { showError(id); return false; }
       showValid(id); return true;
 
@@ -2061,7 +2133,14 @@ function validateField(id) {
       if (websiteReachable === false) { showError(id); refreshStep1OnboardBlockers(); return false; }
       showValid(id); refreshStep1OnboardBlockers(); return true;
 
+    case 'f-regdoc-type':
+      if (!v) { showError(id); refreshStep1OnboardBlockers(); return false; }
+      if (v === 'none') { showBlock(id); refreshStep1OnboardBlockers(); return false; }
+      if (v !== 'gst' && v !== 'msme') { showError(id); refreshStep1OnboardBlockers(); return false; }
+      showValid(id); refreshStep1OnboardBlockers(); return true;
+
     case 'f-regdoc-file': {
+      if (!hasRegDocTypeSelected()) return true;
       const input = el;
       const hasFile = !!(input.files && input.files.length > 0);
       // After other-field validation redirects, file input is empty but session extract remains.
@@ -2099,6 +2178,7 @@ function validateField(id) {
     }
 
     case 'f-regnum':
+      if (!hasRegDocTypeSelected()) return true;
       if (!v) { showError(id); refreshStep1OnboardBlockers(); return false; }
       if (regLookupState === false) { showBlock(id); refreshStep1OnboardBlockers(); return false; }
       if (regLookupState !== true) {
@@ -2110,6 +2190,7 @@ function validateField(id) {
       showValid(id); refreshStep1OnboardBlockers(); return true;
 
     case 'f-fbpageurl':
+      if (get('f-fbaccount')?.value !== 'yes') return true;
       if (!v) { showError(id); refreshStep1OnboardBlockers(); return false; }
       if (!/^https:\/\/(www\.)?facebook\.com\//i.test(v)) { showBlock(id); refreshStep1OnboardBlockers(); return false; }
       if (fbPageUrlCheckState === false) { showBlock(id); refreshStep1OnboardBlockers(); return false; }
@@ -2133,9 +2214,9 @@ function validateField(id) {
       showValid(id); return true;
 
     case 'f-fbaccount':
-      if (!v) { showError(id); return false; }
-      if (v === 'no') { showBlock(id); return false; }
-      showValid(id); return true;
+      if (!v) { showError(id); refreshStep1OnboardBlockers(); return false; }
+      if (v === 'no') { showBlock(id); refreshStep1OnboardBlockers(); return false; }
+      showValid(id); refreshStep1OnboardBlockers(); return true;
 
     case 'f-fbpage':
       if (!v) { showNeutral(id); return true; }
@@ -2229,8 +2310,8 @@ get('f-bemail')?.addEventListener('blur', async () => {
 
 // ── Section validators ──────────────────────────
 const sectionFields = {
-  0: ['f-regdoc-file','f-regnum','f-bname','f-bemail','f-website','f-fbpageurl'],
-  1: ['f-metaadmin','f-mfa','f-fbaccount'],
+  0: ['f-regdoc-type','f-regdoc-file','f-regnum','f-bname','f-bemail','f-website','f-fbaccount','f-fbpageurl'],
+  1: ['f-metaadmin','f-mfa'],
   2: ['f-numplan','f-otp','f-numtype','f-wanum','f-wadisplayname'],
   3: ['f-name','f-email','f-personal'],
 };
@@ -2238,11 +2319,11 @@ const sectionFields = {
 async function validateSectionAsync(idx) {
   if (idx === 0) {
     const file = get('f-regdoc-file')?.files?.[0] || null;
-    if (file && regLookupState !== true) {
+    if (hasRegDocTypeSelected() && file && regLookupState !== true) {
       await extractRegistrationFromPdf(file);
     }
     const fbUrl = (get('f-fbpageurl')?.value || '').trim();
-    if (fbUrl && fbPageUrlCheckState !== true) {
+    if (get('f-fbaccount')?.value === 'yes' && fbUrl && fbPageUrlCheckState !== true) {
       await validateFacebookPageUrlRealtime();
     }
     const be = (get('f-bemail')?.value || '').trim();
@@ -2525,7 +2606,7 @@ document.addEventListener('keydown', function(e) {
 });
 
 function mapToBackendPayload() {
-  const docTypeMap = { gst: 'GST certificate', udyam: 'Udyam MSME certificate' };
+  const docTypeMap = { gst: 'GST certificate', msme: 'Udyam MSME certificate', udyam: 'Udyam MSME certificate' };
   const mfaMap = { all: 'all_admins', some: 'some_admins', none: 'none' };
   const fbPersonalMap = { yes: 'available', no: 'not' };
   const fbPageMap = { yes: 'yes', no: 'no', unsure: 'not_sure' };
@@ -2546,6 +2627,8 @@ function mapToBackendPayload() {
     business_email: get('f-bemail')?.value?.trim(),
     site: get('f-website')?.value?.trim(),
     docType: (() => {
+      const selected = get('f-regdoc-type')?.value || '';
+      if (docTypeMap[selected]) return docTypeMap[selected];
       const n = (get('f-regnum')?.value || '').trim().toUpperCase().replace(/\s+/g, '');
       const t = detectRegDocType(n);
       return docTypeMap[t] || '';
@@ -2658,8 +2741,10 @@ function loadDraft() {
     const data = JSON.parse(saved);
     Object.entries(data).forEach(([id, val]) => {
       const el = get(id);
-      if (el) el.value = val;
+      if (el && el.type !== 'file') el.value = val;
     });
+    syncRegDocTypeUI();
+    syncFbAccountUI();
     updateProgress();
   } catch(e) {}
 }
@@ -2689,12 +2774,45 @@ const oldToField = {
   number: 'f-wanum',
   whatsapp_display_name: 'f-wadisplayname',
 };
+const oldValueMaps = {
+  mbm_mfa: { all_admins: 'all', some_admins: 'some', none: 'none' },
+  fb_personal: { available: 'yes', not: 'no' },
+  fb_page_created: { yes: 'yes', no: 'no', not_sure: 'unsure' },
+  num_plan: {
+    new_unused: 'new',
+    migrate_to_api: 'migrate',
+    existing_cannot_use: 'apponly',
+    not_decided: 'undecided',
+  },
+  num_otp: { can_receive: 'yes', cannot_receive: 'no' },
+  num_type: { physical: 'physical', virtual: 'voip' },
+};
 Object.entries(oldToField).forEach(([backendKey, fieldId]) => {
-  const val = oldInput?.[backendKey];
+  let val = oldInput?.[backendKey];
   if (val === undefined || val === null || val === '') return;
+  if (oldValueMaps[backendKey]?.[val] !== undefined) {
+    val = oldValueMaps[backendKey][val];
+  }
   const el = get(fieldId);
   if (el) el.value = val;
 });
+
+// Restore document type from old input / detected registration number.
+(() => {
+  const docTypeEl = get('f-regdoc-type');
+  if (!docTypeEl) return;
+  const fromDocType = {
+    'GST certificate': 'gst',
+    'Udyam MSME certificate': 'msme',
+  }[oldInput?.docType || ''] || '';
+  const fromNumber = detectRegDocType((oldInput?.registration_number || get('f-regnum')?.value || '').trim());
+  const mappedFromNumber = fromNumber === 'gst' ? 'gst' : (fromNumber === 'udyam' ? 'msme' : '');
+  if (fromDocType) docTypeEl.value = fromDocType;
+  else if (mappedFromNumber) docTypeEl.value = mappedFromNumber;
+})();
+
+syncRegDocTypeUI();
+syncFbAccountUI();
 
 const serverErrors = @json($errors->getMessages());
 const hasGstUploadError = !!(serverErrors?.regdoc_file || serverErrors?.registration_number || serverErrors?.business_name);
@@ -2718,12 +2836,24 @@ if (hasGstUploadError) {
   setRegdocStatus('ok', '✅ Certificate verified — re-upload only if you need to change it.');
   showValid('f-regnum');
   showValid('f-bname');
+  if (get('f-regdoc-type') && !get('f-regdoc-type').value) {
+    const detected = detectRegDocType(verifiedCert.registration_number);
+    get('f-regdoc-type').value = detected === 'gst' ? 'gst' : (detected === 'udyam' ? 'msme' : 'gst');
+  }
 } else if ((get('f-regnum')?.value || '').trim() && (get('f-bname')?.value || '').trim()) {
   regLookupState = true;
   rememberGoodRegistration(get('f-regnum').value, get('f-bname').value);
   setRegnumStatus('ok', '✅ ' + get('f-regnum').value.trim());
+  if (get('f-regdoc-type') && !get('f-regdoc-type').value) {
+    const detected = detectRegDocType(get('f-regnum').value);
+    get('f-regdoc-type').value = detected === 'gst' ? 'gst' : (detected === 'udyam' ? 'msme' : 'gst');
+  }
 }
-if ((get('f-fbpageurl')?.value || '').trim()) fbPageUrlCheckState = true;
+syncRegDocTypeUI();
+syncFbAccountUI();
+if ((get('f-fbpageurl')?.value || '').trim() && get('f-fbaccount')?.value === 'yes') {
+  fbPageUrlCheckState = true;
+}
 
 const backendToField = {
   customer_name: 'f-name',
