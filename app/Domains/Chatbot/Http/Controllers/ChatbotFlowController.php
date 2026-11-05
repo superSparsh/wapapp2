@@ -208,8 +208,8 @@ class ChatbotFlowController extends Controller
         $clone = $this->flowService->duplicate($chatbotFlow);
 
         return redirect()
-            ->route('chatbot.edit', $clone)
-            ->with('status', 'Chatbot flow duplicated successfully.');
+            ->route('chatbot.index')
+            ->with('status', 'Chatbot copied as “'.$clone->name.'” (disabled by default). Enable it when ready.');
     }
 
     public function stats(ChatbotFlow $chatbotFlow, ChatbotFlowStatService $statService): View

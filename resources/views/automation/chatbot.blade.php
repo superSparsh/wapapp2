@@ -104,6 +104,12 @@
                       <a href="{{ $chatbot['edit_url'] }}" class="flex size-5 items-center justify-center" aria-label="Edit" title="Edit">
                         <img src="{{ asset('images/automation/edit.svg') }}" alt="" class="size-5" width="20" height="20">
                       </a>
+                      <form method="POST" action="{{ $chatbot['duplicate_url'] }}" class="inline">
+                        @csrf
+                        <button type="submit" class="flex size-5 items-center justify-center" aria-label="Copy chatbot" title="Copy">
+                          <img src="{{ asset('images/automation/copy-icon.svg') }}" alt="" class="size-5" width="20" height="20">
+                        </button>
+                      </form>
                       <x-automation.listing-delete-button
                         :action="$chatbot['delete_url']"
                         confirm="Delete this chatbot flow? This action cannot be undone."

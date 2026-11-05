@@ -5,15 +5,20 @@ declare(strict_types=1);
 namespace App\Domains\Admin\Services;
 
 use App\Domains\Admin\Support\AdminListQuery;
+use App\Domains\Campaigns\Services\CampaignService;
 use App\Enums\CampaignStatus;
 use App\Models\Campaign;
+use App\Models\Tenant;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\ValidationException;
+use Throwable;
 
 class RecentCampaignAdminService
 {
     public function __construct(
         private readonly CrossTenantScanner $scanner,
+        private readonly CampaignService $campaigns,
     ) {}
 
     /**
@@ -55,7 +60,11 @@ class RecentCampaignAdminService
 
         $rows = $this->scanner->map(function (): array {
             return Campaign::query()
-                ->with(['template:id,name', 'whatsappLine:id,phone,display_name', 'creator:id,name'])
+                ->with([
+                    'template:id,name',
+                    'whatsappLine:id,phone,display_name',
+                    'creator:id,first_name,last_name,email',
+                ])
                 ->where(function ($q): void {
                     // Prefer campaigns that actually moved beyond draft.
                     $q->where('status', '!=', CampaignStatus::Draft->value)
@@ -78,16 +87,22 @@ class RecentCampaignAdminService
                         ?? $campaign->updated_at
                         ?? $campaign->created_at;
 
+                    $createdBy = $campaign->creator?->displayName();
+                    $createdBy = is_string($createdBy) ? trim($createdBy) : '';
+
                     return [
                         'campaign_id' => $campaign->id,
                         'name' => (string) $campaign->name,
                         'status' => $status?->value ?? (string) $campaign->status,
                         'status_label' => $status?->label() ?? (string) $campaign->status,
+                        'can_pause' => $campaign->isSending(),
+                        'can_resume' => $campaign->isPaused(),
+                        'can_delete' => true,
                         'template_name' => (string) ($campaign->template?->name ?? '-'),
                         'line_phone' => (string) ($campaign->whatsappLine?->phone ?? '-'),
                         'line_name' => (string) ($campaign->whatsappLine?->display_name ?? ''),
                         'audience' => $campaign->audienceName(),
-                        'created_by' => (string) ($campaign->creator?->name ?? '-'),
+                        'created_by' => $createdBy,
                         'total_recipients' => (int) $campaign->total_recipients,
                         'total_delivered' => (int) $campaign->total_delivered,
                         'total_failed' => (int) $campaign->total_failed,
@@ -181,5 +196,59 @@ class RecentCampaignAdminService
             'filters' => $filters,
             'kpi' => $kpi,
         ];
+    }
+
+    public function toggle(string $tenantId, int $campaignId): Campaign
+    {
+        return $this->runInTenant($tenantId, function () use ($campaignId): Campaign {
+            $campaign = Campaign::query()->findOrFail($campaignId);
+
+            if (! $campaign->isSending() && ! $campaign->isPaused()) {
+                throw ValidationException::withMessages([
+                    'campaign' => ['Only sending or paused campaigns can be paused/resumed.'],
+                ]);
+            }
+
+            return $this->campaigns->toggle($campaign);
+        });
+    }
+
+    public function delete(string $tenantId, int $campaignId): void
+    {
+        $this->runInTenant($tenantId, function () use ($campaignId): void {
+            $campaign = Campaign::query()->findOrFail($campaignId);
+            $this->campaigns->delete($campaign);
+        });
+    }
+
+    /**
+     * @template T
+     * @param  callable(): T  $callback
+     * @return T
+     */
+    private function runInTenant(string $tenantId, callable $callback): mixed
+    {
+        $tenant = Tenant::query()->findOrFail($tenantId);
+        $wasInitialized = tenancy()->initialized;
+        $previous = $wasInitialized ? tenant() : null;
+
+        if ($wasInitialized) {
+            tenancy()->end();
+        }
+
+        try {
+            tenancy()->initialize($tenant);
+
+            return $callback();
+        } catch (Throwable $e) {
+            throw $e;
+        } finally {
+            if (tenancy()->initialized) {
+                tenancy()->end();
+            }
+            if ($previous !== null) {
+                tenancy()->initialize($previous);
+            }
+        }
     }
 }

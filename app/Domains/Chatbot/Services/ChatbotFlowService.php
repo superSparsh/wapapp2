@@ -134,12 +134,14 @@ class ChatbotFlowService
     public function duplicate(ChatbotFlow $flow): ChatbotFlow
     {
         return DB::transaction(function () use ($flow): ChatbotFlow {
+            // Always start disabled — operators must explicitly enable the copy.
             $clone = $flow->replicate(['uuid', 'published_at']);
             $clone->name = $flow->name.' (Copy)';
             $clone->status = ChatbotFlowStatus::Draft;
+            $clone->published_at = null;
             $clone->save();
 
-            return $clone;
+            return $clone->refresh();
         });
     }
 

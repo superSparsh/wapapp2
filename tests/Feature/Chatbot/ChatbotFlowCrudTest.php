@@ -266,15 +266,37 @@ class ChatbotFlowCrudTest extends TestCase
         $this->assertNotNull($flow->published_at);
     }
 
-    public function test_duplicate_creates_copy(): void
+    public function test_duplicate_creates_disabled_copy(): void
     {
-        $flow = ChatbotFlow::factory()->withNodes(2)->create(['name' => 'Original Bot']);
+        $flow = ChatbotFlow::factory()->withNodes(2)->create([
+            'name' => 'Original Bot',
+            'status' => \App\Enums\ChatbotFlowStatus::Active,
+            'published_at' => now(),
+        ]);
 
         $this->actingAsTenantUser()
             ->post(route('chatbot.duplicate', $flow))
-            ->assertRedirect();
+            ->assertRedirect(route('chatbot.index'));
 
         $this->assertDatabaseCount('chatbot_flows', 2);
+
+        $clone = ChatbotFlow::query()->where('name', 'Original Bot (Copy)')->first();
+        $this->assertNotNull($clone);
+        $this->assertSame('draft', $clone->status->value);
+        $this->assertFalse($clone->isActive());
+        $this->assertNull($clone->published_at);
+        $this->assertSame($flow->exported_data, $clone->exported_data);
+    }
+
+    public function test_index_lists_copy_action(): void
+    {
+        $flow = ChatbotFlow::factory()->create(['name' => 'Support Bot']);
+
+        $this->actingAsTenantUser()
+            ->get(route('chatbot.index'))
+            ->assertOk()
+            ->assertSee('Copy chatbot', false)
+            ->assertSee(route('chatbot.duplicate', $flow), false);
     }
 
     public function test_unauthenticated_access_redirects(): void

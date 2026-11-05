@@ -212,6 +212,10 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::post('/whatsapp-health/alerts/{alert}/read', [WhatsappHealthController::class, 'markAlertRead'])->name('whatsapp-health.alerts.read');
         Route::get('/message-performance', [MessagePerformanceController::class, 'index'])->name('message-performance.index');
         Route::get('/recent-campaigns', [RecentCampaignController::class, 'index'])->name('recent-campaigns.index');
+        Route::patch('/recent-campaigns/{tenant}/{campaign}/toggle', [RecentCampaignController::class, 'toggle'])
+            ->name('recent-campaigns.toggle');
+        Route::delete('/recent-campaigns/{tenant}/{campaign}', [RecentCampaignController::class, 'destroy'])
+            ->name('recent-campaigns.destroy');
 
         Route::get('/plans', [PlanController::class, 'index'])->name('plans.index');
         Route::get('/plans/create', [PlanController::class, 'create'])->name('plans.create');

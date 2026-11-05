@@ -9,7 +9,9 @@ use App\Domains\Admin\Support\AdminListQuery;
 use App\Enums\CampaignStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Tenant;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class RecentCampaignController extends Controller
@@ -47,5 +49,24 @@ class RecentCampaignController extends Controller
                 ['value' => 'name', 'label' => 'Campaign name', 'direction' => 'asc'],
             ],
         ]);
+    }
+
+    public function toggle(Request $request, string $tenant, int $campaign): RedirectResponse
+    {
+        try {
+            $updated = $this->campaigns->toggle($tenant, $campaign);
+            $label = $updated->isPaused() ? 'paused' : 'resumed';
+
+            return back()->with('status', "Campaign {$label} successfully.");
+        } catch (ValidationException $e) {
+            return back()->withErrors($e->errors());
+        }
+    }
+
+    public function destroy(string $tenant, int $campaign): RedirectResponse
+    {
+        $this->campaigns->delete($tenant, $campaign);
+
+        return back()->with('status', 'Campaign deleted successfully.');
     }
 }
