@@ -93,22 +93,26 @@ class ChatbotFlowEngine
         }
 
         $isInteractiveReply = $this->inboundLooksLikeInteractiveReply($inboundMessage);
-        $hasLiveState = $this->findWaitingState($conversation) !== null
-            || $this->findActiveState($conversation) !== null;
 
         // 2. Button/list/QR tap on a prior chatbot message → route from that node's edges
         // (even after the flow already advanced past that menu).
+        // List replies from some BSPs omit ContextMessageId — fall back to recent tagged outbounds.
         if ($isInteractiveReply) {
             $contextRouted = $this->tryContextNodeReply($conversation, $inboundMessage, $body);
             if ($contextRouted !== TriggerFireResult::NoMatch) {
                 return $contextRouted;
             }
+
+            $recentRouted = $this->tryRecentChatbotOptionReply($conversation, $inboundMessage, $body);
+            if ($recentRouted !== TriggerFireResult::NoMatch) {
+                return $recentRouted;
+            }
         }
 
         // 3. Keyword trigger (legacy WebhookMessageService order).
-        // Skip when this inbound is an interactive option tap while a flow is live —
-        // otherwise option titles that collide with triggers restart the menu.
-        if (! ($isInteractiveReply && $hasLiveState)) {
+        // Never preempt on interactive button/list taps — option titles often collide with
+        // welcome keywords and re-send the menu (especially after the previous branch completed).
+        if (! $isInteractiveReply) {
             $triggered = $this->matchAndTriggerFlow($conversation, $inboundMessage, $body, exactOnly: false);
             if ($triggered !== TriggerFireResult::NoMatch) {
                 return $triggered;
@@ -852,38 +856,232 @@ class ChatbotFlowEngine
             return TriggerFireResult::NoMatch;
         }
 
+        return $this->routeInteractiveReplyViaOutbound(
+            $conversation,
+            $inboundMessage,
+            $body,
+            $outbound,
+            'context',
+        );
+    }
+
+    /**
+     * Fallback when ContextMessageId is missing (common for list_reply on some BSPs):
+     * scan recent chatbot-tagged interactive/template outbounds and route if this reply
+     * matches an option on that node.
+     */
+    private function tryRecentChatbotOptionReply(
+        Conversation $conversation,
+        Message $inboundMessage,
+        string $body,
+    ): TriggerFireResult {
+        $replyId = (string) (($inboundMessage->metadata['interactive_reply_id'] ?? null)
+            ?: ($inboundMessage->metadata['reply_id'] ?? ''));
+
+        $outbounds = Message::query()
+            ->where('conversation_id', $conversation->id)
+            ->where('direction', MessageDirection::Outbound)
+            ->whereIn('message_type', [MessageType::Interactive->value, MessageType::Template->value])
+            ->where('created_at', '>=', now()->subDays(7))
+            ->orderByDesc('id')
+            ->limit(20)
+            ->get();
+
+        foreach ($outbounds as $outbound) {
+            $metadata = is_array($outbound->metadata) ? $outbound->metadata : [];
+            if (! filled($metadata['chatbot_flow_id'] ?? null) || trim((string) ($metadata['chatbot_node_id'] ?? '')) === '') {
+                continue;
+            }
+
+            $resolved = $this->resolveOutboundOptionNode($outbound);
+            if ($resolved === null) {
+                continue;
+            }
+
+            ['flow' => $flow, 'node' => $node, 'node_map' => $nodeMap] = $resolved;
+
+            // Only accept if this reply actually matches an option/handle on that node.
+            if (! $this->replyMatchesOptionNode($node, $body, $replyId)) {
+                continue;
+            }
+
+            Log::info('Chatbot recent-outbound option reply matched', [
+                'conversation_id' => $conversation->id,
+                'flow_id' => $flow->id,
+                'node_id' => (string) ($node['id'] ?? ''),
+                'outbound_message_id' => $outbound->id,
+                'reply' => $body,
+            ]);
+
+            return $this->bindAndProcessOptionReply(
+                $conversation,
+                $inboundMessage,
+                $body,
+                $flow,
+                $node,
+                'recent',
+            );
+        }
+
+        return TriggerFireResult::NoMatch;
+    }
+
+    /**
+     * @return array{flow: ChatbotFlow, node: array<string, mixed>, node_map: array<string, array<string, mixed>>}|null
+     */
+    private function resolveOutboundOptionNode(Message $outbound): ?array
+    {
         $metadata = is_array($outbound->metadata) ? $outbound->metadata : [];
         $flowId = $metadata['chatbot_flow_id'] ?? null;
         $nodeId = trim((string) ($metadata['chatbot_node_id'] ?? ''));
 
         if (! filled($flowId) || $nodeId === '') {
-            return TriggerFireResult::NoMatch;
+            return null;
         }
 
         $flow = ChatbotFlow::query()->find((int) $flowId);
         if ($flow === null || ! $flow->isActive() || ! $flow->hasFlowData()) {
-            return TriggerFireResult::NoMatch;
+            return null;
         }
 
         $nodeMap = $this->normalizer->normalize($flow);
         $node = $nodeMap[$nodeId] ?? null;
         if ($node === null || ! OptionNodeWaitHydrator::supports($node)) {
+            return null;
+        }
+
+        return [
+            'flow' => $flow,
+            'node' => $node,
+            'node_map' => $nodeMap,
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $node
+     */
+    private function replyMatchesOptionNode(array $node, string $replyBody, string $replyId): bool
+    {
+        $data = is_array($node['data'] ?? null) ? $node['data'] : [];
+        if ($this->matchInteractiveHandleKey($node, $data, $replyBody, $replyId) !== null) {
+            return true;
+        }
+
+        $variables = [
+            '_interactive_options' => $this->previewInteractiveOptions($data),
+            '_quick_replies' => TemplateMessageWaitHydrator::resolveQuickReplies($data),
+        ];
+
+        return $this->resolveMatchedReplyHandle($node, $replyBody, $variables, $replyId) !== null
+            || $this->resolveNextNodeFromReply($node, $replyBody, $variables, $replyId) !== null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<int, array{id: string, title: string}>
+     */
+    private function previewInteractiveOptions(array $data): array
+    {
+        $interactiveType = strtolower((string) ($data['interactiveType'] ?? $data['interactive_type'] ?? $data['type'] ?? 'button'));
+        $options = [];
+
+        if ($interactiveType === 'list' || isset($data['sections']) || isset($data['list_sections']) || isset($data['listItems'])) {
+            foreach ($data['sections'] ?? $data['list_sections'] ?? $data['listItems'] ?? [] as $section) {
+                if (! is_array($section)) {
+                    continue;
+                }
+                foreach (array_values($section['rows'] ?? $section['items'] ?? []) as $index => $row) {
+                    if (! is_array($row)) {
+                        continue;
+                    }
+                    $options[] = [
+                        'id' => (string) ($row['id'] ?? "list_{$index}"),
+                        'title' => (string) ($row['title'] ?? $row['text'] ?? $row['label'] ?? ''),
+                    ];
+                }
+            }
+
+            if ($options !== []) {
+                return $options;
+            }
+        }
+
+        foreach (array_values($data['buttons'] ?? $data['options'] ?? []) as $index => $button) {
+            if (is_string($button)) {
+                $options[] = ['id' => "btn_{$index}", 'title' => $button];
+
+                continue;
+            }
+            if (! is_array($button)) {
+                continue;
+            }
+            $options[] = [
+                'id' => (string) ($button['id'] ?? "btn_{$index}"),
+                'title' => (string) ($button['title'] ?? $button['text'] ?? $button['label'] ?? ''),
+            ];
+        }
+
+        return $options;
+    }
+
+    private function routeInteractiveReplyViaOutbound(
+        Conversation $conversation,
+        Message $inboundMessage,
+        string $body,
+        Message $outbound,
+        string $source,
+    ): TriggerFireResult {
+        $resolved = $this->resolveOutboundOptionNode($outbound);
+        if ($resolved === null) {
             return TriggerFireResult::NoMatch;
+        }
+
+        ['flow' => $flow, 'node' => $node, 'node_map' => $nodeMap] = $resolved;
+
+        $replyId = (string) (($inboundMessage->metadata['interactive_reply_id'] ?? null)
+            ?: ($inboundMessage->metadata['reply_id'] ?? ''));
+
+        // Context hits should still verify the tap belongs to this node when possible.
+        if ($replyId !== '' || trim($body) !== '') {
+            if (! $this->replyMatchesOptionNode($node, $body, $replyId)) {
+                return TriggerFireResult::NoMatch;
+            }
         }
 
         Log::info('Chatbot context-node reply matched', [
             'conversation_id' => $conversation->id,
             'flow_id' => $flow->id,
-            'node_id' => $nodeId,
-            'context_message_id' => $contextMessageId,
+            'node_id' => (string) ($node['id'] ?? ''),
             'outbound_message_id' => $outbound->id,
+            'source' => $source,
             'reply' => $body,
         ]);
 
+        return $this->bindAndProcessOptionReply(
+            $conversation,
+            $inboundMessage,
+            $body,
+            $flow,
+            $node,
+            $source,
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>  $node
+     */
+    private function bindAndProcessOptionReply(
+        Conversation $conversation,
+        Message $inboundMessage,
+        string $body,
+        ChatbotFlow $flow,
+        array $node,
+        string $source,
+    ): TriggerFireResult {
+        $nodeId = (string) ($node['id'] ?? '');
         $state = $this->findLiveStateForFlow($conversation, (int) $flow->id);
 
         if ($state === null) {
-            // Clear other bots mid-flight so a valid historical tap can resume this flow.
             $this->resetConversationStates($conversation);
 
             $state = ChatbotFlowState::query()->create([
@@ -894,6 +1092,7 @@ class ChatbotFlowEngine
                     '_flow_name' => $flow->name,
                     '_start_node' => $nodeId,
                     '_context_node_reply' => true,
+                    '_context_node_source' => $source,
                     '_last_reply' => $body,
                     'user_response' => $body,
                     'message_text' => $body,
@@ -903,7 +1102,6 @@ class ChatbotFlowEngine
             ]);
         }
 
-        // Re-bind to the historical option node (without re-sending its WhatsApp message).
         OptionNodeWaitHydrator::hydrate($state, $node);
         $state->refresh();
         $this->refreshExpiry($state);

@@ -123,20 +123,21 @@ final class OptionNodeWaitHydrator
     {
         $options = [];
 
-        if ($interactiveType === 'button' || isset($data['buttons'])) {
-            foreach (array_values($data['buttons'] ?? $data['options'] ?? []) as $index => $button) {
-                if (is_string($button)) {
-                    $options[] = ['id' => "btn_{$index}", 'title' => $button];
-
+        // List nodes must read sections first — some payloads also carry an empty buttons key.
+        if ($interactiveType === 'list' || isset($data['sections']) || isset($data['list_sections']) || isset($data['listItems'])) {
+            foreach ($data['sections'] ?? $data['list_sections'] ?? $data['listItems'] ?? [] as $section) {
+                if (! is_array($section)) {
                     continue;
                 }
-                if (! is_array($button)) {
-                    continue;
+                foreach (array_values($section['rows'] ?? $section['items'] ?? []) as $index => $row) {
+                    if (! is_array($row)) {
+                        continue;
+                    }
+                    $options[] = [
+                        'id' => (string) ($row['id'] ?? "list_{$index}"),
+                        'title' => (string) ($row['title'] ?? $row['text'] ?? $row['label'] ?? ''),
+                    ];
                 }
-                $options[] = [
-                    'id' => (string) ($button['id'] ?? "btn_{$index}"),
-                    'title' => (string) ($button['title'] ?? $button['text'] ?? $button['label'] ?? ''),
-                ];
             }
 
             if ($options !== []) {
@@ -144,19 +145,19 @@ final class OptionNodeWaitHydrator
             }
         }
 
-        foreach ($data['sections'] ?? $data['list_sections'] ?? $data['listItems'] ?? [] as $section) {
-            if (! is_array($section)) {
+        foreach (array_values($data['buttons'] ?? $data['options'] ?? []) as $index => $button) {
+            if (is_string($button)) {
+                $options[] = ['id' => "btn_{$index}", 'title' => $button];
+
                 continue;
             }
-            foreach (array_values($section['rows'] ?? $section['items'] ?? []) as $index => $row) {
-                if (! is_array($row)) {
-                    continue;
-                }
-                $options[] = [
-                    'id' => (string) ($row['id'] ?? "list_{$index}"),
-                    'title' => (string) ($row['title'] ?? $row['text'] ?? $row['label'] ?? ''),
-                ];
+            if (! is_array($button)) {
+                continue;
             }
+            $options[] = [
+                'id' => (string) ($button['id'] ?? "btn_{$index}"),
+                'title' => (string) ($button['title'] ?? $button['text'] ?? $button['label'] ?? ''),
+            ];
         }
 
         return $options;

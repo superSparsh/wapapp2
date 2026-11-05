@@ -2221,4 +2221,141 @@ class ChatbotInteractiveFlowTest extends TestCase
         // No chatbot_* metadata on outbound → context route skips; waiting-state match still works.
         $this->assertContains('Alpha path', $sent);
     }
+
+    public function test_list_reselect_without_context_id_uses_recent_tagged_outbound(): void
+    {
+        $sent = [];
+
+        $this->mock(InboxOutboundService::class, function ($mock) use (&$sent): void {
+            $mock->shouldReceive('sendText')->andReturnUsing(function ($conversation, string $body) use (&$sent) {
+                $sent[] = $body;
+
+                return new Message([
+                    'id' => 900 + count($sent),
+                    'body' => $body,
+                    'direction' => MessageDirection::Outbound,
+                    'message_type' => MessageType::Text,
+                ]);
+            });
+            $mock->shouldReceive('sendInteractive')->andReturnUsing(function (
+                $conversation,
+                array $content,
+                $preview = null,
+                bool $enforceWindow = false,
+                array $extraMetadata = [],
+            ) use (&$sent) {
+                $sent[] = (string) ($content['body']['text'] ?? 'interactive');
+
+                return Message::query()->create([
+                    'conversation_id' => $conversation->id,
+                    'body' => $sent[count($sent) - 1],
+                    'direction' => MessageDirection::Outbound,
+                    'message_type' => MessageType::Interactive,
+                    'status' => \App\Enums\MessageStatus::Sent,
+                    'external_message_id' => 'wa-list-1',
+                    'metadata' => array_merge([
+                        'interactive' => $content,
+                    ], $extraMetadata),
+                ]);
+            });
+            $mock->shouldReceive('sendMedia')->andReturn(new Message([
+                'id' => 998,
+                'body' => 'media',
+                'direction' => MessageDirection::Outbound,
+                'message_type' => MessageType::Image,
+            ]));
+            $mock->shouldReceive('sendTypingIndicator')->andReturn(true);
+        });
+
+        ChatbotFlow::factory()->active()->create([
+            'exported_data' => [
+                'nodes' => [
+                    [
+                        'id' => 'welcome_1',
+                        'type' => 'welcomeMessage',
+                        'data' => [
+                            'messageType' => 'text',
+                            // Intentionally same as a list row so keyword collision would restart the menu.
+                            'triggerKeyword' => 'diamond',
+                            'welcomeMessage' => 'Welcome menu',
+                        ],
+                    ],
+                    [
+                        'id' => 'list_1',
+                        'type' => 'interactiveMessage',
+                        'data' => [
+                            'interactiveType' => 'list',
+                            'bodyText' => 'Pick a plan',
+                            'sections' => [
+                                [
+                                    'title' => 'Plans',
+                                    'rows' => [
+                                        ['id' => 'ninek', 'title' => 'about 9k'],
+                                        ['id' => 'diamond', 'title' => 'diamond'],
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ],
+                    [
+                        'id' => 'ninek_node',
+                        'type' => 'welcomeMessage',
+                        'data' => ['messageType' => 'text', 'welcomeMessage' => '9K details'],
+                    ],
+                    [
+                        'id' => 'diamond_node',
+                        'type' => 'welcomeMessage',
+                        'data' => ['messageType' => 'text', 'welcomeMessage' => 'Diamond details'],
+                    ],
+                ],
+                'edges' => [
+                    ['source' => 'welcome_1', 'target' => 'list_1', 'sourceHandle' => 'output_1'],
+                    ['source' => 'list_1', 'target' => 'ninek_node', 'sourceHandle' => 'interactive-0-0'],
+                    ['source' => 'list_1', 'target' => 'diamond_node', 'sourceHandle' => 'interactive-0-1'],
+                ],
+            ],
+        ]);
+
+        $conversation = Conversation::factory()->create();
+        $engine = app(ChatbotFlowEngine::class);
+
+        $engine->processInbound($conversation, Message::factory()->create([
+            'conversation_id' => $conversation->id,
+            'body' => 'diamond',
+            'direction' => MessageDirection::Inbound,
+        ]));
+
+        $this->assertContains('Pick a plan', $sent);
+
+        // First list row
+        $engine->processInbound($conversation, Message::factory()->create([
+            'conversation_id' => $conversation->id,
+            'body' => 'about 9k',
+            'direction' => MessageDirection::Inbound,
+            'message_type' => MessageType::Interactive,
+            'metadata' => [
+                'interactive_reply_id' => 'ninek',
+                'interactive_reply_type' => 'list_reply',
+                // No context_message_id — list replies often omit it.
+            ],
+        ]));
+
+        $this->assertContains('9K details', $sent);
+
+        // Reselect previous list row "diamond" without context id (and title == trigger keyword)
+        $engine->processInbound($conversation, Message::factory()->create([
+            'conversation_id' => $conversation->id,
+            'body' => 'diamond',
+            'direction' => MessageDirection::Inbound,
+            'message_type' => MessageType::Interactive,
+            'metadata' => [
+                'interactive_reply_id' => 'diamond',
+                'interactive_reply_type' => 'list_reply',
+            ],
+        ]));
+
+        $this->assertContains('Diamond details', $sent);
+        $this->assertSame(1, collect($sent)->filter(fn ($line) => $line === 'Pick a plan')->count());
+        $this->assertSame(1, collect($sent)->filter(fn ($line) => $line === 'Welcome menu')->count());
+    }
 }
