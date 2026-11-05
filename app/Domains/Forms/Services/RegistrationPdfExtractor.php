@@ -170,7 +170,7 @@ class RegistrationPdfExtractor
         if ($uam !== null && blank($result['udyam'])) {
             $result['udyam'] = $uam;
             if ($result['document_type'] === null) {
-                $result['document_type'] = 'UDYAM';
+            $result['document_type'] = 'UDYAM';
             }
         }
 

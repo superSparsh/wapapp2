@@ -1872,4 +1872,353 @@ class ChatbotInteractiveFlowTest extends TestCase
         $this->assertSame('15 March', $state->variables['selected_Date'] ?? null);
         $this->assertSame('10 pm', $state->variables['user_response'] ?? null);
     }
+
+    public function test_reselecting_previous_menu_option_routes_via_context_message(): void
+    {
+        $sent = [];
+
+        $this->mock(InboxOutboundService::class, function ($mock) use (&$sent): void {
+            $mock->shouldReceive('sendText')->andReturnUsing(function ($conversation, string $body) use (&$sent) {
+                $sent[] = $body;
+
+                return new Message([
+                    'id' => 500 + count($sent),
+                    'body' => $body,
+                    'direction' => MessageDirection::Outbound,
+                    'message_type' => MessageType::Text,
+                ]);
+            });
+            $mock->shouldReceive('sendInteractive')->andReturnUsing(function (
+                $conversation,
+                array $content,
+                $preview = null,
+                bool $enforceWindow = false,
+                array $extraMetadata = [],
+            ) use (&$sent) {
+                $sent[] = (string) ($content['body']['text'] ?? 'interactive');
+
+                return Message::query()->create([
+                    'conversation_id' => $conversation->id,
+                    'body' => $sent[count($sent) - 1],
+                    'direction' => MessageDirection::Outbound,
+                    'message_type' => MessageType::Interactive,
+                    'status' => \App\Enums\MessageStatus::Sent,
+                    'external_message_id' => 'wa-menu-1',
+                    'metadata' => array_merge([
+                        'interactive' => $content,
+                    ], $extraMetadata),
+                ]);
+            });
+            $mock->shouldReceive('sendMedia')->andReturn(new Message([
+                'id' => 599,
+                'body' => 'media',
+                'direction' => MessageDirection::Outbound,
+                'message_type' => MessageType::Image,
+            ]));
+            $mock->shouldReceive('sendTypingIndicator')->andReturn(true);
+        });
+
+        $flow = ChatbotFlow::factory()->active()->create([
+            'exported_data' => [
+                'nodes' => [
+                    [
+                        'id' => 'welcome_1',
+                        'type' => 'welcomeMessage',
+                        'data' => [
+                            'messageType' => 'text',
+                            'triggerKeyword' => 'shop',
+                            'welcomeMessage' => 'Welcome',
+                        ],
+                    ],
+                    [
+                        'id' => 'menu_1',
+                        'type' => 'interactiveMessage',
+                        'data' => [
+                            'interactiveType' => 'button',
+                            'bodyText' => 'Pick a plan',
+                            'buttons' => [
+                                ['id' => 'ninek', 'title' => 'about 9k'],
+                                ['id' => 'diamond', 'title' => 'diamond'],
+                            ],
+                        ],
+                    ],
+                    [
+                        'id' => 'ninek_node',
+                        'type' => 'welcomeMessage',
+                        'data' => ['messageType' => 'text', 'welcomeMessage' => '9K details'],
+                    ],
+                    [
+                        'id' => 'diamond_node',
+                        'type' => 'welcomeMessage',
+                        'data' => ['messageType' => 'text', 'welcomeMessage' => 'Diamond details'],
+                    ],
+                ],
+                'edges' => [
+                    ['source' => 'welcome_1', 'target' => 'menu_1', 'sourceHandle' => 'output_1'],
+                    ['source' => 'menu_1', 'target' => 'ninek_node', 'sourceHandle' => 'ninek'],
+                    ['source' => 'menu_1', 'target' => 'diamond_node', 'sourceHandle' => 'diamond'],
+                ],
+            ],
+        ]);
+
+        $conversation = Conversation::factory()->create();
+        $engine = app(ChatbotFlowEngine::class);
+
+        $engine->processInbound($conversation, Message::factory()->create([
+            'conversation_id' => $conversation->id,
+            'body' => 'shop',
+            'direction' => MessageDirection::Inbound,
+        ]));
+
+        $this->assertContains('Pick a plan', $sent);
+
+        $menuOutbound = Message::query()
+            ->where('conversation_id', $conversation->id)
+            ->where('direction', MessageDirection::Outbound)
+            ->where('message_type', MessageType::Interactive)
+            ->latest('id')
+            ->first();
+        $this->assertNotNull($menuOutbound);
+        $this->assertSame((int) $flow->id, (int) ($menuOutbound->metadata['chatbot_flow_id'] ?? 0));
+        $this->assertSame('menu_1', $menuOutbound->metadata['chatbot_node_id'] ?? null);
+
+        // First option → correct branch
+        $engine->processInbound($conversation, Message::factory()->create([
+            'conversation_id' => $conversation->id,
+            'body' => 'about 9k',
+            'direction' => MessageDirection::Inbound,
+            'message_type' => MessageType::Interactive,
+            'metadata' => [
+                'interactive_reply_id' => 'ninek',
+                'interactive_reply_type' => 'button_reply',
+                'context_message_id' => 'wa-menu-1',
+            ],
+        ]));
+
+        $this->assertContains('9K details', $sent);
+
+        // Reselect previous menu → diamond branch (not the menu / not 9K again as the only path)
+        $engine->processInbound($conversation, Message::factory()->create([
+            'conversation_id' => $conversation->id,
+            'body' => 'diamond',
+            'direction' => MessageDirection::Inbound,
+            'message_type' => MessageType::Interactive,
+            'metadata' => [
+                'interactive_reply_id' => 'diamond',
+                'interactive_reply_type' => 'button_reply',
+                'context_message_id' => 'wa-menu-1',
+            ],
+        ]));
+
+        $this->assertContains('Diamond details', $sent);
+        $this->assertSame(1, collect($sent)->filter(fn ($line) => $line === 'Pick a plan')->count());
+    }
+
+    public function test_interactive_reply_matching_keyword_does_not_restart_while_waiting(): void
+    {
+        $sent = [];
+
+        $this->mock(InboxOutboundService::class, function ($mock) use (&$sent): void {
+            $mock->shouldReceive('sendText')->andReturnUsing(function ($conversation, string $body) use (&$sent) {
+                $sent[] = $body;
+
+                return new Message([
+                    'id' => 600 + count($sent),
+                    'body' => $body,
+                    'direction' => MessageDirection::Outbound,
+                    'message_type' => MessageType::Text,
+                ]);
+            });
+            $mock->shouldReceive('sendInteractive')->andReturnUsing(function ($conversation, array $content) use (&$sent) {
+                $sent[] = (string) ($content['body']['text'] ?? 'interactive');
+
+                return new Message([
+                    'id' => 650 + count($sent),
+                    'body' => $sent[count($sent) - 1],
+                    'direction' => MessageDirection::Outbound,
+                    'message_type' => MessageType::Interactive,
+                ]);
+            });
+            $mock->shouldReceive('sendMedia')->andReturn(new Message([
+                'id' => 699,
+                'body' => 'media',
+                'direction' => MessageDirection::Outbound,
+                'message_type' => MessageType::Image,
+            ]));
+            $mock->shouldReceive('sendTypingIndicator')->andReturn(true);
+        });
+
+        $flow = ChatbotFlow::factory()->active()->create([
+            'exported_data' => [
+                'nodes' => [
+                    [
+                        'id' => 'welcome_1',
+                        'type' => 'welcomeMessage',
+                        'data' => [
+                            'messageType' => 'text',
+                            'triggerKeyword' => 'diamond',
+                            'welcomeMessage' => 'Welcome again',
+                        ],
+                    ],
+                    [
+                        'id' => 'menu_1',
+                        'type' => 'interactiveMessage',
+                        'data' => [
+                            'interactiveType' => 'button',
+                            'bodyText' => 'Choose',
+                            'buttons' => [
+                                ['id' => 'diamond', 'title' => 'diamond'],
+                                ['id' => 'gold', 'title' => 'gold'],
+                            ],
+                        ],
+                    ],
+                    [
+                        'id' => 'diamond_node',
+                        'type' => 'welcomeMessage',
+                        'data' => ['messageType' => 'text', 'welcomeMessage' => 'Diamond path'],
+                    ],
+                    [
+                        'id' => 'gold_node',
+                        'type' => 'welcomeMessage',
+                        'data' => ['messageType' => 'text', 'welcomeMessage' => 'Gold path'],
+                    ],
+                ],
+                'edges' => [
+                    ['source' => 'welcome_1', 'target' => 'menu_1', 'sourceHandle' => 'output_1'],
+                    ['source' => 'menu_1', 'target' => 'diamond_node', 'sourceHandle' => 'diamond'],
+                    ['source' => 'menu_1', 'target' => 'gold_node', 'sourceHandle' => 'gold'],
+                ],
+            ],
+        ]);
+
+        $conversation = Conversation::factory()->create();
+
+        ChatbotFlowState::query()->create([
+            'conversation_id' => $conversation->id,
+            'chatbot_flow_id' => $flow->id,
+            'current_node_id' => 'menu_1',
+            'variables' => [
+                '_interactive_options' => [
+                    ['id' => 'diamond', 'title' => 'diamond'],
+                    ['id' => 'gold', 'title' => 'gold'],
+                ],
+                '_interactive_type' => 'button',
+            ],
+            'status' => ChatbotFlowStateStatus::Waiting,
+            'expires_at' => now()->addHour(),
+        ]);
+
+        app(ChatbotFlowEngine::class)->processInbound($conversation, Message::factory()->create([
+            'conversation_id' => $conversation->id,
+            'body' => 'diamond',
+            'direction' => MessageDirection::Inbound,
+            'message_type' => MessageType::Interactive,
+            'metadata' => [
+                'interactive_reply_id' => 'diamond',
+                'interactive_reply_type' => 'button_reply',
+            ],
+        ]));
+
+        $this->assertContains('Diamond path', $sent);
+        $this->assertNotContains('Welcome again', $sent);
+        $this->assertNotContains('Choose', $sent);
+    }
+
+    public function test_context_reply_without_chatbot_metadata_falls_back_safely(): void
+    {
+        $sent = [];
+
+        $this->mock(InboxOutboundService::class, function ($mock) use (&$sent): void {
+            $mock->shouldReceive('sendText')->andReturnUsing(function ($conversation, string $body) use (&$sent) {
+                $sent[] = $body;
+
+                return new Message([
+                    'id' => 700 + count($sent),
+                    'body' => $body,
+                    'direction' => MessageDirection::Outbound,
+                    'message_type' => MessageType::Text,
+                ]);
+            });
+            $mock->shouldReceive('sendInteractive')->andReturn(new Message([
+                'id' => 798,
+                'body' => 'interactive',
+                'direction' => MessageDirection::Outbound,
+                'message_type' => MessageType::Interactive,
+            ]));
+            $mock->shouldReceive('sendMedia')->andReturn(new Message([
+                'id' => 799,
+                'body' => 'media',
+                'direction' => MessageDirection::Outbound,
+                'message_type' => MessageType::Image,
+            ]));
+            $mock->shouldReceive('sendTypingIndicator')->andReturn(true);
+        });
+
+        $flow = ChatbotFlow::factory()->active()->create([
+            'exported_data' => [
+                'nodes' => [
+                    [
+                        'id' => 'menu_1',
+                        'type' => 'interactiveMessage',
+                        'data' => [
+                            'interactiveType' => 'button',
+                            'bodyText' => 'Choose',
+                            'buttons' => [
+                                ['id' => 'a', 'title' => 'Alpha'],
+                            ],
+                        ],
+                    ],
+                    [
+                        'id' => 'alpha_node',
+                        'type' => 'welcomeMessage',
+                        'data' => ['messageType' => 'text', 'welcomeMessage' => 'Alpha path'],
+                    ],
+                ],
+                'edges' => [
+                    ['source' => 'menu_1', 'target' => 'alpha_node', 'sourceHandle' => 'a'],
+                ],
+            ],
+        ]);
+
+        $conversation = Conversation::factory()->create();
+
+        Message::query()->create([
+            'conversation_id' => $conversation->id,
+            'body' => 'old interactive',
+            'direction' => MessageDirection::Outbound,
+            'message_type' => MessageType::Interactive,
+            'status' => \App\Enums\MessageStatus::Sent,
+            'external_message_id' => 'wa-legacy-1',
+            'metadata' => ['interactive' => ['type' => 'button']],
+        ]);
+
+        ChatbotFlowState::query()->create([
+            'conversation_id' => $conversation->id,
+            'chatbot_flow_id' => $flow->id,
+            'current_node_id' => 'menu_1',
+            'variables' => [
+                '_interactive_options' => [
+                    ['id' => 'a', 'title' => 'Alpha'],
+                ],
+                '_interactive_type' => 'button',
+            ],
+            'status' => ChatbotFlowStateStatus::Waiting,
+            'expires_at' => now()->addHour(),
+        ]);
+
+        app(ChatbotFlowEngine::class)->processInbound($conversation, Message::factory()->create([
+            'conversation_id' => $conversation->id,
+            'body' => 'Alpha',
+            'direction' => MessageDirection::Inbound,
+            'message_type' => MessageType::Interactive,
+            'metadata' => [
+                'interactive_reply_id' => 'a',
+                'interactive_reply_type' => 'button_reply',
+                'context_message_id' => 'wa-legacy-1',
+            ],
+        ]));
+
+        // No chatbot_* metadata on outbound → context route skips; waiting-state match still works.
+        $this->assertContains('Alpha path', $sent);
+    }
 }

@@ -392,9 +392,15 @@ abstract class AbstractNodeProcessor implements NodeProcessorInterface
      * Send a template message via the outbound service.
      *
      * @param  array<string, mixed>  $params
+     * @param  array<string, mixed>|null  $node
      */
-    protected function sendTemplate(Conversation $conversation, string $templateCode, array $params = []): void
-    {
+    protected function sendTemplate(
+        Conversation $conversation,
+        string $templateCode,
+        array $params = [],
+        ?ChatbotFlowState $state = null,
+        ?array $node = null,
+    ): void {
         if (trim($templateCode) === '') {
             return;
         }
@@ -403,23 +409,61 @@ abstract class AbstractNodeProcessor implements NodeProcessorInterface
             $conversation,
             $templateCode,
             $params,
-            extraMetadata: [
+            extraMetadata: array_merge([
                 'wallet_source' => 'chatbot',
                 'billable' => true,
-            ],
+            ], $this->chatbotTraceMetadata($state, $node)),
         );
     }
 
     /**
      * @param  array<string, mixed>  $interactiveContent
+     * @param  array<string, mixed>|null  $node
      */
-    protected function sendInteractive(Conversation $conversation, array $interactiveContent, ?string $previewBody = null): void
-    {
+    protected function sendInteractive(
+        Conversation $conversation,
+        array $interactiveContent,
+        ?string $previewBody = null,
+        ?ChatbotFlowState $state = null,
+        ?array $node = null,
+    ): void {
         if ($interactiveContent === []) {
             return;
         }
 
-        $this->outboundService->sendInteractive($conversation, $interactiveContent, $previewBody, enforceWindow: false);
+        $this->outboundService->sendInteractive(
+            $conversation,
+            $interactiveContent,
+            $previewBody,
+            enforceWindow: false,
+            extraMetadata: array_merge([
+                'wallet_source' => 'chatbot',
+                'billable' => true,
+            ], $this->chatbotTraceMetadata($state, $node)),
+        );
+    }
+
+    /**
+     * Trace fields so later button/list taps can map back to this node via context_message_id.
+     *
+     * @param  array<string, mixed>|null  $node
+     * @return array<string, int|string>
+     */
+    protected function chatbotTraceMetadata(?ChatbotFlowState $state, ?array $node): array
+    {
+        if ($state === null || $node === null) {
+            return [];
+        }
+
+        $nodeId = trim((string) ($node['id'] ?? ''));
+        if ($nodeId === '' || blank($state->chatbot_flow_id)) {
+            return [];
+        }
+
+        return [
+            'chatbot_flow_id' => (int) $state->chatbot_flow_id,
+            'chatbot_node_id' => $nodeId,
+        ];
     }
 
     /**

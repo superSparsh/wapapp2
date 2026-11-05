@@ -38,7 +38,7 @@ class WhatsappFlowTemplateProcessor extends AbstractNodeProcessor
 
             if ($templateCode !== '') {
                 $params = $this->resolveTemplateSendParams($data, $conversation, $variables);
-                $this->sendTemplate($conversation, $templateCode, $params);
+                $this->sendTemplate($conversation, $templateCode, $params, $state, $node);
 
                 $state->mergeVariables([
                     '_whatsapp_flow_template_id' => (string) $templateId,
@@ -56,7 +56,7 @@ class WhatsappFlowTemplateProcessor extends AbstractNodeProcessor
 
         if ($this->hasApiInteractivePayload($data)) {
             $content = $this->resolveInteractiveContent($data, $variables, $conversation);
-            $this->sendInteractive($conversation, $content);
+            $this->sendInteractive($conversation, $content, null, $state, $node);
 
             $state->mergeVariables([
                 '_whatsapp_flow_id' => (string) ($content['action']['parameters']['flow_id'] ?? $data['flowId'] ?? ''),
@@ -87,7 +87,7 @@ class WhatsappFlowTemplateProcessor extends AbstractNodeProcessor
                     : null,
             );
 
-            $this->sendInteractive($conversation, $content);
+            $this->sendInteractive($conversation, $content, null, $state, $node);
 
             $state->mergeVariables([
                 '_whatsapp_flow_id' => (string) ($content['action']['parameters']['flow_id'] ?? $flowId),

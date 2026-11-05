@@ -9,6 +9,7 @@ use App\Domains\Billing\Services\WalletService;
 use App\Domains\Chatbot\Enums\NodeProcessResult;
 use App\Domains\Chatbot\Support\FlowVariableResolver;
 use App\Domains\Chatbot\Support\OfflineHoursEvaluator;
+use App\Domains\Chatbot\Support\OptionNodeWaitHydrator;
 use App\Domains\Chatbot\Support\TemplateMessageWaitHydrator;
 use App\Domains\Inbox\Services\InboxOutboundService;
 use App\Domains\TriggerTemplate\Enums\TriggerFireResult;
@@ -91,29 +92,44 @@ class ChatbotFlowEngine
             $this->resetConversationStates($conversation);
         }
 
-        // 2. Keyword trigger FIRST (legacy WebhookMessageService order).
-        // Any matching trigger word starts that bot and clears mid-flow state.
-        // Exact / longer / line-specific / newest scoring picks the right bot.
-        $triggered = $this->matchAndTriggerFlow($conversation, $inboundMessage, $body, exactOnly: false);
-        if ($triggered !== TriggerFireResult::NoMatch) {
-            return $triggered;
+        $isInteractiveReply = $this->inboundLooksLikeInteractiveReply($inboundMessage);
+        $hasLiveState = $this->findWaitingState($conversation) !== null
+            || $this->findActiveState($conversation) !== null;
+
+        // 2. Button/list/QR tap on a prior chatbot message → route from that node's edges
+        // (even after the flow already advanced past that menu).
+        if ($isInteractiveReply) {
+            $contextRouted = $this->tryContextNodeReply($conversation, $inboundMessage, $body);
+            if ($contextRouted !== TriggerFireResult::NoMatch) {
+                return $contextRouted;
+            }
         }
 
-        // 3. No keyword match → continue waiting reply if any
+        // 3. Keyword trigger (legacy WebhookMessageService order).
+        // Skip when this inbound is an interactive option tap while a flow is live —
+        // otherwise option titles that collide with triggers restart the menu.
+        if (! ($isInteractiveReply && $hasLiveState)) {
+            $triggered = $this->matchAndTriggerFlow($conversation, $inboundMessage, $body, exactOnly: false);
+            if ($triggered !== TriggerFireResult::NoMatch) {
+                return $triggered;
+            }
+        }
+
+        // 4. No keyword match → continue waiting reply if any
         $waitingState = $this->findWaitingState($conversation);
 
         if ($waitingState !== null) {
             return $this->processReply($conversation, $inboundMessage, $waitingState, $body);
         }
 
-        // 4. Interactive reply to an outbound template (Inbox/Campaign/etc.) that matches
+        // 5. Interactive reply to an outbound template (Inbox/Campaign/etc.) that matches
         // a templateMessage node in an active chatbot → enter that flow without re-sending.
         $templateEntry = $this->tryTemplateEntryFromInbound($conversation, $inboundMessage, $body);
         if ($templateEntry !== TriggerFireResult::NoMatch) {
             return $templateEntry;
         }
 
-        // 5. Or resume an active (non-waiting) state
+        // 6. Or resume an active (non-waiting) state
         $activeState = $this->findActiveState($conversation);
 
         if ($activeState !== null) {
@@ -815,6 +831,104 @@ class ChatbotFlowEngine
         $pattern = '/(?:^|[^\p{L}\p{N}])'.preg_quote($keywordLower, '/').'(?:[^\p{L}\p{N}]|$)/ui';
 
         return (bool) preg_match($pattern, $messageLower);
+    }
+
+    /**
+     * Route an interactive tap using the outbound message it replied to (context_message_id).
+     * Requires chatbot_flow_id + chatbot_node_id on that outbound metadata (strict guard).
+     */
+    private function tryContextNodeReply(
+        Conversation $conversation,
+        Message $inboundMessage,
+        string $body,
+    ): TriggerFireResult {
+        $contextMessageId = $this->resolveInboundContextMessageId($inboundMessage);
+        if ($contextMessageId === null) {
+            return TriggerFireResult::NoMatch;
+        }
+
+        $outbound = $this->findOutboundMessageByContext($conversation, $contextMessageId);
+        if ($outbound === null) {
+            return TriggerFireResult::NoMatch;
+        }
+
+        $metadata = is_array($outbound->metadata) ? $outbound->metadata : [];
+        $flowId = $metadata['chatbot_flow_id'] ?? null;
+        $nodeId = trim((string) ($metadata['chatbot_node_id'] ?? ''));
+
+        if (! filled($flowId) || $nodeId === '') {
+            return TriggerFireResult::NoMatch;
+        }
+
+        $flow = ChatbotFlow::query()->find((int) $flowId);
+        if ($flow === null || ! $flow->isActive() || ! $flow->hasFlowData()) {
+            return TriggerFireResult::NoMatch;
+        }
+
+        $nodeMap = $this->normalizer->normalize($flow);
+        $node = $nodeMap[$nodeId] ?? null;
+        if ($node === null || ! OptionNodeWaitHydrator::supports($node)) {
+            return TriggerFireResult::NoMatch;
+        }
+
+        Log::info('Chatbot context-node reply matched', [
+            'conversation_id' => $conversation->id,
+            'flow_id' => $flow->id,
+            'node_id' => $nodeId,
+            'context_message_id' => $contextMessageId,
+            'outbound_message_id' => $outbound->id,
+            'reply' => $body,
+        ]);
+
+        $state = $this->findLiveStateForFlow($conversation, (int) $flow->id);
+
+        if ($state === null) {
+            // Clear other bots mid-flight so a valid historical tap can resume this flow.
+            $this->resetConversationStates($conversation);
+
+            $state = ChatbotFlowState::query()->create([
+                'conversation_id' => $conversation->id,
+                'chatbot_flow_id' => $flow->id,
+                'current_node_id' => $nodeId,
+                'variables' => $this->variableResolver->withConversationContext([
+                    '_flow_name' => $flow->name,
+                    '_start_node' => $nodeId,
+                    '_context_node_reply' => true,
+                    '_last_reply' => $body,
+                    'user_response' => $body,
+                    'message_text' => $body,
+                ], $conversation),
+                'status' => ChatbotFlowStateStatus::Waiting,
+                'expires_at' => now()->addMinutes((int) config('chatbot.state_ttl_minutes', 2)),
+            ]);
+        }
+
+        // Re-bind to the historical option node (without re-sending its WhatsApp message).
+        OptionNodeWaitHydrator::hydrate($state, $node);
+        $state->refresh();
+        $this->refreshExpiry($state);
+
+        return $this->processReply($conversation, $inboundMessage, $state, $body);
+    }
+
+    private function findLiveStateForFlow(Conversation $conversation, int $flowId): ?ChatbotFlowState
+    {
+        return ChatbotFlowState::query()
+            ->forConversation($conversation->id)
+            ->where('chatbot_flow_id', $flowId)
+            ->whereIn('status', [
+                ChatbotFlowStateStatus::Active->value,
+                ChatbotFlowStateStatus::Waiting->value,
+                ChatbotFlowStateStatus::Delayed->value,
+            ])
+            ->where('expires_at', '>', now())
+            ->orderByDesc('id')
+            ->first();
+    }
+
+    private function findOutboundMessageByContext(Conversation $conversation, string $contextMessageId): ?Message
+    {
+        return $this->findOutboundTemplateMessage($conversation, $contextMessageId);
     }
 
     /**

@@ -152,11 +152,15 @@ class InboxOutboundService
     /**
      * @param  array<string, mixed>  $interactiveContent
      */
+    /**
+     * @param  array<string, mixed>  $extraMetadata
+     */
     public function sendInteractive(
         Conversation $conversation,
         array $interactiveContent,
         ?string $previewBody = null,
         bool $enforceWindow = false,
+        array $extraMetadata = [],
     ): Message {
         if ($enforceWindow) {
             $this->windowService->assertWithinServiceWindow($conversation);
@@ -168,10 +172,10 @@ class InboxOutboundService
             conversation: $conversation,
             body: $body,
             messageType: MessageType::Interactive,
-            metadata: [
+            metadata: array_merge([
                 'interactive' => $interactiveContent,
                 'interactive_type' => (string) ($interactiveContent['type'] ?? 'interactive'),
-            ],
+            ], $extraMetadata),
         );
     }
 

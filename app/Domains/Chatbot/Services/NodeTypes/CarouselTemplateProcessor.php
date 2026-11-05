@@ -48,7 +48,7 @@ class CarouselTemplateProcessor extends AbstractNodeProcessor
         // Legacy parity: send the approved WhatsApp carousel template (not a text list).
         if ($templateCode !== '' && $templateCode !== '0') {
             $params = $this->resolveTemplateSendParams($data, $conversation, $variables);
-            $this->sendTemplate($conversation, $templateCode, $params);
+            $this->sendTemplate($conversation, $templateCode, $params, $state, $node);
         } else {
             // Fallback when template is missing - keep a readable list so the flow can continue.
             $headerText = $this->resolveText((string) ($data['headerText'] ?? $data['text'] ?? ''), $variables, $conversation);

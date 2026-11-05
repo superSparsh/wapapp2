@@ -55,7 +55,7 @@ class InteractiveMessageProcessor extends AbstractNodeProcessor
 
         if ($content !== null) {
             $previewBody = (string) ($content['body']['text'] ?? '[Interactive message]');
-            $this->sendInteractive($conversation, $content, $previewBody);
+            $this->sendInteractive($conversation, $content, $previewBody, $state, $node);
 
             // CTA URL clicks open a link only — WhatsApp never sends a reply.
             // Auto-advance so the connected next node runs immediately (existing flows too).
