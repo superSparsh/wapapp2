@@ -924,6 +924,7 @@
         </label>
         <input type="url" id="f-fbpageurl"
                placeholder="https://www.facebook.com/YourPageName"
+               style="width:100%; box-sizing:border-box;"
                oninput="onFacebookPageUrlInput()" onblur="validateFacebookPageUrlRealtime()"/>
         <div class="field-hint">Paste the public URL of your Facebook Page. We’ll verify it automatically.</div>
         <div class="field-hint" id="fbpageurl-live-status"></div>
