@@ -302,8 +302,9 @@
     font-size: 0.76rem;
     color: var(--error);
     display: none;
-    align-items: center;
+    align-items: flex-start;
     gap: 5px;
+    line-height: 1.4;
   }
   .field-error.show { display: flex; }
   .field-warn-msg {
@@ -374,7 +375,16 @@
     color: #fff;
     box-shadow: 0 2px 12px rgba(18,139,74,0.25);
   }
-  .btn-primary:hover { background: #0e7040; box-shadow: 0 4px 20px rgba(18,139,74,0.35); }
+  .btn-primary:hover:not(:disabled):not(.is-disabled) { background: #0e7040; box-shadow: 0 4px 20px rgba(18,139,74,0.35); }
+  .btn-primary:disabled,
+  .btn-primary.is-disabled {
+    background: #c5d0c8;
+    color: #f7faf7;
+    box-shadow: none;
+    cursor: not-allowed;
+    opacity: 0.85;
+    pointer-events: none;
+  }
   .btn-secondary {
     background: transparent;
     color: var(--text-muted);
@@ -387,6 +397,21 @@
     font-size: 0.82rem;
     padding: 8px 14px;
   }
+  .nav-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+  }
+  .continue-hint {
+    font-size: 0.75rem;
+    color: var(--error);
+    text-align: right;
+    max-width: 280px;
+    line-height: 1.35;
+    display: none;
+  }
+  .continue-hint.show { display: block; }
 
   /* ── Summary card ── */
   .summary-card {
@@ -841,7 +866,7 @@
           <option value="msme">MSME certificate</option>
           <option value="none">I don’t have any</option>
         </select>
-        <div class="field-error" id="e-regdoc-type">⚠ Please select your registration document type.</div>
+        <div class="field-error" id="e-regdoc-type">⚠ Select GST certificate or MSME certificate to continue. If you don’t have either, onboarding can’t proceed.</div>
         <div class="field-block-msg" id="b-regdoc-type" style="display:none">
           <span>🚫</span>
           <span id="b-regdoc-type-text"><strong>We can’t onboard you without a GST or MSME certificate.</strong> Meta requires a valid business registration document to proceed.</span>
@@ -854,7 +879,7 @@
           <input type="file" id="f-regdoc-file" accept="application/pdf,.pdf" onchange="onRegDocFileChange()"/>
           <div class="field-hint">Upload only your official GST certificate or Udyam MSME certificate (PDF, max 5 MB). We’ll read the number and business name from it.</div>
           <div class="field-hint" id="regdoc-live-status"></div>
-          <div class="field-error" id="e-regdoc-file">⚠ Please upload a valid GST or Udyam MSME certificate PDF.</div>
+          <div class="field-error" id="e-regdoc-file">⚠ Upload your GST or Udyam MSME certificate as a PDF (max 5 MB). We’ll extract the number and business name from it.</div>
           <div class="field-block-msg" id="b-regdoc-file" style="display:none">
             <span>🚫</span>
             <span id="b-regdoc-file-text"><strong>We can’t onboard you with this document.</strong> Only a clear GST or Udyam MSME certificate PDF is accepted.</span>
@@ -867,7 +892,7 @@
             <input type="text" id="f-regnum" placeholder="Extracted from certificate" readonly
                    style="background:#f3f6f4; cursor:not-allowed;"/>
             <div class="field-hint" id="regnum-live-status"></div>
-            <div class="field-error" id="e-regnum">⚠ Number could not be read from the certificate.</div>
+            <div class="field-error" id="e-regnum">⚠ We couldn’t read the GST / MSME number. Re-upload a clear, official certificate PDF.</div>
             <div class="field-block-msg" id="b-regnum" style="display:none">
               <span>🚫</span>
               <span id="b-regnum-text"><strong>We can’t onboard you without a valid GST / MSME number from the certificate.</strong></span>
@@ -877,7 +902,7 @@
             <label>Business name <span class="req">*</span></label>
             <input type="text" id="f-bname" placeholder="Extracted from certificate" readonly
                    style="background:#f3f6f4; cursor:not-allowed;" oninput="validateField('f-bname')"/>
-            <div class="field-error" id="e-bname">⚠ Business name could not be read from the certificate.</div>
+            <div class="field-error" id="e-bname">⚠ We couldn’t read the business name. Re-upload a clear GST or Udyam MSME certificate PDF.</div>
           </div>
         </div>
       </div>
@@ -887,7 +912,7 @@
         <input type="email" id="f-bemail" placeholder="admin@yourdomain.com" oninput="validateField('f-bemail')" onblur="validateField('f-bemail')"/>
         <div class="field-hint">💡 Must use your company domain - not Gmail, Yahoo, Outlook etc.</div>
         <div class="field-hint" id="business-email-live-status">📧 Business email status: not checked yet.</div>
-        <div class="field-error" id="e-bemail" style="display:none;">⚠ Enter a valid business email.</div>
+        <div class="field-error" id="e-bemail">⚠ Enter your company email (example: admin@yourcompany.com). Gmail, Yahoo, and Outlook are not accepted.</div>
       </div>
 
       <div class="field">
@@ -895,7 +920,7 @@
         <input type="url" id="f-website" placeholder="https://yourbusiness.com" oninput="validateField('f-website')" onblur="validateField('f-website')"/>
         <div class="field-hint">🔒 Must be a live, HTTPS-secured website. Meta will verify this during Business Verification.</div>
         <div class="field-hint" id="website-live-status">🌐 Website status: not checked yet.</div>
-        <div class="field-error" id="e-website">⚠ URL must start with https:// and be a valid web address.</div>
+        <div class="field-error" id="e-website">⚠ Enter a live website starting with https:// (example: https://yourbusiness.com).</div>
         <div class="field-block-msg" id="b-website">
           <span>🚫</span>
           <span><strong>HTTP websites are not accepted by Meta.</strong> You must have SSL (https://) enabled before onboarding can proceed. Contact your hosting provider to get a free SSL certificate via Let's Encrypt.</span>
@@ -909,7 +934,7 @@
           <option value="yes">Yes ✓</option>
           <option value="no">No</option>
         </select>
-        <div class="field-error" id="e-fbaccount">⚠ Please select an option.</div>
+        <div class="field-error" id="e-fbaccount">⚠ Select Yes if you have a personal Facebook account. Select No only if you don’t — that blocks onboarding.</div>
         <div class="field-block-msg" id="b-fbaccount" style="display:none">
           <span>🚫</span>
           <span><strong>We can’t onboard you without a personal Facebook account.</strong> Meta Business Manager must be linked to a personal Facebook account. Create one at <a href="https://www.facebook.com" target="_blank">facebook.com</a> before proceeding.</span>
@@ -928,7 +953,7 @@
                oninput="onFacebookPageUrlInput()" onblur="validateFacebookPageUrlRealtime()"/>
         <div class="field-hint">Paste the public URL of your Facebook Page. We’ll verify it automatically.</div>
         <div class="field-hint" id="fbpageurl-live-status"></div>
-        <div class="field-error" id="e-fbpageurl">⚠ Enter a valid public Facebook Page URL.</div>
+        <div class="field-error" id="e-fbpageurl">⚠ Paste your public Facebook Page link (example: https://www.facebook.com/YourPageName). Personal profile links won’t work.</div>
         <div class="field-block-msg" id="b-fbpageurl" style="display:none">
           <span>🚫</span>
           <span id="b-fbpageurl-text"><strong>We can’t onboard you without a verifiable Facebook Page.</strong> Create or open your page, make sure it’s public, then paste the correct URL.</span>
@@ -938,7 +963,10 @@
     </div>
     <div class="nav-row">
       <span></span>
-      <button class="btn btn-primary" onclick="nextSection(0)">Continue →</button>
+      <div class="nav-actions">
+        <button type="button" class="btn btn-primary" id="continue-btn-0" onclick="nextSection(0)" disabled>Continue →</button>
+        <div class="continue-hint" id="continue-hint-0">Fix the highlighted issues above to continue.</div>
+      </div>
     </div>
   </div>
 
@@ -967,7 +995,7 @@
             <option value="employee">I have employee access only</option>
             <option value="none">No access / No account</option>
           </select>
-          <div class="field-error" id="e-metaadmin">⚠ Please select your Meta Business Manager access level.</div>
+          <div class="field-error" id="e-metaadmin">⚠ Select your access level. Admin access is required to connect WhatsApp.</div>
           <div class="field-warn-msg" id="w-metaadmin" style="display:none">
             ⚠ <span>You only have employee access. You will need to ask the admin of your Meta Business Manager to either grant you Admin rights or complete the WhatsApp setup on your behalf.</span>
           </div>
@@ -985,7 +1013,7 @@
             <option value="some">Enabled for some admins</option>
             <option value="none">Not enabled</option>
           </select>
-          <div class="field-error" id="e-mfa">⚠ Please select the MFA status.</div>
+          <div class="field-error" id="e-mfa">⚠ Tell us if Two-Factor Authentication is enabled for Meta admins.</div>
           <div class="field-warn-msg" id="w-mfa" style="display:none">
             ⚠ <span>MFA is not enabled for all admins. Meta strongly recommends MFA for all admins and may require it for sensitive operations. Enable it now at <strong>Business Settings → Security Center</strong>.</span>
           </div>
@@ -1015,13 +1043,16 @@
                placeholder="https://business.facebook.com/latest/settings/business_info"
                oninput="validateField('f-fbpagename')" onblur="validateField('f-fbpagename')"/>
         <div class="field-hint" id="fbpage-live-status"></div>
-        <div class="field-error" id="e-fbpagename">⚠ Please enter a valid Meta Business portfolio URL.</div>
+        <div class="field-error" id="e-fbpagename">⚠ Paste the Business info URL that includes business_id (from Meta Business Suite → Business info).</div>
       </div>
 
     </div>
     <div class="nav-row">
       <button class="btn btn-secondary" onclick="prevSection(1)">← Back</button>
-      <button class="btn btn-primary" onclick="nextSection(1)">Continue →</button>
+      <div class="nav-actions">
+        <button type="button" class="btn btn-primary" id="continue-btn-1" onclick="nextSection(1)" disabled>Continue →</button>
+        <div class="continue-hint" id="continue-hint-1">Fix the highlighted issues above to continue.</div>
+      </div>
     </div>
   </div>
 
@@ -1051,7 +1082,7 @@
             <option value="apponly">Existing app number - cannot migrate</option>
             <option value="undecided">Not decided yet</option>
           </select>
-          <div class="field-error" id="e-numplan">⚠ Please select your number plan.</div>
+          <div class="field-error" id="e-numplan">⚠ Select how you’ll use the WhatsApp number (new, migrate, or undecided).</div>
           <div class="field-block-msg" id="b-numplan" style="display:none">
             <span>🚫</span>
             <span><strong>This number cannot be onboarded.</strong> If you want to use a number already on the WhatsApp App without migrating, you must get a new number dedicated for WhatsApp use.</span>
@@ -1071,7 +1102,7 @@
             <option value="yes">Can receive SMS or voice OTP ✓</option>
             <option value="no">Cannot receive OTP</option>
           </select>
-          <div class="field-error" id="e-otp">⚠ Please select an option.</div>
+          <div class="field-error" id="e-otp">⚠ Select Yes only if this number can receive SMS or voice OTP. Without OTP, Meta can’t verify the number.</div>
           <div class="field-block-msg" id="b-otp" style="display:none">
             <span>🚫</span>
             <span><strong>OTP is mandatory for verification.</strong> Meta sends an OTP to verify number ownership. Without the ability to receive SMS or voice calls, the onboarding process cannot be completed. Please use a number with active SMS/call capability.</span>
@@ -1087,7 +1118,7 @@
             <option value="physical">Physical SIM / Landline ✓</option>
             <option value="voip">Virtual / VoIP number</option>
           </select>
-          <div class="field-error" id="e-numtype">⚠ Please select number type.</div>
+          <div class="field-error" id="e-numtype">⚠ Select Physical SIM / landline. VoIP or virtual numbers are not accepted by Meta.</div>
           <div class="field-block-msg" id="b-numtype" style="display:none">
             <span>🚫</span>
             <span><strong>Virtual/VoIP numbers are not accepted by Meta.</strong> Meta prohibits VoIP numbers (e.g. Google Voice, Twilio virtual numbers) for WhatsApp. You must use a physical SIM or a real landline number.</span>
@@ -1098,7 +1129,7 @@
           <label>WhatsApp number to use</label>
           <input type="tel" id="f-wanum" placeholder="+91 98765 43210" oninput="validateField('f-wanum')" onblur="validateField('f-wanum')"/>
           <div class="field-hint">💡 Include country code. e.g. +91 for India.</div>
-          <div class="field-error" id="e-wanum">⚠ Enter a valid phone number with country code.</div>
+          <div class="field-error" id="e-wanum">⚠ Enter the WhatsApp number with country code (example: +91 98765 43210), or leave blank if undecided.</div>
         </div>
       </div>
 
@@ -1113,13 +1144,16 @@
           This is the brand name customers see on WhatsApp. Keep it short, match your legal/known brand, and avoid slogans or extra symbols.
           <a href="https://www.facebook.com/business/help/757569725593362" target="_blank" rel="noopener noreferrer">See full Meta rules</a>.
         </div>
-        <div class="field-error" id="e-wadisplayname">⚠ Enter the display name you want to use on WhatsApp.</div>
+        <div class="field-error" id="e-wadisplayname">⚠ Enter the brand name customers will see on WhatsApp (2–75 characters, no slogans).</div>
       </div>
 
     </div>
     <div class="nav-row">
       <button class="btn btn-secondary" onclick="prevSection(2)">← Back</button>
-      <button class="btn btn-primary" onclick="nextSection(2)">Continue →</button>
+      <div class="nav-actions">
+        <button type="button" class="btn btn-primary" id="continue-btn-2" onclick="nextSection(2)" disabled>Continue →</button>
+        <div class="continue-hint" id="continue-hint-2">Fix the highlighted issues above to continue.</div>
+      </div>
     </div>
   </div>
 
@@ -1143,7 +1177,7 @@
         <div class="field">
           <label>Customer email <span class="req">*</span></label>
           <input type="email" id="f-email" placeholder="you@company.com" oninput="validateField('f-email')" onblur="validateField('f-email')"/>
-          <div class="field-error" id="e-email">⚠ Enter a valid email address.</div>
+          <div class="field-error" id="e-email">⚠ Enter a valid email we can use to contact you (example: you@company.com).</div>
         </div>
       </div>
 
@@ -1151,13 +1185,16 @@
         <label>Your personal number <span class="req">*</span></label>
         <input type="tel" id="f-personal" placeholder="+91 98765 43210" oninput="validateField('f-personal')" onblur="validateField('f-personal')"/>
         <div class="field-hint">We’ll use this if we need to reach you quickly about onboarding.</div>
-        <div class="field-error" id="e-personal">⚠ Enter a valid personal phone number with country code.</div>
+        <div class="field-error" id="e-personal">⚠ Enter your personal mobile with country code (example: +91 98765 43210).</div>
       </div>
 
     </div>
     <div class="nav-row">
       <button class="btn btn-secondary" onclick="prevSection(3)">← Back</button>
-      <button class="btn btn-primary" onclick="nextSection(3)">View Summary →</button>
+      <div class="nav-actions">
+        <button type="button" class="btn btn-primary" id="continue-btn-3" onclick="nextSection(3)" disabled>View Summary →</button>
+        <div class="continue-hint" id="continue-hint-3">Fix the highlighted issues above to continue.</div>
+      </div>
     </div>
   </div>
 
@@ -1516,14 +1553,17 @@ async function goTo(idx, options = {}) {
 
   // Submit section visibility
   document.getElementById('submitSection').classList.toggle('active', idx === 4);
+  updateContinueState(currentSection);
   window.scrollTo({ top: 120, behavior: 'smooth' });
 }
 
 async function nextSection(idx) {
   const ok = await validateSectionAsync(idx);
+  updateContinueState(idx);
   if (!ok) {
+    scrollToFirstIssue(idx);
     showToast(idx === 0
-      ? '⚠ We can’t continue — fix the issues shown above (we’ll explain why onboarding is blocked).'
+      ? '⚠ We can’t continue — fix the highlighted issues above.'
       : '⚠ Please fix the highlighted issues before continuing.');
     return;
   }
@@ -1544,7 +1584,10 @@ function markStepDone(idx) {
 // ── Validation core ──────────────────────────────
 function get(id) { return document.getElementById(id); }
 
+let silentValidation = false;
+
 function setFieldState(fieldId, state, showIds) {
+  if (silentValidation) return;
   const el = get(fieldId);
   if (!el) return;
   el.classList.remove('valid','invalid','warn');
@@ -1561,6 +1604,12 @@ function setFieldState(fieldId, state, showIds) {
     const el = get(id);
     if (el) { el.classList.add('show'); el.style.display = 'flex'; }
   });
+}
+
+function setInlineError(fieldId, message) {
+  if (silentValidation) return;
+  const errEl = get('e-' + fieldId.replace('f-', ''));
+  if (errEl && message) errEl.textContent = message.startsWith('⚠') ? message : ('⚠ ' + message);
 }
 
 function showError(fieldId) { setFieldState(fieldId, 'invalid', ['e-' + fieldId.replace('f-','')]); }
@@ -1730,6 +1779,7 @@ function onFbAccountChange() {
 }
 
 function refreshStep1OnboardBlockers() {
+  if (silentValidation) return;
   const box = get('step1-onboard-blockers');
   const list = get('step1-onboard-blocker-list');
   if (!box || !list) return;
@@ -2064,62 +2114,96 @@ async function validateBusinessEmailRealtime(email) {
   }
 }
 
-function validateField(id) {
+function validateField(id, opts = {}) {
+  const prevSilent = silentValidation;
+  if (opts.silent) silentValidation = true;
+  try {
+    return validateFieldInner(id);
+  } finally {
+    silentValidation = prevSilent;
+    if (!opts.silent) updateContinueState(currentSection);
+  }
+}
+
+function validateFieldInner(id) {
   const el = get(id);
   if (!el) return true;
   const v = el.value.trim();
 
   switch(id) {
     case 'f-name':
-      if (!v || v.length < 3) { showError(id); return false; }
+      if (!v || v.length < 3) {
+        setInlineError(id, 'Enter your full name (at least 3 characters).');
+        showError(id); return false;
+      }
       showValid(id); return true;
 
     case 'f-email':
-      if (!v || !isValidEmail(v)) { showError(id); return false; }
+      if (!v) {
+        setInlineError(id, 'Enter a valid email we can use to contact you (example: you@company.com).');
+        showError(id); return false;
+      }
+      if (!isValidEmail(v)) {
+        setInlineError(id, 'That email format looks invalid. Use something like you@company.com.');
+        showError(id); return false;
+      }
       showValid(id); return true;
 
     case 'f-personal':
-      if (!v || !isValidPhone(v)) { showError(id); return false; }
+      if (!v) {
+        setInlineError(id, 'Enter your personal mobile with country code (example: +91 98765 43210).');
+        showError(id); return false;
+      }
+      if (!isValidPhone(v)) {
+        setInlineError(id, 'Enter a valid phone number with country code (example: +91 98765 43210).');
+        showError(id); return false;
+      }
       showValid(id); return true;
 
     case 'f-bname':
       if (!hasRegDocTypeSelected()) return true;
-      if (!v || v.length < 2 || regLookupState !== true) { showError(id); return false; }
+      if (!v || v.length < 2 || regLookupState !== true) {
+        setInlineError(id, 'We couldn’t read the business name. Re-upload a clear GST or Udyam MSME certificate PDF.');
+        showError(id); return false;
+      }
       showValid(id); return true;
 
     case 'f-bemail':
       if (!v) {
         businessEmailCheckState = null;
         businessEmailCheckMsg = '';
-        setBusinessEmailStatus('idle', '📧 Business email status: not checked yet.');
-        setFieldState(id, 'invalid', []);
+        if (!silentValidation) setBusinessEmailStatus('idle', '📧 Business email status: not checked yet.');
+        setInlineError(id, 'Enter your company email (example: admin@yourcompany.com). Gmail, Yahoo, and Outlook are not accepted.');
+        showError(id);
         refreshStep1OnboardBlockers();
         return false;
       }
       if (!isValidEmail(v)) {
         businessEmailCheckState = false;
         businessEmailCheckMsg = 'Enter a valid business email format.';
-        setBusinessEmailStatus('err', '📧 Enter a valid email format.');
-        setFieldState(id, 'invalid', []);
+        if (!silentValidation) setBusinessEmailStatus('err', '📧 Enter a valid email format.');
+        setInlineError(id, 'That email format looks invalid. Use something like admin@yourcompany.com.');
+        showError(id);
         refreshStep1OnboardBlockers();
         return false;
       }
       if (isFreeEmail(v)) {
         businessEmailCheckState = false;
         businessEmailCheckMsg = 'Free email domains are not allowed. Use your company domain — we can’t onboard you with Gmail/Yahoo/Outlook.';
-        setBusinessEmailStatus('err', '📧 Free email domains are not allowed. Use your company domain.');
-        setFieldState(id, 'invalid', []);
+        if (!silentValidation) setBusinessEmailStatus('err', '📧 Free email domains are not allowed. Use your company domain.');
+        setInlineError(id, 'Use your company domain email. We can’t onboard with Gmail, Yahoo, Outlook, or other free emails.');
+        showError(id);
         refreshStep1OnboardBlockers();
         return false;
       }
       if (businessEmailCheckState === false) {
-        setFieldState(id, 'invalid', []);
+        setInlineError(id, businessEmailCheckMsg || 'This business email could not be verified. Please use a different company email.');
+        showError(id);
         refreshStep1OnboardBlockers();
         return false;
       }
       if (businessEmailCheckState !== true) {
-        const errEl = get('e-bemail');
-        if (errEl) errEl.textContent = '⚠ Wait for the live check to finish.';
+        setInlineError(id, 'Wait for the live email check to finish, then try again.');
         showError(id);
         return false;
       }
@@ -2128,16 +2212,31 @@ function validateField(id) {
       return true;
 
     case 'f-website':
-      if (!v) { showError(id); refreshStep1OnboardBlockers(); return false; }
+      if (!v) {
+        setInlineError(id, 'Enter a live website starting with https:// (example: https://yourbusiness.com).');
+        showError(id); refreshStep1OnboardBlockers(); return false;
+      }
       if (v.startsWith('http://')) { showBlock(id); refreshStep1OnboardBlockers(); return false; }
-      if (!v.startsWith('https://') || !v.includes('.')) { showError(id); refreshStep1OnboardBlockers(); return false; }
-      if (websiteReachable === false) { showError(id); refreshStep1OnboardBlockers(); return false; }
+      if (!v.startsWith('https://') || !v.includes('.')) {
+        setInlineError(id, 'Website must start with https:// and look like a real domain (example: https://yourbusiness.com).');
+        showError(id); refreshStep1OnboardBlockers(); return false;
+      }
+      if (websiteReachable === false) {
+        setInlineError(id, 'This website looks unreachable. Open it in a new tab, fix DNS/SSL if needed, then try again.');
+        showError(id); refreshStep1OnboardBlockers(); return false;
+      }
       showValid(id); refreshStep1OnboardBlockers(); return true;
 
     case 'f-regdoc-type':
-      if (!v) { showError(id); refreshStep1OnboardBlockers(); return false; }
+      if (!v) {
+        setInlineError(id, 'Select GST certificate or MSME certificate to continue. If you don’t have either, onboarding can’t proceed.');
+        showError(id); refreshStep1OnboardBlockers(); return false;
+      }
       if (v === 'none') { showBlock(id); refreshStep1OnboardBlockers(); return false; }
-      if (v !== 'gst' && v !== 'msme') { showError(id); refreshStep1OnboardBlockers(); return false; }
+      if (v !== 'gst' && v !== 'msme') {
+        setInlineError(id, 'Select GST certificate or MSME certificate to continue.');
+        showError(id); refreshStep1OnboardBlockers(); return false;
+      }
       showValid(id); refreshStep1OnboardBlockers(); return true;
 
     case 'f-regdoc-file': {
@@ -2151,6 +2250,7 @@ function validateField(id) {
           refreshStep1OnboardBlockers();
           return true;
         }
+        setInlineError(id, 'Upload your GST or Udyam MSME certificate as a PDF (max 5 MB).');
         showError(id);
         refreshStep1OnboardBlockers();
         return false;
@@ -2168,8 +2268,7 @@ function validateField(id) {
         return false;
       }
       if (regLookupState !== true) {
-        const errEl = get('e-regdoc-file');
-        if (errEl) errEl.textContent = '⚠ Wait for the certificate check to finish.';
+        setInlineError(id, 'Wait for the certificate check to finish, then continue.');
         showError(id);
         return false;
       }
@@ -2180,11 +2279,13 @@ function validateField(id) {
 
     case 'f-regnum':
       if (!hasRegDocTypeSelected()) return true;
-      if (!v) { showError(id); refreshStep1OnboardBlockers(); return false; }
+      if (!v) {
+        setInlineError(id, 'Upload a valid GST / MSME certificate so we can read the number automatically.');
+        showError(id); refreshStep1OnboardBlockers(); return false;
+      }
       if (regLookupState === false) { showBlock(id); refreshStep1OnboardBlockers(); return false; }
       if (regLookupState !== true) {
-        const errEl = get('e-regnum');
-        if (errEl) errEl.textContent = '⚠ Upload a valid GST / MSME certificate first.';
+        setInlineError(id, 'Upload a valid GST / MSME certificate first. The number is filled automatically from the PDF.');
         showError(id);
         return false;
       }
@@ -2192,30 +2293,41 @@ function validateField(id) {
 
     case 'f-fbpageurl':
       if (get('f-fbaccount')?.value !== 'yes') return true;
-      if (!v) { showError(id); refreshStep1OnboardBlockers(); return false; }
+      if (!v) {
+        setInlineError(id, 'Paste your public Facebook Page link (example: https://www.facebook.com/YourPageName).');
+        showError(id); refreshStep1OnboardBlockers(); return false;
+      }
       if (!/^https:\/\/(www\.)?facebook\.com\//i.test(v)) { showBlock(id); refreshStep1OnboardBlockers(); return false; }
       if (fbPageUrlCheckState === false) { showBlock(id); refreshStep1OnboardBlockers(); return false; }
       if (fbPageUrlCheckState !== true) {
-        const errEl = get('e-fbpageurl');
-        if (errEl) errEl.textContent = '⚠ Wait for Facebook Page verification to finish.';
+        setInlineError(id, 'Wait for Facebook Page verification to finish, then continue.');
         showError(id);
         return false;
       }
       showValid(id); refreshStep1OnboardBlockers(); return true;
 
     case 'f-metaadmin':
-      if (!v) { showError(id); return false; }
+      if (!v) {
+        setInlineError(id, 'Select your Meta Business Manager access level. Admin access is required.');
+        showError(id); return false;
+      }
       if (v === 'none') { showBlock(id); return false; }
       if (v === 'employee') { showWarn(id); return true; /* warn, not block */ }
       showValid(id); return true;
 
     case 'f-mfa':
-      if (!v) { showError(id); return false; }
+      if (!v) {
+        setInlineError(id, 'Tell us if Two-Factor Authentication is enabled for Meta admins.');
+        showError(id); return false;
+      }
       if (v !== 'all') { showWarn(id); return true; }
       showValid(id); return true;
 
     case 'f-fbaccount':
-      if (!v) { showError(id); refreshStep1OnboardBlockers(); return false; }
+      if (!v) {
+        setInlineError(id, 'Select Yes if you have a personal Facebook account. Select No only if you don’t — that blocks onboarding.');
+        showError(id); refreshStep1OnboardBlockers(); return false;
+      }
       if (v === 'no') { showBlock(id); refreshStep1OnboardBlockers(); return false; }
       showValid(id); refreshStep1OnboardBlockers(); return true;
 
@@ -2227,37 +2339,60 @@ function validateField(id) {
     case 'f-fbpagename': {
       if (!v) { showNeutral(id); return true; }
       const sanitizedUrl = sanitizeBusinessPortfolioUrl(v);
-      if (!sanitizedUrl) { showError(id); return false; }
-      get('f-fbpagename').value = sanitizedUrl;
-      setFbPageStatus('ok', '✅ URL format looks correct and business_id was found.');
+      if (!sanitizedUrl) {
+        setInlineError(id, 'Paste the Business info URL that includes business_id.');
+        showError(id); return false;
+      }
+      if (!silentValidation) {
+        get('f-fbpagename').value = sanitizedUrl;
+        setFbPageStatus('ok', '✅ URL format looks correct and business_id was found.');
+      }
       showValid(id); return true;
     }
 
     case 'f-numplan':
-      if (!v) { showError(id); return false; }
+      if (!v) {
+        setInlineError(id, 'Select how you’ll use the WhatsApp number (new, migrate, or undecided).');
+        showError(id); return false;
+      }
       if (v === 'apponly') { showBlock(id); return false; }
       if (v === 'undecided') { showWarn(id); return true; }
       if (v === 'migrate') { showWarn(id, 'wm-numplan'); return true; }
       showValid(id); return true;
 
     case 'f-otp':
-      if (!v) { showError(id); return false; }
+      if (!v) {
+        setInlineError(id, 'Select Yes only if this number can receive SMS or voice OTP.');
+        showError(id); return false;
+      }
       if (v === 'no') { showBlock(id); return false; }
       showValid(id); return true;
 
     case 'f-numtype':
-      if (!v) { showError(id); return false; }
+      if (!v) {
+        setInlineError(id, 'Select Physical SIM / landline. VoIP or virtual numbers are not accepted by Meta.');
+        showError(id); return false;
+      }
       if (v === 'voip') { showBlock(id); return false; }
       showValid(id); return true;
 
     case 'f-wanum':
       if (!v) { showNeutral(id); return true; /* optional */ }
-      if (!isValidPhone(v)) { showError(id); return false; }
+      if (!isValidPhone(v)) {
+        setInlineError(id, 'Enter a valid phone number with country code (example: +91 98765 43210), or leave blank.');
+        showError(id); return false;
+      }
       showValid(id); return true;
 
     case 'f-wadisplayname':
-      if (!v || v.length < 2) { showError(id); return false; }
-      if (v.length > 75) { showError(id); return false; }
+      if (!v || v.length < 2) {
+        setInlineError(id, 'Enter the brand name customers will see on WhatsApp (at least 2 characters).');
+        showError(id); return false;
+      }
+      if (v.length > 75) {
+        setInlineError(id, 'Display name must be 75 characters or fewer.');
+        showError(id); return false;
+      }
       showValid(id); return true;
 
     default:
@@ -2346,7 +2481,48 @@ function validateSection(idx) {
   fields.forEach(f => { if (!validateField(f)) ok = false; });
   if (idx === 0) refreshStep1OnboardBlockers();
   updateProgress();
+  updateContinueState(idx);
   return ok;
+}
+
+function isSectionReady(idx) {
+  const fields = sectionFields[idx];
+  if (!fields) return true;
+  return fields.every(f => validateField(f, { silent: true }));
+}
+
+function updateContinueState(idx = currentSection) {
+  if (idx < 0 || idx > 3) return;
+  const btn = get('continue-btn-' + idx);
+  const hint = get('continue-hint-' + idx);
+  if (!btn) return;
+  const ready = isSectionReady(idx);
+  btn.disabled = !ready;
+  btn.classList.toggle('is-disabled', !ready);
+  btn.setAttribute('aria-disabled', ready ? 'false' : 'true');
+  if (hint) {
+    hint.classList.toggle('show', !ready);
+    if (!ready) {
+      const section = get('sec-' + idx);
+      const hasVisibleIssue = !!section?.querySelector('.field-error.show, .field-block-msg.show, input.invalid, select.invalid');
+      hint.textContent = hasVisibleIssue
+        ? 'Fix the highlighted issues above to continue.'
+        : 'Complete the required fields above to continue.';
+    }
+  }
+}
+
+function updateAllContinueStates() {
+  for (let i = 0; i < 4; i++) updateContinueState(i);
+}
+
+function scrollToFirstIssue(idx) {
+  const section = get('sec-' + idx);
+  if (!section) return;
+  const target = section.querySelector('.field-block-msg.show, .field-error.show, input.invalid, select.invalid, #step1-onboard-blockers[style*="flex"]');
+  if (target) {
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
 }
 
 // ── Progress ────────────────────────────────────
@@ -2361,6 +2537,7 @@ function updateProgress() {
   const clamped = Math.min(pct, 100);
   get('topProgressBar').style.width = clamped + '%';
   get('topProgressPct').textContent = clamped + '%';
+  updateContinueState(currentSection);
 }
 
 // ── Summary builder ──────────────────────────────
@@ -2906,6 +3083,7 @@ Object.entries(serverErrors || {}).forEach(([backendKey, msgs]) => {
 });
 refreshStep1OnboardBlockers();
 updateProgress();
+updateAllContinueStates();
 
 // Update progress on any input
 document.addEventListener('input', updateProgress);
