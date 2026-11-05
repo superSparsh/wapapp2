@@ -1815,11 +1815,13 @@ async function probeWebsite(url) {
   if (!isHttpsUrl(url)) {
     websiteReachable = false;
     setWebsiteStatus('err', '🌐 Website status: invalid HTTPS URL.');
+    updateContinueState(0);
     return false;
   }
   try {
     websiteChecking = true;
     setWebsiteStatus('pending', '🌐 Checking website reachability...');
+    updateContinueState(0);
     // Server-side probe — browser cross-origin fetch fails on Cloudflare/CORP sites
     // even when the same URL opens fine in a new tab.
     const resp = await fetch(@json(route('customer.readiness.validate.website')), {
@@ -1846,6 +1848,7 @@ async function probeWebsite(url) {
     return false;
   } finally {
     websiteChecking = false;
+    updateContinueState(0);
   }
 }
 
@@ -1910,38 +1913,39 @@ async function onRegDocFileChange() {
 }
 
 async function extractRegistrationFromPdf(file) {
-  if (!file) {
-    clearRegistrationFields('Upload your GST or Udyam MSME certificate PDF.');
-    setRegdocStatus('err', '❌ ' + regLookupMsg);
-    showBlock('f-regdoc-file');
-    refreshStep1OnboardBlockers();
-    return false;
-  }
-
-  const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name || '');
-  if (!isPdf) {
-    regLookupMsg = 'Only PDF files are allowed (GST or Udyam MSME certificate).';
-    if (get('f-regdoc-file')) get('f-regdoc-file').value = '';
-    clearRegistrationFields(regLookupMsg);
-    setRegdocStatus('err', '❌ ' + regLookupMsg);
-    const blockText = get('b-regdoc-file-text');
-    if (blockText) blockText.innerHTML = '<strong>We can’t onboard you with this document.</strong> ' + regLookupMsg;
-    showBlock('f-regdoc-file');
-    refreshStep1OnboardBlockers();
-    return false;
-  }
-  if (file.size > 5 * 1024 * 1024) {
-    regLookupMsg = 'PDF must be under 5 MB.';
-    if (get('f-regdoc-file')) get('f-regdoc-file').value = '';
-    clearRegistrationFields(regLookupMsg);
-    setRegdocStatus('err', '❌ ' + regLookupMsg);
-    showBlock('f-regdoc-file');
-    refreshStep1OnboardBlockers();
-    return false;
-  }
-
   try {
+    if (!file) {
+      clearRegistrationFields('Upload your GST or Udyam MSME certificate PDF.');
+      setRegdocStatus('err', '❌ ' + regLookupMsg);
+      showBlock('f-regdoc-file');
+      refreshStep1OnboardBlockers();
+      return false;
+    }
+
+    const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name || '');
+    if (!isPdf) {
+      regLookupMsg = 'Only PDF files are allowed (GST or Udyam MSME certificate).';
+      if (get('f-regdoc-file')) get('f-regdoc-file').value = '';
+      clearRegistrationFields(regLookupMsg);
+      setRegdocStatus('err', '❌ ' + regLookupMsg);
+      const blockText = get('b-regdoc-file-text');
+      if (blockText) blockText.innerHTML = '<strong>We can’t onboard you with this document.</strong> ' + regLookupMsg;
+      showBlock('f-regdoc-file');
+      refreshStep1OnboardBlockers();
+      return false;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      regLookupMsg = 'PDF must be under 5 MB.';
+      if (get('f-regdoc-file')) get('f-regdoc-file').value = '';
+      clearRegistrationFields(regLookupMsg);
+      setRegdocStatus('err', '❌ ' + regLookupMsg);
+      showBlock('f-regdoc-file');
+      refreshStep1OnboardBlockers();
+      return false;
+    }
+
     setRegdocStatus('pending', '🔎 Reading certificate…');
+    updateContinueState(0);
     const body = new FormData();
     body.append('regdoc_file', file);
     const resp = await fetch(@json(route('customer.readiness.extract.registration')), {
@@ -1987,6 +1991,8 @@ async function extractRegistrationFromPdf(file) {
     showBlock('f-regdoc-file');
     refreshStep1OnboardBlockers();
     return false;
+  } finally {
+    updateContinueState(0);
   }
 }
 
@@ -1996,29 +2002,31 @@ function onFacebookPageUrlInput() {
   setFbPageUrlStatus('idle', '');
   fbPageUrlDebounceTimer = setTimeout(() => validateFacebookPageUrlRealtime(), 550);
   refreshStep1OnboardBlockers();
+  updateContinueState(0);
 }
 
 async function validateFacebookPageUrlRealtime() {
-  const raw = (get('f-fbpageurl')?.value || '').trim();
-  if (!raw) {
-    fbPageUrlCheckState = null;
-    fbPageUrlCheckMsg = '';
-    setFbPageUrlStatus('idle', '');
-    refreshStep1OnboardBlockers();
-    return false;
-  }
-
-  if (!/^https:\/\/(www\.)?facebook\.com\//i.test(raw)) {
-    fbPageUrlCheckState = false;
-    fbPageUrlCheckMsg = 'Use a full Facebook Page URL starting with https://www.facebook.com/… We can’t onboard you without a valid page link.';
-    setFbPageUrlStatus('err', '❌ ' + fbPageUrlCheckMsg);
-    showBlock('f-fbpageurl');
-    refreshStep1OnboardBlockers();
-    return false;
-  }
-
   try {
+    const raw = (get('f-fbpageurl')?.value || '').trim();
+    if (!raw) {
+      fbPageUrlCheckState = null;
+      fbPageUrlCheckMsg = '';
+      setFbPageUrlStatus('idle', '');
+      refreshStep1OnboardBlockers();
+      return false;
+    }
+
+    if (!/^https:\/\/(www\.)?facebook\.com\//i.test(raw)) {
+      fbPageUrlCheckState = false;
+      fbPageUrlCheckMsg = 'Use a full Facebook Page URL starting with https://www.facebook.com/… We can’t onboard you without a valid page link.';
+      setFbPageUrlStatus('err', '❌ ' + fbPageUrlCheckMsg);
+      showBlock('f-fbpageurl');
+      refreshStep1OnboardBlockers();
+      return false;
+    }
+
     setFbPageUrlStatus('pending', '🔎 Verifying Facebook Page…');
+    updateContinueState(0);
     const resp = await fetch(@json(route('customer.readiness.validate.facebook-page')), {
       method: 'POST',
       headers: {
@@ -2056,34 +2064,37 @@ async function validateFacebookPageUrlRealtime() {
     showBlock('f-fbpageurl');
     refreshStep1OnboardBlockers();
     return false;
+  } finally {
+    updateContinueState(0);
   }
 }
 
 async function validateBusinessEmailRealtime(email) {
-  const v = (email || '').trim().toLowerCase();
-  if (!v) {
-    businessEmailCheckState = null;
-    businessEmailCheckMsg = '';
-    setBusinessEmailStatus('idle', '📧 Business email status: not checked yet.');
-    return false;
-  }
-
-  if (!isValidEmail(v)) {
-    businessEmailCheckState = false;
-    businessEmailCheckMsg = 'Enter a valid email format.';
-    setBusinessEmailStatus('err', '📧 ' + businessEmailCheckMsg);
-    return false;
-  }
-
-  if (isFreeEmail(v)) {
-    businessEmailCheckState = false;
-    businessEmailCheckMsg = 'Free email domains are not allowed.';
-    setBusinessEmailStatus('err', '📧 ' + businessEmailCheckMsg);
-    return false;
-  }
-
   try {
+    const v = (email || '').trim().toLowerCase();
+    if (!v) {
+      businessEmailCheckState = null;
+      businessEmailCheckMsg = '';
+      setBusinessEmailStatus('idle', '📧 Business email status: not checked yet.');
+      return false;
+    }
+
+    if (!isValidEmail(v)) {
+      businessEmailCheckState = false;
+      businessEmailCheckMsg = 'Enter a valid email format.';
+      setBusinessEmailStatus('err', '📧 ' + businessEmailCheckMsg);
+      return false;
+    }
+
+    if (isFreeEmail(v)) {
+      businessEmailCheckState = false;
+      businessEmailCheckMsg = 'Free email domains are not allowed.';
+      setBusinessEmailStatus('err', '📧 ' + businessEmailCheckMsg);
+      return false;
+    }
+
     setBusinessEmailStatus('pending', '📧 Verifying business email…');
+    updateContinueState(0);
     const resp = await fetch(@json(route('customer.readiness.validate.business-email')), {
       method: 'POST',
       headers: {
@@ -2111,6 +2122,8 @@ async function validateBusinessEmailRealtime(email) {
     businessEmailCheckMsg = 'Validation service unavailable. Please retry.';
     setBusinessEmailStatus('err', '📧 ' + businessEmailCheckMsg);
     return false;
+  } finally {
+    updateContinueState(0);
   }
 }
 
@@ -2491,6 +2504,23 @@ function isSectionReady(idx) {
   return fields.every(f => validateField(f, { silent: true }));
 }
 
+function getContinuePendingHint(idx) {
+  if (idx !== 0) return '';
+  if (hasRegDocTypeSelected() && regLookupState == null) {
+    const hasFile = !!(get('f-regdoc-file')?.files && get('f-regdoc-file').files.length > 0);
+    if (hasFile) return 'Waiting for certificate verification to finish…';
+  }
+  const be = (get('f-bemail')?.value || '').trim();
+  if (be && isValidEmail(be) && !isFreeEmail(be) && businessEmailCheckState == null) {
+    return 'Waiting for business email verification to finish…';
+  }
+  const fbUrl = (get('f-fbpageurl')?.value || '').trim();
+  if (get('f-fbaccount')?.value === 'yes' && fbUrl && fbPageUrlCheckState == null) {
+    return 'Waiting for Facebook Page verification to finish…';
+  }
+  return '';
+}
+
 function updateContinueState(idx = currentSection) {
   if (idx < 0 || idx > 3) return;
   const btn = get('continue-btn-' + idx);
@@ -2503,6 +2533,11 @@ function updateContinueState(idx = currentSection) {
   if (hint) {
     hint.classList.toggle('show', !ready);
     if (!ready) {
+      const pendingHint = getContinuePendingHint(idx);
+      if (pendingHint) {
+        hint.textContent = pendingHint;
+        return;
+      }
       const section = get('sec-' + idx);
       const hasVisibleIssue = !!section?.querySelector('.field-error.show, .field-block-msg.show, input.invalid, select.invalid');
       hint.textContent = hasVisibleIssue
