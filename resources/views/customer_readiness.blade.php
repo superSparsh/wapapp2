@@ -817,7 +817,7 @@
   <!-- ────────────────────────── SECTION 1: Business Details ──────────────────────────── -->
   <div class="section-card active" id="sec-0">
     <div class="section-header">
-      <div class="section-icon">🏢</div>
+      {{-- <div class="section-icon">🏢</div> --}}
       <div>
         <h2>Your business basics</h2>
         <p>We verify your registration and Facebook Page first - if anything blocks onboarding, you’ll see it here.</p>
@@ -945,7 +945,7 @@
   <!-- ────────────────────────── SECTION 2: Meta & Facebook ──────────────────────────── -->
   <div class="section-card" id="sec-1">
     <div class="section-header">
-      <div class="section-icon">🔷</div>
+      {{-- <div class="section-icon">🔷</div> --}}
       <div>
         <h2>Meta and Facebook access</h2>
         <p>WhatsApp integration requires the right access levels on Meta. Let's make sure you're set.</p>
@@ -1028,7 +1028,7 @@
   <!-- ────────────────────────── SECTION 3: WhatsApp Number ──────────────────────────── -->
   <div class="section-card" id="sec-2">
     <div class="section-header">
-      <div class="section-icon">📱</div>
+      {{-- <div class="section-icon">📱</div> --}}
       <div>
         <h2>Your WhatsApp number</h2>
         <p>Your WhatsApp number is the foundation of your WhatsApp setup. A few important things to confirm here.</p>
@@ -1126,7 +1126,7 @@
   <!-- ────────────────────────── SECTION 4: Other Info ──────────────────────────── -->
   <div class="section-card" id="sec-3">
     <div class="section-header">
-      <div class="section-icon">👤</div>
+      {{-- <div class="section-icon">👤</div> --}}
       <div>
         <h2>Other info</h2>
         <p>A few personal details so we know who to reach for the demo and follow-ups.</p>
