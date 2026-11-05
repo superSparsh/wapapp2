@@ -94,9 +94,8 @@ class ChatbotFlowEngine
 
         $isInteractiveReply = $this->inboundLooksLikeInteractiveReply($inboundMessage);
 
-        // 2. Button/list/QR tap on a prior chatbot message → route from that node's edges
-        // (even after the flow already advanced past that menu).
-        // List replies from some BSPs omit ContextMessageId — fall back to recent tagged outbounds.
+        // 2. Button/list/QR tap on a prior *chatbot-sent* message (has chatbot_* metadata).
+        // List replies often omit ContextMessageId — recent tagged outbound fallback covers that.
         if ($isInteractiveReply) {
             $contextRouted = $this->tryContextNodeReply($conversation, $inboundMessage, $body);
             if ($contextRouted !== TriggerFireResult::NoMatch) {
@@ -109,31 +108,39 @@ class ChatbotFlowEngine
             }
         }
 
-        // 3. Keyword trigger (legacy WebhookMessageService order).
-        // Never preempt on interactive button/list taps — option titles often collide with
-        // welcome keywords and re-send the menu (especially after the previous branch completed).
-        if (! $isInteractiveReply) {
-            $triggered = $this->matchAndTriggerFlow($conversation, $inboundMessage, $body, exactOnly: false);
-            if ($triggered !== TriggerFireResult::NoMatch) {
-                return $triggered;
+        // 3. If an interactive tap clearly matches the current waiting node options,
+        // handle it before keywords (avoids option-title == trigger restarting the menu).
+        if ($isInteractiveReply) {
+            $matchedWait = $this->tryMatchedWaitingInteractiveReply($conversation, $inboundMessage, $body);
+            if ($matchedWait !== TriggerFireResult::NoMatch) {
+                return $matchedWait;
             }
         }
 
-        // 4. No keyword match → continue waiting reply if any
+        // 4. Keyword trigger (legacy order). Still runs for interactive so welcome keywords
+        // can beat Inbox/Campaign template-entry when the tap body is itself a trigger word.
+        $triggered = $this->matchAndTriggerFlow($conversation, $inboundMessage, $body, exactOnly: false);
+        if ($triggered !== TriggerFireResult::NoMatch) {
+            return $triggered;
+        }
+
+        // 5. Inbox/Campaign (and other external) template button → enter matching chatbot.
+        // Before waiting-state so a stale unmatched wait cannot swallow campaign/inbox taps.
+        if ($isInteractiveReply) {
+            $templateEntry = $this->tryTemplateEntryFromInbound($conversation, $inboundMessage, $body);
+            if ($templateEntry !== TriggerFireResult::NoMatch) {
+                return $templateEntry;
+            }
+        }
+
+        // 6. Continue waiting reply if any (unmatched interactive stays here)
         $waitingState = $this->findWaitingState($conversation);
 
         if ($waitingState !== null) {
             return $this->processReply($conversation, $inboundMessage, $waitingState, $body);
         }
 
-        // 5. Interactive reply to an outbound template (Inbox/Campaign/etc.) that matches
-        // a templateMessage node in an active chatbot → enter that flow without re-sending.
-        $templateEntry = $this->tryTemplateEntryFromInbound($conversation, $inboundMessage, $body);
-        if ($templateEntry !== TriggerFireResult::NoMatch) {
-            return $templateEntry;
-        }
-
-        // 6. Or resume an active (non-waiting) state
+        // 7. Or resume an active (non-waiting) state
         $activeState = $this->findActiveState($conversation);
 
         if ($activeState !== null) {
@@ -141,6 +148,45 @@ class ChatbotFlowEngine
         }
 
         return TriggerFireResult::NoMatch;
+    }
+
+    /**
+     * Process an interactive reply only when it matches the live waiting node's options/handles.
+     */
+    private function tryMatchedWaitingInteractiveReply(
+        Conversation $conversation,
+        Message $inboundMessage,
+        string $body,
+    ): TriggerFireResult {
+        $waitingState = $this->findWaitingState($conversation);
+        if ($waitingState === null) {
+            return TriggerFireResult::NoMatch;
+        }
+
+        $flow = ChatbotFlow::query()->find($waitingState->chatbot_flow_id);
+        if ($flow === null || ! $flow->isActive() || ! $flow->hasFlowData()) {
+            return TriggerFireResult::NoMatch;
+        }
+
+        $nodeMap = $this->normalizer->normalize($flow);
+        $node = $nodeMap[$waitingState->current_node_id] ?? null;
+        if ($node === null) {
+            return TriggerFireResult::NoMatch;
+        }
+
+        $replyId = (string) (($inboundMessage->metadata['interactive_reply_id'] ?? null)
+            ?: ($inboundMessage->metadata['reply_id'] ?? ''));
+
+        $variables = is_array($waitingState->variables) ? $waitingState->variables : [];
+        $matches = $this->resolveMatchedReplyHandle($node, $body, $variables, $replyId) !== null
+            || $this->resolveNextNodeFromReply($node, $body, $variables, $replyId) !== null
+            || $this->replyMatchesOptionNode($node, $body, $replyId);
+
+        if (! $matches) {
+            return TriggerFireResult::NoMatch;
+        }
+
+        return $this->processReply($conversation, $inboundMessage, $waitingState, $body);
     }
 
     /**
@@ -878,10 +924,13 @@ class ChatbotFlowEngine
         $replyId = (string) (($inboundMessage->metadata['interactive_reply_id'] ?? null)
             ?: ($inboundMessage->metadata['reply_id'] ?? ''));
 
+        // Interactive only — do not scan Template outbounds here.
+        // Inbox/Campaign template taps must reach tryTemplateEntryFromInbound instead of
+        // being stolen by an older chatbot-tagged template with similar button titles.
         $outbounds = Message::query()
             ->where('conversation_id', $conversation->id)
             ->where('direction', MessageDirection::Outbound)
-            ->whereIn('message_type', [MessageType::Interactive->value, MessageType::Template->value])
+            ->where('message_type', MessageType::Interactive)
             ->where('created_at', '>=', now()->subDays(7))
             ->orderByDesc('id')
             ->limit(20)

@@ -326,6 +326,87 @@ class ChatbotTemplateEntryTest extends TestCase
         );
     }
 
+    public function test_inbox_template_entry_beats_stale_waiting_state(): void
+    {
+        $providerCode = '1234567890666';
+        $template = Template::factory()->create([
+            'code' => $providerCode,
+            'name' => 'Inbox Over Wait',
+        ]);
+
+        $flow = ChatbotFlow::factory()->active()->create([
+            'exported_data' => [
+                'nodes' => [
+                    [
+                        'id' => 'template_1',
+                        'type' => 'templateMessage',
+                        'data' => [
+                            'messageType' => 'template',
+                            'templateId' => $template->id,
+                            'templateCode' => $providerCode,
+                            'quickReplies' => [
+                                ['text' => 'Book now'],
+                            ],
+                        ],
+                    ],
+                    [
+                        'id' => 'thanks_1',
+                        'type' => 'templateMessage',
+                        'data' => [
+                            'messageType' => 'custom',
+                            'customText' => 'Booked via inbox template',
+                        ],
+                    ],
+                ],
+                'edges' => [
+                    ['source' => 'template_1', 'target' => 'thanks_1', 'sourceHandle' => 'reply-0'],
+                ],
+            ],
+        ]);
+
+        $conversation = Conversation::factory()->create();
+
+        // Stale mid-flow wait that used to swallow Inbox/Campaign template taps.
+        ChatbotFlowState::query()->create([
+            'conversation_id' => $conversation->id,
+            'chatbot_flow_id' => $flow->id,
+            'current_node_id' => 'template_1',
+            'variables' => [
+                '_interactive_options' => [
+                    ['id' => 'other', 'title' => 'Other'],
+                ],
+            ],
+            'status' => ChatbotFlowStateStatus::Waiting,
+            'expires_at' => now()->addHour(),
+        ]);
+
+        Message::factory()->outbound()->create([
+            'conversation_id' => $conversation->id,
+            'external_message_id' => 'wamid.inbox-over-wait',
+            'message_type' => MessageType::Template,
+            'metadata' => [
+                'template_code' => $providerCode,
+                'template_id' => $template->id,
+                'wallet_source' => 'inbox',
+            ],
+        ]);
+
+        $result = app(ChatbotFlowEngine::class)->processInbound($conversation, Message::factory()->create([
+            'conversation_id' => $conversation->id,
+            'body' => 'Book now',
+            'direction' => MessageDirection::Inbound,
+            'message_type' => MessageType::Interactive,
+            'metadata' => [
+                'interactive_reply_id' => 'Book now',
+                'interactive_reply_type' => 'button',
+                'context_message_id' => 'wamid.inbox-over-wait',
+            ],
+        ]));
+
+        $this->assertSame(TriggerFireResult::Fired, $result);
+        $this->assertContains('Booked via inbox template', $this->sent);
+    }
+
     private function assertTemplateEntryFromOutboundSource(
         string $providerCode,
         string $walletSource,
