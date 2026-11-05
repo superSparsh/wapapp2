@@ -107,7 +107,7 @@
                       <form method="POST" action="{{ $chatbot['duplicate_url'] }}" class="inline">
                         @csrf
                         <button type="submit" class="flex size-5 items-center justify-center" aria-label="Copy chatbot" title="Copy">
-                          <img src="{{ asset('images/automation/copy-icon.svg') }}" alt="" class="size-5" width="20" height="20">
+                          <img src="{{ asset('images/automation/copy-figma.svg') }}" alt="" class="size-5" width="20" height="20">
                         </button>
                       </form>
                       <x-automation.listing-delete-button
