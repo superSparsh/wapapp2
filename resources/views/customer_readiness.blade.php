@@ -234,7 +234,7 @@
   }
 
   /* ── Field groups ── */
-  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top:1%}
   @media(max-width:600px) { .field-row { grid-template-columns: 1fr; } }
 
   .field {
@@ -2834,7 +2834,7 @@ if (hasGstUploadError) {
   regLookupState = true;
   rememberGoodRegistration(verifiedCert.registration_number, verifiedCert.business_name);
   setRegnumStatus('ok', '✅ ' + verifiedCert.registration_number);
-  setRegdocStatus('ok', '✅ Certificate verified — re-upload only if you need to change it.');
+  setRegdocStatus('ok', '✅ Certificate verified - re-upload only if you need to change it.');
   showValid('f-regnum');
   showValid('f-bname');
   if (get('f-regdoc-type') && !get('f-regdoc-type').value) {
