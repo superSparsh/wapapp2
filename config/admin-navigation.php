@@ -13,10 +13,11 @@ return [
         'label' => 'Customer',
         'route' => 'admin.customers.index',
         'icon' => 'users',
-        'matches' => ['admin.customers.*'],
+        'matches' => ['admin.customers.*', 'admin.message-performance.*', 'admin.recent-campaigns.*'],
         'children' => [
             ['label' => 'Customers', 'route' => 'admin.customers.index', 'matches' => ['admin.customers.show', 'admin.customers.edit']],
-            ['label' => 'Message performance', 'route' => 'admin.message-performance.index', 'matches' => []],
+            ['label' => 'Message performance', 'route' => 'admin.message-performance.index', 'matches' => ['admin.message-performance.*']],
+            ['label' => 'Recent campaigns', 'route' => 'admin.recent-campaigns.index', 'matches' => ['admin.recent-campaigns.*']],
             ['label' => 'Retention & Renewals', 'route' => 'admin.retention.index', 'matches' => []],
             ['label' => 'Renew requests', 'route' => 'admin.renew-requests.index', 'matches' => []],
             [

@@ -29,6 +29,7 @@ use App\Domains\Admin\Http\Controllers\InvoiceTemplateController;
 use App\Domains\Admin\Http\Controllers\LanguageController;
 use App\Domains\Admin\Http\Controllers\MaintenanceModeController;
 use App\Domains\Admin\Http\Controllers\MessagePerformanceController;
+use App\Domains\Admin\Http\Controllers\RecentCampaignController;
 use App\Domains\Admin\Http\Controllers\OAuthSettingsController;
 use App\Domains\Admin\Http\Controllers\PageLayoutController;
 use App\Domains\Admin\Http\Controllers\PaymentGatewayController;
@@ -210,6 +211,7 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::post('/whatsapp-health/alerts/read-all', [WhatsappHealthController::class, 'markAllAlertsRead'])->name('whatsapp-health.alerts.read-all');
         Route::post('/whatsapp-health/alerts/{alert}/read', [WhatsappHealthController::class, 'markAlertRead'])->name('whatsapp-health.alerts.read');
         Route::get('/message-performance', [MessagePerformanceController::class, 'index'])->name('message-performance.index');
+        Route::get('/recent-campaigns', [RecentCampaignController::class, 'index'])->name('recent-campaigns.index');
 
         Route::get('/plans', [PlanController::class, 'index'])->name('plans.index');
         Route::get('/plans/create', [PlanController::class, 'create'])->name('plans.create');

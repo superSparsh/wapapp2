@@ -28,7 +28,7 @@
         'complete', 'synced', 'yes', '1', 'true', 'created', 'authenticated', 'running', 'green'
             => 'bg-green-50 text-green-700 ring-green-200',
         'pending', 'processing', 'queued', 'draft', 'new', 'open', 'submitted', 'in_progress',
-        'awaiting_payment', 'zoho_pending', 'yellow', 'amber' => 'bg-amber-50 text-amber-800 ring-amber-200',
+        'sending', 'scheduled', 'awaiting_payment', 'zoho_pending', 'yellow', 'amber' => 'bg-amber-50 text-amber-800 ring-amber-200',
         'suspended', 'disabled', 'inactive', 'rejected', 'failed', 'cancelled', 'canceled', 'expired',
         'declined', 'paid_wallet_missing', 'zoho_failed', 'no', '0', 'false', 'error', 'deleted', 'red'
             => 'bg-red-50 text-red-700 ring-red-200',
