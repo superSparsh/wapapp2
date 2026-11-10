@@ -67,7 +67,19 @@ return [
         'reminder_days' => [30, 7, 3, 1],
         'whatsapp_template' => env('ALERT_WA_TEMPLATE_PLAN_EXPIRATION', 'plan_expiration_notification_wapapp'),
         'whatsapp_renewal_template' => env('ALERT_WA_TEMPLATE_PLAN_RENEWAL', 'plan_renewal_reminder_wapapp'),
+        // Optional numeric CAMS TemplateCodes — skips List/Detail when set.
+        'whatsapp_template_code' => env('ALERT_WA_TEMPLATE_PLAN_EXPIRATION_CODE'),
+        'whatsapp_renewal_template_code' => env('ALERT_WA_TEMPLATE_PLAN_RENEWAL_CODE'),
     ],
+
+    /*
+    | Map Meta/logical template name → numeric CAMS TemplateCode for ops sends.
+    | Used when ListChatappTemplate fails with opaque InvalidParameter on some spaces.
+    */
+    'whatsapp_template_codes' => array_filter([
+        env('ALERT_WA_TEMPLATE_PLAN_EXPIRATION', 'plan_expiration_notification_wapapp') => env('ALERT_WA_TEMPLATE_PLAN_EXPIRATION_CODE'),
+        env('ALERT_WA_TEMPLATE_PLAN_RENEWAL', 'plan_renewal_reminder_wapapp') => env('ALERT_WA_TEMPLATE_PLAN_RENEWAL_CODE'),
+    ]),
 
     'inbox_new_message' => [
         'whatsapp_template' => env('ALERT_WA_TEMPLATE_INBOX', 'wapapp_inbox_notification'),

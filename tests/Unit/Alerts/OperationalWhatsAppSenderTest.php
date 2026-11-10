@@ -223,6 +223,17 @@ class OperationalWhatsAppSenderTest extends TestCase
     {
         Http::fake(function (\Illuminate\Http\Client\Request $request) {
             $action = $request['Action'] ?? '';
+            if ($action === 'GetChatappTemplateDetail') {
+                return Http::response([
+                    'Code' => 'OK',
+                    'Data' => [
+                        'TemplateCode' => '1257583503568572999',
+                        'TemplateName' => 'calendly_customer_invite_created',
+                        'Language' => 'en_GB',
+                    ],
+                ], 200);
+            }
+
             if ($action === 'ListChatappTemplate') {
                 return Http::response([
                     'Code' => 'OK',
@@ -252,6 +263,78 @@ class OperationalWhatsAppSenderTest extends TestCase
             return ($request['Action'] ?? '') === 'SendChatappMessage'
                 && ($request['TemplateCode'] ?? null) === '1257583503568572999';
         });
+    }
+
+    public function test_send_template_resolves_via_detail_when_list_returns_invalid_parameter(): void
+    {
+        Http::fake(function (\Illuminate\Http\Client\Request $request) {
+            $action = $request['Action'] ?? '';
+            if ($action === 'GetChatappTemplateDetail') {
+                return Http::response([
+                    'Code' => 'OK',
+                    'Data' => [
+                        'TemplateCode' => '1257583503568572444',
+                        'Name' => 'plan_renewal_reminder_wapapp',
+                        'Language' => 'en_GB',
+                    ],
+                ], 200);
+            }
+
+            if ($action === 'ListChatappTemplate') {
+                return Http::response([
+                    'Code' => 'InvalidParameter',
+                    'Message' => 'must not be null',
+                ], 200);
+            }
+
+            return Http::response(['Code' => 'OK', 'Message' => 'success', 'MessageId' => 'msg-detail-ok'], 200);
+        });
+
+        $result = app(OperationalWhatsAppSender::class)->sendTemplateResult(
+            '919876543210',
+            'plan_renewal_reminder_wapapp',
+            [
+                'full_name' => 'Koravi Developers',
+                'plan_name' => 'Ginger Advance',
+                'expiration_date' => '14 Nov 2026',
+            ],
+        );
+
+        $this->assertTrue($result['ok'], (string) ($result['error'] ?? ''));
+
+        Http::assertSent(function ($request) {
+            return ($request['Action'] ?? '') === 'SendChatappMessage'
+                && ($request['TemplateCode'] ?? null) === '1257583503568572444'
+                && ($request['TemplateName'] ?? null) === 'plan_renewal_reminder_wapapp';
+        });
+    }
+
+    public function test_lookup_failure_is_labeled_when_detail_and_list_fail(): void
+    {
+        Http::fake(function (\Illuminate\Http\Client\Request $request) {
+            $action = $request['Action'] ?? '';
+            if (in_array($action, ['GetChatappTemplateDetail', 'ListChatappTemplate'], true)) {
+                return Http::response([
+                    'Code' => 'InvalidParameter',
+                    'Message' => 'must not be null',
+                    'Recommend' => 'https://api.alibabacloud.com/troubleshoot?q=InvalidParameter',
+                ], 200);
+            }
+
+            return Http::response(['Code' => 'OK'], 200);
+        });
+
+        $result = app(OperationalWhatsAppSender::class)->sendTemplateResult(
+            '919876543210',
+            'plan_renewal_reminder_wapapp',
+            ['full_name' => 'Riya', 'plan_name' => 'Pro', 'expiration_date' => '14 Nov 2026'],
+        );
+
+        $this->assertFalse($result['ok']);
+        $error = (string) $result['error'];
+        $this->assertStringContainsString('Template lookup failed', $error);
+        $this->assertStringContainsString('must not be null', $error);
+        $this->assertStringNotContainsString('(code ', $error);
     }
 
     public function test_send_template_fails_clearly_when_name_not_on_space(): void

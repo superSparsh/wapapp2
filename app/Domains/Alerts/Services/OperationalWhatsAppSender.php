@@ -168,10 +168,15 @@ class OperationalWhatsAppSender
         }
 
         if (! $resolved['ok']) {
+            $lookupError = $resolved['error'] ?: 'WhatsApp template could not be resolved on this line.';
+            if (! str_starts_with(strtolower($lookupError), 'template lookup')) {
+                $lookupError = 'Template lookup failed: '.$lookupError;
+            }
+
             return [
                 'ok' => false,
                 'error' => $this->formatDeliveryError(
-                    camsError: $resolved['error'] ?: 'WhatsApp template could not be resolved on this line.',
+                    camsError: $lookupError,
                     template: $templateCode,
                     providerCode: null,
                     language: $language,
@@ -214,6 +219,7 @@ class OperationalWhatsAppSender
             $codesTried[] = $providerCode;
 
             $hitTemplateNotExist = false;
+            $knownTemplateName = $lookupNames[0] ?? (CamsTemplateIdentity::isProviderCode($templateCode) ? '' : $templateCode);
             foreach ($languagesToTry as $tryLanguage) {
                 $payload = [
                     'ChannelType' => 'whatsapp',
@@ -229,11 +235,31 @@ class OperationalWhatsAppSender
                 if ($custSpaceId !== '') {
                     $payload['CustSpaceId'] = $custSpaceId;
                 }
+                // Some CAMS accounts resolve more reliably when both Code + Name are present.
+                if (is_string($knownTemplateName) && $knownTemplateName !== '') {
+                    $payload['TemplateName'] = $knownTemplateName;
+                }
 
                 try {
                     // Prefer POST form — GET query strings can mangle TemplateParams JSON
                     // (same reason AlibabaCamsClient uses signedFormPost for SendChatappMessage).
                     $response = $this->signedFormPost($payload, $accessKeyId, $accessKeySecret);
+                    $parsed = $this->parseCamsResponse($response);
+
+                    // POST form sometimes yields opaque InvalidParameter ("must not be null").
+                    // Retry once with GET (login OTP path) before giving up on this language.
+                    $errorText = strtolower((string) ($parsed['error'] ?? ''));
+                    if (! $parsed['ok']
+                        && str_contains($errorText, 'invalidparameter')
+                        && str_contains($errorText, 'must not be null')
+                    ) {
+                        $response = $this->signedRequest(
+                            array_merge(['Action' => 'SendChatappMessage'], $payload),
+                            $accessKeyId,
+                            $accessKeySecret,
+                        );
+                        $parsed = $this->parseCamsResponse($response);
+                    }
                 } catch (\Throwable $e) {
                     Log::error('Operational WhatsApp alert request failed', [
                         'template' => $templateCode,
@@ -262,7 +288,6 @@ class OperationalWhatsAppSender
                     ];
                 }
 
-                $parsed = $this->parseCamsResponse($response);
                 if ($parsed['ok']) {
                     return $parsed;
                 }
@@ -423,9 +448,23 @@ class OperationalWhatsAppSender
         return array_values(array_unique(array_filter($variants)));
     }
 
+    private function configuredProviderCodeForName(string $name): ?string
+    {
+        $map = (array) config('operational-alerts.whatsapp_template_codes', []);
+        foreach ($this->templateNameLookupVariants($name) as $variant) {
+            $code = trim((string) ($map[$variant] ?? ''));
+            if (CamsTemplateIdentity::isProviderCode($code)) {
+                return $code;
+            }
+        }
+
+        return null;
+    }
+
     /**
      * CAMS SendChatappMessage needs a numeric TemplateCode. Config often stores the
-     * Meta template name (snake_case) — resolve via ListChatappTemplate when needed.
+     * Meta template name (snake_case) — resolve via GetChatappTemplateDetail first,
+     * then ListChatappTemplate.
      *
      * @return array{ok: bool, code: ?string, language: ?string, error: ?string}
      */
@@ -443,6 +482,11 @@ class OperationalWhatsAppSender
 
         if (CamsTemplateIdentity::isProviderCode($value)) {
             return ['ok' => true, 'code' => $value, 'language' => $language, 'error' => null];
+        }
+
+        $configuredCode = $this->configuredProviderCodeForName($value);
+        if ($configuredCode !== null) {
+            return ['ok' => true, 'code' => $configuredCode, 'language' => $language, 'error' => null];
         }
 
         $cacheKey = $this->templateCodeCacheKey($custSpaceId, $language, $value);
@@ -472,16 +516,45 @@ class OperationalWhatsAppSender
         ], static fn ($lang): bool => is_string($lang))));
 
         $lastError = null;
+
+        // 1) GetChatappTemplateDetail by TemplateName — more reliable than List for a known name
+        //    (List on some CustSpaceIds returns opaque InvalidParameter / must not be null).
         foreach ($namesToFind as $searchName) {
             foreach ($languagesToTry as $tryLanguage) {
-                // 1) Exact Name filter
-                // 2) Paginated unfiltered list — match exact / "{id}_{logical}" suffix only
-                //    (never pick an unrelated first row — that caused create TemplateNotExist).
+                if ($tryLanguage === '') {
+                    continue;
+                }
+
+                $detail = $this->resolveViaTemplateDetail(
+                    $searchName,
+                    $tryLanguage,
+                    $custSpaceId,
+                    $accessKeyId,
+                    $accessKeySecret,
+                );
+                if ($detail['ok']) {
+                    Cache::put($cacheKey, [
+                        'code' => $detail['code'],
+                        'language' => $detail['language'] ?: $tryLanguage,
+                    ], now()->addHours(6));
+
+                    return $detail;
+                }
+                if (is_string($detail['error'] ?? null) && $detail['error'] !== '') {
+                    $lastError = $detail['error'];
+                }
+            }
+        }
+
+        // 2) ListChatappTemplate — exact Name filter, then paginated unfiltered match
+        foreach ($namesToFind as $searchName) {
+            foreach ($languagesToTry as $tryLanguage) {
                 foreach ([true, false] as $filterByName) {
                     $maxPages = $filterByName ? 1 : 5;
                     for ($page = 1; $page <= $maxPages; $page++) {
                         $params = [
                             'Action' => 'ListChatappTemplate',
+                            'TemplateType' => 'WHATSAPP',
                             'PageSize' => $filterByName ? '20' : '50',
                             'PageIndex' => (string) $page,
                         ];
@@ -498,7 +571,7 @@ class OperationalWhatsAppSender
                         try {
                             $response = $this->signedRequest($params, $accessKeyId, $accessKeySecret);
                         } catch (\Throwable $e) {
-                            $lastError = 'Could not look up WhatsApp template "'.$searchName.'": '.$e->getMessage();
+                            $lastError = 'ListChatappTemplate failed for "'.$searchName.'": '.$e->getMessage();
 
                             break;
                         }
@@ -506,15 +579,17 @@ class OperationalWhatsAppSender
                         $body = $response->json();
                         $body = is_array($body) ? $body : [];
                         if (! $response->successful()) {
-                            $lastError = $this->extractCamsError($body, $response->body(), $response->status());
+                            $lastError = 'ListChatappTemplate: '.$this->extractCamsError($body, $response->body(), $response->status());
 
                             break;
                         }
 
                         $code = Arr::get($body, 'Code') ?? Arr::get($body, 'code');
                         if (is_string($code) && $code !== '' && strtoupper($code) !== 'OK') {
-                            $lastError = $this->extractCamsError($body, $response->body(), $response->status());
+                            $lastError = 'ListChatappTemplate: '.$this->extractCamsError($body, $response->body(), $response->status());
 
+                            // Keep trying other filters/languages — Name+Language can 400 while
+                            // unfiltered list / other locales still work on the same space.
                             break;
                         }
 
@@ -554,6 +629,84 @@ class OperationalWhatsAppSender
             'language' => null,
             'error' => $lastError
                 ?: ('WhatsApp template "'.$value.'" was not found on this WhatsApp line'.$spaceHint.'. Sync/refresh the template from the Templates page.'),
+        ];
+    }
+
+    /**
+     * @return array{ok: bool, code: ?string, language: ?string, error: ?string}
+     */
+    private function resolveViaTemplateDetail(
+        string $templateName,
+        string $language,
+        string $custSpaceId,
+        string $accessKeyId,
+        string $accessKeySecret,
+    ): array {
+        $params = [
+            'Action' => 'GetChatappTemplateDetail',
+            'TemplateName' => $templateName,
+            'Language' => $language,
+            'TemplateType' => 'WHATSAPP',
+        ];
+        if ($custSpaceId !== '') {
+            $params['CustSpaceId'] = $custSpaceId;
+        }
+
+        try {
+            $response = $this->signedRequest($params, $accessKeyId, $accessKeySecret);
+        } catch (\Throwable $e) {
+            return [
+                'ok' => false,
+                'code' => null,
+                'language' => null,
+                'error' => 'GetChatappTemplateDetail failed for "'.$templateName.'": '.$e->getMessage(),
+            ];
+        }
+
+        $body = $response->json();
+        $body = is_array($body) ? $body : [];
+        if (! $response->successful()) {
+            return [
+                'ok' => false,
+                'code' => null,
+                'language' => null,
+                'error' => 'GetChatappTemplateDetail: '.$this->extractCamsError($body, $response->body(), $response->status()),
+            ];
+        }
+
+        $code = Arr::get($body, 'Code') ?? Arr::get($body, 'code');
+        if (is_string($code) && $code !== '' && strtoupper($code) !== 'OK') {
+            return [
+                'ok' => false,
+                'code' => null,
+                'language' => null,
+                'error' => 'GetChatappTemplateDetail: '.$this->extractCamsError($body, $response->body(), $response->status()),
+            ];
+        }
+
+        $templateCode = Arr::get($body, 'Data.TemplateCode')
+            ?? Arr::get($body, 'data.TemplateCode')
+            ?? Arr::get($body, 'Data.templateCode')
+            ?? Arr::get($body, 'TemplateCode')
+            ?? Arr::get($body, 'templateCode');
+
+        if (! is_string($templateCode) || ! CamsTemplateIdentity::isProviderCode($templateCode)) {
+            return ['ok' => false, 'code' => null, 'language' => null, 'error' => null];
+        }
+
+        $matchedLanguage = trim((string) (
+            Arr::get($body, 'Data.Language')
+            ?? Arr::get($body, 'data.Language')
+            ?? Arr::get($body, 'Data.language')
+            ?? Arr::get($body, 'Language')
+            ?? $language
+        ));
+
+        return [
+            'ok' => true,
+            'code' => $templateCode,
+            'language' => $matchedLanguage !== '' ? $matchedLanguage : $language,
+            'error' => null,
         ];
     }
 
