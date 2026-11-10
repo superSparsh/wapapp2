@@ -108,6 +108,51 @@ class OperationalWhatsAppSenderTest extends TestCase
         });
     }
 
+    public function test_send_template_replaces_empty_params_with_na(): void
+    {
+        Http::fake([
+            'cams.ap-southeast-1.aliyuncs.com/*' => Http::response([
+                'Code' => 'OK',
+                'Message' => 'success',
+            ], 200),
+        ]);
+
+        $result = app(OperationalWhatsAppSender::class)->sendTemplateResult(
+            '919876543210',
+            '1257583503568572001',
+            [
+                'customer_name' => 'Riya',
+                'plan_name' => '',
+                'ends_at' => null,
+                'days_left' => 7,
+            ],
+        );
+
+        $this->assertTrue($result['ok']);
+
+        Http::assertSent(function ($request) {
+            if (($request['Action'] ?? '') !== 'SendChatappMessage') {
+                return false;
+            }
+
+            $raw = $request['TemplateParams'] ?? '';
+            if (! is_string($raw) || $raw === '') {
+                return false;
+            }
+
+            $params = json_decode($raw, true);
+            if (! is_array($params)) {
+                return false;
+            }
+
+            return ($params['customer_name'] ?? null) === 'Riya'
+                && ($params['plan_name'] ?? null) === 'N/A'
+                && ($params['ends_at'] ?? null) === 'N/A'
+                && ($params['days_left'] ?? null) === '7'
+                && ! str_starts_with($raw, '[');
+        });
+    }
+
     public function test_send_template_resolves_snake_case_name_to_provider_code(): void
     {
         Http::fake(function (\Illuminate\Http\Client\Request $request) {

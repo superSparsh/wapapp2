@@ -153,7 +153,8 @@ class OperationalWhatsAppSender
                     'Language' => $tryLanguage,
                     'From' => $from,
                     'To' => $to,
-                    'TemplateParams' => json_encode($this->stringifyParams($templateParams), JSON_THROW_ON_ERROR),
+                    // Cast to object so empty params encode as {} (not []), matching inbox/campaigns.
+                    'TemplateParams' => json_encode((object) $this->stringifyParams($templateParams), JSON_THROW_ON_ERROR),
                 ];
 
                 if ($custSpaceId !== '') {
@@ -168,6 +169,7 @@ class OperationalWhatsAppSender
                         'provider_code' => $providerCode,
                         'language' => $tryLanguage,
                         'to' => $to,
+                        'params' => $this->stringifyParams($templateParams),
                         'error' => $e->getMessage(),
                     ]);
 
@@ -187,6 +189,7 @@ class OperationalWhatsAppSender
                         'template' => $templateCode,
                         'provider_code' => $providerCode,
                         'to' => $to,
+                        'params' => $this->stringifyParams($templateParams),
                         'error' => $lastParsed['error'],
                     ]);
 
@@ -501,14 +504,24 @@ class OperationalWhatsAppSender
     }
 
     /**
-     * @param  array<string, string|int|float>  $params
+     * CAMS rejects empty/null TemplateParams values with InvalidParameter
+     * ("… must not be null"). Always send a non-empty string fallback.
+     *
+     * @param  array<string, string|int|float|null>  $params
      * @return array<string, string>
      */
     private function stringifyParams(array $params): array
     {
         $out = [];
         foreach ($params as $key => $value) {
-            $out[(string) $key] = trim((string) $value);
+            if ($value === null || is_array($value)) {
+                $out[(string) $key] = 'N/A';
+
+                continue;
+            }
+
+            $text = trim((string) $value);
+            $out[(string) $key] = $text !== '' ? $text : 'N/A';
         }
 
         return $out;
