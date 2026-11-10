@@ -127,13 +127,15 @@ class OperationalAlertService
                 $ok = false;
                 if (is_string($result['error'] ?? null) && $result['error'] !== '') {
                     $errors[] = $result['error'];
+                } else {
+                    $errors[] = "WhatsApp send failed for {$phone} using template {$templateCode}.";
                 }
             }
         }
 
         return [
             'ok' => $ok,
-            'error' => $errors === [] ? null : implode(' | ', array_values(array_unique($errors))),
+            'error' => $errors === [] ? null : implode("\n\n", array_values(array_unique($errors))),
         ];
     }
 

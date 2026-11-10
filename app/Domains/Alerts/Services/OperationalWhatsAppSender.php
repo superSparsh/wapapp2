@@ -67,17 +67,73 @@ class OperationalWhatsAppSender
                 'has_from' => $from !== '',
             ]);
 
-            return ['ok' => false, 'error' => 'WhatsApp sender config missing (FROM number or Alibaba keys).', 'message_id' => null];
+            return [
+                'ok' => false,
+                'error' => $this->formatDeliveryError(
+                    camsError: 'WhatsApp sender config missing (FROM number or Alibaba keys).',
+                    template: $templateCode !== '' ? $templateCode : '(empty)',
+                    providerCode: null,
+                    language: $language,
+                    from: $from,
+                    to: $this->formatRecipient($toPhone),
+                    custSpaceId: $custSpaceId,
+                    params: $this->stringifyParams($templateParams),
+                ),
+                'message_id' => null,
+            ];
         }
 
         // CAMS requires From/To as digits only (InvalidParameter.ToOnlyNumeric / FromOnlyNumeric).
         $to = $this->formatRecipient($toPhone);
         $from = $this->formatRecipient($from);
         if ($to === '') {
-            return ['ok' => false, 'error' => 'Invalid WhatsApp recipient number.', 'message_id' => null];
+            return [
+                'ok' => false,
+                'error' => $this->formatDeliveryError(
+                    camsError: 'Invalid WhatsApp recipient number.',
+                    template: $templateCode,
+                    providerCode: null,
+                    language: $language,
+                    from: $from,
+                    to: $toPhone,
+                    custSpaceId: $custSpaceId,
+                    params: $this->stringifyParams($templateParams),
+                ),
+                'message_id' => null,
+            ];
         }
         if ($from === '') {
-            return ['ok' => false, 'error' => 'WhatsApp sender FROM number is invalid.', 'message_id' => null];
+            return [
+                'ok' => false,
+                'error' => $this->formatDeliveryError(
+                    camsError: 'WhatsApp sender FROM number is invalid. Set OPERATIONAL_ALERTS_WA_FROM.',
+                    template: $templateCode,
+                    providerCode: null,
+                    language: $language,
+                    from: (string) ($sender['from'] ?? config('operational-alerts.whatsapp.from', '')),
+                    to: $to,
+                    custSpaceId: $custSpaceId,
+                    params: $this->stringifyParams($templateParams),
+                ),
+                'message_id' => null,
+            ];
+        }
+
+        if ($custSpaceId === '' && ! CamsTemplateIdentity::isProviderCode($templateCode)) {
+            return [
+                'ok' => false,
+                'error' => $this->formatDeliveryError(
+                    camsError: 'CustSpaceId is required to resolve template "'.$templateCode.'" (CAMS often returns InvalidParameter / must not be null when it is missing). Set OPERATIONAL_ALERTS_WA_CUST_SPACE_ID.',
+                    template: $templateCode,
+                    providerCode: null,
+                    language: $language,
+                    from: $from,
+                    to: $to,
+                    custSpaceId: $custSpaceId,
+                    params: $this->stringifyParams($templateParams),
+                ),
+                'message_id' => null,
+            ];
         }
 
         // 1) Live List by Meta/logical name on this CustSpaceId (avoids stale local codes)
@@ -112,7 +168,20 @@ class OperationalWhatsAppSender
         }
 
         if (! $resolved['ok']) {
-            return ['ok' => false, 'error' => $resolved['error'] ?: 'WhatsApp template could not be resolved on this line.', 'message_id' => null];
+            return [
+                'ok' => false,
+                'error' => $this->formatDeliveryError(
+                    camsError: $resolved['error'] ?: 'WhatsApp template could not be resolved on this line.',
+                    template: $templateCode,
+                    providerCode: null,
+                    language: $language,
+                    from: $from,
+                    to: $to,
+                    custSpaceId: $custSpaceId,
+                    params: $this->stringifyParams($templateParams),
+                ),
+                'message_id' => null,
+            ];
         }
 
         $providerCodesToTry = array_values(array_unique(array_filter([
@@ -162,18 +231,35 @@ class OperationalWhatsAppSender
                 }
 
                 try {
-                    $response = $this->signedRequest($payload, $accessKeyId, $accessKeySecret);
+                    // Prefer POST form — GET query strings can mangle TemplateParams JSON
+                    // (same reason AlibabaCamsClient uses signedFormPost for SendChatappMessage).
+                    $response = $this->signedFormPost($payload, $accessKeyId, $accessKeySecret);
                 } catch (\Throwable $e) {
                     Log::error('Operational WhatsApp alert request failed', [
                         'template' => $templateCode,
                         'provider_code' => $providerCode,
                         'language' => $tryLanguage,
+                        'from' => $from,
                         'to' => $to,
+                        'cust_space_id' => $custSpaceId !== '' ? $custSpaceId : null,
                         'params' => $this->stringifyParams($templateParams),
                         'error' => $e->getMessage(),
                     ]);
 
-                    return ['ok' => false, 'error' => 'WhatsApp request failed: '.$e->getMessage(), 'message_id' => null];
+                    return [
+                        'ok' => false,
+                        'error' => $this->formatDeliveryError(
+                            camsError: 'WhatsApp request failed: '.$e->getMessage(),
+                            template: $templateCode,
+                            providerCode: $providerCode,
+                            language: $tryLanguage,
+                            from: $from,
+                            to: $to,
+                            custSpaceId: $custSpaceId,
+                            params: $this->stringifyParams($templateParams),
+                        ),
+                        'message_id' => null,
+                    ];
                 }
 
                 $parsed = $this->parseCamsResponse($response);
@@ -185,15 +271,28 @@ class OperationalWhatsAppSender
                 $errorText = strtolower((string) ($parsed['error'] ?? ''));
                 // Wrong Language often surfaces as TemplateNotExist — try next locale / code.
                 if (! str_contains($errorText, 'templatenotexist') && ! str_contains($errorText, 'template is not exist')) {
+                    $detailed = $this->formatDeliveryError(
+                        camsError: (string) ($parsed['error'] ?? 'WhatsApp API did not return success.'),
+                        template: $templateCode,
+                        providerCode: $providerCode,
+                        language: $tryLanguage,
+                        from: $from,
+                        to: $to,
+                        custSpaceId: $custSpaceId,
+                        params: $this->stringifyParams($templateParams),
+                    );
                     Log::error('Operational WhatsApp alert delivery rejected', [
                         'template' => $templateCode,
                         'provider_code' => $providerCode,
+                        'language' => $tryLanguage,
+                        'from' => $from,
                         'to' => $to,
+                        'cust_space_id' => $custSpaceId !== '' ? $custSpaceId : null,
                         'params' => $this->stringifyParams($templateParams),
-                        'error' => $lastParsed['error'],
+                        'error' => $parsed['error'] ?? null,
                     ]);
 
-                    return $lastParsed;
+                    return ['ok' => false, 'error' => $detailed, 'message_id' => null];
                 }
 
                 $hitTemplateNotExist = true;
@@ -226,16 +325,58 @@ class OperationalWhatsAppSender
             }
         }
 
+        $finalError = $this->formatDeliveryError(
+            camsError: (string) ($lastParsed['error'] ?? 'WhatsApp API did not return success.'),
+            template: $templateCode,
+            providerCode: implode(', ', $codesTried) ?: null,
+            language: implode(', ', $languagesToTry),
+            from: $from,
+            to: $to,
+            custSpaceId: $custSpaceId,
+            params: $this->stringifyParams($templateParams),
+        );
+
         Log::error('Operational WhatsApp alert delivery rejected', [
             'template' => $templateCode,
             'template_name' => $templateName !== '' ? $templateName : null,
             'provider_codes_tried' => $codesTried,
             'to' => $to,
             'languages_tried' => $languagesToTry,
+            'params' => $this->stringifyParams($templateParams),
             'error' => $lastParsed['error'],
         ]);
 
-        return $lastParsed;
+        return ['ok' => false, 'error' => $finalError, 'message_id' => null];
+    }
+
+    /**
+     * @param  array<string, string>  $params
+     */
+    private function formatDeliveryError(
+        string $camsError,
+        string $template,
+        ?string $providerCode,
+        string $language,
+        string $from,
+        string $to,
+        string $custSpaceId,
+        array $params,
+    ): string {
+        $paramParts = [];
+        foreach ($params as $key => $value) {
+            $paramParts[] = $key.'='.$value;
+        }
+
+        $lines = [
+            'CAMS: '.$camsError,
+            'Template: '.$template.($providerCode ? ' (code '.$providerCode.')' : ''),
+            'Language: '.($language !== '' ? $language : 'n/a'),
+            'From: '.($from !== '' ? $from : 'missing').' · To: '.($to !== '' ? $to : 'missing'),
+            'CustSpaceId: '.($custSpaceId !== '' ? $custSpaceId : 'MISSING — set OPERATIONAL_ALERTS_WA_CUST_SPACE_ID'),
+            'Params: '.($paramParts !== [] ? implode(', ', $paramParts) : '(none)'),
+        ];
+
+        return implode("\n", $lines);
     }
 
     private function forgetTemplateCodeCache(string $custSpaceId, string $language, string $name): void
@@ -580,14 +721,26 @@ class OperationalWhatsAppSender
         $message = Arr::get($body, 'Message')
             ?? Arr::get($body, 'message')
             ?? Arr::get($body, 'Error.Message')
-            ?? Arr::get($body, 'error.message');
+            ?? Arr::get($body, 'error.message')
+            ?? Arr::get($body, 'AccessDeniedDetail.Message')
+            ?? Arr::get($body, 'accessDeniedDetail.Message');
+
+        $recommend = Arr::get($body, 'Recommend')
+            ?? Arr::get($body, 'recommend')
+            ?? Arr::get($body, 'AccessDeniedDetail.AuthAction')
+            ?? Arr::get($body, 'AccessDeniedDetail.EncodedDiagnosticMessage');
 
         $code = Arr::get($body, 'Code')
             ?? Arr::get($body, 'code')
             ?? Arr::get($body, 'Data.Code');
 
         if (is_string($message) && trim($message) !== '') {
-            return is_string($code) && $code !== '' ? trim($message).' ('.$code.')' : trim($message);
+            $text = is_string($code) && $code !== '' ? trim($message).' ('.$code.')' : trim($message);
+            if (is_string($recommend) && trim($recommend) !== '') {
+                $text .= ' — '.$recommend;
+            }
+
+            return $text;
         }
 
         $trimmed = trim($rawBody);
@@ -604,10 +757,12 @@ class OperationalWhatsAppSender
             ?? (preg_replace('/\D+/', '', $phone) ?? '');
     }
 
-    /** @param  array<string, string>  $params */
-    private function signedRequest(array $params, string $accessKeyId, string $accessKeySecret): Response
+    /**
+     * @param  array<string, string>  $params
+     * @return array<string, string>
+     */
+    private function buildSignedQuery(array $params, string $accessKeyId, string $accessKeySecret, string $httpMethod): array
     {
-        $endpoint = (string) config('operational-alerts.alibaba.endpoint', 'cams.ap-southeast-1.aliyuncs.com');
         $common = [
             'Action' => 'SendChatappMessage',
             'Format' => 'JSON',
@@ -627,11 +782,29 @@ class OperationalWhatsAppSender
             ->map(fn (string $value, string $key) => $this->percentEncode($key).'='.$this->percentEncode($value))
             ->implode('&');
 
-        $stringToSign = 'GET&%2F&'.$this->percentEncode($canonicalized);
+        $stringToSign = strtoupper($httpMethod).'&%2F&'.$this->percentEncode($canonicalized);
         $signature = base64_encode(hash_hmac('sha1', $stringToSign, $accessKeySecret.'&', true));
         $query['Signature'] = $signature;
 
+        return $query;
+    }
+
+    /** @param  array<string, string>  $params */
+    private function signedRequest(array $params, string $accessKeyId, string $accessKeySecret): Response
+    {
+        $endpoint = (string) config('operational-alerts.alibaba.endpoint', 'cams.ap-southeast-1.aliyuncs.com');
+        $query = $this->buildSignedQuery($params, $accessKeyId, $accessKeySecret, 'GET');
+
         return Http::timeout(15)->get("https://{$endpoint}/", $query);
+    }
+
+    /** @param  array<string, string>  $params */
+    private function signedFormPost(array $params, string $accessKeyId, string $accessKeySecret): Response
+    {
+        $endpoint = (string) config('operational-alerts.alibaba.endpoint', 'cams.ap-southeast-1.aliyuncs.com');
+        $query = $this->buildSignedQuery($params, $accessKeyId, $accessKeySecret, 'POST');
+
+        return Http::asForm()->timeout(15)->post("https://{$endpoint}/", $query);
     }
 
     private function percentEncode(string $value): string

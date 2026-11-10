@@ -108,6 +108,72 @@ class OperationalWhatsAppSenderTest extends TestCase
         });
     }
 
+    public function test_invalid_parameter_error_includes_template_and_params(): void
+    {
+        Http::fake(function (\Illuminate\Http\Client\Request $request) {
+            $action = $request['Action'] ?? '';
+            if ($action === 'ListChatappTemplate') {
+                return Http::response([
+                    'Code' => 'OK',
+                    'Data' => [
+                        'ListTemplate' => [
+                            [
+                                'TemplateCode' => '1257583503568572888',
+                                'TemplateName' => 'plan_renewal_reminder_wapapp',
+                                'Language' => 'en_GB',
+                                'AuditStatus' => 'APPROVED',
+                            ],
+                        ],
+                    ],
+                ], 200);
+            }
+
+            return Http::response([
+                'Code' => 'InvalidParameter',
+                'Message' => 'must not be null',
+            ], 200);
+        });
+
+        $result = app(OperationalWhatsAppSender::class)->sendTemplateResult(
+            '919876543210',
+            'plan_renewal_reminder_wapapp',
+            [
+                'customer_name' => 'Riya',
+                'plan_name' => 'Pro',
+                'days_left' => 7,
+                'ends_at' => '17 Nov 2026',
+            ],
+        );
+
+        $this->assertFalse($result['ok']);
+        $error = (string) $result['error'];
+        $this->assertStringContainsString('must not be null', $error);
+        $this->assertStringContainsString('InvalidParameter', $error);
+        $this->assertStringContainsString('Template: plan_renewal_reminder_wapapp', $error);
+        $this->assertStringContainsString('1257583503568572888', $error);
+        $this->assertStringContainsString('customer_name=Riya', $error);
+        $this->assertStringContainsString('CustSpaceId:', $error);
+        $this->assertStringContainsString('From:', $error);
+        $this->assertStringContainsString('To: 919876543210', $error);
+    }
+
+    public function test_missing_cust_space_id_blocks_named_template_with_clear_error(): void
+    {
+        config(['operational-alerts.whatsapp.cust_space_id' => '']);
+
+        $result = app(OperationalWhatsAppSender::class)->sendTemplateResult(
+            '919876543210',
+            'plan_renewal_reminder_wapapp',
+            ['customer_name' => 'Riya'],
+        );
+
+        $this->assertFalse($result['ok']);
+        $error = (string) $result['error'];
+        $this->assertStringContainsString('CustSpaceId is required', $error);
+        $this->assertStringContainsString('Template: plan_renewal_reminder_wapapp', $error);
+        $this->assertStringContainsString('OPERATIONAL_ALERTS_WA_CUST_SPACE_ID', $error);
+    }
+
     public function test_send_template_replaces_empty_params_with_na(): void
     {
         Http::fake([

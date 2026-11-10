@@ -31,7 +31,7 @@
                     </div>
                 @endif
                 @if (session('error'))
-                    <div class="mx-4 mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-600">
+                    <div class="mx-4 mt-4 whitespace-pre-wrap rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-600">
                         {{ session('error') }}
                     </div>
                 @endif

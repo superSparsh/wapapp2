@@ -50,12 +50,21 @@ class RetentionOutreachService
         if (! $result['ok']) {
             Log::warning('Retention WhatsApp outreach failed', [
                 'tenant_id' => $tenant->id,
+                'template' => $template,
+                'targets' => $targets,
+                'params' => $context['whatsapp_params'],
                 'error' => $result['error'],
             ]);
 
+            $detail = trim((string) ($result['error'] ?? ''));
+            $message = "WhatsApp renewal reminder failed.\n"
+                ."Template: {$template}\n"
+                .'Recipients: '.implode(', ', $targets)."\n"
+                .($detail !== '' ? $detail : 'No error detail returned by WhatsApp sender.');
+
             return [
                 'ok' => false,
-                'message' => $result['error'] ?: 'WhatsApp send failed. Check template / sender config.',
+                'message' => $message,
             ];
         }
 
