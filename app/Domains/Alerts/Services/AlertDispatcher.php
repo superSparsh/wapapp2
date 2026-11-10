@@ -91,11 +91,16 @@ class AlertDispatcher
             ? (string) config('operational-alerts.plan_expiration.whatsapp_template')
             : (string) config('operational-alerts.plan_expiration.whatsapp_renewal_template');
 
+        // Must match Meta/CAMS template placeholders:
+        // $(full_name), $(plan_name), $(expiration_date)
         $whatsappParams = [
-            'customer_name' => (string) ($user?->name ?? 'Customer'),
-            'plan_name' => (string) ($plan->name ?? 'Plan'),
-            'days_left' => $daysLeft,
-            'ends_at' => $endsAt?->format('d M Y') ?? '',
+            'full_name' => trim((string) ($user?->name ?? '')) !== ''
+                ? (string) $user->name
+                : 'Customer',
+            'plan_name' => trim((string) ($plan->name ?? '')) !== ''
+                ? (string) $plan->name
+                : 'Plan',
+            'expiration_date' => $endsAt?->format('d M Y') ?: 'N/A',
         ];
 
         $emailSubject = $daysLeft === 0

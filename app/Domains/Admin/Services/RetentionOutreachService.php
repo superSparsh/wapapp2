@@ -186,15 +186,15 @@ class RetentionOutreachService
                 'days_left' => $daysLeft ?? 0,
                 'ends_at' => $validUntil?->format('d M Y') ?? '',
             ],
+            // Must match Meta/CAMS template placeholders exactly:
+            // Hello $(full_name) … $(plan_name) … $(expiration_date)
             'whatsapp_params' => [
-                // Never send empty strings — CAMS returns InvalidParameter ("must not be null").
-                'customer_name' => $this->nonEmpty(
+                'full_name' => $this->nonEmpty(
                     (string) ($owner?->name ?: ($tenant->company_name ?: $tenant->name ?: '')),
                     'Customer',
                 ),
                 'plan_name' => $this->nonEmpty((string) ($tenant->plan?->name ?? ''), 'Plan'),
-                'days_left' => (string) ($daysLeft ?? 0),
-                'ends_at' => $this->nonEmpty($validUntil?->format('d M Y') ?? '', 'N/A'),
+                'expiration_date' => $this->nonEmpty($validUntil?->format('d M Y') ?? '', 'N/A'),
             ],
         ];
     }

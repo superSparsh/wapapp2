@@ -89,7 +89,12 @@ class AdminModulesTest extends TestCase
         $whatsApp = Mockery::mock(OperationalWhatsAppSender::class);
         $whatsApp->shouldReceive('sendTemplateResult')
             ->twice()
-            ->andReturn(['ok' => true, 'error' => null]);
+            ->withArgs(function (string $to, string $template, array $params): bool {
+                return $template === 'plan_renewal_reminder_wapapp'
+                    && isset($params['full_name'], $params['plan_name'], $params['expiration_date'])
+                    && ! isset($params['customer_name'], $params['ends_at'], $params['days_left']);
+            })
+            ->andReturn(['ok' => true, 'error' => null, 'message_id' => null]);
         $this->app->instance(OperationalWhatsAppSender::class, $whatsApp);
 
         $this->testTenant->forceFill([
