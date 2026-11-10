@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Domains\Admin\Services;
 
+use App\Domains\Admin\Support\AdminListQuery;
 use App\Enums\MessageStatus;
+use App\Models\Conversation;
 use App\Models\Message;
 use App\Models\WhatsappLine;
-use App\Domains\Admin\Support\AdminListQuery;
 use Illuminate\Pagination\LengthAwarePaginator;
-use Illuminate\Support\Collection;
 
 class WhatsappHealthAdminService
 {
@@ -45,14 +45,26 @@ class WhatsappHealthAdminService
                 ->orderByDesc('is_default')
                 ->get()
                 ->map(function (WhatsappLine $line): array {
-                    $conversationIds = \App\Models\Conversation::query()
-                        ->where('whatsapp_line_id', $line->id)
-                        ->pluck('id');
-
-                    $base = Message::query()->whereIn('conversation_id', $conversationIds);
-                    $delivered = (clone $base)->where('status', MessageStatus::Delivered)->count();
-                    $read = (clone $base)->where('status', MessageStatus::Read)->count();
-                    $failed = (clone $base)->where('status', MessageStatus::Failed)->count();
+                    // Subquery (not pluck+whereIn) — large tenants exceed MySQL's
+                    // prepared-statement placeholder limit (error 1390).
+                    $stats = Message::query()
+                        ->whereIn(
+                            'conversation_id',
+                            Conversation::query()
+                                ->select('id')
+                                ->where('whatsapp_line_id', $line->id),
+                        )
+                        ->selectRaw(
+                            'SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as delivered_count,
+                             SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as read_count,
+                             SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as failed_count',
+                            [
+                                MessageStatus::Delivered->value,
+                                MessageStatus::Read->value,
+                                MessageStatus::Failed->value,
+                            ],
+                        )
+                        ->first();
 
                     return [
                         'line_id' => $line->id,
@@ -61,9 +73,9 @@ class WhatsappHealthAdminService
                         'quality_rating' => (string) ($line->quality_rating ?? 'UNKNOWN'),
                         'messaging_limit_tier' => (string) ($line->messaging_limit_tier ?? '-'),
                         'is_default' => (bool) $line->is_default,
-                        'delivered' => $delivered,
-                        'read' => $read,
-                        'failed' => $failed,
+                        'delivered' => (int) ($stats->delivered_count ?? 0),
+                        'read' => (int) ($stats->read_count ?? 0),
+                        'failed' => (int) ($stats->failed_count ?? 0),
                     ];
                 })->all();
         }, $filters['tenant'] !== '' ? $filters['tenant'] : null);
