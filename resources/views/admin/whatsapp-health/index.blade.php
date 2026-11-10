@@ -121,6 +121,16 @@
         <input type="hidden" name="tab" value="fleet">
       </x-slot:hidden>
       <x-slot:filters>
+        <label class="flex min-w-[120px] flex-col gap-1.5 text-sm">
+          <span class="font-semibold text-text-primary">Window</span>
+          <select name="days" class="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary" data-listing-filter>
+            @foreach ([7, 30, 90] as $preset)
+              <option value="{{ $preset }}" @selected((int) ($filters['days'] ?? 30) === $preset)>
+                Last {{ $preset }} days
+              </option>
+            @endforeach
+          </select>
+        </label>
         <label class="flex min-w-[150px] flex-col gap-1.5 text-sm">
           <span class="font-semibold text-text-primary">Customer</span>
           <select name="tenant" class="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary" data-listing-filter>
@@ -143,6 +153,9 @@
     </x-admin.filter-bar>
 
     <div class="p-4 pt-0">
+      <p class="mb-3 text-xs text-text-subtle">
+        Delivered / Read / Failed counts are outbound messages in the selected window (default last 30 days).
+      </p>
       <x-ui.data-table :headers="['Customer', 'Line', 'Quality', 'Tier', 'Delivered', 'Read', 'Failed']" :paginator="$items">
         @forelse ($items as $row)
           <tr class="bg-elevated">

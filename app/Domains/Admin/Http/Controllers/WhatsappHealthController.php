@@ -30,10 +30,12 @@ class WhatsappHealthController extends Controller
             defaultSort: 'failed',
             defaultDirection: 'desc',
         );
+        $days = $this->health->normalizeDays($request->input('days'));
         $report = $this->health->fleet(
             array_merge($request->only(['q', 'tenant', 'quality']), [
                 'sort' => $fleetParsed['sort'],
                 'direction' => $fleetParsed['direction'],
+                'days' => $days,
             ]),
             (int) $request->integer('page', 1),
         );

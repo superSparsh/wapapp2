@@ -25,16 +25,20 @@ class MessagePerformanceController extends Controller
             defaultSort: 'delivery_rate',
             defaultDirection: 'desc',
         );
+        $days = $this->health->normalizeDays($request->input('days'));
         $report = $this->health->messagePerformance(
             array_merge($request->only(['q', 'tenant']), [
                 'sort' => $parsed['sort'],
                 'direction' => $parsed['direction'],
+                'days' => $days,
             ]),
             (int) $request->integer('page', 1),
         );
 
         return view('admin.message-performance.index', [
             ...$report,
+            'days' => $days,
+            'dayPresets' => WhatsappHealthAdminService::DAYS_PRESETS,
             'tenants' => Tenant::query()->orderBy('name')->limit(500)->get(['id', 'name', 'company_name']),
             'sortOptions' => [
                 ['value' => 'delivery_rate', 'label' => 'Delivery rate', 'direction' => 'desc'],

@@ -1,7 +1,10 @@
 <x-admin.layout title="Message Performance - Admin" active="admin.message-performance.index">
   <div class="p-4">
     <h1 class="text-2xl font-bold text-text-primary">Message performance</h1>
-    <p class="text-sm text-text-subtle opacity-70">Delivery and read rates by WhatsApp Phone Number.</p>
+    <p class="mt-1 text-sm text-text-subtle opacity-70">
+      Outbound WhatsApp delivery and read rates per phone number
+      (last {{ (int) ($filters['days'] ?? $days ?? 30) }} days).
+    </p>
   </div>
 
   <x-admin.filter-bar
@@ -14,6 +17,16 @@
     :sort-options="$sortOptions"
   >
     <x-slot:filters>
+      <label class="flex min-w-[120px] flex-col gap-1.5 text-sm">
+        <span class="font-semibold text-text-primary">Window</span>
+        <select name="days" class="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary" data-listing-filter>
+          @foreach (($dayPresets ?? [7, 30, 90]) as $preset)
+            <option value="{{ $preset }}" @selected((int) ($filters['days'] ?? $days ?? 30) === (int) $preset)>
+              Last {{ $preset }} days
+            </option>
+          @endforeach
+        </select>
+      </label>
       <label class="flex min-w-[150px] flex-col gap-1.5 text-sm">
         <span class="font-semibold text-text-primary">Customer</span>
         <select name="tenant" class="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary" data-listing-filter>
@@ -27,6 +40,13 @@
   </x-admin.filter-bar>
 
   <div class="p-4 pt-0">
+    <p class="mb-3 text-xs text-text-subtle">
+      <span class="font-semibold text-text-primary">Sent</span> = outbound messages with status sent / delivered / read / failed.
+      <span class="font-semibold text-text-primary">Delivery %</span> = (delivered + read) ÷ sent.
+      <span class="font-semibold text-text-primary">Read %</span> = read ÷ sent.
+      Inbound messages are excluded.
+    </p>
+
     <x-ui.data-table :headers="['Customer', 'Line', 'Sent', 'Delivered', 'Read', 'Failed', 'Delivery %', 'Read %']" :paginator="$items">
       @forelse ($items as $row)
         <tr class="bg-elevated">
@@ -45,7 +65,7 @@
           <td class="fd-table-cell p-2 align-middle text-sm font-semibold">{{ $row['read_rate'] }}%</td>
         </tr>
       @empty
-        <tr><td colspan="8" class="p-6 text-center text-sm text-text-subtle">No performance data.</td></tr>
+        <tr><td colspan="8" class="p-6 text-center text-sm text-text-subtle">No outbound messages in this window.</td></tr>
       @endforelse
     </x-ui.data-table>
   </div>

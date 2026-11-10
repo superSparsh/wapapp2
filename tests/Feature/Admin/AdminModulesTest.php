@@ -325,16 +325,60 @@ class AdminModulesTest extends TestCase
             'messaging_limit_tier' => 'TIER_1K',
         ])->save();
 
-        $this->actingAs($this->admin, 'admin')
-            ->get(route('admin.whatsapp-health.index', ['tenant' => $this->testTenant->id]))
-            ->assertOk()
-            ->assertSee('919999999999')
-            ->assertSee('GREEN');
+        $conversation = \App\Models\Conversation::factory()->create([
+            'whatsapp_line_id' => $this->testLine->id,
+            'line_phone' => $this->testLine->phone,
+        ]);
+
+        \App\Models\Message::factory()->outbound()->create([
+            'conversation_id' => $conversation->id,
+            'status' => \App\Enums\MessageStatus::Delivered,
+            'created_at' => now()->subDays(2),
+        ]);
+        \App\Models\Message::factory()->outbound()->create([
+            'conversation_id' => $conversation->id,
+            'status' => \App\Enums\MessageStatus::Read,
+            'created_at' => now()->subDays(1),
+        ]);
+        \App\Models\Message::factory()->outbound()->create([
+            'conversation_id' => $conversation->id,
+            'status' => \App\Enums\MessageStatus::Failed,
+            'created_at' => now()->subDays(1),
+        ]);
+        // Outside window — must not count in default 30d? Wait, 40 days ago excluded from 30d.
+        \App\Models\Message::factory()->outbound()->create([
+            'conversation_id' => $conversation->id,
+            'status' => \App\Enums\MessageStatus::Failed,
+            'created_at' => now()->subDays(40),
+        ]);
+        // Inbound — excluded
+        \App\Models\Message::factory()->create([
+            'conversation_id' => $conversation->id,
+            'status' => \App\Enums\MessageStatus::Read,
+            'created_at' => now()->subDay(),
+        ]);
 
         $this->actingAs($this->admin, 'admin')
-            ->get(route('admin.message-performance.index', ['tenant' => $this->testTenant->id]))
+            ->get(route('admin.whatsapp-health.index', [
+                'tenant' => $this->testTenant->id,
+                'days' => 30,
+            ]))
             ->assertOk()
-            ->assertSee('919999999999');
+            ->assertSee('919999999999')
+            ->assertSee('GREEN')
+            ->assertSee('outbound messages in the selected window', false);
+
+        $this->actingAs($this->admin, 'admin')
+            ->get(route('admin.message-performance.index', [
+                'tenant' => $this->testTenant->id,
+                'days' => 30,
+            ]))
+            ->assertOk()
+            ->assertSee('919999999999')
+            ->assertSee('Outbound WhatsApp delivery and read rates', false)
+            ->assertSee('Last 30 days')
+            ->assertSee('66.7%') // delivery: (1 delivered + 1 read) / 3 sent
+            ->assertSee('33.3%'); // read: 1 / 3
     }
 
     public function test_customer_inbox_masking_and_wallet_display_currency(): void
