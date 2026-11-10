@@ -5,7 +5,7 @@
       <h1 class="mt-1 text-2xl font-bold text-text-primary">{{ $tenant->company_name ?: $tenant->name }}</h1>
       <p class="text-sm text-text-subtle">{{ $tenant->id }}</p>
     </div>
-    <div class="flex gap-2">
+    <div class="flex flex-wrap gap-2">
       <a href="{{ route('admin.customers.show', $tenant) }}" class="rounded-lg border border-border px-3 py-2 text-xs font-semibold hover:bg-surface">Customer profile</a>
       <form method="POST" action="{{ route('admin.customers.login-as', $tenant) }}">
         @csrf
@@ -25,6 +25,43 @@
         <div><dt class="text-xs uppercase text-text-subtle">Email</dt><dd class="font-semibold">{{ $tenant->email ?: '-' }}</dd></div>
         <div><dt class="text-xs uppercase text-text-subtle">Phone</dt><dd class="font-semibold">{{ $tenant->phone ?: '-' }}</dd></div>
       </dl>
+
+      <div class="mt-5 rounded-xl border border-border bg-surface p-4">
+        <h3 class="text-sm font-bold text-text-primary">Send renewal reminder</h3>
+        <p class="mt-1 text-xs text-text-subtle">
+          Sends to the customer and to configured admin recipients
+          (WhatsApp: <code class="text-[11px]">WHATSAPP_TO_NUMBERS_PLAN_EXPIRATION</code>,
+          Email: <code class="text-[11px]">PLAN_EXPIRY_NOTIFICATION</code>).
+        </p>
+        <div class="mt-3 flex flex-wrap gap-2">
+          <form method="POST" action="{{ route('admin.retention.whatsapp', $tenant) }}">
+            @csrf
+            <button
+              type="submit"
+              class="rounded-lg border border-green-600 bg-green-500 px-3 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+              @disabled(blank($tenant->phone) && blank(config('operational-alerts.admin_whatsapp_numbers')))
+            >
+              Send WhatsApp
+            </button>
+          </form>
+          <form method="POST" action="{{ route('admin.retention.email', $tenant) }}">
+            @csrf
+            <button
+              type="submit"
+              class="rounded-lg border border-border bg-elevated px-3 py-2 text-xs font-semibold text-text-primary hover:bg-surface disabled:cursor-not-allowed disabled:opacity-50"
+              @disabled(blank($tenant->email) && blank(config('operational-alerts.admin_emails')))
+            >
+              Send Email
+            </button>
+          </form>
+        </div>
+        @if (blank($tenant->phone))
+          <p class="mt-2 text-xs text-amber-700">Customer phone missing — WhatsApp will only go to admin numbers (if configured).</p>
+        @endif
+        @if (blank($tenant->email))
+          <p class="mt-2 text-xs text-amber-700">Customer email missing — email will only go to admin inboxes (if configured).</p>
+        @endif
+      </div>
     </div>
 
     <div class="rounded-[20px] border border-border bg-elevated p-5">
@@ -35,6 +72,8 @@
           <option value="retention_note">Note</option>
           <option value="called">Called</option>
           <option value="emailed">Emailed</option>
+          <option value="whatsapp_sent">WhatsApp sent</option>
+          <option value="email_sent">Email sent</option>
           <option value="renewed">Marked renewed</option>
         </select>
         <textarea name="note" rows="4" required maxlength="2000" class="rounded-lg border border-border px-3 py-2 text-sm" placeholder="Outreach notes…"></textarea>

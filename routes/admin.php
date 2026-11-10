@@ -102,6 +102,8 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::get('/retention/export', [RetentionController::class, 'export'])->name('retention.export');
         Route::get('/retention/{tenant}', [RetentionController::class, 'show'])->name('retention.show');
         Route::post('/retention/{tenant}/notes', [RetentionController::class, 'storeNote'])->name('retention.notes.store');
+        Route::post('/retention/{tenant}/whatsapp', [RetentionController::class, 'sendWhatsApp'])->name('retention.whatsapp');
+        Route::post('/retention/{tenant}/email', [RetentionController::class, 'sendEmail'])->name('retention.email');
 
         Route::get('/wallet-payments', [WalletPaymentController::class, 'index'])->name('wallet-payments.index');
         Route::get('/wallet-payments/{tenant}/{order}', [WalletPaymentController::class, 'show'])->name('wallet-payments.show');

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Admin;
 
+use App\Domains\Alerts\Services\OperationalWhatsAppSender;
 use App\Enums\SubscriptionStatus;
 use App\Enums\TenantStatus;
 use App\Enums\WalletTransactionType;
@@ -15,7 +16,9 @@ use App\Models\Subscription;
 use App\Models\WalletTransaction;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
+use Mockery;
 use Tests\Concerns\InteractsWithTenants;
 use Tests\TestCase;
 
@@ -56,7 +59,9 @@ class AdminModulesTest extends TestCase
         $this->actingAs($this->admin, 'admin')
             ->get(route('admin.retention.index', ['window' => '7']))
             ->assertOk()
-            ->assertSee($this->testTenant->name);
+            ->assertSee($this->testTenant->name)
+            ->assertSee('Showing below')
+            ->assertSee(route('admin.retention.index', ['window' => 'expired'], false), false);
 
         $this->actingAs($this->admin, 'admin')
             ->post(route('admin.retention.notes.store', $this->testTenant), [
@@ -69,6 +74,48 @@ class AdminModulesTest extends TestCase
         $notes = $this->testTenant->settings['retention_notes'] ?? [];
         $this->assertNotEmpty($notes);
         $this->assertSame('Called about renewal', end($notes)['note']);
+    }
+
+    public function test_retention_can_send_whatsapp_and_email_reminders(): void
+    {
+        Notification::fake();
+        config([
+            'operational-alerts.admin_emails' => ['ops@wapapp.test'],
+            'operational-alerts.admin_whatsapp_numbers' => ['919999999999'],
+            'operational-alerts.plan_expiration.whatsapp_renewal_template' => 'plan_renewal_reminder_wapapp',
+            'operational-alerts.plan_expiration.whatsapp_template' => 'plan_expiration_notification_wapapp',
+        ]);
+
+        $whatsApp = Mockery::mock(OperationalWhatsAppSender::class);
+        $whatsApp->shouldReceive('sendTemplateResult')
+            ->twice()
+            ->andReturn(['ok' => true, 'error' => null]);
+        $this->app->instance(OperationalWhatsAppSender::class, $whatsApp);
+
+        $this->testTenant->forceFill([
+            'email' => 'customer@example.test',
+            'phone' => '918888888888',
+            'settings' => [
+                'valid_until' => now()->addDays(10)->toDateString(),
+            ],
+        ])->save();
+
+        $this->actingAs($this->admin, 'admin')
+            ->post(route('admin.retention.whatsapp', $this->testTenant))
+            ->assertRedirect()
+            ->assertSessionHas('status');
+
+        $this->actingAs($this->admin, 'admin')
+            ->post(route('admin.retention.email', $this->testTenant))
+            ->assertRedirect()
+            ->assertSessionHas('status');
+
+        $this->testTenant->refresh();
+        $notes = $this->testTenant->settings['retention_notes'] ?? [];
+        $this->assertGreaterThanOrEqual(2, count($notes));
+        $types = array_column($notes, 'action_type');
+        $this->assertContains('whatsapp_sent', $types);
+        $this->assertContains('email_sent', $types);
     }
 
     public function test_wallet_recharges_and_billing_audit_list_cross_tenant_credits(): void

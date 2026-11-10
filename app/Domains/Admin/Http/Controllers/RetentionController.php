@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Admin\Http\Controllers;
 
+use App\Domains\Admin\Services\RetentionOutreachService;
 use App\Domains\Admin\Services\RetentionService;
 use App\Domains\Admin\Support\AdminListQuery;
 use App\Http\Controllers\Controller;
@@ -17,6 +18,7 @@ class RetentionController extends Controller
 {
     public function __construct(
         private readonly RetentionService $retention,
+        private readonly RetentionOutreachService $outreach,
     ) {}
 
     public function index(Request $request): View
@@ -65,6 +67,32 @@ class RetentionController extends Controller
         );
 
         return back()->with('status', 'Retention note saved.');
+    }
+
+    public function sendWhatsApp(Tenant $tenant): RedirectResponse
+    {
+        $result = $this->outreach->sendWhatsApp(
+            $tenant,
+            (string) (auth('admin')->user()?->name ?? 'Admin'),
+        );
+
+        return back()->with(
+            $result['ok'] ? 'status' : 'error',
+            $result['message'],
+        );
+    }
+
+    public function sendEmail(Tenant $tenant): RedirectResponse
+    {
+        $result = $this->outreach->sendEmail(
+            $tenant,
+            (string) (auth('admin')->user()?->name ?? 'Admin'),
+        );
+
+        return back()->with(
+            $result['ok'] ? 'status' : 'error',
+            $result['message'],
+        );
     }
 
     public function export(Request $request): StreamedResponse
