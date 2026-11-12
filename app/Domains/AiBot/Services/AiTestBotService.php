@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\AiBot\Services;
 
+use App\Domains\AiBot\Support\AiTestBotUserMessage;
 use App\Enums\AiProvider;
 use App\Models\AiBot;
 use Illuminate\Support\Facades\Log;
@@ -46,12 +47,7 @@ class AiTestBotService
                         'error' => $error,
                     ]);
 
-                    return [
-                        'response' => 'Knowledge Base / RAG error: '.$error,
-                        'tokens' => 0,
-                        'error' => $error,
-                        'source' => 'process_query_error',
-                    ];
+                    return $this->testBotFailureResult($error, 'process_query_error');
                 }
 
                 if (AiChatService::isTransferFallbackMessage($text)) {
@@ -91,14 +87,9 @@ class AiTestBotService
                     'error' => $e->getMessage(),
                 ]);
 
-                // For Tittu, keep the real KB error visible in Test Bot.
+                // For Tittu, keep Test Bot informative — but never dump raw gateway JSON.
                 if ($bot->provider === AiProvider::Tittu) {
-                    return [
-                        'response' => 'Knowledge Base / RAG error: '.$e->getMessage(),
-                        'tokens' => 0,
-                        'error' => $e->getMessage(),
-                        'source' => 'process_query_exception',
-                    ];
+                    return $this->testBotFailureResult($e->getMessage(), 'process_query_exception');
                 }
             }
         }
@@ -128,11 +119,20 @@ class AiTestBotService
 
         $provider = $this->providerKeyService->resolveProvider($bot->provider);
 
-        $result = $provider->chat($messages, [
-            'api_key' => $config['api_key'],
-            'model' => $config['chat_model'],
-            'temperature' => $bot->temperature ?? 0.3,
-        ]);
+        try {
+            $result = $provider->chat($messages, [
+                'api_key' => $config['api_key'],
+                'model' => $config['chat_model'],
+                'temperature' => $bot->temperature ?? 0.3,
+            ]);
+        } catch (\Throwable $e) {
+            Log::warning('AI direct chat failed in test-bot', [
+                'bot_id' => $bot->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return $this->testBotFailureResult($e->getMessage(), 'direct_chat_exception');
+        }
 
         $this->tokenUsageService->log([
             'ai_bot_id' => $bot->id,
@@ -147,6 +147,29 @@ class AiTestBotService
         return [
             'response' => $result['text'],
             'tokens' => $result['total_tokens'],
+        ];
+    }
+
+    /**
+     * @return array{response: string, tokens: int, error?: string, source: string, soft_error?: bool}
+     */
+    private function testBotFailureResult(string $rawError, string $source): array
+    {
+        $friendly = AiTestBotUserMessage::forTestBot($rawError);
+        if ($friendly !== null) {
+            return [
+                'response' => $friendly,
+                'tokens' => 0,
+                'source' => $source,
+                'soft_error' => true,
+            ];
+        }
+
+        return [
+            'response' => 'Knowledge Base / RAG error: '.$rawError,
+            'tokens' => 0,
+            'error' => $rawError,
+            'source' => $source,
         ];
     }
 

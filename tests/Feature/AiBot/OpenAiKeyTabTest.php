@@ -303,6 +303,37 @@ class OpenAiKeyTabTest extends TestCase
             ->assertSessionHasErrors('bot_id');
     }
 
+    public function test_test_bot_shows_friendly_message_when_tittu_providers_exhausted(): void
+    {
+        config(['ai.enabled' => false]);
+
+        $bot = AiBot::factory()->active()->create([
+            'provider' => AiProvider::Tittu,
+        ]);
+        AiProviderKey::factory()->create([
+            'provider' => AiProvider::Tittu,
+            'is_active' => true,
+        ]);
+
+        Http::fake([
+            'gateway.tittu.in/*' => Http::response([
+                'error' => 'all_providers_exhausted',
+                'message' => 'All eligible AI providers are exhausted or cooling down.',
+            ], 503),
+        ]);
+
+        $this->actingAsTenantUser()
+            ->withHeader('Accept', 'application/json')
+            ->post(route('openai-key.test-bot'), [
+                'bot_id' => $bot->uuid,
+                'message' => 'Hi there!',
+            ])
+            ->assertOk()
+            ->assertJsonPath('response', \App\Domains\AiBot\Support\AiTestBotUserMessage::PROVIDER_UNAVAILABLE)
+            ->assertJsonPath('soft_error', true)
+            ->assertJsonMissing(['error']);
+    }
+
     // --- Settings + Usage Actions ---
 
     public function test_save_settings_persists_setting(): void

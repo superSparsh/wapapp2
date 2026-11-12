@@ -729,6 +729,10 @@
                 </button>
               </div>
               <div id="test-response" class="hidden rounded-xl border border-border bg-muted-surface p-4">
+                <div id="test-response-soft" class="hidden rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5">
+                  <p class="text-xs font-semibold uppercase tracking-wide text-amber-800">Providers exhausted · cooling down</p>
+                  <p id="test-response-soft-text" class="mt-1 text-sm leading-relaxed text-amber-900"></p>
+                </div>
                 <p id="test-response-error" class="text-sm text-red-500"></p>
                 <p id="test-response-tokens" class="mt-1 text-xs text-text-muted"></p>
               </div>
@@ -948,13 +952,24 @@ async function testBot() {
   const thread = document.getElementById('test-phone-thread');
   const empty = document.getElementById('test-phone-empty');
   const responseDiv = document.getElementById('test-response');
+  const responseSoft = document.getElementById('test-response-soft');
+  const responseSoftText = document.getElementById('test-response-soft-text');
   const responseError = document.getElementById('test-response-error');
   const responseTokens = document.getElementById('test-response-tokens');
   const sendBtn = document.getElementById('test-bot-send');
 
+  function resetResponsePanel() {
+    if (responseDiv) responseDiv.classList.add('hidden');
+    if (responseSoft) responseSoft.classList.add('hidden');
+    if (responseSoftText) responseSoftText.textContent = '';
+    if (responseError) responseError.textContent = '';
+    if (responseTokens) responseTokens.textContent = '';
+  }
+
   if (!botId) {
     if (responseDiv && responseError) {
       responseDiv.classList.remove('hidden');
+      if (responseSoft) responseSoft.classList.add('hidden');
       responseError.textContent = 'Select a bot first.';
     }
     return;
@@ -983,9 +998,7 @@ async function testBot() {
   appendBubble('user', message);
   input.value = '';
   if (sendBtn) sendBtn.disabled = true;
-  if (responseDiv) responseDiv.classList.add('hidden');
-  if (responseError) responseError.textContent = '';
-  if (responseTokens) responseTokens.textContent = '';
+  resetResponsePanel();
 
   const typing = document.createElement('div');
   typing.id = 'test-phone-typing';
@@ -1003,9 +1016,10 @@ async function testBot() {
     });
     const data = await res.json();
     typing.remove();
-    if (data.error) {
+    if (data.error && !data.response) {
       if (responseDiv && responseError) {
         responseDiv.classList.remove('hidden');
+        if (responseSoft) responseSoft.classList.add('hidden');
         responseError.textContent = data.error;
       }
       appendBubble('assistant', 'Sorry - ' + data.error);
@@ -1014,16 +1028,26 @@ async function testBot() {
       appendBubble('assistant', reply);
       window.__testBotHistory.push({ role: 'user', content: message });
       window.__testBotHistory.push({ role: 'assistant', content: reply });
-      if (responseDiv && responseTokens) {
+      if (responseDiv) {
         responseDiv.classList.remove('hidden');
-        if (responseError) responseError.textContent = '';
-        responseTokens.textContent = (data.tokens || 0) + ' tokens used';
+        if (data.soft_error) {
+          if (responseSoft) responseSoft.classList.remove('hidden');
+          if (responseSoftText) responseSoftText.textContent = reply;
+          if (responseError) responseError.textContent = '';
+          if (responseTokens) responseTokens.textContent = '';
+        } else {
+          if (responseSoft) responseSoft.classList.add('hidden');
+          if (responseSoftText) responseSoftText.textContent = '';
+          if (responseError) responseError.textContent = '';
+          if (responseTokens) responseTokens.textContent = (data.tokens || 0) + ' tokens used';
+        }
       }
     }
   } catch (e) {
     typing.remove();
     if (responseDiv && responseError) {
       responseDiv.classList.remove('hidden');
+      if (responseSoft) responseSoft.classList.add('hidden');
       responseError.textContent = 'An error occurred. Please try again.';
     }
   } finally {

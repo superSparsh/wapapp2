@@ -204,6 +204,17 @@ class OpenAiKeyController extends Controller
 
             return response()->json($result);
         } catch (Throwable $e) {
+            $friendly = \App\Domains\AiBot\Support\AiTestBotUserMessage::forTestBot($e->getMessage());
+            if ($friendly !== null) {
+                // Calm assistant bubble in Test Bot — do not expose gateway JSON to users.
+                return response()->json([
+                    'response' => $friendly,
+                    'tokens' => 0,
+                    'soft_error' => true,
+                    'source' => 'test_bot_exception',
+                ]);
+            }
+
             return response()->json([
                 'error' => $e->getMessage(),
             ], 422);
