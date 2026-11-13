@@ -227,10 +227,17 @@ class OpenAiKeyController extends Controller
     {
         $validated = $request->validate([
             'ai_auto_response_enabled' => ['nullable', 'boolean'],
+            'ai_provider_exhausted_whatsapp_message' => ['nullable', 'string', 'max:1000'],
         ]);
 
         $enabled = (bool) ($validated['ai_auto_response_enabled'] ?? false);
         AiSetting::set('ai_auto_response_enabled', $enabled);
+
+        $exhaustedMessage = trim((string) ($validated['ai_provider_exhausted_whatsapp_message'] ?? ''));
+        AiSetting::set(
+            \App\Domains\AiBot\Services\AiChatService::PROVIDER_EXHAUSTED_SETTING_KEY,
+            $exhaustedMessage,
+        );
 
         // Turning global AI on also flips open chats to AI mode so live WhatsApp
         // matches Test Bot without requiring a manual inbox “AI for all” click.
@@ -356,5 +363,12 @@ class OpenAiKeyController extends Controller
     private function loadGlobalSettingsData(array &$data): void
     {
         $data['autoResponseEnabled'] = AiSetting::getBool('ai_auto_response_enabled', false);
+        $storedExhausted = AiSetting::get(
+            \App\Domains\AiBot\Services\AiChatService::PROVIDER_EXHAUSTED_SETTING_KEY,
+            null,
+        );
+        $data['providerExhaustedWhatsappMessage'] = is_string($storedExhausted)
+            ? $storedExhausted
+            : \App\Domains\AiBot\Services\AiChatService::DEFAULT_PROVIDER_EXHAUSTED_WHATSAPP_MESSAGE;
     }
 }

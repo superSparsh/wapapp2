@@ -341,10 +341,24 @@ class OpenAiKeyTabTest extends TestCase
         $this->actingAsTenantUser()
             ->post(route('openai-key.settings.save'), [
                 'ai_auto_response_enabled' => '1',
+                'ai_provider_exhausted_whatsapp_message' => 'We will get back to you shortly.',
             ])
             ->assertRedirect(route('openai-key.index', ['tab' => 'global-settings']));
 
         $this->assertSame('1', AiSetting::get('ai_auto_response_enabled'));
+        $this->assertSame(
+            'We will get back to you shortly.',
+            AiSetting::get(\App\Domains\AiBot\Services\AiChatService::PROVIDER_EXHAUSTED_SETTING_KEY),
+        );
+    }
+
+    public function test_global_settings_shows_exhausted_whatsapp_message_field(): void
+    {
+        $this->actingAsTenantUser()
+            ->get(route('openai-key.index', ['tab' => 'global-settings']))
+            ->assertOk()
+            ->assertSee('WhatsApp message when AI providers are exhausted')
+            ->assertSee('ai_provider_exhausted_whatsapp_message', false);
     }
 
     public function test_clear_usage_deletes_all_logs(): void

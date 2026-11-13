@@ -5,17 +5,25 @@ declare(strict_types=1);
 namespace App\Domains\AiBot\Services;
 
 use App\Domains\AiBot\Support\AiResponseFormatter;
+use App\Domains\AiBot\Support\AiTestBotUserMessage;
 use App\Domains\AiBot\Support\ConversationMemory;
 use App\Domains\Inbox\Services\InboxOutboundService;
 use App\Enums\AiProvider;
 use App\Models\AiBot;
+use App\Models\AiSetting;
 use App\Models\Conversation;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 class AiChatService
 {
     /** Python AI service returns this on RAG crash (HTTP 200 + _error). Never send as a real reply. */
     public const TRANSFER_FALLBACK_MESSAGE = "I'm transferring your chat to our available executive.";
+
+    /** Default WhatsApp courtesy text while AI providers are exhausted / cooling down. */
+    public const DEFAULT_PROVIDER_EXHAUSTED_WHATSAPP_MESSAGE = "Thanks for reaching out! Our AI assistant is temporarily unavailable. We'll get back to you shortly.";
+
+    public const PROVIDER_EXHAUSTED_SETTING_KEY = 'ai_provider_exhausted_whatsapp_message';
 
     public function __construct(
         private readonly AiProviderKeyService $providerKeyService,
@@ -43,10 +51,15 @@ class AiChatService
                     );
 
                     if ($this->pythonPayloadLooksLikeFailure($payload)) {
+                        $error = (string) ($payload['_error'] ?? 'transfer_fallback_or_empty');
                         Log::warning('AI process_query unusable; falling back to local chat', [
                             'bot_id' => $bot->id,
-                            'error' => (string) ($payload['_error'] ?? 'transfer_fallback_or_empty'),
+                            'error' => $error,
                         ]);
+
+                        if (AiTestBotUserMessage::isProviderUnavailable($error)) {
+                            return $this->sendProviderExhaustedCourtesy($conversation, $error);
+                        }
                     } else {
                         $responseText = AiResponseFormatter::forWhatsApp(
                             is_string($payload['response'] ?? null)
@@ -67,6 +80,10 @@ class AiChatService
                         'bot_id' => $bot->id,
                         'error' => $e->getMessage(),
                     ]);
+
+                    if (AiTestBotUserMessage::isProviderUnavailable($e->getMessage())) {
+                        return $this->sendProviderExhaustedCourtesy($conversation, $e->getMessage());
+                    }
                 }
             }
 
@@ -77,6 +94,10 @@ class AiChatService
                 'conversation_id' => $conversation->id,
                 'error' => $e->getMessage(),
             ]);
+
+            if (AiTestBotUserMessage::isProviderUnavailable($e->getMessage())) {
+                return $this->sendProviderExhaustedCourtesy($conversation, $e->getMessage());
+            }
 
             return null;
         }
@@ -106,11 +127,19 @@ class AiChatService
 
         $provider = $this->providerKeyService->resolveProvider($bot->provider);
 
-        $result = $provider->chat($messages, [
-            'api_key' => $config['api_key'],
-            'model' => $config['chat_model'],
-            'temperature' => $bot->temperature ?? 0.3,
-        ]);
+        try {
+            $result = $provider->chat($messages, [
+                'api_key' => $config['api_key'],
+                'model' => $config['chat_model'],
+                'temperature' => $bot->temperature ?? 0.3,
+            ]);
+        } catch (\Throwable $e) {
+            if (AiTestBotUserMessage::isProviderUnavailable($e->getMessage())) {
+                return $this->sendProviderExhaustedCourtesy($conversation, $e->getMessage());
+            }
+
+            throw $e;
+        }
 
         $this->tokenUsageService->log([
             'ai_bot_id' => $bot->id,
@@ -134,6 +163,55 @@ class AiChatService
         $this->outboundService->sendText($conversation, $responseText, enforceWindow: false);
 
         return $responseText;
+    }
+
+    /**
+     * Configurable WhatsApp courtesy while providers are exhausted / cooling down.
+     * Unset → default copy. Explicit empty string → disabled (no WhatsApp send).
+     */
+    public static function providerExhaustedWhatsappMessage(): string
+    {
+        $stored = AiSetting::get(self::PROVIDER_EXHAUSTED_SETTING_KEY, null);
+        if ($stored === null) {
+            return self::DEFAULT_PROVIDER_EXHAUSTED_WHATSAPP_MESSAGE;
+        }
+
+        return trim((string) $stored);
+    }
+
+    private function sendProviderExhaustedCourtesy(Conversation $conversation, string $rawError = ''): ?string
+    {
+        $text = AiResponseFormatter::forWhatsApp(self::providerExhaustedWhatsappMessage());
+        if ($text === '') {
+            return null;
+        }
+
+        // Avoid spamming the same chat if the customer sends many messages during cooldown.
+        $cacheKey = 'ai_provider_exhausted_wa:'.(string) $conversation->id;
+        if (Cache::has($cacheKey)) {
+            Log::info('AI exhausted courtesy throttled for conversation', [
+                'conversation_id' => $conversation->id,
+            ]);
+
+            return $text;
+        }
+
+        $ttlSeconds = AiTestBotUserMessage::extractCooldownSeconds($rawError) ?? 120;
+        $ttlSeconds = max(60, min(900, $ttlSeconds));
+
+        try {
+            $this->outboundService->sendText($conversation, $text, enforceWindow: false);
+            Cache::put($cacheKey, 1, now()->addSeconds($ttlSeconds));
+        } catch (\Throwable $e) {
+            Log::warning('AI exhausted courtesy send failed', [
+                'conversation_id' => $conversation->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
+
+        return $text;
     }
 
     /**

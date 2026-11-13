@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace App\Domains\AiBot\Support;
 
 /**
- * User-facing copy for AI Test Bot only (WAPAPP UI). Never used on WhatsApp sends.
+ * Detects AI provider exhaustion / cooldown errors and builds Test Bot copy.
+ * WhatsApp customer copy comes from AiSetting (see AiChatService).
  */
 final class AiTestBotUserMessage
 {

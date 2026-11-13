@@ -884,6 +884,27 @@
             </div>
           </div>
 
+          <div class="rounded-xl border border-border bg-elevated p-4">
+            <label for="ai_provider_exhausted_whatsapp_message" class="text-sm font-bold leading-[1.4] text-text-body">
+              WhatsApp message when AI providers are exhausted
+            </label>
+            <p class="mt-1 text-xs leading-relaxed text-text-muted">
+              Sent to the customer on WhatsApp while Tittu / AI providers are cooling down or out of credits.
+              Leave blank to send nothing. This does not change the Test Bot phone preview copy.
+            </p>
+            <textarea
+              id="ai_provider_exhausted_whatsapp_message"
+              name="ai_provider_exhausted_whatsapp_message"
+              rows="4"
+              maxlength="1000"
+              class="mt-3 w-full rounded-xl border border-border bg-surface p-3.5 text-sm leading-[1.4] text-text-body placeholder:text-text-muted focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
+              placeholder="Thanks for reaching out! Our AI assistant is temporarily unavailable. We'll get back to you shortly."
+            >{{ old('ai_provider_exhausted_whatsapp_message', $providerExhaustedWhatsappMessage ?? '') }}</textarea>
+            @error('ai_provider_exhausted_whatsapp_message')
+              <p class="mt-1 text-xs text-red-500">{{ $message }}</p>
+            @enderror
+          </div>
+
           <div class="flex items-end">
             <button
               type="submit"
