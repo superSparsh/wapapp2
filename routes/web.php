@@ -202,7 +202,9 @@ Route::middleware(['tenancy.session', 'auth:web,team', '2fa', 'team.redirect-das
             Route::get('/', [FeatureAnnouncementController::class, 'index'])->name('features');
             Route::post('/{announcement}/request', [FeatureAnnouncementController::class, 'requestActivation'])->name('features.request');
         });
+    });
 
+    Route::middleware('team.permission:chatbot_read')->group(function () {
         Route::prefix('automation/chatbot')->name('chatbot.')->group(function () {
             Route::get('/', [ChatbotFlowController::class, 'index'])->name('index');
             Route::get('/create', [ChatbotFlowController::class, 'create'])->name('create');
@@ -249,9 +251,14 @@ Route::middleware(['tenancy.session', 'auth:web,team', '2fa', 'team.redirect-das
         Route::prefix('automation')->name('automation.')->group(function () {
             Route::get('/', fn () => view('automation.index'))->name('index');
             Route::redirect('/chatbot-legacy', '/automation/chatbot')->name('chatbot');
-            Route::redirect('/drip-legacy', '/automation/drip')->name('drip');
             Route::redirect('/chatbot/flow', '/automation/chatbot')->name('chatbot.flow');
             Route::redirect('/chatbot/builder', '/automation/chatbot')->name('chatbot.builder');
+        });
+    });
+
+    Route::middleware('team.permission:drip_read')->group(function () {
+        Route::prefix('automation')->name('automation.')->group(function () {
+            Route::redirect('/drip-legacy', '/automation/drip')->name('drip');
 
             Route::prefix('drip')->name('drip.')->group(function () {
                 Route::get('/', [DripCampaignController::class, 'index'])->name('index');
@@ -279,18 +286,26 @@ Route::middleware(['tenancy.session', 'auth:web,team', '2fa', 'team.redirect-das
                 Route::get('/{campaign}/flow/data', [DripFlowBuilderController::class, 'getData'])->name('flow.data');
                 Route::post('/{campaign}/flow/data', [DripFlowBuilderController::class, 'saveData'])->name('flow.save');
             });
+        });
+    });
 
+    Route::middleware('team.permission:whatsapp_flow_read')->group(function () {
+        Route::prefix('automation')->name('automation.')->group(function () {
+            Route::redirect('/flows', '/whatsapp-flows')->name('flows');
+        });
+
+        require __DIR__.'/whatsapp-flows.php';
+    });
+
+    Route::middleware('team.owner')->group(function () {
+        Route::prefix('automation')->name('automation.')->group(function () {
             Route::prefix('events')->name('events.')->group(function () {
                 Route::get('/', [AutomationEventController::class, 'index'])->name('index');
                 Route::post('/', [AutomationEventController::class, 'store'])->name('store');
                 Route::post('/bulk-destroy', [AutomationEventController::class, 'bulkDestroy'])->name('bulk-destroy');
                 Route::delete('/{automationEvent}', [AutomationEventController::class, 'destroy'])->name('destroy');
             });
-
-            Route::redirect('/flows', '/whatsapp-flows')->name('flows');
         });
-
-        require __DIR__.'/whatsapp-flows.php';
 
         Route::prefix('trigger-template')->name('trigger-template.')->group(function () {
             Route::get('/', [TriggerTemplateController::class, 'index'])->name('index');
@@ -389,20 +404,22 @@ Route::middleware(['tenancy.session', 'auth:web,team', '2fa', 'team.redirect-das
             Route::post('/logs/{webhookDelivery}/retry', [WebhookDeliveryController::class, 'retry'])->name('logs.retry');
             Route::delete('/logs/{webhookDelivery}', [WebhookDeliveryController::class, 'destroy'])->name('logs.destroy');
         });
+    });
 
-        Route::prefix('commerce')->name('commerce.')->group(function () {
-            Route::get('/', [CommerceController::class, 'index'])->name('index');
-            Route::get('/catalog', [CommerceController::class, 'catalogList'])->name('catalog');
-            Route::get('/products', [CommerceController::class, 'settings'])->name('products');
-            Route::get('/product-detail', [CommerceController::class, 'productDetail'])->name('product-detail');
-            Route::get('/orders', [CommerceController::class, 'orders'])->name('orders');
-            Route::get('/orders/{uuid}', [CommerceController::class, 'orderDetail'])->name('orders.detail');
-            Route::patch('/orders/{uuid}/status', [CommerceController::class, 'updateOrderStatus'])->name('orders.status');
-            Route::get('/settings', [CommerceController::class, 'settings'])->name('settings');
-            Route::post('/settings', [CommerceController::class, 'saveConfig'])->name('settings.save');
-            Route::post('/payments', [CommerceController::class, 'createPayment'])->name('payments.create');
-        });
+    Route::middleware('team.permission:commerce_read')->prefix('commerce')->name('commerce.')->group(function () {
+        Route::get('/', [CommerceController::class, 'index'])->name('index');
+        Route::get('/catalog', [CommerceController::class, 'catalogList'])->name('catalog');
+        Route::get('/products', [CommerceController::class, 'settings'])->name('products');
+        Route::get('/product-detail', [CommerceController::class, 'productDetail'])->name('product-detail');
+        Route::get('/orders', [CommerceController::class, 'orders'])->name('orders');
+        Route::get('/orders/{uuid}', [CommerceController::class, 'orderDetail'])->name('orders.detail');
+        Route::patch('/orders/{uuid}/status', [CommerceController::class, 'updateOrderStatus'])->name('orders.status');
+        Route::get('/settings', [CommerceController::class, 'settings'])->name('settings');
+        Route::post('/settings', [CommerceController::class, 'saveConfig'])->name('settings.save');
+        Route::post('/payments', [CommerceController::class, 'createPayment'])->name('payments.create');
+    });
 
+    Route::middleware('team.permission:integration_read')->group(function () {
         Route::prefix('integration')->name('integration.')->group(function () {
             // Shopify
             Route::get('/', [ShopifyController::class, 'index'])->name('index');
@@ -456,29 +473,29 @@ Route::middleware(['tenancy.session', 'auth:web,team', '2fa', 'team.redirect-das
         // Legacy Google OAuth redirect URI path (Google Cloud Console)
         Route::get('/thirdpartyintegration/google-calendar/oauth/callback', [GoogleCalendarController::class, 'oauthCallback'])
             ->name('google-calendar.oauth.callback.legacy');
+    });
 
-        Route::prefix('form-builder')->name('form-builder.')->group(function () {
-            Route::get('/', [FormBuilderController::class, 'index'])->name('index');
-            Route::get('/create', [FormBuilderController::class, 'create'])->name('create');
-            Route::post('/', [FormBuilderController::class, 'store'])->name('store');
-            Route::get('/{form}/edit', [FormBuilderController::class, 'edit'])->name('edit');
-            Route::get('/{form}/statistics', [FormBuilderController::class, 'statistics'])->name('statistics');
-            Route::get('/{form}/statistics/detail', [FormBuilderController::class, 'statisticsDetail'])->name('statistics.detail');
-            Route::get('/{form}/statistics/export', [FormBuilderController::class, 'exportSubmissions'])->name('statistics.export');
-            Route::put('/{form}', [FormBuilderController::class, 'update'])->name('update');
-            Route::delete('/{form}', [FormBuilderController::class, 'destroy'])->name('destroy');
-            Route::post('/{form}/toggle', [FormBuilderController::class, 'toggleStatus'])->name('toggle');
-            Route::post('/upload-logo', [FormBuilderController::class, 'uploadLogo'])->name('upload-logo');
-            Route::get('/logos/{path}', [FormBuilderController::class, 'showLogo'])
-                ->where('path', '.*')
-                ->name('logos.show');
+    Route::middleware('team.permission:form_builder_read')->prefix('form-builder')->name('form-builder.')->group(function () {
+        Route::get('/', [FormBuilderController::class, 'index'])->name('index');
+        Route::get('/create', [FormBuilderController::class, 'create'])->name('create');
+        Route::post('/', [FormBuilderController::class, 'store'])->name('store');
+        Route::get('/{form}/edit', [FormBuilderController::class, 'edit'])->name('edit');
+        Route::get('/{form}/statistics', [FormBuilderController::class, 'statistics'])->name('statistics');
+        Route::get('/{form}/statistics/detail', [FormBuilderController::class, 'statisticsDetail'])->name('statistics.detail');
+        Route::get('/{form}/statistics/export', [FormBuilderController::class, 'exportSubmissions'])->name('statistics.export');
+        Route::put('/{form}', [FormBuilderController::class, 'update'])->name('update');
+        Route::delete('/{form}', [FormBuilderController::class, 'destroy'])->name('destroy');
+        Route::post('/{form}/toggle', [FormBuilderController::class, 'toggleStatus'])->name('toggle');
+        Route::post('/upload-logo', [FormBuilderController::class, 'uploadLogo'])->name('upload-logo');
+        Route::get('/logos/{path}', [FormBuilderController::class, 'showLogo'])
+            ->where('path', '.*')
+            ->name('logos.show');
 
-            // API endpoints (AJAX)
-            Route::prefix('api')->name('api.')->group(function () {
-                Route::get('/list', [FormApiController::class, 'index'])->name('list');
-                Route::post('/bulk-destroy', [FormApiController::class, 'bulkDestroy'])->name('bulk-destroy');
-                Route::get('/{form}/stats', [FormApiController::class, 'stats'])->name('stats');
-            });
+        // API endpoints (AJAX)
+        Route::prefix('api')->name('api.')->group(function () {
+            Route::get('/list', [FormApiController::class, 'index'])->name('list');
+            Route::post('/bulk-destroy', [FormApiController::class, 'bulkDestroy'])->name('bulk-destroy');
+            Route::get('/{form}/stats', [FormApiController::class, 'stats'])->name('stats');
         });
     });
 
@@ -605,6 +622,7 @@ Route::middleware(['tenancy.session', 'auth:web,team', '2fa', 'team.redirect-das
         Route::get('/{teamMember}/roles', [TeamController::class, 'roles'])->name('roles');
         Route::put('/{teamMember}/roles', [TeamController::class, 'updateRoles'])->name('roles.update');
         Route::post('/{teamMember}/login-as', [TeamController::class, 'loginAs'])->name('login-as');
+        Route::post('/{teamMember}/resend-invite', [TeamController::class, 'resendInvite'])->name('resend-invite');
     });
 
     Route::middleware('team.manager')->prefix('manager')->name('manager.')->group(function () {
@@ -622,6 +640,7 @@ Route::middleware(['tenancy.session', 'auth:web,team', '2fa', 'team.redirect-das
             Route::get('/{teamMember}/roles', [ManagerTeamController::class, 'roles'])->name('roles');
             Route::put('/{teamMember}/roles', [ManagerTeamController::class, 'updateRoles'])->name('roles.update');
             Route::post('/{teamMember}/login-as', [ManagerTeamController::class, 'loginAs'])->name('login-as');
+            Route::post('/{teamMember}/resend-invite', [ManagerTeamController::class, 'resendInvite'])->name('resend-invite');
         });
 
         Route::get('/settings', [ManagerSettingsController::class, 'edit'])->name('settings');

@@ -4,7 +4,7 @@
 
 <x-team.form-page
   title="Create team member"
-  subtitle="Add login credentials and basic details. You will set module permissions on the next step."
+  subtitle="Add their details and we’ll email an invite so they can set a password. Permissions come next."
   :back-url="route('my-team.index')"
   back-label="Back to team list"
   layout-active="my-team.index"
@@ -19,7 +19,7 @@
     @csrf
 
     <x-team.role-selector :roles="$roles" :selected="$selectedRole" />
-    <x-team.member-fields />
+    <x-team.member-fields :invite-mode="true" />
 
     @if (! empty($whatsappLines))
       <div class="border-b border-divider p-5 sm:p-6">
@@ -30,7 +30,7 @@
     <x-team.form-footer
       :cancel-url="route('my-team.index')"
       submit-label="Create & continue"
-      hint="Next step: configure inbox, templates, audience & campaign access."
+      hint="Next step: choose which modules they can access."
       :show-arrow="true"
     />
   </form>

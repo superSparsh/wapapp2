@@ -51,6 +51,7 @@ final class TeamPresenter
             'toggle_url' => route('my-team.status', $member),
             'delete_url' => route('my-team.destroy', $member),
             'login_as_url' => route('my-team.login-as', $member),
+            'resend_invite_url' => route('my-team.resend-invite', $member),
         ];
     }
 
@@ -63,6 +64,7 @@ final class TeamPresenter
             'toggle_url' => route('manager.team.status', $member),
             'delete_url' => route('manager.team.destroy', $member),
             'login_as_url' => route('manager.team.login-as', $member),
+            'resend_invite_url' => route('manager.team.resend-invite', $member),
         ]);
     }
 }

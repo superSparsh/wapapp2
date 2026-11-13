@@ -13,23 +13,29 @@ use App\Models\User;
 use App\Support\PhoneNormalizer;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 class TeamMemberService
 {
     public function __construct(
         private readonly TeamAccessSyncService $accessSyncService,
+        private readonly TeamMemberInviteService $inviteService,
     ) {}
 
     /** @param array<string, mixed> $data */
-    public function create(User $owner, array $data): TeamMember
+    public function create(User $owner, array $data, bool $sendInvite = true): TeamMember
     {
+        $plainPassword = filled($data['password'] ?? null)
+            ? (string) $data['password']
+            : Str::password(20);
+
         $member = TeamMember::query()->create([
             'parent_user_id' => $owner->id,
             'first_name' => $data['first_name'],
             'last_name' => $data['last_name'],
             'email' => strtolower((string) $data['email']),
             'phone' => PhoneNormalizer::normalize((string) $data['phone']),
-            'password' => Hash::make((string) $data['password']),
+            'password' => Hash::make($plainPassword),
             'role' => TeamMemberRole::from((string) $data['role']),
             'status' => RecordStatus::Active,
             'permissions' => TeamPermissions::defaults(),
@@ -38,7 +44,17 @@ class TeamMemberService
 
         $this->accessSyncService->sync($member);
 
+        if ($sendInvite) {
+            $this->inviteService->sendInvite($member, $owner);
+        }
+
         return $member;
+    }
+
+    public function resendInvite(TeamMember $member): void
+    {
+        $owner = User::query()->findOrFail($member->parent_user_id);
+        $this->inviteService->sendInvite($member, $owner);
     }
 
     /** @param array<string, mixed> $data */

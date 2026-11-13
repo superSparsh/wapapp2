@@ -28,7 +28,7 @@ class TeamPhase3Test extends TestCase
         parent::tearDown();
     }
 
-    public function test_team_member_cannot_access_owner_automation_routes(): void
+    public function test_team_member_cannot_access_owner_automation_routes_without_permission(): void
     {
         $member = TeamMember::factory()->create([
             'parent_user_id' => $this->testUser->id,

@@ -88,6 +88,10 @@
                     <div class="flex items-center justify-center gap-4">
                       <a href="{{ $member['roles_url'] }}" aria-label="Roles"><img src="{{ asset('images/team/profile-2user.svg') }}" alt="" class="size-5"></a>
                       <a href="{{ $member['edit_url'] }}" aria-label="Edit"><img src="{{ asset('images/team/edit.svg') }}" alt="" class="size-5"></a>
+                      <form method="post" action="{{ $member['resend_invite_url'] }}" data-confirm="Resend invite email to {{ $member['email'] }}?" data-confirm-title="Resend invite" data-confirm-label="Send invite">
+                        @csrf
+                        <button type="submit" class="text-xs font-semibold text-text-subtle hover:text-green-600">Invite</button>
+                      </form>
                       <form method="post" action="{{ $member['login_as_url'] }}" data-confirm="Log in as {{ $member['name'] }}?" data-confirm-title="Login as team member" data-confirm-label="Login as">
                         @csrf
                         <button type="submit" class="text-xs font-semibold text-green-500">Login as</button>

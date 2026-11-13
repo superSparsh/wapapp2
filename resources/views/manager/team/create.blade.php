@@ -1,6 +1,6 @@
 <x-team.form-page
   title="Create team member"
-  subtitle="Add a team member to your group. They will be auto-assigned to you and you can set permissions next."
+  subtitle="Add their details — we’ll email an invite so they can set a password. They’re assigned to you automatically."
   :back-url="route('manager.team.index')"
   back-label="Back to assigned members"
   layout-active="manager.team.index"
@@ -15,7 +15,7 @@
     @csrf
     <input type="hidden" name="role" value="member">
 
-    <x-team.member-fields />
+    <x-team.member-fields :invite-mode="true" />
 
     @if (! empty($whatsappLines))
       <div class="border-b border-divider p-5 sm:p-6">

@@ -1,28 +1,55 @@
 <x-layouts.app title="Roles & Access - WapApp" active="my-team.index">
+  @php
+    $permissionDescriptions = [
+      'inbox_read' => 'Conversations, replies, and inbox tools',
+      'template_read' => 'WhatsApp templates, variables, and free messages',
+      'audience_read' => 'Lists, contacts, segments, and blacklist',
+      'campaign_read' => 'Broadcast campaigns and delivery tools',
+      'chatbot_read' => 'Chatbot flows and automation builder',
+      'drip_read' => 'Drip marketing sequences and audiences',
+      'whatsapp_flow_read' => 'WhatsApp Flow forms and submissions',
+      'form_builder_read' => 'Website / embeddable form builder',
+      'commerce_read' => 'Catalogs, orders, and payment settings',
+      'integration_read' => 'Shopify, Calendly, Google Calendar, and more',
+    ];
+  @endphp
+
   <div class="flex flex-col bg-surface">
     <div class="flex flex-col gap-1 p-4">
       <h1 class="text-2xl font-bold leading-[1.5] text-text-primary">Roles &amp; Access</h1>
       <p class="max-w-[854px] text-sm font-normal leading-[1.4] text-text-subtle opacity-50">
-        Configure module access for {{ $member->displayName() }}.
+        Choose which modules {{ $member->displayName() }} can use. Turning a module on grants full access for that area.
       </p>
     </div>
+
+    @if (session('status'))
+      <div class="mx-4 rounded-lg border border-green-500/30 bg-green-50 px-4 py-3 text-sm text-green-700">
+        {{ session('status') }}
+      </div>
+    @endif
 
     <section class="flex flex-col gap-4 bg-surface p-4 pt-0">
       <form class="flex flex-col gap-4 rounded-lg bg-elevated p-3" action="{{ $formAction ?? route('my-team.roles.update', $member) }}" method="post">
         @csrf
         @method('PUT')
 
-        <h2 class="text-xl font-semibold leading-[1.4] text-text-primary">Permissions</h2>
+        <div class="flex flex-col gap-1 px-1 pt-1">
+          <h2 class="text-xl font-semibold leading-[1.4] text-text-primary">Module permissions</h2>
+          <p class="text-sm text-text-muted">Only enabled modules appear in their sidebar after they sign in.</p>
+        </div>
 
-        <div class="w-full max-w-[576px] overflow-hidden rounded-xl border border-green-50 bg-elevated shadow-[0px_4px_6px_rgba(0,0,0,0.04)]" data-team-permissions>
+        <div class="w-full max-w-[720px] overflow-hidden rounded-xl border border-green-50 bg-elevated shadow-[0px_4px_6px_rgba(0,0,0,0.04)]" data-team-permissions>
           @foreach ($permissionLabels as $key => $label)
             @php $enabled = ! empty($permissions[$key]); @endphp
-            <div @class(['flex items-center gap-2 px-2 py-1.5', 'border-t border-divider' => ! $loop->first]) data-team-permission-row>
-              <div class="min-w-0 flex-1 p-2">
+            <div @class(['flex flex-col gap-2 px-2 py-2 sm:flex-row sm:items-center', 'border-t border-divider' => ! $loop->first]) data-team-permission-row>
+              <div class="min-w-0 flex-[1.2] p-2">
                 <p class="text-[13px] font-semibold leading-[1.5] text-text-subtle">{{ $label }}</p>
+                <p class="mt-0.5 text-[12px] leading-[1.4] text-text-muted">
+                  {{ $permissionDescriptions[$key] ?? 'Allow access to this module' }}
+                </p>
               </div>
-              <div class="min-w-0 flex-1 p-2">
-                <p class="text-[13px] font-normal leading-[1.5] text-text-body">Allow full access (view, create, update, delete)</p>
+              <div class="hidden min-w-0 flex-1 p-2 md:block">
+                <p class="text-[13px] font-normal leading-[1.5] text-text-body">View, create, update &amp; delete</p>
               </div>
               <div class="flex min-w-0 flex-1 items-center justify-center gap-2.5 p-2">
                 <span class="flex-1 text-right text-[13px] text-text-body">No</span>

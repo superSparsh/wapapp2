@@ -9,6 +9,7 @@ use App\Models\Conversation;
 use App\Models\ManagerMemberAssignment;
 use App\Models\TeamMember;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Mail;
 use Tests\Concerns\InteractsWithTenants;
 use Tests\TestCase;
 
@@ -45,6 +46,8 @@ class TeamMemberTest extends TestCase
 
     public function test_owner_can_create_team_member_and_redirect_to_roles(): void
     {
+        Mail::fake();
+
         $response = $this->actingAsTenantUser()
             ->post(route('my-team.store'), [
                 'first_name' => 'Asha',
@@ -83,6 +86,12 @@ class TeamMemberTest extends TestCase
                     'audience_read' => '0',
                     'campaign_read' => '1',
                     'inbox_read' => '1',
+                    'chatbot_read' => '0',
+                    'drip_read' => '0',
+                    'whatsapp_flow_read' => '0',
+                    'form_builder_read' => '0',
+                    'commerce_read' => '0',
+                    'integration_read' => '0',
                 ],
                 'member_uuids' => [$member->uuid],
             ])

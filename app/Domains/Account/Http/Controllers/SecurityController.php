@@ -7,13 +7,18 @@ namespace App\Domains\Account\Http\Controllers;
 use App\Contracts\TwoFactorAuthenticatable;
 use App\Domains\Account\Http\Requests\DisableTwoFactorRequest;
 use App\Domains\Account\Http\Requests\RegenerateRecoveryCodesRequest;
+use App\Domains\Account\Http\Requests\UpdateAccountPasswordRequest;
 use App\Domains\Account\Services\ActivityLogService;
 use App\Domains\Auth\Http\Requests\TwoFactorSetupRequest;
 use App\Domains\Auth\Services\TwoFactorService;
 use App\Domains\Auth\Support\AuthSession;
 use App\Http\Controllers\Controller;
+use App\Models\TeamMember;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\View\View;
+use Illuminate\Validation\ValidationException;
 
 class SecurityController extends Controller
 {
@@ -42,7 +47,33 @@ class SecurityController extends Controller
             'enabled' => $user->hasTwoFactorEnabled(),
             'recoveryCodes' => session('two_factor_recovery_codes', []),
             'pendingRecoveryCodes' => $pendingRecoveryCodes,
+            'canChangePassword' => $user instanceof User || $user instanceof TeamMember,
         ]);
+    }
+
+    public function updatePassword(
+        UpdateAccountPasswordRequest $request,
+        ActivityLogService $activityLogService,
+    ): RedirectResponse {
+        $user = auth('web')->user() ?? auth('team')->user();
+
+        abort_unless($user instanceof User || $user instanceof TeamMember, 403);
+
+        if (! Hash::check($request->string('current_password')->toString(), (string) $user->getAuthPassword())) {
+            throw ValidationException::withMessages([
+                'current_password' => 'Your current password is incorrect.',
+            ]);
+        }
+
+        $user->forceFill([
+            'password' => $request->string('password')->toString(),
+        ])->save();
+
+        $activityLogService->logFromRequest($request, 'security.password.updated');
+
+        return redirect()
+            ->route('profile.security')
+            ->with('status', 'Password updated successfully.');
     }
 
     public function enable(

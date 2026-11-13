@@ -35,6 +35,13 @@ final class TeamNavigation
             ];
         }
 
+        $items[] = [
+            'label' => 'Security',
+            'route' => 'profile.security',
+            'icon' => 'box',
+            'matches' => ['profile.password.update'],
+        ];
+
         return array_values($items);
     }
 
@@ -71,6 +78,10 @@ final class TeamNavigation
     {
         if ($route === '' || $route === 'dashboard') {
             return false;
+        }
+
+        if ($route === 'profile.security') {
+            return true;
         }
 
         if (str_starts_with($route, 'profile.')) {

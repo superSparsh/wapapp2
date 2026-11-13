@@ -101,6 +101,18 @@
                       </a>
                       <form
                         method="post"
+                        action="{{ $member['resend_invite_url'] }}"
+                        data-confirm="Resend invite email to {{ $member['email'] }}?"
+                        data-confirm-title="Resend invite"
+                        data-confirm-label="Send invite"
+                      >
+                        @csrf
+                        <button type="submit" class="text-xs font-semibold text-text-subtle hover:text-green-600" aria-label="Resend invite to {{ $member['name'] }}">
+                          Invite
+                        </button>
+                      </form>
+                      <form
+                        method="post"
                         action="{{ $member['login_as_url'] }}"
                         data-confirm="Log in as {{ $member['name'] }}?"
                         data-confirm-title="Login as team member"

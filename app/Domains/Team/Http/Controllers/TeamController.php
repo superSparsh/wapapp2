@@ -81,7 +81,18 @@ class TeamController extends Controller
 
         return redirect()
             ->route('my-team.roles', $member)
-            ->with('status', 'Team member created. Configure permissions below.');
+            ->with('status', 'Team member created and invite email sent. Configure permissions below.');
+    }
+
+    public function resendInvite(
+        TeamMember $teamMember,
+        TeamAccessService $accessService,
+        TeamMemberService $memberService,
+    ): RedirectResponse {
+        $accessService->authorizeMember($teamMember);
+        $memberService->resendInvite($teamMember);
+
+        return back()->with('status', 'Invite email resent to '.$teamMember->email.'.');
     }
 
     public function edit(TeamMember $teamMember, TeamAccessService $accessService): View

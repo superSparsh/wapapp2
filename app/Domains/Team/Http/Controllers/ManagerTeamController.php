@@ -80,7 +80,20 @@ class ManagerTeamController extends Controller
 
         return redirect()
             ->route('manager.team.roles', $member)
-            ->with('status', 'Team member created. Configure permissions below.');
+            ->with('status', 'Team member created and invite email sent. Configure permissions below.');
+    }
+
+    public function resendInvite(
+        TeamMember $teamMember,
+        TeamAccessService $accessService,
+        ManagerScopeService $scopeService,
+        TeamMemberService $memberService,
+    ): RedirectResponse {
+        $manager = $accessService->manager();
+        $scopeService->authorizeManage($manager, $teamMember);
+        $memberService->resendInvite($teamMember);
+
+        return back()->with('status', 'Invite email resent to '.$teamMember->email.'.');
     }
 
     public function edit(
@@ -155,10 +168,14 @@ class ManagerTeamController extends Controller
         $accessService->manager();
         $scopeService->authorizeManage($accessService->manager(), $teamMember);
 
-        return view('manager.team.roles', [
+        return view('my-team.roles', [
             'member' => $teamMember,
             'permissions' => TeamPermissions::normalize($teamMember->permissions),
             'permissionLabels' => TeamPermissions::labels(),
+            'assignableMembers' => [],
+            'assignedMemberUuids' => [],
+            'formAction' => route('manager.team.roles.update', $teamMember),
+            'cancelUrl' => route('manager.team.index'),
         ]);
     }
 

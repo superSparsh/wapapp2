@@ -32,7 +32,7 @@ class StoreTeamMemberRequest extends FormRequest
                 'max:191',
                 Rule::unique('team_members', 'email'),
             ],
-            'password' => ['required', 'confirmed', Password::defaults()],
+            'password' => ['nullable', 'confirmed', Password::defaults()],
             'role' => ['required', Rule::enum(TeamMemberRole::class)],
             'whatsapp_line_ids' => ['nullable', 'array'],
             'whatsapp_line_ids.*' => PublicId::uuidExistsRules(WhatsappLine::class, nullable: false),

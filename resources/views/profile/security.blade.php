@@ -2,7 +2,7 @@
   <div class="flex flex-col gap-1 p-4">
     <h1 class="text-2xl font-bold leading-[1.5] text-text-primary">Account security</h1>
     <p class="max-w-[854px] text-sm font-normal leading-[1.4] text-text-subtle opacity-50">
-      Protect your account with two-factor authentication (TOTP).
+      Change your password and protect your account with two-factor authentication (TOTP).
     </p>
   </div>
 
@@ -10,6 +10,34 @@
     <div class="mx-4 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-600">
       {{ session('status') }}
     </div>
+  @endif
+
+  @if (! empty($canChangePassword))
+    <section class="mx-4 mt-6 rounded-lg bg-elevated p-4">
+      <form action="{{ route('profile.password.update') }}" method="POST" class="flex max-w-xl flex-col gap-4">
+        @csrf
+        @method('PUT')
+
+        <div>
+          <h2 class="text-base font-semibold text-text-primary">Change password</h2>
+          <p class="text-sm text-text-muted">Use a strong password you don’t reuse on other sites.</p>
+        </div>
+
+        <x-form.input id="current_password" name="current_password" type="password" :error="$errors->first('current_password')" required autocomplete="current-password">
+          <x-slot:label>Current password</x-slot:label>
+        </x-form.input>
+
+        <x-form.input id="password" name="password" type="password" :error="$errors->first('password')" required autocomplete="new-password">
+          <x-slot:label>New password</x-slot:label>
+        </x-form.input>
+
+        <x-form.input id="password_confirmation" name="password_confirmation" type="password" required autocomplete="new-password">
+          <x-slot:label>Confirm new password</x-slot:label>
+        </x-form.input>
+
+        <x-ui.button type="submit" class="w-fit rounded px-6 py-3 text-xs">Update password</x-ui.button>
+      </form>
+    </section>
   @endif
 
   <section class="mx-4 mt-6 rounded-lg bg-elevated p-4">

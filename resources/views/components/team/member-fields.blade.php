@@ -1,7 +1,9 @@
 @props([
     'member' => null,
     'showEmail' => true,
-    'passwordRequired' => true,
+    'passwordRequired' => false,
+    'showPasswordFields' => true,
+    'inviteMode' => false,
     'passwordLabel' => 'Password',
     'passwordConfirmLabel' => 'Confirm password',
     'passwordPlaceholder' => 'Minimum 8 characters',
@@ -13,6 +15,7 @@
   $lastName = old('last_name', $member?->last_name);
   $phone = old('phone', $member?->phone);
   $email = old('email', $member?->email);
+  $isInviteCreate = $inviteMode && $member === null;
 @endphp
 
 <div class="flex flex-col gap-5 border-b border-divider p-5 sm:p-6">
@@ -40,9 +43,17 @@
 
 <div class="flex flex-col gap-5 border-b border-divider p-5 sm:p-6">
   <div class="flex flex-col gap-1">
-    <h2 class="text-base font-semibold text-text-primary">Account credentials</h2>
+    <h2 class="text-base font-semibold text-text-primary">
+      {{ $isInviteCreate ? 'Invite & login' : 'Account credentials' }}
+    </h2>
     <p class="text-sm text-text-subtle opacity-70">
-      {{ $passwordRequired ? 'Used for team login. Share securely after creation.' : 'Leave password blank to keep the current one.' }}
+      @if ($isInviteCreate)
+        We’ll email an invite so they can set their own password and sign in.
+      @elseif ($passwordRequired)
+        Used for team login. Share securely after creation.
+      @else
+        Leave password blank to keep the current one.
+      @endif
     </p>
   </div>
 
@@ -57,26 +68,41 @@
     </div>
   @endif
 
-  <div class="grid gap-4 sm:grid-cols-2">
-    <x-form.input
-      id="password"
-      name="password"
-      type="password"
-      :placeholder="$passwordPlaceholder"
-      :required="$passwordRequired"
-      :error="$errors->first('password')"
-    >
-      <x-slot:label>{{ $passwordLabel }} @if ($passwordRequired)<span class="text-red-500">*</span>@endif</x-slot:label>
-    </x-form.input>
+  @if ($isInviteCreate)
+    <div class="rounded-xl border border-green-100 bg-green-50/70 px-4 py-3 text-sm text-green-800">
+      <p class="font-semibold">Invite email will be sent automatically</p>
+      <p class="mt-1 text-green-700/90">They’ll get a secure link to set a password. You can optionally set one below if you want them to start with a known password.</p>
+    </div>
+  @endif
 
-    <x-form.input
-      id="password_confirmation"
-      name="password_confirmation"
-      type="password"
-      :placeholder="$passwordConfirmPlaceholder"
-      :required="$passwordRequired"
-    >
-      <x-slot:label>{{ $passwordConfirmLabel }} @if ($passwordRequired)<span class="text-red-500">*</span>@endif</x-slot:label>
-    </x-form.input>
-  </div>
+  @if ($showPasswordFields)
+    <div class="grid gap-4 sm:grid-cols-2">
+      <x-form.input
+        id="password"
+        name="password"
+        type="password"
+        :placeholder="$isInviteCreate ? 'Optional — leave blank to let them set it' : $passwordPlaceholder"
+        :required="$passwordRequired"
+        :error="$errors->first('password')"
+      >
+        <x-slot:label>
+          {{ $isInviteCreate ? 'Temporary password (optional)' : $passwordLabel }}
+          @if ($passwordRequired)<span class="text-red-500">*</span>@endif
+        </x-slot:label>
+      </x-form.input>
+
+      <x-form.input
+        id="password_confirmation"
+        name="password_confirmation"
+        type="password"
+        :placeholder="$isInviteCreate ? 'Confirm only if setting a password' : $passwordConfirmPlaceholder"
+        :required="$passwordRequired"
+      >
+        <x-slot:label>
+          {{ $passwordConfirmLabel }}
+          @if ($passwordRequired)<span class="text-red-500">*</span>@endif
+        </x-slot:label>
+      </x-form.input>
+    </div>
+  @endif
 </div>
