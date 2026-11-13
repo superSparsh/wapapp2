@@ -69,9 +69,10 @@ class WhatsappFlowInteractiveService
                     'flow_id' => $metaFlowId,
                     'flow_cta' => $flowCta,
                     'flow_action' => 'navigate',
+                    // Meta: data is optional; if present it must be a non-empty object.
+                    // Empty {} / [] triggers (#131009) dynamic_object error — omit when unused.
                     'flow_action_payload' => [
                         'screen' => $firstScreen,
-                        'data' => new \stdClass,
                     ],
                 ],
             ],

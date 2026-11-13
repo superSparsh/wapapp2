@@ -215,11 +215,14 @@ final class InteractiveMessagePayloadBuilder
                         $parameters['flow_token'] = $this->flowInteractiveService->generateFlowToken((string) $parameters['flow_id']);
                     }
 
-                    // CAMS requires flow_action_payload.data as object {}; node JSON often has [].
+                    // Meta: omit empty data ([]/{}); if present it must be a non-empty object.
                     $flowPayload = $parameters['flow_action_payload'] ?? null;
-                    if (is_array($flowPayload) && (! array_key_exists('data', $flowPayload) || $flowPayload['data'] === [] || $flowPayload['data'] === null)) {
-                        $flowPayload['data'] = new \stdClass;
-                        $parameters['flow_action_payload'] = $flowPayload;
+                    if (is_array($flowPayload) && array_key_exists('data', $flowPayload)) {
+                        $data = $flowPayload['data'];
+                        if ($data === null || $data === [] || ($data instanceof \stdClass && get_object_vars($data) === [])) {
+                            unset($flowPayload['data']);
+                            $parameters['flow_action_payload'] = $flowPayload;
+                        }
                     }
 
                     $content['action']['parameters'] = $parameters;
@@ -476,7 +479,6 @@ final class InteractiveMessagePayloadBuilder
                 'flow_action' => 'navigate',
                 'flow_action_payload' => [
                     'screen' => 'SCREEN_1',
-                    'data' => new \stdClass,
                 ],
             ],
         ];

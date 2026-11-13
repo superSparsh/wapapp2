@@ -65,6 +65,7 @@ class WhatsappFlowInteractiveServiceTest extends TestCase
         $this->assertSame('token_abc', $content['action']['parameters']['flow_token']);
         $this->assertSame('Open Flow', $content['action']['parameters']['flow_cta']);
         $this->assertSame('START', $content['action']['parameters']['flow_action_payload']['screen']);
+        $this->assertArrayNotHasKey('data', $content['action']['parameters']['flow_action_payload']);
     }
 
     public function test_legacy_flow_list_uses_meta_flow_id_shape(): void

@@ -119,8 +119,9 @@ class CamsOutboundPayloadBuilder
     }
 
     /**
-     * CAMS rejects flow_action_payload.data as JSON array [] — it must be object {}.
-     * Message.metadata is cast to array, so an empty object round-trips to [].
+     * Meta/CAMS: flow_action_payload.data must be a non-empty object when present.
+     * Empty [] (metadata round-trip of {}) or {} causes (#131009) dynamic_object —
+     * omit data entirely. Keep non-empty maps as objects for JSON encoding.
      *
      * @param  array<string, mixed>  $interactive
      * @return array<string, mixed>
@@ -141,12 +142,33 @@ class CamsOutboundPayloadBuilder
             return $interactive;
         }
 
-        $data = $flowPayload['data'] ?? null;
-        if ($data === null || $data === []) {
-            $flowPayload['data'] = new \stdClass;
-            $parameters['flow_action_payload'] = $flowPayload;
-            $interactive['action']['parameters'] = $parameters;
+        if (! array_key_exists('data', $flowPayload)) {
+            return $interactive;
         }
+
+        $data = $flowPayload['data'];
+        $isEmpty = $data === null
+            || $data === []
+            || ($data instanceof \stdClass && get_object_vars($data) === [])
+            || (is_array($data) && $data === []);
+
+        if ($isEmpty) {
+            unset($flowPayload['data']);
+        } elseif (is_array($data) && ! array_is_list($data)) {
+            // Assoc map → force JSON object (defensive if somehow empty keys slipped through).
+            $flowPayload['data'] = (object) $data;
+        } elseif (is_string($data)) {
+            // Double-encoded JSON object string → decode to real object.
+            $decoded = json_decode($data, false);
+            if ($decoded instanceof \stdClass && get_object_vars($decoded) !== []) {
+                $flowPayload['data'] = $decoded;
+            } else {
+                unset($flowPayload['data']);
+            }
+        }
+
+        $parameters['flow_action_payload'] = $flowPayload;
+        $interactive['action']['parameters'] = $parameters;
 
         return $interactive;
     }
