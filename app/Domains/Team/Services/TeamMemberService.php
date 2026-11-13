@@ -29,12 +29,18 @@ class TeamMemberService
             ? (string) $data['password']
             : Str::password(20);
 
+        $email = strtolower((string) $data['email']);
+        $phone = PhoneNormalizer::normalize((string) $data['phone']);
+
+        // Soft-deleted rows still occupy unique indexes — release them before recreate.
+        $this->releaseSoftDeletedConflicts($email, $phone);
+
         $member = TeamMember::query()->create([
             'parent_user_id' => $owner->id,
             'first_name' => $data['first_name'],
             'last_name' => $data['last_name'],
-            'email' => strtolower((string) $data['email']),
-            'phone' => PhoneNormalizer::normalize((string) $data['phone']),
+            'email' => $email,
+            'phone' => $phone,
             'password' => Hash::make($plainPassword),
             'role' => TeamMemberRole::from((string) $data['role']),
             'status' => RecordStatus::Active,
@@ -49,6 +55,28 @@ class TeamMemberService
         }
 
         return $member;
+    }
+
+    private function releaseSoftDeletedConflicts(string $email, ?string $phone): void
+    {
+        $trashed = TeamMember::onlyTrashed()
+            ->where(function ($query) use ($email, $phone): void {
+                $query->where('email', $email);
+
+                if (filled($phone)) {
+                    $query->orWhere('phone', $phone);
+                }
+            })
+            ->get();
+
+        foreach ($trashed as $member) {
+            $member->forceFill([
+                'email' => $this->releasedEmail((string) $member->email, (int) $member->id),
+                'phone' => $member->phone !== null
+                    ? $this->releasedPhone((string) $member->phone, (int) $member->id)
+                    : null,
+            ])->save();
+        }
     }
 
     public function resendInvite(TeamMember $member): void
@@ -89,8 +117,31 @@ class TeamMemberService
                 ->delete();
 
             $this->accessSyncService->remove($member);
+
+            // Soft delete keeps the row; free unique email/phone so they can be reused.
+            $member->forceFill([
+                'email' => $this->releasedEmail((string) $member->email, (int) $member->id),
+                'phone' => $member->phone !== null
+                    ? $this->releasedPhone((string) $member->phone, (int) $member->id)
+                    : null,
+            ])->save();
+
             $member->delete();
         });
+    }
+
+    private function releasedEmail(string $email, int $id): string
+    {
+        $suffix = '.deleted.'.$id;
+        $maxBase = max(1, 191 - strlen($suffix));
+
+        return substr($email, 0, $maxBase).$suffix;
+    }
+
+    private function releasedPhone(string $phone, int $id): string
+    {
+        // Keep digits-ish uniqueness without colliding with real numbers.
+        return 'deleted_'.$id.'_'.$phone;
     }
 
     public function toggleStatus(TeamMember $member): TeamMember

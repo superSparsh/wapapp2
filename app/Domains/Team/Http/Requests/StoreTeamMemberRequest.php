@@ -25,12 +25,17 @@ class StoreTeamMemberRequest extends FormRequest
         return [
             'first_name' => ['required', 'string', 'max:80'],
             'last_name' => ['required', 'string', 'max:80'],
-            'phone' => ['required', 'string', 'max:20'],
+            'phone' => [
+                'required',
+                'string',
+                'max:20',
+                Rule::unique('team_members', 'phone')->whereNull('deleted_at'),
+            ],
             'email' => [
                 'required',
                 'email',
                 'max:191',
-                Rule::unique('team_members', 'email'),
+                Rule::unique('team_members', 'email')->whereNull('deleted_at'),
             ],
             'password' => ['nullable', 'confirmed', Password::defaults()],
             'role' => ['required', Rule::enum(TeamMemberRole::class)],

@@ -130,4 +130,36 @@ class TeamMemberInviteTest extends TestCase
             ->get(route('chatbot.index'))
             ->assertForbidden();
     }
+
+    public function test_deleted_team_member_email_can_be_reused(): void
+    {
+        Mail::fake();
+
+        $member = TeamMember::factory()->create([
+            'parent_user_id' => $this->testUser->id,
+            'email' => 'reuse@example.test',
+            'phone' => '919876543299',
+        ]);
+
+        $this->actingAsTenantUser()
+            ->delete(route('my-team.destroy', $member))
+            ->assertRedirect(route('my-team.index'));
+
+        $this->assertSoftDeleted('team_members', ['id' => $member->id]);
+
+        $this->actingAsTenantUser()
+            ->post(route('my-team.store'), [
+                'first_name' => 'Again',
+                'last_name' => 'User',
+                'phone' => '9876543299',
+                'email' => 'reuse@example.test',
+                'role' => TeamMemberRole::Member->value,
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('team_members', [
+            'email' => 'reuse@example.test',
+            'deleted_at' => null,
+        ]);
+    }
 }
