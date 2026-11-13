@@ -70,12 +70,19 @@ class TeamMemberService
             ->get();
 
         foreach ($trashed as $member) {
-            $member->forceFill([
-                'email' => $this->releasedEmail((string) $member->email, (int) $member->id),
-                'phone' => $member->phone !== null
-                    ? $this->releasedPhone((string) $member->phone, (int) $member->id)
-                    : null,
-            ])->save();
+            $updates = [];
+
+            if (strcasecmp((string) $member->email, $email) === 0) {
+                $updates['email'] = $this->releasedEmail((string) $member->email, (int) $member->id);
+            }
+
+            if (filled($phone) && (string) $member->phone === $phone) {
+                $updates['phone'] = null;
+            }
+
+            if ($updates !== []) {
+                $member->forceFill($updates)->save();
+            }
         }
     }
 
@@ -119,11 +126,10 @@ class TeamMemberService
             $this->accessSyncService->remove($member);
 
             // Soft delete keeps the row; free unique email/phone so they can be reused.
+            // phone is varchar(20) — null it (unique allows multiple NULLs) instead of suffixing.
             $member->forceFill([
                 'email' => $this->releasedEmail((string) $member->email, (int) $member->id),
-                'phone' => $member->phone !== null
-                    ? $this->releasedPhone((string) $member->phone, (int) $member->id)
-                    : null,
+                'phone' => null,
             ])->save();
 
             $member->delete();
@@ -136,12 +142,6 @@ class TeamMemberService
         $maxBase = max(1, 191 - strlen($suffix));
 
         return substr($email, 0, $maxBase).$suffix;
-    }
-
-    private function releasedPhone(string $phone, int $id): string
-    {
-        // Keep digits-ish uniqueness without colliding with real numbers.
-        return 'deleted_'.$id.'_'.$phone;
     }
 
     public function toggleStatus(TeamMember $member): TeamMember
