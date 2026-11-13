@@ -109,12 +109,46 @@ class CamsOutboundPayloadBuilder
     {
         $metadata = $message->metadata ?? [];
         $interactive = is_array($metadata['interactive'] ?? null) ? $metadata['interactive'] : [];
+        $interactive = $this->normalizeFlowInteractiveContent($interactive);
 
         return array_merge($payload, [
             'Type' => 'message',
             'MessageType' => 'interactive',
             'Content' => json_encode($interactive, JSON_THROW_ON_ERROR),
         ]);
+    }
+
+    /**
+     * CAMS rejects flow_action_payload.data as JSON array [] — it must be object {}.
+     * Message.metadata is cast to array, so an empty object round-trips to [].
+     *
+     * @param  array<string, mixed>  $interactive
+     * @return array<string, mixed>
+     */
+    private function normalizeFlowInteractiveContent(array $interactive): array
+    {
+        if (($interactive['type'] ?? '') !== 'flow') {
+            return $interactive;
+        }
+
+        $parameters = $interactive['action']['parameters'] ?? null;
+        if (! is_array($parameters)) {
+            return $interactive;
+        }
+
+        $flowPayload = $parameters['flow_action_payload'] ?? null;
+        if (! is_array($flowPayload)) {
+            return $interactive;
+        }
+
+        $data = $flowPayload['data'] ?? null;
+        if ($data === null || $data === []) {
+            $flowPayload['data'] = new \stdClass;
+            $parameters['flow_action_payload'] = $flowPayload;
+            $interactive['action']['parameters'] = $parameters;
+        }
+
+        return $interactive;
     }
 
     /**

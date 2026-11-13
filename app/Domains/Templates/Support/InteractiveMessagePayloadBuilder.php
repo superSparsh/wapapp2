@@ -210,8 +210,18 @@ final class InteractiveMessagePayloadBuilder
 
             if (($content['type'] ?? '') === 'flow') {
                 $parameters = $content['action']['parameters'] ?? null;
-                if (is_array($parameters) && blank($parameters['flow_token'] ?? null) && filled($parameters['flow_id'] ?? null)) {
-                    $parameters['flow_token'] = $this->flowInteractiveService->generateFlowToken((string) $parameters['flow_id']);
+                if (is_array($parameters)) {
+                    if (blank($parameters['flow_token'] ?? null) && filled($parameters['flow_id'] ?? null)) {
+                        $parameters['flow_token'] = $this->flowInteractiveService->generateFlowToken((string) $parameters['flow_id']);
+                    }
+
+                    // CAMS requires flow_action_payload.data as object {}; node JSON often has [].
+                    $flowPayload = $parameters['flow_action_payload'] ?? null;
+                    if (is_array($flowPayload) && (! array_key_exists('data', $flowPayload) || $flowPayload['data'] === [] || $flowPayload['data'] === null)) {
+                        $flowPayload['data'] = new \stdClass;
+                        $parameters['flow_action_payload'] = $flowPayload;
+                    }
+
                     $content['action']['parameters'] = $parameters;
                 }
             }
