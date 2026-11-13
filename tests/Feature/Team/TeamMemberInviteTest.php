@@ -68,23 +68,31 @@ class TeamMemberInviteTest extends TestCase
         Mail::assertSent(TeamMemberInviteMail::class, fn (TeamMemberInviteMail $mail): bool => $mail->hasTo('resend@example.test'));
     }
 
-    public function test_team_member_can_change_password_from_security_page(): void
+    public function test_team_member_cannot_see_account_section_in_navigation(): void
     {
         $member = TeamMember::factory()->create([
             'parent_user_id' => $this->testUser->id,
-            'password' => 'password',
+            'permissions' => array_merge(TeamPermissions::defaults(), ['inbox_read' => true]),
+        ]);
+
+        $labels = collect(\App\Domains\Team\Support\TeamNavigation::items($member))
+            ->pluck('label')
+            ->all();
+
+        $this->assertNotContains('Account', $labels);
+        $this->assertNotContains('Security', $labels);
+    }
+
+    public function test_team_member_cannot_access_account_security(): void
+    {
+        $member = TeamMember::factory()->create([
+            'parent_user_id' => $this->testUser->id,
             'permissions' => array_merge(TeamPermissions::defaults(), ['inbox_read' => true]),
         ]);
 
         $this->actingAsTeamMember($member)
-            ->put(route('profile.password.update'), [
-                'current_password' => 'password',
-                'password' => 'new-password-123',
-                'password_confirmation' => 'new-password-123',
-            ])
-            ->assertRedirect(route('profile.security'));
-
-        $this->assertTrue(\Illuminate\Support\Facades\Hash::check('new-password-123', $member->fresh()->password));
+            ->get(route('profile.security'))
+            ->assertForbidden();
     }
 
     public function test_roles_page_shows_new_module_permissions(): void

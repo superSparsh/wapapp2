@@ -81,22 +81,6 @@ return Application::configure(basePath: dirname(__DIR__))
             Route::middleware('api')->prefix('api')->group(base_path('routes/mobile.php'));
             Route::middleware('web')->group(base_path('routes/auth.php'));
             Route::middleware('web')->group(base_path('routes/admin.php'));
-            // Security + password change: owners and team members.
-            Route::middleware(['web', 'tenancy.session', 'auth:web,team', '2fa', 'waba.bound', 'line.context'])
-                ->prefix('profile')
-                ->name('profile.')
-                ->group(function () {
-                    Route::get('/security', [\App\Domains\Account\Http\Controllers\SecurityController::class, 'show'])->name('security');
-                    Route::put('/password', [\App\Domains\Account\Http\Controllers\SecurityController::class, 'updatePassword'])->name('password.update');
-                    Route::post('/security/two-factor', [\App\Domains\Account\Http\Controllers\SecurityController::class, 'enable'])->name('security.enable');
-                    Route::post('/security/two-factor/disable', [\App\Domains\Account\Http\Controllers\SecurityController::class, 'disable'])->name('security.disable');
-                    Route::post('/security/recovery-codes', [\App\Domains\Account\Http\Controllers\SecurityController::class, 'regenerateRecoveryCodes'])->name('security.recovery');
-                });
-
-            Route::get('/account/security', fn () => redirect()->route('profile.security'))
-                ->middleware(['web', 'tenancy.session', 'auth:web,team', '2fa'])
-                ->name('account.security');
-
             Route::middleware(['web', 'tenancy.session', 'auth:web,team', '2fa', 'team.owner', 'waba.bound', 'line.context'])
                 ->group(base_path('routes/account.php'));
         },

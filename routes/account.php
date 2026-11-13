@@ -12,6 +12,7 @@ use App\Domains\Account\Http\Controllers\LegalController;
 use App\Domains\Account\Http\Controllers\NotificationContactController;
 use App\Domains\Account\Http\Controllers\NotificationController;
 use App\Domains\Account\Http\Controllers\ProfileController;
+use App\Domains\Account\Http\Controllers\SecurityController;
 use App\Domains\Billing\Http\Controllers\SubscriptionController;
 use App\Domains\Integration\Http\Controllers\IntegrationController;
 use App\Domains\Integration\Http\Controllers\PhoneLineController;
@@ -80,6 +81,12 @@ Route::prefix('profile')->name('profile.')->group(function () {
     Route::get('/business-terms/signed-pdf', [BusinessTermsController::class, 'downloadSignedAgreement'])->name('business-terms.signed-pdf');
     Route::get('/business-terms/custom-pdf', [BusinessTermsController::class, 'downloadCustomTermsPdf'])->name('business-terms.custom-pdf');
 
+    Route::get('/security', [SecurityController::class, 'show'])->name('security');
+    Route::put('/password', [SecurityController::class, 'updatePassword'])->name('password.update');
+    Route::post('/security/two-factor', [SecurityController::class, 'enable'])->name('security.enable');
+    Route::post('/security/two-factor/disable', [SecurityController::class, 'disable'])->name('security.disable');
+    Route::post('/security/recovery-codes', [SecurityController::class, 'regenerateRecoveryCodes'])->name('security.recovery');
 });
 
+Route::get('/account/security', fn () => redirect()->route('profile.security'))->name('account.security');
 Route::get('/frontend/docs/api/v1', fn () => redirect()->route('profile.api.docs'))->name('api.docs.legacy');

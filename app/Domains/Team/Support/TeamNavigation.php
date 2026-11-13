@@ -35,13 +35,6 @@ final class TeamNavigation
             ];
         }
 
-        $items[] = [
-            'label' => 'Security',
-            'route' => 'profile.security',
-            'icon' => 'box',
-            'matches' => ['profile.password.update'],
-        ];
-
         return array_values($items);
     }
 
@@ -52,6 +45,12 @@ final class TeamNavigation
 
         return array_values(array_filter(array_map(
             function (array $item) use ($member, $routePermissions): ?array {
+                // Account / profile is owner-only — never show to team members.
+                if (strcasecmp((string) ($item['label'] ?? ''), 'Account') === 0
+                    || str_starts_with((string) ($item['route'] ?? ''), 'profile.')) {
+                    return null;
+                }
+
                 if (! empty($item['children'])) {
                     $children = array_values(array_filter(
                         $item['children'],
@@ -78,10 +77,6 @@ final class TeamNavigation
     {
         if ($route === '' || $route === 'dashboard') {
             return false;
-        }
-
-        if ($route === 'profile.security') {
-            return true;
         }
 
         if (str_starts_with($route, 'profile.')) {
