@@ -38,21 +38,25 @@
           <p class="text-sm text-text-muted">Only enabled modules appear in their sidebar after they sign in.</p>
         </div>
 
-        <div class="w-full max-w-[720px] overflow-hidden rounded-xl border border-green-50 bg-elevated shadow-[0px_4px_6px_rgba(0,0,0,0.04)]" data-team-permissions>
+        <div class="w-full max-w-[760px] overflow-hidden rounded-xl border border-green-50 bg-elevated shadow-[0px_4px_6px_rgba(0,0,0,0.04)]" data-team-permissions>
           @foreach ($permissionLabels as $key => $label)
             @php $enabled = ! empty($permissions[$key]); @endphp
-            <div @class(['flex flex-col gap-2 px-2 py-2 sm:flex-row sm:items-center', 'border-t border-divider' => ! $loop->first]) data-team-permission-row>
-              <div class="min-w-0 flex-[1.2] p-2">
+            <div
+              @class([
+                'grid grid-cols-1 items-center gap-3 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-4',
+                'border-t border-divider' => ! $loop->first,
+              ])
+              data-team-permission-row
+            >
+              <div class="min-w-0">
                 <p class="text-[13px] font-semibold leading-[1.5] text-text-subtle">{{ $label }}</p>
                 <p class="mt-0.5 text-[12px] leading-[1.4] text-text-muted">
                   {{ $permissionDescriptions[$key] ?? 'Allow access to this module' }}
                 </p>
               </div>
-              <div class="hidden min-w-0 flex-1 p-2 md:block">
-                <p class="text-[13px] font-normal leading-[1.5] text-text-body">View, create, update &amp; delete</p>
-              </div>
-              <div class="flex min-w-0 flex-1 items-center justify-center gap-2.5 p-2">
-                <span class="flex-1 text-right text-[13px] text-text-body">No</span>
+
+              <div class="flex shrink-0 items-center justify-start gap-3 sm:justify-end">
+                <span class="w-8 text-right text-[13px] leading-none text-text-body">No</span>
                 <input type="hidden" name="permissions[{{ $key }}]" value="0" data-team-permission-hidden @disabled($enabled)>
                 <x-ui.toggle-switch
                   :active="$enabled"
@@ -69,7 +73,7 @@
                   @disabled(! $enabled)
                   data-team-permission-checkbox
                 >
-                <span class="flex-1 text-[13px] text-text-body">Yes</span>
+                <span class="w-8 text-left text-[13px] leading-none text-text-body">Yes</span>
               </div>
             </div>
           @endforeach
