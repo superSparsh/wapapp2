@@ -145,6 +145,37 @@ class FlowDataNormalizerTest extends TestCase
         $this->assertSame('closed', $result['bh']['outputs']['closed']['connections'][0]['node']);
     }
 
+    public function test_exclusive_branch_handles_keep_last_edge_only(): void
+    {
+        $flow = ChatbotFlow::factory()->create([
+            'exported_data' => [
+                'nodes' => [
+                    ['id' => 'welcome', 'type' => 'welcomeMessage', 'data' => ['quickReplies' => []]],
+                    ['id' => 'old_next', 'type' => 'welcomeMessage', 'data' => []],
+                    ['id' => 'yes_branch', 'type' => 'welcomeMessage', 'data' => []],
+                    ['id' => 'no_branch', 'type' => 'welcomeMessage', 'data' => []],
+                ],
+                'edges' => [
+                    ['id' => 'e_old_yes', 'source' => 'welcome', 'target' => 'old_next', 'sourceHandle' => 'reply-0'],
+                    ['id' => 'e_new_yes', 'source' => 'welcome', 'target' => 'yes_branch', 'sourceHandle' => 'reply-0'],
+                    ['id' => 'e_old_no', 'source' => 'welcome', 'target' => 'old_next', 'sourceHandle' => 'reply-1'],
+                    ['id' => 'e_new_no', 'source' => 'welcome', 'target' => 'no_branch', 'sourceHandle' => 'reply-1'],
+                ],
+            ],
+        ]);
+
+        $result = $this->normalizer->normalize($flow, bypassCache: true);
+
+        $this->assertSame(
+            [['node' => 'yes_branch']],
+            $result['welcome']['outputs']['reply-0']['connections']
+        );
+        $this->assertSame(
+            [['node' => 'no_branch']],
+            $result['welcome']['outputs']['reply-1']['connections']
+        );
+    }
+
     public function test_normalize_does_not_return_stale_cache_after_trigger_change(): void
     {
         $flow = ChatbotFlow::factory()->create([

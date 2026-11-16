@@ -32,11 +32,22 @@ class FlowCacheManager
     public function putNodeMap(int $flowId, array $nodeMap, string $version = ''): void
     {
         try {
-            $this->store()->put(
+            $ttl = (int) config('chatbot.flow_cache_ttl_seconds', 7200);
+            $store = $this->store();
+            $store->put(
                 $this->nodeMapKey($flowId, $version),
                 $nodeMap,
-                (int) config('chatbot.flow_cache_ttl_seconds', 7200),
+                $ttl,
             );
+
+            if ($version !== '') {
+                $versions = $store->get($this->versionsKey($flowId));
+                $versions = is_array($versions) ? $versions : [];
+                if (! in_array($version, $versions, true)) {
+                    $versions[] = $version;
+                    $store->put($this->versionsKey($flowId), $versions, $ttl);
+                }
+            }
         } catch (\Throwable) {
             // Silently skip caching on failure – the normalizer will re-build.
         }
@@ -69,6 +80,31 @@ class FlowCacheManager
     }
 
     /**
+     * Drop every cached node-map version for a flow (used on Save Flow).
+     */
+    public function forgetAllNodeMaps(int $flowId): void
+    {
+        try {
+            $store = $this->store();
+            $versions = $store->get($this->versionsKey($flowId));
+            if (is_array($versions)) {
+                foreach ($versions as $version) {
+                    if (is_string($version) && $version !== '') {
+                        $store->forget($this->nodeMapKey($flowId, $version));
+                    }
+                }
+            }
+
+            $store->forget($this->legacyNodeMapKey($flowId));
+            $store->forget($this->versionsKey($flowId));
+            // Also drop the empty-version key if something wrote it as "current".
+            $store->forget($this->nodeMapKey($flowId, ''));
+        } catch (\Throwable) {
+            // Nothing to clear – that's fine.
+        }
+    }
+
+    /**
      * Build a cache version that changes whenever flow content changes.
      *
      * @param  array<string, mixed>|null  $exportedData
@@ -93,6 +129,11 @@ class FlowCacheManager
     private function legacyNodeMapKey(int $flowId): string
     {
         return "chatbot:flow:{$flowId}:nodes";
+    }
+
+    private function versionsKey(int $flowId): string
+    {
+        return "chatbot:flow:{$flowId}:versions";
     }
 
     /**

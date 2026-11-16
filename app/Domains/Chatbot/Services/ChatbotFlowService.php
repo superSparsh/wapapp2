@@ -95,7 +95,7 @@ class ChatbotFlowService
     public function delete(ChatbotFlow $flow): void
     {
         DB::transaction(function () use ($flow): void {
-            $this->cacheManager->forgetNodeMap($flow->id);
+            $this->cacheManager->forgetAllNodeMaps($flow->id);
             $flow->delete();
         });
     }
@@ -113,7 +113,7 @@ class ChatbotFlowService
         $flow->update(['status' => $newStatus]);
 
         if (! $flow->isActive()) {
-            $this->cacheManager->forgetNodeMap($flow->id);
+            $this->cacheManager->forgetAllNodeMaps($flow->id);
         }
 
         return $flow->refresh();

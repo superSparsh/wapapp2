@@ -34,11 +34,73 @@ class FlowNodeDataMapper
 
         $edges = is_array($flowData['edges'] ?? null) ? $flowData['edges'] : [];
         $edges = $this->normalizeDateTimeConditionEdges($nodes, $edges);
+        $edges = $this->dedupeExclusiveBranchEdges($edges);
 
         return array_merge($flowData, [
             'nodes' => $nodes,
             'edges' => $edges,
         ]);
+    }
+
+    /**
+     * Keep only the last edge per exclusive branch handle (reply/button/list/carousel).
+     * Stale wires from reconnects otherwise stay in exported_data and the engine
+     * always follows connections[0] (the old next step) for every button.
+     *
+     * @param  array<int, array<string, mixed>>  $edges
+     * @return array<int, array<string, mixed>>
+     */
+    private function dedupeExclusiveBranchEdges(array $edges): array
+    {
+        $lastIndexByKey = [];
+
+        foreach ($edges as $index => $edge) {
+            if (! is_array($edge)) {
+                continue;
+            }
+
+            $source = (string) ($edge['source'] ?? '');
+            $handle = strtolower(trim((string) ($edge['sourceHandle'] ?? '')));
+
+            if ($source === '' || ! $this->isExclusiveBranchHandle($handle)) {
+                continue;
+            }
+
+            $lastIndexByKey[$source.'|'.$handle] = $index;
+        }
+
+        if ($lastIndexByKey === []) {
+            return array_values($edges);
+        }
+
+        $keep = array_flip(array_values($lastIndexByKey));
+        $out = [];
+
+        foreach ($edges as $index => $edge) {
+            if (! is_array($edge)) {
+                continue;
+            }
+
+            $source = (string) ($edge['source'] ?? '');
+            $handle = strtolower(trim((string) ($edge['sourceHandle'] ?? '')));
+
+            if ($source !== '' && $this->isExclusiveBranchHandle($handle) && ! isset($keep[$index])) {
+                continue;
+            }
+
+            $out[] = $edge;
+        }
+
+        return $out;
+    }
+
+    private function isExclusiveBranchHandle(string $handle): bool
+    {
+        return str_starts_with($handle, 'reply-')
+            || str_starts_with($handle, 'reply_')
+            || str_starts_with($handle, 'button-')
+            || str_starts_with($handle, 'interactive-')
+            || str_starts_with($handle, 'carousel-');
     }
 
     /**

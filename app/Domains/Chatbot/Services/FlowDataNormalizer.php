@@ -66,9 +66,8 @@ class FlowDataNormalizer
             is_array($data) ? $data : null,
         );
 
-        // Drop legacy + previous version keys when we know the new version.
-        $this->cacheManager->forgetNodeMap($flow->id, $version);
-        $this->cacheManager->forgetNodeMap($flow->id, '');
+        // Wipe every prior version so Save Flow never leaves a stale node-map around.
+        $this->cacheManager->forgetAllNodeMaps($flow->id);
 
         if (! is_array($data)) {
             return [];
@@ -267,7 +266,16 @@ class FlowDataNormalizer
 
             $target = (string) ($edge['target'] ?? '');
 
-            if ($target !== '') {
+            if ($target === '') {
+                continue;
+            }
+
+            // Branch handles (quick-reply / buttons / list / carousel): last edge wins.
+            // Rebuilds leave stale edges when the canvas reconnects without deleting the old wire,
+            // and nextNodeIdFromHandle used to keep routing to connections[0] (the old node).
+            if ($this->isExclusiveBranchHandle($handle)) {
+                $outputs[$handle]['connections'] = [['node' => $target]];
+            } else {
                 $outputs[$handle]['connections'][] = ['node' => $target];
             }
         }
@@ -277,5 +285,16 @@ class FlowDataNormalizer
         }
 
         return $outputs;
+    }
+
+    private function isExclusiveBranchHandle(string $handle): bool
+    {
+        $handle = strtolower(trim($handle));
+
+        return str_starts_with($handle, 'reply-')
+            || str_starts_with($handle, 'reply_')
+            || str_starts_with($handle, 'button-')
+            || str_starts_with($handle, 'interactive-')
+            || str_starts_with($handle, 'carousel-');
     }
 }

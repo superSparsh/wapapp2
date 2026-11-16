@@ -175,4 +175,30 @@ class FlowNodeDataMapperTest extends TestCase
         $this->assertSame('', $data['triggerKeyword']);
         $this->assertSame('', $data['keywords']);
     }
+
+    #[Test]
+    public function it_dedupes_stale_quick_reply_edges_keeping_last_wire(): void
+    {
+        $result = $this->mapper->prepareForStorage([
+            'nodes' => [
+                ['id' => 'welcome', 'type' => 'welcomeMessage', 'data' => []],
+                ['id' => 'old_next', 'type' => 'welcomeMessage', 'data' => []],
+                ['id' => 'yes', 'type' => 'welcomeMessage', 'data' => []],
+            ],
+            'edges' => [
+                ['id' => 'e1', 'source' => 'welcome', 'target' => 'old_next', 'sourceHandle' => 'reply-0'],
+                ['id' => 'e2', 'source' => 'welcome', 'target' => 'yes', 'sourceHandle' => 'reply-0'],
+                ['id' => 'e3', 'source' => 'welcome', 'target' => 'old_next', 'sourceHandle' => 'default'],
+            ],
+        ]);
+
+        $replyEdges = array_values(array_filter(
+            $result['edges'],
+            fn (array $edge): bool => ($edge['sourceHandle'] ?? '') === 'reply-0'
+        ));
+
+        $this->assertCount(1, $replyEdges);
+        $this->assertSame('yes', $replyEdges[0]['target']);
+        $this->assertCount(2, $result['edges']);
+    }
 }
