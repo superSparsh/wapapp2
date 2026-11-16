@@ -138,10 +138,62 @@
         >
           Generate new password
         </button>
-        <p class="text-xs text-text-muted" data-team-password-hint>
-          Shown in plain text so you can copy it. Click the eye to hide.
-        </p>
       </div>
+
+      <script>
+        (() => {
+          const root = document.currentScript?.closest('[data-team-password-generator]');
+          if (!root || root.dataset.teamPasswordInlineBound === '1') {
+            return;
+          }
+          root.dataset.teamPasswordInlineBound = '1';
+
+          const passwordInput = root.querySelector('#password');
+          const confirmInput = root.querySelector('#password_confirmation');
+          const generateButton = root.querySelector('[data-team-password-generate]');
+          if (!passwordInput || !confirmInput || !generateButton) {
+            return;
+          }
+
+          const generatePassword = (length = 16) => {
+            const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+            const lower = 'abcdefghijkmnopqrstuvwxyz';
+            const digits = '23456789';
+            const symbols = '!@#$%^&*';
+            const all = upper + lower + digits + symbols;
+            const picks = [
+              upper[Math.floor(Math.random() * upper.length)],
+              lower[Math.floor(Math.random() * lower.length)],
+              digits[Math.floor(Math.random() * digits.length)],
+              symbols[Math.floor(Math.random() * symbols.length)],
+            ];
+            const bytes = new Uint32Array(Math.max(0, length - picks.length));
+            crypto.getRandomValues(bytes);
+            for (const value of bytes) {
+              picks.push(all[value % all.length]);
+            }
+            for (let i = picks.length - 1; i > 0; i -= 1) {
+              const j = Math.floor(Math.random() * (i + 1));
+              [picks[i], picks[j]] = [picks[j], picks[i]];
+            }
+            return picks.join('');
+          };
+
+          const fill = (value) => {
+            passwordInput.value = value;
+            confirmInput.value = value;
+            passwordInput.type = 'text';
+            confirmInput.type = 'text';
+          };
+
+          generateButton.addEventListener('click', (event) => {
+            event.preventDefault();
+            fill(generatePassword());
+            passwordInput.focus();
+            passwordInput.select();
+          });
+        })();
+      </script>
     @endif
   @endif
 </div>
