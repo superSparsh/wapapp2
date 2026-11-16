@@ -40,10 +40,17 @@ class DelayProcessor extends AbstractNodeProcessor
             return NodeProcessResult::Completed;
         }
 
+        // Keep the state alive at least as long as the delay (plus buffer).
+        $ttlMinutes = max(
+            (int) config('chatbot.state_ttl_minutes', 60),
+            (int) ceil(($delaySeconds + 120) / 60),
+        );
+
         // Point at the next node but mark Delayed so inbound cannot skip the wait.
         $state->forceFill([
             'current_node_id' => $nextId,
             'status' => ChatbotFlowStateStatus::Delayed,
+            'expires_at' => now()->addMinutes($ttlMinutes),
         ])->save();
 
         // Dispatch a delayed job to continue the flow

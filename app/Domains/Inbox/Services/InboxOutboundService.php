@@ -6,6 +6,7 @@ namespace App\Domains\Inbox\Services;
 
 use App\Domains\Audience\Support\UnsubscribeToken;
 use App\Domains\Billing\Services\WalletService;
+use App\Domains\Chatbot\Services\ChatbotFlowEngine;
 use App\Domains\Inbox\Jobs\SendOutboundMessageJob;
 use App\Domains\Templates\Services\TemplatePreviewService;
 use App\Domains\Templates\Services\TemplateRegistryService;
@@ -223,7 +224,7 @@ class InboxOutboundService
             $conversation->whatsappLine,
         );
 
-        return $this->createOutboundMessage(
+        $message = $this->createOutboundMessage(
             conversation: $conversation,
             body: $display['body'],
             messageType: MessageType::Template,
@@ -240,6 +241,26 @@ class InboxOutboundService
             ], $extraMetadata),
             sendImmediately: $sendImmediately,
         );
+
+        $this->maybeContinueChatbotAfterTemplate($conversation, $message);
+
+        return $message;
+    }
+
+    /**
+     * No-button "Send On Interaction" flows: continue Next Node after template is queued.
+     */
+    private function maybeContinueChatbotAfterTemplate(Conversation $conversation, Message $message): void
+    {
+        try {
+            app(ChatbotFlowEngine::class)->startFromOutboundTemplate($conversation, $message);
+        } catch (\Throwable $e) {
+            Log::warning('Chatbot outbound template continue failed', [
+                'conversation_id' => $conversation->id,
+                'message_id' => $message->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     public function sendLocation(Conversation $conversation, float $latitude, float $longitude): Message

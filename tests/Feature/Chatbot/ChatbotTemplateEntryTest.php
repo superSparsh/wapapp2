@@ -551,4 +551,184 @@ class ChatbotTemplateEntryTest extends TestCase
         $this->assertSame(TriggerFireResult::Fired, $result);
         $this->assertContains('Thank you for sharing your feedback', $this->sent);
     }
+
+    public function test_outbound_no_button_template_continues_to_delay(): void
+    {
+        $providerCode = '1234567890666';
+        $template = Template::factory()->create([
+            'code' => $providerCode,
+            'name' => 'Thank No Buttons',
+        ]);
+
+        ChatbotFlow::factory()->active()->create([
+            'exported_data' => [
+                'nodes' => [
+                    [
+                        'id' => 'template_1',
+                        'type' => 'templateMessage',
+                        'data' => [
+                            'messageType' => 'template',
+                            'templateId' => $template->id,
+                            'templateCode' => $providerCode,
+                        ],
+                    ],
+                    [
+                        'id' => 'delay_1',
+                        'type' => 'delay',
+                        'data' => ['delaySeconds' => 15],
+                    ],
+                    [
+                        'id' => 'text_1',
+                        'type' => 'welcomeMessage',
+                        'data' => [
+                            'messageType' => 'text',
+                            'welcomeMessage' => 'After delay thanks',
+                        ],
+                    ],
+                ],
+                'edges' => [
+                    ['source' => 'template_1', 'target' => 'delay_1', 'sourceHandle' => 'default'],
+                    ['source' => 'delay_1', 'target' => 'text_1', 'sourceHandle' => 'default'],
+                ],
+            ],
+        ]);
+
+        $conversation = Conversation::factory()->create();
+        $outbound = Message::factory()->outbound()->create([
+            'conversation_id' => $conversation->id,
+            'message_type' => MessageType::Template,
+            'body' => 'Thanks template',
+            'metadata' => [
+                'template_code' => $providerCode,
+                'template_id' => $template->id,
+                'wallet_source' => 'inbox',
+            ],
+        ]);
+
+        $engine = app(ChatbotFlowEngine::class);
+        $result = $engine->startFromOutboundTemplate($conversation, $outbound);
+
+        $this->assertSame(TriggerFireResult::Fired, $result);
+
+        $state = ChatbotFlowState::query()->first();
+        $this->assertNotNull($state);
+        $this->assertSame(ChatbotFlowStateStatus::Delayed, $state->status);
+        $this->assertSame('text_1', $state->current_node_id);
+        $this->assertTrue($state->expires_at->greaterThan(now()->addSeconds(30)));
+
+        Queue::assertPushed(\App\Domains\Chatbot\Jobs\ProcessDelayedNodeJob::class);
+        $this->assertSame([], $this->sent);
+    }
+
+    public function test_outbound_button_template_does_not_auto_continue(): void
+    {
+        $providerCode = '1234567890777';
+        $template = Template::factory()->create([
+            'code' => $providerCode,
+            'name' => 'With Buttons',
+        ]);
+
+        ChatbotFlow::factory()->active()->create([
+            'exported_data' => [
+                'nodes' => [
+                    [
+                        'id' => 'template_1',
+                        'type' => 'templateMessage',
+                        'data' => [
+                            'messageType' => 'template',
+                            'templateId' => $template->id,
+                            'templateCode' => $providerCode,
+                            'quickReplies' => [
+                                ['id' => 'yes', 'text' => 'Yes'],
+                            ],
+                        ],
+                    ],
+                    [
+                        'id' => 'delay_1',
+                        'type' => 'delay',
+                        'data' => ['delaySeconds' => 15],
+                    ],
+                    [
+                        'id' => 'yes_branch',
+                        'type' => 'welcomeMessage',
+                        'data' => [
+                            'messageType' => 'text',
+                            'welcomeMessage' => 'Yes path',
+                        ],
+                    ],
+                ],
+                'edges' => [
+                    ['source' => 'template_1', 'target' => 'delay_1', 'sourceHandle' => 'default'],
+                    ['source' => 'template_1', 'target' => 'yes_branch', 'sourceHandle' => 'reply-0'],
+                ],
+            ],
+        ]);
+
+        $conversation = Conversation::factory()->create();
+        $outbound = Message::factory()->outbound()->create([
+            'conversation_id' => $conversation->id,
+            'message_type' => MessageType::Template,
+            'metadata' => [
+                'template_code' => $providerCode,
+                'template_id' => $template->id,
+                'wallet_source' => 'inbox',
+            ],
+        ]);
+
+        $result = app(ChatbotFlowEngine::class)->startFromOutboundTemplate($conversation, $outbound);
+
+        $this->assertSame(TriggerFireResult::NoMatch, $result);
+        $this->assertSame(0, ChatbotFlowState::query()->count());
+        Queue::assertNothingPushed();
+    }
+
+    public function test_chatbot_sent_template_does_not_reenter_outbound_continue(): void
+    {
+        $providerCode = '1234567890888';
+        $template = Template::factory()->create([
+            'code' => $providerCode,
+            'name' => 'Chatbot Sent',
+        ]);
+
+        ChatbotFlow::factory()->active()->create([
+            'exported_data' => [
+                'nodes' => [
+                    [
+                        'id' => 'template_1',
+                        'type' => 'templateMessage',
+                        'data' => [
+                            'messageType' => 'template',
+                            'templateId' => $template->id,
+                            'templateCode' => $providerCode,
+                        ],
+                    ],
+                    [
+                        'id' => 'delay_1',
+                        'type' => 'delay',
+                        'data' => ['delaySeconds' => 5],
+                    ],
+                ],
+                'edges' => [
+                    ['source' => 'template_1', 'target' => 'delay_1', 'sourceHandle' => 'default'],
+                ],
+            ],
+        ]);
+
+        $conversation = Conversation::factory()->create();
+        $outbound = Message::factory()->outbound()->create([
+            'conversation_id' => $conversation->id,
+            'message_type' => MessageType::Template,
+            'metadata' => [
+                'template_code' => $providerCode,
+                'template_id' => $template->id,
+                'chatbot_flow_id' => 1,
+                'chatbot_node_id' => 'template_1',
+            ],
+        ]);
+
+        $result = app(ChatbotFlowEngine::class)->startFromOutboundTemplate($conversation, $outbound);
+
+        $this->assertSame(TriggerFireResult::NoMatch, $result);
+        $this->assertSame(0, ChatbotFlowState::query()->count());
+    }
 }

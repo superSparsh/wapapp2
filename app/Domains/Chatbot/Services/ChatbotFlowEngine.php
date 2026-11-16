@@ -215,6 +215,103 @@ class ChatbotFlowEngine
         return $this->executeFlowFromNode($flow, $nodeMap, $conversation, $state);
     }
 
+    /**
+     * After Inbox/Campaign sends a no-button template that matches an active flow,
+     * continue from that node's Next Node (skip re-sending the template).
+     * Button templates stay on the inbound tap entry path.
+     */
+    public function startFromOutboundTemplate(Conversation $conversation, Message $outbound): TriggerFireResult
+    {
+        if ($outbound->direction !== MessageDirection::Outbound) {
+            return TriggerFireResult::NoMatch;
+        }
+
+        if ($outbound->message_type !== MessageType::Template) {
+            return TriggerFireResult::NoMatch;
+        }
+
+        $metadata = is_array($outbound->metadata) ? $outbound->metadata : [];
+
+        // Templates already sent by the chatbot itself must not re-enter the flow.
+        if (filled($metadata['chatbot_flow_id'] ?? null)) {
+            return TriggerFireResult::NoMatch;
+        }
+
+        if (! $this->walletAllowsChatbot()) {
+            return TriggerFireResult::WalletBlocked;
+        }
+
+        $templateCode = trim((string) ($metadata['template_code'] ?? ''));
+        $templateIdRaw = $metadata['template_id'] ?? $outbound->template_id ?? null;
+        $templateId = filled($templateIdRaw) && is_numeric($templateIdRaw) ? (int) $templateIdRaw : null;
+
+        if ($templateCode === '' && $templateId === null) {
+            return TriggerFireResult::NoMatch;
+        }
+
+        $match = $this->findBestOutboundTemplateContinueMatch($conversation, $templateCode, $templateId);
+        if ($match === null) {
+            return TriggerFireResult::NoMatch;
+        }
+
+        /** @var ChatbotFlow $flow */
+        $flow = $match['flow'];
+        /** @var array<string, array<string, mixed>> $nodeMap */
+        $nodeMap = $match['node_map'];
+        $nodeId = (string) $match['node_id'];
+        $node = $nodeMap[$nodeId] ?? null;
+
+        if ($node === null || TemplateMessageWaitHydrator::isWaitable($node)) {
+            return TriggerFireResult::NoMatch;
+        }
+
+        $nextId = $this->defaultNextNodeId($node);
+        if ($nextId === null || ! isset($nodeMap[$nextId])) {
+            return TriggerFireResult::NoMatch;
+        }
+
+        Log::info('Chatbot outbound template continue matched', [
+            'conversation_id' => $conversation->id,
+            'flow_id' => $flow->id,
+            'node_id' => $nodeId,
+            'next_node_id' => $nextId,
+            'template_code' => $templateCode,
+            'template_id' => $templateId,
+            'outbound_message_id' => $outbound->id,
+        ]);
+
+        try {
+            $this->resetConversationStates($conversation);
+
+            $state = ChatbotFlowState::query()->create([
+                'conversation_id' => $conversation->id,
+                'chatbot_flow_id' => $flow->id,
+                'current_node_id' => $nextId,
+                'variables' => $this->variableResolver->withConversationContext([
+                    '_flow_name' => $flow->name,
+                    '_start_node' => $nodeId,
+                    '_template_entry' => true,
+                    '_template_outbound_continue' => true,
+                    '_template_outbound_message_id' => $outbound->id,
+                ], $conversation),
+                'status' => ChatbotFlowStateStatus::Active,
+                'expires_at' => now()->addMinutes((int) config('chatbot.state_ttl_minutes', 2)),
+            ]);
+
+            $this->processedNodeIds = [];
+
+            return $this->executeFlowFromNode($flow, $nodeMap, $conversation, $state);
+        } catch (\Throwable $e) {
+            Log::error('Chatbot outbound template continue error', [
+                'flow_id' => $flow->id,
+                'node_id' => $nodeId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return TriggerFireResult::SendFailed;
+        }
+    }
+
     // ─── Private: Start Command ─────────────────────────────────────
 
     private function isStartCommand(string $body): bool
@@ -1361,6 +1458,44 @@ class ChatbotFlowEngine
         string $templateCode,
         ?int $templateId,
     ): ?array {
+        return $this->findBestTemplateNodeMatch(
+            $conversation,
+            $templateCode,
+            $templateId,
+            requireWaitable: true,
+            requireLinearNext: false,
+        );
+    }
+
+    /**
+     * No-button template nodes with a Next Node wire — used after outbound send.
+     *
+     * @return array{flow: ChatbotFlow, node_map: array<string, array<string, mixed>>, node_id: string}|null
+     */
+    private function findBestOutboundTemplateContinueMatch(
+        Conversation $conversation,
+        string $templateCode,
+        ?int $templateId,
+    ): ?array {
+        return $this->findBestTemplateNodeMatch(
+            $conversation,
+            $templateCode,
+            $templateId,
+            requireWaitable: false,
+            requireLinearNext: true,
+        );
+    }
+
+    /**
+     * @return array{flow: ChatbotFlow, node_map: array<string, array<string, mixed>>, node_id: string}|null
+     */
+    private function findBestTemplateNodeMatch(
+        Conversation $conversation,
+        string $templateCode,
+        ?int $templateId,
+        bool $requireWaitable,
+        bool $requireLinearNext,
+    ): ?array {
         $lineId = (int) ($conversation->whatsapp_line_id ?? 0);
         $best = null;
 
@@ -1393,7 +1528,15 @@ class ChatbotFlowEngine
                     continue;
                 }
 
-                if (! TemplateMessageWaitHydrator::isWaitable($node)) {
+                $waitable = TemplateMessageWaitHydrator::isWaitable($node);
+                if ($requireWaitable && ! $waitable) {
+                    continue;
+                }
+                if (! $requireWaitable && $waitable) {
+                    continue;
+                }
+
+                if ($requireLinearNext && $this->defaultNextNodeId($node) === null) {
                     continue;
                 }
 
@@ -1815,11 +1958,32 @@ class ChatbotFlowEngine
     private function defaultNextNodeId(array $node): ?string
     {
         // Legacy getDefaultContinueNodeIds - only default/output_1, never branch handles.
-        foreach (['default', 'output_1'] as $handle) {
+        foreach (['default', 'output_1', 'output_2'] as $handle) {
             $nextId = $this->nextNodeIdFromHandle($node, $handle);
 
             if ($nextId !== null) {
                 return $nextId;
+            }
+        }
+
+        foreach ($node['outputs'] ?? [] as $handle => $output) {
+            $handle = strtolower(trim((string) $handle));
+            if (
+                $handle === ''
+                || str_starts_with($handle, 'reply-')
+                || str_starts_with($handle, 'reply_')
+                || str_starts_with($handle, 'button-')
+                || str_starts_with($handle, 'interactive-')
+                || str_starts_with($handle, 'carousel-')
+                || in_array($handle, ['unread', 'undelivered', 'delivered', 'open', 'closed', 'yes', 'no'], true)
+            ) {
+                continue;
+            }
+
+            $connections = is_array($output['connections'] ?? null) ? $output['connections'] : [];
+            $target = trim((string) ($connections[0]['node'] ?? ''));
+            if ($target !== '') {
+                return $target;
             }
         }
 
