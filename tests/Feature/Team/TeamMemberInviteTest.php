@@ -28,7 +28,7 @@ class TeamMemberInviteTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_creating_team_member_sends_invite_email_without_password(): void
+    public function test_creating_team_member_sends_invite_email_with_generated_password(): void
     {
         Mail::fake();
 
@@ -38,6 +38,8 @@ class TeamMemberInviteTest extends TestCase
                 'last_name' => 'User',
                 'phone' => '9876543211',
                 'email' => 'invitee@example.test',
+                'password' => 'AutoGen-Pass1!',
+                'password_confirmation' => 'AutoGen-Pass1!',
                 'role' => TeamMemberRole::Member->value,
             ])
             ->assertRedirect();
@@ -161,6 +163,8 @@ class TeamMemberInviteTest extends TestCase
                 'last_name' => 'User',
                 'phone' => '9876543299',
                 'email' => 'reuse@example.test',
+                'password' => 'AutoGen-Pass2!',
+                'password_confirmation' => 'AutoGen-Pass2!',
                 'role' => TeamMemberRole::Member->value,
             ])
             ->assertRedirect();

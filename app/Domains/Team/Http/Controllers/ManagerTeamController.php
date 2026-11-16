@@ -65,6 +65,7 @@ class ManagerTeamController extends Controller
 
         return view('manager.team.create', [
             'whatsappLines' => $this->whatsappLines(),
+            'generatedPassword' => \Illuminate\Support\Str::password(16),
         ]);
     }
 

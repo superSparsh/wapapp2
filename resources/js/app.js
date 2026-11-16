@@ -25,6 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initThemeToggle();
     initTabToggle();
     initPasswordToggle();
+    initTeamPasswordGenerator();
     initOtpInputs();
     initLoginOtp();
     initAuthFeaturesCarousel();
@@ -169,6 +170,70 @@ function initPasswordToggle() {
             const isPassword = input.type === 'password';
             input.type = isPassword ? 'text' : 'password';
             button.setAttribute('aria-label', isPassword ? 'Hide password' : 'Show password');
+        });
+    });
+}
+
+function generateTeamPassword(length = 16) {
+    const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+    const lower = 'abcdefghijkmnopqrstuvwxyz';
+    const digits = '23456789';
+    const symbols = '!@#$%^&*';
+    const all = upper + lower + digits + symbols;
+    const picks = [
+        upper[Math.floor(Math.random() * upper.length)],
+        lower[Math.floor(Math.random() * lower.length)],
+        digits[Math.floor(Math.random() * digits.length)],
+        symbols[Math.floor(Math.random() * symbols.length)],
+    ];
+
+    const bytes = new Uint32Array(Math.max(0, length - picks.length));
+    crypto.getRandomValues(bytes);
+    for (const value of bytes) {
+        picks.push(all[value % all.length]);
+    }
+
+    for (let i = picks.length - 1; i > 0; i -= 1) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [picks[i], picks[j]] = [picks[j], picks[i]];
+    }
+
+    return picks.join('');
+}
+
+function initTeamPasswordGenerator() {
+    document.querySelectorAll('[data-team-password-generator]').forEach((root) => {
+        if (root.dataset.teamPasswordBound === '1') {
+            return;
+        }
+        root.dataset.teamPasswordBound = '1';
+
+        const passwordInput = root.querySelector('[data-team-password-input]');
+        const confirmInput = root.querySelector('[data-team-password-confirm]');
+        const generateButton = root.querySelector('[data-team-password-generate]');
+
+        if (!passwordInput || !confirmInput) {
+            return;
+        }
+
+        const fill = (value) => {
+            passwordInput.value = value;
+            confirmInput.value = value;
+            passwordInput.type = 'text';
+            confirmInput.type = 'text';
+            root.querySelectorAll('[data-password-toggle]').forEach((button) => {
+                button.setAttribute('aria-label', 'Hide password');
+            });
+        };
+
+        if (!passwordInput.value) {
+            fill(generateTeamPassword());
+        }
+
+        generateButton?.addEventListener('click', () => {
+            fill(generateTeamPassword());
+            passwordInput.focus();
+            passwordInput.select();
         });
     });
 }

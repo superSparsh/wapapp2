@@ -64,6 +64,7 @@ class TeamController extends Controller
         return view('my-team.create', [
             'roles' => TeamMemberRole::cases(),
             'whatsappLines' => $this->whatsappLines(),
+            'generatedPassword' => \Illuminate\Support\Str::password(16),
         ]);
     }
 
