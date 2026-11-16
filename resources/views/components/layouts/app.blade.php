@@ -232,8 +232,31 @@
       }
 
       if ($errors->any() && ! ($suppressValidationToasts ?? false)) {
-          foreach ($errors->all() as $error) {
-              $flashToasts[] = ['type' => 'error', 'message' => $error];
+          $campaignWizardActionByField = request()->routeIs('campaigns.*')
+              ? [
+                  'name' => ['step' => 1, 'label' => 'Go to campaign info'],
+                  'whatsapp_line_id' => ['step' => 1, 'label' => 'Go to From Number'],
+                  'audience_id' => ['step' => 2, 'label' => 'Go to audience'],
+                  'audience_ids' => ['step' => 2, 'label' => 'Go to audience'],
+                  'policy_confirmed' => ['step' => 2, 'label' => 'Go to confirmation', 'hash' => '#policy-confirmation'],
+                  'template_id' => ['step' => 3, 'label' => 'Go to template'],
+                  'template_variables' => ['step' => 4, 'label' => 'Go to variables'],
+              ]
+              : [];
+
+          foreach ($errors->messages() as $field => $fieldMessages) {
+              $action = $campaignWizardActionByField[$field] ?? null;
+
+              foreach ($fieldMessages as $error) {
+                  $toast = ['type' => 'error', 'message' => $error];
+
+                  if (is_array($action)) {
+                      $toast['actionUrl'] = route('campaigns.create.step', $action['step']).($action['hash'] ?? '');
+                      $toast['actionLabel'] = $action['label'];
+                  }
+
+                  $flashToasts[] = $toast;
+              }
           }
       }
     @endphp

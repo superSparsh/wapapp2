@@ -94,9 +94,30 @@
 
       <p id="schedule-error" class="hidden text-sm font-medium text-red-500"></p>
       @error('send_mode') <p class="text-sm font-medium text-red-500">{{ $message }}</p> @enderror
-      @error('audience_id') <p class="text-sm font-medium text-red-500">{{ $message }}</p> @enderror
-      @error('whatsapp_line_id') <p class="text-sm font-medium text-red-500">{{ $message }}</p> @enderror
-      @error('template_id') <p class="text-sm font-medium text-red-500">{{ $message }}</p> @enderror
+      @error('audience_id')
+        <p class="text-sm font-medium text-red-500">
+          {{ $message }}
+          <a href="{{ route('campaigns.create.step', 2) }}" class="underline">Go to audience</a>
+        </p>
+      @enderror
+      @error('whatsapp_line_id')
+        <p class="text-sm font-medium text-red-500">
+          {{ $message }}
+          <a href="{{ route('campaigns.create.step', 1) }}" class="underline">Go to From Number</a>
+        </p>
+      @enderror
+      @error('template_id')
+        <p class="text-sm font-medium text-red-500">
+          {{ $message }}
+          <a href="{{ route('campaigns.create.step', 3) }}" class="underline">Go to template</a>
+        </p>
+      @enderror
+      @error('policy_confirmed')
+        <p class="text-sm font-medium text-red-500">
+          {{ $message }}
+          <a href="{{ route('campaigns.create.step', 2) }}#policy-confirmation" class="underline">Go to confirmation</a>
+        </p>
+      @enderror
 
       <input type="hidden" name="policy_confirmed" value="{{ ! empty($wizardData['policy_confirmed']) ? '1' : '' }}">
 

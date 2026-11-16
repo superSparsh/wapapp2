@@ -99,7 +99,7 @@ function dismissToast(toastEl) {
     }, 220);
 }
 
-function createToastElement({ type, message, title, duration }) {
+function createToastElement({ type, message, title, duration, actionUrl, actionLabel }) {
     const meta = TYPE_META[type] ?? TYPE_META.info;
     const toast = document.createElement('div');
     toast.className = 'app-toast';
@@ -109,11 +109,18 @@ function createToastElement({ type, message, title, duration }) {
     toast.style.setProperty('--toast-progress', meta.progress);
     toast.style.setProperty('--toast-duration', `${duration}ms`);
 
+    const safeActionUrl = String(actionUrl ?? '').trim();
+    const safeActionLabel = String(actionLabel ?? 'Open').trim() || 'Open';
+    const actionHtml = safeActionUrl
+        ? `<a class="app-toast__action" href="${escapeHtml(safeActionUrl)}">${escapeHtml(safeActionLabel)}</a>`
+        : '';
+
     toast.innerHTML = `
       <div class="app-toast__icon">${iconSvg(type)}</div>
       <div class="app-toast__content">
         <p class="app-toast__title">${escapeHtml(title || meta.title)}</p>
         <p class="app-toast__message">${escapeHtml(message)}</p>
+        ${actionHtml}
       </div>
       <button type="button" class="app-toast__close" aria-label="Dismiss notification">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
@@ -131,6 +138,8 @@ export function showToast({
     message,
     title,
     duration = DEFAULT_DURATION,
+    actionUrl,
+    actionLabel,
 } = {}) {
     const text = String(message ?? '').trim();
 
@@ -149,6 +158,8 @@ export function showToast({
         message: text,
         title,
         duration: duration > 0 ? duration : DEFAULT_DURATION,
+        actionUrl,
+        actionLabel,
     });
 
     root.appendChild(toast);
@@ -198,6 +209,8 @@ export function initFlashToasts() {
                 type: flash.type || 'info',
                 message: flash.message,
                 title: flash.title,
+                actionUrl: flash.actionUrl,
+                actionLabel: flash.actionLabel,
             });
         }, index * 120);
     });

@@ -1234,6 +1234,21 @@ body.builder-fullscreen > .flex > div > .min-h-0 > main > .flex > .flex-col:firs
     word-break: break-word;
 }
 
+.app-toast__action {
+    display: inline-flex;
+    margin-top: 0.5rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    line-height: 1.4;
+    color: var(--color-green-500);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.app-toast__action:hover {
+    color: var(--color-text-primary);
+}
+
 .app-toast__close {
     display: inline-flex;
     width: 1.75rem;

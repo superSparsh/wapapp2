@@ -11,7 +11,7 @@
                     class="w-full rounded-xl border border-border bg-elevated px-3.5 py-3.5 text-sm focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
                     required
                 >
-                    <option value="">Loading templates...</option>
+                    <option value="">Select template</option>
                 </select>
             </div>
             <p class="text-xs text-text-muted">

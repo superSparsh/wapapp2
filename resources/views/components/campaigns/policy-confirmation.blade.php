@@ -2,7 +2,7 @@
     'checked' => false,
 ])
 
-<div class="flex flex-col gap-3 rounded-xl border border-border bg-elevated p-4" data-validate-field>
+<div id="policy-confirmation" class="flex flex-col gap-3 rounded-xl border border-border bg-elevated p-4" data-validate-field>
   <p class="text-sm leading-[1.5] text-text-muted">
     Before sending this campaign, make sure everyone in your selected list has agreed to receive WhatsApp messages from you.
     Sending messages to people who haven't opted in (such as purchased or cold contact lists) can reduce your account quality
