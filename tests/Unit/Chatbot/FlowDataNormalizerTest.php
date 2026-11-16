@@ -145,6 +145,28 @@ class FlowDataNormalizerTest extends TestCase
         $this->assertSame('closed', $result['bh']['outputs']['closed']['connections'][0]['node']);
     }
 
+    public function test_quick_reply_handle_keeps_latest_edge_when_duplicates_exist(): void
+    {
+        $flow = ChatbotFlow::factory()->create([
+            'exported_data' => [
+                'nodes' => [
+                    ['id' => 'welcome_1', 'type' => 'welcomeMessage', 'data' => ['quickReplies' => [['id' => '0', 'text' => 'Yes']]]],
+                    ['id' => 'old_node', 'type' => 'welcomeMessage', 'data' => []],
+                    ['id' => 'new_node', 'type' => 'welcomeMessage', 'data' => []],
+                ],
+                'edges' => [
+                    ['id' => 'e_old', 'source' => 'welcome_1', 'target' => 'old_node', 'sourceHandle' => 'reply-0'],
+                    ['id' => 'e_new', 'source' => 'welcome_1', 'target' => 'new_node', 'sourceHandle' => 'reply-0'],
+                ],
+            ],
+        ]);
+
+        $result = $this->normalizer->normalize($flow);
+
+        $this->assertCount(1, $result['welcome_1']['outputs']['reply-0']['connections']);
+        $this->assertSame('new_node', $result['welcome_1']['outputs']['reply-0']['connections'][0]['node']);
+    }
+
     public function test_normalize_does_not_return_stale_cache_after_trigger_change(): void
     {
         $flow = ChatbotFlow::factory()->create([
