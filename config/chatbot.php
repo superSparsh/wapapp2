@@ -15,9 +15,6 @@ return [
     // Flow data cache TTL in seconds (2 hours)
     'flow_cache_ttl_seconds' => (int) env('CHATBOT_CACHE_TTL', 7200),
 
-    // Maximum nodes allowed per flow
-    'max_nodes_per_flow' => 100,
-
     // Maximum flows per tenant
     'max_flows_per_tenant' => 50,
 

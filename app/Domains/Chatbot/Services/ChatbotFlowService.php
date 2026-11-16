@@ -158,13 +158,6 @@ class ChatbotFlowService
     public function saveLegacyFlowData(ChatbotFlow $flow, array $flowData): ChatbotFlow
     {
         $normalized = $this->nodeDataMapper->prepareForStorage($flowData);
-        $maxNodes = (int) config('chatbot.max_nodes_per_flow', 100);
-
-        if (count($normalized['nodes']) > $maxNodes) {
-            throw ValidationException::withMessages([
-                'nodes' => "A flow can have at most {$maxNodes} nodes.",
-            ]);
-        }
 
         $flow->update(['exported_data' => $normalized]);
         $fresh = $this->activateAfterSaveIfNeeded($flow->refresh());
@@ -181,13 +174,6 @@ class ChatbotFlowService
     public function saveFlowData(ChatbotFlow $flow, array $flowData): ChatbotFlow
     {
         $normalized = $this->nodeDataMapper->prepareForStorage($flowData);
-        $maxNodes = (int) config('chatbot.max_nodes_per_flow', 100);
-
-        if (count($normalized['nodes']) > $maxNodes) {
-            throw ValidationException::withMessages([
-                'nodes' => "A flow can have at most {$maxNodes} nodes.",
-            ]);
-        }
 
         $flow->update(['exported_data' => $normalized]);
         $fresh = $this->activateAfterSaveIfNeeded($flow->refresh());
