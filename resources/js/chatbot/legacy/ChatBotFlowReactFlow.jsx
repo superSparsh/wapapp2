@@ -4985,19 +4985,7 @@ const ChatBotFlowReactFlow = () => {
           style: { stroke: "#52c41a", strokeWidth: 2 },
         };
 
-        // One wire per quick-reply handle — replace stale targets on reconnect.
-        setEdges((eds) =>
-          addEdge(
-            decorateEdge(newEdge),
-            eds.filter(
-              (e) =>
-                !(
-                  e.source === params.source &&
-                  e.sourceHandle === params.sourceHandle
-                )
-            )
-          )
-        );
+        setEdges((eds) => addEdge(decorateEdge(newEdge), eds));
       } else if (isDeliveryStatusConnection) {
         // Handle delivery status connections
         const nodeType = sourceNode.type;
@@ -5112,18 +5100,7 @@ const ChatBotFlowReactFlow = () => {
           },
         };
 
-        setEdges((eds) =>
-          addEdge(
-            decorateEdge(newEdge),
-            eds.filter(
-              (e) =>
-                !(
-                  e.source === params.source &&
-                  e.sourceHandle === params.sourceHandle
-                )
-            )
-          )
-        );
+        setEdges((eds) => addEdge(decorateEdge(newEdge), eds));
       } else if (isCarouselConnection) {
         let edgeData = {};
 
@@ -5184,18 +5161,7 @@ const ChatBotFlowReactFlow = () => {
           },
         };
 
-        setEdges((eds) =>
-          addEdge(
-            decorateEdge(newEdge),
-            eds.filter(
-              (e) =>
-                !(
-                  e.source === params.source &&
-                  e.sourceHandle === params.sourceHandle
-                )
-            )
-          )
-        );
+        setEdges((eds) => addEdge(decorateEdge(newEdge), eds));
       } else if (isInteractiveConnection) {
         let edgeData = {};
 
@@ -5351,19 +5317,7 @@ const ChatBotFlowReactFlow = () => {
           },
         };
 
-        // One wire per button/list/default handle — replace on reconnect.
-        setEdges((eds) =>
-          addEdge(
-            decorateEdge(newEdge),
-            eds.filter(
-              (e) =>
-                !(
-                  e.source === params.source &&
-                  e.sourceHandle === params.sourceHandle
-                )
-            )
-          )
-        );
+        setEdges((eds) => addEdge(decorateEdge(newEdge), eds));
       } else {
         // Regular connection
         console.log(
