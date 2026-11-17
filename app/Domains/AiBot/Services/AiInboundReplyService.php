@@ -91,8 +91,19 @@ class AiInboundReplyService
             return false;
         }
 
-        if (! AiBot::query()->active()->exists() && $conversation->active_ai_bot_id === null) {
-            return false;
+        if ($conversation->active_ai_bot_id === null) {
+            $lineId = $conversation->whatsapp_line_id !== null
+                ? (int) $conversation->whatsapp_line_id
+                : null;
+            $botsQuery = AiBot::query()->active();
+            if ($lineId !== null) {
+                $botsQuery->where(function ($q) use ($lineId): void {
+                    $q->where('whatsapp_line_id', $lineId)->orWhereNull('whatsapp_line_id');
+                });
+            }
+            if (! $botsQuery->exists()) {
+                return false;
+            }
         }
 
         $globalAuto = AiSetting::getBool('ai_auto_response_enabled', false);

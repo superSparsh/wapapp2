@@ -17,6 +17,24 @@
             <input type="text" id="name" name="name" value="{{ old('name', $bot->name) }}" required class="w-full rounded-lg border border-divider bg-surface px-4 py-3 text-sm text-text-body focus:border-green-500 focus:outline-none">
           </div>
           <div class="flex flex-col gap-1.5">
+            <label for="whatsapp_line_id" class="text-sm font-semibold text-text-body">WhatsApp number <span class="text-red-500">*</span></label>
+            @php
+              $lines = $whatsappLines ?? collect();
+              $selectedLine = old('whatsapp_line_id', $bot->whatsappLine?->uuid);
+            @endphp
+            @if (($lineContextLocked ?? false) && $lines->count() === 1)
+              <input type="hidden" name="whatsapp_line_id" value="{{ $lines->first()->uuid }}">
+              <p class="rounded-lg border border-divider bg-surface px-4 py-3 text-sm text-text-body">{{ $lines->first()->displayLabel() }}</p>
+            @else
+              <select id="whatsapp_line_id" name="whatsapp_line_id" required class="w-full rounded-lg border border-divider bg-surface px-4 py-3 text-sm text-text-body focus:border-green-500 focus:outline-none">
+                <option value="">Select WhatsApp number</option>
+                @foreach ($lines as $line)
+                  <option value="{{ $line->uuid }}" @selected((string) $selectedLine === (string) $line->uuid)>{{ $line->displayLabel() }}</option>
+                @endforeach
+              </select>
+            @endif
+          </div>
+          <div class="flex flex-col gap-1.5">
             <label for="provider" class="text-sm font-semibold text-text-body">Provider</label>
             <select id="provider" name="provider" class="w-full rounded-lg border border-divider bg-surface px-4 py-3 text-sm text-text-body focus:border-green-500 focus:outline-none">
               <option value="openai" @selected($bot->provider->value === 'openai')>OpenAI</option>

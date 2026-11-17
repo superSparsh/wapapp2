@@ -1,0 +1,264 @@
+{
+  "nodes": [
+    {
+      "id": "welcome_1",
+      "type": "welcomeMessage",
+      "position": { "x": 40, "y": 320 },
+      "data": {
+        "label": "Welcome",
+        "messageType": "text",
+        "triggerKeyword": "help",
+        "welcomeMessage": "Hello {{first_name}},\n\nWelcome to Tekpro Cloud. We guide businesses on cloud strategy, migration, managed operations, security, and workspace solutions across AWS, Azure, Google Cloud, and DigitalOcean.\n\nHow can we assist you today? Please select a topic below.",
+        "text": "Hello {{first_name}},\n\nWelcome to Tekpro Cloud. We guide businesses on cloud strategy, migration, managed operations, security, and workspace solutions across AWS, Azure, Google Cloud, and DigitalOcean.\n\nHow can we assist you today? Please select a topic below.",
+        "enableOfflineHours": false,
+        "timezone": "Asia/Kolkata",
+        "onlineFrom": "10:00",
+        "onlineUntil": "18:00",
+        "offlineMessage": "Our team is currently offline.\n\nYou may still select a topic below, or leave a message and an agent will follow up when available."
+      }
+    },
+    {
+      "id": "main_menu",
+      "type": "interactiveMessage",
+      "position": { "x": 360, "y": 320 },
+      "data": {
+        "label": "Main menu",
+        "interactiveType": "list",
+        "bodyText": "Please choose the option that best matches your request.",
+        "buttonText": "Select option",
+        "sections": [
+          {
+            "title": "Services and help",
+            "rows": [
+              { "id": "explore", "title": "Explore services", "description": "Overview of what Tekpro offers" },
+              { "id": "consulting", "title": "Cloud consulting", "description": "Strategy, architecture, FinOps" },
+              { "id": "migration", "title": "Cloud migration", "description": "Move to AWS, Azure, or GCP" },
+              { "id": "managed", "title": "Managed support", "description": "Ops, security, day to day cloud" },
+              { "id": "workspace", "title": "Workspace products", "description": "M365, Ginger, WhatsApp, Email" },
+              { "id": "ask_ai", "title": "Ask a question", "description": "Any query or issue to resolve" },
+              { "id": "agent", "title": "Chat with agent", "description": "Connect with our team" },
+              { "id": "book_call", "title": "Book a call", "description": "Free 30 min strategy session" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "explore_services",
+      "type": "welcomeMessage",
+      "position": { "x": 700, "y": -80 },
+      "data": {
+        "label": "Explore services",
+        "messageType": "text",
+        "triggerKeyword": "",
+        "welcomeMessage": "Here is a quick overview of Tekpro Cloud:\n\n1. Cloud consulting: strategy, architecture, governance, and cost optimisation\n2. Cloud migration: move to AWS, Azure, or Google Cloud with minimal disruption\n3. Managed support: 24x7 operations, monitoring, security, and backup\n4. Workspace and products: Microsoft 365, Copilot, Google Workspace, Ginger Voice AI, WhatsApp Business API, and Email Marketing\n\nWe inform, guide, and help resolve queries. An agent is available whenever you need a person."
+      }
+    },
+    {
+      "id": "explore_followup",
+      "type": "interactiveMessage",
+      "position": { "x": 1000, "y": -80 },
+      "data": {
+        "label": "After explore",
+        "interactiveType": "button",
+        "bodyText": "What would you like to do next?",
+        "buttons": [
+          { "id": "ask_explore", "title": "Ask a question" },
+          { "id": "agent_explore", "title": "Chat with agent" },
+          { "id": "menu_explore", "title": "Main menu" }
+        ]
+      }
+    },
+    {
+      "id": "ask_consulting",
+      "type": "welcomeMessage",
+      "position": { "x": 700, "y": 80 },
+      "data": {
+        "label": "Info consulting",
+        "messageType": "text",
+        "triggerKeyword": "",
+        "welcomeMessage": "Cloud consulting at Tekpro Cloud covers strategy, assessment, architecture, governance, and cost management across AWS, Azure, Google Cloud, and DigitalOcean.\n\nIt is for teams that want a clear cloud plan before they build or migrate.\n\nPlease share what you would like to know or the issue you need help with."
+      }
+    },
+    {
+      "id": "ask_migration",
+      "type": "welcomeMessage",
+      "position": { "x": 700, "y": 220 },
+      "data": {
+        "label": "Info migration",
+        "messageType": "text",
+        "triggerKeyword": "",
+        "welcomeMessage": "Cloud migration at Tekpro Cloud moves workloads to AWS, Azure, or Google Cloud with zero or near-zero downtime for most virtualised environments.\n\nWe assess, plan, execute in phases, then hand over with optional managed support.\n\nPlease share what you would like to know or the issue you need help with."
+      }
+    },
+    {
+      "id": "ask_managed",
+      "type": "welcomeMessage",
+      "position": { "x": 700, "y": 360 },
+      "data": {
+        "label": "Info managed",
+        "messageType": "text",
+        "triggerKeyword": "",
+        "welcomeMessage": "Managed support at Tekpro Cloud includes DevOps, SysOps, monitoring, patching, backup, disaster recovery, and security operations across your cloud estate.\n\nIt is for teams that want day to day cloud run reliably without building a large in-house ops team.\n\nPlease share what you would like to know or the issue you need help with."
+      }
+    },
+    {
+      "id": "ask_workspace",
+      "type": "welcomeMessage",
+      "position": { "x": 700, "y": 500 },
+      "data": {
+        "label": "Info workspace",
+        "messageType": "text",
+        "triggerKeyword": "",
+        "welcomeMessage": "Workspace and products from Tekpro Cloud include Microsoft 365, Copilot, Google Workspace, Ginger Voice AI, WhatsApp Business API (WapApp), Email Marketing, and Document Management.\n\nWe help with licensing, migration, adoption, and how these products fit your workflows.\n\nPlease share what you would like to know or the issue you need help with."
+      }
+    },
+    {
+      "id": "ask_prompt",
+      "type": "welcomeMessage",
+      "position": { "x": 700, "y": 640 },
+      "data": {
+        "label": "Ask general",
+        "messageType": "text",
+        "triggerKeyword": "",
+        "welcomeMessage": "Thank you for reaching out.\n\nPlease share a brief description of your question or the issue you need help with. We can explain a service, guide next steps, or help resolve a concern."
+      }
+    },
+    {
+      "id": "wait_query",
+      "type": "waitForResponse",
+      "position": { "x": 1000, "y": 360 },
+      "data": {
+        "label": "Wait for question",
+        "variableName": "user_problem"
+      }
+    },
+    {
+      "id": "nl_reply",
+      "type": "naturalLanguage",
+      "position": { "x": 1280, "y": 360 },
+      "data": {
+        "label": "AI reply",
+        "mode": "knowledge_base",
+        "inputSource": "last_reply",
+        "sendDirectly": false,
+        "outputVariable": "_ai_response",
+        "ai_bot_id": null,
+        "blockBookingLinks": true,
+        "customPrompt": "You are the Tekpro Cloud WhatsApp assistant. Dual role like a bank assistant: inform about services, resolve queries, and guide next steps. Tone: warm professional cloud partner. Polished business English.\n\nThe customer chose a topic, then described what they want to know or the issue they need help with. Answer using Tekpro Cloud knowledge (consulting, migration, managed support, security, workspace, products).\n\nIf they want information: explain clearly what Tekpro offers and who it is for.\nIf they want support: clarify the issue and give practical guidance.\nAlways end with one useful next step (clarify once, offer an agent, or confirm coverage).\n\nRequired reply shape every time:\n1) One short acknowledge line (e.g. Thank you for reaching out. / I can help with that.)\n2) Clear facts, guidance, or steps\n3) One next-step line\n\nLength and format:\n- Simple questions: 3 to 6 short lines in full sentences.\n- Longer or multi-step answers: use a short numbered or bulleted list (1. 2. 3. or •). One line per point; about 6 to 8 points max, then the next-step line. Prefer points over one long paragraph.\n\nForbidden:\n- Any URL or booking/Calendly/meeting link\n- Support hours or Monday to Friday timings\n- Mentions of buttons, menus, More options, Connect with us, or “in the app”\n- Claiming you already requested or assigned an agent unless handoff already happened\n- Inventing pricing, discounts, SLAs, or contracts\n- Saying knowledge base, documents, or as an AI\n\nIf detail is missing: ask exactly one clarifying question, then stop.\nIf unsure, or for custom quotes / security / legal / contracts: offer to connect them with an agent. Do NOT mention reply times or 15 to 30 minutes. Timing is sent only on handoff."
+      }
+    },
+    {
+      "id": "ai_followup",
+      "type": "interactiveMessage",
+      "position": { "x": 1560, "y": 360 },
+      "data": {
+        "label": "Did this resolve",
+        "interactiveType": "button",
+        "bodyText": "{{_ai_response}}\n\nDid this resolve your concern?",
+        "buttons": [
+          { "id": "yes_ai", "title": "Yes, resolved" },
+          { "id": "agent_ai", "title": "Chat with agent" },
+          { "id": "menu_ai", "title": "Main menu" }
+        ]
+      }
+    },
+    {
+      "id": "connect_us_1",
+      "type": "welcomeMessage",
+      "position": { "x": 700, "y": 800 },
+      "data": {
+        "label": "Book a call",
+        "messageType": "text",
+        "triggerKeyword": "",
+        "welcomeMessage": "Thank you for your interest in speaking with us.\n\nPlease use the link below to schedule a free 30 minute cloud strategy session with our team:\nhttps://calendly.com/tekpro-connect/25min\n\nSelect a convenient time, and we will be happy to guide you through the next steps."
+      }
+    },
+    {
+      "id": "after_connect",
+      "type": "interactiveMessage",
+      "position": { "x": 1000, "y": 800 },
+      "data": {
+        "label": "After call link",
+        "interactiveType": "button",
+        "bodyText": "Is there anything else we can assist you with today?",
+        "buttons": [
+          { "id": "done", "title": "No, thank you" },
+          { "id": "agent_call", "title": "Chat with agent" },
+          { "id": "menu_call", "title": "Main menu" }
+        ]
+      }
+    },
+    {
+      "id": "thanks_end",
+      "type": "welcomeMessage",
+      "position": { "x": 1840, "y": 80 },
+      "data": {
+        "label": "Thanks",
+        "messageType": "text",
+        "triggerKeyword": "",
+        "welcomeMessage": "Thank you for contacting Tekpro Cloud.\n\nWe are pleased we could assist you. Reply with help anytime if you need further guidance."
+      }
+    },
+    {
+      "id": "handoff_1",
+      "type": "functionCall",
+      "position": { "x": 1840, "y": 360 },
+      "data": {
+        "label": "Handoff to Inbox",
+        "functionName": "handoff_to_inbox",
+        "function_name": "handoff_to_inbox",
+        "resultVariable": "handoff_result",
+        "parameters": {
+          "confirmation_message": "Thank you. We are connecting you with a specialist now.\n\nAn agent typically responds within 15 to 30 minutes. We appreciate your patience."
+        }
+      }
+    },
+    {
+      "id": "jump_menu",
+      "type": "jumpToStep",
+      "position": { "x": 1840, "y": 520 },
+      "data": {
+        "label": "Back to menu",
+        "targetNodeId": "main_menu",
+        "showMessage": false
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e_welcome_menu", "source": "welcome_1", "target": "main_menu", "sourceHandle": "default", "targetHandle": "default", "type": "default" },
+
+    { "id": "e_menu_explore", "source": "main_menu", "target": "explore_services", "sourceHandle": "interactive-0-0", "targetHandle": "default", "type": "default" },
+    { "id": "e_menu_consulting", "source": "main_menu", "target": "ask_consulting", "sourceHandle": "interactive-0-1", "targetHandle": "default", "type": "default" },
+    { "id": "e_menu_migration", "source": "main_menu", "target": "ask_migration", "sourceHandle": "interactive-0-2", "targetHandle": "default", "type": "default" },
+    { "id": "e_menu_managed", "source": "main_menu", "target": "ask_managed", "sourceHandle": "interactive-0-3", "targetHandle": "default", "type": "default" },
+    { "id": "e_menu_workspace", "source": "main_menu", "target": "ask_workspace", "sourceHandle": "interactive-0-4", "targetHandle": "default", "type": "default" },
+    { "id": "e_menu_ask", "source": "main_menu", "target": "ask_prompt", "sourceHandle": "interactive-0-5", "targetHandle": "default", "type": "default" },
+    { "id": "e_menu_agent", "source": "main_menu", "target": "handoff_1", "sourceHandle": "interactive-0-6", "targetHandle": "default", "type": "default" },
+    { "id": "e_menu_call", "source": "main_menu", "target": "connect_us_1", "sourceHandle": "interactive-0-7", "targetHandle": "default", "type": "default" },
+
+    { "id": "e_explore_fu", "source": "explore_services", "target": "explore_followup", "sourceHandle": "default", "targetHandle": "default", "type": "default" },
+    { "id": "e_explore_ask", "source": "explore_followup", "target": "ask_prompt", "sourceHandle": "button-0", "targetHandle": "default", "type": "default" },
+    { "id": "e_explore_agent", "source": "explore_followup", "target": "handoff_1", "sourceHandle": "button-1", "targetHandle": "default", "type": "default" },
+    { "id": "e_explore_menu", "source": "explore_followup", "target": "jump_menu", "sourceHandle": "button-2", "targetHandle": "default", "type": "default" },
+
+    { "id": "e_consulting_wait", "source": "ask_consulting", "target": "wait_query", "sourceHandle": "default", "targetHandle": "default", "type": "default" },
+    { "id": "e_migration_wait", "source": "ask_migration", "target": "wait_query", "sourceHandle": "default", "targetHandle": "default", "type": "default" },
+    { "id": "e_managed_wait", "source": "ask_managed", "target": "wait_query", "sourceHandle": "default", "targetHandle": "default", "type": "default" },
+    { "id": "e_workspace_wait", "source": "ask_workspace", "target": "wait_query", "sourceHandle": "default", "targetHandle": "default", "type": "default" },
+    { "id": "e_ask_wait", "source": "ask_prompt", "target": "wait_query", "sourceHandle": "default", "targetHandle": "default", "type": "default" },
+
+    { "id": "e_wait_ai", "source": "wait_query", "target": "nl_reply", "sourceHandle": "default", "targetHandle": "default", "type": "default" },
+    { "id": "e_ai_fu", "source": "nl_reply", "target": "ai_followup", "sourceHandle": "default", "targetHandle": "default", "type": "default" },
+
+    { "id": "e_ai_yes", "source": "ai_followup", "target": "thanks_end", "sourceHandle": "button-0", "targetHandle": "default", "type": "default" },
+    { "id": "e_ai_agent", "source": "ai_followup", "target": "handoff_1", "sourceHandle": "button-1", "targetHandle": "default", "type": "default" },
+    { "id": "e_ai_menu", "source": "ai_followup", "target": "jump_menu", "sourceHandle": "button-2", "targetHandle": "default", "type": "default" },
+
+    { "id": "e_call_next", "source": "connect_us_1", "target": "after_connect", "sourceHandle": "default", "targetHandle": "default", "type": "default" },
+    { "id": "e_call_done", "source": "after_connect", "target": "thanks_end", "sourceHandle": "button-0", "targetHandle": "default", "type": "default" },
+    { "id": "e_call_agent", "source": "after_connect", "target": "handoff_1", "sourceHandle": "button-1", "targetHandle": "default", "type": "default" },
+    { "id": "e_call_menu", "source": "after_connect", "target": "jump_menu", "sourceHandle": "button-2", "targetHandle": "default", "type": "default" }
+  ],
+  "viewport": { "x": 0, "y": 0, "zoom": 0.5 }
+}

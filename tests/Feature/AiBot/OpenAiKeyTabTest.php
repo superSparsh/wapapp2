@@ -134,10 +134,14 @@ class OpenAiKeyTabTest extends TestCase
                 'type' => 'sales',
                 'provider' => 'openai',
                 'chat_model' => 'gpt-4o-mini',
+                'whatsapp_line_id' => $this->testLine->uuid,
             ])
             ->assertRedirect(route('openai-key.index', ['tab' => 'bot-manager']));
 
-        $this->assertDatabaseHas('ai_bots', ['name' => 'New Sales Bot']);
+        $this->assertDatabaseHas('ai_bots', [
+            'name' => 'New Sales Bot',
+            'whatsapp_line_id' => $this->testLine->id,
+        ]);
     }
 
     public function test_toggle_default_ajax_returns_json(): void

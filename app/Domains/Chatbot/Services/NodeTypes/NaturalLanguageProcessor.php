@@ -58,8 +58,29 @@ class NaturalLanguageProcessor extends AbstractNodeProcessor
         }
 
         if ($bot === null) {
-            $bot = AiBot::query()->where('is_default', true)->first()
-                ?? AiBot::query()->where('status', 'active')->first();
+            $lineId = $conversation->whatsapp_line_id !== null
+                ? (int) $conversation->whatsapp_line_id
+                : null;
+
+            $forLine = static function () use ($lineId) {
+                $query = AiBot::query()->active();
+                if ($lineId !== null) {
+                    $query->where(function ($q) use ($lineId): void {
+                        $q->where('whatsapp_line_id', $lineId)->orWhereNull('whatsapp_line_id');
+                    });
+                }
+
+                return $query;
+            };
+
+            $bot = $lineId !== null
+                ? $forLine()->where('is_default', true)->where('whatsapp_line_id', $lineId)->first()
+                : null;
+            $bot ??= $forLine()->where('is_default', true)->first();
+            $bot ??= $lineId !== null
+                ? $forLine()->where('whatsapp_line_id', $lineId)->first()
+                : null;
+            $bot ??= $forLine()->first();
         }
 
         $responseText = null;

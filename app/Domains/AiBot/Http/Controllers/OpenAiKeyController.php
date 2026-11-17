@@ -12,6 +12,7 @@ use App\Domains\AiBot\Services\AiProviderKeyService;
 use App\Domains\AiBot\Services\AiTestBotService;
 use App\Domains\AiBot\Services\AiTokenUsageService;
 use App\Domains\AiBot\Services\KnowledgeBaseProxyService;
+use App\Domains\Integration\Services\PhoneLineService;
 use App\Enums\AiProvider;
 use App\Enums\ConversationResponseType;
 use App\Http\Controllers\Controller;
@@ -20,6 +21,7 @@ use App\Models\AiProviderKey;
 use App\Models\AiSetting;
 use App\Models\AiTokenUsageLog;
 use App\Models\Conversation;
+use App\Models\WhatsappLine;
 use App\Support\PublicId;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -55,7 +57,12 @@ class OpenAiKeyController extends Controller
             abort(404);
         }
 
-        $data = ['tab' => $tab];
+        $data = [
+            'tab' => $tab,
+            'whatsappLines' => $this->whatsappLinesForUi(),
+            'lineContextLocked' => PhoneLineService::isLocked(),
+            'selectedWhatsappLineId' => PhoneLineService::lockedLineId(),
+        ];
 
         match ($tab) {
             'bot-manager' => $this->loadBotManagerData($request, $data),
@@ -73,7 +80,9 @@ class OpenAiKeyController extends Controller
 
     public function storeBot(StoreAiBotRequest $request): RedirectResponse
     {
-        $this->botService->create($request->validated());
+        $data = $request->validated();
+        $this->resolveWhatsappLineId($data);
+        $this->botService->create($data);
 
         return redirect()
             ->route('openai-key.index', ['tab' => 'bot-manager'])
@@ -265,9 +274,14 @@ class OpenAiKeyController extends Controller
 
     private function loadBotManagerData(Request $request, array &$data): void
     {
+        $lineFilter = $this->resolveLineFilter($request);
+        $data['whatsappLines'] = $this->whatsappLinesForUi();
+        $data['selectedWhatsappLineId'] = $lineFilter;
+        $data['lineContextLocked'] = PhoneLineService::isLocked();
         $data['bots'] = $this->queryService->paginate(
             perPage: 10,
             search: $request->query('search'),
+            whatsappLineId: $lineFilter,
         )->withQueryString();
     }
 
@@ -280,7 +294,9 @@ class OpenAiKeyController extends Controller
 
     private function loadKnowledgeBaseData(Request $request, array &$data): void
     {
-        $bots = $this->queryService->activeBots();
+        $lineFilter = $this->resolveLineFilter($request);
+        $data['whatsappLines'] = $this->whatsappLinesForUi();
+        $bots = $this->queryService->activeBots($lineFilter);
         $data['bots'] = $bots;
 
         $selectedBotId = $request->query('bot');
@@ -332,7 +348,58 @@ class OpenAiKeyController extends Controller
 
     private function loadTestBotData(array &$data): void
     {
-        $data['bots'] = $this->queryService->activeBots();
+        $data['bots'] = $this->queryService->activeBots(PhoneLineService::lockedLineId());
+        $data['whatsappLines'] = $this->whatsappLinesForUi();
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function resolveWhatsappLineId(array &$data): void
+    {
+        $lockedLineId = PhoneLineService::lockedLineId();
+        if ($lockedLineId !== null) {
+            $data['whatsapp_line_id'] = $lockedLineId;
+
+            return;
+        }
+
+        if (! array_key_exists('whatsapp_line_id', $data)) {
+            return;
+        }
+
+        $line = PublicId::find(WhatsappLine::class, (string) $data['whatsapp_line_id']);
+        $data['whatsapp_line_id'] = $line?->id;
+    }
+
+    private function resolveLineFilter(Request $request): ?int
+    {
+        $lockedLineId = PhoneLineService::lockedLineId();
+        if ($lockedLineId !== null) {
+            return $lockedLineId;
+        }
+
+        $raw = $request->query('whatsapp_line');
+        if (! is_string($raw) || trim($raw) === '') {
+            return null;
+        }
+
+        return PublicId::find(WhatsappLine::class, $raw)?->id;
+    }
+
+    /**
+     * @return \Illuminate\Database\Eloquent\Collection<int, WhatsappLine>
+     */
+    private function whatsappLinesForUi()
+    {
+        $lockedLineId = PhoneLineService::lockedLineId();
+        $query = WhatsappLine::query()->orderByDesc('is_default')->orderBy('id');
+
+        if ($lockedLineId !== null) {
+            $query->where('id', $lockedLineId);
+        }
+
+        return $query->get();
     }
 
     private function loadUsageAnalyticsData(array &$data): void

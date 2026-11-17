@@ -1,4 +1,10 @@
-@props(['open' => false, 'closeHref' => null])
+@props([
+  'open' => false,
+  'closeHref' => null,
+  'whatsappLines' => collect(),
+  'lineContextLocked' => false,
+  'selectedWhatsappLineUuid' => null,
+])
 
 <div
   id="modal-create-bot"
@@ -50,6 +56,52 @@
               placeholder="Enter Bot name"
               class="w-full rounded-xl border border-border bg-elevated p-3.5 text-sm font-medium leading-[1.4] text-text-muted placeholder:text-text-muted focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
             >
+          </div>
+
+          <div class="flex flex-col gap-2">
+            <label for="bot_whatsapp_line_id" class="text-sm font-semibold leading-[1.4] text-text-primary">
+              WhatsApp number<span class="text-[red]">*</span>
+            </label>
+            @php
+              $preselectedLine = old('whatsapp_line_id', $selectedWhatsappLineUuid);
+              if (! $preselectedLine && $whatsappLines->count() === 1) {
+                $preselectedLine = $whatsappLines->first()->uuid;
+              }
+              if (! $preselectedLine) {
+                $preselectedLine = $whatsappLines->firstWhere('is_default', true)?->uuid
+                  ?? $whatsappLines->first()?->uuid;
+              }
+            @endphp
+            @if ($lineContextLocked && $whatsappLines->count() === 1)
+              <input type="hidden" name="whatsapp_line_id" value="{{ $whatsappLines->first()->uuid }}">
+              <p class="rounded-xl border border-border bg-elevated p-3.5 text-sm font-medium leading-[1.4] text-text-muted">
+                {{ $whatsappLines->first()->displayLabel() }}
+              </p>
+            @else
+              <div class="relative">
+                <select
+                  id="bot_whatsapp_line_id"
+                  name="whatsapp_line_id"
+                  required
+                  class="w-full appearance-none rounded-xl border border-border bg-elevated p-3.5 pr-10 text-sm font-medium leading-[1.4] text-text-muted focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
+                >
+                  <option value="">Select WhatsApp number</option>
+                  @foreach ($whatsappLines as $line)
+                    <option value="{{ $line->uuid }}" @selected((string) $preselectedLine === (string) $line->uuid)>
+                      {{ $line->displayLabel() }}
+                    </option>
+                  @endforeach
+                </select>
+                <img
+                  src="{{ asset('images/commerce/arrow-down.svg') }}"
+                  alt=""
+                  class="pointer-events-none absolute top-1/2 right-3.5 size-4 -translate-y-1/2"
+                  width="16"
+                  height="16"
+                >
+              </div>
+            @endif
+            <p class="text-xs text-text-muted">Each bot belongs to one WhatsApp number. Deleting it will not affect bots on other numbers.</p>
           </div>
 
           <div class="flex flex-col gap-2">

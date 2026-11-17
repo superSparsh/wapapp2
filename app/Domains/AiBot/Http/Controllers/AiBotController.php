@@ -9,10 +9,13 @@ use App\Domains\AiBot\Http\Requests\UpdateAiBotRequest;
 use App\Domains\AiBot\Services\AiBotQueryService;
 use App\Domains\AiBot\Services\AiBotService;
 use App\Domains\AiBot\Services\AiTokenUsageService;
+use App\Domains\Integration\Services\PhoneLineService;
 use App\Http\Controllers\Controller;
 use App\Models\AiBot;
+use App\Models\WhatsappLine;
 use App\Support\BulkDestroy;
 use App\Support\ListingSort;
+use App\Support\PublicId;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -28,11 +31,13 @@ class AiBotController extends Controller
     public function index(Request $request): View
     {
         $parsed = ListingSort::fromRequest($request, ['created_at', 'name', 'status'], 'created_at', 'desc');
+        $lineFilter = PhoneLineService::lockedLineId();
         $bots = $this->queryService->paginate(
             perPage: 10,
             search: $request->query('search'),
             sort: $parsed['sort'],
             direction: $parsed['direction'],
+            whatsappLineId: $lineFilter,
         );
 
         return view('ai-bots.index', [
@@ -40,17 +45,26 @@ class AiBotController extends Controller
             'search' => $request->query('search', ''),
             'currentSort' => $parsed['sort'],
             'currentDirection' => $parsed['direction'],
+            'whatsappLines' => $this->whatsappLinesForUi(),
         ]);
     }
 
     public function create(): View
     {
-        return view('ai-bots.create');
+        return view('ai-bots.create', [
+            'whatsappLines' => $this->whatsappLinesForUi(),
+            'lineContextLocked' => PhoneLineService::isLocked(),
+            'selectedWhatsappLineUuid' => PhoneLineService::lockedLineId() !== null
+                ? WhatsappLine::query()->find(PhoneLineService::lockedLineId())?->uuid
+                : null,
+        ]);
     }
 
     public function store(StoreAiBotRequest $request): RedirectResponse
     {
-        $bot = $this->botService->create($request->validated());
+        $data = $request->validated();
+        $this->resolveWhatsappLineId($data);
+        $this->botService->create($data);
 
         return redirect()
             ->route('openai-key.index', ['tab' => 'bot-manager'])
@@ -68,14 +82,20 @@ class AiBotController extends Controller
 
     public function edit(AiBot $aiBot): View
     {
+        $this->botService->assertCanManage($aiBot);
+
         return view('ai-bots.edit', [
             'bot' => $aiBot,
+            'whatsappLines' => $this->whatsappLinesForUi(),
+            'lineContextLocked' => PhoneLineService::isLocked(),
         ]);
     }
 
     public function update(UpdateAiBotRequest $request, AiBot $aiBot): RedirectResponse
     {
-        $this->botService->update($aiBot, $request->validated());
+        $data = $request->validated();
+        $this->resolveWhatsappLineId($data);
+        $this->botService->update($aiBot, $data);
 
         return redirect()
             ->route('openai-key.index', ['tab' => 'bot-manager'])
@@ -89,6 +109,41 @@ class AiBotController extends Controller
         return redirect()
             ->route('openai-key.index', ['tab' => 'bot-manager'])
             ->with('status', 'AI bot deleted successfully.');
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function resolveWhatsappLineId(array &$data): void
+    {
+        $lockedLineId = PhoneLineService::lockedLineId();
+        if ($lockedLineId !== null) {
+            $data['whatsapp_line_id'] = $lockedLineId;
+
+            return;
+        }
+
+        if (! array_key_exists('whatsapp_line_id', $data)) {
+            return;
+        }
+
+        $line = PublicId::find(WhatsappLine::class, (string) $data['whatsapp_line_id']);
+        $data['whatsapp_line_id'] = $line?->id;
+    }
+
+    /**
+     * @return \Illuminate\Database\Eloquent\Collection<int, WhatsappLine>
+     */
+    private function whatsappLinesForUi()
+    {
+        $lockedLineId = PhoneLineService::lockedLineId();
+        $query = WhatsappLine::query()->orderByDesc('is_default')->orderBy('id');
+
+        if ($lockedLineId !== null) {
+            $query->where('id', $lockedLineId);
+        }
+
+        return $query->get();
     }
 
     public function bulkDestroy(Request $request): JsonResponse

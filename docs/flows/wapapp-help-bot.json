@@ -8,13 +8,13 @@
         "label": "Welcome",
         "messageType": "text",
         "triggerKeyword": "help",
-        "welcomeMessage": "Thank you for contacting WapApp.\n\nPlease select an option below so we can assist you.",
-        "text": "Thank you for contacting WapApp.\n\nPlease select an option below so we can assist you.",
+        "welcomeMessage": "Hello {{first_name}},\n\nWelcome to WapApp. We help businesses manage WhatsApp messaging, campaigns, templates, and customer conversations from one place.\n\nHow can we assist you today? Please select a topic below.",
+        "text": "Hello {{first_name}},\n\nWelcome to WapApp. We help businesses manage WhatsApp messaging, campaigns, templates, and customer conversations from one place.\n\nHow can we assist you today? Please select a topic below.",
         "enableOfflineHours": false,
         "timezone": "Asia/Kolkata",
         "onlineFrom": "10:00",
         "onlineUntil": "18:00",
-        "offlineMessage": "Our agents are currently offline.\n\nYou may still browse the help options below, or leave a message for our team."
+        "offlineMessage": "Our team is currently offline.\n\nYou may still select a help topic below, or leave a message and an agent will follow up when available."
       }
     },
     {
@@ -24,18 +24,18 @@
       "data": {
         "label": "Main menu",
         "interactiveType": "list",
-        "bodyText": "How may we help you today?",
-        "buttonText": "View options",
+        "bodyText": "Please choose the option that best matches your request.",
+        "buttonText": "Select option",
         "sections": [
           {
-            "title": "Help topics",
+            "title": "Support topics",
             "rows": [
-              { "id": "billing", "title": "Billing & plans", "description": "Payments, invoices, wallet" },
+              { "id": "billing", "title": "Billing & plans", "description": "Payments, invoices, and wallet" },
               { "id": "templates", "title": "Templates & sending", "description": "Templates, campaigns, delivery" },
-              { "id": "account", "title": "Account & login", "description": "Login, OTP, number connect" },
-              { "id": "ask_ai", "title": "Ask a question", "description": "Any other WapApp issue" },
-              { "id": "agent", "title": "Chat with agent", "description": "Speak with our team" },
-              { "id": "book_call", "title": "Book a call", "description": "Schedule a short meeting" }
+              { "id": "account", "title": "Account & login", "description": "Login, OTP, number connection" },
+              { "id": "ask_ai", "title": "Ask a question", "description": "Any other WapApp concern" },
+              { "id": "agent", "title": "Chat with agent", "description": "Connect with our support team" },
+              { "id": "book_call", "title": "Book a call", "description": "Schedule a consultation call" }
             ]
           }
         ]
@@ -49,7 +49,7 @@
         "label": "Ask billing",
         "messageType": "text",
         "triggerKeyword": "",
-        "welcomeMessage": "Thank you. Please briefly describe your billing or payment issue in one short message."
+        "welcomeMessage": "Thank you for selecting Billing & plans.\n\nTo assist you accurately, please share a brief description of the issue you are facing with billing, payments, invoices, or your wallet."
       }
     },
     {
@@ -60,7 +60,7 @@
         "label": "Ask templates",
         "messageType": "text",
         "triggerKeyword": "",
-        "welcomeMessage": "Thank you. Please briefly describe your template, campaign, or delivery issue in one short message."
+        "welcomeMessage": "Thank you for selecting Templates & sending.\n\nTo assist you accurately, please share a brief description of the issue you are facing with templates, campaigns, or message delivery."
       }
     },
     {
@@ -71,7 +71,7 @@
         "label": "Ask account",
         "messageType": "text",
         "triggerKeyword": "",
-        "welcomeMessage": "Thank you. Please briefly describe your account, login, OTP, or WhatsApp number issue in one short message."
+        "welcomeMessage": "Thank you for selecting Account & login.\n\nTo assist you accurately, please share a brief description of the issue you are facing with login, OTP verification, your account, or WhatsApp number connection."
       }
     },
     {
@@ -82,7 +82,7 @@
         "label": "Ask general",
         "messageType": "text",
         "triggerKeyword": "",
-        "welcomeMessage": "Thank you. Please type your question in one short message, and we will assist you."
+        "welcomeMessage": "Thank you for reaching out.\n\nTo assist you accurately, please share a brief description of your question or the issue you are facing."
       }
     },
     {
@@ -106,7 +106,7 @@
         "outputVariable": "_ai_response",
         "ai_bot_id": null,
         "blockBookingLinks": true,
-        "customPrompt": "You are the WapApp customer help assistant on WhatsApp. Tone: warm-professional SaaS help desk. Polished business English.\n\nThe customer chose a help topic from the menu, then described their problem. Answer that problem clearly using WapApp product knowledge.\n\nRequired reply shape every time:\n1) One short acknowledge line (e.g. Thank you for reaching out. / I can help with that.)\n2) Two to four short lines with clear steps in full sentences (paths like Account → Subscription)\n3) One next-step line\nKeep replies to 3–6 short lines. Answer only the user's issue.\n\nForbidden:\n- Any URL or booking/Calendly/meeting link\n- Support hours or Monday–Friday timings\n- Mentions of buttons, menus, More options, Connect with us, or “in the app”\n- Claiming you already requested or assigned an agent unless handoff already happened\n- Selling or inventing pricing, refunds, or account changes\n- Saying knowledge base, documents, or as an AI\n\nIf detail is missing: ask exactly one clarifying question, then stop.\nIf unsure, or for refunds/ownership/legal/login/payment-taken issues: offer an agent and say an agent typically replies within 15–30 minutes.\nFor campaign issues: ask what fails (not sending, pending, rejected template, wallet, audience) and give short WapApp steps."
+        "customPrompt": "You are the WapApp customer help assistant on WhatsApp. Tone: warm-professional SaaS help desk. Polished business English.\n\nThe customer chose a help topic from the menu, then described their problem. Answer that problem clearly using WapApp product knowledge.\n\nRequired reply shape every time:\n1) One short acknowledge line (e.g. Thank you for reaching out. / I can help with that.)\n2) Clear steps (paths like Account → Subscription)\n3) One next-step line\n\nLength & format:\n- Simple issues: 3–6 short lines in full sentences.\n- Longer / multi-step answers: use a short numbered or bulleted list (• or 1. 2. 3.) so WhatsApp stays scannable. One line per point; about 6–8 points max, then the next-step line. Prefer points over one long paragraph.\nAnswer only the user's issue.\n\nForbidden:\n- Any URL or booking/Calendly/meeting link\n- Support hours or Monday–Friday timings\n- Mentions of buttons, menus, More options, Connect with us, or “in the app”\n- Claiming you already requested or assigned an agent unless handoff already happened\n- Selling or inventing pricing, refunds, or account changes\n- Saying knowledge base, documents, or as an AI\n\nIf detail is missing: ask exactly one clarifying question, then stop.\nIf unsure, or for refunds/ownership/legal/login/payment-taken issues: offer to connect them with an agent. Do NOT mention reply times or 15–30 minutes — timing is sent only on handoff.\nFor campaign issues: ask what fails (not sending, pending, rejected template, wallet, audience) and give short WapApp steps."
       }
     },
     {
@@ -116,9 +116,9 @@
       "data": {
         "label": "Did this resolve",
         "interactiveType": "button",
-        "bodyText": "{{_ai_response}}\n\nDid this resolve your question?",
+        "bodyText": "{{_ai_response}}\n\nDid this resolve your concern?",
         "buttons": [
-          { "id": "yes_ai", "title": "Yes, thanks" },
+          { "id": "yes_ai", "title": "Yes, resolved" },
           { "id": "agent_ai", "title": "Chat with agent" },
           { "id": "menu_ai", "title": "Main menu" }
         ]
@@ -132,7 +132,7 @@
         "label": "Book a call",
         "messageType": "text",
         "triggerKeyword": "",
-        "welcomeMessage": "Thank you. We would be glad to speak with you.\n\nPlease book a short call with our team using the link below:\nhttps://calendly.com/tekpro-connect/25min\n\nChoose a time that works for you, and we will guide the next steps."
+        "welcomeMessage": "Thank you for your interest in speaking with us.\n\nPlease use the link below to schedule a short consultation with our team:\nhttps://calendly.com/tekpro-connect/25min\n\nSelect a convenient time, and we will be happy to guide you through the next steps."
       }
     },
     {
@@ -142,9 +142,9 @@
       "data": {
         "label": "After call link",
         "interactiveType": "button",
-        "bodyText": "Is there anything else we can help you with?",
+        "bodyText": "Is there anything else we can assist you with today?",
         "buttons": [
-          { "id": "done", "title": "I'm done" },
+          { "id": "done", "title": "No, thank you" },
           { "id": "agent_call", "title": "Chat with agent" },
           { "id": "menu_call", "title": "Main menu" }
         ]
@@ -158,7 +158,7 @@
         "label": "Thanks",
         "messageType": "text",
         "triggerKeyword": "",
-        "welcomeMessage": "Thank you. We are glad we could help.\n\nReply with help anytime if you need further assistance."
+        "welcomeMessage": "Thank you for contacting WapApp Support.\n\nWe are pleased we could assist you. Reply with help anytime if you need further support."
       }
     },
     {
@@ -171,7 +171,7 @@
         "function_name": "handoff_to_inbox",
         "resultVariable": "handoff_result",
         "parameters": {
-          "confirmation_message": "Thank you. Please wait while we connect you with our expert. An agent typically replies within 15–30 minutes."
+          "confirmation_message": "Thank you. We are connecting you with a support specialist now.\n\nAn agent typically responds within 15–30 minutes. We appreciate your patience."
         }
       }
     },

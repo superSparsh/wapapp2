@@ -35,23 +35,32 @@ class AiBotRouterService
             }
         }
 
-        // 2. Load active bots
-        $activeBots = $this->queryService->activeBots();
+        // 2. Load active bots for this WhatsApp number (legacy null-line bots included)
+        $lineId = $conversation->whatsapp_line_id !== null
+            ? (int) $conversation->whatsapp_line_id
+            : null;
+        $activeBots = $this->queryService->activeBots($lineId);
 
         if ($activeBots->isEmpty()) {
             return null;
         }
 
+        // Prefer bots explicitly bound to this line over legacy account-wide bots.
+        $lineBound = $lineId !== null
+            ? $activeBots->where('whatsapp_line_id', $lineId)->values()
+            : $activeBots;
+        $candidateBots = $lineBound->isNotEmpty() ? $lineBound : $activeBots;
+
         // 3. If only 1 bot, use it directly
-        if ($activeBots->count() === 1) {
-            $bot = $activeBots->first();
+        if ($candidateBots->count() === 1) {
+            $bot = $candidateBots->first();
             $this->assignBotToConversation($conversation, $bot);
 
             return $this->chatService->processMessage($conversation, $bot, $userMessage);
         }
 
         // 4. Try keyword-based routing
-        $matchedBot = $this->matchByKeyword($activeBots, $userMessage);
+        $matchedBot = $this->matchByKeyword($candidateBots, $userMessage);
 
         if ($matchedBot !== null) {
             $this->assignBotToConversation($conversation, $matchedBot);
@@ -59,8 +68,8 @@ class AiBotRouterService
             return $this->chatService->processMessage($conversation, $matchedBot, $userMessage);
         }
 
-        // 5. Fall back to default bot
-        $defaultBot = $activeBots->firstWhere('is_default', true) ?? $activeBots->first();
+        // 5. Fall back to default bot for this line
+        $defaultBot = $candidateBots->firstWhere('is_default', true) ?? $candidateBots->first();
 
         if ($defaultBot !== null) {
             $this->assignBotToConversation($conversation, $defaultBot);

@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace App\Domains\AiBot\Services;
 
+use App\Domains\Integration\Services\PhoneLineService;
 use App\Models\AiBot;
 use App\Support\ListingSort;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 
 class AiBotQueryService
 {
@@ -15,8 +18,11 @@ class AiBotQueryService
         ?string $search = null,
         string $sort = 'created_at',
         string $direction = 'desc',
+        ?int $whatsappLineId = null,
     ): LengthAwarePaginator {
-        $query = AiBot::query();
+        $query = AiBot::query()->with('whatsappLine');
+
+        $this->applyLineFilter($query, $whatsappLineId ?? PhoneLineService::lockedLineId());
 
         if ($search !== null && $search !== '') {
             $query->where('name', 'like', "%{$search}%");
@@ -32,16 +38,19 @@ class AiBotQueryService
     }
 
     /**
-     * Get all active AI bots (cached for the request).
+     * Get active AI bots for a WhatsApp line (includes legacy null-line bots).
      *
-     * @return \Illuminate\Database\Eloquent\Collection<int, AiBot>
+     * @return Collection<int, AiBot>
      */
-    public function activeBots(): \Illuminate\Database\Eloquent\Collection
+    public function activeBots(?int $whatsappLineId = null): Collection
     {
-        return AiBot::query()
+        $query = AiBot::query()
             ->active()
-            ->orderByDesc('is_default')
-            ->get();
+            ->orderByDesc('is_default');
+
+        $this->applyLineFilter($query, $whatsappLineId);
+
+        return $query->get();
     }
 
     public function findById(int $id): ?AiBot
@@ -49,11 +58,29 @@ class AiBotQueryService
         return AiBot::query()->find($id);
     }
 
-    public function findDefault(): ?AiBot
+    public function findDefault(?int $whatsappLineId = null): ?AiBot
     {
-        return AiBot::query()
+        $query = AiBot::query()
             ->active()
-            ->defaults()
-            ->first();
+            ->defaults();
+
+        $this->applyLineFilter($query, $whatsappLineId);
+
+        return $query->first();
+    }
+
+    /**
+     * @param  Builder<AiBot>  $query
+     */
+    public function applyLineFilter(Builder $query, ?int $whatsappLineId): void
+    {
+        if ($whatsappLineId === null) {
+            return;
+        }
+
+        $query->where(function (Builder $inner) use ($whatsappLineId): void {
+            $inner->where('whatsapp_line_id', $whatsappLineId)
+                ->orWhereNull('whatsapp_line_id');
+        });
     }
 }

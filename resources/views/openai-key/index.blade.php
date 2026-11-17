@@ -38,20 +38,37 @@
         <div class="flex flex-col gap-1">
           <h1 class="text-2xl font-bold leading-[1.5] text-text-primary">AI Bot Manager</h1>
           <p class="max-w-[854px] text-sm font-normal leading-[1.4] text-text-subtle opacity-50">
-            Create and manage specific bots for different purposes (Sales, Support, etc.). The bot marked as&nbsp;Default&nbsp;will be used as the fallback for all general queries and system settings.
+            Create and manage bots per WhatsApp number (Sales, Support, etc.). Default is per number and used as the fallback for that number.
           </p>
         </div>
 
         <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <form action="{{ route('openai-key.index', ['tab' => 'bot-manager']) }}" method="GET" class="flex w-full max-w-[550px] items-center gap-3 overflow-hidden rounded-lg bg-elevated p-3">
-            <x-icons.nav-icon name="search" class="size-5 shrink-0 opacity-60" />
-            <input
-              type="search"
-              name="search"
-              value="{{ request('search') }}"
-              placeholder="Search bots"
-              class="min-w-0 flex-1 bg-transparent text-sm font-medium leading-[1.4] text-text-body/60 placeholder:text-text-body/60 placeholder:opacity-60 focus:outline-none"
-            >
+          <form action="{{ route('openai-key.index', ['tab' => 'bot-manager']) }}" method="GET" class="flex w-full max-w-[720px] flex-col gap-3 sm:flex-row sm:items-center">
+            <input type="hidden" name="tab" value="bot-manager">
+            <div class="flex w-full max-w-[550px] items-center gap-3 overflow-hidden rounded-lg bg-elevated p-3">
+              <x-icons.nav-icon name="search" class="size-5 shrink-0 opacity-60" />
+              <input
+                type="search"
+                name="search"
+                value="{{ request('search') }}"
+                placeholder="Search bots"
+                class="min-w-0 flex-1 bg-transparent text-sm font-medium leading-[1.4] text-text-body/60 placeholder:text-text-body/60 placeholder:opacity-60 focus:outline-none"
+              >
+            </div>
+            @if (! ($lineContextLocked ?? false) && ($whatsappLines ?? collect())->count() > 1)
+              <select
+                name="whatsapp_line"
+                onchange="this.form.submit()"
+                class="w-full max-w-[260px] rounded-lg border border-divider bg-elevated px-3 py-3 text-sm text-text-body focus:border-green-500 focus:outline-none"
+              >
+                <option value="">All numbers</option>
+                @foreach ($whatsappLines as $line)
+                  <option value="{{ $line->uuid }}" @selected((string) request('whatsapp_line') === (string) $line->uuid)>
+                    {{ $line->displayLabel() }}
+                  </option>
+                @endforeach
+              </select>
+            @endif
           </form>
           <button
             type="button"
@@ -323,6 +340,7 @@
                 <tr class="bg-elevated">
                   <th class="w-[54px] p-2 text-[13px] font-medium leading-[1.5] whitespace-nowrap text-text-body">SI. No</th>
                   <th class="p-2 text-[13px] font-medium leading-[1.5] text-text-body">Bot Name</th>
+                  <th class="p-2 text-[13px] font-medium leading-[1.5] text-text-body">WhatsApp number</th>
                   <th class="p-2 text-center text-[13px] font-medium leading-[1.5] text-text-body">Type</th>
                   <th class="p-2 text-center text-[13px] font-medium leading-[1.5] text-text-body">Actions</th>
                   <th class="p-2 text-center text-[13px] font-medium leading-[1.5] text-text-body">&nbsp;</th>
@@ -331,9 +349,13 @@
               </thead>
               <tbody>
                 @forelse ($bots as $bot)
+                  @php
+                    $botNumberLabel = $bot->whatsappLine?->displayLabel() ?? 'All numbers (legacy)';
+                  @endphp
                   <tr class="border-t border-divider bg-elevated">
                     <td class="w-[54px] p-2 text-[13px] font-normal leading-[1.5] text-text-body">{{ $loop->iteration }}</td>
                     <td class="p-2 text-[13px] font-semibold leading-[1.5] text-text-subtle">{{ $bot->name }}</td>
+                    <td class="p-2 text-[13px] font-normal leading-[1.5] text-text-body">{{ $botNumberLabel }}</td>
                     <td class="p-2 text-center">
                       <span class="inline-flex items-center justify-center rounded bg-stat-blue/15 px-2 py-1 text-[10px] font-medium leading-[1.2] text-stat-blue">
                         {{ $bot->type ?? 'General' }}
@@ -347,7 +369,7 @@
                         <a href="{{ route('ai-bots.edit', $bot) }}" aria-label="Edit bot">
                           <img src="{{ asset('images/team/edit.svg') }}" alt="" class="size-5" width="20" height="20">
                         </a>
-                        <form action="{{ route('openai-key.bots.destroy', $bot) }}" method="POST" onsubmit="return confirm('Delete this bot?')" class="inline">
+                        <form action="{{ route('openai-key.bots.destroy', $bot) }}" method="POST" onsubmit="return confirm(@js('Delete this bot for '.$botNumberLabel.'? Other numbers are not affected.'))" class="inline">
                           @csrf @method('DELETE')
                           <button type="submit" aria-label="Delete bot">
                             <img src="{{ asset('images/team/trash.svg') }}" alt="" class="size-5" width="20" height="20">
@@ -402,7 +424,7 @@
                   </tr>
                 @empty
                   <tr class="border-t border-divider bg-elevated">
-                    <td colspan="6" class="p-8 text-center text-sm text-text-muted">
+                    <td colspan="7" class="p-8 text-center text-sm text-text-muted">
                       No AI bots found. <button type="button" data-open-modal="create-bot" class="text-green-500 underline">Create one now</button>.
                     </td>
                   </tr>
@@ -921,6 +943,9 @@
   <x-openai-key.create-bot-modal
     :open="request('modal') === 'create-bot'"
     :close-href="route('openai-key.index', ['tab' => $currentTab])"
+    :whatsapp-lines="$whatsappLines ?? collect()"
+    :line-context-locked="$lineContextLocked ?? false"
+    :selected-whatsapp-line-uuid="($lineContextLocked ?? false) && isset($whatsappLines) ? $whatsappLines->first()?->uuid : request('whatsapp_line')"
   />
   @if ($currentTab === 'knowledge-base' && isset($selectedBot) && $selectedBot)
     <x-openai-key.add-sources-modal

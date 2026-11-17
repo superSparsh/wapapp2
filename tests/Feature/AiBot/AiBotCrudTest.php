@@ -48,10 +48,24 @@ class AiBotCrudTest extends TestCase
                 'provider' => 'openai',
                 'chat_model' => 'gpt-4o-mini',
                 'temperature' => 0.3,
+                'whatsapp_line_id' => $this->testLine->uuid,
             ])
             ->assertRedirect(route('openai-key.index', ['tab' => 'bot-manager']));
 
-        $this->assertDatabaseHas('ai_bots', ['name' => 'Support Bot']);
+        $this->assertDatabaseHas('ai_bots', [
+            'name' => 'Support Bot',
+            'whatsapp_line_id' => $this->testLine->id,
+        ]);
+    }
+
+    public function test_store_requires_whatsapp_line(): void
+    {
+        $this->actingAsTenantUser()
+            ->post(route('ai-bots.store'), [
+                'name' => 'No Line Bot',
+                'provider' => 'openai',
+            ])
+            ->assertSessionHasErrors('whatsapp_line_id');
     }
 
     public function test_store_validates_name(): void
@@ -163,10 +177,13 @@ class AiBotCrudTest extends TestCase
         $this->assertTrue($bot->is_default);
     }
 
-    public function test_toggle_default_unsets_others(): void
+    public function test_toggle_default_unsets_others_on_same_line(): void
     {
-        $bot1 = AiBot::factory()->default()->create();
-        $bot2 = AiBot::factory()->create(['is_default' => false]);
+        $bot1 = AiBot::factory()->default()->create(['whatsapp_line_id' => $this->testLine->id]);
+        $bot2 = AiBot::factory()->create([
+            'is_default' => false,
+            'whatsapp_line_id' => $this->testLine->id,
+        ]);
 
         $this->actingAsTenantUser()
             ->patch(route('ai-bots.toggle-default', $bot2))

@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace App\Domains\AiBot\Services;
 
+use App\Domains\Integration\Services\PhoneLineService;
 use App\Enums\AiProvider;
 use App\Models\AiBot;
 use Illuminate\Support\Facades\DB;
+use InvalidArgumentException;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class AiBotService
 {
@@ -16,9 +19,10 @@ class AiBotService
     public function create(array $data): AiBot
     {
         return DB::transaction(function () use ($data): AiBot {
-            // If this bot is set as default, unset other defaults
+            $lineId = $this->resolveCreateLineId($data['whatsapp_line_id'] ?? null);
+
             if (! empty($data['is_default'])) {
-                AiBot::query()->where('is_default', true)->update(['is_default' => false]);
+                $this->clearDefaultsForLine($lineId);
             }
 
             $provider = (string) ($data['provider'] ?? AiProvider::OpenAI->value);
@@ -38,7 +42,7 @@ class AiBotService
                 'business_information' => $data['business_information'] ?? null,
                 'status' => $data['status'] ?? 'active',
                 'is_default' => $data['is_default'] ?? false,
-                'whatsapp_line_id' => $data['whatsapp_line_id'] ?? null,
+                'whatsapp_line_id' => $lineId,
             ]);
         });
     }
@@ -48,28 +52,38 @@ class AiBotService
      */
     public function update(AiBot $bot, array $data): AiBot
     {
+        $this->assertCanManage($bot);
+
         return DB::transaction(function () use ($bot, $data): AiBot {
-            // If setting as default, unset others
+            if (array_key_exists('whatsapp_line_id', $data)) {
+                $lockedLineId = PhoneLineService::lockedLineId();
+                if ($lockedLineId !== null) {
+                    $data['whatsapp_line_id'] = $lockedLineId;
+                } elseif ($data['whatsapp_line_id'] === null || $data['whatsapp_line_id'] === '') {
+                    unset($data['whatsapp_line_id']);
+                } else {
+                    $data['whatsapp_line_id'] = (int) $data['whatsapp_line_id'];
+                }
+            }
+
+            $lineId = array_key_exists('whatsapp_line_id', $data)
+                ? (int) $data['whatsapp_line_id']
+                : $bot->whatsapp_line_id;
+
             if (isset($data['is_default']) && $data['is_default']) {
-                AiBot::query()
-                    ->where('is_default', true)
-                    ->where('id', '!=', $bot->id)
-                    ->update(['is_default' => false]);
+                $this->clearDefaultsForLine($lineId, $bot->id);
             }
 
             $provider = (string) ($data['provider'] ?? $bot->provider?->value ?? $bot->provider);
             if ($provider === AiProvider::Tittu->value) {
                 $data['chat_model'] = 'auto';
                 $embeddingModel = trim((string) ($data['embedding_model'] ?? $bot->embedding_model ?? ''));
-                // Drop leftover OpenAI/Gemini embedding ids when switching to Tittu.
                 if ($embeddingModel === '' || str_starts_with(strtolower($embeddingModel), 'text-embedding')) {
                     $embeddingModel = 'auto';
                 }
                 $data['embedding_model'] = $embeddingModel;
             }
 
-            // Empty textareas become null via ConvertEmptyStringsToNull.
-            // Keep those keys so clearing System Prompt / Business Information persists.
             $clearable = ['system_prompt', 'business_information', 'type'];
             $nullable = [];
             foreach ($clearable as $field) {
@@ -90,6 +104,8 @@ class AiBotService
 
     public function delete(AiBot $bot): void
     {
+        $this->assertCanManage($bot);
+
         DB::transaction(function () use ($bot): void {
             $bot->businessInfoEntries()->each(function ($entry) {
                 $entry->delete();
@@ -101,19 +117,66 @@ class AiBotService
 
     public function toggleDefault(AiBot $bot): AiBot
     {
+        $this->assertCanManage($bot);
+
         return DB::transaction(function () use ($bot): AiBot {
             if ($bot->is_default) {
                 $bot->forceFill(['is_default' => false])->save();
             } else {
-                AiBot::query()
-                    ->where('is_default', true)
-                    ->where('id', '!=', $bot->id)
-                    ->update(['is_default' => false]);
-
+                $this->clearDefaultsForLine($bot->whatsapp_line_id, $bot->id);
                 $bot->forceFill(['is_default' => true])->save();
             }
 
             return $bot->refresh();
         });
+    }
+
+    public function assertCanManage(AiBot $bot): void
+    {
+        $lockedLineId = PhoneLineService::lockedLineId();
+        if ($lockedLineId === null) {
+            return;
+        }
+
+        // Legacy null-line bots are visible while locked; allow manage so they can be reassigned/deleted.
+        if ($bot->whatsapp_line_id === null) {
+            return;
+        }
+
+        if ((int) $bot->whatsapp_line_id !== $lockedLineId) {
+            throw new HttpException(403, 'This AI bot belongs to another WhatsApp number.');
+        }
+    }
+
+    private function resolveCreateLineId(mixed $lineId): int
+    {
+        $lockedLineId = PhoneLineService::lockedLineId();
+        if ($lockedLineId !== null) {
+            return $lockedLineId;
+        }
+
+        $resolved = (int) $lineId;
+        if ($resolved <= 0) {
+            throw new InvalidArgumentException('A WhatsApp number is required for AI bots.');
+        }
+
+        return $resolved;
+    }
+
+    private function clearDefaultsForLine(?int $lineId, ?int $exceptBotId = null): void
+    {
+        $query = AiBot::query()->where('is_default', true);
+
+        if ($lineId === null) {
+            $query->whereNull('whatsapp_line_id');
+        } else {
+            $query->where('whatsapp_line_id', $lineId);
+        }
+
+        if ($exceptBotId !== null) {
+            $query->where('id', '!=', $exceptBotId);
+        }
+
+        $query->update(['is_default' => false]);
     }
 }
