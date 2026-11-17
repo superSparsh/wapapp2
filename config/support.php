@@ -15,11 +15,11 @@ return [
     'handoff' => [
         'confirmation_message' => env(
             'SUPPORT_HANDOFF_MESSAGE',
-            'Thank you. An agent will connect with you shortly. You are now in the support queue.',
+            'Thank you. Please wait while we connect you with our expert. An agent typically replies within 15–30 minutes during Monday–Friday, 10:00 AM – 6:00 PM IST.',
         ),
         'already_queued_message' => env(
             'SUPPORT_HANDOFF_ALREADY_QUEUED_MESSAGE',
-            'You are already in the support queue. Our team will reply shortly.',
+            'You are already in our agent queue. Please wait — an expert typically replies within 15–30 minutes during Monday–Friday, 10:00 AM – 6:00 PM IST.',
         ),
     ],
 ];

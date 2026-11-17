@@ -89,9 +89,9 @@ Defaults in `config/support.php` (env overrides):
 - `SUPPORT_HANDOFF_MESSAGE` — first handoff  
 - `SUPPORT_HANDOFF_ALREADY_QUEUED_MESSAGE` — user asks again while already queued  
 
-Default first message: *Thank you. An agent will connect with you shortly. You are now in the support queue.*
+Default handoff message: *Thank you. Please wait while we connect you with our expert. An agent typically replies within 15–30 minutes during Monday–Friday, 10:00 AM – 6:00 PM IST.*
 
-Agent hours in the example flows: **Monday–Friday, 10:00 AM – 6:00 PM IST**.
+Agent hours: **Monday–Friday, 10:00 AM – 6:00 PM IST**. Menu includes Tutorials, Connect with us (Calendly), and Having more issues? / Chat with our agent.
 
 ---
 

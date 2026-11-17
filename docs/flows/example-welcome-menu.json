@@ -8,7 +8,7 @@
         "label": "Welcome",
         "messageType": "text",
         "triggerKeyword": "hi, hello, menu",
-        "welcomeMessage": "Hello! Welcome to our WhatsApp support.\n\nOur agents are available Monday to Friday, 10:00 AM – 6:00 PM IST.\nPlease choose an option below."
+        "welcomeMessage": "Hello! Welcome to WapApp Support.\n\nAgents are available Monday to Friday, 10:00 AM – 6:00 PM IST.\nPlease choose what you need below."
       }
     },
     {
@@ -17,54 +17,94 @@
       "position": { "x": 420, "y": 220 },
       "data": {
         "label": "Main Menu",
-        "interactiveType": "button",
-        "bodyText": "How can we help you?",
-        "buttons": [
-          { "id": "sales", "title": "Sales" },
-          { "id": "support", "title": "Support" },
-          { "id": "agent", "title": "Talk to agent" }
+        "interactiveType": "list",
+        "bodyText": "What do you need help with?",
+        "buttonText": "Choose an option",
+        "sections": [
+          {
+            "title": "How can we help?",
+            "rows": [
+              { "id": "billing", "title": "Billing help", "description": "Payments, plans, invoices" },
+              { "id": "technical", "title": "Technical help", "description": "Templates, number, delivery" },
+              { "id": "tutorials", "title": "Tutorials & guides", "description": "Quick how-to links" },
+              { "id": "connect_us", "title": "Connect with us", "description": "Book a short call" },
+              { "id": "chat_agent", "title": "Having more issues?", "description": "Chat with our agent" }
+            ]
+          }
         ]
       }
     },
     {
-      "id": "sales_reply",
+      "id": "ask_problem",
       "type": "welcomeMessage",
-      "position": { "x": 780, "y": 80 },
+      "position": { "x": 780, "y": 120 },
       "data": {
-        "label": "Sales Reply",
+        "label": "Ask Problem",
         "messageType": "text",
         "triggerKeyword": "",
-        "welcomeMessage": "Thank you. Our sales team can share plans and pricing with you. Reply with menu anytime to return to the main options."
+        "welcomeMessage": "In one short message, what problem are you facing?"
       }
     },
     {
-      "id": "support_reply",
+      "id": "wait_1",
+      "type": "waitForResponse",
+      "position": { "x": 1100, "y": 120 },
+      "data": { "label": "Wait", "variableName": "user_problem" }
+    },
+    {
+      "id": "reply_1",
       "type": "welcomeMessage",
-      "position": { "x": 780, "y": 220 },
+      "position": { "x": 1420, "y": 120 },
       "data": {
-        "label": "Support Reply",
+        "label": "Sample Reply",
         "messageType": "text",
         "triggerKeyword": "",
-        "welcomeMessage": "Understood. Please describe your issue in one message, or choose Talk to agent to reach our team."
+        "welcomeMessage": "Thanks — we received your message. In the full support bot, an AI reply is sent here based on your issue."
       }
     },
     {
-      "id": "agent_confirm",
+      "id": "tutorials_1",
       "type": "welcomeMessage",
-      "position": { "x": 780, "y": 360 },
+      "position": { "x": 780, "y": 320 },
       "data": {
-        "label": "Agent Note",
+        "label": "Tutorials",
         "messageType": "text",
         "triggerKeyword": "",
-        "welcomeMessage": "An agent will reply here from Inbox shortly.\n\n(In the full support bot, use Function Call: handoff_to_inbox for automatic queue handoff.)"
+        "welcomeMessage": "Quick guides:\n• https://wapapp.in/tutorials\n• Setup videos: https://www.youtube.com/watch?v=y76Hp7ZG9HQ&list=PL21cVCjAc0yaiw7G8qCx-e7Pi6nczeXwS&index=1"
+      }
+    },
+    {
+      "id": "connect_us_1",
+      "type": "welcomeMessage",
+      "position": { "x": 780, "y": 460 },
+      "data": {
+        "label": "Connect with us",
+        "messageType": "text",
+        "triggerKeyword": "",
+        "welcomeMessage": "Happy to connect with you.\n\nBook a short call:\nhttps://calendly.com/tekpro-connect/25min"
+      }
+    },
+    {
+      "id": "agent_note",
+      "type": "welcomeMessage",
+      "position": { "x": 780, "y": 600 },
+      "data": {
+        "label": "Agent",
+        "messageType": "text",
+        "triggerKeyword": "",
+        "welcomeMessage": "Thank you. Please wait while we connect you with our expert. An agent typically replies within 15–30 minutes during Monday–Friday, 10:00 AM – 6:00 PM IST."
       }
     }
   ],
   "edges": [
     { "id": "e1", "source": "welcome_1", "target": "menu_1", "sourceHandle": "default", "targetHandle": "default", "type": "default" },
-    { "id": "e2", "source": "menu_1", "target": "sales_reply", "sourceHandle": "button-0", "targetHandle": "default", "type": "default" },
-    { "id": "e3", "source": "menu_1", "target": "support_reply", "sourceHandle": "button-1", "targetHandle": "default", "type": "default" },
-    { "id": "e4", "source": "menu_1", "target": "agent_confirm", "sourceHandle": "button-2", "targetHandle": "default", "type": "default" }
+    { "id": "e2", "source": "menu_1", "target": "ask_problem", "sourceHandle": "interactive-0-0", "targetHandle": "default", "type": "default" },
+    { "id": "e3", "source": "menu_1", "target": "ask_problem", "sourceHandle": "interactive-0-1", "targetHandle": "default", "type": "default" },
+    { "id": "e4", "source": "menu_1", "target": "tutorials_1", "sourceHandle": "interactive-0-2", "targetHandle": "default", "type": "default" },
+    { "id": "e5", "source": "menu_1", "target": "connect_us_1", "sourceHandle": "interactive-0-3", "targetHandle": "default", "type": "default" },
+    { "id": "e6", "source": "menu_1", "target": "agent_note", "sourceHandle": "interactive-0-4", "targetHandle": "default", "type": "default" },
+    { "id": "e7", "source": "ask_problem", "target": "wait_1", "sourceHandle": "default", "targetHandle": "default", "type": "default" },
+    { "id": "e8", "source": "wait_1", "target": "reply_1", "sourceHandle": "default", "targetHandle": "default", "type": "default" }
   ],
-  "viewport": { "x": 40, "y": 40, "zoom": 0.9 }
+  "viewport": { "x": 40, "y": 40, "zoom": 0.85 }
 }

@@ -33,7 +33,7 @@ class InboxEscalationChannel implements SupportEscalationChannel
         if ($confirmationMessage === '') {
             $confirmationMessage = (string) config(
                 'support.handoff.confirmation_message',
-                'Thank you. An agent will connect with you shortly. You are now in the support queue.',
+                'Thank you. Please wait while we connect you with our expert. An agent typically replies within 15–30 minutes during Monday–Friday, 10:00 AM – 6:00 PM IST.',
             );
         }
 
@@ -69,7 +69,7 @@ class InboxEscalationChannel implements SupportEscalationChannel
             $body = $alreadyEscalated
                 ? (string) config(
                     'support.handoff.already_queued_message',
-                    'You are already in the support queue. Our team will reply shortly.',
+                    'You are already in our agent queue. Please wait — an expert typically replies within 15–30 minutes during Monday–Friday, 10:00 AM – 6:00 PM IST.',
                 )
                 : $confirmationMessage;
 
