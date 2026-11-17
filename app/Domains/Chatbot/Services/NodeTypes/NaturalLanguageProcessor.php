@@ -91,17 +91,21 @@ class NaturalLanguageProcessor extends AbstractNodeProcessor
                         : $promptOverride !== null && $promptOverride !== '');
 
                 $sendDirectly = ! isset($data['sendDirectly']) || (bool) $data['sendDirectly'];
-                if ($sendDirectly) {
-                    $responseText = $this->aiChatService->processMessage($conversation, $bot, $userMessage, [
-                        'system_prompt_override' => $promptOverride,
-                        'strip_booking_links' => $blockBookingLinks,
-                    ]);
-                } else {
-                    // Generate response without sending directly (for variable storage)
-                    $responseText = $this->generateAiResponse($bot, $userMessage);
-                    if ($responseText !== null && $blockBookingLinks) {
-                        $responseText = AiResponseFormatter::stripBookingLinks($responseText);
-                    }
+                // Always use AiChatService (RAG path). sendDirectly=false keeps text in a
+                // variable so the next interactive node can show answer + buttons together.
+                $responseText = $this->aiChatService->processMessage($conversation, $bot, $userMessage, [
+                    'system_prompt_override' => $promptOverride,
+                    'strip_booking_links' => $blockBookingLinks,
+                    'send' => $sendDirectly,
+                ]);
+
+                if (($responseText === null || trim($responseText) === '') && ! $sendDirectly) {
+                    $responseText = 'I could not find a clear answer for that. Would you like to chat with an agent?';
+                }
+
+                // WhatsApp interactive body limit is 1024; leave room for a short footer line.
+                if ($responseText !== null && mb_strlen($responseText) > 900) {
+                    $responseText = mb_substr($responseText, 0, 897).'...';
                 }
             } else {
                 Log::warning('No AI bot configured for NaturalLanguageProcessor');

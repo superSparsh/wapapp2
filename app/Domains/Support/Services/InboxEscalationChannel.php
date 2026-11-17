@@ -10,10 +10,8 @@ use App\Domains\Inbox\Services\InboxResponseTypeService;
 use App\Domains\Support\Contracts\SupportEscalationChannel;
 use App\Enums\ChatbotFlowStateStatus;
 use App\Enums\ConversationResponseType;
-use App\Models\AiSetting;
 use App\Models\ChatbotFlowState;
 use App\Models\Conversation;
-use Illuminate\Support\Facades\Log;
 
 /**
  * Escalate a support chat into the WapApp Inbox human queue.
@@ -40,12 +38,6 @@ class InboxEscalationChannel implements SupportEscalationChannel
         $hadActiveChatbot = $this->hasActiveChatbotOwnership($conversation);
         $alreadyEscalated = $conversation->response_type === ConversationResponseType::Human
             && ! $hadActiveChatbot;
-
-        if (AiSetting::getBool('ai_auto_response_enabled', false)) {
-            Log::warning('Support handoff while ai_auto_response_enabled is on — human takeover may be overridden by global AI. Turn it off for the support tenant.', [
-                'conversation_id' => $conversation->id,
-            ]);
-        }
 
         $this->responseTypeService->setForConversation(
             $conversation,

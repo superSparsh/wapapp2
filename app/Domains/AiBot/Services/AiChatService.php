@@ -35,9 +35,9 @@ class AiChatService
     ) {}
 
     /**
-     * Process a user message through the AI bot and send the response.
+     * Process a user message through the AI bot and optionally send the response.
      *
-     * @param  array{system_prompt_override?: string|null, strip_booking_links?: bool}  $options
+     * @param  array{system_prompt_override?: string|null, strip_booking_links?: bool, send?: bool}  $options
      */
     public function processMessage(
         Conversation $conversation,
@@ -47,6 +47,7 @@ class AiChatService
     ): ?string {
         $systemPromptOverride = trim((string) ($options['system_prompt_override'] ?? ''));
         $stripBookingLinks = (bool) ($options['strip_booking_links'] ?? false);
+        $shouldSend = ! array_key_exists('send', $options) || (bool) $options['send'];
 
         if ($systemPromptOverride !== '') {
             $bot = clone $bot;
@@ -75,7 +76,9 @@ class AiChatService
                         ]);
 
                         if (AiTestBotUserMessage::isProviderUnavailable($error)) {
-                            return $this->sendProviderExhaustedCourtesy($conversation, $error);
+                            return $shouldSend
+                                ? $this->sendProviderExhaustedCourtesy($conversation, $error)
+                                : null;
                         }
                     } else {
                         $responseText = AiResponseFormatter::forWhatsApp(
@@ -91,7 +94,9 @@ class AiChatService
                         if (filled($responseText)) {
                             $this->logPythonUsage($bot, $payload, $conversation->id);
 
-                            $this->outboundService->sendText($conversation, $responseText, enforceWindow: false);
+                            if ($shouldSend) {
+                                $this->outboundService->sendText($conversation, $responseText, enforceWindow: false);
+                            }
 
                             return $responseText;
                         }
@@ -103,12 +108,20 @@ class AiChatService
                     ]);
 
                     if (AiTestBotUserMessage::isProviderUnavailable($e->getMessage())) {
-                        return $this->sendProviderExhaustedCourtesy($conversation, $e->getMessage());
+                        return $shouldSend
+                            ? $this->sendProviderExhaustedCourtesy($conversation, $e->getMessage())
+                            : null;
                     }
                 }
             }
 
-            return $this->replyViaLocalProvider($conversation, $bot, $userMessage, $stripBookingLinks);
+            return $this->replyViaLocalProvider(
+                $conversation,
+                $bot,
+                $userMessage,
+                $stripBookingLinks,
+                $shouldSend,
+            );
         } catch (\Throwable $e) {
             Log::error('AI chat processing failed', [
                 'bot_id' => $bot->id,
@@ -117,7 +130,9 @@ class AiChatService
             ]);
 
             if (AiTestBotUserMessage::isProviderUnavailable($e->getMessage())) {
-                return $this->sendProviderExhaustedCourtesy($conversation, $e->getMessage());
+                return $shouldSend
+                    ? $this->sendProviderExhaustedCourtesy($conversation, $e->getMessage())
+                    : null;
             }
 
             return null;
@@ -132,6 +147,7 @@ class AiChatService
         AiBot $bot,
         string $userMessage,
         bool $stripBookingLinks = false,
+        bool $shouldSend = true,
     ): ?string {
         $config = $bot->resolveProvider();
 
@@ -160,7 +176,9 @@ class AiChatService
             ]);
         } catch (\Throwable $e) {
             if (AiTestBotUserMessage::isProviderUnavailable($e->getMessage())) {
-                return $this->sendProviderExhaustedCourtesy($conversation, $e->getMessage());
+                return $shouldSend
+                    ? $this->sendProviderExhaustedCourtesy($conversation, $e->getMessage())
+                    : null;
             }
 
             throw $e;
@@ -188,7 +206,9 @@ class AiChatService
             return null;
         }
 
-        $this->outboundService->sendText($conversation, $responseText, enforceWindow: false);
+        if ($shouldSend) {
+            $this->outboundService->sendText($conversation, $responseText, enforceWindow: false);
+        }
 
         return $responseText;
     }

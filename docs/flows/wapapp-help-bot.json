@@ -45,11 +45,11 @@
         "label": "AI reply",
         "mode": "knowledge_base",
         "inputSource": "last_reply",
-        "sendDirectly": true,
+        "sendDirectly": false,
         "outputVariable": "_ai_response",
         "ai_bot_id": null,
         "blockBookingLinks": true,
-        "customPrompt": "You are a WapApp WhatsApp assistant. Reply in clear professional English. Keep it very short (3–6 lines max). Answer only the user's issue.\n\nStrict rules:\n- NEVER include any URL or link in your reply (no calendly.com, no booking links, no meeting links).\n- NEVER mention support hours, Monday–Friday, or business timings.\n- Do NOT push a call or meeting. If they ask for a call, tell them to tap More options → Connect with us (no link).\n- Never say knowledge base, documents, or internal systems.\n- If unsure, or for refunds/ownership/legal issues, briefly ask if they want to chat with an agent.\n- Never invent pricing, refunds, or account changes.\n- For campaign issues: ask what exactly fails (not sending, pending, rejected template, wallet, audience) and give short WapApp steps. Do not send booking links."
+        "customPrompt": "You are a WapApp WhatsApp assistant. Reply in clear professional English. Keep it very short (3–6 lines max). Answer only the user's issue.\n\nStrict rules:\n- NEVER include any URL or link in your reply.\n- NEVER mention support hours or Monday–Friday timings.\n- Do NOT mention buttons, More options, Connect with us, or “in the app”.\n- Do NOT claim you already requested an agent.\n- Never say knowledge base, documents, or internal systems.\n- If unsure, or for refunds/ownership/legal/login issues, briefly say an agent can help.\n- Never invent pricing, refunds, or account changes.\n- For campaign issues: ask what fails (not sending, pending, rejected template, wallet, audience) and give short WapApp steps."
       }
     },
     {
@@ -57,9 +57,9 @@
       "type": "interactiveMessage",
       "position": { "x": 1300, "y": 160 },
       "data": {
-        "label": "Quick follow-up",
+        "label": "Answer + options",
         "interactiveType": "button",
-        "bodyText": "Did that help?",
+        "bodyText": "{{_ai_response}}\n\nWas this helpful?",
         "buttons": [
           { "id": "yes_thanks", "title": "Yes, thanks" },
           { "id": "chat_agent", "title": "Chat with agent" },
@@ -163,6 +163,7 @@
     { "id": "e_intent_agent", "source": "nl_intent", "target": "handoff_1", "sourceHandle": "output_intent_agent", "targetHandle": "default", "type": "default" },
     { "id": "e_intent_call", "source": "nl_intent", "target": "connect_us_1", "sourceHandle": "output_intent_call", "targetHandle": "default", "type": "default" },
     { "id": "e_intent_fallback", "source": "nl_intent", "target": "nl_reply", "sourceHandle": "output_fallback", "targetHandle": "default", "type": "default" },
+    { "id": "e_intent_default", "source": "nl_intent", "target": "nl_reply", "sourceHandle": "default", "targetHandle": "default", "type": "default" },
 
     { "id": "e_nl_followup", "source": "nl_reply", "target": "followup_1", "sourceHandle": "default", "targetHandle": "default", "type": "default" },
     { "id": "e_yes", "source": "followup_1", "target": "thanks_end", "sourceHandle": "button-0", "targetHandle": "default", "type": "default" },

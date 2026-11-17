@@ -138,6 +138,32 @@ class SupportHandoffTest extends TestCase
         );
     }
 
+    public function test_handoff_stops_ai_inbound_even_when_global_auto_is_on(): void
+    {
+        AiProviderKey::factory()->create(['is_active' => true, 'is_validated' => true]);
+        AiBot::factory()->active()->create();
+        AiSetting::set('ai_auto_response_enabled', true);
+
+        $conversation = Conversation::factory()->create([
+            'response_type' => ConversationResponseType::Ai,
+        ]);
+
+        app(SupportHandoffService::class)->handoffToAgent($conversation);
+
+        $this->assertSame(ConversationResponseType::Human, $conversation->refresh()->response_type);
+
+        $message = Message::factory()->create([
+            'conversation_id' => $conversation->id,
+            'message_type' => MessageType::Text,
+            'body' => 'Still need help',
+            'direction' => MessageDirection::Inbound,
+        ]);
+
+        $ai = app(AiInboundReplyService::class);
+        $this->assertFalse($ai->isEligibleForAutoReply($conversation->refresh()));
+        $this->assertFalse($ai->shouldTrigger($conversation->refresh(), $message));
+    }
+
     public function test_second_handoff_is_idempotent_and_reports_already_escalated(): void
     {
         AiSetting::set('ai_auto_response_enabled', false);

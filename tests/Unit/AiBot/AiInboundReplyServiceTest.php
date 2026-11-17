@@ -72,13 +72,13 @@ class AiInboundReplyServiceTest extends TestCase
         $this->assertTrue($service->shouldTrigger($conversation, $message));
     }
 
-    public function test_should_trigger_when_global_auto_response_enabled_even_if_human_default(): void
+    public function test_should_not_trigger_when_human_even_if_global_auto_enabled(): void
     {
         AiProviderKey::factory()->create(['is_active' => true, 'is_validated' => true]);
         AiBot::factory()->active()->create();
         AiSetting::set('ai_auto_response_enabled', true);
 
-        // Existing chats often still have human_response from the old default.
+        // Inbox / handoff AI-off must win over tenant global auto-reply.
         $conversation = Conversation::factory()->create([
             'response_type' => ConversationResponseType::Human,
         ]);
@@ -90,7 +90,8 @@ class AiInboundReplyServiceTest extends TestCase
 
         $service = app(AiInboundReplyService::class);
 
-        $this->assertTrue($service->shouldTrigger($conversation, $message));
+        $this->assertFalse($service->shouldTrigger($conversation, $message));
+        $this->assertFalse($service->isEligibleForAutoReply($conversation));
     }
 
     public function test_should_not_trigger_when_human_and_global_auto_disabled(): void
@@ -204,7 +205,8 @@ class AiInboundReplyServiceTest extends TestCase
 
         $service = app(AiInboundReplyService::class);
 
-        $this->assertTrue($service->isEligibleForAutoReply($conversation));
+        // Human mode blocks eligibility even with global auto on.
+        $this->assertFalse($service->isEligibleForAutoReply($conversation));
         $this->assertFalse($service->shouldTrigger(
             $conversation,
             Message::factory()->create([

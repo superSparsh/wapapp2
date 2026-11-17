@@ -18,13 +18,13 @@ On the **support tenant** (the account that owns the support WhatsApp Number):
 
 | Setting | Value | Why |
 |--------|--------|-----|
-| AI Assistant → **Auto response** (`ai_auto_response_enabled`) | **Off** | If On, `human_response` chats can still get AI replies and undo handoff |
+| AI Assistant → **Auto response** (`ai_auto_response_enabled`) | Prefer **Off** on support tenant | Chatbot NL nodes still answer inside the flow; global On mainly affects new chats starting in AI mode |
 | AI answers | Only via Chatbot **Natural Language** nodes | Menu + FAQ stay deterministic; AI is opt-in in the flow |
 | Inbox | Agents watch the support WhatsApp Number + **Unassigned** filter | Handoff leaves chats unassigned on purpose |
 
 After handoff, `SupportHandoffService` sets `response_type=human_response`, clears `active_ai_bot_id`, completes active chatbot states, and sends the confirmation WhatsApp text.
 
-If auto-response is left On, handoff logs a warning; turn it Off before go-live.
+**Inbox AI off / handoff Human wins even if global auto is On** — that chat will not get AI replies until someone turns AI back on for it.
 
 ---
 

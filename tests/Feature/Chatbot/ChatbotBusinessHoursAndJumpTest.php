@@ -754,7 +754,7 @@ class ChatbotBusinessHoursAndJumpTest extends TestCase
         ]);
 
         $conversation = Conversation::factory()->create([
-            'response_type' => \App\Enums\ConversationResponseType::Human,
+            'response_type' => \App\Enums\ConversationResponseType::Ai,
         ]);
 
         // Leftover Waiting ownership should be cleared by keyword restart.
@@ -879,7 +879,7 @@ class ChatbotBusinessHoursAndJumpTest extends TestCase
         ]);
 
         $conversation = Conversation::factory()->create([
-            'response_type' => \App\Enums\ConversationResponseType::Human,
+            'response_type' => \App\Enums\ConversationResponseType::Ai,
         ]);
 
         ChatbotFlowState::query()->create([
