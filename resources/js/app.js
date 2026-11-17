@@ -2315,6 +2315,7 @@ function initInboxRealtime() {
             '.thread.updated': (payload) => {
                 // Mark-read / assignee / AI toggles - update in place, do not reorder.
                 upsertThreadRow(payload.thread, { bump: false });
+                syncOpenChatAiFromThread(payload.thread);
             },
             '.message.created': (payload) => {
                 const message = payload.message || {};
@@ -2338,6 +2339,7 @@ function initInboxRealtime() {
                 // Suppress badge-based notify here - showInboxWebNotification below
                 // has the real message body and correct open-chat/focus checks.
                 upsertThreadRow(thread, { notify: false, bump: true });
+                syncOpenChatAiFromThread(thread);
 
                 if (!isOutbound) {
                     showInboxWebNotification(thread, message);
@@ -4465,6 +4467,34 @@ function setToggleSwitchActive(toggle, active) {
     if (knob) {
         knob.classList.toggle('left-[24px]', active);
         knob.classList.toggle('left-[2px]', !active);
+    }
+}
+
+/**
+ * Handoff / API response-type changes broadcast thread.ai_enabled.
+ * Keep the open chat header toggle in sync (list row alone was updating before).
+ */
+function syncOpenChatAiFromThread(thread) {
+    if (!thread?.uuid || thread.ai_enabled === undefined) {
+        return;
+    }
+
+    const chat = document.querySelector('[data-inbox-chat]');
+    if (!chat || chat.dataset.conversationUuid !== thread.uuid) {
+        return;
+    }
+
+    const enabled = Boolean(thread.ai_enabled);
+    const aiToggle = chat.querySelector('[data-inbox-ai-toggle]');
+    setToggleSwitchActive(aiToggle, enabled);
+
+    const aiStatus = chat.querySelector('[data-inbox-ai-status]');
+    const aiMode = chat.querySelector('[data-inbox-ai-mode]');
+    if (aiStatus) {
+        aiStatus.textContent = enabled ? 'AI reply' : 'Human reply';
+    }
+    if (aiMode) {
+        aiMode.textContent = enabled ? 'AI' : 'Human';
     }
 }
 
