@@ -46,45 +46,37 @@ Keep replies short for WhatsApp.
 
 ---
 
-## 3. Build the Chatbot flow
+## 3. Import the ready Chatbot flow (recommended)
 
-**Triggers:** `hi`, `hello`, `help`, `support`, `menu` (welcome keyword / list as your builder allows).
+Import file: [`docs/flows/wapapp-company-support-bot.json`](flows/wapapp-company-support-bot.json)
 
-**Main interactive menu (buttons or list):**
+Format is the same as **Export** from the React builder: top-level `{ nodes, edges, viewport }`.
 
-- Billing / Payments
-- Technical issue
-- Account / WhatsApp line
-- Ask a question (AI)
-- Talk to agent
+Public downloads (Import popup se bhi):
 
-### Category branches
+- Simple demo: [`/examples/chatbot/example-welcome-menu.json`](../public/examples/chatbot/example-welcome-menu.json)
+- Full support bot: [`/examples/chatbot/wapapp-company-support-bot.json`](../public/examples/chatbot/wapapp-company-support-bot.json)
 
-Short fixed text answers + follow-up buttons: *Was this helpful?* / *Ask AI* / *Talk to agent*.
+1. Deploy / pull latest code (handoff + Import popup).
+2. Open chatbot builder → **Import**.
+3. Popup mein drag & drop / choose file, ya **Download simple / full example**.
+4. **Import to canvas** → nodes dikhne chahiye → **Save Flow**.
+5. Full support example: Natural Language node pe Support AiBot select karo.
+6. FAQ / copy edit → Save → enable/active.
 
-### Ask a question (AI)
+Included paths: menu (Billing / Technical / Account / Ask AI / Talk to agent) → FAQ follow-up → AI Q&A → confirm → `handoff_to_inbox`.
 
-1. Wait for response (user free text)
-2. **Natural Language** node: mode `knowledge_base`, select Support AiBot, send directly
-3. Interactive: *Did this help?* → Yes (back to menu) / No → handoff confirm
+### Manual build (only if you prefer not to import)
 
-### Talk to agent
+**Triggers:** `hi`, `hello`, `help`, `support`, `menu`
 
-1. Confirm: “Agent se baat karni hai?” → Yes / No  
-2. On Yes: **Function Call** node:
-   - Function name: `handoff_to_inbox`
-   - Optional parameter `confirmation_message` to override the default copy
-3. Do **not** add fake “agent connecting” text without this function — it would not stop the bot.
+**Main menu:** Billing, Technical, Account, Ask AI, Talk to agent
 
-Registered in `config/chatbot.php` → `function_registry.handoff_to_inbox` → `HandoffToInboxHandler`.
+**Ask AI:** Wait → Natural Language (`knowledge_base`) → helpful? / agent / menu
 
-### Offline / business hours
+**Talk to agent:** Confirm Yes → Function Call `handoff_to_inbox` (do not fake “agent connecting” without this function).
 
-Use DateTime / offline message on welcome or agent path, e.g.:
-
-> Agents available Mon–Sat 10:00–19:00 IST. You can still ask the AI, or choose Talk to agent to join the queue.
-
-Handoff still queues in Inbox for the next agent shift.
+Registered in `config/chatbot.php` → `function_registry.handoff_to_inbox`.
 
 ---
 

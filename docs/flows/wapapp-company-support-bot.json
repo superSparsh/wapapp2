@@ -1,0 +1,443 @@
+{
+  "nodes": [
+    {
+      "id": "welcome_1",
+      "type": "welcomeMessage",
+      "position": {
+        "x": 80,
+        "y": 320
+      },
+      "data": {
+        "messageType": "text",
+        "triggerKeyword": "hi, hello, help, support, menu, start",
+        "welcomeMessage": "Namaste! WapApp Support mein aapka swagat hai.\n\nAgents available: Mon–Sat 10:00–19:00 IST.\nNeeche se topic choose karein, ya agent se baat karein.",
+        "text": "Namaste! WapApp Support mein aapka swagat hai.\n\nAgents available: Mon–Sat 10:00–19:00 IST.\nNeeche se topic choose karein, ya agent se baat karein.",
+        "enableOfflineHours": false,
+        "timezone": "Asia/Kolkata",
+        "onlineFrom": "10:00",
+        "onlineUntil": "19:00",
+        "offlineMessage": "Abhi agents offline hain (Mon–Sat 10:00–19:00 IST). Aap phir bhi menu se help le sakte ho, ya Talk to agent choose karke queue join kar sakte ho.",
+        "label": "Welcome"
+      }
+    },
+    {
+      "id": "menu_1",
+      "type": "interactiveMessage",
+      "position": {
+        "x": 420,
+        "y": 320
+      },
+      "data": {
+        "interactiveType": "list",
+        "bodyText": "Kaise madad kar sakte hain?",
+        "buttonText": "Choose topic",
+        "sections": [
+          {
+            "title": "Support",
+            "rows": [
+              {
+                "id": "billing",
+                "title": "Billing",
+                "description": "Payments, invoice, plans"
+              },
+              {
+                "id": "technical",
+                "title": "Technical",
+                "description": "Templates, QR, sending issues"
+              },
+              {
+                "id": "account",
+                "title": "Account",
+                "description": "WhatsApp line / login"
+              },
+              {
+                "id": "ask_ai",
+                "title": "Ask AI",
+                "description": "Type your question"
+              },
+              {
+                "id": "talk_agent",
+                "title": "Talk to agent",
+                "description": "Human support queue"
+              }
+            ]
+          }
+        ],
+        "label": "Main Menu"
+      }
+    },
+    {
+      "id": "faq_billing",
+      "type": "welcomeMessage",
+      "position": {
+        "x": 780,
+        "y": 40
+      },
+      "data": {
+        "messageType": "text",
+        "triggerKeyword": "",
+        "welcomeMessage": "Billing / Payments\n\n• Plan upgrade/downgrade dashboard → Billing se hota hai.\n• Invoice email usually account email pe aati hai.\n• Payment fail ho to 10–15 min baad retry karein; phir bhi issue ho to agent se baat karein.\n\nRefund / charge dispute ke liye agent recommend hai.",
+        "label": "FAQ Billing"
+      }
+    },
+    {
+      "id": "faq_technical",
+      "type": "welcomeMessage",
+      "position": {
+        "x": 780,
+        "y": 200
+      },
+      "data": {
+        "messageType": "text",
+        "triggerKeyword": "",
+        "welcomeMessage": "Technical help\n\n• Template pending/rejected → Meta category/content check karein.\n• Messages deliver nahi ho rahe → line quality, 24h window, aur STOP keyword check karein.\n• QR / embedded signup issues → Integration / Onboarding screen refresh karke try karein.\n\nExact error text bhejo to AI ya agent better help kar sakte hain.",
+        "label": "FAQ Technical"
+      }
+    },
+    {
+      "id": "faq_account",
+      "type": "welcomeMessage",
+      "position": {
+        "x": 780,
+        "y": 360
+      },
+      "data": {
+        "messageType": "text",
+        "triggerKeyword": "",
+        "welcomeMessage": "Account / WhatsApp line\n\n• Login OTP email/spam folder check karein.\n• Line disconnect dikhe to Integration pe reconnect karein.\n• Team member access → Team settings se role assign hota hai.\n\nAccount ownership change / transfer ke liye agent se baat karein.",
+        "label": "FAQ Account"
+      }
+    },
+    {
+      "id": "followup_faq",
+      "type": "interactiveMessage",
+      "position": {
+        "x": 1120,
+        "y": 200
+      },
+      "data": {
+        "interactiveType": "button",
+        "bodyText": "Kya ye helpful tha?",
+        "buttons": [
+          {
+            "id": "helpful_yes",
+            "title": "Yes, thanks"
+          },
+          {
+            "id": "ask_ai_again",
+            "title": "Ask AI"
+          },
+          {
+            "id": "need_agent",
+            "title": "Talk to agent"
+          }
+        ],
+        "label": "FAQ Follow-up"
+      }
+    },
+    {
+      "id": "ask_ai_prompt",
+      "type": "welcomeMessage",
+      "position": {
+        "x": 780,
+        "y": 520
+      },
+      "data": {
+        "messageType": "text",
+        "triggerKeyword": "",
+        "welcomeMessage": "Apna sawal ek message mein likhein. Main knowledge base se jawab dunga.\n\nAgar sure na hoon to agent suggest karunga.",
+        "label": "Ask AI Prompt"
+      }
+    },
+    {
+      "id": "wait_ai",
+      "type": "waitForResponse",
+      "position": {
+        "x": 1120,
+        "y": 520
+      },
+      "data": {
+        "variableName": "user_question",
+        "label": "Wait for Question"
+      }
+    },
+    {
+      "id": "nl_ai",
+      "type": "naturalLanguage",
+      "position": {
+        "x": 1460,
+        "y": 520
+      },
+      "data": {
+        "label": "Support AI",
+        "mode": "knowledge_base",
+        "inputSource": "last_reply",
+        "sendDirectly": true,
+        "outputVariable": "_ai_response",
+        "ai_bot_id": null,
+        "customPrompt": "You are WapApp WhatsApp support. Answer briefly from the knowledge base only. If unsure, say you are not sure and suggest talking to a human agent. Do not invent billing, refunds, or account changes."
+      }
+    },
+    {
+      "id": "followup_ai",
+      "type": "interactiveMessage",
+      "position": {
+        "x": 1800,
+        "y": 520
+      },
+      "data": {
+        "interactiveType": "button",
+        "bodyText": "Kya ye answer helpful tha?",
+        "buttons": [
+          {
+            "id": "ai_yes",
+            "title": "Yes, thanks"
+          },
+          {
+            "id": "ai_agent",
+            "title": "Talk to agent"
+          },
+          {
+            "id": "ai_menu",
+            "title": "Main menu"
+          }
+        ],
+        "label": "AI Follow-up"
+      }
+    },
+    {
+      "id": "talk_confirm",
+      "type": "interactiveMessage",
+      "position": {
+        "x": 780,
+        "y": 700
+      },
+      "data": {
+        "interactiveType": "button",
+        "bodyText": "Human agent se baat karni hai? Haan bolne pe aap Inbox queue mein chale jaoge.",
+        "buttons": [
+          {
+            "id": "agent_yes",
+            "title": "Yes, connect"
+          },
+          {
+            "id": "agent_no",
+            "title": "No, menu"
+          }
+        ],
+        "label": "Confirm Agent"
+      }
+    },
+    {
+      "id": "handoff_1",
+      "type": "functionCall",
+      "position": {
+        "x": 1120,
+        "y": 700
+      },
+      "data": {
+        "functionName": "handoff_to_inbox",
+        "function_name": "handoff_to_inbox",
+        "resultVariable": "handoff_result",
+        "parameters": {
+          "confirmation_message": "Humara agent jaldi aapse connect karega. Aap Inbox queue mein ho."
+        },
+        "label": "Handoff to Inbox"
+      }
+    },
+    {
+      "id": "thanks_end",
+      "type": "welcomeMessage",
+      "position": {
+        "x": 1800,
+        "y": 200
+      },
+      "data": {
+        "messageType": "text",
+        "triggerKeyword": "",
+        "welcomeMessage": "Shukriya! Dobara help chahiye to hi / menu likhein.",
+        "label": "Thanks"
+      }
+    },
+    {
+      "id": "jump_menu",
+      "type": "jumpToStep",
+      "position": {
+        "x": 1460,
+        "y": 320
+      },
+      "data": {
+        "targetNodeId": "menu_1",
+        "showMessage": false,
+        "label": "Back to Menu"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e_welcome_menu",
+      "source": "welcome_1",
+      "target": "menu_1",
+      "sourceHandle": "default",
+      "targetHandle": "default",
+      "type": "default"
+    },
+    {
+      "id": "e_menu_billing",
+      "source": "menu_1",
+      "target": "faq_billing",
+      "sourceHandle": "interactive-0-0",
+      "targetHandle": "default",
+      "type": "default"
+    },
+    {
+      "id": "e_menu_technical",
+      "source": "menu_1",
+      "target": "faq_technical",
+      "sourceHandle": "interactive-0-1",
+      "targetHandle": "default",
+      "type": "default"
+    },
+    {
+      "id": "e_menu_account",
+      "source": "menu_1",
+      "target": "faq_account",
+      "sourceHandle": "interactive-0-2",
+      "targetHandle": "default",
+      "type": "default"
+    },
+    {
+      "id": "e_menu_ask_ai",
+      "source": "menu_1",
+      "target": "ask_ai_prompt",
+      "sourceHandle": "interactive-0-3",
+      "targetHandle": "default",
+      "type": "default"
+    },
+    {
+      "id": "e_menu_agent",
+      "source": "menu_1",
+      "target": "talk_confirm",
+      "sourceHandle": "interactive-0-4",
+      "targetHandle": "default",
+      "type": "default"
+    },
+    {
+      "id": "e_billing_followup",
+      "source": "faq_billing",
+      "target": "followup_faq",
+      "sourceHandle": "default",
+      "targetHandle": "default",
+      "type": "default"
+    },
+    {
+      "id": "e_technical_followup",
+      "source": "faq_technical",
+      "target": "followup_faq",
+      "sourceHandle": "default",
+      "targetHandle": "default",
+      "type": "default"
+    },
+    {
+      "id": "e_account_followup",
+      "source": "faq_account",
+      "target": "followup_faq",
+      "sourceHandle": "default",
+      "targetHandle": "default",
+      "type": "default"
+    },
+    {
+      "id": "e_faq_yes",
+      "source": "followup_faq",
+      "target": "thanks_end",
+      "sourceHandle": "button-0",
+      "targetHandle": "default",
+      "type": "default"
+    },
+    {
+      "id": "e_faq_ask_ai",
+      "source": "followup_faq",
+      "target": "ask_ai_prompt",
+      "sourceHandle": "button-1",
+      "targetHandle": "default",
+      "type": "default"
+    },
+    {
+      "id": "e_faq_agent",
+      "source": "followup_faq",
+      "target": "talk_confirm",
+      "sourceHandle": "button-2",
+      "targetHandle": "default",
+      "type": "default"
+    },
+    {
+      "id": "e_ask_wait",
+      "source": "ask_ai_prompt",
+      "target": "wait_ai",
+      "sourceHandle": "default",
+      "targetHandle": "default",
+      "type": "default"
+    },
+    {
+      "id": "e_wait_nl",
+      "source": "wait_ai",
+      "target": "nl_ai",
+      "sourceHandle": "default",
+      "targetHandle": "default",
+      "type": "default"
+    },
+    {
+      "id": "e_nl_followup",
+      "source": "nl_ai",
+      "target": "followup_ai",
+      "sourceHandle": "default",
+      "targetHandle": "default",
+      "type": "default"
+    },
+    {
+      "id": "e_ai_yes",
+      "source": "followup_ai",
+      "target": "thanks_end",
+      "sourceHandle": "button-0",
+      "targetHandle": "default",
+      "type": "default"
+    },
+    {
+      "id": "e_ai_agent",
+      "source": "followup_ai",
+      "target": "talk_confirm",
+      "sourceHandle": "button-1",
+      "targetHandle": "default",
+      "type": "default"
+    },
+    {
+      "id": "e_ai_menu",
+      "source": "followup_ai",
+      "target": "jump_menu",
+      "sourceHandle": "button-2",
+      "targetHandle": "default",
+      "type": "default"
+    },
+    {
+      "id": "e_agent_yes",
+      "source": "talk_confirm",
+      "target": "handoff_1",
+      "sourceHandle": "button-0",
+      "targetHandle": "default",
+      "type": "default"
+    },
+    {
+      "id": "e_agent_no",
+      "source": "talk_confirm",
+      "target": "jump_menu",
+      "sourceHandle": "button-1",
+      "targetHandle": "default",
+      "type": "default"
+    }
+  ],
+  "viewport": {
+    "x": 0,
+    "y": 0,
+    "zoom": 0.75
+  }
+}

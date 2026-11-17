@@ -51,7 +51,6 @@
             <img src="{{ asset('images/automation/import-flow.svg') }}" alt="" class="size-5" width="20" height="20">
             Import
           </button>
-          <input type="file" id="chatbot-import-file" accept=".json" class="hidden">
           <button
             type="button"
             data-action="save-flow"
@@ -64,6 +63,8 @@
         </div>
       </div>
     </div>
+
+    <x-automation.chatbot-import-modal />
 
     <section id="builder-section" data-builder-maximize-section class="relative flex min-h-0 flex-1 flex-col gap-4 bg-surface p-4 pt-4">
       <x-ui.builder-maximize-toolbar :show-flow-actions="true" />
@@ -172,8 +173,68 @@
         var saveBtn = document.querySelectorAll('[data-action="save-flow"]');
         var exportBtn = document.querySelectorAll('[data-action="export-flow"]');
         var importBtn = document.querySelectorAll('[data-action="import-flow"]');
-        var importFile = document.getElementById('chatbot-import-file');
         var saveLabels = document.querySelectorAll('[data-save-flow-label]');
+        var importModal = document.getElementById('modal-import-chatbot-flow');
+        var importDropzone = document.getElementById('chatbot-import-dropzone');
+        var importInput = document.getElementById('chatbot-import-modal-file');
+        var importConfirm = document.getElementById('chatbot-import-confirm-btn');
+        var importStatus = importModal ? importModal.querySelector('[data-import-status]') : null;
+        var selectedImportFile = null;
+
+        function openImportModal() {
+          if (!importModal) return;
+          resetImportDropzone();
+          importModal.classList.remove('hidden');
+          importModal.classList.add('flex');
+        }
+
+        function closeImportModal() {
+          if (!importModal) return;
+          importModal.classList.add('hidden');
+          importModal.classList.remove('flex');
+          resetImportDropzone();
+        }
+
+        function formatBytes(bytes) {
+          if (!bytes && bytes !== 0) return '';
+          if (bytes < 1024) return bytes + ' B';
+          if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+          return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+        }
+
+        function resetImportDropzone() {
+          selectedImportFile = null;
+          if (importInput) importInput.value = '';
+          if (importConfirm) importConfirm.disabled = true;
+          if (importStatus) importStatus.textContent = '';
+          if (!importDropzone) return;
+          var content = importDropzone.querySelector('[data-dropzone-content]');
+          var preview = importDropzone.querySelector('[data-dropzone-preview]');
+          if (content) content.classList.remove('hidden');
+          if (preview) preview.classList.add('hidden');
+          importDropzone.classList.remove('border-green-500', 'bg-green-50');
+        }
+
+        function setImportFile(file) {
+          if (!file) return;
+          var name = (file.name || '').toLowerCase();
+          if (!name.endsWith('.json') && file.type !== 'application/json') {
+            if (importStatus) importStatus.textContent = 'Only .json files are allowed.';
+            return;
+          }
+          selectedImportFile = file;
+          if (importConfirm) importConfirm.disabled = false;
+          if (importStatus) importStatus.textContent = 'Ready to import.';
+          if (!importDropzone) return;
+          var content = importDropzone.querySelector('[data-dropzone-content]');
+          var preview = importDropzone.querySelector('[data-dropzone-preview]');
+          var filename = importDropzone.querySelector('[data-filename]');
+          var filesize = importDropzone.querySelector('[data-filesize]');
+          if (content) content.classList.add('hidden');
+          if (preview) preview.classList.remove('hidden');
+          if (filename) filename.textContent = file.name;
+          if (filesize) filesize.textContent = formatBytes(file.size);
+        }
 
         saveBtn.forEach(function (button) {
           button.addEventListener('click', function () {
@@ -189,18 +250,69 @@
 
         importBtn.forEach(function (button) {
           button.addEventListener('click', function () {
-            if (importFile) {
-              importFile.click();
-            }
+            openImportModal();
           });
         });
 
-        if (importFile) {
-          importFile.addEventListener('change', function (event) {
+        if (importModal) {
+          importModal.querySelectorAll('[data-modal-close]').forEach(function (btn) {
+            btn.addEventListener('click', closeImportModal);
+          });
+          importModal.addEventListener('click', function (e) {
+            if (e.target === importModal) closeImportModal();
+          });
+        }
+
+        if (importDropzone && importInput) {
+          importDropzone.addEventListener('click', function (e) {
+            if (e.target.closest('[data-dropzone-clear]')) return;
+            importInput.click();
+          });
+
+          importInput.addEventListener('change', function () {
+            if (importInput.files && importInput.files[0]) {
+              setImportFile(importInput.files[0]);
+            }
+          });
+
+          ['dragenter', 'dragover'].forEach(function (evt) {
+            importDropzone.addEventListener(evt, function (e) {
+              e.preventDefault();
+              e.stopPropagation();
+              importDropzone.classList.add('border-green-500', 'bg-green-50');
+            });
+          });
+
+          ['dragleave', 'drop'].forEach(function (evt) {
+            importDropzone.addEventListener(evt, function (e) {
+              e.preventDefault();
+              e.stopPropagation();
+              importDropzone.classList.remove('border-green-500', 'bg-green-50');
+            });
+          });
+
+          importDropzone.addEventListener('drop', function (e) {
+            var file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+            if (file) setImportFile(file);
+          });
+
+          var clearBtn = importDropzone.querySelector('[data-dropzone-clear]');
+          if (clearBtn) {
+            clearBtn.addEventListener('click', function (e) {
+              e.preventDefault();
+              e.stopPropagation();
+              resetImportDropzone();
+            });
+          }
+        }
+
+        if (importConfirm) {
+          importConfirm.addEventListener('click', function () {
+            if (!selectedImportFile) return;
             window.dispatchEvent(new CustomEvent('chatbot:import-flow', {
-              detail: { input: event },
+              detail: { file: selectedImportFile },
             }));
-            importFile.value = '';
+            closeImportModal();
           });
         }
 

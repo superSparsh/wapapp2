@@ -1,0 +1,98 @@
+{
+  "nodes": [
+    {
+      "id": "welcome_1",
+      "type": "welcomeMessage",
+      "position": { "x": 80, "y": 220 },
+      "data": {
+        "label": "Welcome",
+        "messageType": "text",
+        "triggerKeyword": "hi, hello, menu",
+        "welcomeMessage": "Hi! Welcome to our WhatsApp support.\nChoose an option below."
+      }
+    },
+    {
+      "id": "menu_1",
+      "type": "interactiveMessage",
+      "position": { "x": 420, "y": 220 },
+      "data": {
+        "label": "Main Menu",
+        "interactiveType": "button",
+        "bodyText": "How can we help you?",
+        "buttons": [
+          { "id": "sales", "title": "Sales" },
+          { "id": "support", "title": "Support" },
+          { "id": "agent", "title": "Talk to agent" }
+        ]
+      }
+    },
+    {
+      "id": "sales_reply",
+      "type": "welcomeMessage",
+      "position": { "x": 780, "y": 80 },
+      "data": {
+        "label": "Sales Reply",
+        "messageType": "text",
+        "triggerKeyword": "",
+        "welcomeMessage": "Thanks! Our sales team will share plans and pricing. Reply menu anytime."
+      }
+    },
+    {
+      "id": "support_reply",
+      "type": "welcomeMessage",
+      "position": { "x": 780, "y": 220 },
+      "data": {
+        "label": "Support Reply",
+        "messageType": "text",
+        "triggerKeyword": "",
+        "welcomeMessage": "Got it. Tell us your issue in one message, or choose Talk to agent."
+      }
+    },
+    {
+      "id": "agent_confirm",
+      "type": "welcomeMessage",
+      "position": { "x": 780, "y": 360 },
+      "data": {
+        "label": "Agent Note",
+        "messageType": "text",
+        "triggerKeyword": "",
+        "welcomeMessage": "Okay — a human agent will reply here from Inbox. (In full support bot, use Function Call: handoff_to_inbox)"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "welcome_1",
+      "target": "menu_1",
+      "sourceHandle": "default",
+      "targetHandle": "default",
+      "type": "default"
+    },
+    {
+      "id": "e2",
+      "source": "menu_1",
+      "target": "sales_reply",
+      "sourceHandle": "button-0",
+      "targetHandle": "default",
+      "type": "default"
+    },
+    {
+      "id": "e3",
+      "source": "menu_1",
+      "target": "support_reply",
+      "sourceHandle": "button-1",
+      "targetHandle": "default",
+      "type": "default"
+    },
+    {
+      "id": "e4",
+      "source": "menu_1",
+      "target": "agent_confirm",
+      "sourceHandle": "button-2",
+      "targetHandle": "default",
+      "type": "default"
+    }
+  ],
+  "viewport": { "x": 40, "y": 40, "zoom": 0.9 }
+}

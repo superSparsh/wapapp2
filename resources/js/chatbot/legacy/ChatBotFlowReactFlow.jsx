@@ -6215,25 +6215,52 @@ const ChatBotFlowReactFlow = () => {
     }
   };
 
-  const importFlow = (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        try {
-          const flow = JSON.parse(e.target.result);
-          setNodes(flow.nodes || []);
-          setEdges((flow.edges || []).map(decorateEdge));
-          if (flow.viewport && reactFlowInstance) {
-            reactFlowInstance.setViewport(flow.viewport);
-          }
-          message.success("Flow imported successfully!");
-        } catch (error) {
-          message.error("Invalid flow file");
-        }
-      };
-      reader.readAsText(file);
+  const importFlowFromFile = (file) => {
+    if (!file) {
+      return;
     }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const parsed = JSON.parse(e.target.result);
+        // Accept ReactFlow export ({nodes,edges}) or nested API/export wrappers.
+        const flow =
+          parsed?.flow?.exported_data ||
+          parsed?.exported_data ||
+          parsed;
+
+        const nodes = Array.isArray(flow?.nodes) ? flow.nodes : [];
+        const edges = Array.isArray(flow?.edges) ? flow.edges : [];
+
+        if (nodes.length === 0) {
+          message.error(
+            "Import file has no nodes. Export from this builder, or use a file with { nodes, edges }."
+          );
+          return;
+        }
+
+        setNodes(nodes);
+        setEdges(edges.map(decorateEdge));
+        if (flow.viewport && reactFlowInstance) {
+          reactFlowInstance.setViewport(flow.viewport);
+        }
+        message.success(`Flow imported (${nodes.length} nodes). Click Save Flow.`);
+      } catch (error) {
+        message.error("Invalid flow file");
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const importFlow = (eventOrFile) => {
+    if (eventOrFile instanceof File) {
+      importFlowFromFile(eventOrFile);
+      return;
+    }
+
+    const file = eventOrFile?.target?.files?.[0];
+    importFlowFromFile(file);
   };
 
   const builderActionsRef = useRef({ saveFlow, exportFlow, importFlow });
@@ -6243,6 +6270,10 @@ const ChatBotFlowReactFlow = () => {
     const onSave = () => builderActionsRef.current.saveFlow();
     const onExport = () => builderActionsRef.current.exportFlow();
     const onImport = (event) => {
+      if (event.detail?.file instanceof File) {
+        builderActionsRef.current.importFlow(event.detail.file);
+        return;
+      }
       if (event.detail?.input) {
         builderActionsRef.current.importFlow(event.detail.input);
       }
