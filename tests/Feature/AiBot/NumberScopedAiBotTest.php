@@ -132,6 +132,40 @@ class NumberScopedAiBotTest extends TestCase
         $this->assertTrue($botB->is_default);
     }
 
+    public function test_router_ignores_sticky_bot_from_other_line(): void
+    {
+        $lineB = WhatsappLine::factory()->create();
+
+        $botA = AiBot::factory()->active()->create([
+            'name' => 'WapApp Bot',
+            'whatsapp_line_id' => $this->testLine->id,
+            'is_default' => true,
+        ]);
+        $botB = AiBot::factory()->active()->create([
+            'name' => 'Tekpro Bot',
+            'whatsapp_line_id' => $lineB->id,
+            'is_default' => true,
+        ]);
+
+        // Conversation is on Tekpro line but sticky points at WapApp bot.
+        $conversation = Conversation::factory()->create([
+            'whatsapp_line_id' => $lineB->id,
+            'active_ai_bot_id' => $botA->id,
+        ]);
+
+        $chat = Mockery::mock(AiChatService::class);
+        $chat->shouldReceive('processMessage')
+            ->once()
+            ->withArgs(function ($conv, $bot) use ($conversation, $botB) {
+                return $conv->is($conversation) && $bot->is($botB);
+            })
+            ->andReturn('tekpro reply');
+
+        $router = new AiBotRouterService(app(AiBotQueryService::class), $chat);
+        $this->assertSame('tekpro reply', $router->route($conversation, 'Hello'));
+        $this->assertSame($botB->id, $conversation->fresh()->active_ai_bot_id);
+    }
+
     public function test_bot_manager_filter_hides_other_line_bots_when_locked(): void
     {
         $lineB = WhatsappLine::factory()->create();

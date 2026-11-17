@@ -51,20 +51,35 @@ class NaturalLanguageProcessor extends AbstractNodeProcessor
         $mode = (string) ($data['mode'] ?? 'knowledge_base'); // 'knowledge_base', 'custom_prompt', 'intent_classification'
         $botId = $data['ai_bot_id'] ?? $data['aiBotId'] ?? null;
 
+        $lineId = $conversation->whatsapp_line_id !== null
+            ? (int) $conversation->whatsapp_line_id
+            : null;
+
         /** @var AiBot|null $bot */
         $bot = null;
         if ($botId) {
             $bot = AiBot::query()->find($botId);
+            // Ignore a bot pinned in the flow if it belongs to another WhatsApp number.
+            if ($bot !== null && $lineId !== null && $bot->whatsapp_line_id !== null
+                && (int) $bot->whatsapp_line_id !== $lineId) {
+                $bot = null;
+            }
         }
 
         if ($bot === null) {
-            $lineId = $conversation->whatsapp_line_id !== null
-                ? (int) $conversation->whatsapp_line_id
-                : null;
+            $hasLineBots = $lineId !== null
+                && AiBot::query()->active()->where('whatsapp_line_id', $lineId)->exists();
 
-            $forLine = static function () use ($lineId) {
+            $forLine = static function () use ($lineId, $hasLineBots) {
                 $query = AiBot::query()->active();
-                if ($lineId !== null) {
+                if ($lineId === null) {
+                    return $query;
+                }
+
+                if ($hasLineBots) {
+                    // Dedicated bots exist for this number — never fall back to other/legacy bots.
+                    $query->where('whatsapp_line_id', $lineId);
+                } else {
                     $query->where(function ($q) use ($lineId): void {
                         $q->where('whatsapp_line_id', $lineId)->orWhereNull('whatsapp_line_id');
                     });

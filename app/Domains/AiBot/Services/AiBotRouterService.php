@@ -26,19 +26,23 @@ class AiBotRouterService
      */
     public function route(Conversation $conversation, string $userMessage): ?string
     {
-        // 1. Check if conversation already has an active bot
-        if ($conversation->active_ai_bot_id !== null) {
-            $bot = AiBot::query()->find($conversation->active_ai_bot_id);
-
-            if ($bot !== null && $bot->isActive()) {
-                return $this->chatService->processMessage($conversation, $bot, $userMessage);
-            }
-        }
-
-        // 2. Load active bots for this WhatsApp number (legacy null-line bots included)
         $lineId = $conversation->whatsapp_line_id !== null
             ? (int) $conversation->whatsapp_line_id
             : null;
+
+        // 1. Sticky bot only if it still belongs to this WhatsApp number.
+        if ($conversation->active_ai_bot_id !== null) {
+            $bot = AiBot::query()->find($conversation->active_ai_bot_id);
+
+            if ($bot !== null && $bot->isActive() && $this->botAllowedForLine($bot, $lineId)) {
+                return $this->chatService->processMessage($conversation, $bot, $userMessage);
+            }
+
+            // Wrong-number / inactive sticky bot — clear and re-route.
+            $conversation->forceFill(['active_ai_bot_id' => null])->save();
+        }
+
+        // 2. Load active bots for this WhatsApp number (legacy null-line bots included)
         $activeBots = $this->queryService->activeBots($lineId);
 
         if ($activeBots->isEmpty()) {
@@ -135,5 +139,37 @@ class AiBotRouterService
         if ($conversation->active_ai_bot_id !== $bot->id) {
             $conversation->forceFill(['active_ai_bot_id' => $bot->id])->save();
         }
+    }
+
+    /**
+     * A bot may answer on a line when:
+     * - conversation has no line yet, or
+     * - bot is legacy (null line) AND this line has no dedicated bots, or
+     * - bot.whatsapp_line_id matches the conversation line.
+     *
+     * Never allow a bot bound to another WhatsApp number.
+     */
+    private function botAllowedForLine(AiBot $bot, ?int $lineId): bool
+    {
+        $botLineId = $bot->whatsapp_line_id !== null ? (int) $bot->whatsapp_line_id : null;
+
+        if ($lineId === null) {
+            return true;
+        }
+
+        if ($botLineId === $lineId) {
+            return true;
+        }
+
+        // Other-number bot: never.
+        if ($botLineId !== null) {
+            return false;
+        }
+
+        // Legacy null-line bot: only if this number has no dedicated bots yet.
+        return ! AiBot::query()
+            ->active()
+            ->where('whatsapp_line_id', $lineId)
+            ->exists();
     }
 }
