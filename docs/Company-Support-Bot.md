@@ -31,17 +31,9 @@ After handoff, `SupportHandoffService` sets `response_type=human_response`, clea
 ## 2. Create the Support AiBot + KB
 
 1. Open **AI Assistant → Bots** → create bot named e.g. `WapApp Support`, `type` / notes = support.
-2. System prompt (keep short and strict), for example:
+2. System prompt: paste the warm-professional help-desk prompt from [`public/examples/kb/wapapp-help-bot-system-prompt.txt`](../public/examples/kb/wapapp-help-bot-system-prompt.txt) (acknowledge → steps → next step; no Calendly; agent path says 15–30 minutes).
 
-```
-You are WapApp customer support on WhatsApp.
-Answer only from the knowledge base and business info.
-If you are not sure, say you are not sure and suggest talking to a human agent.
-Never invent billing, refund, or account changes — suggest an agent.
-Keep replies short for WhatsApp.
-```
-
-3. **Knowledge Base** tab: upload the ready PDF [`docs/kb/wapapp-support-knowledge-base.pdf`](kb/wapapp-support-knowledge-base.pdf) (also at `/examples/kb/wapapp-support-knowledge-base.pdf`; markdown source: [`wapapp-support-knowledge-base.md`](kb/wapapp-support-knowledge-base.md)). You can add more Help Center pages later. Chroma is source of truth (see `docs/Knowledge-Base-Chroma.md`). Do not rely on MySQL for KB corpus.
+3. **Knowledge Base** tab: upload [`docs/kb/wapapp-help-guide.pdf`](kb/wapapp-help-guide.pdf) (also at `/examples/kb/wapapp-help-guide.pdf`; markdown: [`wapapp-help-guide.md`](kb/wapapp-help-guide.md)). Remove older support PDFs first. Chroma is source of truth (see `docs/Knowledge-Base-Chroma.md`).
 4. Prefer this bot on the Natural Language node in the support flow (pick bot by id). Default bot is fine if this is the only bot on the tenant.
 
 ---
@@ -104,13 +96,18 @@ Default handoff: *Please wait while we connect you with our expert… typically 
 
 ---
 
-## 6. Launch test script
+## 6. Manager QA test script (run the same 4 chats every time)
 
-1. Message support number → menu appears  
-2. Category FAQ reply works  
-3. Ask AI → KB answer  
-4. Talk to agent → immediate handoff confirmation; Inbox shows human + unassigned; further user messages do **not** get AI  
-5. Agent reply from Inbox delivers  
+Import flow: [`public/examples/chatbot/wapapp-help-bot.json`](../public/examples/chatbot/wapapp-help-bot.json). Trigger: `help`.
+
+| # | Steps | Pass only if |
+|---|--------|----------------|
+| 1 | Menu → **Billing & plans** | Warm-professional full sentences; Account → Subscription guidance; no slang; no Calendly |
+| 2 | Menu → **Templates & sending** | Pending / Rejected / delivery guidance is clear and polished |
+| 3 | Menu → **Ask a question** → type `campaign not sending` | Acknowledge → steps → next step; asks what fails if needed; no booking link; no “I already assigned an agent” |
+| 4 | Menu → **Chat with agent** | Confirmation includes **15–30 minutes**; Inbox shows **Human** + Unassigned; further user messages do **not** get AI |
+
+Also confirm: agent reply from Inbox still delivers.
 
 ---
 
