@@ -33,7 +33,7 @@
               { "id": "billing", "title": "Billing & plans", "description": "Payments, invoices, wallet" },
               { "id": "templates", "title": "Templates & sending", "description": "Templates, campaigns, delivery" },
               { "id": "account", "title": "Account & login", "description": "Login, OTP, number connect" },
-              { "id": "ask_ai", "title": "Ask a question", "description": "Describe your issue for quick help" },
+              { "id": "ask_ai", "title": "Ask a question", "description": "Any other WapApp issue" },
               { "id": "agent", "title": "Chat with agent", "description": "Speak with our team" },
               { "id": "book_call", "title": "Book a call", "description": "Schedule a short meeting" }
             ]
@@ -42,77 +42,62 @@
       }
     },
     {
-      "id": "billing_faq",
+      "id": "ask_billing",
       "type": "welcomeMessage",
       "position": { "x": 700, "y": 40 },
       "data": {
-        "label": "Billing FAQ",
+        "label": "Ask billing",
         "messageType": "text",
         "triggerKeyword": "",
-        "welcomeMessage": "Thank you for reaching out.\n\nTo change your plan, open Account → Subscription and select the plan you need.\nIf an invoice is missing, please check the email on your account and your spam folder.\nIf a payment failed, wait a few minutes and try again. If payment was taken but your plan or wallet did not update, keep your payment reference ready and we can connect you with an agent."
+        "welcomeMessage": "Thank you. Please briefly describe your billing or payment issue in one short message."
       }
     },
     {
-      "id": "templates_faq",
+      "id": "ask_templates",
       "type": "welcomeMessage",
-      "position": { "x": 700, "y": 200 },
+      "position": { "x": 700, "y": 180 },
       "data": {
-        "label": "Templates FAQ",
+        "label": "Ask templates",
         "messageType": "text",
         "triggerKeyword": "",
-        "welcomeMessage": "Thank you for your message.\n\nIf a template is Pending, please wait for Meta review and avoid submitting the same template again.\nIf it was Rejected, update the category and wording, then submit again.\nIf messages are not delivering, confirm the WhatsApp number is Connected, use an approved template outside the 24-hour window, and check your wallet balance.\nFor campaigns, use an Approved template with a ready audience and sufficient wallet balance."
+        "welcomeMessage": "Thank you. Please briefly describe your template, campaign, or delivery issue in one short message."
       }
     },
     {
-      "id": "account_faq",
+      "id": "ask_account",
       "type": "welcomeMessage",
-      "position": { "x": 700, "y": 360 },
+      "position": { "x": 700, "y": 320 },
       "data": {
-        "label": "Account FAQ",
+        "label": "Ask account",
         "messageType": "text",
         "triggerKeyword": "",
-        "welcomeMessage": "I can help with that.\n\nIf an OTP is missing, check spam, confirm the account email, then request a new code.\nIf WhatsApp is not connecting, open Account → Integration, try Chrome or Incognito, allow Meta popups, and use Meta admin access.\nIf the number is disconnected, reconnect it from Integration.\nFor team access issues, please ask your account admin to review role permissions."
-      }
-    },
-    {
-      "id": "topic_followup",
-      "type": "interactiveMessage",
-      "position": { "x": 1040, "y": 200 },
-      "data": {
-        "label": "Topic follow-up",
-        "interactiveType": "button",
-        "bodyText": "Did this resolve your question?",
-        "buttons": [
-          { "id": "yes_thanks", "title": "Yes, thanks" },
-          { "id": "chat_agent", "title": "Chat with agent" },
-          { "id": "main_menu_btn", "title": "Main menu" }
-        ]
+        "welcomeMessage": "Thank you. Please briefly describe your account, login, OTP, or WhatsApp number issue in one short message."
       }
     },
     {
       "id": "ask_prompt",
       "type": "welcomeMessage",
-      "position": { "x": 700, "y": 520 },
+      "position": { "x": 700, "y": 460 },
       "data": {
-        "label": "Ask prompt",
+        "label": "Ask general",
         "messageType": "text",
         "triggerKeyword": "",
-        "welcomeMessage": "Please type your question in one short message, and we will assist you."
+        "welcomeMessage": "Thank you. Please type your question in one short message, and we will assist you."
       }
     },
     {
       "id": "wait_query",
       "type": "waitForResponse",
-      "position": { "x": 980, "y": 520 },
+      "position": { "x": 1000, "y": 260 },
       "data": {
-        "label": "Wait for question",
+        "label": "Wait for problem",
         "variableName": "user_problem"
       }
     },
     {
       "id": "nl_reply",
       "type": "naturalLanguage",
-      "position": { "x": 1260, "y": 520 },
+      "position": { "x": 1280, "y": 260 },
       "data": {
         "label": "AI reply",
         "mode": "knowledge_base",
@@ -121,15 +106,15 @@
         "outputVariable": "_ai_response",
         "ai_bot_id": null,
         "blockBookingLinks": true,
-        "customPrompt": "You are the WapApp customer help assistant on WhatsApp. Tone: warm-professional SaaS help desk. Polished business English.\n\nRequired reply shape every time:\n1) One short acknowledge line (e.g. Thank you for reaching out. / I can help with that.)\n2) Two to four short lines with clear steps in full sentences (paths like Account → Subscription)\n3) One next-step line\nKeep replies to 3–6 short lines. Answer only the user's issue.\n\nForbidden:\n- Any URL or booking/Calendly/meeting link\n- Support hours or Monday–Friday timings\n- Mentions of buttons, menus, More options, Connect with us, or “in the app”\n- Claiming you already requested or assigned an agent unless handoff already happened\n- Selling or inventing pricing, refunds, or account changes\n- Saying knowledge base, documents, or as an AI\n\nIf detail is missing: ask exactly one clarifying question, then stop.\nIf unsure, or for refunds/ownership/legal/login/payment-taken issues: offer an agent and say an agent typically replies within 15–30 minutes.\nFor campaign issues: ask what fails (not sending, pending, rejected template, wallet, audience) and give short WapApp steps."
+        "customPrompt": "You are the WapApp customer help assistant on WhatsApp. Tone: warm-professional SaaS help desk. Polished business English.\n\nThe customer chose a help topic from the menu, then described their problem. Answer that problem clearly using WapApp product knowledge.\n\nRequired reply shape every time:\n1) One short acknowledge line (e.g. Thank you for reaching out. / I can help with that.)\n2) Two to four short lines with clear steps in full sentences (paths like Account → Subscription)\n3) One next-step line\nKeep replies to 3–6 short lines. Answer only the user's issue.\n\nForbidden:\n- Any URL or booking/Calendly/meeting link\n- Support hours or Monday–Friday timings\n- Mentions of buttons, menus, More options, Connect with us, or “in the app”\n- Claiming you already requested or assigned an agent unless handoff already happened\n- Selling or inventing pricing, refunds, or account changes\n- Saying knowledge base, documents, or as an AI\n\nIf detail is missing: ask exactly one clarifying question, then stop.\nIf unsure, or for refunds/ownership/legal/login/payment-taken issues: offer an agent and say an agent typically replies within 15–30 minutes.\nFor campaign issues: ask what fails (not sending, pending, rejected template, wallet, audience) and give short WapApp steps."
       }
     },
     {
       "id": "ai_followup",
       "type": "interactiveMessage",
-      "position": { "x": 1540, "y": 520 },
+      "position": { "x": 1560, "y": 260 },
       "data": {
-        "label": "AI follow-up",
+        "label": "Did this resolve",
         "interactiveType": "button",
         "bodyText": "{{_ai_response}}\n\nDid this resolve your question?",
         "buttons": [
@@ -142,7 +127,7 @@
     {
       "id": "connect_us_1",
       "type": "welcomeMessage",
-      "position": { "x": 700, "y": 700 },
+      "position": { "x": 700, "y": 640 },
       "data": {
         "label": "Book a call",
         "messageType": "text",
@@ -153,7 +138,7 @@
     {
       "id": "after_connect",
       "type": "interactiveMessage",
-      "position": { "x": 1040, "y": 700 },
+      "position": { "x": 1000, "y": 640 },
       "data": {
         "label": "After call link",
         "interactiveType": "button",
@@ -168,7 +153,7 @@
     {
       "id": "thanks_end",
       "type": "welcomeMessage",
-      "position": { "x": 1400, "y": 40 },
+      "position": { "x": 1840, "y": 80 },
       "data": {
         "label": "Thanks",
         "messageType": "text",
@@ -179,7 +164,7 @@
     {
       "id": "handoff_1",
       "type": "functionCall",
-      "position": { "x": 1400, "y": 320 },
+      "position": { "x": 1840, "y": 320 },
       "data": {
         "label": "Handoff to Inbox",
         "functionName": "handoff_to_inbox",
@@ -193,7 +178,7 @@
     {
       "id": "jump_menu",
       "type": "jumpToStep",
-      "position": { "x": 1680, "y": 200 },
+      "position": { "x": 1840, "y": 480 },
       "data": {
         "label": "Back to menu",
         "targetNodeId": "main_menu",
@@ -204,24 +189,21 @@
   "edges": [
     { "id": "e_welcome_menu", "source": "welcome_1", "target": "main_menu", "sourceHandle": "default", "targetHandle": "default", "type": "default" },
 
-    { "id": "e_menu_billing", "source": "main_menu", "target": "billing_faq", "sourceHandle": "interactive-0-0", "targetHandle": "default", "type": "default" },
-    { "id": "e_menu_templates", "source": "main_menu", "target": "templates_faq", "sourceHandle": "interactive-0-1", "targetHandle": "default", "type": "default" },
-    { "id": "e_menu_account", "source": "main_menu", "target": "account_faq", "sourceHandle": "interactive-0-2", "targetHandle": "default", "type": "default" },
+    { "id": "e_menu_billing", "source": "main_menu", "target": "ask_billing", "sourceHandle": "interactive-0-0", "targetHandle": "default", "type": "default" },
+    { "id": "e_menu_templates", "source": "main_menu", "target": "ask_templates", "sourceHandle": "interactive-0-1", "targetHandle": "default", "type": "default" },
+    { "id": "e_menu_account", "source": "main_menu", "target": "ask_account", "sourceHandle": "interactive-0-2", "targetHandle": "default", "type": "default" },
     { "id": "e_menu_ask", "source": "main_menu", "target": "ask_prompt", "sourceHandle": "interactive-0-3", "targetHandle": "default", "type": "default" },
     { "id": "e_menu_agent", "source": "main_menu", "target": "handoff_1", "sourceHandle": "interactive-0-4", "targetHandle": "default", "type": "default" },
     { "id": "e_menu_call", "source": "main_menu", "target": "connect_us_1", "sourceHandle": "interactive-0-5", "targetHandle": "default", "type": "default" },
 
-    { "id": "e_billing_fu", "source": "billing_faq", "target": "topic_followup", "sourceHandle": "default", "targetHandle": "default", "type": "default" },
-    { "id": "e_templates_fu", "source": "templates_faq", "target": "topic_followup", "sourceHandle": "default", "targetHandle": "default", "type": "default" },
-    { "id": "e_account_fu", "source": "account_faq", "target": "topic_followup", "sourceHandle": "default", "targetHandle": "default", "type": "default" },
-
-    { "id": "e_topic_yes", "source": "topic_followup", "target": "thanks_end", "sourceHandle": "button-0", "targetHandle": "default", "type": "default" },
-    { "id": "e_topic_agent", "source": "topic_followup", "target": "handoff_1", "sourceHandle": "button-1", "targetHandle": "default", "type": "default" },
-    { "id": "e_topic_menu", "source": "topic_followup", "target": "jump_menu", "sourceHandle": "button-2", "targetHandle": "default", "type": "default" },
-
+    { "id": "e_billing_wait", "source": "ask_billing", "target": "wait_query", "sourceHandle": "default", "targetHandle": "default", "type": "default" },
+    { "id": "e_templates_wait", "source": "ask_templates", "target": "wait_query", "sourceHandle": "default", "targetHandle": "default", "type": "default" },
+    { "id": "e_account_wait", "source": "ask_account", "target": "wait_query", "sourceHandle": "default", "targetHandle": "default", "type": "default" },
     { "id": "e_ask_wait", "source": "ask_prompt", "target": "wait_query", "sourceHandle": "default", "targetHandle": "default", "type": "default" },
+
     { "id": "e_wait_ai", "source": "wait_query", "target": "nl_reply", "sourceHandle": "default", "targetHandle": "default", "type": "default" },
     { "id": "e_ai_fu", "source": "nl_reply", "target": "ai_followup", "sourceHandle": "default", "targetHandle": "default", "type": "default" },
+
     { "id": "e_ai_yes", "source": "ai_followup", "target": "thanks_end", "sourceHandle": "button-0", "targetHandle": "default", "type": "default" },
     { "id": "e_ai_agent", "source": "ai_followup", "target": "handoff_1", "sourceHandle": "button-1", "targetHandle": "default", "type": "default" },
     { "id": "e_ai_menu", "source": "ai_followup", "target": "jump_menu", "sourceHandle": "button-2", "targetHandle": "default", "type": "default" },

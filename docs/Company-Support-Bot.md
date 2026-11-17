@@ -102,9 +102,9 @@ Import flow: [`public/examples/chatbot/wapapp-help-bot.json`](../public/examples
 
 | # | Steps | Pass only if |
 |---|--------|----------------|
-| 1 | Menu → **Billing & plans** | Warm-professional full sentences; Account → Subscription guidance; no slang; no Calendly |
-| 2 | Menu → **Templates & sending** | Pending / Rejected / delivery guidance is clear and polished |
-| 3 | Menu → **Ask a question** → type `campaign not sending` | Acknowledge → steps → next step; asks what fails if needed; no booking link; no “I already assigned an agent” |
+| 1 | Menu → **Billing & plans** → describe issue (e.g. change plan) | Bot asks for the problem first; AI reply is warm-professional; then **Did this resolve your question?**; no Calendly |
+| 2 | Menu → **Templates & sending** → describe issue | Same ask → AI → resolve buttons pattern |
+| 3 | Menu → **Ask a question** → type `campaign not sending` | Acknowledge → steps → next step; no booking link; no “I already assigned an agent” |
 | 4 | Menu → **Chat with agent** | Confirmation includes **15–30 minutes**; Inbox shows **Human** + Unassigned; further user messages do **not** get AI |
 
 Also confirm: agent reply from Inbox still delivers.
