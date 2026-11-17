@@ -45,7 +45,39 @@ class DpdpReadinessTest extends TestCase
             ->assertSee('Privacy / Terms / Breach playbook pages')
             ->assertSee('Consent event ledger')
             ->assertSee('Rights + grievance request workflow')
-            ->assertSee('OFF (draft)');
+            ->assertSee('OFF (draft)')
+            ->assertSee(route('admin.legal.privacy', absolute: false), false);
+    }
+
+    public function test_admin_can_open_legal_preview_pages(): void
+    {
+        $admin = Admin::query()->create([
+            'name' => 'Legal Preview Admin',
+            'email' => 'legal-preview@wapapp.test',
+            'password' => 'password',
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.legal.privacy'))
+            ->assertOk()
+            ->assertSee('Privacy Policy')
+            ->assertSee('Data Fiduciary');
+
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.legal.terms'))
+            ->assertOk()
+            ->assertSee('Terms of Service');
+
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.legal.breach'))
+            ->assertOk()
+            ->assertSee('Personal Data Breach Playbook');
+
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.legal.collection-notice'))
+            ->assertOk()
+            ->assertSee('Collection-point notice');
     }
 
     public function test_customer_show_includes_dpdp_checklist_and_custom_terms_pdf(): void

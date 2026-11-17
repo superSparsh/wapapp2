@@ -22,6 +22,7 @@ use App\Domains\Admin\Http\Controllers\DashboardController;
 use App\Domains\Admin\Http\Controllers\DataPurgeController;
 use App\Domains\Admin\Http\Controllers\DataPrincipalRequestController;
 use App\Domains\Admin\Http\Controllers\DpdpReadinessController;
+use App\Domains\Admin\Http\Controllers\LegalPreviewController;
 use App\Domains\Admin\Http\Controllers\EnterAdminViewController;
 use App\Domains\Admin\Http\Controllers\FormTemplateController;
 use App\Domains\Admin\Http\Controllers\ImpersonationController;
@@ -265,6 +266,10 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::put('/tittu-gateway', [TittuGatewayStatusController::class, 'update'])->name('tittu-gateway.update');
 
         Route::get('/legal/dpdp-readiness', DpdpReadinessController::class)->name('dpdp-readiness');
+        Route::get('/legal/privacy', [LegalPreviewController::class, 'privacy'])->name('legal.privacy');
+        Route::get('/legal/terms', [LegalPreviewController::class, 'terms'])->name('legal.terms');
+        Route::get('/legal/breach-playbook', [LegalPreviewController::class, 'breach'])->name('legal.breach');
+        Route::get('/legal/collection-notice', [LegalPreviewController::class, 'collectionNotice'])->name('legal.collection-notice');
         Route::get('/legal/rights-requests', [DataPrincipalRequestController::class, 'index'])->name('rights-requests.index');
         Route::put('/legal/rights-requests/{dataPrincipalRequest}', [DataPrincipalRequestController::class, 'update'])->name('rights-requests.update');
 

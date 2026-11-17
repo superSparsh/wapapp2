@@ -66,8 +66,8 @@ class DpdpReadinessService
                 'key' => 'privacy_terms_breach',
                 'label' => 'Privacy / Terms / Breach playbook pages',
                 'status' => ($privacyRoute && $termsRoute && $breachRoute) ? 'done' : 'pending',
-                'detail' => 'Login-gated drafts (not public footer yet). Auth users can open profile legal URLs.',
-                'href' => $privacyRoute ? route('profile.privacy-policy') : null,
+                'detail' => 'Login-gated drafts (not public footer yet). Open admin previews below for leadership review.',
+                'href' => Route::has('admin.legal.privacy') ? route('admin.legal.privacy') : null,
             ],
             [
                 'key' => 'grievance',
@@ -85,7 +85,7 @@ class DpdpReadinessService
                 'detail' => $metaOk
                     ? 'Business Terms, Commerce Policy, Business Policy, and Program Addendum URLs are set.'
                     : 'One or more LEGAL_META_* URLs are empty.',
-                'href' => Route::has('signup.step-3') ? route('signup.step-3') : null,
+                'href' => (string) ($meta['business_terms']['pdf_url'] ?? $meta['business_terms']['url'] ?? '') ?: null,
             ],
             [
                 'key' => 'custom_terms_workflow',
@@ -94,21 +94,21 @@ class DpdpReadinessService
                 'detail' => $customTermsTable
                     ? 'Draft / submit / approve / reject / remove (+ optional suspend) and PDF download available.'
                     : 'Run central migration for business_custom_terms.',
-                'href' => null,
+                'href' => Route::has('admin.customers.index') ? route('admin.customers.index') : null,
             ],
             [
                 'key' => 'signed_onboarding_pdf',
                 'label' => 'Signed onboarding agreement PDF',
                 'status' => 'done',
                 'detail' => 'Resolved from forms.tekprocloud.com onboarding submissions when PDF is on file.',
-                'href' => null,
+                'href' => Route::has('admin.customers.index') ? route('admin.customers.index') : null,
             ],
             [
                 'key' => 'collection_notice',
                 'label' => 'Collection-point notice (signup)',
                 'status' => 'done',
                 'detail' => 'Reusable notice component + acknowledgement checkbox on register profile step.',
-                'href' => Route::has('signup.register') ? route('signup.register') : null,
+                'href' => Route::has('admin.legal.collection-notice') ? route('admin.legal.collection-notice') : null,
             ],
             [
                 'key' => 'age_gate',
@@ -156,7 +156,7 @@ class DpdpReadinessService
                 'label' => 'AI processing disclosure',
                 'status' => 'done',
                 'detail' => 'AI processing notice on Create/Edit AI Bot. Privacy draft also covers processors.',
-                'href' => Route::has('ai-bots.create') ? route('ai-bots.create') : null,
+                'href' => Route::has('admin.legal.privacy') ? route('admin.legal.privacy') : null,
             ],
             [
                 'key' => 'public_publish',
@@ -186,7 +186,7 @@ class DpdpReadinessService
                 'label' => 'Org: training + breach drills',
                 'status' => 'pending',
                 'detail' => 'Staff DPDP training records and at least one breach-playbook tabletop drill.',
-                'href' => $breachRoute ? route('profile.breach-playbook') : null,
+                'href' => Route::has('admin.legal.breach') ? route('admin.legal.breach') : null,
             ],
             [
                 'key' => 'org_sdf',

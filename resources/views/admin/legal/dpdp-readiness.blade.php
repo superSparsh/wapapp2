@@ -59,8 +59,12 @@
           <dd class="mt-1 text-sm font-medium text-text-primary">{{ $config['minimum_age'] ?? 18 }}+</dd>
         </div>
       </dl>
-      <p class="mt-4 text-sm">
-        <a href="{{ route('admin.rights-requests.index') }}" class="font-semibold text-primary-2 underline">Open rights / grievance queue</a>
+      <p class="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-sm">
+        <a href="{{ route('admin.legal.privacy') }}" class="font-semibold text-primary-2 underline">Privacy Policy</a>
+        <a href="{{ route('admin.legal.terms') }}" class="font-semibold text-primary-2 underline">Terms of Service</a>
+        <a href="{{ route('admin.legal.breach') }}" class="font-semibold text-primary-2 underline">Breach playbook</a>
+        <a href="{{ route('admin.legal.collection-notice') }}" class="font-semibold text-primary-2 underline">Collection notice</a>
+        <a href="{{ route('admin.rights-requests.index') }}" class="font-semibold text-primary-2 underline">Rights / grievance queue</a>
       </p>
     </section>
 
