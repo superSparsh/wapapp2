@@ -3,7 +3,7 @@
     {
       "id": "welcome_1",
       "type": "welcomeMessage",
-      "position": { "x": 80, "y": 260 },
+      "position": { "x": 60, "y": 280 },
       "data": {
         "label": "Welcome",
         "messageType": "text",
@@ -20,16 +20,27 @@
     {
       "id": "wait_query",
       "type": "waitForResponse",
-      "position": { "x": 400, "y": 260 },
+      "position": { "x": 360, "y": 280 },
       "data": {
         "label": "Wait for query",
         "variableName": "user_problem"
       }
     },
     {
+      "id": "nl_intent",
+      "type": "naturalLanguage",
+      "position": { "x": 660, "y": 280 },
+      "data": {
+        "label": "Understand intent",
+        "mode": "intent_classification",
+        "inputSource": "last_reply",
+        "intents": ["question", "agent", "call"]
+      }
+    },
+    {
       "id": "nl_reply",
       "type": "naturalLanguage",
-      "position": { "x": 720, "y": 260 },
+      "position": { "x": 980, "y": 160 },
       "data": {
         "label": "AI reply",
         "mode": "knowledge_base",
@@ -37,13 +48,13 @@
         "sendDirectly": true,
         "outputVariable": "_ai_response",
         "ai_bot_id": null,
-        "customPrompt": "You are a WapApp WhatsApp assistant. Reply in clear professional English. Keep it very short (3–6 lines max). Answer the user's issue directly. Never say knowledge base, documents, or internal systems. If unsure, or for refunds/ownership/legal issues, ask if they want to chat with an agent. Never invent pricing, refunds, or account changes."
+        "customPrompt": "You are a WapApp WhatsApp assistant. Reply in clear professional English. Keep it very short (3–6 lines max). Answer only the user's issue.\n\nStrict rules:\n- Do NOT share Calendly links, booking links, or any “connect with us” / call scheduling links.\n- Do NOT push a call or meeting unless the user clearly asked for one.\n- Never say knowledge base, documents, or internal systems.\n- If unsure, or for refunds/ownership/legal issues, briefly ask if they want to chat with an agent.\n- Never invent pricing, refunds, or account changes."
       }
     },
     {
       "id": "followup_1",
       "type": "interactiveMessage",
-      "position": { "x": 1040, "y": 260 },
+      "position": { "x": 1300, "y": 160 },
       "data": {
         "label": "Quick follow-up",
         "interactiveType": "button",
@@ -58,7 +69,7 @@
     {
       "id": "thanks_end",
       "type": "welcomeMessage",
-      "position": { "x": 1360, "y": 80 },
+      "position": { "x": 1620, "y": 40 },
       "data": {
         "label": "Thanks",
         "messageType": "text",
@@ -69,7 +80,7 @@
     {
       "id": "menu_more",
       "type": "interactiveMessage",
-      "position": { "x": 1360, "y": 260 },
+      "position": { "x": 1620, "y": 200 },
       "data": {
         "label": "More options",
         "interactiveType": "button",
@@ -84,7 +95,7 @@
     {
       "id": "ask_again_prompt",
       "type": "welcomeMessage",
-      "position": { "x": 1680, "y": 120 },
+      "position": { "x": 1940, "y": 80 },
       "data": {
         "label": "Ask again",
         "messageType": "text",
@@ -95,7 +106,7 @@
     {
       "id": "connect_us_1",
       "type": "welcomeMessage",
-      "position": { "x": 1680, "y": 280 },
+      "position": { "x": 980, "y": 360 },
       "data": {
         "label": "Connect with us",
         "messageType": "text",
@@ -106,7 +117,7 @@
     {
       "id": "after_connect",
       "type": "interactiveMessage",
-      "position": { "x": 2000, "y": 280 },
+      "position": { "x": 1300, "y": 360 },
       "data": {
         "label": "After connect",
         "interactiveType": "button",
@@ -121,7 +132,7 @@
     {
       "id": "handoff_1",
       "type": "functionCall",
-      "position": { "x": 1360, "y": 460 },
+      "position": { "x": 980, "y": 520 },
       "data": {
         "label": "Handoff to Inbox",
         "functionName": "handoff_to_inbox",
@@ -135,7 +146,7 @@
     {
       "id": "jump_wait",
       "type": "jumpToStep",
-      "position": { "x": 2000, "y": 120 },
+      "position": { "x": 2260, "y": 80 },
       "data": {
         "label": "Jump to wait",
         "targetNodeId": "wait_query",
@@ -145,19 +156,27 @@
   ],
   "edges": [
     { "id": "e_welcome_wait", "source": "welcome_1", "target": "wait_query", "sourceHandle": "default", "targetHandle": "default", "type": "default" },
-    { "id": "e_wait_nl", "source": "wait_query", "target": "nl_reply", "sourceHandle": "default", "targetHandle": "default", "type": "default" },
+    { "id": "e_wait_intent", "source": "wait_query", "target": "nl_intent", "sourceHandle": "default", "targetHandle": "default", "type": "default" },
+
+    { "id": "e_intent_question", "source": "nl_intent", "target": "nl_reply", "sourceHandle": "output_intent_question", "targetHandle": "default", "type": "default" },
+    { "id": "e_intent_agent", "source": "nl_intent", "target": "handoff_1", "sourceHandle": "output_intent_agent", "targetHandle": "default", "type": "default" },
+    { "id": "e_intent_call", "source": "nl_intent", "target": "connect_us_1", "sourceHandle": "output_intent_call", "targetHandle": "default", "type": "default" },
+    { "id": "e_intent_fallback", "source": "nl_intent", "target": "nl_reply", "sourceHandle": "output_fallback", "targetHandle": "default", "type": "default" },
+
     { "id": "e_nl_followup", "source": "nl_reply", "target": "followup_1", "sourceHandle": "default", "targetHandle": "default", "type": "default" },
     { "id": "e_yes", "source": "followup_1", "target": "thanks_end", "sourceHandle": "button-0", "targetHandle": "default", "type": "default" },
     { "id": "e_agent", "source": "followup_1", "target": "handoff_1", "sourceHandle": "button-1", "targetHandle": "default", "type": "default" },
     { "id": "e_more", "source": "followup_1", "target": "menu_more", "sourceHandle": "button-2", "targetHandle": "default", "type": "default" },
+
     { "id": "e_more_ask", "source": "menu_more", "target": "ask_again_prompt", "sourceHandle": "button-0", "targetHandle": "default", "type": "default" },
     { "id": "e_more_connect", "source": "menu_more", "target": "connect_us_1", "sourceHandle": "button-1", "targetHandle": "default", "type": "default" },
     { "id": "e_more_agent", "source": "menu_more", "target": "handoff_1", "sourceHandle": "button-2", "targetHandle": "default", "type": "default" },
+
     { "id": "e_ask_jump", "source": "ask_again_prompt", "target": "jump_wait", "sourceHandle": "default", "targetHandle": "default", "type": "default" },
     { "id": "e_connect_next", "source": "connect_us_1", "target": "after_connect", "sourceHandle": "default", "targetHandle": "default", "type": "default" },
     { "id": "e_after_done", "source": "after_connect", "target": "thanks_end", "sourceHandle": "button-0", "targetHandle": "default", "type": "default" },
     { "id": "e_after_agent", "source": "after_connect", "target": "handoff_1", "sourceHandle": "button-1", "targetHandle": "default", "type": "default" },
     { "id": "e_after_ask", "source": "after_connect", "target": "ask_again_prompt", "sourceHandle": "button-2", "targetHandle": "default", "type": "default" }
   ],
-  "viewport": { "x": 0, "y": 40, "zoom": 0.75 }
+  "viewport": { "x": 0, "y": 20, "zoom": 0.7 }
 }
