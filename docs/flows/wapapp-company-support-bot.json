@@ -3,24 +3,30 @@
     {
       "id": "welcome_1",
       "type": "welcomeMessage",
-      "position": { "x": 80, "y": 320 },
+      "position": {
+        "x": 80,
+        "y": 320
+      },
       "data": {
         "messageType": "text",
         "triggerKeyword": "hi, hello, help, support, menu, start",
-        "welcomeMessage": "Hello! Welcome to WapApp Support.\n\nOur agents are available Monday to Friday, 10:00 AM – 6:00 PM IST.\nPlease choose a topic below, or talk to an agent.",
-        "text": "Hello! Welcome to WapApp Support.\n\nOur agents are available Monday to Friday, 10:00 AM – 6:00 PM IST.\nPlease choose a topic below, or talk to an agent.",
+        "welcomeMessage": "Hello! Welcome to WapApp Support.\n\nOur agents are available Monday to Friday, 10:00 AM to 6:00 PM IST.\nPlease choose a topic below, or talk to an agent.",
+        "text": "Hello! Welcome to WapApp Support.\n\nOur agents are available Monday to Friday, 10:00 AM to 6:00 PM IST.\nPlease choose a topic below, or talk to an agent.",
         "enableOfflineHours": false,
         "timezone": "Asia/Kolkata",
         "onlineFrom": "10:00",
         "onlineUntil": "18:00",
-        "offlineMessage": "Our agents are currently offline. Support hours are Monday to Friday, 10:00 AM – 6:00 PM IST.\n\nYou can still browse the menu or choose Talk to agent to join the queue.",
+        "offlineMessage": "Our agents are currently offline. Support hours are Monday to Friday, 10:00 AM to 6:00 PM IST.\n\nYou can still browse the menu or choose Talk to an agent to join the queue.",
         "label": "Welcome"
       }
     },
     {
       "id": "menu_1",
       "type": "interactiveMessage",
-      "position": { "x": 420, "y": 320 },
+      "position": {
+        "x": 420,
+        "y": 320
+      },
       "data": {
         "interactiveType": "list",
         "bodyText": "How can we help you today?",
@@ -37,12 +43,12 @@
               {
                 "id": "technical",
                 "title": "Technical",
-                "description": "Templates, QR, sending issues"
+                "description": "Templates, connect number, delivery"
               },
               {
                 "id": "account",
                 "title": "Account",
-                "description": "WhatsApp line and login help"
+                "description": "WhatsApp Number and login help"
               },
               {
                 "id": "ask_ai",
@@ -52,7 +58,7 @@
               {
                 "id": "talk_agent",
                 "title": "Talk to agent",
-                "description": "Connect with human support"
+                "description": "Connect with our support team"
               }
             ]
           }
@@ -63,66 +69,97 @@
     {
       "id": "faq_billing",
       "type": "welcomeMessage",
-      "position": { "x": 780, "y": 40 },
+      "position": {
+        "x": 780,
+        "y": 40
+      },
       "data": {
         "messageType": "text",
         "triggerKeyword": "",
-        "welcomeMessage": "Billing & payments\n\n• Upgrade or change your plan from Dashboard → Billing.\n• Invoices are usually sent to your account email.\n• If a payment fails, wait 10–15 minutes and try again. If it still fails, please talk to an agent.\n\nFor refunds or billing disputes, we recommend speaking with an agent.",
-        "label": "FAQ Billing"
+        "welcomeMessage": "Billing & payments\n\n• Upgrade or change your plan from Dashboard → Billing.\n• Invoices are usually sent to your account email.\n• If a payment fails, wait 10 to 15 minutes and try again. If it still fails, please Talk to an agent.\n\nFor refunds or billing disputes, please Talk to an agent so we can review the payment details safely.",
+        "label": "FAQ Billing",
+        "text": "Billing & payments\n\n• Upgrade or change your plan from Dashboard → Billing.\n• Invoices are usually sent to your account email.\n• If a payment fails, wait 10 to 15 minutes and try again. If it still fails, please Talk to an agent.\n\nFor refunds or billing disputes, please Talk to an agent so we can review the payment details safely."
       }
     },
     {
       "id": "faq_technical",
       "type": "welcomeMessage",
-      "position": { "x": 780, "y": 200 },
+      "position": {
+        "x": 780,
+        "y": 200
+      },
       "data": {
         "messageType": "text",
         "triggerKeyword": "",
-        "welcomeMessage": "Technical help\n\n• Template pending or rejected — review Meta’s category and content guidelines.\n• Messages not delivering — check line quality, the 24-hour messaging window, and STOP keywords.\n• QR or embedded signup issues — refresh Integration / Onboarding and try again.\n\nShare the exact error message so AI or an agent can help you faster.",
-        "label": "FAQ Technical"
+        "welcomeMessage": "Technical help\n\nTemplates\n• Pending means Meta is still reviewing your message. Please wait. Do not submit the same template again and again.\n• Rejected usually means the category or wording needs a fix. Open Templates, read Meta’s note, correct the text or category, then submit a fresh version.\n• Tip: Promotions need the Marketing category. Order updates and account alerts usually use Utility. OTPs use Authentication.\n\nMessages not delivering\n• First check that your WhatsApp Number shows Connected under Integration.\n• Outside the 24 hour customer chat window, free form replies are blocked. Use an approved template instead.\n• If the contact sent STOP, do not keep sending marketing or automation messages to that number.\n• Also check Inbox delivery status and wallet balance.\n\nConnecting your WhatsApp Number\n• During setup you may see a scan code or Meta signup screen. That is how you link your WhatsApp Business Number to WapApp.\n• Refresh Integration, try Chrome or an Incognito window, and allow pop ups for Meta login.\n• Use an account that has admin access on the Meta Business / WhatsApp Business Account.\n\nShare the exact error text or a screenshot so we can help faster. You can also Ask AI or Talk to an agent.",
+        "label": "FAQ Technical",
+        "text": "Technical help\n\nTemplates\n• Pending means Meta is still reviewing your message. Please wait. Do not submit the same template again and again.\n• Rejected usually means the category or wording needs a fix. Open Templates, read Meta’s note, correct the text or category, then submit a fresh version.\n• Tip: Promotions need the Marketing category. Order updates and account alerts usually use Utility. OTPs use Authentication.\n\nMessages not delivering\n• First check that your WhatsApp Number shows Connected under Integration.\n• Outside the 24 hour customer chat window, free form replies are blocked. Use an approved template instead.\n• If the contact sent STOP, do not keep sending marketing or automation messages to that number.\n• Also check Inbox delivery status and wallet balance.\n\nConnecting your WhatsApp Number\n• During setup you may see a scan code or Meta signup screen. That is how you link your WhatsApp Business Number to WapApp.\n• Refresh Integration, try Chrome or an Incognito window, and allow pop ups for Meta login.\n• Use an account that has admin access on the Meta Business / WhatsApp Business Account.\n\nShare the exact error text or a screenshot so we can help faster. You can also Ask AI or Talk to an agent."
       }
     },
     {
       "id": "faq_account",
       "type": "welcomeMessage",
-      "position": { "x": 780, "y": 360 },
+      "position": {
+        "x": 780,
+        "y": 360
+      },
       "data": {
         "messageType": "text",
         "triggerKeyword": "",
-        "welcomeMessage": "Account & WhatsApp line\n\n• Check your email (and spam folder) for login OTPs.\n• If a line shows disconnected, reconnect it under Integration.\n• Team member access is managed in Team settings.\n\nFor account ownership changes or transfers, please talk to an agent.",
-        "label": "FAQ Account"
+        "welcomeMessage": "Account & WhatsApp Number\n\n• Check your email (and spam folder) for login OTPs.\n• If a WhatsApp Number shows disconnected, reconnect it under Integration.\n• Team member access is managed in Team settings.\n\nFor account ownership changes or transfers, please Talk to an agent.",
+        "label": "FAQ Account",
+        "text": "Account & WhatsApp Number\n\n• Check your email (and spam folder) for login OTPs.\n• If a WhatsApp Number shows disconnected, reconnect it under Integration.\n• Team member access is managed in Team settings.\n\nFor account ownership changes or transfers, please Talk to an agent."
       }
     },
     {
       "id": "followup_faq",
       "type": "interactiveMessage",
-      "position": { "x": 1120, "y": 200 },
+      "position": {
+        "x": 1120,
+        "y": 200
+      },
       "data": {
         "interactiveType": "button",
         "bodyText": "Was this helpful?",
         "buttons": [
-          { "id": "helpful_yes", "title": "Yes, thanks" },
-          { "id": "ask_ai_again", "title": "Ask AI" },
-          { "id": "need_agent", "title": "Talk to agent" }
+          {
+            "id": "helpful_yes",
+            "title": "Yes, thanks"
+          },
+          {
+            "id": "ask_ai_again",
+            "title": "Ask AI"
+          },
+          {
+            "id": "need_agent",
+            "title": "Talk to agent"
+          }
         ],
-        "label": "FAQ Follow-up"
+        "label": "FAQ Follow up"
       }
     },
     {
       "id": "ask_ai_prompt",
       "type": "welcomeMessage",
-      "position": { "x": 780, "y": 520 },
+      "position": {
+        "x": 780,
+        "y": 520
+      },
       "data": {
         "messageType": "text",
         "triggerKeyword": "",
         "welcomeMessage": "Please type your question in one message. I will answer from our knowledge base.\n\nIf I am not sure, I will suggest connecting you with an agent.",
-        "label": "Ask AI Prompt"
+        "label": "Ask AI Prompt",
+        "text": "Please type your question in one message. I will answer from our knowledge base.\n\nIf I am not sure, I will suggest connecting you with an agent."
       }
     },
     {
       "id": "wait_ai",
       "type": "waitForResponse",
-      "position": { "x": 1120, "y": 520 },
+      "position": {
+        "x": 1120,
+        "y": 520
+      },
       "data": {
         "variableName": "user_question",
         "label": "Wait for Question"
@@ -131,7 +168,10 @@
     {
       "id": "nl_ai",
       "type": "naturalLanguage",
-      "position": { "x": 1460, "y": 520 },
+      "position": {
+        "x": 1460,
+        "y": 520
+      },
       "data": {
         "label": "Support AI",
         "mode": "knowledge_base",
@@ -145,42 +185,43 @@
     {
       "id": "followup_ai",
       "type": "interactiveMessage",
-      "position": { "x": 1800, "y": 520 },
+      "position": {
+        "x": 1800,
+        "y": 520
+      },
       "data": {
         "interactiveType": "button",
         "bodyText": "Was this answer helpful?",
         "buttons": [
-          { "id": "ai_yes", "title": "Yes, thanks" },
-          { "id": "ai_agent", "title": "Talk to agent" },
-          { "id": "ai_menu", "title": "Main menu" }
+          {
+            "id": "ai_yes",
+            "title": "Yes, thanks"
+          },
+          {
+            "id": "ai_agent",
+            "title": "Talk to agent"
+          },
+          {
+            "id": "ai_menu",
+            "title": "Main menu"
+          }
         ],
-        "label": "AI Follow-up"
-      }
-    },
-    {
-      "id": "talk_confirm",
-      "type": "interactiveMessage",
-      "position": { "x": 780, "y": 700 },
-      "data": {
-        "interactiveType": "button",
-        "bodyText": "Would you like to speak with a human agent? If you choose Yes, we will place you in the support queue.",
-        "buttons": [
-          { "id": "agent_yes", "title": "Yes, connect" },
-          { "id": "agent_no", "title": "No, menu" }
-        ],
-        "label": "Confirm Agent"
+        "label": "AI Follow up"
       }
     },
     {
       "id": "handoff_1",
       "type": "functionCall",
-      "position": { "x": 1120, "y": 700 },
+      "position": {
+        "x": 1120,
+        "y": 700
+      },
       "data": {
         "functionName": "handoff_to_inbox",
         "function_name": "handoff_to_inbox",
         "resultVariable": "handoff_result",
         "parameters": {
-          "confirmation_message": "Thank you. An agent will connect with you shortly. You are now in the support queue."
+          "confirmation_message": "Thank you. You are now in the support queue. A support agent will connect with you shortly during Monday to Friday, 10:00 AM to 6:00 PM IST."
         },
         "label": "Handoff to Inbox"
       }
@@ -188,18 +229,25 @@
     {
       "id": "thanks_end",
       "type": "welcomeMessage",
-      "position": { "x": 1800, "y": 200 },
+      "position": {
+        "x": 1800,
+        "y": 200
+      },
       "data": {
         "messageType": "text",
         "triggerKeyword": "",
         "welcomeMessage": "Thank you! If you need help again, reply with hi or menu.",
-        "label": "Thanks"
+        "label": "Thanks",
+        "text": "Thank you! If you need help again, reply with hi or menu."
       }
     },
     {
       "id": "jump_menu",
       "type": "jumpToStep",
-      "position": { "x": 1460, "y": 320 },
+      "position": {
+        "x": 1460,
+        "y": 320
+      },
       "data": {
         "targetNodeId": "menu_1",
         "showMessage": false,
@@ -208,26 +256,154 @@
     }
   ],
   "edges": [
-    { "id": "e_welcome_menu", "source": "welcome_1", "target": "menu_1", "sourceHandle": "default", "targetHandle": "default", "type": "default" },
-    { "id": "e_menu_billing", "source": "menu_1", "target": "faq_billing", "sourceHandle": "interactive-0-0", "targetHandle": "default", "type": "default" },
-    { "id": "e_menu_technical", "source": "menu_1", "target": "faq_technical", "sourceHandle": "interactive-0-1", "targetHandle": "default", "type": "default" },
-    { "id": "e_menu_account", "source": "menu_1", "target": "faq_account", "sourceHandle": "interactive-0-2", "targetHandle": "default", "type": "default" },
-    { "id": "e_menu_ask_ai", "source": "menu_1", "target": "ask_ai_prompt", "sourceHandle": "interactive-0-3", "targetHandle": "default", "type": "default" },
-    { "id": "e_menu_agent", "source": "menu_1", "target": "talk_confirm", "sourceHandle": "interactive-0-4", "targetHandle": "default", "type": "default" },
-    { "id": "e_billing_followup", "source": "faq_billing", "target": "followup_faq", "sourceHandle": "default", "targetHandle": "default", "type": "default" },
-    { "id": "e_technical_followup", "source": "faq_technical", "target": "followup_faq", "sourceHandle": "default", "targetHandle": "default", "type": "default" },
-    { "id": "e_account_followup", "source": "faq_account", "target": "followup_faq", "sourceHandle": "default", "targetHandle": "default", "type": "default" },
-    { "id": "e_faq_yes", "source": "followup_faq", "target": "thanks_end", "sourceHandle": "button-0", "targetHandle": "default", "type": "default" },
-    { "id": "e_faq_ask_ai", "source": "followup_faq", "target": "ask_ai_prompt", "sourceHandle": "button-1", "targetHandle": "default", "type": "default" },
-    { "id": "e_faq_agent", "source": "followup_faq", "target": "talk_confirm", "sourceHandle": "button-2", "targetHandle": "default", "type": "default" },
-    { "id": "e_ask_wait", "source": "ask_ai_prompt", "target": "wait_ai", "sourceHandle": "default", "targetHandle": "default", "type": "default" },
-    { "id": "e_wait_nl", "source": "wait_ai", "target": "nl_ai", "sourceHandle": "default", "targetHandle": "default", "type": "default" },
-    { "id": "e_nl_followup", "source": "nl_ai", "target": "followup_ai", "sourceHandle": "default", "targetHandle": "default", "type": "default" },
-    { "id": "e_ai_yes", "source": "followup_ai", "target": "thanks_end", "sourceHandle": "button-0", "targetHandle": "default", "type": "default" },
-    { "id": "e_ai_agent", "source": "followup_ai", "target": "talk_confirm", "sourceHandle": "button-1", "targetHandle": "default", "type": "default" },
-    { "id": "e_ai_menu", "source": "followup_ai", "target": "jump_menu", "sourceHandle": "button-2", "targetHandle": "default", "type": "default" },
-    { "id": "e_agent_yes", "source": "talk_confirm", "target": "handoff_1", "sourceHandle": "button-0", "targetHandle": "default", "type": "default" },
-    { "id": "e_agent_no", "source": "talk_confirm", "target": "jump_menu", "sourceHandle": "button-1", "targetHandle": "default", "type": "default" }
+    {
+      "id": "e_welcome_menu",
+      "source": "welcome_1",
+      "target": "menu_1",
+      "sourceHandle": "default",
+      "targetHandle": "default",
+      "type": "default"
+    },
+    {
+      "id": "e_menu_billing",
+      "source": "menu_1",
+      "target": "faq_billing",
+      "sourceHandle": "interactive-0-0",
+      "targetHandle": "default",
+      "type": "default"
+    },
+    {
+      "id": "e_menu_technical",
+      "source": "menu_1",
+      "target": "faq_technical",
+      "sourceHandle": "interactive-0-1",
+      "targetHandle": "default",
+      "type": "default"
+    },
+    {
+      "id": "e_menu_account",
+      "source": "menu_1",
+      "target": "faq_account",
+      "sourceHandle": "interactive-0-2",
+      "targetHandle": "default",
+      "type": "default"
+    },
+    {
+      "id": "e_menu_ask_ai",
+      "source": "menu_1",
+      "target": "ask_ai_prompt",
+      "sourceHandle": "interactive-0-3",
+      "targetHandle": "default",
+      "type": "default"
+    },
+    {
+      "id": "e_menu_agent",
+      "source": "menu_1",
+      "target": "handoff_1",
+      "sourceHandle": "interactive-0-4",
+      "targetHandle": "default",
+      "type": "default"
+    },
+    {
+      "id": "e_billing_followup",
+      "source": "faq_billing",
+      "target": "followup_faq",
+      "sourceHandle": "default",
+      "targetHandle": "default",
+      "type": "default"
+    },
+    {
+      "id": "e_technical_followup",
+      "source": "faq_technical",
+      "target": "followup_faq",
+      "sourceHandle": "default",
+      "targetHandle": "default",
+      "type": "default"
+    },
+    {
+      "id": "e_account_followup",
+      "source": "faq_account",
+      "target": "followup_faq",
+      "sourceHandle": "default",
+      "targetHandle": "default",
+      "type": "default"
+    },
+    {
+      "id": "e_faq_yes",
+      "source": "followup_faq",
+      "target": "thanks_end",
+      "sourceHandle": "button-0",
+      "targetHandle": "default",
+      "type": "default"
+    },
+    {
+      "id": "e_faq_ask_ai",
+      "source": "followup_faq",
+      "target": "ask_ai_prompt",
+      "sourceHandle": "button-1",
+      "targetHandle": "default",
+      "type": "default"
+    },
+    {
+      "id": "e_faq_agent",
+      "source": "followup_faq",
+      "target": "handoff_1",
+      "sourceHandle": "button-2",
+      "targetHandle": "default",
+      "type": "default"
+    },
+    {
+      "id": "e_ask_wait",
+      "source": "ask_ai_prompt",
+      "target": "wait_ai",
+      "sourceHandle": "default",
+      "targetHandle": "default",
+      "type": "default"
+    },
+    {
+      "id": "e_wait_nl",
+      "source": "wait_ai",
+      "target": "nl_ai",
+      "sourceHandle": "default",
+      "targetHandle": "default",
+      "type": "default"
+    },
+    {
+      "id": "e_nl_followup",
+      "source": "nl_ai",
+      "target": "followup_ai",
+      "sourceHandle": "default",
+      "targetHandle": "default",
+      "type": "default"
+    },
+    {
+      "id": "e_ai_yes",
+      "source": "followup_ai",
+      "target": "thanks_end",
+      "sourceHandle": "button-0",
+      "targetHandle": "default",
+      "type": "default"
+    },
+    {
+      "id": "e_ai_agent",
+      "source": "followup_ai",
+      "target": "handoff_1",
+      "sourceHandle": "button-1",
+      "targetHandle": "default",
+      "type": "default"
+    },
+    {
+      "id": "e_ai_menu",
+      "source": "followup_ai",
+      "target": "jump_menu",
+      "sourceHandle": "button-2",
+      "targetHandle": "default",
+      "type": "default"
+    }
   ],
-  "viewport": { "x": 0, "y": 0, "zoom": 0.75 }
+  "viewport": {
+    "x": 0,
+    "y": 0,
+    "zoom": 0.75
+  }
 }

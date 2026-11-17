@@ -14,13 +14,13 @@ Later: swap `SupportEscalationChannel` binding from Inbox → Tittu Support tick
 
 ## 1. Ops guards (required)
 
-On the **support tenant** (the account that owns the support WhatsApp line):
+On the **support tenant** (the account that owns the support WhatsApp Number):
 
 | Setting | Value | Why |
 |--------|--------|-----|
 | AI Assistant → **Auto response** (`ai_auto_response_enabled`) | **Off** | If On, `human_response` chats can still get AI replies and undo handoff |
 | AI answers | Only via Chatbot **Natural Language** nodes | Menu + FAQ stay deterministic; AI is opt-in in the flow |
-| Inbox | Agents watch the support line + **Unassigned** filter | Handoff leaves chats unassigned on purpose |
+| Inbox | Agents watch the support WhatsApp Number + **Unassigned** filter | Handoff leaves chats unassigned on purpose |
 
 After handoff, `SupportHandoffService` sets `response_type=human_response`, clears `active_ai_bot_id`, completes active chatbot states, and sends the confirmation WhatsApp text.
 
@@ -41,7 +41,7 @@ Never invent billing, refund, or account changes — suggest an agent.
 Keep replies short for WhatsApp.
 ```
 
-3. **Knowledge Base** tab: upload / scrape Help Center FAQs, pricing notes, template/QR/messaging-limit troubleshooting, onboarding steps. Chroma is source of truth (see `docs/Knowledge-Base-Chroma.md`). Do not rely on MySQL for KB corpus.
+3. **Knowledge Base** tab: upload the ready PDF [`docs/kb/wapapp-support-knowledge-base.pdf`](kb/wapapp-support-knowledge-base.pdf) (also at `/examples/kb/wapapp-support-knowledge-base.pdf`; markdown source: [`wapapp-support-knowledge-base.md`](kb/wapapp-support-knowledge-base.md)). You can add more Help Center pages later. Chroma is source of truth (see `docs/Knowledge-Base-Chroma.md`). Do not rely on MySQL for KB corpus.
 4. Prefer this bot on the Natural Language node in the support flow (pick bot by id). Default bot is fine if this is the only bot on the tenant.
 
 ---
@@ -64,7 +64,9 @@ Public downloads (Import popup se bhi):
 5. Full support example: Natural Language node pe Support AiBot select karo.
 6. FAQ / copy edit → Save → enable/active.
 
-Included paths: menu (Billing / Technical / Account / Ask AI / Talk to agent) → FAQ follow-up → AI Q&A → confirm → `handoff_to_inbox`.
+Included paths: menu (Billing / Technical / Account / Ask AI / Talk to agent) → FAQ follow-up → AI Q&A → `handoff_to_inbox`.
+
+**Talk to agent** goes straight to handoff (no extra “Are you sure?” confirm).
 
 ### Manual build (only if you prefer not to import)
 
@@ -74,7 +76,7 @@ Included paths: menu (Billing / Technical / Account / Ask AI / Talk to agent) �
 
 **Ask AI:** Wait → Natural Language (`knowledge_base`) → helpful? / agent / menu
 
-**Talk to agent:** Confirm Yes → Function Call `handoff_to_inbox` (do not fake “agent connecting” without this function).
+**Talk to agent:** Function Call `handoff_to_inbox` directly (do not fake “agent connecting” without this function).
 
 Registered in `config/chatbot.php` → `function_registry.handoff_to_inbox`.
 
@@ -95,7 +97,7 @@ Agent hours in the example flows: **Monday–Friday, 10:00 AM – 6:00 PM IST**.
 
 ## 5. Agent checklist
 
-1. Open **Inbox** → support WhatsApp line  
+1. Open **Inbox** → support WhatsApp Number  
 2. Filter **Unassigned**  
 3. Assign to yourself and reply (service window: customer must have messaged within 24h)  
 4. Keep chat on **human** response type until resolved  
@@ -107,7 +109,7 @@ Agent hours in the example flows: **Monday–Friday, 10:00 AM – 6:00 PM IST**.
 1. Message support number → menu appears  
 2. Category FAQ reply works  
 3. Ask AI → KB answer  
-4. Talk to agent → confirmation SMS/WhatsApp text; Inbox shows human + unassigned; further user messages do **not** get AI  
+4. Talk to agent → immediate handoff confirmation; Inbox shows human + unassigned; further user messages do **not** get AI  
 5. Agent reply from Inbox delivers  
 
 ---
