@@ -33,7 +33,7 @@ class InboxEscalationChannel implements SupportEscalationChannel
         if ($confirmationMessage === '') {
             $confirmationMessage = (string) config(
                 'support.handoff.confirmation_message',
-                'Humara agent jaldi aapse connect karega. Aap Inbox queue mein ho.',
+                'Thank you. An agent will connect with you shortly. You are now in the support queue.',
             );
         }
 
@@ -69,7 +69,7 @@ class InboxEscalationChannel implements SupportEscalationChannel
             $body = $alreadyEscalated
                 ? (string) config(
                     'support.handoff.already_queued_message',
-                    'Aap pehle se agent queue mein ho. Humara team jaldi reply karega.',
+                    'You are already in the support queue. Our team will reply shortly.',
                 )
                 : $confirmationMessage;
 

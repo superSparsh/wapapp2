@@ -87,7 +87,9 @@ Defaults in `config/support.php` (env overrides):
 - `SUPPORT_HANDOFF_MESSAGE` — first handoff  
 - `SUPPORT_HANDOFF_ALREADY_QUEUED_MESSAGE` — user asks again while already queued  
 
-Default first message: *Humara agent jaldi aapse connect karega. Aap Inbox queue mein ho.*
+Default first message: *Thank you. An agent will connect with you shortly. You are now in the support queue.*
+
+Agent hours in the example flows: **Monday–Friday, 10:00 AM – 6:00 PM IST**.
 
 ---
 

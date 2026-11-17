@@ -8,7 +8,7 @@
         "label": "Welcome",
         "messageType": "text",
         "triggerKeyword": "hi, hello, menu",
-        "welcomeMessage": "Hi! Welcome to our WhatsApp support.\nChoose an option below."
+        "welcomeMessage": "Hello! Welcome to our WhatsApp support.\n\nOur agents are available Monday to Friday, 10:00 AM – 6:00 PM IST.\nPlease choose an option below."
       }
     },
     {
@@ -34,7 +34,7 @@
         "label": "Sales Reply",
         "messageType": "text",
         "triggerKeyword": "",
-        "welcomeMessage": "Thanks! Our sales team will share plans and pricing. Reply menu anytime."
+        "welcomeMessage": "Thank you. Our sales team can share plans and pricing with you. Reply with menu anytime to return to the main options."
       }
     },
     {
@@ -45,7 +45,7 @@
         "label": "Support Reply",
         "messageType": "text",
         "triggerKeyword": "",
-        "welcomeMessage": "Got it. Tell us your issue in one message, or choose Talk to agent."
+        "welcomeMessage": "Understood. Please describe your issue in one message, or choose Talk to agent to reach our team."
       }
     },
     {
@@ -56,43 +56,15 @@
         "label": "Agent Note",
         "messageType": "text",
         "triggerKeyword": "",
-        "welcomeMessage": "Okay — a human agent will reply here from Inbox. (In full support bot, use Function Call: handoff_to_inbox)"
+        "welcomeMessage": "An agent will reply here from Inbox shortly.\n\n(In the full support bot, use Function Call: handoff_to_inbox for automatic queue handoff.)"
       }
     }
   ],
   "edges": [
-    {
-      "id": "e1",
-      "source": "welcome_1",
-      "target": "menu_1",
-      "sourceHandle": "default",
-      "targetHandle": "default",
-      "type": "default"
-    },
-    {
-      "id": "e2",
-      "source": "menu_1",
-      "target": "sales_reply",
-      "sourceHandle": "button-0",
-      "targetHandle": "default",
-      "type": "default"
-    },
-    {
-      "id": "e3",
-      "source": "menu_1",
-      "target": "support_reply",
-      "sourceHandle": "button-1",
-      "targetHandle": "default",
-      "type": "default"
-    },
-    {
-      "id": "e4",
-      "source": "menu_1",
-      "target": "agent_confirm",
-      "sourceHandle": "button-2",
-      "targetHandle": "default",
-      "type": "default"
-    }
+    { "id": "e1", "source": "welcome_1", "target": "menu_1", "sourceHandle": "default", "targetHandle": "default", "type": "default" },
+    { "id": "e2", "source": "menu_1", "target": "sales_reply", "sourceHandle": "button-0", "targetHandle": "default", "type": "default" },
+    { "id": "e3", "source": "menu_1", "target": "support_reply", "sourceHandle": "button-1", "targetHandle": "default", "type": "default" },
+    { "id": "e4", "source": "menu_1", "target": "agent_confirm", "sourceHandle": "button-2", "targetHandle": "default", "type": "default" }
   ],
   "viewport": { "x": 40, "y": 40, "zoom": 0.9 }
 }

@@ -15,11 +15,11 @@ return [
     'handoff' => [
         'confirmation_message' => env(
             'SUPPORT_HANDOFF_MESSAGE',
-            'Humara agent jaldi aapse connect karega. Aap Inbox queue mein ho.',
+            'Thank you. An agent will connect with you shortly. You are now in the support queue.',
         ),
         'already_queued_message' => env(
             'SUPPORT_HANDOFF_ALREADY_QUEUED_MESSAGE',
-            'Aap pehle se agent queue mein ho. Humara team jaldi reply karega.',
+            'You are already in the support queue. Our team will reply shortly.',
         ),
     ],
 ];
