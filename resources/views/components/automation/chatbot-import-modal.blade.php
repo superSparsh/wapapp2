@@ -112,15 +112,15 @@
             Download simple example
           </a>
           <a
-            href="{{ asset('examples/chatbot/wapapp-company-support-bot.json') }}"
-            download="wapapp-company-support-bot.json"
+            href="{{ asset('examples/chatbot/wapapp-help-bot.json') }}"
+            download="wapapp-help-bot.json"
             class="inline-flex items-center justify-center gap-2 rounded-lg border border-divider bg-surface px-3 py-2 text-xs font-semibold text-text-body hover:bg-muted-surface"
           >
-            Download full support bot example
+            Download full help bot example
           </a>
         </div>
         <p class="mt-2 text-[11px] text-text-muted">
-          Simple example = Welcome → Sales / Support / Talk to agent. Full example = FAQ menu + Ask AI + Inbox handoff.
+          Full example = ask for the issue → short AI reply → agent handoff. Menu only under More options.
         </p>
       </div>
     </div>

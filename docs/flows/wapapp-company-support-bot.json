@@ -7,9 +7,9 @@
       "data": {
         "label": "Welcome",
         "messageType": "text",
-        "triggerKeyword": "support",
-        "welcomeMessage": "Hi! You're through to WapApp Support.\n\nPlease type your issue in one short message.",
-        "text": "Hi! You're through to WapApp Support.\n\nPlease type your issue in one short message.",
+        "triggerKeyword": "help",
+        "welcomeMessage": "Hi! Welcome to WapApp.\n\nPlease type your issue in one short message.",
+        "text": "Hi! Welcome to WapApp.\n\nPlease type your issue in one short message.",
         "enableOfflineHours": false,
         "timezone": "Asia/Kolkata",
         "onlineFrom": "10:00",
@@ -31,13 +31,13 @@
       "type": "naturalLanguage",
       "position": { "x": 720, "y": 260 },
       "data": {
-        "label": "Support reply",
+        "label": "AI reply",
         "mode": "knowledge_base",
         "inputSource": "last_reply",
         "sendDirectly": true,
         "outputVariable": "_ai_response",
         "ai_bot_id": null,
-        "customPrompt": "You are WapApp WhatsApp support. Reply in clear professional English. Keep it very short (3–6 lines max). Answer the user's issue directly. Never say knowledge base, documents, or internal systems. If unsure, or for refunds/ownership/legal issues, ask if they want to chat with an agent. Never invent pricing, refunds, or account changes."
+        "customPrompt": "You are a WapApp WhatsApp assistant. Reply in clear professional English. Keep it very short (3–6 lines max). Answer the user's issue directly. Never say knowledge base, documents, or internal systems. If unsure, or for refunds/ownership/legal issues, ask if they want to chat with an agent. Never invent pricing, refunds, or account changes."
       }
     },
     {
@@ -63,7 +63,7 @@
         "label": "Thanks",
         "messageType": "text",
         "triggerKeyword": "",
-        "welcomeMessage": "Glad we could help. Reply with support anytime if you need us again."
+        "welcomeMessage": "Glad we could help. Reply with help anytime if you need us again."
       }
     },
     {
@@ -147,17 +147,13 @@
     { "id": "e_welcome_wait", "source": "welcome_1", "target": "wait_query", "sourceHandle": "default", "targetHandle": "default", "type": "default" },
     { "id": "e_wait_nl", "source": "wait_query", "target": "nl_reply", "sourceHandle": "default", "targetHandle": "default", "type": "default" },
     { "id": "e_nl_followup", "source": "nl_reply", "target": "followup_1", "sourceHandle": "default", "targetHandle": "default", "type": "default" },
-
     { "id": "e_yes", "source": "followup_1", "target": "thanks_end", "sourceHandle": "button-0", "targetHandle": "default", "type": "default" },
     { "id": "e_agent", "source": "followup_1", "target": "handoff_1", "sourceHandle": "button-1", "targetHandle": "default", "type": "default" },
     { "id": "e_more", "source": "followup_1", "target": "menu_more", "sourceHandle": "button-2", "targetHandle": "default", "type": "default" },
-
     { "id": "e_more_ask", "source": "menu_more", "target": "ask_again_prompt", "sourceHandle": "button-0", "targetHandle": "default", "type": "default" },
     { "id": "e_more_connect", "source": "menu_more", "target": "connect_us_1", "sourceHandle": "button-1", "targetHandle": "default", "type": "default" },
     { "id": "e_more_agent", "source": "menu_more", "target": "handoff_1", "sourceHandle": "button-2", "targetHandle": "default", "type": "default" },
-
     { "id": "e_ask_jump", "source": "ask_again_prompt", "target": "jump_wait", "sourceHandle": "default", "targetHandle": "default", "type": "default" },
-
     { "id": "e_connect_next", "source": "connect_us_1", "target": "after_connect", "sourceHandle": "default", "targetHandle": "default", "type": "default" },
     { "id": "e_after_done", "source": "after_connect", "target": "thanks_end", "sourceHandle": "button-0", "targetHandle": "default", "type": "default" },
     { "id": "e_after_agent", "source": "after_connect", "target": "handoff_1", "sourceHandle": "button-1", "targetHandle": "default", "type": "default" },

@@ -1,0 +1,163 @@
+{
+  "nodes": [
+    {
+      "id": "welcome_1",
+      "type": "welcomeMessage",
+      "position": { "x": 80, "y": 260 },
+      "data": {
+        "label": "Welcome",
+        "messageType": "text",
+        "triggerKeyword": "help",
+        "welcomeMessage": "Hi! Welcome to WapApp.\n\nPlease type your issue in one short message.",
+        "text": "Hi! Welcome to WapApp.\n\nPlease type your issue in one short message.",
+        "enableOfflineHours": false,
+        "timezone": "Asia/Kolkata",
+        "onlineFrom": "10:00",
+        "onlineUntil": "18:00",
+        "offlineMessage": "Our agents are offline right now (Mon–Fri, 10:00 AM – 6:00 PM IST).\n\nYou can still type your issue — we'll help as much as we can, or connect you to an agent."
+      }
+    },
+    {
+      "id": "wait_query",
+      "type": "waitForResponse",
+      "position": { "x": 400, "y": 260 },
+      "data": {
+        "label": "Wait for query",
+        "variableName": "user_problem"
+      }
+    },
+    {
+      "id": "nl_reply",
+      "type": "naturalLanguage",
+      "position": { "x": 720, "y": 260 },
+      "data": {
+        "label": "AI reply",
+        "mode": "knowledge_base",
+        "inputSource": "last_reply",
+        "sendDirectly": true,
+        "outputVariable": "_ai_response",
+        "ai_bot_id": null,
+        "customPrompt": "You are a WapApp WhatsApp assistant. Reply in clear professional English. Keep it very short (3–6 lines max). Answer the user's issue directly. Never say knowledge base, documents, or internal systems. If unsure, or for refunds/ownership/legal issues, ask if they want to chat with an agent. Never invent pricing, refunds, or account changes."
+      }
+    },
+    {
+      "id": "followup_1",
+      "type": "interactiveMessage",
+      "position": { "x": 1040, "y": 260 },
+      "data": {
+        "label": "Quick follow-up",
+        "interactiveType": "button",
+        "bodyText": "Did that help?",
+        "buttons": [
+          { "id": "yes_thanks", "title": "Yes, thanks" },
+          { "id": "chat_agent", "title": "Chat with agent" },
+          { "id": "more_options", "title": "More options" }
+        ]
+      }
+    },
+    {
+      "id": "thanks_end",
+      "type": "welcomeMessage",
+      "position": { "x": 1360, "y": 80 },
+      "data": {
+        "label": "Thanks",
+        "messageType": "text",
+        "triggerKeyword": "",
+        "welcomeMessage": "Glad we could help. Reply with help anytime if you need us again."
+      }
+    },
+    {
+      "id": "menu_more",
+      "type": "interactiveMessage",
+      "position": { "x": 1360, "y": 260 },
+      "data": {
+        "label": "More options",
+        "interactiveType": "button",
+        "bodyText": "What do you need next?",
+        "buttons": [
+          { "id": "ask_again", "title": "Ask again" },
+          { "id": "connect_us", "title": "Connect with us" },
+          { "id": "chat_agent2", "title": "Chat with agent" }
+        ]
+      }
+    },
+    {
+      "id": "ask_again_prompt",
+      "type": "welcomeMessage",
+      "position": { "x": 1680, "y": 120 },
+      "data": {
+        "label": "Ask again",
+        "messageType": "text",
+        "triggerKeyword": "",
+        "welcomeMessage": "Sure — type your issue in one short message."
+      }
+    },
+    {
+      "id": "connect_us_1",
+      "type": "welcomeMessage",
+      "position": { "x": 1680, "y": 280 },
+      "data": {
+        "label": "Connect with us",
+        "messageType": "text",
+        "triggerKeyword": "",
+        "welcomeMessage": "Happy to connect with you.\n\nBook a short call with our team:\nhttps://calendly.com/tekpro-connect/25min\n\nPick a time that works for you and we'll guide the next steps."
+      }
+    },
+    {
+      "id": "after_connect",
+      "type": "interactiveMessage",
+      "position": { "x": 2000, "y": 280 },
+      "data": {
+        "label": "After connect",
+        "interactiveType": "button",
+        "bodyText": "Need anything else?",
+        "buttons": [
+          { "id": "done", "title": "I'm done" },
+          { "id": "chat_agent3", "title": "Chat with agent" },
+          { "id": "ask_again2", "title": "Ask again" }
+        ]
+      }
+    },
+    {
+      "id": "handoff_1",
+      "type": "functionCall",
+      "position": { "x": 1360, "y": 460 },
+      "data": {
+        "label": "Handoff to Inbox",
+        "functionName": "handoff_to_inbox",
+        "function_name": "handoff_to_inbox",
+        "resultVariable": "handoff_result",
+        "parameters": {
+          "confirmation_message": "Thank you. Please wait while we connect you with our expert. An agent typically replies within 15–30 minutes during Monday–Friday, 10:00 AM – 6:00 PM IST."
+        }
+      }
+    },
+    {
+      "id": "jump_wait",
+      "type": "jumpToStep",
+      "position": { "x": 2000, "y": 120 },
+      "data": {
+        "label": "Jump to wait",
+        "targetNodeId": "wait_query",
+        "showMessage": false
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e_welcome_wait", "source": "welcome_1", "target": "wait_query", "sourceHandle": "default", "targetHandle": "default", "type": "default" },
+    { "id": "e_wait_nl", "source": "wait_query", "target": "nl_reply", "sourceHandle": "default", "targetHandle": "default", "type": "default" },
+    { "id": "e_nl_followup", "source": "nl_reply", "target": "followup_1", "sourceHandle": "default", "targetHandle": "default", "type": "default" },
+    { "id": "e_yes", "source": "followup_1", "target": "thanks_end", "sourceHandle": "button-0", "targetHandle": "default", "type": "default" },
+    { "id": "e_agent", "source": "followup_1", "target": "handoff_1", "sourceHandle": "button-1", "targetHandle": "default", "type": "default" },
+    { "id": "e_more", "source": "followup_1", "target": "menu_more", "sourceHandle": "button-2", "targetHandle": "default", "type": "default" },
+    { "id": "e_more_ask", "source": "menu_more", "target": "ask_again_prompt", "sourceHandle": "button-0", "targetHandle": "default", "type": "default" },
+    { "id": "e_more_connect", "source": "menu_more", "target": "connect_us_1", "sourceHandle": "button-1", "targetHandle": "default", "type": "default" },
+    { "id": "e_more_agent", "source": "menu_more", "target": "handoff_1", "sourceHandle": "button-2", "targetHandle": "default", "type": "default" },
+    { "id": "e_ask_jump", "source": "ask_again_prompt", "target": "jump_wait", "sourceHandle": "default", "targetHandle": "default", "type": "default" },
+    { "id": "e_connect_next", "source": "connect_us_1", "target": "after_connect", "sourceHandle": "default", "targetHandle": "default", "type": "default" },
+    { "id": "e_after_done", "source": "after_connect", "target": "thanks_end", "sourceHandle": "button-0", "targetHandle": "default", "type": "default" },
+    { "id": "e_after_agent", "source": "after_connect", "target": "handoff_1", "sourceHandle": "button-1", "targetHandle": "default", "type": "default" },
+    { "id": "e_after_ask", "source": "after_connect", "target": "ask_again_prompt", "sourceHandle": "button-2", "targetHandle": "default", "type": "default" }
+  ],
+  "viewport": { "x": 0, "y": 40, "zoom": 0.75 }
+}
