@@ -48,6 +48,19 @@ return [
     // "start" command to reset conversation
     'start_command' => 'start',
 
+    /*
+    |--------------------------------------------------------------------------
+    | Named function handlers for FunctionCall nodes
+    |--------------------------------------------------------------------------
+    |
+    | Keys are function names used in the chatbot builder (e.g. handoff_to_inbox).
+    | Values are invokable classes with handle($params, $variables, $conversation).
+    |
+    */
+    'function_registry' => [
+        'handoff_to_inbox' => \App\Domains\Support\Chatbot\HandoffToInboxHandler::class,
+    ],
+
     // Pagination
     'per_page' => 10,
 

@@ -32,6 +32,8 @@ class FunctionCallProcessor extends AbstractNodeProcessor
             return NodeProcessResult::Error;
         }
 
+        $result = null;
+
         try {
             $result = $this->executeFunction($functionName, $data, $variables, $conversation);
 
@@ -50,6 +52,18 @@ class FunctionCallProcessor extends AbstractNodeProcessor
                 "{$resultVariable}_success" => false,
                 "{$resultVariable}_error" => $e->getMessage(),
             ]);
+
+            return NodeProcessResult::Error;
+        }
+
+        // Support handoff (and similar) may complete the flow themselves.
+        if (is_array($result) && ($result['end_flow'] ?? false) === true) {
+            $state->refresh();
+            if (! $state->status->isTerminal()) {
+                $state->markCompleted();
+            }
+
+            return NodeProcessResult::Completed;
         }
 
         $nextId = $this->defaultNextNodeId($node);

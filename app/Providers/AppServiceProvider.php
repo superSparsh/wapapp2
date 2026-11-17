@@ -7,6 +7,8 @@ use App\Domains\Admin\Support\ErrorModuleResolver;
 use App\Domains\Auth\Auth\TenantAwareUserProvider;
 use App\Domains\Inbox\Contracts\OutboundMessageGateway;
 use App\Domains\Inbox\Services\DelegatingOutboundMessageGateway;
+use App\Domains\Support\Contracts\SupportEscalationChannel;
+use App\Domains\Support\Services\InboxEscalationChannel;
 use App\Domains\Infrastructure\Oci\Contracts\OciContainerInstanceClient;
 use App\Domains\Infrastructure\Oci\HttpOciContainerInstanceClient;
 use App\Domains\Infrastructure\Oci\LogOciContainerInstanceClient;
@@ -33,6 +35,9 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->bind(OutboundMessageGateway::class, DelegatingOutboundMessageGateway::class);
+
+        // Company support bot: Inbox now; swap to Tittu Support channel later.
+        $this->app->bind(SupportEscalationChannel::class, InboxEscalationChannel::class);
 
         $this->app->singleton(\App\Domains\LegacyMigration\Support\MigrationScope::class);
 
