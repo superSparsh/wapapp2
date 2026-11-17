@@ -28,7 +28,7 @@ class TeamMemberInviteTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_creating_team_member_sends_invite_email_with_generated_password(): void
+    public function test_creating_team_member_with_password_includes_it_in_invite_email(): void
     {
         Mail::fake();
 
@@ -50,6 +50,33 @@ class TeamMemberInviteTest extends TestCase
         Mail::assertSent(TeamMemberInviteMail::class, function (TeamMemberInviteMail $mail) use ($member): bool {
             return $mail->hasTo('invitee@example.test')
                 && $mail->member->is($member)
+                && $mail->temporaryPassword === 'AutoGen-Pass1!'
+                && str_contains($mail->setPasswordUrl, 'reset-password');
+        });
+    }
+
+    public function test_creating_team_member_without_password_omits_it_from_invite_email(): void
+    {
+        Mail::fake();
+
+        $this->actingAsTenantUser()
+            ->post(route('my-team.store'), [
+                'first_name' => 'NoPass',
+                'last_name' => 'User',
+                'phone' => '9876543212',
+                'email' => 'nopass@example.test',
+                'role' => TeamMemberRole::Member->value,
+            ])
+            ->assertRedirect();
+
+        $member = TeamMember::query()->where('email', 'nopass@example.test')->first();
+        $this->assertNotNull($member);
+        $this->assertNotEmpty($member->password);
+
+        Mail::assertSent(TeamMemberInviteMail::class, function (TeamMemberInviteMail $mail) use ($member): bool {
+            return $mail->hasTo('nopass@example.test')
+                && $mail->member->is($member)
+                && $mail->temporaryPassword === null
                 && str_contains($mail->setPasswordUrl, 'reset-password');
         });
     }

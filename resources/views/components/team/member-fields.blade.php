@@ -19,8 +19,10 @@
   $email = old('email', $member?->email);
   $isInviteCreate = $inviteMode && $member === null;
   $shouldAutoGenerate = $autoGeneratePassword || $isInviteCreate;
-  $passwordValue = old('password', $shouldAutoGenerate ? (string) ($generatedPassword ?? '') : '');
-  $passwordConfirmValue = old('password_confirmation', $passwordValue);
+  // Never prefill on create — only fill when user clicks "Generate new password"
+  // (or after validation error via old()).
+  $passwordValue = old('password', '');
+  $passwordConfirmValue = old('password_confirmation', '');
 @endphp
 
 <div class="flex flex-col gap-5 border-b border-divider p-5 sm:p-6">
@@ -56,7 +58,7 @@
     </h2>
     <p class="text-sm text-text-subtle opacity-70">
       @if ($shouldAutoGenerate)
-        A strong password is generated for you (like Chrome). You can regenerate or edit it before saving.
+        Password is optional. Leave blank and they’ll set one from the invite email — or generate one here to include it in the invite.
       @elseif ($passwordRequired)
         Used for team login. Share securely after creation.
       @else
@@ -79,7 +81,7 @@
   @if ($isInviteCreate)
     <div class="rounded-xl border border-green-100 bg-green-50/70 px-4 py-3 text-sm text-green-800">
       <p class="font-semibold">Invite email will be sent automatically</p>
-      <p class="mt-1 text-green-700/90">They get a link to set/change their password. The generated password below also works for first login if you share it.</p>
+      <p class="mt-1 text-green-700/90">They always get a link to set their password. If you fill or generate a password here, it will also be included in the email.</p>
     </div>
   @endif
 
@@ -88,20 +90,20 @@
       <x-form.input
         id="password"
         name="password"
-        type="text"
+        type="{{ $shouldAutoGenerate ? 'password' : 'text' }}"
         :value="$passwordValue"
-        :placeholder="$passwordPlaceholder"
-        :required="$passwordRequired || $shouldAutoGenerate"
+        :placeholder="$shouldAutoGenerate ? 'Optional — or click Generate' : $passwordPlaceholder"
+        :required="$passwordRequired"
         :error="$errors->first('password')"
         autocomplete="new-password"
         data-team-password-input
       >
         <x-slot:label>
-          {{ $shouldAutoGenerate ? 'Generated password' : $passwordLabel }}
-          @if ($passwordRequired || $shouldAutoGenerate)<span class="text-red-500">*</span>@endif
+          {{ $shouldAutoGenerate ? 'Password (optional)' : $passwordLabel }}
+          @if ($passwordRequired)<span class="text-red-500">*</span>@endif
         </x-slot:label>
         <x-slot:suffix>
-          <button type="button" data-password-toggle class="flex size-5 items-center justify-center" aria-label="Hide password">
+          <button type="button" data-password-toggle class="flex size-5 items-center justify-center" aria-label="Show password">
             <img src="{{ asset('images/auth/eye.svg') }}" alt="" class="size-5" width="20" height="20">
           </button>
         </x-slot:suffix>
@@ -110,19 +112,19 @@
       <x-form.input
         id="password_confirmation"
         name="password_confirmation"
-        type="text"
+        type="{{ $shouldAutoGenerate ? 'password' : 'text' }}"
         :value="$passwordConfirmValue"
-        :placeholder="$passwordConfirmPlaceholder"
-        :required="$passwordRequired || $shouldAutoGenerate"
+        :placeholder="$shouldAutoGenerate ? 'Confirm if set' : $passwordConfirmPlaceholder"
+        :required="$passwordRequired"
         autocomplete="new-password"
         data-team-password-confirm
       >
         <x-slot:label>
           {{ $passwordConfirmLabel }}
-          @if ($passwordRequired || $shouldAutoGenerate)<span class="text-red-500">*</span>@endif
+          @if ($passwordRequired)<span class="text-red-500">*</span>@endif
         </x-slot:label>
         <x-slot:suffix>
-          <button type="button" data-password-toggle class="flex size-5 items-center justify-center" aria-label="Hide password">
+          <button type="button" data-password-toggle class="flex size-5 items-center justify-center" aria-label="Show password">
             <img src="{{ asset('images/auth/eye.svg') }}" alt="" class="size-5" width="20" height="20">
           </button>
         </x-slot:suffix>

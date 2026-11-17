@@ -25,9 +25,12 @@ class TeamMemberService
     /** @param array<string, mixed> $data */
     public function create(User $owner, array $data, bool $sendInvite = true): TeamMember
     {
-        $plainPassword = filled($data['password'] ?? null)
+        $providedPassword = filled($data['password'] ?? null)
             ? (string) $data['password']
-            : Str::password(20);
+            : null;
+        // DB always needs a hash; if owner skipped password, generate a random one
+        // and only share the set-password link (do not email the random secret).
+        $plainPassword = $providedPassword ?? Str::password(20);
 
         $email = strtolower((string) $data['email']);
         $phone = PhoneNormalizer::normalize((string) $data['phone']);
@@ -51,7 +54,11 @@ class TeamMemberService
         $this->accessSyncService->sync($member);
 
         if ($sendInvite) {
-            $this->inviteService->sendInvite($member, $owner);
+            $this->inviteService->sendInvite(
+                $member,
+                $owner,
+                temporaryPassword: $providedPassword,
+            );
         }
 
         return $member;

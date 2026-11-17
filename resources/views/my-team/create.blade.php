@@ -19,7 +19,7 @@
     @csrf
 
     <x-team.role-selector :roles="$roles" :selected="$selectedRole" />
-    <x-team.member-fields :invite-mode="true" :auto-generate-password="true" :generated-password="$generatedPassword ?? null" />
+    <x-team.member-fields :invite-mode="true" :auto-generate-password="true" />
 
     @if (! empty($whatsappLines))
       <div class="border-b border-divider p-5 sm:p-6">

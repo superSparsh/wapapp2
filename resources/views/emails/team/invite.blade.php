@@ -26,7 +26,11 @@
                 Hi {{ $memberName }},
               </p>
               <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#374151;">
-                Your team account is ready. Set a password to activate access, then sign in with the email below.
+                @if (! empty($temporaryPassword))
+                  Your team account is ready. Use the login details below, or set a new password with the button.
+                @else
+                  Your team account is ready. Set a password to activate access, then sign in with the email below.
+                @endif
               </p>
 
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;background-color:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;">
@@ -34,7 +38,10 @@
                   <td style="padding:16px 18px;">
                     <p style="margin:0 0 8px;font-size:12px;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;color:#6b7280;">Login details</p>
                     <p style="margin:0 0 6px;font-size:14px;color:#111827;"><strong>Email:</strong> {{ $memberEmail }}</p>
-                    <p style="margin:0;font-size:14px;color:#111827;"><strong>Role:</strong> {{ $roleLabel }}</p>
+                    <p style="margin:0 0 6px;font-size:14px;color:#111827;"><strong>Role:</strong> {{ $roleLabel }}</p>
+                    @if (! empty($temporaryPassword))
+                      <p style="margin:0;font-size:14px;color:#111827;"><strong>Password:</strong> <span style="font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;">{{ $temporaryPassword }}</span></p>
+                    @endif
                   </td>
                 </tr>
               </table>
@@ -43,7 +50,7 @@
                 <tr>
                   <td style="border-radius:10px;background-color:#16a34a;">
                     <a href="{{ $setPasswordUrl }}" style="display:inline-block;padding:14px 22px;font-size:15px;font-weight:700;color:#ffffff;text-decoration:none;">
-                      Set password &amp; get started
+                      {{ ! empty($temporaryPassword) ? 'Change password (optional)' : 'Set password & get started' }}
                     </a>
                   </td>
                 </tr>
@@ -51,7 +58,7 @@
 
               <p style="margin:0 0 18px;font-size:13px;line-height:1.5;color:#6b7280;">
                 This link expires in {{ config('auth.passwords.team_members.expire', 60) }} minutes.
-                After setting your password you can sign in anytime at
+                You can sign in anytime at
                 <a href="{{ $loginUrl }}" style="color:#15803d;text-decoration:underline;">{{ $loginUrl }}</a>.
               </p>
 

@@ -23,6 +23,7 @@ class TeamMemberInviteMail extends Mailable
         public readonly string $businessName,
         public readonly string $setPasswordUrl,
         public readonly string $loginUrl,
+        public readonly ?string $temporaryPassword = null,
     ) {}
 
     public function envelope(): Envelope
@@ -50,6 +51,7 @@ class TeamMemberInviteMail extends Mailable
                 'roleLabel' => $this->member->role->label(),
                 'setPasswordUrl' => $this->setPasswordUrl,
                 'loginUrl' => $this->loginUrl,
+                'temporaryPassword' => $this->temporaryPassword,
             ],
         );
     }

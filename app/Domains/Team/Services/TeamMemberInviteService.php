@@ -14,7 +14,7 @@ use Illuminate\Support\Str;
 
 class TeamMemberInviteService
 {
-    public function sendInvite(TeamMember $member, User $owner): void
+    public function sendInvite(TeamMember $member, User $owner, ?string $temporaryPassword = null): void
     {
         $email = strtolower((string) $member->email);
         $token = Str::random(64);
@@ -37,6 +37,7 @@ class TeamMemberInviteService
             businessName: $businessName !== '' ? $businessName : 'WapApp',
             setPasswordUrl: $setPasswordUrl,
             loginUrl: url(route('login', absolute: false)),
+            temporaryPassword: filled($temporaryPassword) ? $temporaryPassword : null,
         ));
     }
 }
