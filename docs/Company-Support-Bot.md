@@ -89,9 +89,9 @@ Defaults in `config/support.php` (env overrides):
 - `SUPPORT_HANDOFF_MESSAGE` — first handoff  
 - `SUPPORT_HANDOFF_ALREADY_QUEUED_MESSAGE` — user asks again while already queued  
 
-Default handoff message: *Thank you. Please wait while we connect you with our expert. An agent typically replies within 15–30 minutes during Monday–Friday, 10:00 AM – 6:00 PM IST.*
+Fast path: trigger **`support`** → ask for the issue → short AI reply → Yes / Chat with agent / More options (menu only if needed). No YouTube links. Editable copy lives on **Welcome Message** text nodes.
 
-Agent hours: **Monday–Friday, 10:00 AM – 6:00 PM IST**. Menu includes Tutorials, Connect with us (Calendly), and Having more issues? / Chat with our agent.
+Default handoff: *Please wait while we connect you with our expert… typically within 15–30 minutes (Mon–Fri, 10:00 AM – 6:00 PM IST).*
 
 ---
 
