@@ -367,16 +367,27 @@ class KnowledgeBaseProxyService
      * @param  list<array{role: string, content: string}>  $chatHistory
      * @return array<string, mixed>
      */
-    public function processQuery(string $queryText, ?string $botId = null, array $chatHistory = []): array
-    {
+    public function processQuery(
+        string $queryText,
+        ?string $botId = null,
+        array $chatHistory = [],
+        ?string $systemPromptOverride = null,
+    ): array {
         $bot = $this->resolveBot($botId);
         $cfg = $this->requireApiKey($bot);
 
         // Remote FastAPI (older Pydantic) rejects JSON null for str fields → HTTP 422.
         // Always send strings / lists, never null, for process_query.
-        $systemPrompt = trim((string) ($bot?->system_prompt ?? ''));
-        if (filled($bot?->business_information)) {
-            $systemPrompt = trim($systemPrompt."\n\nBusiness context: ".$bot->business_information);
+        $override = trim((string) ($systemPromptOverride ?? ''));
+        if ($override !== '') {
+            // Chatbot NL custom prompts must win over the bot's stored prompt / business blurb
+            // (those often still contain booking CTAs that leak into every reply).
+            $systemPrompt = $override;
+        } else {
+            $systemPrompt = trim((string) ($bot?->system_prompt ?? ''));
+            if (filled($bot?->business_information)) {
+                $systemPrompt = trim($systemPrompt."\n\nBusiness context: ".$bot->business_information);
+            }
         }
 
         $isTittu = $bot?->provider === AiProvider::Tittu

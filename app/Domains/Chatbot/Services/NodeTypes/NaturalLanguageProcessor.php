@@ -72,21 +72,36 @@ class NaturalLanguageProcessor extends AbstractNodeProcessor
         } else {
             // Generative AI response with Knowledge Base / Custom Prompt
             if ($bot !== null) {
-                // If custom prompt override provided, dynamically inject
+                // Custom prompt must REPLACE the bot's stored prompt (append was ignored by RAG
+                // reload and lost to booking CTAs baked into the default bot / business info).
                 $customPrompt = trim((string) ($data['customPrompt'] ?? $data['custom_prompt'] ?? ''));
-                if ($customPrompt !== '') {
-                    $resolvedPrompt = $this->resolveText($customPrompt, $variables, $conversation);
-                    $bot->system_prompt = $bot->system_prompt
-                        ? "{$bot->system_prompt}\n\nAdditional Instructions: {$resolvedPrompt}"
-                        : $resolvedPrompt;
+                $promptOverride = $customPrompt !== ''
+                    ? $this->resolveText($customPrompt, $variables, $conversation)
+                    : null;
+
+                if ($promptOverride !== null && $promptOverride !== '') {
+                    $bot->system_prompt = $promptOverride;
+                    $bot->business_information = null;
                 }
+
+                $blockBookingLinks = array_key_exists('blockBookingLinks', $data)
+                    ? (bool) $data['blockBookingLinks']
+                    : (array_key_exists('block_booking_links', $data)
+                        ? (bool) $data['block_booking_links']
+                        : $promptOverride !== null && $promptOverride !== '');
 
                 $sendDirectly = ! isset($data['sendDirectly']) || (bool) $data['sendDirectly'];
                 if ($sendDirectly) {
-                    $responseText = $this->aiChatService->processMessage($conversation, $bot, $userMessage);
+                    $responseText = $this->aiChatService->processMessage($conversation, $bot, $userMessage, [
+                        'system_prompt_override' => $promptOverride,
+                        'strip_booking_links' => $blockBookingLinks,
+                    ]);
                 } else {
                     // Generate response without sending directly (for variable storage)
                     $responseText = $this->generateAiResponse($bot, $userMessage);
+                    if ($responseText !== null && $blockBookingLinks) {
+                        $responseText = AiResponseFormatter::stripBookingLinks($responseText);
+                    }
                 }
             } else {
                 Log::warning('No AI bot configured for NaturalLanguageProcessor');

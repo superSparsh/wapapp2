@@ -36,9 +36,25 @@ class AiChatService
 
     /**
      * Process a user message through the AI bot and send the response.
+     *
+     * @param  array{system_prompt_override?: string|null, strip_booking_links?: bool}  $options
      */
-    public function processMessage(Conversation $conversation, AiBot $bot, string $userMessage): ?string
-    {
+    public function processMessage(
+        Conversation $conversation,
+        AiBot $bot,
+        string $userMessage,
+        array $options = [],
+    ): ?string {
+        $systemPromptOverride = trim((string) ($options['system_prompt_override'] ?? ''));
+        $stripBookingLinks = (bool) ($options['strip_booking_links'] ?? false);
+
+        if ($systemPromptOverride !== '') {
+            $bot = clone $bot;
+            $bot->system_prompt = $systemPromptOverride;
+            // Avoid re-injecting stored business blurbs that often contain booking CTAs.
+            $bot->business_information = null;
+        }
+
         try {
             // Prefer Python RAG + chat (Chroma) when AI service is up - legacy parity.
             if ($this->pythonClient->isConfigured()) {
@@ -48,6 +64,7 @@ class AiChatService
                         queryText: $userMessage,
                         botId: $bot->uuid,
                         chatHistory: $history,
+                        systemPromptOverride: $systemPromptOverride !== '' ? $systemPromptOverride : null,
                     );
 
                     if ($this->pythonPayloadLooksLikeFailure($payload)) {
@@ -66,6 +83,10 @@ class AiChatService
                                 ? $payload['response']
                                 : (string) ($payload['response'] ?? '')
                         );
+
+                        if ($stripBookingLinks) {
+                            $responseText = AiResponseFormatter::stripBookingLinks($responseText);
+                        }
 
                         if (filled($responseText)) {
                             $this->logPythonUsage($bot, $payload, $conversation->id);
@@ -87,7 +108,7 @@ class AiChatService
                 }
             }
 
-            return $this->replyViaLocalProvider($conversation, $bot, $userMessage);
+            return $this->replyViaLocalProvider($conversation, $bot, $userMessage, $stripBookingLinks);
         } catch (\Throwable $e) {
             Log::error('AI chat processing failed', [
                 'bot_id' => $bot->id,
@@ -106,8 +127,12 @@ class AiChatService
     /**
      * Direct OpenAI/Gemini (etc.) chat when RAG is down - still a real AI reply.
      */
-    private function replyViaLocalProvider(Conversation $conversation, AiBot $bot, string $userMessage): ?string
-    {
+    private function replyViaLocalProvider(
+        Conversation $conversation,
+        AiBot $bot,
+        string $userMessage,
+        bool $stripBookingLinks = false,
+    ): ?string {
         $config = $bot->resolveProvider();
 
         if (empty($config['api_key'])) {
@@ -155,6 +180,9 @@ class AiChatService
         ]);
 
         $responseText = AiResponseFormatter::forWhatsApp($result['text']);
+        if ($stripBookingLinks) {
+            $responseText = AiResponseFormatter::stripBookingLinks($responseText);
+        }
 
         if (blank($responseText) || $this->isTransferFallbackMessage($responseText)) {
             return null;

@@ -34,4 +34,35 @@ class AiResponseFormatter
 
         return $text;
     }
+
+    /**
+     * Remove scheduling / Calendly booking links and leftover CTA fragments from AI replies.
+     */
+    public static function stripBookingLinks(string $text): string
+    {
+        $text = preg_replace(
+            '#https?://(?:www\.)?calendly\.com/\S+#i',
+            '',
+            $text
+        ) ?? $text;
+
+        // Drop common "book a time… right here:" fragments left after URL removal.
+        $text = preg_replace(
+            '/\b(?:please\s+)?book\s+a\s+time[^.!?\n]*?(?:right\s+here|here)\s*:?\s*/iu',
+            '',
+            $text
+        ) ?? $text;
+
+        $text = preg_replace(
+            '/\b(?:you\s+can\s+)?(?:book|schedule)\s+(?:a\s+)?(?:call|meeting|time)[^.!?\n]*?:?\s*$/imu',
+            '',
+            $text
+        ) ?? $text;
+
+        $text = preg_replace('/[ \t]+\n/', "\n", $text) ?? $text;
+        $text = preg_replace('/\n{3,}/', "\n\n", $text) ?? $text;
+        $text = preg_replace('/[ \t]{2,}/', ' ', $text) ?? $text;
+
+        return trim($text);
+    }
 }
