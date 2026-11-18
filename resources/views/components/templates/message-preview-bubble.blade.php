@@ -9,6 +9,7 @@
   use App\Domains\Templates\Support\WhatsAppTextFormatter;
 
   $isCompact = $size === 'compact';
+  $isInbox = $size === 'inbox';
   $bodyText = $previewData['body'] ?? 'Select a template to preview the message.';
   $bodyHtml = WhatsAppTextFormatter::toHtml($bodyText);
   $footerText = $previewData['footer'] ?? '';
@@ -39,13 +40,14 @@
 @endphp
 
 <div
-  @if ($live) id="template-live-preview" @endif
-  @class([
+  {{ $attributes->class([
     'mx-auto flex w-full flex-col gap-3 rounded-br-[12px] rounded-tl-[12px] rounded-tr-[12px] border border-solid border-border bg-elevated p-2',
-    'mt-[205px] max-w-[354px]' => ! $isCompact,
+    'mt-[205px] max-w-[354px]' => ! $isCompact && ! $isInbox,
     'mt-[160px] max-w-full' => $isCompact,
+    'mt-[205px] max-w-[354px]' => $isInbox,
     'max-h-[500px] overflow-x-hidden overflow-y-auto overscroll-contain' => $bubbleScrollable,
-  ])
+  ]) }}
+  @if ($live) id="template-live-preview" @endif
 >
   <div data-preview-standard @class(['contents' => ! $isCarousel, 'hidden' => $isCarousel])>
     <div

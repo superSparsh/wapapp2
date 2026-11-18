@@ -22,94 +22,60 @@
             <div class="absolute left-0 top-[278px] h-[62px] w-[3px] rounded-bl-[1px] rounded-tl-[1px] bg-border shadow-[inset_1px_0px_2px_0px_white]"></div>
             <div class="absolute right-0 top-[220px] h-[100px] w-[3px] rounded-br-[1px] rounded-tr-[1px] bg-border shadow-[inset_-1px_0px_2px_0px_white]"></div>
 
-            {{-- Screen --}}
+            {{-- Screen: match templates phone-frame for live template preview --}}
             <div class="absolute inset-[22px_25px] overflow-hidden rounded-[40px] bg-elevated">
                 <img
-                    src="{{ asset('images/inbox/modals/phone-screen.png') }}"
+                    src="{{ asset($liveTemplate ? 'images/templates/phone-bg.png' : 'images/inbox/modals/phone-screen.png') }}"
                     alt=""
-                    class="absolute inset-0 size-full rounded-[8px] object-cover"
+                    class="absolute inset-0 size-full rounded-[8px] object-cover object-top"
                     width="375"
                     height="854"
                 >
                 <x-ui.phone-preview-header-name size="default" class="inbox-phone-header-name" />
 
-                <div class="relative z-10 flex min-h-full flex-col p-3 pt-[100px]">
-                    @if (isset($preview) && ! $preview->isEmpty())
-                        {{ $preview }}
-                    @elseif ($liveTemplate)
-                        <div
-                            class="mx-auto mt-5 flex max-h-[579px] w-full max-w-[354px] flex-col overflow-x-hidden overflow-y-auto overscroll-contain rounded-br-[12px] rounded-tl-[12px] rounded-tr-[12px] border border-border bg-elevated p-2"
+                @if ($liveTemplate)
+                    <div class="relative h-full min-h-0 w-full overflow-x-hidden overflow-y-auto overscroll-contain p-2">
+                        <x-templates.message-preview-bubble
+                            size="inbox"
+                            scroll-body
                             data-inbox-template-preview
-                        >
-                            <img
-                                data-preview-header-image
-                                src=""
-                                alt=""
-                                class="hidden h-auto max-h-[250px] w-full shrink-0 rounded object-cover"
-                                width="100%"
-                                height="220"
-                            >
-                            <video
-                                data-preview-header-video
-                                src=""
-                                class="hidden max-h-40 w-full shrink-0 rounded object-cover"
-                                controls
-                                playsinline
-                            ></video>
-                            <p
-                                data-preview-header-text
-                                class="hidden w-full text-base font-semibold leading-[1.4] text-text-body"
-                                style="font-family: var(--font-display)"
-                            ></p>
-                            <p
-                                data-preview-body
-                                class="mt-3 whitespace-pre-wrap text-base font-normal leading-[1.4] text-text-body"
-                                style="font-family: var(--font-display)"
-                            >Select a template to preview the message.</p>
-                            <p
-                                data-preview-footer
-                                class="mt-2 hidden w-full text-xs font-normal leading-[1.4] text-text-subtle"
-                            ></p>
-                            <img
-                                data-preview-divider
-                                src="{{ asset('images/inbox/modals/vector-divider.svg') }}"
-                                alt=""
-                                class="my-3 hidden w-full"
-                                width="338"
-                                height="1"
-                            >
-                            <div data-preview-buttons class="flex w-full flex-col"></div>
-                        </div>
-                    @else
-                        <div class="mx-auto w-full max-w-[354px] rounded-br-[12px] rounded-tl-[12px] rounded-tr-[12px] border border-border bg-elevated p-2">
-                            <img
-                                src="{{ asset('images/inbox/modals/template-header-image.png') }}"
-                                alt=""
-                                class="aspect-[1600/800] w-full rounded object-cover"
-                                width="338"
-                                height="169"
-                            >
-                            <p class="mt-3 whitespace-pre-wrap text-base font-normal leading-[1.4] text-text-body" style="font-family: var(--font-display)">Hello Name (text) {(1)}
+                        />
+                    </div>
+                @else
+                    <div class="relative z-10 flex min-h-full flex-col p-3 pt-[100px]">
+                        @if (isset($preview) && ! $preview->isEmpty())
+                            {{ $preview }}
+                        @else
+                            <div class="mx-auto w-full max-w-[354px] rounded-br-[12px] rounded-tl-[12px] rounded-tr-[12px] border border-border bg-elevated p-2">
+                                <img
+                                    src="{{ asset('images/inbox/modals/template-header-image.png') }}"
+                                    alt=""
+                                    class="aspect-[1600/800] w-full rounded object-cover"
+                                    width="338"
+                                    height="169"
+                                >
+                                <p class="mt-3 whitespace-pre-wrap text-base font-normal leading-[1.4] text-text-body" style="font-family: var(--font-display)">Hello Name (text) {(1)}
 
 I am founder of ABC (Email){(2)}
 
 Thanks for reaching out</p>
-                            <img src="{{ asset('images/inbox/modals/vector-divider.svg') }}" alt="" class="my-3 block w-full" width="338" height="1">
-                            <div class="flex items-center justify-center gap-2 py-1">
-                                <img src="{{ asset('images/inbox/modals/call.svg') }}" alt="" class="size-4" width="16" height="16">
-                                <span class="text-base font-medium leading-[1.4] text-link-green" style="font-family: var(--font-display)">Call Us</span>
+                                <img src="{{ asset('images/inbox/modals/vector-divider.svg') }}" alt="" class="my-3 block w-full" width="338" height="1">
+                                <div class="flex items-center justify-center gap-2 py-1">
+                                    <img src="{{ asset('images/inbox/modals/call.svg') }}" alt="" class="size-4" width="16" height="16">
+                                    <span class="text-base font-medium leading-[1.4] text-link-green" style="font-family: var(--font-display)">Call Us</span>
+                                </div>
+                                <div class="flex items-center justify-center gap-2 py-1">
+                                    <img src="{{ asset('images/inbox/modals/export.svg') }}" alt="" class="size-4" width="16" height="16">
+                                    <span class="text-base font-medium leading-[1.4] text-link-green" style="font-family: var(--font-display)">Visit Our Website</span>
+                                </div>
+                                <div class="flex items-center justify-center gap-2 py-1">
+                                    <img src="{{ asset('images/inbox/modals/export.svg') }}" alt="" class="size-4" width="16" height="16">
+                                    <span class="text-base font-medium leading-[1.4] text-link-green" style="font-family: var(--font-display)">Order Now</span>
+                                </div>
                             </div>
-                            <div class="flex items-center justify-center gap-2 py-1">
-                                <img src="{{ asset('images/inbox/modals/export.svg') }}" alt="" class="size-4" width="16" height="16">
-                                <span class="text-base font-medium leading-[1.4] text-link-green" style="font-family: var(--font-display)">Visit Our Website</span>
-                            </div>
-                            <div class="flex items-center justify-center gap-2 py-1">
-                                <img src="{{ asset('images/inbox/modals/export.svg') }}" alt="" class="size-4" width="16" height="16">
-                                <span class="text-base font-medium leading-[1.4] text-link-green" style="font-family: var(--font-display)">Order Now</span>
-                            </div>
-                        </div>
-                    @endif
-                </div>
+                        @endif
+                    </div>
+                @endif
             </div>
         </div>
     </div>

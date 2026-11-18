@@ -3644,17 +3644,18 @@ function initInboxOutboundModals() {
     );
 
     const previewButtonIcon = (type) => {
-        if (type === 'phone') {
-            return '/images/inbox/modals/call.svg';
+        const normalized = String(type || '').toLowerCase();
+        if (normalized === 'phone' || normalized === 'phone_number') {
+            return '/images/templates/call.svg';
         }
-        if (type === 'flow') {
+        if (normalized === 'flow') {
             return '/images/templates/flow.svg';
         }
-        if (type === 'quick_reply') {
+        if (normalized === 'quick_reply' || normalized === 'copy_code') {
             return '/images/templates/quick-reply.svg';
         }
 
-        return '/images/inbox/modals/export.svg';
+        return '/images/templates/export.svg';
     };
 
     const applyInboxTemplatePreview = (preview, params = {}) => {
@@ -3664,8 +3665,14 @@ function initInboxOutboundModals() {
 
         const data = preview && typeof preview === 'object' ? preview : null;
         const headerType = data?.header_type || 'none';
+        const headerMediaVariable = String(data?.header_media_variable || '').trim();
         const headerImageEl = templatePreviewRoot.querySelector('[data-preview-header-image]');
         const headerVideoEl = templatePreviewRoot.querySelector('[data-preview-header-video]');
+        const headerDocumentEl = templatePreviewRoot.querySelector('[data-preview-header-document]');
+        const headerDocumentNameEl = templatePreviewRoot.querySelector('[data-preview-header-document-name]');
+        const headerAudioEl = templatePreviewRoot.querySelector('[data-preview-header-audio]');
+        const headerVariableEl = templatePreviewRoot.querySelector('[data-preview-header-variable]');
+        const headerVariableLabelEl = templatePreviewRoot.querySelector('[data-preview-header-variable-label]');
         const headerTextEl = templatePreviewRoot.querySelector('[data-preview-header-text]');
         const bodyEl = templatePreviewRoot.querySelector('[data-preview-body]');
         const footerEl = templatePreviewRoot.querySelector('[data-preview-footer]');
@@ -3678,9 +3685,26 @@ function initInboxOutboundModals() {
         const resolvedFooter = data ? substitutePreviewPlaceholders(data.footer || '', params) : '';
         const resolvedHeaderText = data ? substitutePreviewPlaceholders(data.header_text || '', params) : '';
 
-        const showImage = headerType === 'image' && !!data?.header_image;
-        const showVideo = headerType === 'video' && !!(data?.header_video || data?.header_image);
-        const showHeaderText = (headerType === 'text' || headerType === 'location') && resolvedHeaderText.trim() !== '';
+        const showVariable = headerMediaVariable !== ''
+            && ['image', 'video', 'document', 'audio'].includes(headerType);
+        const showImage = headerType === 'image' && !!data?.header_image && !showVariable;
+        const showVideo = headerType === 'video' && !!(data?.header_video || data?.header_image) && !showVariable;
+        const documentUrl = data?.header_document || '';
+        const documentName = String(data?.header_document_name || data?.doc_name || '').trim()
+            || (documentUrl ? String(documentUrl).split('/').pop()?.split('?')[0] : '')
+            || 'Document';
+        const showDocument = headerType === 'document' && !showVariable && (!!documentUrl || documentName !== 'Document' || !!data?.header_document_name);
+        const showAudio = headerType === 'audio' && !!data?.header_audio && !showVariable;
+        const showHeaderText = (headerType === 'text' || headerType === 'location') && (
+            resolvedHeaderText.trim() !== '' || headerType === 'location'
+        );
+
+        if (headerVariableEl) {
+            headerVariableEl.classList.toggle('hidden', !showVariable);
+            if (headerVariableLabelEl) {
+                headerVariableLabelEl.textContent = headerMediaVariable;
+            }
+        }
 
         if (headerImageEl) {
             headerImageEl.classList.toggle('hidden', !showImage);
@@ -3696,9 +3720,38 @@ function initInboxOutboundModals() {
             }
         }
 
+        if (headerDocumentEl) {
+            headerDocumentEl.classList.toggle('hidden', !showDocument);
+            if (documentUrl) {
+                headerDocumentEl.href = documentUrl;
+                headerDocumentEl.target = '_blank';
+                headerDocumentEl.rel = 'noopener noreferrer';
+                headerDocumentEl.removeAttribute('aria-disabled');
+                headerDocumentEl.classList.remove('pointer-events-none', 'opacity-70');
+            } else {
+                headerDocumentEl.href = '#';
+                headerDocumentEl.removeAttribute('target');
+                headerDocumentEl.removeAttribute('rel');
+                headerDocumentEl.setAttribute('aria-disabled', 'true');
+                headerDocumentEl.classList.add('pointer-events-none', 'opacity-70');
+            }
+            if (headerDocumentNameEl) {
+                headerDocumentNameEl.textContent = documentName;
+            }
+        }
+
+        if (headerAudioEl) {
+            headerAudioEl.classList.toggle('hidden', !showAudio);
+            if (showAudio) {
+                headerAudioEl.src = data.header_audio;
+            }
+        }
+
         if (headerTextEl) {
             headerTextEl.classList.toggle('hidden', !showHeaderText);
-            headerTextEl.textContent = resolvedHeaderText;
+            headerTextEl.textContent = headerType === 'location'
+                ? (resolvedHeaderText || '$(locationName)')
+                : resolvedHeaderText;
         }
 
         if (bodyEl) {
@@ -3735,8 +3788,7 @@ function initInboxOutboundModals() {
                 icon.height = 16;
 
                 const label = document.createElement('span');
-                label.className = 'text-base font-medium leading-[1.4] text-link-green';
-                label.style.fontFamily = 'var(--font-display)';
+                label.className = 'text-base font-medium leading-[1.4] whitespace-nowrap text-link-green';
                 label.textContent = text;
 
                 row.appendChild(icon);
