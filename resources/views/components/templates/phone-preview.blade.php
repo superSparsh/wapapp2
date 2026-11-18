@@ -17,4 +17,8 @@
       {{ $slot }}
     @endif
   </x-templates.phone-frame>
+
+  <p class="text-center text-xs leading-[1.45] text-text-subtle opacity-70" style="font-family: var(--font-display)">
+    Header media may look smaller in this preview. On WhatsApp, recipients will see it at its full size.
+  </p>
 </div>

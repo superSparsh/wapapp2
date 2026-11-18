@@ -113,4 +113,10 @@ Thanks for reaching out</p>
             </div>
         </div>
     </div>
+
+    @if ($liveTemplate)
+        <p class="mx-auto max-w-[425px] text-center text-xs leading-[1.45] text-text-subtle opacity-70" style="font-family: var(--font-display)">
+            Header media may look smaller in this preview. On WhatsApp, recipients will see it at its full size.
+        </p>
+    @endif
 </aside>
