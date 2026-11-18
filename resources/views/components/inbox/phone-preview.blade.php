@@ -38,21 +38,21 @@
                         {{ $preview }}
                     @elseif ($liveTemplate)
                         <div
-                            class="mx-auto w-full max-w-[354px] mt-5 rounded-br-[12px] rounded-tl-[12px] rounded-tr-[12px] border border-border bg-elevated p-2"
+                            class="mx-auto mt-5 flex max-h-[579px] w-full max-w-[354px] flex-col overflow-x-hidden overflow-y-auto overscroll-contain rounded-br-[12px] rounded-tl-[12px] rounded-tr-[12px] border border-border bg-elevated p-2"
                             data-inbox-template-preview
                         >
                             <img
                                 data-preview-header-image
                                 src=""
                                 alt=""
-                                class="hidden h-full w-full rounded object-cover"
+                                class="hidden h-auto max-h-[250px] w-full shrink-0 rounded object-cover"
                                 width="100%"
-                                height="300px"
+                                height="220"
                             >
                             <video
                                 data-preview-header-video
                                 src=""
-                                class="hidden max-h-40 w-full rounded object-cover"
+                                class="hidden max-h-40 w-full shrink-0 rounded object-cover"
                                 controls
                                 playsinline
                             ></video>

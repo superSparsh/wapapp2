@@ -6,6 +6,7 @@ namespace App\Domains\Inbox\Services;
 
 use App\Domains\Audience\Support\UnsubscribeToken;
 use App\Domains\Billing\Services\WalletService;
+use App\Domains\Campaigns\Services\CampaignTemplateParamsResolver;
 use App\Domains\Chatbot\Services\ChatbotFlowEngine;
 use App\Domains\Inbox\Jobs\SendOutboundMessageJob;
 use App\Domains\Templates\Services\TemplatePreviewService;
@@ -628,9 +629,12 @@ class InboxOutboundService
             ? $this->placeholderNamesFromTemplate($template)
             : array_keys($templateParams);
 
-        // Unsubscribe button templates always need `unsub`, even when body has no vars.
-        if ($template !== null && $this->templateMentionsUnsub($template) && ! in_array('unsub', $needed, true)) {
-            $needed[] = 'unsub';
+        // Campaigns always merge hidden system vars (unsub). Inbox UI hides them, so
+        // always inject even when local payload is sparse / CAMS-synced without buttons.
+        foreach (CampaignTemplateParamsResolver::HIDDEN_GRID_VARS as $hidden) {
+            if (! in_array($hidden, $needed, true)) {
+                $needed[] = $hidden;
+            }
         }
 
         $merged = $templateParams;
@@ -669,19 +673,6 @@ class InboxOutboundService
         }
 
         return TemplateVariableSyntax::extractVariableNames(implode("\n", $chunks));
-    }
-
-    private function templateMentionsUnsub(Template $template): bool
-    {
-        $encoded = json_encode($template->wizardPayload(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-
-        if (! is_string($encoded)) {
-            return false;
-        }
-
-        return str_contains($encoded, '$(unsub)')
-            || str_contains($encoded, '{{unsub}}')
-            || str_contains(strtolower($encoded), '"type":"unsubscribe"');
     }
 
     /**

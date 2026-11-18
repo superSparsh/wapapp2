@@ -241,6 +241,40 @@ class InboxOutboundTest extends TestCase
         $this->assertSame('Sparsh', $message->metadata['template_params']['name'] ?? null);
     }
 
+    public function test_template_send_auto_fills_unsub_when_local_payload_omits_unsubscribe_button(): void
+    {
+        // CAMS-synced / sparse local rows often lack button URLs even though the
+        // approved WhatsApp template still requires the `unsub` TemplateParam.
+        Template::factory()->create([
+            'name' => 'Synced Promo',
+            'code' => '1157227694167015424',
+            'whatsapp_line_id' => $this->testLine->id,
+            'payload' => array_merge(Template::defaultPayload(), [
+                'body' => ['text' => 'Hello $(name), check this offer.'],
+                'buttons' => [],
+            ]),
+        ]);
+
+        $conversation = $this->createConversation();
+
+        $this->actingAsTenantUser()
+            ->postJson(route('inbox.api.send-template', $conversation), [
+                'template_code' => '1157227694167015424',
+                'template_params' => ['name' => 'Sparsh'],
+            ])
+            ->assertCreated();
+
+        $message = Message::query()
+            ->where('conversation_id', $conversation->id)
+            ->where('message_type', MessageType::Template->value)
+            ->latest('id')
+            ->first();
+
+        $this->assertNotNull($message);
+        $this->assertSame(UnsubscribeToken::forContact($conversation->contact), $message->metadata['template_params']['unsub'] ?? null);
+        $this->assertSame('Sparsh', $message->metadata['template_params']['name'] ?? null);
+    }
+
     public function test_templates_api_lists_only_sendable_provider_templates(): void
     {
         Template::factory()->create([
