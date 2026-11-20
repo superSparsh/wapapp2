@@ -28,7 +28,7 @@
 <div class="flex flex-col gap-5 border-b border-divider p-5 sm:p-6">
   <div class="flex flex-col gap-1">
     <h2 class="text-base font-semibold text-text-primary">Basic information</h2>
-    <p class="text-sm text-text-subtle opacity-70">Name and phone used across inbox and team views.</p>
+    <p class="text-sm text-text-subtle opacity-70">Name used across inbox and team views. Contact number is optional.</p>
   </div>
 
   <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -41,8 +41,8 @@
     </x-form.input>
 
     <div class="sm:col-span-2 lg:col-span-1">
-      <x-form.input id="phone" name="phone" type="tel" :value="$phone" placeholder="10-digit mobile number" required :error="$errors->first('phone')" autocomplete="tel">
-        <x-slot:label>Contact number <span class="text-red-500">*</span></x-slot:label>
+      <x-form.input id="phone" name="phone" type="tel" :value="$phone" placeholder="Optional — 10-digit mobile number" :error="$errors->first('phone')" autocomplete="tel">
+        <x-slot:label>Contact number</x-slot:label>
       </x-form.input>
     </div>
   </div>

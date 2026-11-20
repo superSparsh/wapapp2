@@ -26,7 +26,7 @@ class StoreTeamMemberRequest extends FormRequest
             'first_name' => ['required', 'string', 'max:80'],
             'last_name' => ['required', 'string', 'max:80'],
             'phone' => [
-                'required',
+                'nullable',
                 'string',
                 'max:20',
                 Rule::unique('team_members', 'phone')->whereNull('deleted_at'),
@@ -48,7 +48,7 @@ class StoreTeamMemberRequest extends FormRequest
     {
         $this->merge([
             'email' => strtolower((string) $this->input('email')),
-            'phone' => PhoneNormalizer::normalize((string) $this->input('phone')),
+            'phone' => PhoneNormalizer::normalize($this->input('phone')),
         ]);
     }
 }

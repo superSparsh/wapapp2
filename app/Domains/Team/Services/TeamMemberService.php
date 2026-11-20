@@ -33,7 +33,7 @@ class TeamMemberService
         $plainPassword = $providedPassword ?? Str::password(20);
 
         $email = strtolower((string) $data['email']);
-        $phone = PhoneNormalizer::normalize((string) $data['phone']);
+        $phone = PhoneNormalizer::normalize($data['phone'] ?? null);
 
         // Soft-deleted rows still occupy unique indexes — release them before recreate.
         $this->releaseSoftDeletedConflicts($email, $phone);
@@ -105,7 +105,7 @@ class TeamMemberService
         $payload = [
             'first_name' => $data['first_name'],
             'last_name' => $data['last_name'],
-            'phone' => PhoneNormalizer::normalize((string) $data['phone']),
+            'phone' => PhoneNormalizer::normalize($data['phone'] ?? null),
         ];
 
         if (! empty($data['password'])) {

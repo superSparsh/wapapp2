@@ -67,6 +67,28 @@ class TeamMemberTest extends TestCase
         $response->assertRedirect(route('my-team.roles', $member));
     }
 
+    public function test_owner_can_create_team_member_without_phone(): void
+    {
+        Mail::fake();
+
+        $this->actingAsTenantUser()
+            ->post(route('my-team.store'), [
+                'first_name' => 'Ravi',
+                'last_name' => 'Kumar',
+                'phone' => '',
+                'email' => 'ravi.nophone@example.test',
+                'password' => 'password',
+                'password_confirmation' => 'password',
+                'role' => TeamMemberRole::Member->value,
+            ])
+            ->assertRedirect();
+
+        $member = TeamMember::query()->where('email', 'ravi.nophone@example.test')->first();
+
+        $this->assertNotNull($member);
+        $this->assertNull($member->phone);
+    }
+
     public function test_owner_can_update_permissions_and_manager_assignments(): void
     {
         $manager = TeamMember::factory()->manager()->create([
