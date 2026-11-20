@@ -54,8 +54,32 @@
 
   <div class="grid gap-4 overflow-visible md:grid-cols-2 xl:grid-cols-4">
     <x-ui.credit-stat-card label="Sent" icon="send" data-credit-key="sent" :value="number_format((int) ($credits['sent'] ?? 0)).'/'.number_format((int) ($credits['sent_limit'] ?? 1000))" />
-    <x-ui.credit-stat-card label="Marketing Conversations" icon="megaphone" data-credit-key="marketing" :value="number_format((int) ($credits['marketing'] ?? 0)).'/'.number_format((int) ($credits['marketing_limit'] ?? 1000))" />
-    <x-ui.credit-stat-card label="Utility Conversations" icon="wrench" data-credit-key="utility" :value="number_format((int) ($credits['utility'] ?? 0)).'/'.number_format((int) ($credits['utility_limit'] ?? 1000))" />
+
+    <x-ui.credit-stat-card
+      label="Marketing Conversations"
+      icon="megaphone"
+      data-credit-key="marketing"
+      :value="number_format((int) ($credits['marketing'] ?? 0)).'/'.number_format((int) ($credits['marketing_limit'] ?? 1000))"
+    >
+      <x-slot name="info">
+        <p class="font-semibold text-text-primary">Marketing</p>
+        <p>Messages you send to promote your business - offers, sales, new products, or “buy again” reminders.</p>
+        <p class="text-text-muted">Needs an approved marketing template. You can send these even if the customer hasn’t messaged you recently.</p>
+      </x-slot>
+    </x-ui.credit-stat-card>
+
+    <x-ui.credit-stat-card
+      label="Utility Conversations"
+      icon="wrench"
+      data-credit-key="utility"
+      :value="number_format((int) ($credits['utility'] ?? 0)).'/'.number_format((int) ($credits['utility_limit'] ?? 1000))"
+    >
+      <x-slot name="info">
+        <p class="font-semibold text-text-primary">Utility</p>
+        <p>Helpful updates about something the customer already did - order confirmation, delivery status, payment reminder, or account alert.</p>
+        <p class="text-text-muted">Not for promotions or sales. Needs an approved utility template.</p>
+      </x-slot>
+    </x-ui.credit-stat-card>
 
     @if ($showServiceFreeInfo)
       <x-ui.credit-stat-card
@@ -66,27 +90,43 @@
         :value="$serviceValue"
       >
         <x-slot name="info">
-          <div data-service-free-summary class="font-semibold text-text-primary">
-            {{ number_format($freeRemaining) }} free left this month
+          <p class="font-semibold text-text-primary">Service</p>
+          <p>Normal chat replies after a customer messages you. For 24 hours you can reply freely - no template needed.</p>
+          <p class="text-text-muted">After that window closes, use a template (marketing or utility) to message them again.</p>
+          <div class="space-y-1 border-t border-border pt-2">
+            <div data-service-free-summary class="font-semibold text-text-primary">
+              {{ number_format($freeRemaining) }} free left this month
+            </div>
+            <p data-service-free-rule class="text-text-muted">
+              {{ number_format($freePerNumber) }} free × {{ $whatsappNumbers }} {{ $whatsappNumberLabel }}
+              · not shared across numbers
+            </p>
+            @if (count($perLine) > 0)
+              <ul data-service-free-lines class="mt-1 space-y-1.5 border-t border-border pt-2">
+                @foreach ($perLine as $line)
+                  <li class="flex items-center justify-between gap-3">
+                    <span class="truncate font-medium text-text-primary">{{ $line['label'] }}</span>
+                    <span class="shrink-0 tabular-nums text-text-muted">{{ number_format((int) $line['remaining']) }}/{{ number_format((int) $line['limit']) }}</span>
+                  </li>
+                @endforeach
+              </ul>
+            @endif
           </div>
-          <p data-service-free-rule class="text-text-muted">
-            {{ number_format($freePerNumber) }} free × {{ $whatsappNumbers }} {{ $whatsappNumberLabel }}
-            · not shared across numbers
-          </p>
-          @if (count($perLine) > 0)
-            <ul data-service-free-lines class="mt-1 space-y-1.5 border-t border-border pt-2">
-              @foreach ($perLine as $line)
-                <li class="flex items-center justify-between gap-3">
-                  <span class="truncate font-medium text-text-primary">{{ $line['label'] }}</span>
-                  <span class="shrink-0 tabular-nums text-text-muted">{{ number_format((int) $line['remaining']) }}/{{ number_format((int) $line['limit']) }}</span>
-                </li>
-              @endforeach
-            </ul>
-          @endif
         </x-slot>
       </x-ui.credit-stat-card>
     @else
-      <x-ui.credit-stat-card label="Service messages" icon="headset" data-credit-key="service" :value="$serviceValue" />
+      <x-ui.credit-stat-card
+        label="Service messages"
+        icon="headset"
+        data-credit-key="service"
+        :value="$serviceValue"
+      >
+        <x-slot name="info">
+          <p class="font-semibold text-text-primary">Service</p>
+          <p>Normal chat replies after a customer messages or calls you. For 24 hours you can reply freely — no template needed.</p>
+          <p class="text-text-muted">After that window closes, use a template (marketing or utility) to message them again.</p>
+        </x-slot>
+      </x-ui.credit-stat-card>
     @endif
   </div>
 </section>

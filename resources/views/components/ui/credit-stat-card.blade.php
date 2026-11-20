@@ -25,7 +25,7 @@
           type="button"
           data-credit-info-trigger
           class="inline-flex size-5 shrink-0 items-center justify-center rounded-full text-text-muted transition-colors hover:bg-green-50 hover:text-green-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
-          aria-label="Free service messages info"
+          aria-label="{{ $label }} info"
           aria-expanded="false"
         >
           <svg class="size-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
