@@ -43,7 +43,7 @@
   @if ($hasInfo)
     <div
       data-credit-info-panel
-      class="pointer-events-none absolute left-0 right-0 top-[calc(100%+8px)] z-30 hidden rounded-xl border border-border bg-elevated p-3 text-left shadow-lg"
+      class="pointer-events-none absolute bottom-[calc(100%+8px)] left-0 right-0 z-30 hidden rounded-xl border border-border bg-elevated p-3 text-left shadow-lg"
       role="tooltip"
     >
       <div data-credit-info-body class="space-y-2 text-xs leading-relaxed text-text-body">

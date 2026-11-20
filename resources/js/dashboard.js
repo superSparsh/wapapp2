@@ -241,9 +241,6 @@ function initCreditInfoPopovers(root) {
                 close();
             }
         });
-
-        card.addEventListener('mouseenter', () => open());
-        card.addEventListener('mouseleave', () => close());
     });
 
     document.addEventListener('click', (event) => {
