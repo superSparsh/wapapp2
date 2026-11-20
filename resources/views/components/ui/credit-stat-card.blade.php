@@ -18,9 +18,8 @@
 
 <div {{ $attributes->class(['relative flex items-center gap-4 overflow-visible rounded-lg border border-[0.5px] border-border-light bg-elevated p-4']) }}>
   <div class="min-w-0 flex-1">
-    <p class="text-sm leading-[1.4] text-text-primary opacity-70" style="font-family: var(--font-display)">{{ $label }}</p>
-    <div class="relative mt-2 inline-flex max-w-full items-center gap-1.5">
-      <p data-credit-value class="text-2xl font-bold leading-[1.4] text-text-primary" style="font-family: var(--font-display)">{{ $value }}</p>
+    <div class="flex items-center gap-1.5">
+      <p class="text-sm leading-[1.4] text-text-primary opacity-70" style="font-family: var(--font-display)">{{ $label }}</p>
       @if ($hasInfo)
         <div
           data-credit-info-trigger
@@ -31,21 +30,24 @@
           <svg class="size-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
             <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
           </svg>
-
-          <div
-            data-credit-info-panel
-            class="pointer-events-none absolute bottom-[calc(100%+10px)] left-1/2 z-30 hidden w-[min(18rem,70vw)] -translate-x-1/2 rounded-xl border border-border bg-elevated p-3 text-left shadow-lg"
-            role="tooltip"
-          >
-            <div data-credit-info-body class="space-y-2 text-xs leading-relaxed text-text-body">
-              {{ $info }}
-            </div>
-          </div>
         </div>
       @endif
     </div>
+    <p data-credit-value class="mt-2 text-2xl font-bold leading-[1.4] text-text-primary" style="font-family: var(--font-display)">{{ $value }}</p>
   </div>
   <div class="flex size-[62px] shrink-0 items-center justify-center rounded-full bg-green-50">
     <img src="{{ $iconSrc }}" alt="" class="size-7 opacity-80" width="28" height="28">
   </div>
+
+  @if ($hasInfo)
+    <div
+      data-credit-info-panel
+      class="pointer-events-none fixed z-[80] hidden w-[min(20rem,calc(100vw-1.5rem))] rounded-xl border border-border bg-elevated p-3 text-left shadow-lg"
+      role="tooltip"
+    >
+      <div data-credit-info-body class="space-y-2 text-xs leading-relaxed text-text-body">
+        {{ $info }}
+      </div>
+    </div>
+  @endif
 </div>

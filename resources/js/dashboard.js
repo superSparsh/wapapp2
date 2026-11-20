@@ -203,7 +203,36 @@ function initCreditInfoPopovers(root) {
                 return;
             }
             panel.classList.add('hidden');
+            panel.style.top = '';
+            panel.style.left = '';
         });
+    };
+
+    const positionPanel = (trigger, panel) => {
+        panel.classList.remove('hidden');
+        panel.style.top = '0px';
+        panel.style.left = '0px';
+
+        const gap = 10;
+        const margin = 12;
+        const triggerRect = trigger.getBoundingClientRect();
+        const panelRect = panel.getBoundingClientRect();
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+
+        let left = triggerRect.left + (triggerRect.width / 2) - (panelRect.width / 2);
+        left = Math.max(margin, Math.min(left, viewportWidth - panelRect.width - margin));
+
+        let top = triggerRect.top - panelRect.height - gap;
+        if (top < margin) {
+            top = triggerRect.bottom + gap;
+        }
+        if (top + panelRect.height > viewportHeight - margin) {
+            top = Math.max(margin, viewportHeight - panelRect.height - margin);
+        }
+
+        panel.style.top = `${Math.round(top)}px`;
+        panel.style.left = `${Math.round(left)}px`;
     };
 
     root.querySelectorAll('[data-credit-info-trigger]').forEach((trigger) => {
@@ -212,18 +241,21 @@ function initCreditInfoPopovers(root) {
         }
         trigger.dataset.creditInfoBound = '1';
 
-        const panel = trigger.querySelector('[data-credit-info-panel]');
+        const card = trigger.closest('[data-credit-key], .relative');
+        const panel = card?.querySelector('[data-credit-info-panel]');
         if (!panel) {
             return;
         }
 
         const open = () => {
             closeAll(panel);
-            panel.classList.remove('hidden');
+            positionPanel(trigger, panel);
         };
 
         const close = () => {
             panel.classList.add('hidden');
+            panel.style.top = '';
+            panel.style.left = '';
         };
 
         trigger.addEventListener('mouseenter', open);

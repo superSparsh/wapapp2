@@ -28,7 +28,7 @@
 @endphp
 
 <section
-  class="relative z-0 flex min-h-[182px] flex-col justify-center gap-4 overflow-visible p-4 pt-0"
+  class="relative z-10 flex min-h-[182px] flex-col justify-center gap-4 overflow-visible p-4 pt-0"
   data-dashboard-credits
   data-credits-url="{{ route('dashboard.credits') }}"
 >
