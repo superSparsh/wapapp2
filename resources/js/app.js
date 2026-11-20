@@ -226,10 +226,7 @@ function initTeamPasswordGenerator() {
             });
         };
 
-        if (!passwordInput.value) {
-            fill(generateTeamPassword());
-        }
-
+        // Keep empty until the user clicks "Generate new password".
         generateButton?.addEventListener('click', () => {
             fill(generateTeamPassword());
             passwordInput.focus();
