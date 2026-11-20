@@ -203,58 +203,33 @@ function initCreditInfoPopovers(root) {
                 return;
             }
             panel.classList.add('hidden');
-            panel.classList.remove('pointer-events-auto');
-            panel.classList.add('pointer-events-none');
-            const trigger = panel.parentElement?.querySelector('[data-credit-info-trigger]');
-            if (trigger) {
-                trigger.setAttribute('aria-expanded', 'false');
-            }
         });
     };
 
     root.querySelectorAll('[data-credit-info-trigger]').forEach((trigger) => {
-        const card = trigger.closest('.relative');
-        const panel = card?.querySelector('[data-credit-info-panel]');
-        if (!card || !panel) {
+        if (trigger.dataset.creditInfoBound === '1') {
+            return;
+        }
+        trigger.dataset.creditInfoBound = '1';
+
+        const panel = trigger.querySelector('[data-credit-info-panel]');
+        if (!panel) {
             return;
         }
 
         const open = () => {
             closeAll(panel);
-            panel.classList.remove('hidden', 'pointer-events-none');
-            panel.classList.add('pointer-events-auto');
-            trigger.setAttribute('aria-expanded', 'true');
+            panel.classList.remove('hidden');
         };
 
         const close = () => {
-            panel.classList.add('hidden', 'pointer-events-none');
-            panel.classList.remove('pointer-events-auto');
-            trigger.setAttribute('aria-expanded', 'false');
+            panel.classList.add('hidden');
         };
 
-        trigger.addEventListener('click', (event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            if (panel.classList.contains('hidden')) {
-                open();
-            } else {
-                close();
-            }
-        });
-    });
-
-    document.addEventListener('click', (event) => {
-        if (!root.contains(event.target)) {
-            closeAll();
-            return;
-        }
-        if (!(event.target instanceof Element)) {
-            return;
-        }
-        if (event.target.closest('[data-credit-info-trigger], [data-credit-info-panel]')) {
-            return;
-        }
-        closeAll();
+        trigger.addEventListener('mouseenter', open);
+        trigger.addEventListener('mouseleave', close);
+        trigger.addEventListener('focus', open);
+        trigger.addEventListener('blur', close);
     });
 }
 
