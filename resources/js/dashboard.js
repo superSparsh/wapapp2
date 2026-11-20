@@ -197,71 +197,45 @@ function updateServiceFreeInfo(root, credits) {
 }
 
 function initCreditInfoPopovers(root) {
-    const closeAll = (except = null) => {
-        root.querySelectorAll('[data-credit-info-panel]').forEach((panel) => {
-            if (except && panel === except) {
-                return;
-            }
-            panel.classList.add('hidden');
-            panel.style.top = '';
-            panel.style.left = '';
-        });
-    };
-
-    const positionPanel = (trigger, panel) => {
-        panel.classList.remove('hidden');
-        panel.style.top = '0px';
-        panel.style.left = '0px';
-
-        const gap = 10;
-        const margin = 12;
-        const triggerRect = trigger.getBoundingClientRect();
-        const panelRect = panel.getBoundingClientRect();
-        const viewportWidth = window.innerWidth;
-        const viewportHeight = window.innerHeight;
-
-        let left = triggerRect.left + (triggerRect.width / 2) - (panelRect.width / 2);
-        left = Math.max(margin, Math.min(left, viewportWidth - panelRect.width - margin));
-
-        let top = triggerRect.top - panelRect.height - gap;
-        if (top < margin) {
-            top = triggerRect.bottom + gap;
-        }
-        if (top + panelRect.height > viewportHeight - margin) {
-            top = Math.max(margin, viewportHeight - panelRect.height - margin);
-        }
-
-        panel.style.top = `${Math.round(top)}px`;
-        panel.style.left = `${Math.round(left)}px`;
-    };
-
+    // CSS group-hover shows the tooltip; JS only keeps tall/right-edge panels inside the viewport.
     root.querySelectorAll('[data-credit-info-trigger]').forEach((trigger) => {
         if (trigger.dataset.creditInfoBound === '1') {
             return;
         }
         trigger.dataset.creditInfoBound = '1';
 
-        const card = trigger.closest('[data-credit-key], .relative');
-        const panel = card?.querySelector('[data-credit-info-panel]');
+        const panel = trigger.querySelector('[data-credit-info-panel]');
         if (!panel) {
             return;
         }
 
-        const open = () => {
-            closeAll(panel);
-            positionPanel(trigger, panel);
+        const place = () => {
+            panel.style.transform = '';
+            panel.style.left = '50%';
+            panel.style.right = 'auto';
+            panel.style.bottom = 'calc(100% + 10px)';
+            panel.style.top = 'auto';
+
+            const rect = panel.getBoundingClientRect();
+            const margin = 12;
+            let shiftX = 0;
+
+            if (rect.left < margin) {
+                shiftX = margin - rect.left;
+            } else if (rect.right > window.innerWidth - margin) {
+                shiftX = (window.innerWidth - margin) - rect.right;
+            }
+
+            if (rect.top < margin) {
+                panel.style.bottom = 'auto';
+                panel.style.top = 'calc(100% + 10px)';
+            }
+
+            panel.style.transform = `translateX(calc(-50% + ${Math.round(shiftX)}px))`;
         };
 
-        const close = () => {
-            panel.classList.add('hidden');
-            panel.style.top = '';
-            panel.style.left = '';
-        };
-
-        trigger.addEventListener('mouseenter', open);
-        trigger.addEventListener('mouseleave', close);
-        trigger.addEventListener('focus', open);
-        trigger.addEventListener('blur', close);
+        trigger.addEventListener('mouseenter', () => requestAnimationFrame(place));
+        trigger.addEventListener('focus', () => requestAnimationFrame(place));
     });
 }
 
