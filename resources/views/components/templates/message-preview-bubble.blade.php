@@ -42,10 +42,11 @@
 <div
   {{ $attributes->class([
     'mx-auto flex w-full flex-col gap-3 rounded-br-[12px] rounded-tl-[12px] rounded-tr-[12px] border border-solid border-border bg-elevated p-2',
-    // Clear WhatsApp chrome (status + green header) so header media never sits under the name overlay.
-    'mt-[220px] max-w-[354px]' => ! $isCompact && ! $isInbox,
-    'mt-[170px] max-w-full' => $isCompact,
-    'mt-[220px] max-w-[354px]' => $isInbox,
+    // Live builder preview uses #template-live-preview { margin-top: 57% } in CSS.
+    'max-w-[354px]' => $live || $isInbox || ! $isCompact,
+    'max-w-full' => ! $live && $isCompact,
+    'mt-[220px]' => ! $live && ($isInbox || ! $isCompact),
+    'mt-[170px]' => ! $live && $isCompact,
     'max-h-[500px] overflow-x-hidden overflow-y-auto overscroll-contain' => $bubbleScrollable,
   ]) }}
   @if ($live) id="template-live-preview" @endif

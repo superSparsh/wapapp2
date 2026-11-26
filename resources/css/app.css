@@ -290,6 +290,11 @@
         opacity: 0.5;
     }
 
+    /* Template builder + free-form live phone preview only */
+    #template-live-preview {
+        margin-top: 57%;
+    }
+
     .phone-preview-header-name {
         position: absolute;
         z-index: 20;
@@ -302,7 +307,7 @@
         font-weight: 600;
         color: #fff;
         /* Match WhatsApp header green so the baked-in "Judy Smith" name is covered cleanly */
-        background-color: #075e54;
+        background-color: #377e6b;
         line-height: 1.2;
         pointer-events: none;
         text-align: left;
@@ -319,8 +324,8 @@
     }
 
     .phone-preview-header-name--default {
-        top: 8.6%;
-        left: 18.5%;
+        top: 7%;
+        left: 18%;
         width: 46%;
         height: 28px;
         padding: 0 6px;
