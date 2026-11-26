@@ -345,8 +345,8 @@
 
     /* Inbox phone preview only (send template / media / etc.) */
     .inbox-phone-header-name.phone-preview-header-name--default {
-        top: 8.6%;
-        left: 18.5%;
+        top: 7%;
+        left: 18%;
         width: 46%;
         height: 28px;
         margin-top: 0;
